@@ -9,7 +9,7 @@ function App() {
     <div className="p-6">
       <h1 className="text-3xl font-bold text-green-600">
         Tailwind v4 is working
-        <Button>Test</Button>
+        <Button variant='default'>Test</Button>
       </h1>
     </div>
   );
