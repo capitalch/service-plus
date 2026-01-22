@@ -11,7 +11,7 @@ function App() {
       <h1 className="text-3xl font-bold text-green-600 ">
         Tailwind v4 is working!
       </h1>
-      <Button variant='warning'>
+      <Button variant='default' size='lg'>
         <AlertTriangle />
         Warning
       </Button>
