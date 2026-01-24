@@ -6,6 +6,20 @@
 	- GraphQL
 	- Tailwind
 	- lucide-react
+# To learn
+- Client
+	- Tanstack query and router
+	- shadcn forms and zod
+	- Framer motion
+	- Playwrite
+- Server
+	- Temporal
+	- cloudfare worker
+- Productivity
+	- TlDraw
+	- Excaldraw
+	- Linear
+
 - Learning stack
 	- pnpm package manager
 	- GraphQL Subscriptions support
