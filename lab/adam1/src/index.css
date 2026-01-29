@@ -113,6 +113,30 @@
   --shadow-2xl: 0px 5px 10px -2px hsl(0 0% 0% / 0.25);
 }
 
+/* Global cursor-pointer for clickable elements */
+button,
+[role="button"],
+[type="button"],
+[type="submit"],
+[type="reset"],
+a,
+label[for],
+select,
+input[type="checkbox"],
+input[type="radio"],
+[data-slot="button"],
+[data-slot="dropdown-menu-trigger"],
+[data-slot="dropdown-menu-item"],
+[data-slot="select-trigger"],
+[data-slot="combobox-trigger"],
+[data-slot="dialog-close"],
+[data-slot="alert-dialog-action"],
+[data-slot="alert-dialog-cancel"],
+[data-radix-collection-item],
+[cmdk-item] {
+  cursor: pointer;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);

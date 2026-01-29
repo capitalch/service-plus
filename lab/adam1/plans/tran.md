@@ -1,0 +1,12 @@
+# Instructions
+- Create a modern collapsible responsive sidebar for menu and also create top navigation bar with global search
+- At present keep following menu items in sidebar
+    - Dashboard
+        - Create a Sample dashboard
+    - Shadcn components
+        - Move existing ComponentExample in this menu item
+    - Example form
+        - Create a new form for capturing customer details using shadcn, react-hook-form and zod
+    - Customer portal
+        - Here the customers can have a query for repair status of their product
+- menu items can have further dropdown components

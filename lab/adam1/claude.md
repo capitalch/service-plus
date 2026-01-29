@@ -1,0 +1,14 @@
+# instructions
+    - When any text command is given to claude and last word is plan then do the plan only for the given command. Write your plan in the plan.md file in the plans folder in root. Overwrite plan.md if required.
+    - In plan.md write all the steps of execution as Step1, Step 2 and so on.
+    - When creating a form never use red color for any control css. Red color will only be used for indicating errors.
+    - Always make use of shadcn components and framer-motion for transition wherever required
+    - For forms use react-hook-form and zod for validations and business rules
+    - Use GraphQL with subscription support for authenticated query. Use apollo for GraphQL
+    - Use TanStack query and Tanstack router
+    - Use Sonner for notifications
+    - Generate GraphQL types using codegen
+    - use pnpm and not npm
+    - For global state management use redux
+    - When creating a form, the * for mandatory fields should be red color
+    - Generate GraphQL types using codegen

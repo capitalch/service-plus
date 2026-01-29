@@ -12,4 +12,5 @@
 	- For themes use tweakcn
 	- Use v0 as an AI tool
 
-
+## add sonner
+pnpm dlx shadcn@latest add sonner

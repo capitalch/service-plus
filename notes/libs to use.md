@@ -1,11 +1,23 @@
-# Service management software
-- Client side
-	- Vite + react
-	- Redux
-	- Syncfusion grid
-	- GraphQL
-	- Tailwind
-	- lucide-react
+## Service management software
+# Final technology stack
+	- Client side
+		React + Typescript + Tailwind + ShadCN + lucideReact
+		GraphQL
+		React-hook-form + Zod
+		Tanstack Query + Router
+		Redux
+		Command Pallette
+		Notifications: Sonner
+		framer-motion
+		Linting and formatting: eslint prettier eslint-config-prettier
+		Generate GraphQL types using codegen
+		strict mode in tsconfig
+	- Server side
+		Database: PostGreSql
+		Python fastApi + GraphQL + Pydantic
+# Requirements
+	- Service management
+	- Spare parts inventory management
 # To learn
 - Client
 	- Tanstack query and router
