@@ -1,4 +1,5 @@
 ## Service management software
+- A web app to completely manage 
 # Final technology stack
 	- Client side
 		React + Typescript + Tailwind + ShadCN + lucideReact
@@ -18,6 +19,7 @@
 # Requirements
 	- Service management
 	- Spare parts inventory management
+	- Role based access management
 # To learn
 - Client
 	- Tanstack query and router

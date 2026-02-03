@@ -1,4 +1,5 @@
 ## Marktext
+
 # gemini
 
 ## 1. Project Overview & Architecture
@@ -120,8 +121,6 @@ We will implement a **fixed, three-tier role system** to minimize complexity whi
 - **Command Palette:** `Ctrl + K` interface for technicians to quickly jump to "Part Finder" or "Open Ticket #1234."
 
 - **Notifications:** Real-time feedback using **Sonner** for successful saves or low-stock warnings.
-
-
 
 # Chatgpt
 
@@ -548,8 +547,6 @@ Status transitions are audited and role-controlled.
 ---
 
 **This document serves as the baseline functional and technical specification for development, estimation, and phased implementation.
-
-
 
 # Claude
 
