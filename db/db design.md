@@ -2,10 +2,6 @@
 
 - customer_contact
   - id  bigint pk identity
-  
-  - is_active
-  - created_at  timestamptz NOT NULL DEFAULT now()
-  - updated_at  timestamptz NOT NULL DEFAULT now()
 
   - customer_type: INDIVIDUAL, BUSINESS, CORPORATE, DEALER
   - first_name  nullable for business
@@ -17,14 +13,18 @@
   - alternate_mobile  text
   - email text
 
+  
   - address_line1 text not null,
   - address_line2 text,
   - landmark text
   - state_id int not null, fk -> state(id)
   - city_id int not null, fk -> city(id)
   - postal_code PIN code
-  - country_code text default 'IN'
   - remarks text
+
+  - is_active
+  - created_at  timestamptz NOT NULL DEFAULT now()
+  - updated_at  timestamptz NOT NULL DEFAULT now()
 
   - CHECK (
     (customer_type = 'INDIVIDUAL' AND first_name IS NOT NULL AND last_name IS NOT NULL)
@@ -46,7 +46,7 @@
 
     code text NOT NULL,        -- WB, MH, DL
     name text NOT NULL,        -- West Bengal
-    country_code char(2) NOT NULL DEFAULT 'IN',
+    country_code text NOT NULL DEFAULT 'IN',
 
     gst_state_code char(2),    -- 19, 27 (important for GST)
     is_union_territory boolean DEFAULT false NOT NULL,
@@ -69,7 +69,6 @@
     state_id int NOT NULL REFERENCES state(id) ON DELETE RESTRICT,
 
     name text NOT NULL,        -- Kolkata
-    code text,                 -- optional internal code
     is_active boolean DEFAULT true NOT NULL,
 
     created_at timestamptz NOT NULL DEFAULT now(),
@@ -148,7 +147,7 @@
     code text NOT NULL,              -- TECH001
     name text NOT NULL,              -- Full display name
 
-    phone text NOT NULL,
+    phone text NULL,
     email text,
 
     specialization text,             -- AC, TV, Camera, Laptop etc
@@ -173,7 +172,7 @@
 
     -- Unique technician code per BU
     CREATE UNIQUE INDEX technician_bu_code_uidx
-    ON technician(bu_id, code);
+    ON technician(branch_id, code);
 
     -- Performance indexes
     CREATE INDEX technician_branch_idx ON technician(branch_id);
@@ -186,6 +185,147 @@
     | `job`             | job assigned to technician  |
     | `job_transaction` | technician action history   |
     | `user` (optional) | technician may have login   |
+
+- job_receive_type
+  CREATE TABLE service.job_receive_type (
+    id smallint PRIMARY KEY,   -- NOT identity
+
+    code text NOT NULL UNIQUE,
+    name text NOT NULL,
+
+    is_system boolean DEFAULT true NOT NULL,
+    is_active boolean DEFAULT true NOT NULL,
+
+    display_order smallint DEFAULT 0 NOT NULL,
+
+    created_at timestamptz DEFAULT now() NOT NULL,
+    updated_at timestamptz DEFAULT now() NOT NULL
+    );
+
+    INSERT INTO job_receive_type (id, code, name, display_order)
+    VALUES
+    (1, 'WALK_IN', 'Walk-in', 1),
+    (2, 'COURIER', 'Courier', 2),
+    (3, 'PICKUP', 'Pickup', 3),
+    (4, 'ONLINE', 'Online Booking', 4);
+
+- job_receive_source
+  CREATE TABLE service.job_receive_source (
+    id smallint PRIMARY KEY,     -- FIXED SYSTEM IDs
+
+    code text NOT NULL UNIQUE,
+    name text NOT NULL,
+
+    description text,
+
+    is_system boolean DEFAULT true NOT NULL,
+    is_active boolean DEFAULT true NOT NULL,
+
+    display_order smallint DEFAULT 0 NOT NULL,
+
+    created_at timestamptz DEFAULT now() NOT NULL,
+    updated_at timestamptz DEFAULT now() NOT NULL
+  );
+  INSERT INTO service.job_receive_source (id, code, name, display_order)
+  VALUES
+  (1, 'CUSTOMER_DIRECT', 'Customer Direct', 1),
+  (2, 'DEALER', 'Dealer', 2),
+  (3, 'AUTHORIZED_CENTER', 'Authorized Service Center', 3),
+  (4, 'ONLINE_PORTAL', 'Online Portal', 4),
+  (5, 'CALL_CENTER', 'Call Center', 5),
+  (6, 'MARKETPLACE', 'Marketplace', 6);
+
+- job_status
+  CREATE TABLE service.job_status (
+    id smallint PRIMARY KEY,
+
+    code text NOT NULL UNIQUE,
+    name text NOT NULL,
+
+    description text,
+
+    display_order smallint NOT NULL,
+
+    -- workflow semantics
+    is_initial boolean DEFAULT false NOT NULL,
+    is_final boolean DEFAULT false NOT NULL,
+
+    -- business flags
+    allows_billing boolean DEFAULT false NOT NULL,
+    allows_payment boolean DEFAULT false NOT NULL,
+    allows_part_issue boolean DEFAULT false NOT NULL,
+
+    -- visibility / control
+    is_active boolean DEFAULT true NOT NULL,
+    is_system boolean DEFAULT true NOT NULL,
+
+    created_at timestamptz DEFAULT now() NOT NULL,
+    updated_at timestamptz DEFAULT now() NOT NULL,
+
+    CONSTRAINT job_status_code_check CHECK (code ~ '^[A-Z_]+$'),
+    CONSTRAINT job_status_unique_initial CHECK (
+        (is_initial IS FALSE)
+        OR
+        (is_initial IS TRUE)
+    )
+  );
+  INSERT INTO service.job_status
+    (id, code, name, display_order,
+     is_initial, is_final, allows_billing, allows_payment, allows_part_issue)
+    VALUES
+    (1, 'RECEIVED', 'Received', 1, true, false, false, false, false),
+    (2, 'IN_DIAGNOSIS', 'In Diagnosis', 2, false, false, false, false, false),
+    (3, 'WAITING_FOR_PARTS', 'Waiting for Spare Parts', 3, false, false, false, false, false),
+    (4, 'IN_REPAIR', 'In Repair', 4, false, false, false, false, true),
+    (5, 'READY', 'Ready for Delivery', 5, false, false, true, true, false),
+    (6, 'DELIVERED', 'Delivered', 6, false, true, false, false, false),
+    (7, 'CANCELLED', 'Cancelled', 99, false, true, false, false, false);
+
+- job_transaction_type
+  CREATE TABLE service.job_transaction_type (
+    id smallint PRIMARY KEY,
+
+    code text NOT NULL UNIQUE,
+    name text NOT NULL,
+
+    description text,
+
+    display_order smallint NOT NULL,
+
+    is_active boolean DEFAULT true NOT NULL,
+    is_system boolean DEFAULT true NOT NULL,
+
+    created_at timestamptz DEFAULT now() NOT NULL,
+    updated_at timestamptz DEFAULT now() NOT NULL
+    );
+    INSERT INTO service.job_transaction_type
+    (id, code, name, description, display_order, is_active, is_system)
+    VALUES
+    -- Job lifecycle
+    (1, 'JOB_CREATED',        'Job Created',        'Initial job entry at reception',                 1,  true, true),
+    (2, 'JOB_UPDATED',        'Job Updated',        'General job detail update',                      2,  true, true),
+    (3, 'STATUS_CHANGED',     'Status Changed',     'Job status transition',                          3,  true, true),
+
+    -- Diagnosis & repair
+    (10, 'DIAGNOSIS_ADDED',   'Diagnosis Added',    'Fault diagnosis recorded',                       10, true, true),
+    (11, 'REPAIR_STARTED',   'Repair Started',     'Repair work started',                            11, true, true),
+    (12, 'REPAIR_COMPLETED', 'Repair Completed',   'Repair work completed',                          12, true, true),
+
+    -- Spare parts
+    (20, 'PART_RESERVED',    'Part Reserved',      'Spare part reserved for job',                    20, true, true),
+    (21, 'PART_USED',        'Part Used',          'Spare part consumed in job',                     21, true, true),
+    (22, 'PART_RETURNED',    'Part Returned',      'Unused part returned to stock',                  22, true, true),
+
+    -- Billing & payment
+    (30, 'ESTIMATE_CREATED', 'Estimate Created',   'Repair estimate generated',                      30, true, true),
+    (31, 'INVOICE_CREATED',  'Invoice Created',    'Final job invoice created',                      31, true, true),
+    (32, 'PAYMENT_RECEIVED', 'Payment Received',   'Payment received against job',                  32, true, true),
+    (33, 'REFUND_ISSUED',    'Refund Issued',      'Refund issued to customer',                      33, true, true),
+
+    -- Closure
+    (40, 'JOB_READY',        'Job Ready',          'Job marked ready for delivery',                  40, true, true),
+    (41, 'JOB_DELIVERED',    'Job Delivered',      'Job delivered to customer',                      41, true, true),
+    (42, 'JOB_CLOSED',       'Job Closed',         'Job closed and archived',                        42, true, true);
 
 
 - job
@@ -258,7 +398,58 @@
     job                 1 ────* job_part_used
     job                 1 ────1 job_invoice
     job                 1 ────* job_payment
+    CREATE TABLE service.job (
+    id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
 
+    job_no text NOT NULL UNIQUE,
+    job_date date NOT NULL DEFAULT current_date,
+
+    customer_contact_id bigint NOT NULL
+        REFERENCES service.customer_contact(id),
+
+    branch_id bigint NOT NULL
+        REFERENCES service.branch(id),
+
+    technician_id bigint
+        REFERENCES service.technician(id),
+
+    job_status_id smallint NOT NULL
+        REFERENCES service.job_status(id),
+
+    job_receive_type_id smallint NOT NULL
+        REFERENCES service.job_receive_type(id),
+
+    job_receive_source_id smallint
+        REFERENCES service.job_receive_source(id),
+
+    product_brand_model_id bigint
+        REFERENCES service.product_brand_model(id),
+
+    serial_no text,
+    problem_reported text NOT NULL,
+    diagnosis text,
+    work_done text,
+    remarks text,
+
+    estimated_amount numeric(12,2),
+    final_amount numeric(12,2),
+
+    delivery_date date,
+
+    is_warranty boolean DEFAULT false NOT NULL,
+    warranty_card_no text,
+
+    is_active boolean DEFAULT true NOT NULL,
+
+    created_at timestamptz DEFAULT now() NOT NULL,
+    updated_at timestamptz DEFAULT now() NOT NULL
+    );
+
+    CREATE INDEX idx_job_customer ON service.job(customer_contact_id);
+    CREATE INDEX idx_job_branch ON service.job(branch_id);
+    CREATE INDEX idx_job_status ON service.job(job_status_id);
+    CREATE INDEX idx_job_product_model ON service.job(product_brand_model_id);
+    CREATE INDEX idx_job_delivery_date ON service.job(delivery_date);
 
 
 - job_transaction
@@ -268,14 +459,6 @@
 - job_invoice
 
 - job_payment
-
-- job_receive_type
-
-- job_receive_source
-
-- job_status
-
-- job_transaction_type
 
 - product
 
@@ -306,8 +489,6 @@
 - sales_invoice
 
 - sales_line_item
-
-- technician
 
 
 ## Security database
