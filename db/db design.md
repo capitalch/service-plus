@@ -186,6 +186,27 @@
     | `job_transaction` | technician action history   |
     | `user` (optional) | technician may have login   |
 
+- company_info
+    CREATE TABLE public.company_info (
+    id smallint PRIMARY KEY,
+
+    company_name text NOT NULL,
+
+    address_line1 text NOT NULL,
+    address_line2 text,
+    city text,
+    state text,
+    country text DEFAULT 'IN',
+    pincode text,
+
+    phone text,
+    email text,
+
+    gstin text, -- NULL = non-GST company
+
+    is_active boolean NOT NULL DEFAULT true
+    );
+
 - job_receive_type
   CREATE TABLE service.job_receive_type (
     id smallint PRIMARY KEY,   -- NOT identity
@@ -327,7 +348,6 @@
     (41, 'JOB_DELIVERED',    'Job Delivered',      'Job delivered to customer',                      41, true, true),
     (42, 'JOB_CLOSED',       'Job Closed',         'Job closed and archived',                        42, true, true);
 
-
 - job
     CREATE TABLE public.job (
     id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -451,15 +471,359 @@
     CREATE INDEX idx_job_product_model ON service.job(product_brand_model_id);
     CREATE INDEX idx_job_delivery_date ON service.job(delivery_date);
 
-
 - job_transaction
+    CREATE TABLE service.job_transaction (
+    id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
 
-- job_part_used
+    job_id bigint NOT NULL
+        REFERENCES service.job(id) ON DELETE CASCADE,
+
+    transaction_type_id smallint NOT NULL
+        REFERENCES service.job_transaction_type(id),
+
+    from_status_id smallint
+        REFERENCES service.job_status(id),
+
+    to_status_id smallint
+        REFERENCES service.job_status(id),
+
+    technician_id bigint
+        REFERENCES service.technician(id),
+
+    amount numeric(12,2),
+
+    notes text,
+
+    performed_by_user_id bigint NOT NULL
+        REFERENCES security."user"(id),
+
+    performed_at timestamptz DEFAULT now() NOT NULL
+    );
+    CREATE INDEX idx_job_transaction_job_id
+    ON service.job_transaction(job_id);
+
+    CREATE INDEX idx_job_transaction_performed_at
+        ON service.job_transaction(performed_at);
+
+    CREATE INDEX idx_job_transaction_type
+        ON service.job_transaction(transaction_type_id);
+
+    CREATE INDEX idx_job_transaction_to_status
+        ON service.job_transaction(to_status_id);
+
+- job_part_used: inventory items
+    CREATE TABLE service.job_part_used (
+    id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+
+    job_id bigint NOT NULL
+        REFERENCES service.job(id) ON DELETE RESTRICT,
+
+    spare_part_id bigint NOT NULL
+        REFERENCES inventory.spare_part(id),
+
+    quantity numeric(10,2) NOT NULL CHECK (quantity > 0),
+
+    used_at timestamptz NOT NULL DEFAULT now()
+    );
+
+- job_charge: Every non inventory item
+    CREATE TABLE service.job_charge (
+    id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+
+    job_id bigint NOT NULL
+        REFERENCES service.job(id) ON DELETE CASCADE,
+
+    charge_type_id bigint NOT NULL
+        REFERENCES service.job_charge_type(id),
+
+    description text NOT NULL,
+
+    hsn_code text,
+    gst_rate numeric(5,2) NOT NULL DEFAULT 0,
+
+    taxable_amount numeric(12,2) NOT NULL CHECK (taxable_amount >= 0),
+    gst_amount numeric(12,2) NOT NULL CHECK (gst_amount >= 0),
+    total_amount numeric(12,2) NOT NULL CHECK (total_amount >= 0),
+
+    created_at timestamptz DEFAULT now() NOT NULL
+    );
+
+    CHECK (
+    total_amount = taxable_amount + gst_amount
+    )
+
+    CHECK (
+    abs(total_amount - (taxable_amount + gst_amount)) < 0.05
+    )
+
+- job_charge_type
+    CREATE TABLE service.job_charge_type (
+    id bigint PRIMARY KEY,
+    code text UNIQUE NOT NULL,
+    name text NOT NULL,
+    hsn_code text,
+    gst_rate numeric(5,2) DEFAULT 0,
+    is_active boolean DEFAULT true NOT NULL
+    );
+
+- stock_transaction
+    CREATE TABLE inventory.stock_transaction (
+    id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+
+    spare_part_id bigint NOT NULL,
+    job_id bigint,
+
+    transaction_type text NOT NULL
+        CHECK (transaction_type IN ('IN', 'OUT', 'ADJUST')),
+
+    quantity numeric(10,2) NOT NULL CHECK (quantity > 0),
+
+    reference_table text NOT NULL,
+    reference_id bigint NOT NULL,
+
+    created_at timestamptz DEFAULT now() NOT NULL
+    );
 
 - job_invoice
+    CREATE TABLE service.job_invoice (
+    id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+
+    job_id bigint NOT NULL
+        REFERENCES service.job(id) ON DELETE RESTRICT,
+
+    company_id smallint NOT NULL
+        REFERENCES public.company_info(id),
+
+    invoice_no text NOT NULL,
+    invoice_date date NOT NULL DEFAULT current_date,
+
+    supply_state_code char(2) NOT NULL, -- customer state (GST code)
+
+    is_inter_state boolean NOT NULL,
+
+    taxable_amount numeric(14,2) NOT NULL,
+
+    cgst_amount numeric(14,2) NOT NULL DEFAULT 0,
+    sgst_amount numeric(14,2) NOT NULL DEFAULT 0,
+    igst_amount numeric(14,2) NOT NULL DEFAULT 0,
+
+    total_tax numeric(14,2) NOT NULL,
+    total_amount numeric(14,2) NOT NULL,
+
+    created_at timestamptz NOT NULL DEFAULT now(),
+
+    UNIQUE (company_id, invoice_no)
+    );
+
+- job_invoice_line: Represents each billable line item in a job invoice. It may reference: job_part_used (spare parts), job_charge (labor / misc / diagnosis / transport etc.)
+    CREATE TABLE service.job_invoice_line (
+    id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+
+    job_invoice_id bigint NOT NULL
+        REFERENCES service.job_invoice(id) ON DELETE CASCADE,
+
+    description text NOT NULL,
+    hsn_code text NOT NULL,
+
+    quantity numeric(10,2) NOT NULL CHECK (quantity > 0),
+    unit_price numeric(12,2) NOT NULL CHECK (unit_price >= 0),
+
+    gst_rate numeric(5,2) NOT NULL DEFAULT 0,
+
+    taxable_amount numeric(12,2) NOT NULL,
+
+    cgst_rate numeric(5,2) NOT NULL DEFAULT 0,
+    sgst_rate numeric(5,2) NOT NULL DEFAULT 0,
+    igst_rate numeric(5,2) NOT NULL DEFAULT 0,
+
+    cgst_amount numeric(12,2) NOT NULL DEFAULT 0,
+    sgst_amount numeric(12,2) NOT NULL DEFAULT 0,
+    igst_amount numeric(12,2) NOT NULL DEFAULT 0,
+
+    total_amount numeric(12,2) NOT NULL
+    );
+
+- purchase_invoice
+    CREATE TABLE service.purchase_invoice (
+    id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+
+    supplier_id bigint NOT NULL
+        REFERENCES service.supplier(id),
+
+    invoice_no text NOT NULL,
+    invoice_date date NOT NULL,
+
+    supplier_state_code char(2) NOT NULL,
+
+    is_inter_state boolean NOT NULL,
+
+    taxable_amount numeric(14,2) NOT NULL,
+
+    cgst_amount numeric(14,2) NOT NULL DEFAULT 0,
+    sgst_amount numeric(14,2) NOT NULL DEFAULT 0,
+    igst_amount numeric(14,2) NOT NULL DEFAULT 0,
+
+    total_tax numeric(14,2) NOT NULL,
+    total_amount numeric(14,2) NOT NULL,
+
+    remarks text,
+
+    created_at timestamptz NOT NULL DEFAULT now(),
+
+    UNIQUE (supplier_id, invoice_no)
+    );
+
+    CREATE INDEX idx_purchase_invoice_supplier
+    ON service.purchase_invoice(supplier_id);
+
+- purchase_invoice_line
+    CREATE TABLE service.purchase_invoice_line (
+    id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+
+    purchase_invoice_id bigint NOT NULL
+        REFERENCES service.purchase_invoice(id) ON DELETE CASCADE,
+
+    spare_part_id bigint NOT NULL
+        REFERENCES service.spare_part(id),
+
+    hsn_code text NOT NULL,
+
+    quantity numeric(12,2) NOT NULL CHECK (quantity > 0),
+
+    unit_price numeric(12,2) NOT NULL CHECK (unit_price >= 0),
+
+    gst_rate numeric(5,2) NOT NULL DEFAULT 0,
+
+    taxable_amount numeric(12,2) NOT NULL,
+
+    cgst_rate numeric(5,2) NOT NULL DEFAULT 0,
+    sgst_rate numeric(5,2) NOT NULL DEFAULT 0,
+    igst_rate numeric(5,2) NOT NULL DEFAULT 0,
+
+    cgst_amount numeric(12,2) NOT NULL DEFAULT 0,
+    sgst_amount numeric(12,2) NOT NULL DEFAULT 0,
+    igst_amount numeric(12,2) NOT NULL DEFAULT 0,
+
+    total_amount numeric(12,2) NOT NULL
+    );
+
+    CREATE UNIQUE INDEX uq_purchase_invoice_line
+    ON service.purchase_invoice_line(purchase_invoice_id, line_no);
+
+    CREATE INDEX idx_purchase_invoice_line_spare_part
+    ON service.purchase_invoice_line(spare_part_id);
+
+- sales_invoice
+    CREATE TABLE service.sales_invoice (
+    id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+
+    invoice_no text NOT NULL,
+    invoice_date date NOT NULL,
+
+    company_id bigint NOT NULL
+        REFERENCES service.company_info(id),
+
+    customer_contact_id bigint
+        REFERENCES service.customer_contact(id),
+
+    customer_name_snapshot text NOT NULL,
+    customer_gstin_snapshot text,
+
+    customer_state_code char(2) NOT NULL,
+
+    is_inter_state boolean NOT NULL,
+
+    taxable_amount numeric(14,2) NOT NULL,
+
+    cgst_amount numeric(14,2) NOT NULL DEFAULT 0,
+    sgst_amount numeric(14,2) NOT NULL DEFAULT 0,
+    igst_amount numeric(14,2) NOT NULL DEFAULT 0,
+
+    total_tax numeric(14,2) NOT NULL,
+    total_amount numeric(14,2) NOT NULL,
+
+    remarks text,
+
+    created_at timestamptz NOT NULL DEFAULT now(),
+
+    UNIQUE (company_id, invoice_no)
+    );
+
+    CREATE INDEX idx_sales_invoice_company
+    ON service.sales_invoice(company_id);
+
+    CREATE INDEX idx_sales_invoice_customer
+    ON service.sales_invoice(customer_contact_id);
+
+- sales_invoice_line
+    CREATE TABLE service.sales_invoice_line (
+    id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+
+    sales_invoice_id bigint NOT NULL
+        REFERENCES service.sales_invoice(id) ON DELETE CASCADE,
+
+    spare_part_id bigint
+        REFERENCES service.spare_part(id),
+
+    item_description text NOT NULL,
+
+    hsn_code text NOT NULL,
+
+    quantity numeric(12,2) NOT NULL CHECK (quantity > 0),
+
+    unit_price numeric(12,2) NOT NULL CHECK (unit_price >= 0),
+
+    gst_rate numeric(5,2) NOT NULL DEFAULT 0,
+
+    taxable_amount numeric(12,2) NOT NULL,
+
+    cgst_rate numeric(5,2) NOT NULL DEFAULT 0,
+    sgst_rate numeric(5,2) NOT NULL DEFAULT 0,
+    igst_rate numeric(5,2) NOT NULL DEFAULT 0,
+
+    cgst_amount numeric(12,2) NOT NULL DEFAULT 0,
+    sgst_amount numeric(12,2) NOT NULL DEFAULT 0,
+    igst_amount numeric(12,2) NOT NULL DEFAULT 0,
+
+    total_amount numeric(12,2) NOT NULL
+    );
+
+    CREATE UNIQUE INDEX uq_sales_invoice_line
+    ON service.sales_invoice_line(sales_invoice_id, line_no);
+
+    CREATE INDEX idx_sales_invoice_line_spare_part
+    ON service.sales_invoice_line(spare_part_id);
+
+- stock_summary
 
 - job_payment
+    CREATE TABLE service.job_payment (
+    id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
 
+    job_id bigint NOT NULL
+        REFERENCES service.job(id) ON DELETE CASCADE,
+
+    payment_date date NOT NULL,
+
+    payment_mode text NOT NULL,
+    -- CASH, CARD, UPI, BANK_TRANSFER, ADJUSTMENT
+
+    amount numeric(14,2) NOT NULL CHECK (amount > 0),
+
+    reference_no text,
+    -- UTR / cheque / transaction id
+
+    remarks text,
+
+    created_at timestamptz NOT NULL DEFAULT now()
+    );
+
+    CREATE INDEX idx_job_payment_job
+    ON service.job_payment(job_id);
+
+    CREATE INDEX idx_job_payment_date
+    ON service.job_payment(payment_date);
+    
 - product
 
 - brand
@@ -472,23 +836,13 @@
 
 - supplier
 
-- spare_part
-
-- spare_part_stock_summary: logical table
+- spare_part: logical table
 
 - spare_part__brand_casio: partioned table
 
 - spare_part__brand_sony: partioned table
 
 - spare_part__brand_nikon: partioned table
-
-- purchase_invoice
-
-- purchase_line_item
-
-- sales_invoice
-
-- sales_line_item
 
 
 ## Security database

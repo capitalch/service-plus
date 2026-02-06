@@ -1,0 +1,7 @@
+What I suggest is:
+1. job_part_used table should have only details of parts consumed for job for stock purposes without gst or financial information. It will affect stock and willhave footprint in stock_transaction
+2. There will not be any table like job_charge and job_charge_type
+3. job_invoice_line should have the information of financial data gst rate etc. This will have other charges info also in typed text. Parts should be copied here from job_part_used table. These parts cannot be deleted because they are already consumed by the job. Also each line has HSN code. UI has a utilty called finalize job after repairs with finalizes the job for invoice. Any extra charge or part not affecting inventory will be mentioned here. Entries in this table will not affect stock.
+4. job_invoice should work as invoice header
+5. I also want a new table like company_info: company name, address, email, phone , gstin etc. If no gstin then no gst applicable.
+6. This a multiple company invoice system. Receptionist will select invoice to be made in which company at run time. Based on company selected, the gst will be applied in invoice. Job_invoice and job_invoice line should not affect inventory and they should relate to selected company.
