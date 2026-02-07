@@ -1,44 +1,12 @@
+## to do
+- job transaction mechanism finalize
+- strategy for maintaining incremental numbers like job_receipt_no, invoice_no
+- using brand_code and spare_part_code instead of spare_part_id
+- usage of is_active, created_at, updated_at columns
+- usage of bigint, integer and smallint
+- filling of prefilled tables
+
 ## Service database Table names: version 2
-
-- customer_contact
-  - id  bigint pk identity
-
-  - customer_type: INDIVIDUAL, BUSINESS, CORPORATE, DEALER
-  - first_name  nullable for business
-  - last_name  nullable for business
-  - business_name  nullable for individual
-  - gstin  null
-  
-  - mobile text
-  - alternate_mobile  text
-  - email text
-
-  
-  - address_line1 text not null,
-  - address_line2 text,
-  - landmark text
-  - state_id int not null, fk -> state(id)
-  - city_id int not null, fk -> city(id)
-  - postal_code PIN code
-  - remarks text
-
-  - is_active
-  - created_at  timestamptz NOT NULL DEFAULT now()
-  - updated_at  timestamptz NOT NULL DEFAULT now()
-
-  - CHECK (
-    (customer_type = 'INDIVIDUAL' AND first_name IS NOT NULL AND last_name IS NOT NULL)
-    OR
-    (customer_type <> 'INDIVIDUAL' AND business_name IS NOT NULL)
-    )
-  - CHECK (customer_type IN ('INDIVIDUAL', 'BUSINESS', CORPORATE, DEALER))
-  - Foreign keys
-    FOREIGN KEY (state_id) REFERENCES geo.state(id)
-    FOREIGN KEY (city_id)  REFERENCES geo.city(id)
-
-    CREATE INDEX idx_customer_contact_city ON customer_contact (city_id);
-    CREATE INDEX idx_customer_contact_state ON customer_contact (state_id);
-    CREATE INDEX idx_customer_contact_mobile ON customer_contact (mobile);
 
 - state
   CREATE TABLE public.state (
@@ -81,11 +49,51 @@
     CREATE INDEX city_state_id_idx
     ON city(state_id);
 
+- customer_contact
+  - id  bigint pk identity
+
+  - customer_type: INDIVIDUAL, BUSINESS, CORPORATE, DEALER
+  - first_name  nullable for business
+  - last_name  nullable for business
+  - business_name  nullable for individual
+  - gstin  null
+  
+  - mobile text
+  - alternate_mobile  text
+  - email text
+
+  
+  - address_line1 text not null,
+  - address_line2 text,
+  - landmark text
+  - state_id int not null, fk -> state(id)
+  - city_id int not null, fk -> city(id)
+  - postal_code PIN code
+  - remarks text
+
+  - is_active
+  - created_at  timestamptz NOT NULL DEFAULT now()
+  - updated_at  timestamptz NOT NULL DEFAULT now()
+
+  - CHECK (
+    (customer_type = 'INDIVIDUAL' AND first_name IS NOT NULL AND last_name IS NOT NULL)
+    OR
+    (customer_type <> 'INDIVIDUAL' AND business_name IS NOT NULL)
+    )
+  - CHECK (customer_type IN ('INDIVIDUAL', 'BUSINESS', CORPORATE, DEALER))
+  - Foreign keys
+    FOREIGN KEY (state_id) REFERENCES geo.state(id)
+    FOREIGN KEY (city_id)  REFERENCES geo.city(id)
+
+    CREATE INDEX idx_customer_contact_city ON customer_contact (city_id);
+    CREATE INDEX idx_customer_contact_state ON customer_contact (state_id);
+    CREATE INDEX idx_customer_contact_mobile ON customer_contact (mobile);
+
 - branch
   CREATE TABLE public.branch (
     id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
 
-    bu_id bigint NOT NULL
+    bu_code bigint NOT NULL
         REFERENCES security.bu(id) ON DELETE RESTRICT,
 
     code text NOT NULL,                -- BR001, KOL_MAIN
@@ -185,6 +193,64 @@
     | `job`             | job assigned to technician  |
     | `job_transaction` | technician action history   |
     | `user` (optional) | technician may have login   |
+
+- product
+    CREATE TABLE public.product (
+    id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+
+    code text NOT NULL,
+    name text NOT NULL,
+
+    description text,
+
+    is_active boolean NOT NULL DEFAULT true,
+
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now(),
+
+    CONSTRAINT product_code_key UNIQUE (code),
+    CONSTRAINT product_code_check CHECK (code ~ '^[A-Z_]+$')
+    );
+
+- brand
+    CREATE TABLE public.brand (
+    id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+
+    code text NOT NULL,
+    name text NOT NULL,
+
+    is_active boolean NOT NULL DEFAULT true,
+
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now(),
+
+    CONSTRAINT brand_code_key UNIQUE (code),
+    CONSTRAINT brand_code_check CHECK (code ~ '^[A-Z_]+$')
+    );
+
+- product_brand_model
+    CREATE TABLE public.product_brand_model (
+    id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+
+    product_id bigint NOT NULL
+        REFERENCES public.product(id) ON DELETE RESTRICT,
+
+    brand_id bigint NOT NULL
+        REFERENCES public.brand(id) ON DELETE RESTRICT,
+
+    model_code text NOT NULL,
+    model_name text NOT NULL,
+
+    launch_year integer,
+    remarks text,
+
+    is_active boolean NOT NULL DEFAULT true,
+
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now(),
+
+    CONSTRAINT pbm_unique_model UNIQUE (product_id, brand_id, model_code)
+    );
 
 - company_info
     CREATE TABLE public.company_info (
@@ -511,6 +577,34 @@
     CREATE INDEX idx_job_transaction_to_status
         ON service.job_transaction(to_status_id);
 
+- job_payment
+    CREATE TABLE service.job_payment (
+    id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+
+    job_id bigint NOT NULL
+        REFERENCES service.job(id) ON DELETE CASCADE,
+
+    payment_date date NOT NULL,
+
+    payment_mode text NOT NULL,
+    -- CASH, CARD, UPI, BANK_TRANSFER, ADJUSTMENT
+
+    amount numeric(14,2) NOT NULL CHECK (amount > 0),
+
+    reference_no text,
+    -- UTR / cheque / transaction id
+
+    remarks text,
+
+    created_at timestamptz NOT NULL DEFAULT now()
+    );
+
+    CREATE INDEX idx_job_payment_job
+    ON service.job_payment(job_id);
+
+    CREATE INDEX idx_job_payment_date
+    ON service.job_payment(payment_date);
+
 - job_part_used: inventory items
     CREATE TABLE service.job_part_used (
     id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -526,63 +620,101 @@
     used_at timestamptz NOT NULL DEFAULT now()
     );
 
-- job_charge: Every non inventory item
-    CREATE TABLE service.job_charge (
-    id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-
-    job_id bigint NOT NULL
-        REFERENCES service.job(id) ON DELETE CASCADE,
-
-    charge_type_id bigint NOT NULL
-        REFERENCES service.job_charge_type(id),
-
-    description text NOT NULL,
-
-    hsn_code text,
-    gst_rate numeric(5,2) NOT NULL DEFAULT 0,
-
-    taxable_amount numeric(12,2) NOT NULL CHECK (taxable_amount >= 0),
-    gst_amount numeric(12,2) NOT NULL CHECK (gst_amount >= 0),
-    total_amount numeric(12,2) NOT NULL CHECK (total_amount >= 0),
-
-    created_at timestamptz DEFAULT now() NOT NULL
-    );
-
-    CHECK (
-    total_amount = taxable_amount + gst_amount
-    )
-
-    CHECK (
-    abs(total_amount - (taxable_amount + gst_amount)) < 0.05
-    )
-
-- job_charge_type
-    CREATE TABLE service.job_charge_type (
-    id bigint PRIMARY KEY,
-    code text UNIQUE NOT NULL,
-    name text NOT NULL,
-    hsn_code text,
-    gst_rate numeric(5,2) DEFAULT 0,
-    is_active boolean DEFAULT true NOT NULL
-    );
-
 - stock_transaction
     CREATE TABLE inventory.stock_transaction (
     id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
 
-    spare_part_id bigint NOT NULL,
-    job_id bigint,
+    spare_part_id bigint NOT NULL
+        REFERENCES inventory.spare_part(id),
 
-    transaction_type text NOT NULL
-        CHECK (transaction_type IN ('IN', 'OUT', 'ADJUST')),
+    transaction_date date NOT NULL,
 
-    quantity numeric(10,2) NOT NULL CHECK (quantity > 0),
+    transaction_type text NOT NULL,
+    -- OPENING
+    -- PURCHASE
+    -- JOB_CONSUMPTION
+    -- SALE
+    -- ADJUSTMENT
 
-    reference_table text NOT NULL,
-    reference_id bigint NOT NULL,
+    dr_cr char(2) NOT NULL CHECK (dr_cr IN ('DR', 'CR')),
 
-    created_at timestamptz DEFAULT now() NOT NULL
+    qty numeric(12,3) NOT NULL CHECK (qty > 0),
+
+    unit_cost numeric(12,2),
+    -- purchase cost (optional for CR)
+
+    source_table text NOT NULL,
+    source_id bigint NOT NULL,
+
+    remarks text,
+
+    created_at timestamptz NOT NULL DEFAULT now()
     );
+
+    CREATE INDEX idx_stock_tx_part
+    ON inventory.stock_transaction(spare_part_id);
+
+    CREATE INDEX idx_stock_tx_date
+    ON inventory.stock_transaction(transaction_date);
+
+    CREATE INDEX idx_stock_tx_type
+    ON inventory.stock_transaction(transaction_type);
+
+    CREATE INDEX idx_stock_tx_source
+    ON inventory.stock_transaction(source_table, source_id);
+
+- stock_adjustment
+    CREATE TABLE inventory.stock_adjustment (
+    id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+
+    adjustment_date date NOT NULL,
+
+    adjustment_reason text NOT NULL,
+    -- examples:
+    -- Physical count mismatch
+    -- Damaged items
+    -- Missing items
+    -- Manual correction
+    -- Initial stock
+
+    reference_no text,
+
+    remarks text,
+
+    created_by bigint,
+    -- optional: user id (no FK if you want loose coupling)
+
+    created_at timestamptz NOT NULL DEFAULT now()
+    );
+
+    CREATE INDEX idx_stock_adj_date
+    ON inventory.stock_adjustment(adjustment_date);
+
+- stock_adjustment_line
+    CREATE TABLE inventory.stock_adjustment_line (
+    id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+
+    stock_adjustment_id bigint NOT NULL
+        REFERENCES inventory.stock_adjustment(id) ON DELETE CASCADE,
+
+    spare_part_id bigint NOT NULL
+        REFERENCES inventory.spare_part(id),
+
+    dr_cr char(2) NOT NULL CHECK (dr_cr IN ('DR', 'CR')),
+
+    qty numeric(12,3) NOT NULL CHECK (qty > 0),
+
+    unit_cost numeric(12,2),
+    -- optional, useful if you later add valuation reports
+
+    remarks text
+    );
+
+    CREATE INDEX idx_stock_adj_line_adj_id
+    ON inventory.stock_adjustment_line(stock_adjustment_id);
+
+    CREATE INDEX idx_stock_adj_line_part
+    ON inventory.stock_adjustment_line(spare_part_id);
 
 - job_invoice
     CREATE TABLE service.job_invoice (
@@ -615,7 +747,7 @@
     UNIQUE (company_id, invoice_no)
     );
 
-- job_invoice_line: Represents each billable line item in a job invoice. It may reference: job_part_used (spare parts), job_charge (labor / misc / diagnosis / transport etc.)
+- job_invoice_line
     CREATE TABLE service.job_invoice_line (
     id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
 
@@ -794,56 +926,151 @@
     CREATE INDEX idx_sales_invoice_line_spare_part
     ON service.sales_invoice_line(spare_part_id);
 
-- stock_summary
-
-- job_payment
-    CREATE TABLE service.job_payment (
-    id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-
-    job_id bigint NOT NULL
-        REFERENCES service.job(id) ON DELETE CASCADE,
-
-    payment_date date NOT NULL,
-
-    payment_mode text NOT NULL,
-    -- CASH, CARD, UPI, BANK_TRANSFER, ADJUSTMENT
-
-    amount numeric(14,2) NOT NULL CHECK (amount > 0),
-
-    reference_no text,
-    -- UTR / cheque / transaction id
-
-    remarks text,
-
-    created_at timestamptz NOT NULL DEFAULT now()
-    );
-
-    CREATE INDEX idx_job_payment_job
-    ON service.job_payment(job_id);
-
-    CREATE INDEX idx_job_payment_date
-    ON service.job_payment(payment_date);
-    
-- product
-
-- brand
-
-- product_brand_model
+- spare_part_stock_summary
+    CREATE VIEW inventory.spare_part_stock_summary AS
+        SELECT
+            spare_part_id,
+            SUM(
+                CASE dr_cr
+                    WHEN 'DR' THEN qty
+                    ELSE -qty
+                END
+            ) AS current_stock
+        FROM inventory.stock_transaction
+        GROUP BY spare_part_id;
 
 - app_setting
 
 - fiscal_year
+    CREATE TABLE public.fiscal_year (
+    id integer PRIMARY KEY,
+
+    start_date date NOT NULL,
+    end_date   date NOT NULL,
+
+    CONSTRAINT fiscal_year_date_check CHECK (start_date < end_date),
+    );
 
 - supplier
+    CREATE TABLE public.supplier (
+    id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
 
-- spare_part: logical table
+    code text NOT NULL,
+    name text NOT NULL,
 
-- spare_part__brand_casio: partioned table
+    gstin text,
+    pan text,
 
-- spare_part__brand_sony: partioned table
+    phone text,
+    email text,
 
-- spare_part__brand_nikon: partioned table
+    address_line1 text,
+    address_line2 text,
+    city text,
 
+    state_id smallint NOT NULL
+        REFERENCES public.state(id),
+
+    pincode text,
+
+    is_active boolean NOT NULL DEFAULT true,
+    remarks text,
+
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now(),
+
+    CONSTRAINT supplier_code_key UNIQUE (code)
+    );
+
+- spare_part: view
+    CREATE OR REPLACE VIEW inventory.spare_part AS
+        SELECT
+            'SONY'::text AS brand_code,
+            id,
+            part_code,
+            part_name,
+            part_description,
+            category,
+            model,
+            uom,
+            cost_price,
+            mrp,
+            hsn_code,
+            gst_rate,
+            is_active
+        FROM inventory.spare_part_sony
+
+        UNION ALL
+
+        SELECT
+            'CASIO'::text AS brand_code,
+            id,
+            part_code,
+            part_name,
+            part_description,
+            category,
+            model,
+            uom,
+            cost_price,
+            mrp,
+            hsn_code,
+            gst_rate,
+            is_active
+        FROM inventory.spare_part_casio
+
+        UNION ALL
+
+        SELECT
+            'NIKON'::text AS brand_code,
+            id,
+            part_code,
+            part_name,
+            part_description,
+            category,
+            model,
+            uom,
+            cost_price,
+            mrp,
+            hsn_code,
+            gst_rate,
+            is_active
+        FROM inventory.spare_part_nikon;
+
+- spare_part_casio
+    CREATE TABLE inventory.spare_part_sony (
+    id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+
+    part_code text NOT NULL,
+    part_name text NOT NULL,
+    part_description text,
+
+    category text,          -- lens, battery, pcb, cable, etc
+    model text,             -- camera / device model
+    uom text NOT NULL DEFAULT 'NOS',
+
+    cost_price numeric(12,2),   -- last known purchase price
+    mrp numeric(12,2),
+
+    hsn_code text,
+    gst_rate numeric(5,2),      -- eg: 18.00
+
+    is_active boolean NOT NULL DEFAULT true,
+
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now(),
+
+    UNIQUE (part_code)
+    );
+
+    CREATE INDEX idx_sp_casio_name
+    ON inventory.spare_part_sony (part_name);
+
+    CREATE INDEX idx_sp_casio_model
+    ON inventory.spare_part_sony (model);
+
+- spare_part_sony
+
+- spare_part_nikon
 
 ## Security database
 
