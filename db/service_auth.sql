@@ -1,29 +1,4 @@
 --
--- PostgreSQL database dump
---
-
-\restrict YBXhsTDmvw3pAxdcuPeLTkM7O5EXmTsg3zpENNJiM8f8vO9dm2OL57pBcvZRNlD
-
--- Dumped from database version 14.6
--- Dumped by pg_dump version 18.0
-
-SET statement_timeout = 0;
-SET lock_timeout = 0;
-SET idle_in_transaction_session_timeout = 0;
-SET transaction_timeout = 0;
-SET client_encoding = 'UTF8';
-SET standard_conforming_strings = on;
-SELECT pg_catalog.set_config('search_path', '', false);
-SET check_function_bodies = false;
-SET xmloption = content;
-SET client_min_messages = warning;
-SET row_security = off;
-
-SET default_tablespace = '';
-
-SET default_table_access_method = heap;
-
---
 -- Name: access_right; Type: TABLE; Schema: security; Owner: webadmin
 --
 
@@ -61,7 +36,6 @@ ALTER TABLE security.access_right ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTI
 
 CREATE TABLE security.bu (
     id bigint NOT NULL,
-    client_id bigint NOT NULL,
     code text NOT NULL,
     name text NOT NULL,
     is_active boolean DEFAULT true NOT NULL,
@@ -84,38 +58,6 @@ ALTER TABLE security.bu ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
     NO MAXVALUE
     CACHE 1
 );
-
-
---
--- Name: client; Type: TABLE; Schema: security; Owner: webadmin
---
-
-CREATE TABLE security.client (
-    id bigint NOT NULL,
-    code text NOT NULL,
-    name text NOT NULL,
-    is_active boolean DEFAULT true NOT NULL,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL,
-    CONSTRAINT client_code_check CHECK ((code ~ '^[A-Z_]+$'::text))
-);
-
-
-ALTER TABLE security.client OWNER TO webadmin;
-
---
--- Name: client_id_seq; Type: SEQUENCE; Schema: security; Owner: webadmin
---
-
-ALTER TABLE security.client ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
-    SEQUENCE NAME security.client_id_seq
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1
-);
-
 
 --
 -- Name: role; Type: TABLE; Schema: security; Owner: webadmin
@@ -173,7 +115,8 @@ CREATE TABLE security."user" (
     password_hash text NOT NULL,
     is_active boolean DEFAULT true NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    full_name text NOT NULL
 );
 
 
@@ -224,38 +167,12 @@ ALTER TABLE ONLY security.access_right
 ALTER TABLE ONLY security.access_right
     ADD CONSTRAINT access_right_pkey PRIMARY KEY (id);
 
-
---
--- Name: bu bu_client_id_code_key; Type: CONSTRAINT; Schema: security; Owner: webadmin
---
-
-ALTER TABLE ONLY security.bu
-    ADD CONSTRAINT bu_client_id_code_key UNIQUE (client_id, code);
-
-
 --
 -- Name: bu bu_pkey; Type: CONSTRAINT; Schema: security; Owner: webadmin
 --
 
 ALTER TABLE ONLY security.bu
     ADD CONSTRAINT bu_pkey PRIMARY KEY (id);
-
-
---
--- Name: client client_code_key; Type: CONSTRAINT; Schema: security; Owner: webadmin
---
-
-ALTER TABLE ONLY security.client
-    ADD CONSTRAINT client_code_key UNIQUE (code);
-
-
---
--- Name: client client_pkey; Type: CONSTRAINT; Schema: security; Owner: webadmin
---
-
-ALTER TABLE ONLY security.client
-    ADD CONSTRAINT client_pkey PRIMARY KEY (id);
-
 
 --
 -- Name: role_access_right role_access_right_pkey; Type: CONSTRAINT; Schema: security; Owner: webadmin
@@ -329,13 +246,6 @@ CREATE INDEX access_right_module_idx ON security.access_right USING btree (modul
 
 
 --
--- Name: bu_client_id_idx; Type: INDEX; Schema: security; Owner: webadmin
---
-
-CREATE INDEX bu_client_id_idx ON security.bu USING btree (client_id) WITH (deduplicate_items='true');
-
-
---
 -- Name: role_access_right_access_right_id_idx; Type: INDEX; Schema: security; Owner: webadmin
 --
 
@@ -371,19 +281,17 @@ CREATE INDEX user_bu_role_user_id_idx ON security.user_bu_role USING btree (user
 
 
 --
+-- Name: user_full_name_idx; Type: INDEX; Schema: security; Owner: webadmin
+--
+
+CREATE INDEX user_full_name_idx ON security."user" USING btree (full_name) WITH (deduplicate_items='true');
+
+
+--
 -- Name: user_mobile_unique_idx; Type: INDEX; Schema: security; Owner: webadmin
 --
 
 CREATE UNIQUE INDEX user_mobile_unique_idx ON security."user" USING btree (mobile) WHERE (mobile IS NOT NULL);
-
-
---
--- Name: bu bu_client_id_fkey; Type: FK CONSTRAINT; Schema: security; Owner: webadmin
---
-
-ALTER TABLE ONLY security.bu
-    ADD CONSTRAINT bu_client_id_fkey FOREIGN KEY (client_id) REFERENCES security.client(id);
-
 
 --
 -- Name: role_access_right role_access_right_access_right_id_fkey; Type: FK CONSTRAINT; Schema: security; Owner: webadmin
@@ -428,6 +336,4 @@ ALTER TABLE ONLY security.user_bu_role
 --
 -- PostgreSQL database dump complete
 --
-
-\unrestrict YBXhsTDmvw3pAxdcuPeLTkM7O5EXmTsg3zpENNJiM8f8vO9dm2OL57pBcvZRNlD
 

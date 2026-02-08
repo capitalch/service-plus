@@ -1,13 +1,59 @@
 ## to do
 - job transaction mechanism finalize
-- strategy for maintaining incremental numbers like job_receipt_no, invoice_no
-- using brand_code and spare_part_code instead of spare_part_id
-- usage of is_active, created_at, updated_at columns
-- usage of bigint, integer and smallint
+                                    - strategy for maintaining incremental numbers like job_receipt_no, invoice_no
+                                    - using brand_id and spare_part_code instead of spare_part_id
+                                    - usage of is_active, created_at, updated_at columns
+                                    - usage of bigint, integer and smallint
 - filling of prefilled tables
+                                    - opening balance for job: Just make new job entry
+                                    - opening balance for spare-parts: in stock_transaction
+                                    - add branch_id to all transactions
 
 ## Service database Table names: version 2
 
+- app_setting
+
+- financial_year
+    CREATE TABLE public.financial_year (
+    id integer PRIMARY KEY,
+
+    start_date date NOT NULL,
+    end_date   date NOT NULL,
+
+    CONSTRAINT financial_year_date_check CHECK (start_date < end_date),
+    );
+
+- supplier
+    CREATE TABLE public.supplier (
+    id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+
+    code text NOT NULL,
+    name text NOT NULL,
+
+    gstin text,
+    pan text,
+
+    phone text,
+    email text,
+
+    address_line1 text,
+    address_line2 text,
+    city text,
+
+    state_id smallint NOT NULL
+        REFERENCES public.state(id),
+
+    pincode text,
+
+    is_active boolean NOT NULL DEFAULT true,
+    remarks text,
+
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now(),
+
+    CONSTRAINT supplier_code_key UNIQUE (code)
+    );
+    
 - state
   CREATE TABLE public.state (
     id int GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -252,9 +298,64 @@
     CONSTRAINT pbm_unique_model UNIQUE (product_id, brand_id, model_code)
     );
 
+- document_type
+    CREATE TABLE public.document_type (
+    id smallint PRIMARY KEY,          -- fixed IDs (1,2,3...)
+    
+    code text NOT NULL UNIQUE,         -- JOB, RECEIPT, SALE_INVOICE, JOB_INVOICE, PURCHASE
+    prefix text NOT NULL,              -- JOB, RCPT, SI, JI, PI
+    
+    name text NOT NULL,                -- Human readable
+    description text,
+
+    CONSTRAINT document_type_code_chk
+        CHECK (code ~ '^[A-Z_]+$')
+    );
+
+- document_sequence
+    CREATE TABLE public.document_sequence (
+    id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+
+    document_type_id smallint NOT NULL
+        REFERENCES public.document_type(id),
+
+    branch_id bigint NOT NULL
+        REFERENCES public.branch(id),
+
+    prefix text NOT NULL,                 -- e.g. JOB, JI, SI, RCPT
+    next_number integer NOT NULL DEFAULT 1,
+
+    padding smallint NOT NULL DEFAULT 5,  -- 00001
+    separator text NOT NULL DEFAULT '/',
+
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now(),
+
+    CONSTRAINT document_sequence_unique
+        UNIQUE (document_type_id, branch_id)
+    );
+
+    code: for increment
+    BEGIN;
+
+    SELECT next_number
+    FROM document_sequence
+    WHERE document_type_id = 2   -- JOB_INVOICE
+      AND branch_id = 1
+    FOR UPDATE;
+
+    UPDATE document_sequence
+    SET next_number = next_number + 1,
+        updated_at = now()
+    WHERE document_type_id = 2
+      AND branch_id = 1
+    RETURNING next_number - 1 AS issued_number;
+
+    COMMIT;
+
 - company_info
     CREATE TABLE public.company_info (
-    id smallint PRIMARY KEY,
+    id int PRIMARY KEY,
 
     company_name text NOT NULL,
 
@@ -270,7 +371,10 @@
 
     gstin text, -- NULL = non-GST company
 
-    is_active boolean NOT NULL DEFAULT true
+    is_active boolean NOT NULL DEFAULT true,
+
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now()
     );
 
 - job_receive_type
@@ -421,7 +525,8 @@
     branch_id bigint NOT NULL
         REFERENCES public.branch(id) ON DELETE RESTRICT,
 
-    job_no text NOT NULL,                     -- e.g. JOB-2026-000123
+    job_no text NOT NULL,
+    alt_job_no NOT NULL,
     job_date timestamptz NOT NULL DEFAULT now(),
 
     customer_contact_id bigint NOT NULL
@@ -537,6 +642,7 @@
     CREATE INDEX idx_job_product_model ON service.job(product_brand_model_id);
     CREATE INDEX idx_job_delivery_date ON service.job(delivery_date);
 
+
 - job_transaction
     CREATE TABLE service.job_transaction (
     id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -596,8 +702,8 @@
 
     remarks text,
 
-    created_at timestamptz NOT NULL DEFAULT now()
-    );
+    created_at timestamptz DEFAULT now() NOT NULL,
+    updated_at timestamptz DEFAULT now() NOT NULL,
 
     CREATE INDEX idx_job_payment_job
     ON service.job_payment(job_id);
@@ -612,31 +718,42 @@
     job_id bigint NOT NULL
         REFERENCES service.job(id) ON DELETE RESTRICT,
 
-    spare_part_id bigint NOT NULL
-        REFERENCES inventory.spare_part(id),
+    part_code text NOT NULL,
+    brand_id bigint NOT NULL
+        REFERENCES public.brand(id) ON DELETE RESTRICT,
 
     quantity numeric(10,2) NOT NULL CHECK (quantity > 0),
 
-    used_at timestamptz NOT NULL DEFAULT now()
+    created_at timestamptz DEFAULT now() NOT NULL,
+    updated_at timestamptz DEFAULT now() NOT NULL
     );
+
+
+- stock_transaction_type
+    CREATE TABLE stock_transaction_type (
+    id smallint PRIMARY KEY,                 -- fixed IDs (1,2,3...)
+    code text NOT NULL UNIQUE,                -- OPENING_STOCK, PURCHASE, SALE, ADJUSTMENT etc.
+    name text NOT NULL,                       -- Human readable
+    dr_cr char(1) NOT NULL CHECK (dr_cr IN ('D', 'C')),
+    description text,
+    is_active boolean DEFAULT true NOT NULL
+    );
+
 
 - stock_transaction
     CREATE TABLE inventory.stock_transaction (
     id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
 
-    spare_part_id bigint NOT NULL
-        REFERENCES inventory.spare_part(id),
-
+    part_code text NOT NULL,
+    branch_id bigint NOT NULL
+        REFERENCES public.branch(id) ON DELETE RESTRICT,
+    brand_id bigint NOT NULL
+        REFERENCES public.brand(id) ON DELETE RESTRICT,
+    stock_transaction_type_id bigsmallint NOT NULL
+        REFERENCES public.stock_transaction_type(id) ON DELETE RESTRICT,
     transaction_date date NOT NULL,
 
-    transaction_type text NOT NULL,
-    -- OPENING
-    -- PURCHASE
-    -- JOB_CONSUMPTION
-    -- SALE
-    -- ADJUSTMENT
-
-    dr_cr char(2) NOT NULL CHECK (dr_cr IN ('DR', 'CR')),
+    dr_cr char(1) NOT NULL CHECK (dr_cr IN ('D', 'C')),
 
     qty numeric(12,3) NOT NULL CHECK (qty > 0),
 
@@ -652,7 +769,7 @@
     );
 
     CREATE INDEX idx_stock_tx_part
-    ON inventory.stock_transaction(spare_part_id);
+    ON inventory.stock_transaction(part_code);
 
     CREATE INDEX idx_stock_tx_date
     ON inventory.stock_transaction(transaction_date);
@@ -678,14 +795,16 @@
     -- Initial stock
 
     reference_no text,
+    branch_id bigint NOT NULL
+        REFERENCES public.branch(id) ON DELETE RESTRICT,
 
     remarks text,
 
     created_by bigint,
     -- optional: user id (no FK if you want loose coupling)
 
-    created_at timestamptz NOT NULL DEFAULT now()
-    );
+    created_at timestamptz DEFAULT now() NOT NULL,
+    updated_at timestamptz DEFAULT now() NOT NULL;
 
     CREATE INDEX idx_stock_adj_date
     ON inventory.stock_adjustment(adjustment_date);
@@ -697,24 +816,27 @@
     stock_adjustment_id bigint NOT NULL
         REFERENCES inventory.stock_adjustment(id) ON DELETE CASCADE,
 
-    spare_part_id bigint NOT NULL
-        REFERENCES inventory.spare_part(id),
+    part_code text NOT NULL,
+    brand_id bigint NOT NULL
+        REFERENCES public.brand(id) ON DELETE RESTRICT,
 
-    dr_cr char(2) NOT NULL CHECK (dr_cr IN ('DR', 'CR')),
+    dr_cr char(1) NOT NULL CHECK (dr_cr IN ('D', 'C')),
 
     qty numeric(12,3) NOT NULL CHECK (qty > 0),
 
     unit_cost numeric(12,2),
     -- optional, useful if you later add valuation reports
 
-    remarks text
+    remarks text,
+    created_at timestamptz DEFAULT now() NOT NULL,
+    updated_at timestamptz DEFAULT now() NOT NULL,
     );
 
     CREATE INDEX idx_stock_adj_line_adj_id
     ON inventory.stock_adjustment_line(stock_adjustment_id);
 
     CREATE INDEX idx_stock_adj_line_part
-    ON inventory.stock_adjustment_line(spare_part_id);
+    ON inventory.stock_adjustment_line(part_code);
 
 - job_invoice
     CREATE TABLE service.job_invoice (
@@ -742,7 +864,8 @@
     total_tax numeric(14,2) NOT NULL,
     total_amount numeric(14,2) NOT NULL,
 
-    created_at timestamptz NOT NULL DEFAULT now(),
+    created_at timestamptz DEFAULT now() NOT NULL,
+    updated_at timestamptz DEFAULT now() NOT NULL,
 
     UNIQUE (company_id, invoice_no)
     );
@@ -772,6 +895,9 @@
     sgst_amount numeric(12,2) NOT NULL DEFAULT 0,
     igst_amount numeric(12,2) NOT NULL DEFAULT 0,
 
+    created_at timestamptz DEFAULT now() NOT NULL,
+    updated_at timestamptz DEFAULT now() NOT NULL,
+
     total_amount numeric(12,2) NOT NULL
     );
 
@@ -797,10 +923,13 @@
 
     total_tax numeric(14,2) NOT NULL,
     total_amount numeric(14,2) NOT NULL,
+    branch_id bigint NOT NULL
+        REFERENCES public.branch(id) ON DELETE RESTRICT,
 
     remarks text,
 
-    created_at timestamptz NOT NULL DEFAULT now(),
+    created_at timestamptz DEFAULT now() NOT NULL,
+    updated_at timestamptz DEFAULT now() NOT NULL,
 
     UNIQUE (supplier_id, invoice_no)
     );
@@ -815,8 +944,9 @@
     purchase_invoice_id bigint NOT NULL
         REFERENCES service.purchase_invoice(id) ON DELETE CASCADE,
 
-    spare_part_id bigint NOT NULL
-        REFERENCES service.spare_part(id),
+    part_code text NOT NULL,
+    brand_id bigint NOT NULL
+        REFERENCES public.brand(id) ON DELETE RESTRICT,
 
     hsn_code text NOT NULL,
 
@@ -836,6 +966,9 @@
     sgst_amount numeric(12,2) NOT NULL DEFAULT 0,
     igst_amount numeric(12,2) NOT NULL DEFAULT 0,
 
+    created_at timestamptz DEFAULT now() NOT NULL,
+    updated_at timestamptz DEFAULT now() NOT NULL,
+
     total_amount numeric(12,2) NOT NULL
     );
 
@@ -843,7 +976,7 @@
     ON service.purchase_invoice_line(purchase_invoice_id, line_no);
 
     CREATE INDEX idx_purchase_invoice_line_spare_part
-    ON service.purchase_invoice_line(spare_part_id);
+    ON service.purchase_invoice_line(part_code);
 
 - sales_invoice
     CREATE TABLE service.sales_invoice (
@@ -873,10 +1006,12 @@
 
     total_tax numeric(14,2) NOT NULL,
     total_amount numeric(14,2) NOT NULL,
-
+    branch_id bigint NOT NULL
+        REFERENCES public.branch(id) ON DELETE RESTRICT,
     remarks text,
 
-    created_at timestamptz NOT NULL DEFAULT now(),
+    created_at timestamptz DEFAULT now() NOT NULL,
+    updated_at timestamptz DEFAULT now() NOT NULL,
 
     UNIQUE (company_id, invoice_no)
     );
@@ -894,8 +1029,9 @@
     sales_invoice_id bigint NOT NULL
         REFERENCES service.sales_invoice(id) ON DELETE CASCADE,
 
-    spare_part_id bigint
-        REFERENCES service.spare_part(id),
+    part_code text NOT NULL,
+    brand_id bigint NOT NULL
+        REFERENCES public.brand(id) ON DELETE RESTRICT,
 
     item_description text NOT NULL,
 
@@ -917,6 +1053,9 @@
     sgst_amount numeric(12,2) NOT NULL DEFAULT 0,
     igst_amount numeric(12,2) NOT NULL DEFAULT 0,
 
+    created_at timestamptz DEFAULT now() NOT NULL,
+    updated_at timestamptz DEFAULT now() NOT NULL,
+
     total_amount numeric(12,2) NOT NULL
     );
 
@@ -924,63 +1063,20 @@
     ON service.sales_invoice_line(sales_invoice_id, line_no);
 
     CREATE INDEX idx_sales_invoice_line_spare_part
-    ON service.sales_invoice_line(spare_part_id);
+    ON service.sales_invoice_line(part_code);
 
 - spare_part_stock_summary
     CREATE VIEW inventory.spare_part_stock_summary AS
         SELECT
-            spare_part_id,
+            part_code, brand_id, branch_id,
             SUM(
                 CASE dr_cr
-                    WHEN 'DR' THEN qty
+                    WHEN 'D' THEN qty
                     ELSE -qty
                 END
             ) AS current_stock
         FROM inventory.stock_transaction
-        GROUP BY spare_part_id;
-
-- app_setting
-
-- fiscal_year
-    CREATE TABLE public.fiscal_year (
-    id integer PRIMARY KEY,
-
-    start_date date NOT NULL,
-    end_date   date NOT NULL,
-
-    CONSTRAINT fiscal_year_date_check CHECK (start_date < end_date),
-    );
-
-- supplier
-    CREATE TABLE public.supplier (
-    id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-
-    code text NOT NULL,
-    name text NOT NULL,
-
-    gstin text,
-    pan text,
-
-    phone text,
-    email text,
-
-    address_line1 text,
-    address_line2 text,
-    city text,
-
-    state_id smallint NOT NULL
-        REFERENCES public.state(id),
-
-    pincode text,
-
-    is_active boolean NOT NULL DEFAULT true,
-    remarks text,
-
-    created_at timestamptz NOT NULL DEFAULT now(),
-    updated_at timestamptz NOT NULL DEFAULT now(),
-
-    CONSTRAINT supplier_code_key UNIQUE (code)
-    );
+        GROUP BY part_code, brand_id, branch_id;
 
 - spare_part: view
     CREATE OR REPLACE VIEW inventory.spare_part AS
