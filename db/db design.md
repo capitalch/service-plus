@@ -1,4 +1,5 @@
 ## to do
+- Batch receiving, sending to company, updates
 - job transaction mechanism finalize
                                     - strategy for maintaining incremental numbers like job_receipt_no, invoice_no
                                     - using brand_id and spare_part_code instead of spare_part_id
@@ -95,10 +96,25 @@
     CREATE INDEX city_state_id_idx
     ON city(state_id);
 
+- customer_type
+    id              smallint PRIMARY KEY   -- fixed ids
+    code            text UNIQUE            -- INDIVIDUAL, DEALER, etc
+    name            text                   -- display name
+    description     text
+    is_active       boolean DEFAULT true
+    display_order   smallint
+
+    INSERT INTO customer_type (id, code, name, display_order) VALUES
+    (1, 'INDIVIDUAL',      'Individual Customer',     1),
+    (2, 'SERVICE_PARTNER','Service Partner',         2),
+    (3, 'DEALER',          'Dealer',                  3),
+    (4, 'CORPORATE',       'Corporate / Institutional',4),
+    (5, 'OTHER',           'Other',                   99);
+
 - customer_contact
   - id  bigint pk identity
 
-  - customer_type: INDIVIDUAL, BUSINESS, CORPORATE, DEALER
+  - customer_type_id smallint NOT NULL
   - first_name  nullable for business
   - last_name  nullable for business
   - business_name  nullable for individual
@@ -127,10 +143,11 @@
     (customer_type <> 'INDIVIDUAL' AND business_name IS NOT NULL)
     )
   - CHECK (customer_type IN ('INDIVIDUAL', 'BUSINESS', CORPORATE, DEALER))
+  
   - Foreign keys
     FOREIGN KEY (state_id) REFERENCES geo.state(id)
     FOREIGN KEY (city_id)  REFERENCES geo.city(id)
-
+    FOREIGN KEY (customer_type_id) REFERENCES customer_type(id)
     CREATE INDEX idx_customer_contact_city ON customer_contact (city_id);
     CREATE INDEX idx_customer_contact_state ON customer_contact (state_id);
     CREATE INDEX idx_customer_contact_mobile ON customer_contact (mobile);
@@ -377,8 +394,27 @@
     updated_at timestamptz NOT NULL DEFAULT now()
     );
 
-- job_receive_type
-  CREATE TABLE service.job_receive_type (
+- job_type
+    id              smallint PRIMARY KEY
+    code            text UNIQUE NOT NULL
+    name            text NOT NULL
+    description     text
+    display_order   smallint
+    is_active       boolean DEFAULT true
+
+    SEED Values
+        IN_WARRANTY_WORKSHOP
+        DEMO
+        CHARGABLE_REPAIRS
+        ESTIMATE
+        REPLACEMENT
+        REPEAT_REPAIRS
+        IN_WARRANTY_HOME_SERVICE
+        CHARGABLE_HOME_SERVICE
+        SERVICE_CONTRACT
+
+- job_receive_manner
+    CREATE TABLE service.job_receive_type (
     id smallint PRIMARY KEY,   -- NOT identity
 
     code text NOT NULL UNIQUE,
@@ -393,41 +429,33 @@
     updated_at timestamptz DEFAULT now() NOT NULL
     );
 
-    INSERT INTO job_receive_type (id, code, name, display_order)
-    VALUES
-    (1, 'WALK_IN', 'Walk-in', 1),
-    (2, 'COURIER', 'Courier', 2),
-    (3, 'PICKUP', 'Pickup', 3),
-    (4, 'ONLINE', 'Online Booking', 4);
+    SEED VALUES
+        WALK_IN
+        COURIER
+        PICKUP
+        ONLINE_BOOKING
+        PHONE_BOOKING
+        MISC
 
-- job_receive_source
-  CREATE TABLE service.job_receive_source (
-    id smallint PRIMARY KEY,     -- FIXED SYSTEM IDs
+- job_receive_condition
+    id              smallint PRIMARY KEY
+    code            text UNIQUE NOT NULL
+    name            text NOT NULL
+    description     text
+    display_order   smallint
 
-    code text NOT NULL UNIQUE,
-    name text NOT NULL,
+    SEED VALUES
+        DEAD
+        DAMAGED
+        PHYSICALLY_BROKEN
+        WATER_LOGGED
+        PARTIALLY_WORKING
+        DISCOLORED
+        LCD_DAMAGE
+        UNKNOWN
 
-    description text,
-
-    is_system boolean DEFAULT true NOT NULL,
-    is_active boolean DEFAULT true NOT NULL,
-
-    display_order smallint DEFAULT 0 NOT NULL,
-
-    created_at timestamptz DEFAULT now() NOT NULL,
-    updated_at timestamptz DEFAULT now() NOT NULL
-  );
-  INSERT INTO service.job_receive_source (id, code, name, display_order)
-  VALUES
-  (1, 'CUSTOMER_DIRECT', 'Customer Direct', 1),
-  (2, 'DEALER', 'Dealer', 2),
-  (3, 'AUTHORIZED_CENTER', 'Authorized Service Center', 3),
-  (4, 'ONLINE_PORTAL', 'Online Portal', 4),
-  (5, 'CALL_CENTER', 'Call Center', 5),
-  (6, 'MARKETPLACE', 'Marketplace', 6);
-
-- job_status
-  CREATE TABLE service.job_status (
+- job_status_type
+    CREATE TABLE service.job_status (
     id smallint PRIMARY KEY,
 
     code text NOT NULL UNIQUE,
@@ -460,20 +488,34 @@
         (is_initial IS TRUE)
     )
   );
-  INSERT INTO service.job_status
-    (id, code, name, display_order,
-     is_initial, is_final, allows_billing, allows_payment, allows_part_issue)
-    VALUES
-    (1, 'RECEIVED', 'Received', 1, true, false, false, false, false),
-    (2, 'IN_DIAGNOSIS', 'In Diagnosis', 2, false, false, false, false, false),
-    (3, 'WAITING_FOR_PARTS', 'Waiting for Spare Parts', 3, false, false, false, false, false),
-    (4, 'IN_REPAIR', 'In Repair', 4, false, false, false, false, true),
-    (5, 'READY', 'Ready for Delivery', 5, false, false, true, true, false),
-    (6, 'DELIVERED', 'Delivered', 6, false, true, false, false, false),
-    (7, 'CANCELLED', 'Cancelled', 99, false, true, false, false, false);
+  
+    SEED VALUES
+        UNTOUCHED
+        ESTIMATED
+        APPROVED
+        NOT_APPROVED
+        SENT_TO_COMPANY
+        RECEIVED_READY_FROM_COMPANY
+        RECEIVED_RETIRN_FROM_COMPANY
+        WAITING_FOR_PARTS
+        IN_REPAIR
+        READY_STOCK
+        RETURN_STOCK
+        DELIVERED
+        CANCELLED
+        DISPOSED
+        FOR_DISPOSAL
+        DEMO_REQUESTED
+        DEMO_COMPLETED
+        HOME_SERVICE_REQUESTED
+        HOME_SERVICE_ATTENDED
+        HOME_SERVICE_WAITING_FOR_PARTS
+        HOME_SERVICE_COMPLETED
+        INSTALLATION_REQUESTED
+        INSTALLATION_COMPLETED
 
 - job_transaction_type
-  CREATE TABLE service.job_transaction_type (
+    CREATE TABLE service.job_transaction_type (
     id smallint PRIMARY KEY,
 
     code text NOT NULL UNIQUE,
@@ -518,6 +560,18 @@
     (41, 'JOB_DELIVERED',    'Job Delivered',      'Job delivered to customer',                      41, true, true),
     (42, 'JOB_CLOSED',       'Job Closed',         'Job closed and archived',                        42, true, true);
 
+- job_delivery_manner
+    id              smallint PRIMARY KEY
+    code            text UNIQUE NOT NULL
+    name            text NOT NULL
+    display_order   smallint
+    is_active       boolean DEFAULT true
+
+    Seed values
+    CUSTOMER_PICKUP
+    COURIER
+    THIRD_PARTY_PICKUP
+
 - job
     CREATE TABLE public.job (
     id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -557,6 +611,9 @@
     warranty_status boolean NOT NULL DEFAULT false,
 
     remarks text,
+    customer_complaint text,
+    accessory text,
+    imei text,
 
     is_closed boolean NOT NULL DEFAULT false,
 
@@ -641,7 +698,6 @@
     CREATE INDEX idx_job_status ON service.job(job_status_id);
     CREATE INDEX idx_job_product_model ON service.job(product_brand_model_id);
     CREATE INDEX idx_job_delivery_date ON service.job(delivery_date);
-
 
 - job_transaction
     CREATE TABLE service.job_transaction (
@@ -728,7 +784,6 @@
     updated_at timestamptz DEFAULT now() NOT NULL
     );
 
-
 - stock_transaction_type
     CREATE TABLE stock_transaction_type (
     id smallint PRIMARY KEY,                 -- fixed IDs (1,2,3...)
@@ -738,7 +793,6 @@
     description text,
     is_active boolean DEFAULT true NOT NULL
     );
-
 
 - stock_transaction
     CREATE TABLE inventory.stock_transaction (

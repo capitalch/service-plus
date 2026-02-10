@@ -1,7 +1,46 @@
-What I suggest is:
-1. job_part_used table should have only details of parts consumed for job for stock purposes without gst or financial information. It will affect stock and willhave footprint in stock_transaction
-2. There will not be any table like job_charge and job_charge_type
-3. job_invoice_line should have the information of financial data gst rate etc. This will have other charges info also in typed text. Parts should be copied here from job_part_used table. These parts cannot be deleted because they are already consumed by the job. Also each line has HSN code. UI has a utilty called finalize job after repairs with finalizes the job for invoice. Any extra charge or part not affecting inventory will be mentioned here. Entries in this table will not affect stock.
-4. job_invoice should work as invoice header
-5. I also want a new table like company_info: company name, address, email, phone , gstin etc. If no gstin then no gst applicable.
-6. This a multiple company invoice system. Receptionist will select invoice to be made in which company at run time. Based on company selected, the gst will be applied in invoice. Job_invoice and job_invoice line should not affect inventory and they should relate to selected company.
+ - I have following possible statuses in job_status_type table
+        UNTOUCHED
+        ESTIMATED
+        APPROVED
+        NOT_APPROVED
+        SENT_TO_COMPANY
+        RECEIVED_READY_FROM_COMPANY
+        RECEIVED_RETIRN_FROM_COMPANY
+        WAITING_FOR_PARTS
+        IN_REPAIR
+        READY_STOCK
+        RETURN_STOCK
+        DELIVERED
+        CANCELLED
+        DISPOSED
+        FOR_DISPOSAL
+        DEMO_REQUESTED
+        DEMO_COMPLETED
+        HOME_SERVICE_REQUESTED
+        HOME_SERVICE_ATTENDED
+        HOME_SERVICE_WAITING_FOR_PARTS
+        HOME_SERVICE_COMPLETED
+        INSTALLATION_REQUESTED
+        INSTALLATION_COMPLETED
+- i have following values for job_type table
+        IN_WARRANTY_WORKSHOP
+        DEMO
+        CHARGABLE_REPAIRS
+        ESTIMATE
+        REPLACEMENT
+        REPEAT_REPAIRS
+        IN_WARRANTY_HOME_SERVICE
+        CHARGABLE_HOME_SERVICE
+        SERVICE_CONTRACTIN_WARRANTY_WORKSHOP
+        DEMO
+        CHARGABLE_REPAIRS
+        ESTIMATE
+        REPLACEMENT
+        REPEAT_REPAIRS
+        IN_WARRANTY_HOME_SERVICE
+        CHARGABLE_HOME_SERVICE
+        SERVICE_CONTRACT
+- I want to create a third table which stores the possible outcome or mapping of above two tables. For example, if values are demo and demo_requsted in job_type and job_status_type table the mapping output can be cancelled or demo_completed
+- Please provide the design, name and seed values of third table. The third table should store id's or code from first two tables
+- If id's are to be stored in third table please provide the values for all three tables
+- Be consise
