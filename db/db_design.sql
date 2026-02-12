@@ -674,9 +674,8 @@ CREATE INDEX idx_sales_invoice_line_spare_part ON sales_invoice_line (part_code)
 -- -----------------------------------------------------------------------------
 CREATE TABLE stock_transaction (
   id bigint NOT NULL GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  part_code text NOT NULL,
+  part_id bigint NOT NULL,
   branch_id bigint NOT NULL,
-  brand_id bigint NOT NULL,
   stock_transaction_type_id smallint NOT NULL,
   transaction_date date NOT NULL,
   dr_cr char(1) NOT NULL,
@@ -689,11 +688,11 @@ CREATE TABLE stock_transaction (
   CONSTRAINT stock_transaction_dr_cr_check CHECK (dr_cr IN ('D', 'C')),
   CONSTRAINT stock_transaction_qty_check CHECK (qty > 0),
   CONSTRAINT stock_transaction_branch_fk FOREIGN KEY (branch_id) REFERENCES branch(id) ON DELETE RESTRICT,
-  CONSTRAINT stock_transaction_brand_fk FOREIGN KEY (brand_id) REFERENCES brand(id) ON DELETE RESTRICT,
+  CONSTRAINT stock_transaction_part_id_fk FOREIGN KEY (part_id) REFERENCES spare_part_master(id) ON DELETE RESTRICT,
   CONSTRAINT stock_transaction_type_fk FOREIGN KEY (stock_transaction_type_id) REFERENCES stock_transaction_type(id) ON DELETE RESTRICT
 );
 
-CREATE INDEX idx_stock_tx_part ON stock_transaction (part_code);
+CREATE INDEX idx_stock_tx_part ON stock_transaction (part_id);
 CREATE INDEX idx_stock_tx_date ON stock_transaction (transaction_date);
 CREATE INDEX idx_stock_tx_type ON stock_transaction (stock_transaction_type_id);
 CREATE INDEX idx_stock_tx_source ON stock_transaction (source_table, source_id);

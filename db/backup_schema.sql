@@ -2,10 +2,8 @@
 -- PostgreSQL database dump
 --
 
-\restrict X6eFCJQR2CpXT6f47GxD4sUKfmID3JX6muMzFfg3A1kDL0xKPNTSNfgSevfBvvF
-
 -- Dumped from database version 14.6
--- Dumped by pg_dump version 18.0
+-- Dumped by pg_dump version 17.5
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -370,6 +368,7 @@ CREATE TABLE demo1.job_invoice_line (
     id bigint NOT NULL,
     job_invoice_id bigint NOT NULL,
     description text NOT NULL,
+    part_code text,
     hsn_code text NOT NULL,
     quantity numeric(10,2) NOT NULL,
     unit_price numeric(12,2) NOT NULL,
@@ -411,8 +410,7 @@ ALTER TABLE demo1.job_invoice_line ALTER COLUMN id ADD GENERATED ALWAYS AS IDENT
 CREATE TABLE demo1.job_part_used (
     id bigint NOT NULL,
     job_id bigint NOT NULL,
-    part_code text NOT NULL,
-    brand_id bigint NOT NULL,
+    part_id bigint NOT NULL,
     quantity numeric(10,2) NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
@@ -687,8 +685,7 @@ ALTER TABLE demo1.purchase_invoice ALTER COLUMN id ADD GENERATED ALWAYS AS IDENT
 CREATE TABLE demo1.purchase_invoice_line (
     id bigint NOT NULL,
     purchase_invoice_id bigint NOT NULL,
-    part_code text NOT NULL,
-    brand_id bigint NOT NULL,
+    part_id bigint NOT NULL,
     hsn_code text NOT NULL,
     quantity numeric(12,2) NOT NULL,
     unit_price numeric(12,2) NOT NULL,
@@ -772,7 +769,7 @@ ALTER TABLE demo1.sales_invoice ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY
 CREATE TABLE demo1.sales_invoice_line (
     id bigint NOT NULL,
     sales_invoice_id bigint NOT NULL,
-    part_code text NOT NULL,
+    part_id bigint NOT NULL,
     item_description text NOT NULL,
     hsn_code text NOT NULL,
     quantity numeric(12,2) NOT NULL,
@@ -807,222 +804,43 @@ ALTER TABLE demo1.sales_invoice_line ALTER COLUMN id ADD GENERATED ALWAYS AS IDE
 
 
 --
--- Name: spare_part_casio; Type: TABLE; Schema: demo1; Owner: webadmin
+-- Name: spare_part_master; Type: TABLE; Schema: demo1; Owner: webadmin
 --
 
-CREATE TABLE demo1.spare_part_casio (
+CREATE TABLE demo1.spare_part_master (
     id bigint NOT NULL,
-    part_code text NOT NULL,
-    part_name text NOT NULL,
-    part_description text,
-    category text,
-    model text,
-    uom text DEFAULT 'NOS'::text NOT NULL,
-    cost_price numeric(12,2),
-    mrp numeric(12,2),
-    hsn_code text,
-    gst_rate numeric(5,2),
-    is_active boolean DEFAULT true NOT NULL,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL
-);
-
-
-ALTER TABLE demo1.spare_part_casio OWNER TO webadmin;
-
---
--- Name: spare_part_nikon; Type: TABLE; Schema: demo1; Owner: webadmin
---
-
-CREATE TABLE demo1.spare_part_nikon (
-    id bigint NOT NULL,
-    part_code text NOT NULL,
-    part_name text NOT NULL,
-    part_description text,
-    category text,
-    model text,
-    uom text DEFAULT 'NOS'::text NOT NULL,
-    cost_price numeric(12,2),
-    mrp numeric(12,2),
-    hsn_code text,
-    gst_rate numeric(5,2),
-    is_active boolean DEFAULT true NOT NULL,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL
-);
-
-
-ALTER TABLE demo1.spare_part_nikon OWNER TO webadmin;
-
---
--- Name: spare_part_sony; Type: TABLE; Schema: demo1; Owner: webadmin
---
-
-CREATE TABLE demo1.spare_part_sony (
-    id bigint NOT NULL,
-    part_code text NOT NULL,
-    part_name text NOT NULL,
-    part_description text,
-    category text,
-    model text,
-    uom text DEFAULT 'NOS'::text NOT NULL,
-    cost_price numeric(12,2),
-    mrp numeric(12,2),
-    hsn_code text,
-    gst_rate numeric(5,2),
-    is_active boolean DEFAULT true NOT NULL,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL
-);
-
-
-ALTER TABLE demo1.spare_part_sony OWNER TO webadmin;
-
---
--- Name: spare_part; Type: VIEW; Schema: demo1; Owner: webadmin
---
-
-CREATE VIEW demo1.spare_part AS
- SELECT 'SONY'::text AS brand_code,
-    spare_part_sony.id,
-    spare_part_sony.part_code,
-    spare_part_sony.part_name,
-    spare_part_sony.part_description,
-    spare_part_sony.category,
-    spare_part_sony.model,
-    spare_part_sony.uom,
-    spare_part_sony.cost_price,
-    spare_part_sony.mrp,
-    spare_part_sony.hsn_code,
-    spare_part_sony.gst_rate,
-    spare_part_sony.is_active,
-    spare_part_sony.created_at,
-    spare_part_sony.updated_at
-   FROM demo1.spare_part_sony
-UNION ALL
- SELECT 'CASIO'::text AS brand_code,
-    spare_part_casio.id,
-    spare_part_casio.part_code,
-    spare_part_casio.part_name,
-    spare_part_casio.part_description,
-    spare_part_casio.category,
-    spare_part_casio.model,
-    spare_part_casio.uom,
-    spare_part_casio.cost_price,
-    spare_part_casio.mrp,
-    spare_part_casio.hsn_code,
-    spare_part_casio.gst_rate,
-    spare_part_casio.is_active,
-    spare_part_casio.created_at,
-    spare_part_casio.updated_at
-   FROM demo1.spare_part_casio
-UNION ALL
- SELECT 'NIKON'::text AS brand_code,
-    spare_part_nikon.id,
-    spare_part_nikon.part_code,
-    spare_part_nikon.part_name,
-    spare_part_nikon.part_description,
-    spare_part_nikon.category,
-    spare_part_nikon.model,
-    spare_part_nikon.uom,
-    spare_part_nikon.cost_price,
-    spare_part_nikon.mrp,
-    spare_part_nikon.hsn_code,
-    spare_part_nikon.gst_rate,
-    spare_part_nikon.is_active,
-    spare_part_nikon.created_at,
-    spare_part_nikon.updated_at
-   FROM demo1.spare_part_nikon;
-
-
-ALTER VIEW demo1.spare_part OWNER TO webadmin;
-
---
--- Name: spare_part_casio_id_seq; Type: SEQUENCE; Schema: demo1; Owner: webadmin
---
-
-ALTER TABLE demo1.spare_part_casio ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
-    SEQUENCE NAME demo1.spare_part_casio_id_seq
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1
-);
-
-
---
--- Name: spare_part_nikon_id_seq; Type: SEQUENCE; Schema: demo1; Owner: webadmin
---
-
-ALTER TABLE demo1.spare_part_nikon ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
-    SEQUENCE NAME demo1.spare_part_nikon_id_seq
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1
-);
-
-
---
--- Name: spare_part_sony_id_seq; Type: SEQUENCE; Schema: demo1; Owner: webadmin
---
-
-ALTER TABLE demo1.spare_part_sony ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
-    SEQUENCE NAME demo1.spare_part_sony_id_seq
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1
-);
-
-
---
--- Name: stock_transaction; Type: TABLE; Schema: demo1; Owner: webadmin
---
-
-CREATE TABLE demo1.stock_transaction (
-    id bigint NOT NULL,
-    part_code text NOT NULL,
-    branch_id bigint NOT NULL,
     brand_id bigint NOT NULL,
-    stock_transaction_type_id smallint NOT NULL,
-    transaction_date date NOT NULL,
-    dr_cr character(1) NOT NULL,
-    qty numeric(12,3) NOT NULL,
-    unit_cost numeric(12,2),
-    source_table text NOT NULL,
-    source_id bigint NOT NULL,
-    remarks text,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    CONSTRAINT stock_transaction_dr_cr_check CHECK ((dr_cr = ANY (ARRAY['D'::bpchar, 'C'::bpchar]))),
-    CONSTRAINT stock_transaction_qty_check CHECK ((qty > (0)::numeric))
+    part_code text NOT NULL,
+    part_name text NOT NULL,
+    part_description text,
+    category text,
+    model text,
+    uom text DEFAULT 'NOS'::text NOT NULL,
+    cost_price numeric(12,2),
+    mrp numeric(12,2),
+    hsn_code text,
+    gst_rate numeric(5,2),
+    is_active boolean DEFAULT true NOT NULL,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now()
 );
 
 
-ALTER TABLE demo1.stock_transaction OWNER TO webadmin;
+ALTER TABLE demo1.spare_part_master OWNER TO webadmin;
 
 --
--- Name: spare_part_stock_summary; Type: VIEW; Schema: demo1; Owner: webadmin
+-- Name: spare_part_id_seq; Type: SEQUENCE; Schema: demo1; Owner: webadmin
 --
 
-CREATE VIEW demo1.spare_part_stock_summary AS
- SELECT stock_transaction.part_code,
-    stock_transaction.brand_id,
-    stock_transaction.branch_id,
-    sum(
-        CASE
-            WHEN (stock_transaction.dr_cr = 'D'::bpchar) THEN stock_transaction.qty
-            WHEN (stock_transaction.dr_cr = 'C'::bpchar) THEN (- stock_transaction.qty)
-            ELSE (0)::numeric
-        END) AS current_stock
-   FROM demo1.stock_transaction
-  GROUP BY stock_transaction.part_code, stock_transaction.brand_id, stock_transaction.branch_id;
+ALTER TABLE demo1.spare_part_master ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME demo1.spare_part_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
 
-
-ALTER VIEW demo1.spare_part_stock_summary OWNER TO webadmin;
 
 --
 -- Name: state; Type: TABLE; Schema: demo1; Owner: webadmin
@@ -1106,8 +924,7 @@ ALTER TABLE demo1.stock_adjustment ALTER COLUMN id ADD GENERATED ALWAYS AS IDENT
 CREATE TABLE demo1.stock_adjustment_line (
     id bigint NOT NULL,
     stock_adjustment_id bigint NOT NULL,
-    part_code text NOT NULL,
-    brand_id bigint NOT NULL,
+    part_id bigint NOT NULL,
     dr_cr character(1) NOT NULL,
     qty numeric(12,3) NOT NULL,
     unit_cost numeric(12,2),
@@ -1134,6 +951,30 @@ ALTER TABLE demo1.stock_adjustment_line ALTER COLUMN id ADD GENERATED ALWAYS AS 
     CACHE 1
 );
 
+
+--
+-- Name: stock_transaction; Type: TABLE; Schema: demo1; Owner: webadmin
+--
+
+CREATE TABLE demo1.stock_transaction (
+    id bigint NOT NULL,
+    part_id bigint NOT NULL,
+    branch_id bigint NOT NULL,
+    stock_transaction_type_id smallint NOT NULL,
+    transaction_date date NOT NULL,
+    dr_cr character(1) NOT NULL,
+    qty numeric(12,3) NOT NULL,
+    unit_cost numeric(12,2),
+    source_table text NOT NULL,
+    source_id bigint NOT NULL,
+    remarks text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT stock_transaction_dr_cr_check CHECK ((dr_cr = ANY (ARRAY['D'::bpchar, 'C'::bpchar]))),
+    CONSTRAINT stock_transaction_qty_check CHECK ((qty > (0)::numeric))
+);
+
+
+ALTER TABLE demo1.stock_transaction OWNER TO webadmin;
 
 --
 -- Name: stock_transaction_id_seq; Type: SEQUENCE; Schema: demo1; Owner: webadmin
@@ -1594,51 +1435,19 @@ ALTER TABLE ONLY demo1.sales_invoice
 
 
 --
--- Name: spare_part_casio spare_part_casio_part_code_uidx; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+-- Name: spare_part_master spare_part_code_brand_unique; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
 --
 
-ALTER TABLE ONLY demo1.spare_part_casio
-    ADD CONSTRAINT spare_part_casio_part_code_uidx UNIQUE (part_code);
-
-
---
--- Name: spare_part_casio spare_part_casio_pkey; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
---
-
-ALTER TABLE ONLY demo1.spare_part_casio
-    ADD CONSTRAINT spare_part_casio_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY demo1.spare_part_master
+    ADD CONSTRAINT spare_part_code_brand_unique UNIQUE (brand_id, part_code);
 
 
 --
--- Name: spare_part_nikon spare_part_nikon_part_code_uidx; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+-- Name: spare_part_master spare_part_pkey; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
 --
 
-ALTER TABLE ONLY demo1.spare_part_nikon
-    ADD CONSTRAINT spare_part_nikon_part_code_uidx UNIQUE (part_code);
-
-
---
--- Name: spare_part_nikon spare_part_nikon_pkey; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
---
-
-ALTER TABLE ONLY demo1.spare_part_nikon
-    ADD CONSTRAINT spare_part_nikon_pkey PRIMARY KEY (id);
-
-
---
--- Name: spare_part_sony spare_part_sony_part_code_uidx; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
---
-
-ALTER TABLE ONLY demo1.spare_part_sony
-    ADD CONSTRAINT spare_part_sony_part_code_uidx UNIQUE (part_code);
-
-
---
--- Name: spare_part_sony spare_part_sony_pkey; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
---
-
-ALTER TABLE ONLY demo1.spare_part_sony
-    ADD CONSTRAINT spare_part_sony_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY demo1.spare_part_master
+    ADD CONSTRAINT spare_part_pkey PRIMARY KEY (id);
 
 
 --
@@ -1773,6 +1582,13 @@ CREATE INDEX idx_job_invoice_line_invoice ON demo1.job_invoice_line USING btree 
 
 
 --
+-- Name: idx_job_invoice_line_part; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX idx_job_invoice_line_part ON demo1.job_invoice_line USING btree (part_code);
+
+
+--
 -- Name: idx_job_part_used_job; Type: INDEX; Schema: demo1; Owner: webadmin
 --
 
@@ -1783,7 +1599,7 @@ CREATE INDEX idx_job_part_used_job ON demo1.job_part_used USING btree (job_id);
 -- Name: idx_job_part_used_part; Type: INDEX; Schema: demo1; Owner: webadmin
 --
 
-CREATE INDEX idx_job_part_used_part ON demo1.job_part_used USING btree (part_code);
+CREATE INDEX idx_job_part_used_part ON demo1.job_part_used USING btree (part_id);
 
 
 --
@@ -1825,7 +1641,7 @@ CREATE INDEX idx_job_transaction_status ON demo1.job_transaction USING btree (st
 -- Name: idx_purchase_invoice_line_spare_part; Type: INDEX; Schema: demo1; Owner: webadmin
 --
 
-CREATE INDEX idx_purchase_invoice_line_spare_part ON demo1.purchase_invoice_line USING btree (part_code);
+CREATE INDEX idx_purchase_invoice_line_spare_part ON demo1.purchase_invoice_line USING btree (part_id);
 
 
 --
@@ -1846,49 +1662,7 @@ CREATE INDEX idx_sales_invoice_customer ON demo1.sales_invoice USING btree (cust
 -- Name: idx_sales_invoice_line_spare_part; Type: INDEX; Schema: demo1; Owner: webadmin
 --
 
-CREATE INDEX idx_sales_invoice_line_spare_part ON demo1.sales_invoice_line USING btree (part_code);
-
-
---
--- Name: idx_sp_casio_model; Type: INDEX; Schema: demo1; Owner: webadmin
---
-
-CREATE INDEX idx_sp_casio_model ON demo1.spare_part_casio USING btree (model);
-
-
---
--- Name: idx_sp_casio_name; Type: INDEX; Schema: demo1; Owner: webadmin
---
-
-CREATE INDEX idx_sp_casio_name ON demo1.spare_part_casio USING btree (part_name);
-
-
---
--- Name: idx_sp_nikon_model; Type: INDEX; Schema: demo1; Owner: webadmin
---
-
-CREATE INDEX idx_sp_nikon_model ON demo1.spare_part_nikon USING btree (model);
-
-
---
--- Name: idx_sp_nikon_name; Type: INDEX; Schema: demo1; Owner: webadmin
---
-
-CREATE INDEX idx_sp_nikon_name ON demo1.spare_part_nikon USING btree (part_name);
-
-
---
--- Name: idx_sp_sony_model; Type: INDEX; Schema: demo1; Owner: webadmin
---
-
-CREATE INDEX idx_sp_sony_model ON demo1.spare_part_sony USING btree (model);
-
-
---
--- Name: idx_sp_sony_name; Type: INDEX; Schema: demo1; Owner: webadmin
---
-
-CREATE INDEX idx_sp_sony_name ON demo1.spare_part_sony USING btree (part_name);
+CREATE INDEX idx_sales_invoice_line_spare_part ON demo1.sales_invoice_line USING btree (part_id);
 
 
 --
@@ -1909,7 +1683,7 @@ CREATE INDEX idx_stock_adj_line_adj_id ON demo1.stock_adjustment_line USING btre
 -- Name: idx_stock_adj_line_part; Type: INDEX; Schema: demo1; Owner: webadmin
 --
 
-CREATE INDEX idx_stock_adj_line_part ON demo1.stock_adjustment_line USING btree (part_code);
+CREATE INDEX idx_stock_adj_line_part ON demo1.stock_adjustment_line USING btree (part_id);
 
 
 --
@@ -1923,7 +1697,7 @@ CREATE INDEX idx_stock_tx_date ON demo1.stock_transaction USING btree (transacti
 -- Name: idx_stock_tx_part; Type: INDEX; Schema: demo1; Owner: webadmin
 --
 
-CREATE INDEX idx_stock_tx_part ON demo1.stock_transaction USING btree (part_code);
+CREATE INDEX idx_stock_tx_part ON demo1.stock_transaction USING btree (part_id);
 
 
 --
@@ -2071,19 +1845,19 @@ ALTER TABLE ONLY demo1.job_invoice_line
 
 
 --
--- Name: job_part_used job_part_used_brand_fk; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
---
-
-ALTER TABLE ONLY demo1.job_part_used
-    ADD CONSTRAINT job_part_used_brand_fk FOREIGN KEY (brand_id) REFERENCES demo1.brand(id) ON DELETE RESTRICT;
-
-
---
 -- Name: job_part_used job_part_used_job_fk; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
 --
 
 ALTER TABLE ONLY demo1.job_part_used
     ADD CONSTRAINT job_part_used_job_fk FOREIGN KEY (job_id) REFERENCES demo1.job(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: job_part_used job_part_used_part_fk; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.job_part_used
+    ADD CONSTRAINT job_part_used_part_fk FOREIGN KEY (part_id) REFERENCES demo1.spare_part_master(id) ON DELETE RESTRICT;
 
 
 --
@@ -2191,19 +1965,19 @@ ALTER TABLE ONLY demo1.purchase_invoice
 
 
 --
--- Name: purchase_invoice_line purchase_invoice_line_brand_fk; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
---
-
-ALTER TABLE ONLY demo1.purchase_invoice_line
-    ADD CONSTRAINT purchase_invoice_line_brand_fk FOREIGN KEY (brand_id) REFERENCES demo1.brand(id) ON DELETE RESTRICT;
-
-
---
 -- Name: purchase_invoice_line purchase_invoice_line_invoice_fk; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
 --
 
 ALTER TABLE ONLY demo1.purchase_invoice_line
     ADD CONSTRAINT purchase_invoice_line_invoice_fk FOREIGN KEY (purchase_invoice_id) REFERENCES demo1.purchase_invoice(id) ON DELETE CASCADE;
+
+
+--
+-- Name: purchase_invoice_line purchase_invoice_line_part_fk; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.purchase_invoice_line
+    ADD CONSTRAINT purchase_invoice_line_part_fk FOREIGN KEY (part_id) REFERENCES demo1.spare_part_master(id) ON DELETE RESTRICT;
 
 
 --
@@ -2247,6 +2021,22 @@ ALTER TABLE ONLY demo1.sales_invoice_line
 
 
 --
+-- Name: sales_invoice_line sales_invoice_line_part_fk; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.sales_invoice_line
+    ADD CONSTRAINT sales_invoice_line_part_fk FOREIGN KEY (part_id) REFERENCES demo1.spare_part_master(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: spare_part_master spare_part_brand_id_fkey; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.spare_part_master
+    ADD CONSTRAINT spare_part_brand_id_fkey FOREIGN KEY (brand_id) REFERENCES demo1.brand(id);
+
+
+--
 -- Name: stock_adjustment stock_adjustment_branch_fk; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
 --
 
@@ -2263,11 +2053,11 @@ ALTER TABLE ONLY demo1.stock_adjustment_line
 
 
 --
--- Name: stock_adjustment_line stock_adjustment_line_brand_fk; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+-- Name: stock_adjustment_line stock_adjustment_line_spare_part_fk; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
 --
 
 ALTER TABLE ONLY demo1.stock_adjustment_line
-    ADD CONSTRAINT stock_adjustment_line_brand_fk FOREIGN KEY (brand_id) REFERENCES demo1.brand(id) ON DELETE RESTRICT;
+    ADD CONSTRAINT stock_adjustment_line_spare_part_fk FOREIGN KEY (part_id) REFERENCES demo1.spare_part_master(id) ON DELETE RESTRICT;
 
 
 --
@@ -2279,11 +2069,11 @@ ALTER TABLE ONLY demo1.stock_transaction
 
 
 --
--- Name: stock_transaction stock_transaction_brand_fk; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+-- Name: stock_transaction stock_transaction_part_id_fk; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
 --
 
 ALTER TABLE ONLY demo1.stock_transaction
-    ADD CONSTRAINT stock_transaction_brand_fk FOREIGN KEY (brand_id) REFERENCES demo1.brand(id) ON DELETE RESTRICT;
+    ADD CONSTRAINT stock_transaction_part_id_fk FOREIGN KEY (part_id) REFERENCES demo1.spare_part_master(id) ON DELETE RESTRICT;
 
 
 --
@@ -2313,6 +2103,4 @@ ALTER TABLE ONLY demo1.technician
 --
 -- PostgreSQL database dump complete
 --
-
-\unrestrict X6eFCJQR2CpXT6f47GxD4sUKfmID3JX6muMzFfg3A1kDL0xKPNTSNfgSevfBvvF
 
