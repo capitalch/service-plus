@@ -10,8 +10,8 @@
 		- Aug 2026
 
 # Tracking
-- 01-02-2026 - 05-02-2026
-	- DB design for service auth
+- 01-02-2026 - 12-02-2026
+	- DB design for service and security schemas
 
 - 15-01-2026 - 31-01-2026
 	- conceiving the idea
