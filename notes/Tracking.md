@@ -10,6 +10,8 @@
 		- Aug 2026
 
 # Tracking
+- 13-02-2026
+	- DB design phase-1 completed
 - 01-02-2026 - 12-02-2026
 	- DB design for service and security schemas
 
