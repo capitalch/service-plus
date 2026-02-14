@@ -1,4 +1,12 @@
-## Service management software
+## Server
+# **Creating and activating virtual env in windows in context of Trace**
+Download and Install Python from installer
+cd c:\projects\trace-plus
+1. python -m pip install virtualenv
+2. python -m venv env
+3. env\Scripts\activate
+
+## Service management software client
 # pnpm: node 17 has it
 	- Steps:
 		- corepack enable pnpm
