@@ -1,0 +1,13 @@
+type Query {
+    genericQuery(db_name: String!, value: String!): Generic
+}
+
+type Mutation {
+    genericUpdate(db_name: String!, value: Generic!):Generic
+}
+
+type Subscription {
+    genericSubscription(db_name: String!):Generic
+}
+
+scalar Generic

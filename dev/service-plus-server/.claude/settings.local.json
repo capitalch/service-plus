@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -m pip uninstall:*)",
+      "Bash(else echo \"Directory does not exist\")",
+      "Bash(fi)",
+      "Bash(test:*)",
+      "Bash(\"c:/projects/service-plus/env/Scripts/python.exe\" --version)",
+      "Bash(\"c:/projects/service-plus/env/Scripts/python.exe\" -m pip install --upgrade pip)",
+      "Bash(\"c:/projects/service-plus/env/Scripts/python.exe\" -m pip install -r requirements.txt)",
+      "Bash(\"c:/projects/service-plus/env/Scripts/python.exe\" -m pip list)",
+      "Bash(\"c:/projects/service-plus/env/Scripts/python.exe\" -m uvicorn:*)",
+      "Bash(curl:*)",
+      "Bash(python -m pip list:*)",
+      "Bash(timeout 2 python:*)",
+      "Bash(c:/projects/service-plus/env/Scripts/python.exe:*)"
+    ]
+  }
+}

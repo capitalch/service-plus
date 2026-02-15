@@ -1,6 +1,6 @@
 # instructions
-- create a new fastapi server using GraphQL with exceptions handling 
-- use ariadne for graphql schema
-- create folder structutre for the project
-- use graphql subscriptions also
+- I want to implement login mechanism in this server
+- We have graphQL also in the system
+- Should we keep only protected by token calls through graphql orunprotected calls like login should also be routed through graphql? What are best practises?
+
 
