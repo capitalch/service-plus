@@ -15,7 +15,7 @@ function ExampleWrapper({ className, ...props }: React.ComponentProps<"div">) {
   )
 }
 
-function Example({
+function Example1({
   title,
   children,
   className,
@@ -52,4 +52,4 @@ function Example({
   )
 }
 
-export { ExampleWrapper, Example }
+export { ExampleWrapper, Example1 }

@@ -1,9 +1,9 @@
 import * as React from "react"
 
 import {
-  Example,
+  Example1,
   ExampleWrapper,
-} from "@/components/example"
+} from "@/components/example1/example1"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -64,25 +64,36 @@ import {
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { PlusIcon, BluetoothIcon, MoreVerticalIcon, FileIcon, FolderIcon, FolderOpenIcon, FileCodeIcon, MoreHorizontalIcon, FolderSearchIcon, SaveIcon, DownloadIcon, EyeIcon, LayoutIcon, PaletteIcon, SunIcon, MoonIcon, MonitorIcon, UserIcon, CreditCardIcon, SettingsIcon, KeyboardIcon, LanguagesIcon, BellIcon, MailIcon, ShieldIcon, HelpCircleIcon, FileTextIcon, LogOutIcon } from "lucide-react"
-import { Components8bit} from "./components-8bit"
+import { Components8bit } from "./components-8bit"
 import { LoginForm } from "./login-form"
 import Login04 from "./login-04"
+import { useNavigate } from "react-router-dom"
 
 export function ComponentExample() {
+  const navigate = useNavigate()
   return (
-    <ExampleWrapper>
-      <CardExample />
-      <FormExample />
-      <Components8bit />
-      <LoginForm />
-      <Login04 />
-    </ExampleWrapper>
+    <div className="flex flex-col">
+      <Button variant="outline" className="m-4 w-48" onClick={handleClickExample2}>
+        Example 2: Redux counter
+      </Button>
+      <ExampleWrapper>
+        <CardExample />
+        <FormExample />
+        <Components8bit />
+        <LoginForm />
+        <Login04 />
+      </ExampleWrapper>
+    </div>
   )
+
+  function handleClickExample2() {
+    navigate("/redux-counter")
+  }
 }
 
 function CardExample() {
   return (
-    <Example title="Card" className="items-center justify-center">
+    <Example1 title="Card" className="items-center justify-center">
       <Card className="relative w-full max-w-sm overflow-hidden pt-0">
         <div className="bg-primary absolute inset-0 z-30 aspect-video opacity-50 mix-blend-color" />
         <img
@@ -130,7 +141,7 @@ function CardExample() {
           </Badge>
         </CardFooter>
       </Card>
-    </Example>
+    </Example1>
   )
 }
 
@@ -151,7 +162,7 @@ function FormExample() {
   const [theme, setTheme] = React.useState("light")
 
   return (
-    <Example title="Form">
+    <Example1 title="Form">
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle>User Information</CardTitle>
@@ -494,6 +505,6 @@ function FormExample() {
           </form>
         </CardContent>
       </Card>
-    </Example>
+    </Example1>
   )
 }

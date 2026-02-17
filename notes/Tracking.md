@@ -10,8 +10,10 @@
 		- Aug 2026
 
 # Tracking
-- 14-02-2026
+- 
+- 14-02-2026 - 17-02-2026
 	- Server side work started
+	- Client side work also started
 - 13-02-2026
 	- DB design phase-1 completed
 - 01-02-2026 - 12-02-2026

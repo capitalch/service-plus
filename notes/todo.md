@@ -1,8 +1,7 @@
 # Recap
-	- Redux
-	- RTK query
+									- Redux
 	- Server side database connection and query
-	- using shadcn
+									- using shadcn
 # To Do
 	- Clients fill in dropdown
 	- Supervisor 
