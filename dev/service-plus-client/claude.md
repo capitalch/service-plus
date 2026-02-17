@@ -1,0 +1,21 @@
+# instructions
+- limit yourself to current folder
+- When any text command is given to claude and last word is plan then do the plan only for the given command. Write your plan in the plan.md file in the plans folder in root. -Overwrite plan.md if required.
+- In plan.md write all the steps of execution as Step1, Step 2 and so on.
+- In plan.md include a workflow section which provides the workflow of entire effort
+- When creating a form never use red color for any control css. Red color will only be used for indicating errors.
+- Always make use of shadcn components and framer-motion for transition wherever required
+- For forms use react-hook-form and zod for validations and business rules
+- Use GraphQL with subscription support for authenticated query. Use apollo for GraphQL
+- Use Sonner for notifications
+- Generate GraphQL types using codegen
+- use pnpm and not npm
+- use React Router + Redux Toolkit + RTK Query
+- For global state management use redux
+- When creating a form, the * for mandatory fields should be red color
+- Keep all the messages and custom errors in a centralized sngle file as key values. Use the keys from this file to display any message including exception
+- For protected api calls after login use graphql with header Authorization + token. Otherwise use other simple best way
+- use pnpm or dlx to install libs
+- For components, hooks and inline handlers use arrow functions
+- For Utility functions and API helpers use Normal functions
+- Use type instead of interface wherever possible

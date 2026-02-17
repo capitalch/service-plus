@@ -3,7 +3,7 @@
     - This is fastapi based server to implement Service management system to repair electronic gadgets
     - When any text command is given to claude and last word is plan then do the plan only for the given command. Write your plan in the plan.md file in the plans folder in root. Overwrite plan.md if required.
     - In plan.md write all the steps of execution as Step1, Step 2 and so on.
-    - In plan.md include aworkflow section which provides the workflow of entire steps
+    - In plan.md include a workflow section which provides the workflow of entire steps
     - This is server side code. It uses fastApi and GraphQL
     - Use best practices while writing python code
     - use logger

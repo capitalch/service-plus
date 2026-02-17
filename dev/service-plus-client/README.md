@@ -1,73 +1,60 @@
-# React + TypeScript + Vite
+# Service Plus Client
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Modern React application built with TypeScript, Vite, and enterprise-grade tools.
 
-Currently, two official plugins are available:
+## Tech Stack
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- **React 19** + **TypeScript** - UI and type safety
+- **Vite** - Build tool and dev server
+- **Redux Toolkit** - Global state management
+- **Apollo Client** - GraphQL client with authentication
+- **React Router v7** - Client-side routing
+- **React Hook Form** + **Zod** - Form handling and validation
+- **shadcn/ui** + **Tailwind CSS v4** - UI components and styling
+- **Framer Motion** - Animations
+- **Sonner** - Toast notifications
+- **GraphQL Codegen** - Generate TypeScript types from GraphQL
 
-## React Compiler
+## Getting Started
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+```bash
+# Install dependencies
+pnpm install
 
-## Expanding the ESLint configuration
+# Copy environment variables
+cp .env.example .env
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+# Start development server
+pnpm start
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Project Structure
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
 ```
+src/
+├── components/        # React components
+├── constants/        # Centralized messages and constants
+├── lib/              # Apollo Client, utilities, helpers
+├── router/           # React Router configuration
+├── store/            # Redux store and typed hooks
+├── App.tsx           # Root component
+└── main.tsx          # Entry point with providers
+```
+
+## Available Scripts
+
+- `pnpm start` - Start development server (port 3001)
+- `pnpm build` - Build for production
+- `pnpm lint` - Run ESLint
+- `pnpm codegen` - Generate GraphQL types
+
+## Development Guidelines
+
+See `CLAUDE.md` for detailed development conventions.
+
+**Key Conventions:**
+- Arrow functions for components/hooks
+- Normal functions for utilities/API helpers
+- Centralized messages in `constants/messages.ts`
+- Red color only for errors and required field indicators
+- GraphQL with auth headers for protected API calls
