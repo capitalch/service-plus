@@ -108,7 +108,7 @@ export const ForgotPasswordForm = ({ onBack, onSuccess }: ForgotPasswordFormProp
           type="button"
           onClick={onBack}
           disabled={isLoading}
-          className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 transition-colors mx-auto"
+          className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 transition-colors mx-auto cursor-pointer"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
           Back to login

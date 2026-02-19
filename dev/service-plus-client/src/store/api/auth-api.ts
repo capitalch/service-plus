@@ -40,10 +40,11 @@ export type LoginResponseType = {
   user: UserType;
 };
 
-export type SearchClientsResponseType = {
-  clients: ClientType[];
-  total: number;
-};
+export type SearchClientsResponseType = ClientType[]; // Assuming the API returns an array of clients
+// {
+//   clients: ClientType[];
+//   total: number;
+// };
 
 export type UserType = {
   email: string;
@@ -73,7 +74,7 @@ function extractApiError(err: unknown): ApiError {
 
 export async function forgotPasswordRequest(data: ForgotPasswordRequest): Promise<ForgotPasswordResponse> {
   try {
-    const response = await axiosInstance.post('/auth/forgot-password', data);
+    const response = await axiosInstance.post('/api/auth/forgot-password', data);
     return response.data;
   } catch (err) {
     throw extractApiError(err);
@@ -82,7 +83,7 @@ export async function forgotPasswordRequest(data: ForgotPasswordRequest): Promis
 
 export async function loginUser(credentials: LoginRequestType): Promise<LoginResponseType> {
   try {
-    const response = await axiosInstance.post('/auth/login', credentials);
+    const response = await axiosInstance.post('/api/auth/login', credentials);
     return response.data;
   } catch (err) {
     throw extractApiError(err);

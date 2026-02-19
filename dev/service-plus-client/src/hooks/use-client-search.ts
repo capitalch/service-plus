@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { searchClients } from '@/store/api/auth-api';
 import { useDebounce } from './use-debounce';
-import type { ClientType } from '@/store/api/auth-api';
+import type { ClientType, SearchClientsResponseType } from '@/store/api/auth-api';
 
 /**
  * useClientSearch Hook
@@ -17,7 +17,7 @@ export const useClientSearch = () => {
   const [clients, setClients] = useState<ClientType[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<unknown>(null);
-  const debouncedSearch = useDebounce(criteria, 300);
+  const debouncedSearch = useDebounce(criteria, 1200);
 
   useEffect(() => {
     if (debouncedSearch.length < 2) {
@@ -31,7 +31,7 @@ export const useClientSearch = () => {
       setIsLoading(true);
       setError(null);
       try {
-        const data:ClientType[] = await searchClients(debouncedSearch);
+        const data: SearchClientsResponseType = await searchClients(debouncedSearch);
         if (!cancelled) setClients(data);
       } catch (err) {
         if (!cancelled) setError(err);

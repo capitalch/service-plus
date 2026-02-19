@@ -165,7 +165,7 @@ export const LoginForm = ({ onForgotPassword, onSuccess }: LoginFormProps) => {
           <button
             type="button"
             onClick={onForgotPassword}
-            className="text-sm text-indigo-600 hover:text-indigo-700 font-medium transition-colors"
+            className="text-sm text-indigo-600 hover:text-indigo-700 font-medium transition-colors cursor-pointer"
           >
             Forgot password?
           </button>

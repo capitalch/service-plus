@@ -1,143 +1,78 @@
-# Plan: Dev / Production Environment Switching (config.py only)
+# Plan: Add Login to auth_router with Helper in auth_router_helper
 
-## Overview
-Only `client_db_host`, `client_db_port`, `service_db_host`, and `service_db_port`
-differ between environments. All other values remain hardcoded in `config.py`.
-`APP_ENV` environment variable (default: `dev`) selects the right host/port pair.
-No `.env` files are needed.
+## Objective
+Implement a `POST /api/auth/login` endpoint in `auth_router.py` that authenticates a user
+(username + password), verifies credentials against the database, and returns a JWT access token.
+All business logic lives in `auth_router_helper.py`.
 
 ---
 
 ## Workflow
 
 ```
-OS / shell
-  └─ APP_ENV=dev | production  (default: dev)
-        │
-        ▼
-app/config.py  reads APP_ENV at import time
-  └─ selects host/port from _DB_CONFIG dict
-        │
-        ▼
-Settings  built with correct host/port; all other values unchanged
+Client
+  │
+  ▼
+POST /api/auth/login  (auth_router.py)
+  │  LoginRequest { username, password }
+  ▼
+login_helper()  (auth_router_helper.py)
+  │
+  ├─► SqlAuth.GET_USER_BY_USERNAME  (sql_auth.py)
+  │     └─► database.exec_sql()  →  user row (id, username, password_hash, is_active, role)
+  │
+  ├─► verify_password(plain, hash)  (core/security.py)
+  │     └─► raise AuthorizationException on failure
+  │
+  ├─► create_access_token({ sub: username, role: role })  (core/security.py)
+  │
+  └─► return LoginResponse { access_token, token_type="bearer", username, role }
+  │
+  ▼
+auth_router.py  →  LoginResponse  →  Client
 ```
 
 ---
 
-## Step 1: Rewrite `app/config.py`
+## Step 1 — Add login schemas to `app/schemas/auth_schema.py`
+- Add `LoginRequest` Pydantic model with fields: `username: str`, `password: str`
+- Add `LoginResponse` Pydantic model with fields:
+  `access_token: str`, `token_type: str`, `username: str`, `role: str`
+- Keep all models sorted alphabetically by class name.
 
-**File**: `app/config.py`
+## Step 2 — Add SQL query to `app/db/sql_auth.py`
+- Add class constant `GET_USER_BY_USERNAME` that selects
+  `id, username, password_hash, is_active, role` from the `app_user` table
+  filtered by `%(username)s`.
+- Keep constants sorted alphabetically by name.
 
-Changes:
-- Read `APP_ENV` from `os.environ` at import time (default `"dev"`)
-- Define `_DB_CONFIG` dict mapping each environment to its host/port values
-- Set `client_db_host`, `client_db_port`, `service_db_host`, `service_db_port`
-  from the dict — no hardcoded defaults on these four fields
-- All other settings remain as hardcoded defaults, unchanged
-- Remove `env_file` from `model_config` (no `.env` file required)
-- Add `app_env` field to expose the active environment to the app
+## Step 3 — Add `login_helper()` to `app/routers/auth_router_helper.py`
+- Import: `AuthorizationException`, `AppMessages`, `verify_password`, `create_access_token`,
+  `LoginRequest`, `LoginResponse`, `SqlAuth`, `exec_sql`, `logger`.
+- Function signature: `async def login_helper(data: LoginRequest) -> LoginResponse`
+- Steps inside the helper:
+  1. Call `exec_sql` with `SqlAuth.GET_USER_BY_USERNAME` and `{"username": data.username}`.
+  2. If no row returned, raise `AuthorizationException(AppMessages.INVALID_CREDENTIALS)`.
+  3. If `user["is_active"]` is `False`, raise `AuthorizationException(AppMessages.FORBIDDEN)`.
+  4. Call `verify_password(data.password, user["password_hash"])`; raise
+     `AuthorizationException(AppMessages.INVALID_CREDENTIALS)` on failure.
+  5. Call `create_access_token({"sub": user["username"], "role": user["role"]})`.
+  6. Log success with `AppMessages.LOGIN_SUCCESSFUL`.
+  7. Return `LoginResponse(access_token=token, token_type="bearer", username=..., role=...)`.
+- Keep functions sorted alphabetically by name.
 
-```python
-"""
-Application configuration management using Pydantic Settings.
-"""
-import os
-from pydantic import Field
-from pydantic_settings import BaseSettings, SettingsConfigDict
+## Step 4 — Add `POST /api/auth/login` endpoint to `app/routers/auth_router.py`
+- Import `LoginRequest`, `LoginResponse` from schemas and `login_helper` from helper.
+- Add endpoint:
+  ```
+  POST /api/auth/login
+  Body: LoginRequest
+  Response: LoginResponse
+  ```
+- Delegate entirely to `login_helper(body)`.
+- Log the call at INFO level before delegating.
+- Keep endpoint definitions sorted alphabetically by path name.
 
-_APP_ENV = os.getenv("APP_ENV", "dev")
-
-_DB_CONFIG: dict[str, dict] = {
-    "dev": {
-        "client_db_host": "node150483-trace-link.cloudjiffy.net",
-        "client_db_port": 11085,
-        "service_db_host": "node150483-trace-link.cloudjiffy.net",
-        "service_db_port": 11085,
-    },
-    "production": {
-        "client_db_host": "<prod-host>",
-        "client_db_port": 5432,
-        "service_db_host": "<prod-host>",
-        "service_db_port": 5432,
-    },
-}
-
-_db = _DB_CONFIG[_APP_ENV]
-
-
-class Settings(BaseSettings):
-    """Application settings. Environment-specific DB host/port selected via APP_ENV."""
-
-    # Environment
-    app_env: str = Field(default=_APP_ENV, description="Active environment: dev or production")
-
-    # Application
-    app_name: str = Field(default="Service Plus API")
-    app_version: str = Field(default="1.0.0")
-    debug: bool = Field(default=True)
-    host: str = Field(default="127.0.0.1")
-    port: int = Field(default=8000)
-
-    # GraphQL
-    graphql_path: str = Field(default="/graphql")
-    graphql_playground: bool = Field(default=True)
-
-    # Client Database
-    client_db_host: str = _db["client_db_host"]
-    client_db_port: int = _db["client_db_port"]
-    client_db_name: str = "service_plus_client"
-    client_db_user: str = "webadmin"
-    client_db_password: str = "APmkY2&Z3A"
-
-    # Service Database
-    service_db_host: str = _db["service_db_host"]
-    service_db_port: int = _db["service_db_port"]
-    service_db_user: str = "webadmin"
-    service_db_password: str = "APmkY2&Z3A"
-
-    # Security
-    secret_key: str = Field(default="dde5a4b11fe2fa0abbdef32ac3d802c0b1e5f8c9a1b2c3d4e5f6a7b8c9d0")
-    algorithm: str = Field(default="HS256")
-    access_token_expire_minutes: int = Field(default=30)
-    refresh_token_expire_days: int = Field(default=7)
-
-    # Logging
-    log_level: str = Field(default="INFO")
-    log_format: str = Field(
-        default="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-    )
-
-    model_config = SettingsConfigDict(
-        case_sensitive=False,
-        extra="ignore",
-    )
-
-
-settings = Settings()
-```
-
----
-
-## Files Changed
-
-| File | Change |
-|------|--------|
-| `app/config.py` | Add `APP_ENV` + `_DB_CONFIG` dict; env-specific host/port; all other values unchanged |
-
-## Files NOT Changed
-
-| File | Reason |
-|------|--------|
-| `app/db/database.py` | Uses `settings.*` — no change needed |
-| `app/main.py` | No change needed |
-| All routers / helpers | No direct config access |
-
-## Usage
-
-```bash
-# Dev (default — APP_ENV not required)
-python -m uvicorn app.main:app --reload
-
-# Production
-APP_ENV=production python -m uvicorn app.main:app
-```
+## Step 5 — Verify `AppMessages` entries in `app/exceptions.py`
+- Confirm that `FORBIDDEN`, `INVALID_CREDENTIALS`, and `LOGIN_SUCCESSFUL` already exist.
+- No changes needed unless any of those constants are missing.

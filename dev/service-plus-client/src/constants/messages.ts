@@ -13,8 +13,12 @@ export const MESSAGES = {
 
   // Validation Errors - Format
   ERROR_EMAIL_INVALID: 'Please enter a valid email address',
-  ERROR_EMAIL_OR_USERNAME_MIN_LENGTH: 'Email or username must be at least 3 characters',
+  ERROR_EMAIL_INVALID_FORMAT: 'Enter a valid email address',
+  ERROR_PASSWORD_LETTER_REQUIRED: 'Must contain at least one letter',
   ERROR_PASSWORD_MIN_LENGTH: 'Password must be at least 6 characters',
+  ERROR_PASSWORD_NUMBER_REQUIRED: 'Must contain at least one number',
+  ERROR_USERNAME_INVALID_FORMAT: 'Username can only contain letters and numbers',
+  ERROR_USERNAME_MIN_LENGTH: 'Username must be at least 5 characters',
 
   // Login Success/Error
   ERROR_ACCOUNT_LOCKED: 'Your account has been locked. Please contact support.',
@@ -47,11 +51,13 @@ export function getMessage(key: MessageKey): string {
 export const VALIDATION_MESSAGES = {
   CLIENT_REQUIRED: MESSAGES.ERROR_CLIENT_REQUIRED,
   EMAIL_INVALID: MESSAGES.ERROR_EMAIL_INVALID,
-  EMAIL_OR_USERNAME_MIN_LENGTH: MESSAGES.ERROR_EMAIL_OR_USERNAME_MIN_LENGTH,
+  EMAIL_INVALID_FORMAT: MESSAGES.ERROR_EMAIL_INVALID_FORMAT,
   EMAIL_OR_USERNAME_REQUIRED: MESSAGES.ERROR_EMAIL_OR_USERNAME_REQUIRED,
   EMAIL_REQUIRED: MESSAGES.ERROR_EMAIL_REQUIRED,
   PASSWORD_MIN_LENGTH: MESSAGES.ERROR_PASSWORD_MIN_LENGTH,
   PASSWORD_REQUIRED: MESSAGES.ERROR_PASSWORD_REQUIRED,
+  USERNAME_INVALID_FORMAT: MESSAGES.ERROR_USERNAME_INVALID_FORMAT,
+  USERNAME_MIN_LENGTH: MESSAGES.ERROR_USERNAME_MIN_LENGTH,
 } as const;
 
 export const ERROR_MESSAGES = {

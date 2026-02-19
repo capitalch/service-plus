@@ -10,11 +10,25 @@ export const loginSchema = z.object({
   emailOrUsername: z
     .string()
     .min(1, MESSAGES.ERROR_EMAIL_OR_USERNAME_REQUIRED)
-    .min(3, MESSAGES.ERROR_EMAIL_OR_USERNAME_MIN_LENGTH),
+    .superRefine((val, ctx) => {
+      if (val.includes('@')) {
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) {
+          ctx.addIssue({ code: 'custom', message: MESSAGES.ERROR_EMAIL_INVALID_FORMAT });
+        }
+      } else {
+        if (val.length < 5) {
+          ctx.addIssue({ code: 'custom', message: MESSAGES.ERROR_USERNAME_MIN_LENGTH });
+        } else if (!/^[a-zA-Z0-9]+$/.test(val)) {
+          ctx.addIssue({ code: 'custom', message: MESSAGES.ERROR_USERNAME_INVALID_FORMAT });
+        }
+      }
+    }),
   password: z
     .string()
     .min(1, MESSAGES.ERROR_PASSWORD_REQUIRED)
-    .min(6, MESSAGES.ERROR_PASSWORD_MIN_LENGTH),
+    .min(6, MESSAGES.ERROR_PASSWORD_MIN_LENGTH)
+    .refine((val) => /[a-zA-Z]/.test(val), { message: MESSAGES.ERROR_PASSWORD_LETTER_REQUIRED })
+    .refine((val) => /[0-9]/.test(val), { message: MESSAGES.ERROR_PASSWORD_NUMBER_REQUIRED }),
 });
 
 /**
