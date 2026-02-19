@@ -4,13 +4,14 @@
     - When any text command is given to claude and last word is plan then do the plan only for the given command. Write your plan in the plan.md file in the plans folder in root. Overwrite plan.md if required.
     - In plan.md write all the steps of execution as Step1, Step 2 and so on.
     - In plan.md include a workflow section which provides the workflow of entire steps
-    - This is server side code. It uses fastApi and GraphQL
     - Use best practices while writing python code
     - use logger
     - Keep all custon exception messages or custom messages in a single class file and use its properties to show exception messages
     - All authorization and authentication based SQL will be kept in a single python class file
     - All SQL for application will also be kept in an another python class file
     - Use a router to keep all other than graphql endpoints and keep main.py short
+    - Use graphql for secured calls
+    - In one file always sort code by function names, class names, end point names and field names
 
 # Virtual Environment Setup
     - Python virtual environment is located at: c:\projects\service-plus\env

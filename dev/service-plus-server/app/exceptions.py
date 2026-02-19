@@ -21,10 +21,14 @@ class AppMessages:
     OPERATION_FAILED = "Operation failed"
 
     # Error messages - Not Found
-    RESOURCE_NOT_FOUND = "Requested resource not found"
-    SERVICE_ORDER_NOT_FOUND = "Service order not found"
+    CLIENT_NOT_FOUND = "Client not found"
     CUSTOMER_NOT_FOUND = "Customer not found"
     DEVICE_NOT_FOUND = "Device not found"
+    RESOURCE_NOT_FOUND = "Requested resource not found"
+    SERVICE_ORDER_NOT_FOUND = "Service order not found"
+
+    # Success messages - Application
+    CLIENTS_RETRIEVED = "Clients retrieved successfully"
 
     # Error messages - Validation
     VALIDATION_ERROR = "Validation error occurred"
@@ -33,10 +37,23 @@ class AppMessages:
     INVALID_PHONE_FORMAT = "Invalid phone number format"
     INVALID_DATE_FORMAT = "Invalid date format"
 
-    # Error messages - Authorization
+    # Error messages - Authorization / Authentication
     UNAUTHORIZED = "Unauthorized access"
     FORBIDDEN = "Access forbidden"
     INVALID_CREDENTIALS = "Invalid credentials provided"
+    TOKEN_EXPIRED = "Authentication token has expired"
+    TOKEN_INVALID = "Invalid authentication token"
+    TOKEN_MISSING = "Authentication token is missing"
+    USER_NOT_FOUND = "User not found"
+    USER_ALREADY_EXISTS = "A user with this username or email already exists"
+
+    # Success messages - Authentication
+    LOGIN_SUCCESSFUL = "Login successful"
+    LOGOUT_SUCCESSFUL = "Logout successful"
+    REGISTRATION_SUCCESSFUL = "Registration successful"
+
+    # Validation messages
+    PASSWORD_TOO_SHORT = "Password must be at least 8 characters long"
 
     # Error messages - Database
     DATABASE_CONNECTION_FAILED = "Failed to connect to database"

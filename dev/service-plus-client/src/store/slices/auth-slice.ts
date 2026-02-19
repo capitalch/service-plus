@@ -1,12 +1,12 @@
 import { createSlice } from '@reduxjs/toolkit';
 import type { PayloadAction } from '@reduxjs/toolkit';
-import type { User } from '../api/authApi';
+import type { UserType } from '../api/auth-api';
 
 /**
  * Authentication State Interface
  */
-interface AuthState {
-  user: User | null;
+type AuthState = {
+  user: UserType | null;
   token: string | null;
   isAuthenticated: boolean;
   selectedClientId: string | null;
@@ -45,7 +45,7 @@ export const authSlice = createSlice({
      */
     setCredentials: (
       state,
-      action: PayloadAction<{ user: User; token: string; clientId: string }>
+      action: PayloadAction<{ user: UserType; token: string; clientId: string }>
     ) => {
       const { user, token, clientId } = action.payload;
       state.user = user;
@@ -77,7 +77,7 @@ export const authSlice = createSlice({
     /**
      * Update user information
      */
-    updateUser: (state, action: PayloadAction<Partial<User>>) => {
+    updateUser: (state, action: PayloadAction<Partial<UserType>>) => {
       if (state.user) {
         state.user = { ...state.user, ...action.payload };
         localStorage.setItem('user', JSON.stringify(state.user));

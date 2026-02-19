@@ -9,7 +9,8 @@ from app.config import settings
 from app.logger import logger
 from app.exceptions import AppMessages
 from app.graphql.schema import create_graphql_app
-from app.routers.base import router as base_router
+from app.routers.base_router import router as base_router
+from app.routers.auth_router import router as auth_router
 
 
 @asynccontextmanager
@@ -38,14 +39,15 @@ app = FastAPI(
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins,
-    allow_credentials=settings.cors_allow_credentials,
-    allow_methods=settings.cors_allow_methods,
-    allow_headers=settings.cors_allow_headers,
+    allow_origins=["http://localhost:3000", "http://localhost:8000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Include routers
 app.include_router(base_router)
+app.include_router(auth_router)
 
 # Mount GraphQL application
 graphql_app = create_graphql_app()

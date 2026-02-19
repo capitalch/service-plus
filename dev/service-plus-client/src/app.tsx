@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ComponentExample } from "@/components/component-example";
 import { useAppSelector } from '@/store/hooks';
-import { selectIsAuthenticated } from '@/store/slices/authSlice';
+import { selectIsAuthenticated } from '@/store/slices/auth-slice';
 
 /**
  * Root App component

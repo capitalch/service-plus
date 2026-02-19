@@ -5,6 +5,9 @@ cd c:\projects\trace-plus
 1. python -m pip install virtualenv
 2. python -m venv env
 3. env\Scripts\activate
+# environment switching
+- In production server, during startup, a startup.sh file runs which sets up APP_ENV environment variable (export APP_ENV=production)
+- In code, env: str = os.getenv("APP_ENV", "dev")  # default to development, line gets the environment. Based on the value of APP_ENV you can switch values
 
 ## Service management software client
 # pnpm: node 17 has it

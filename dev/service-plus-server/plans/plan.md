@@ -1,244 +1,143 @@
-# Login Mechanism Implementation Plan
+# Plan: Dev / Production Environment Switching (config.py only)
 
 ## Overview
-Implement a secure authentication and login system for the Service Plus server using FastAPI and GraphQL.
+Only `client_db_host`, `client_db_port`, `service_db_host`, and `service_db_port`
+differ between environments. All other values remain hardcoded in `config.py`.
+`APP_ENV` environment variable (default: `dev`) selects the right host/port pair.
+No `.env` files are needed.
 
-## Architecture Decision
-**Best Practice Recommendation:**
-- **Login/Register endpoints**: Use REST API (FastAPI router) - these are unprotected, public endpoints
-- **Protected operations**: Use GraphQL with token-based authentication
-- **Rationale**:
-  - Login is a simple request-response, doesn't benefit from GraphQL's flexibility
-  - REST is simpler for authentication flows and widely adopted
-  - GraphQL for authenticated business logic provides better type safety and query flexibility
-  - Separates authentication concerns from application logic
+---
 
 ## Workflow
+
 ```
-User Login Flow:
-1. User sends credentials to REST endpoint (/api/auth/login)
-2. Server validates credentials against database
-3. Server generates JWT token on success
-4. Client stores token
-5. Client sends token in Authorization header for GraphQL requests
-6. GraphQL middleware validates token before processing queries/mutations
-7. GraphQL resolvers access authenticated user context
-
-User Registration Flow:
-1. User sends registration data to REST endpoint (/api/auth/register)
-2. Server validates input and checks for existing users
-3. Server hashes password and stores user in database
-4. Server returns success or error response
-
-Protected GraphQL Operations:
-1. Client includes JWT token in Authorization header
-2. GraphQL middleware extracts and validates token
-3. User information attached to context
-4. Resolvers access user context for authorization checks
-5. Execute business logic based on permissions
+OS / shell
+  └─ APP_ENV=dev | production  (default: dev)
+        │
+        ▼
+app/config.py  reads APP_ENV at import time
+  └─ selects host/port from _DB_CONFIG dict
+        │
+        ▼
+Settings  built with correct host/port; all other values unchanged
 ```
 
-## Step 1: Create Messages/Exceptions Class
-**File**: `app/core/messages.py`
-- Create a centralized Messages class for all custom messages
-- Include authentication-related messages (invalid credentials, token expired, etc.)
-- Include authorization messages (unauthorized, forbidden, etc.)
-- Include general application messages
+---
 
-## Step 2: Create Database Models
-**File**: `app/models/user.py`
-- Create User model with fields:
-  - id (UUID/Integer primary key)
-  - username (unique, indexed)
-  - email (unique, indexed)
-  - hashed_password
-  - full_name
-  - is_active (boolean)
-  - is_superuser (boolean)
-  - created_at (timestamp)
-  - updated_at (timestamp)
+## Step 1: Rewrite `app/config.py`
 
-**File**: `app/models/session.py` (optional)
-- Create Session/Token model for tracking active sessions
-- Fields: token_id, user_id, token, expires_at, created_at
+**File**: `app/config.py`
 
-## Step 3: Create Authentication SQL Class
-**File**: `app/db/auth_queries.py`
-- Create AuthQueries class containing all authentication/authorization SQL:
-  - get_user_by_username(username)
-  - get_user_by_email(email)
-  - get_user_by_id(user_id)
-  - create_user(user_data)
-  - update_user_password(user_id, hashed_password)
-  - update_user_active_status(user_id, is_active)
-  - verify_user_exists(username, email)
+Changes:
+- Read `APP_ENV` from `os.environ` at import time (default `"dev"`)
+- Define `_DB_CONFIG` dict mapping each environment to its host/port values
+- Set `client_db_host`, `client_db_port`, `service_db_host`, `service_db_port`
+  from the dict — no hardcoded defaults on these four fields
+- All other settings remain as hardcoded defaults, unchanged
+- Remove `env_file` from `model_config` (no `.env` file required)
+- Add `app_env` field to expose the active environment to the app
 
-## Step 4: Create Application SQL Class
-**File**: `app/db/app_queries.py`
-- Create AppQueries class for all non-auth business logic SQL
-- Placeholder for future service management queries
-- Example methods:
-  - get_services()
-  - create_service()
-  - update_service()
-  - etc.
+```python
+"""
+Application configuration management using Pydantic Settings.
+"""
+import os
+from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
-## Step 5: Implement Password Hashing Utility
-**File**: `app/core/security.py`
-- Implement password hashing using bcrypt or passlib
-- Functions:
-  - hash_password(plain_password) -> hashed_password
-  - verify_password(plain_password, hashed_password) -> bool
-  - create_access_token(data, expires_delta) -> JWT token
-  - decode_access_token(token) -> payload or None
+_APP_ENV = os.getenv("APP_ENV", "dev")
 
-## Step 6: Create Pydantic Schemas
-**File**: `app/schemas/auth.py`
-- UserCreate (registration input)
-- UserLogin (login input)
-- UserResponse (user output, exclude password)
-- Token (access_token, token_type)
-- TokenPayload (JWT payload)
+_DB_CONFIG: dict[str, dict] = {
+    "dev": {
+        "client_db_host": "node150483-trace-link.cloudjiffy.net",
+        "client_db_port": 11085,
+        "service_db_host": "node150483-trace-link.cloudjiffy.net",
+        "service_db_port": 11085,
+    },
+    "production": {
+        "client_db_host": "<prod-host>",
+        "client_db_port": 5432,
+        "service_db_host": "<prod-host>",
+        "service_db_port": 5432,
+    },
+}
 
-## Step 7: Create Authentication Router
-**File**: `app/routers/auth.py`
-- Create FastAPI router for authentication endpoints
-- Endpoints:
-  - POST /api/auth/register - User registration
-  - POST /api/auth/login - User login
-  - POST /api/auth/logout - User logout (optional, invalidate token)
-  - GET /api/auth/me - Get current user info
-  - POST /api/auth/refresh - Refresh token (optional)
+_db = _DB_CONFIG[_APP_ENV]
 
-## Step 8: Implement Authentication Dependency
-**File**: `app/core/dependencies.py`
-- Create `get_current_user` dependency
-- Extract JWT token from Authorization header
-- Validate token and decode payload
-- Retrieve user from database
-- Raise exception if token invalid or user not found
-- Return authenticated user
 
-## Step 9: Configure GraphQL Authentication
-**File**: `app/graphql/context.py`
-- Create context builder function
-- Extract user from request (using get_current_user)
-- Return context dict with user information
-- Handle unauthenticated requests gracefully
+class Settings(BaseSettings):
+    """Application settings. Environment-specific DB host/port selected via APP_ENV."""
 
-**File**: `app/graphql/middleware.py`
-- Create authentication middleware for GraphQL
-- Check if query/mutation requires authentication
-- Validate user in context
-- Allow introspection queries without authentication
+    # Environment
+    app_env: str = Field(default=_APP_ENV, description="Active environment: dev or production")
 
-## Step 10: Update GraphQL Schema
-**File**: `app/graphql/schema.graphql`
-- Add User type
-- Add authenticated queries (me, users)
-- Add authenticated mutations (updateProfile, changePassword)
-- Add proper directives or documentation for protected fields
+    # Application
+    app_name: str = Field(default="Service Plus API")
+    app_version: str = Field(default="1.0.0")
+    debug: bool = Field(default=True)
+    host: str = Field(default="127.0.0.1")
+    port: int = Field(default=8000)
 
-## Step 11: Implement GraphQL Resolvers
-**File**: `app/graphql/resolvers/user_resolvers.py`
-- Implement resolvers for user-related queries/mutations
-- Access user from context: `info.context["user"]`
-- Check permissions before executing operations
-- Use AuthQueries for database operations
+    # GraphQL
+    graphql_path: str = Field(default="/graphql")
+    graphql_playground: bool = Field(default=True)
 
-## Step 12: Update Main Application
-**File**: `app/main.py`
-- Import and include authentication router
-- Configure CORS for authentication endpoints
-- Add authentication middleware to GraphQL
-- Keep main.py minimal, delegate to routers
+    # Client Database
+    client_db_host: str = _db["client_db_host"]
+    client_db_port: int = _db["client_db_port"]
+    client_db_name: str = "service_plus_client"
+    client_db_user: str = "webadmin"
+    client_db_password: str = "APmkY2&Z3A"
 
-## Step 13: Create Configuration
-**File**: `app/core/config.py`
-- Add configuration for:
-  - SECRET_KEY for JWT signing
-  - ALGORITHM (HS256 or RS256)
-  - ACCESS_TOKEN_EXPIRE_MINUTES
-  - Database connection settings
-- Use pydantic-settings for environment variables
+    # Service Database
+    service_db_host: str = _db["service_db_host"]
+    service_db_port: int = _db["service_db_port"]
+    service_db_user: str = "webadmin"
+    service_db_password: str = "APmkY2&Z3A"
 
-## Step 14: Implement Logger
-**File**: `app/core/logger.py`
-- Configure structured logging
-- Log authentication attempts (success/failure)
-- Log authorization failures
-- Log important application events
-- Use Python's logging module with custom formatters
+    # Security
+    secret_key: str = Field(default="dde5a4b11fe2fa0abbdef32ac3d802c0b1e5f8c9a1b2c3d4e5f6a7b8c9d0")
+    algorithm: str = Field(default="HS256")
+    access_token_expire_minutes: int = Field(default=30)
+    refresh_token_expire_days: int = Field(default=7)
 
-## Step 15: Create Database Connection Manager
-**File**: `app/db/database.py`
-- Create database connection pool using psycopg
-- Connection context manager
-- Transaction management helpers
-- Error handling for database operations
+    # Logging
+    log_level: str = Field(default="INFO")
+    log_format: str = Field(
+        default="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    )
 
-## Step 16: Write Tests
-**File**: `tests/test_auth.py`
-- Test user registration (success, duplicate, validation)
-- Test login (success, wrong password, non-existent user)
-- Test protected endpoints (with/without token, expired token)
-- Test GraphQL authentication middleware
+    model_config = SettingsConfigDict(
+        case_sensitive=False,
+        extra="ignore",
+    )
 
-## Step 17: Create Environment Configuration
-**File**: `.env.example`
-- Document required environment variables
-- SECRET_KEY, DATABASE_URL, TOKEN_EXPIRE, etc.
 
-**File**: `.env`
-- Create actual environment file (add to .gitignore)
+settings = Settings()
+```
 
-## Step 18: Update Requirements
-**File**: `requirements.txt`
-- Add dependencies if missing:
-  - python-jose[cryptography] or PyJWT (JWT handling)
-  - passlib[bcrypt] (password hashing)
-  - python-multipart (form data handling)
+---
 
-## Step 19: Documentation
-**File**: `docs/authentication.md`
-- Document authentication flow
-- Document API endpoints
-- Document GraphQL authentication
-- Provide example requests/responses
+## Files Changed
 
-## Step 20: Testing and Validation
-- Test complete authentication flow
-- Test token expiration and refresh
-- Test GraphQL operations with/without authentication
-- Test error handling and logging
-- Verify all custom messages are used properly
-- Security audit (SQL injection, XSS, password storage)
+| File | Change |
+|------|--------|
+| `app/config.py` | Add `APP_ENV` + `_DB_CONFIG` dict; env-specific host/port; all other values unchanged |
 
-## Dependencies Between Steps
-- Steps 1-2: Can be done in parallel
-- Step 3-4: Depends on Step 2 (models)
-- Step 5: Independent, can be done early
-- Step 6: Depends on Step 2 (models)
-- Step 7: Depends on Steps 3, 5, 6
-- Step 8: Depends on Steps 5, 6
-- Step 9: Depends on Step 8
-- Step 10-11: Depends on Steps 2, 6, 9
-- Step 12: Depends on Step 7
-- Step 13: Can be done early
-- Step 14: Can be done early
-- Step 15: Can be done early
-- Step 16: Depends on Steps 7-12
-- Step 17-18: Can be done anytime
-- Step 19-20: Final steps
+## Files NOT Changed
 
-## Security Considerations
-1. Store passwords using strong hashing (bcrypt with high cost factor)
-2. Use secure JWT secret key (generate random, keep private)
-3. Set appropriate token expiration times
-4. Validate all user inputs
-5. Use HTTPS in production
-6. Implement rate limiting for login endpoints
-7. Log security events for monitoring
-8. Use prepared statements to prevent SQL injection
-9. Sanitize error messages to avoid information disclosure
-10. Implement CORS properly to prevent unauthorized access
+| File | Reason |
+|------|--------|
+| `app/db/database.py` | Uses `settings.*` — no change needed |
+| `app/main.py` | No change needed |
+| All routers / helpers | No direct config access |
+
+## Usage
+
+```bash
+# Dev (default — APP_ENV not required)
+python -m uvicorn app.main:app --reload
+
+# Production
+APP_ENV=production python -m uvicorn app.main:app
+```

@@ -1,7 +1,5 @@
-# instructions
-- Create a standard wonderful login screen with forgot password
-- 1st field is a type ahead drop down list which shows clients to be selected based on chars typed. At least 2 chars to be typed
-- other controls are username or email and password
-- Use RTK query for login
-- success returns token which is used later
-- update plan.md accordingly
+# instructions for login function
+- populate clients list as dropdown using axios as unauthenticated call when at least two chars are tped in
+- implement forgot password using axios
+- implement sign in using axios
+    - clientId, username or email, password to be sent to server as best practises
