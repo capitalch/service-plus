@@ -1,10 +1,5 @@
 # Plan: Add Login to auth_router with Helper in auth_router_helper
 
-## Objective
-Implement a `POST /api/auth/login` endpoint in `auth_router.py` that authenticates a user
-(username + password), verifies credentials against the database, and returns a JWT access token.
-All business logic lives in `auth_router_helper.py`.
-
 ---
 
 ## Workflow
@@ -13,20 +8,50 @@ All business logic lives in `auth_router_helper.py`.
 Client
   │
   ▼
-POST /api/auth/login  (auth_router.py)
-  │  LoginRequest { username, password }
+POST /api/auth/login
+  │  LoginRequest { clientId, identity, password }
   ▼
-login_helper()  (auth_router_helper.py)
+auth_router.py
+  │  log request → delegate to login_helper(body)
+  ▼
+login_helper()  [auth_router_helper.py]
   │
-  ├─► SqlAuth.GET_USER_BY_USERNAME  (sql_auth.py)
-  │     └─► database.exec_sql()  →  user row (id, username, password_hash, is_active, role)
+  ├─[1]─ SuperAdmin check
+  │         identity == config.superadmin_username?
+  │           YES → verify_password(password, config.superadmin_password_hash)
+  │                   FAIL → raise AuthorizationException (INVALID_CREDENTIALS)
+  │                   PASS → create_access_token({ userId:"S", userType:"S", clientId, db_name:None })
+  │                        → return LoginResponse immediately
   │
-  ├─► verify_password(plain, hash)  (core/security.py)
-  │     └─► raise AuthorizationException on failure
+  ├─[2]─ Resolve tenant  [Client DB]
+  │         SqlAuth.GET_CLIENT_DB_NAME
+  │         exec_sql(db_name=None, args={ clientId })
+  │         → { db_name }   or raise AuthorizationException (INVALID_CREDENTIALS)
   │
-  ├─► create_access_token({ sub: username, role: role })  (core/security.py)
+  ├─[3]─ Authenticate user  [Service DB]
+  │         SqlAuth.GET_USER_BY_IDENTITY
+  │         exec_sql(db_name=db_name, args={ identity })
+  │         → { id, username, email, mobile, password_hash,
+  │             is_active, is_admin, role_name, access_rights }
+  │         → no row found  → raise AuthorizationException (INVALID_CREDENTIALS)
+  │         → is_active is False → raise AuthorizationException (FORBIDDEN)
   │
-  └─► return LoginResponse { access_token, token_type="bearer", username, role }
+  ├─[4]─ Verify password
+  │         verify_password(password, password_hash)
+  │         FAIL → raise AuthorizationException (INVALID_CREDENTIALS)
+  │
+  ├─[5]─ Determine userType
+  │         is_admin == True  → userType = "A"
+  │         is_admin == False → userType = "B"
+  │
+  ├─[6]─ Create JWT
+  │         create_access_token({ userId: id, userType, clientId, db_name })
+  │
+  ├─[7]─ Log LOGIN_SUCCESSFUL
+  │
+  └─[8]─ return LoginResponse
+              { access_token, token_type:"bearer", user_type,
+                email, mobile, role_name, access_rights }
   │
   ▼
 auth_router.py  →  LoginResponse  →  Client
@@ -34,45 +59,35 @@ auth_router.py  →  LoginResponse  →  Client
 
 ---
 
-## Step 1 — Add login schemas to `app/schemas/auth_schema.py`
-- Add `LoginRequest` Pydantic model with fields: `username: str`, `password: str`
-- Add `LoginResponse` Pydantic model with fields:
-  `access_token: str`, `token_type: str`, `username: str`, `role: str`
-- Keep all models sorted alphabetically by class name.
+## Steps
 
-## Step 2 — Add SQL query to `app/db/sql_auth.py`
-- Add class constant `GET_USER_BY_USERNAME` that selects
-  `id, username, password_hash, is_active, role` from the `app_user` table
-  filtered by `%(username)s`.
-- Keep constants sorted alphabetically by name.
+### Step 1 — Add login schemas to `app/schemas/auth_schema.py`
+- `LoginRequest`: `client_id: str`, `identity: str`, `password: str`
+- `LoginResponse`: `access_token: str`, `token_type: str`, `user_type: str`,
+  `email: str`, `mobile: str`, `role_name: str`, `access_rights: dict`
+- Keep classes sorted alphabetically.
 
-## Step 3 — Add `login_helper()` to `app/routers/auth_router_helper.py`
-- Import: `AuthorizationException`, `AppMessages`, `verify_password`, `create_access_token`,
-  `LoginRequest`, `LoginResponse`, `SqlAuth`, `exec_sql`, `logger`.
-- Function signature: `async def login_helper(data: LoginRequest) -> LoginResponse`
-- Steps inside the helper:
-  1. Call `exec_sql` with `SqlAuth.GET_USER_BY_USERNAME` and `{"username": data.username}`.
-  2. If no row returned, raise `AuthorizationException(AppMessages.INVALID_CREDENTIALS)`.
-  3. If `user["is_active"]` is `False`, raise `AuthorizationException(AppMessages.FORBIDDEN)`.
-  4. Call `verify_password(data.password, user["password_hash"])`; raise
-     `AuthorizationException(AppMessages.INVALID_CREDENTIALS)` on failure.
-  5. Call `create_access_token({"sub": user["username"], "role": user["role"]})`.
-  6. Log success with `AppMessages.LOGIN_SUCCESSFUL`.
-  7. Return `LoginResponse(access_token=token, token_type="bearer", username=..., role=...)`.
-- Keep functions sorted alphabetically by name.
+### Step 2 — Add SuperAdmin config fields to `app/config.py`
+- Add `superadmin_username: str` and `superadmin_password_hash: str` to `Settings`.
+- Used only in the SuperAdmin check inside `login_helper()`.
 
-## Step 4 — Add `POST /api/auth/login` endpoint to `app/routers/auth_router.py`
-- Import `LoginRequest`, `LoginResponse` from schemas and `login_helper` from helper.
-- Add endpoint:
-  ```
-  POST /api/auth/login
-  Body: LoginRequest
-  Response: LoginResponse
-  ```
-- Delegate entirely to `login_helper(body)`.
-- Log the call at INFO level before delegating.
-- Keep endpoint definitions sorted alphabetically by path name.
+### Step 3 — Add SQL constants to `app/db/sql_auth.py`
+- `GET_CLIENT_DB_NAME` — query Client DB by `%(client_id)s`; return `db_name`.
+- `GET_USER_BY_IDENTITY` — query Service DB (`security` schema) where `username` or
+  `email` matches `%(identity)s`; return `id, username, email, mobile, password_hash,
+  is_active, is_admin, role_name, access_rights`.
+- Keep constants sorted alphabetically.
 
-## Step 5 — Verify `AppMessages` entries in `app/exceptions.py`
-- Confirm that `FORBIDDEN`, `INVALID_CREDENTIALS`, and `LOGIN_SUCCESSFUL` already exist.
-- No changes needed unless any of those constants are missing.
+### Step 4 — Add `login_helper()` to `app/routers/auth_router_helper.py`
+- Implement the 8-step flow from the workflow above.
+- Always raise `AuthorizationException(AppMessages.INVALID_CREDENTIALS)` for any
+  auth failure — never reveal whether the client, user, or password was the problem.
+- Keep functions sorted alphabetically.
+
+### Step 5 — Add `POST /api/auth/login` endpoint to `app/routers/auth_router.py`
+- Accept `LoginRequest`, respond with `LoginResponse`.
+- Log the call at INFO level, then delegate entirely to `login_helper(body)`.
+- Keep endpoints sorted alphabetically by path.
+
+### Step 6 — Verify `AppMessages` in `app/exceptions.py`
+- Confirm `FORBIDDEN`, `INVALID_CREDENTIALS`, `LOGIN_SUCCESSFUL` exist — no changes needed.
