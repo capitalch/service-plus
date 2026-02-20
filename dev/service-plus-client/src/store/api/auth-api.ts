@@ -14,8 +14,6 @@ export type ClientType = {
   id: string;
   name: string;
   is_active: boolean;
-  // code?: string;
-  // status?: string;
 };
 
 export type ForgotPasswordRequest = {
@@ -47,11 +45,12 @@ export type SearchClientsResponseType = ClientType[]; // Assuming the API return
 // };
 
 export type UserType = {
+  accessRights?: string[] | null | [];
   email: string;
-  firstName?: string;
+  fullName?: string;
   id: string;
-  lastName?: string;
-  role?: string;
+  mobile?: string;
+  roleName?: string;
   userType: 'A' | 'B' | 'S';
   username: string;
 };
