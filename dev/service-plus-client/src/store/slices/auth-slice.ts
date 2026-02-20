@@ -1,12 +1,12 @@
 import { createSlice } from '@reduxjs/toolkit';
 import type { PayloadAction } from '@reduxjs/toolkit';
-import type { UserType } from '../api/auth-api';
+import type { UserInstanceType } from '../api/auth-api';
 
 /**
  * Authentication State Interface
  */
 type AuthState = {
-  user: UserType | null;
+  user: UserInstanceType | null;
   token: string | null;
   isAuthenticated: boolean;
   selectedClientId: string | null;
@@ -17,7 +17,7 @@ type AuthState = {
  * Loads token and user from localStorage if available
  */
 function loadInitialState(): AuthState {
-  const token = localStorage.getItem('authToken');
+  const token = localStorage.getItem('accessToken');
   const userStr = localStorage.getItem('user');
   const user = userStr ? JSON.parse(userStr) : null;
 
@@ -45,7 +45,7 @@ export const authSlice = createSlice({
      */
     setCredentials: (
       state,
-      action: PayloadAction<{ user: UserType; token: string; clientId: string }>
+      action: PayloadAction<{ user: UserInstanceType; token: string; clientId: string }>
     ) => {
       const { user, token, clientId } = action.payload;
       state.user = user;
@@ -54,7 +54,7 @@ export const authSlice = createSlice({
       state.selectedClientId = clientId;
 
       // Persist to localStorage
-      localStorage.setItem('authToken', token);
+      localStorage.setItem('accessToken', token);
       localStorage.setItem('user', JSON.stringify(user));
       localStorage.setItem('selectedClientId', clientId);
     },
@@ -77,7 +77,7 @@ export const authSlice = createSlice({
     /**
      * Update user information
      */
-    updateUser: (state, action: PayloadAction<Partial<UserType>>) => {
+    updateUser: (state, action: PayloadAction<Partial<UserInstanceType>>) => {
       if (state.user) {
         state.user = { ...state.user, ...action.payload };
         localStorage.setItem('user', JSON.stringify(state.user));

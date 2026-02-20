@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { ClientCombobox } from '@/components/client-combobox';
 import { loginSchema, type LoginFormData } from '@/schemas/auth-schemas';
 import { loginUser } from '@/store/api/auth-api';
-import type { ApiError } from '@/store/api/auth-api';
+import type { ApiError, UserInstanceType } from '@/store/api/auth-api';
 import { useAppDispatch } from '@/store/hooks';
 import { setCredentials } from '@/store/slices/auth-slice';
 import { MESSAGES } from '@/constants/messages';
@@ -47,11 +47,20 @@ export const LoginForm = ({ onForgotPassword, onSuccess }: LoginFormProps) => {
     try {
       setIsLoading(true);
       const result = await loginUser(data);
+      const user: UserInstanceType = {
+        email: result.email,
+        fullName: result.fullName,
+        id: result.id,
+        mobile: result.mobile,
+        roleName: result.roleName,
+        userType: result.userType,
+        username: result.username,
+      };
 
       dispatch(
         setCredentials({
-          user: result.user,
-          token: result.token,
+          user: user,
+          token: result.accessToken,
           clientId: data.clientId,
         })
       );

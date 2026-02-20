@@ -38,9 +38,13 @@ class LoginResponse(BaseModel):
         alias="accessToken", description="JWT access token")
     access_rights: list[str] = Field(
         alias="accessRights", description="List of access rights/permissions")
+    
     email: str = Field(description="User's email address")
     full_name: str = Field(alias="fullName", description="User's full name")
+    id: int | None = Field(default=None, description="User's unique identifier")
+
     mobile: str = Field(description="User's mobile number")
     role_name: str = Field(alias="roleName", description="User's role name")
+    username: str = Field(description="User's username")
     user_type: str = Field(
         alias="userType", description="User type (e.g., 'S' for Super Admin)")

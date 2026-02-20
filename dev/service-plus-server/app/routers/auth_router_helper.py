@@ -21,8 +21,8 @@ async def login_helper(body: LoginRequest) -> LoginResponse:
     """Authenticate a user and return a JWT access token."""
 
     # [1] SuperAdmin check
-    if body.identity == settings.superadmin_username:
-        if not verify_password(body.password, settings.superadmin_password_hash):
+    if body.identity == settings.super_admin_username:
+        if not verify_password(body.password, settings.super_admin_password_hash):
             raise AuthorizationException(AppMessages.INVALID_CREDENTIALS)
         access_token = create_access_token({
             "sub": "S",
@@ -34,10 +34,12 @@ async def login_helper(body: LoginRequest) -> LoginResponse:
         return LoginResponse(
             access_token=access_token,
             access_rights=[],
-            email="",
+            email=settings.super_admin_email,
             full_name="Super Admin",
-            mobile="",
+            id=None,
+            mobile=settings.super_admin_mobile,
             role_name="",
+            username=settings.super_admin_username,
             user_type="S",
         )
 

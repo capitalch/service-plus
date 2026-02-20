@@ -32,10 +32,15 @@ export type LoginRequestType = {
 };
 
 export type LoginResponseType = {
-  expiresIn?: number;
-  refreshToken?: string;
-  token: string;
-  user: UserType;
+  accessToken: string;
+  accessRights?: string[] | null | [];
+  email: string;
+  fullName?: string;
+  id?: string;
+  mobile?: string;
+  roleName?: string;
+  username: string;
+  userType: 'A' | 'B' | 'S';
 };
 
 export type SearchClientsResponseType = ClientType[]; // Assuming the API returns an array of clients
@@ -44,11 +49,11 @@ export type SearchClientsResponseType = ClientType[]; // Assuming the API return
 //   total: number;
 // };
 
-export type UserType = {
+export type UserInstanceType = {
   accessRights?: string[] | null | [];
   email: string;
   fullName?: string;
-  id: string;
+  id?: string;
   mobile?: string;
   roleName?: string;
   userType: 'A' | 'B' | 'S';
