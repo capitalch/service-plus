@@ -1,11 +1,15 @@
-// import { ComponentExample } from "@/components/component-example";
 import { RouterProvider } from "react-router-dom";
+import { Toaster } from "sonner";
+
 import { router } from "./router";
 
 export function App() {
     return (
-        <RouterProvider router={router} />
-    )
+        <>
+            <RouterProvider router={router} />
+            <Toaster position="top-right" richColors />
+        </>
+    );
 }
 
 export default App;

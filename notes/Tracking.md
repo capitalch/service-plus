@@ -10,7 +10,11 @@
 		- Aug 2026
 
 # Tracking
-- 
+- 21-02-2026
+	- Working on SuperAdmin feature
+- 18-02-2026 - 20-02-2026
+	- Client and server basics in place
+	- Login screen created
 - 14-02-2026 - 17-02-2026
 	- Server side work started
 	- Client side work also started

@@ -51,6 +51,8 @@
         ORDER BY name
     Database schemas
         The two database schemas are in service_plus_client.sql and service_plus_demo.sql files
+- client
+    - client is react + vite and is located at C:\projects\service-plus\dev\service-plus-client
 
 # Virtual Environment Setup
     - Python virtual environment is located at: c:\projects\service-plus\env

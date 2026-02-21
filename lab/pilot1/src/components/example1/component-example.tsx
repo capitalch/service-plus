@@ -76,6 +76,9 @@ export function ComponentExample() {
       <Button variant="outline" className="m-4 w-48" onClick={handleClickExample2}>
         Example 2: Redux counter
       </Button>
+      <Button className="mx-4 mb-4 w-48" onClick={handleClickSuperAdmin}>
+        Super Admin Dashboard
+      </Button>
       <ExampleWrapper>
         <CardExample />
         <FormExample />
@@ -88,6 +91,10 @@ export function ComponentExample() {
 
   function handleClickExample2() {
     navigate("/redux-counter")
+  }
+
+  function handleClickSuperAdmin() {
+    navigate("/super-admin")
   }
 }
 

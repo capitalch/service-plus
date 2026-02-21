@@ -1,5 +1,5 @@
-# instructions
-- limit yourself to current folder
+- limit yourself to current folder that is C:\projects\service-plus\lab\pilot1
+- This is a pilot web app where I test the components and technology before implementing it to main app which is at C:\projects\service-plus\dev\service-plus-client
 - Always make responsive design
 - When any text command is given to claude and last word is plan then do the plan only for the given command. Write your plan in the plan.md file in the plans folder in root. -Overwrite plan.md if required.
 - In plan.md write all the steps of execution as Step1, Step 2 and so on.
@@ -7,15 +7,12 @@
 - When creating a form never use red color for any control css. Red color will only be used for indicating errors.
 - Always make use of shadcn components and framer-motion for transition wherever required
 - For forms use react-hook-form and zod for validations and business rules
-- Use GraphQL with subscription support for authenticated query. - - Use apollo for GraphQL
 - Use Sonner for notifications
 - Generate GraphQL types using codegen
 - use pnpm and not npm
 - use React Router + Redux Toolkit
 - For global state management use redux
 - When creating a form, the * for mandatory fields should be red color
-- Keep all the messages and custom errors in a centralized sngle file as key values. Use the keys from this file to display any message including exception. Rule is any text longer than two words should stay in messages.ts. But keep all controls display text hard coded.
-- For protected api calls after login use graphql with header Authorization + token. Otherwise use axios for api calls
 - For components, hooks and inline handlers use arrow functions
 - For Utility functions and API helpers use Normal functions
 - Use type instead of interface wherever possible
@@ -23,3 +20,5 @@
 - Always sort functions with names in a react component. Always sort arrays, fields and object properties and parameters
 - Sort tailwind classes as best practises
 - The fastapi + graphql server is located at C:\projects\service-plus\dev\service-plus-server
+- Always use best practises
+- 
