@@ -21,4 +21,8 @@
 - Sort tailwind classes as best practises
 - The fastapi + graphql server is located at C:\projects\service-plus\dev\service-plus-server
 - Always use best practises
-- 
+- Schema for tables is located at C:\projects\service-plus\lab\pilot1\src\types
+- Schema for tables is generated using pg-to-ts
+- Schema for service-plus-client is located at C:\projects\service-plus\pilot1\src\types\db-schema-client.ts
+- Schema for service-plus-security is located at C:\projects\service-plus\pilot1\src\types\db-schema-security.ts
+- Schema for service-plus-service is located at C:\projects\service-plus\pilot1\src\types\db-schema-service.ts

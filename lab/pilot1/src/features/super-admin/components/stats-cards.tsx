@@ -1,6 +1,7 @@
 import type { Variants } from "framer-motion";
 import { motion } from "framer-motion";
 import {
+  BuildingIcon,
   CheckCircle2Icon,
   MinusCircleIcon,
   UsersIcon,
@@ -37,22 +38,22 @@ export const StatsCards = () => {
 
   const statItems: StatCardItemType[] = [
     {
-      icon: UsersIcon,
+      icon: BuildingIcon,
       iconClass: "text-slate-500",
-      label: "Total Clients",
-      value: stats.totalClients,
+      label: "Total Business Units",
+      value: stats.totalBu,
     },
     {
       icon: CheckCircle2Icon,
       iconClass: "text-emerald-500",
-      label: "Active Clients",
-      value: stats.activeClients,
+      label: "Active BUs",
+      value: stats.activeBu,
     },
     {
       icon: MinusCircleIcon,
       iconClass: "text-slate-400",
-      label: "Inactive Clients",
-      value: stats.inactiveClients,
+      label: "Inactive BUs",
+      value: stats.inactiveBu,
     },
     {
       icon: UsersIcon,

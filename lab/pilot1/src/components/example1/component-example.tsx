@@ -79,6 +79,12 @@ export function ComponentExample() {
       <Button className="mx-4 mb-4 w-48" onClick={handleClickSuperAdmin}>
         Super Admin Dashboard
       </Button>
+      <Button className="mx-4 mb-4 w-48 bg-indigo-600 hover:bg-indigo-700" onClick={handleClickSuperAdminV2}>
+        Super Admin V2 (Stitch)
+      </Button>
+      <Button className="mx-4 mb-4 w-48 bg-amber-500 hover:bg-amber-600" onClick={handleClickSuperAdminV3}>
+        Super Admin V3 (Actions)
+      </Button>
       <ExampleWrapper>
         <CardExample />
         <FormExample />
@@ -95,6 +101,14 @@ export function ComponentExample() {
 
   function handleClickSuperAdmin() {
     navigate("/super-admin")
+  }
+
+  function handleClickSuperAdminV2() {
+    navigate("/super-admin-v2")
+  }
+
+  function handleClickSuperAdminV3() {
+    navigate("/super-admin-v3")
   }
 }
 

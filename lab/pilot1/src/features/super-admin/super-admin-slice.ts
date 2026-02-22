@@ -9,9 +9,7 @@ import {
 } from "./dummy-data";
 import type {
   ActivityLogItemType,
-  AdminUserStatusType,
   AdminUserType,
-  ClientStatusType,
   ClientType,
   StatsType,
 } from "./types";
@@ -34,6 +32,37 @@ const superAdminSlice = createSlice({
   initialState,
   name: "superAdmin",
   reducers: {
+    addAdminUser: (state, action: PayloadAction<Omit<AdminUserType, "id" | "created_at" | "updated_at" | "last_login_at">>) => {
+      const newId = Math.max(0, ...state.adminUsers.map((u) => u.id)) + 1;
+      const now = new Date();
+      const buName = state.clients.find((c) => c.id === action.payload.bu_id)?.name ?? "";
+      state.adminUsers.push({
+        ...action.payload,
+        bu_name: buName,
+        created_at: now,
+        id: newId,
+        last_login_at: now,
+        updated_at: now,
+      });
+      state.stats.totalAdminUsers += 1;
+      if (action.payload.is_active) state.stats.activeAdminUsers += 1;
+      else state.stats.inactiveAdminUsers += 1;
+    },
+    addClient: (state, action: PayloadAction<Pick<ClientType, "code" | "is_active" | "name">>) => {
+      const newId = Math.max(0, ...state.clients.map((c) => c.id)) + 1;
+      const now = new Date();
+      state.clients.push({
+        ...action.payload,
+        activeAdminCount: 0,
+        created_at: now,
+        id: newId,
+        inactiveAdminCount: 0,
+        updated_at: now,
+      });
+      state.stats.totalBu += 1;
+      if (action.payload.is_active) state.stats.activeBu += 1;
+      else state.stats.inactiveBu += 1;
+    },
     setActivityLog: (state, action: PayloadAction<ActivityLogItemType[]>) => {
       state.activityLog = action.payload;
     },
@@ -46,34 +75,36 @@ const superAdminSlice = createSlice({
     setStats: (state, action: PayloadAction<StatsType>) => {
       state.stats = action.payload;
     },
-    updateAdminUserStatus: (
+    toggleAdminUserActive: (
       state,
-      action: PayloadAction<{ id: string; status: AdminUserStatusType }>
+      action: PayloadAction<{ id: number; is_active: boolean }>
     ) => {
       const user = state.adminUsers.find((u) => u.id === action.payload.id);
       if (user) {
-        user.status = action.payload.status;
+        user.is_active = action.payload.is_active;
       }
     },
-    updateClientStatus: (
+    toggleClientActive: (
       state,
-      action: PayloadAction<{ id: string; status: ClientStatusType }>
+      action: PayloadAction<{ id: number; is_active: boolean }>
     ) => {
       const client = state.clients.find((c) => c.id === action.payload.id);
       if (client) {
-        client.status = action.payload.status;
+        client.is_active = action.payload.is_active;
       }
     },
   },
 });
 
 export const {
+  addAdminUser,
+  addClient,
   setActivityLog,
   setAdminUsers,
   setClients,
   setStats,
-  updateAdminUserStatus,
-  updateClientStatus,
+  toggleAdminUserActive,
+  toggleClientActive,
 } = superAdminSlice.actions;
 
 export const superAdminReducer = superAdminSlice.reducer;

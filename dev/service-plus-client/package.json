@@ -7,7 +7,11 @@
     "start": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "gen-types-service": "dotenv -- cross-var cross-env PG_TO_TS_CONN=%SERVICE_PLUS_SERVICE% pg-to-ts generate --schema demo1 -o src/types/db-schema-service.ts",
+    "gen-types-security": "dotenv -- cross-var cross-env PG_TO_TS_CONN=%SERVICE_PLUS_SERVICE% pg-to-ts generate --schema security -o src/types/db-schema-security.ts",
+    "gen-types-client": "dotenv -- cross-var cross-env PG_TO_TS_CONN=%SERVICE_PLUS_CLIENT% pg-to-ts generate -o src/types/db-schema-client.ts",
+    "gen-types-all": "pnpm run gen-types-service && pnpm run gen-types-security && pnpm run gen-types-client"
   },
   "dependencies": {
     "@base-ui/react": "^1.2.0",
@@ -27,6 +31,7 @@
     "react-hook-form": "^7.71.1",
     "react-redux": "^9.2.0",
     "react-router-dom": "^7.13.0",
+    "recharts": "2.15.4",
     "shadcn": "^3.8.5",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.5.0",
@@ -40,10 +45,14 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.4",
+    "cross-env": "^10.1.0",
+    "cross-var": "^1.1.0",
+    "dotenv-cli": "^11.0.0",
     "eslint": "^10.0.0",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.5.0",
     "globals": "^17.3.0",
+    "pg-to-ts": "^4.1.1",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.56.0",
     "vite": "^7.3.1"

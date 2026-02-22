@@ -1,19 +1,31 @@
 import { motion } from "framer-motion";
-import { LogOutIcon, MenuIcon, UserCircleIcon } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { ArrowLeftIcon, LogOutIcon, MenuIcon, UserCircleIcon } from "lucide-react";
+import { useLocation, useNavigate } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
+
+const PAGE_TITLES: Record<string, string> = {
+  "/super-admin": "Dashboard",
+  "/super-admin/admins": "Admins",
+  "/super-admin/audit": "Audit Logs",
+  "/super-admin/clients": "Clients",
+  "/super-admin/settings": "System Settings",
+  "/super-admin/usage": "Usage & Health",
+};
 
 type TopHeaderPropsType = {
   onMenuToggle: () => void;
 };
 
 export const TopHeader = ({ onMenuToggle }: TopHeaderPropsType) => {
+  const location = useLocation();
   const navigate = useNavigate();
 
   const handleLogout = () => {
     navigate("/");
   };
+
+  const pageTitle = PAGE_TITLES[location.pathname] ?? "SuperAdmin";
 
   return (
     <motion.header
@@ -34,8 +46,20 @@ export const TopHeader = ({ onMenuToggle }: TopHeaderPropsType) => {
           <span className="sr-only">Open menu</span>
         </Button>
 
+        {/* Back to Home */}
+        <Button
+          className="hidden items-center gap-1.5 text-xs text-slate-500 hover:text-slate-800 md:flex"
+          onClick={() => navigate("/")}
+          size="sm"
+          variant="ghost"
+        >
+          <ArrowLeftIcon className="h-3.5 w-3.5" />
+          Home
+        </Button>
+        <div className="hidden h-4 w-px bg-slate-200 md:block" />
+
         <h1 className="text-sm font-semibold text-slate-900 sm:text-base">
-          SuperAdmin Dashboard
+          {pageTitle}
         </h1>
       </div>
 

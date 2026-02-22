@@ -69,5 +69,27 @@ pnpm dlx shadcn@latest add sonner
 - In components make use of useSelectors and dispath
 - In dispatch make use of actions
 
+## Postgress to typescript types conversion: used pg-to-ts
+	- pnpm install -D pg-to-ts dotenv-cli cross-var cross-env
+		dotenv-cli make available the contents of .env file as environment variable
+	- set the .env file. PG_TO_TS_CONN is fixed variable pg-to-ts searches in environment variables
+		We can do in .env file: PG_TO_TS_CONN=postgresql://webadmin:pwd@host:port/service_plus_demo
+	- In package.json scripts:
+		"gen-types-service": "dotenv -- pg-to-ts generate --schema demo1 -o src/types/db-schema-service.ts",
+	    "gen-types-security": "dotenv -- pg-to-ts generate --schema security -o src/types/db-schema-security.ts",
+	    "gen-types-client": "dotenv -- pg-to-ts generate -o src/types/db-schema-client.ts",
+	    "gen-types-all": "pnpm run gen-types-service && npm run gen-types-security && npm run gen-types-client"
+	- pnpm gen-types-all 
+		dotenv -- makes available the PG_TO_TS_CONN to pg-to-ts generate command
+	- But we want three different schemas with 2 different databases, hence above will not work out. We need to use ross-var cross-env as follows. This worked.
+		- pnpm install -D pg-to-ts dotenv-cli cross-var cross-env
+		- .env file:
+			SERVICE_PLUS_SERVICE=postgresql://webadmin:pwd@host:port/service_plus_demo
+			SERVICE_PLUS_CLIENT=postgresql://webadmin:pwd@host:port/service_plus_client
+		- package.json scripts
+			"gen-types-service": "dotenv -- cross-var cross-env PG_TO_TS_CONN=%SERVICE_PLUS_SERVICE% pg-to-ts generate --schema demo1 -o src/types/db-schema-service.ts",
+		    "gen-types-security": "dotenv -- cross-var cross-env PG_TO_TS_CONN=%SERVICE_PLUS_SERVICE% pg-to-ts generate --schema security -o src/types/db-schema-security.ts",
+		    "gen-types-client": "dotenv -- cross-var cross-env PG_TO_TS_CONN=%SERVICE_PLUS_CLIENT% pg-to-ts generate -o src/types/db-schema-client.ts",
+		    "gen-types-all": "pnpm run gen-types-service && pnpm run gen-types-security && pnpm run gen-types-client"
 
 

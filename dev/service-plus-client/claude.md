@@ -23,3 +23,7 @@
 - Always sort functions with names in a react component. Always sort arrays, fields and object properties and parameters
 - Sort tailwind classes as best practises
 - The fastapi + graphql server is located at C:\projects\service-plus\dev\service-plus-server
+- /src/types/db-schema-service.ts is the file which has all the types for demo1 schema from database service-plus-service
+- /src/types/db-schema-security.ts is the file which has all the types for security schema from database service-plus-service
+- /src/types/db-schema-client.ts is the file which has all the types for public schema from database service-plus-client
+- Use these types to generate typescript types for graphql queries and mutations

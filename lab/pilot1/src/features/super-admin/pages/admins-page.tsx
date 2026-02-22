@@ -32,7 +32,7 @@ import {
 } from "@/components/ui/table";
 
 import { SuperAdminLayout } from "../components/super-admin-layout";
-import { selectAdminUsers, updateAdminUserStatus } from "../super-admin-slice";
+import { selectAdminUsers, toggleAdminUserActive } from "../super-admin-slice";
 import type { AdminUserRoleType, AdminUserType } from "../types";
 
 const roleStyles: Record<AdminUserRoleType, string> = {
@@ -50,29 +50,38 @@ const cardVariants = {
   }),
 };
 
-const handleEdit = (user: AdminUserType) => toast.info(`Editing ${user.name}`);
-const handleView = (user: AdminUserType) => toast.info(`Viewing ${user.name}`);
+function formatDate(date: Date): string {
+  return date.toLocaleDateString("en-IN", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+}
+
+const handleEdit = (user: AdminUserType) => toast.info(`Editing ${user.full_name}`);
+const handleView = (user: AdminUserType) => toast.info(`Viewing ${user.full_name}`);
 
 export const AdminsPage = () => {
   const adminUsers = useSelector(selectAdminUsers);
   const dispatch = useDispatch();
   const [search, setSearch] = useState("");
 
-  const activeCount = adminUsers.filter((u) => u.status === "Active").length;
-  const inactiveCount = adminUsers.filter((u) => u.status === "Inactive").length;
+  const activeCount = adminUsers.filter((u) => u.is_active).length;
+  const inactiveCount = adminUsers.filter((u) => !u.is_active).length;
 
   const filtered = adminUsers.filter(
     (u) =>
-      u.name.toLowerCase().includes(search.toLowerCase()) ||
+      u.full_name.toLowerCase().includes(search.toLowerCase()) ||
       u.email.toLowerCase().includes(search.toLowerCase()) ||
-      u.clientName.toLowerCase().includes(search.toLowerCase())
+      u.bu_name.toLowerCase().includes(search.toLowerCase()) ||
+      u.username.toLowerCase().includes(search.toLowerCase())
   );
 
   const handleAddAdmin = () => toast.info("Add Admin clicked");
 
   const handleDeactivate = (user: AdminUserType) => {
-    dispatch(updateAdminUserStatus({ id: user.id, status: "Inactive" }));
-    toast.success(`${user.name} has been deactivated`);
+    dispatch(toggleAdminUserActive({ id: user.id, is_active: false }));
+    toast.success(`${user.full_name} has been deactivated`);
   };
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) =>
@@ -143,7 +152,7 @@ export const AdminsPage = () => {
               <Input
                 className="pl-8 text-sm"
                 onChange={handleSearchChange}
-                placeholder="Search by name, email, client…"
+                placeholder="Search by name, email, username, BU…"
                 value={search}
               />
             </div>
@@ -153,10 +162,10 @@ export const AdminsPage = () => {
             <Table>
               <TableHeader>
                 <TableRow className="bg-slate-50">
-                  <TableHead className="text-xs font-semibold text-slate-600">Name</TableHead>
+                  <TableHead className="text-xs font-semibold text-slate-600">Full Name</TableHead>
                   <TableHead className="hidden text-xs font-semibold text-slate-600 sm:table-cell">Email</TableHead>
                   <TableHead className="text-xs font-semibold text-slate-600">Role</TableHead>
-                  <TableHead className="hidden text-xs font-semibold text-slate-600 md:table-cell">Client</TableHead>
+                  <TableHead className="hidden text-xs font-semibold text-slate-600 md:table-cell">Business Unit</TableHead>
                   <TableHead className="text-xs font-semibold text-slate-600">Status</TableHead>
                   <TableHead className="hidden text-xs font-semibold text-slate-600 lg:table-cell">Last Login</TableHead>
                   <TableHead className="text-xs font-semibold text-slate-600">Actions</TableHead>
@@ -173,7 +182,7 @@ export const AdminsPage = () => {
                   filtered.map((user) => (
                     <TableRow className="hover:bg-slate-50/60" key={user.id}>
                       <TableCell className="font-medium text-slate-900">
-                        <div>{user.name}</div>
+                        <div>{user.full_name}</div>
                         <div className="mt-0.5 text-xs text-slate-400 sm:hidden">{user.email}</div>
                       </TableCell>
                       <TableCell className="hidden text-sm text-slate-600 sm:table-cell">{user.email}</TableCell>
@@ -182,20 +191,22 @@ export const AdminsPage = () => {
                           {user.role}
                         </Badge>
                       </TableCell>
-                      <TableCell className="hidden text-sm text-slate-600 md:table-cell">{user.clientName}</TableCell>
+                      <TableCell className="hidden text-sm text-slate-600 md:table-cell">{user.bu_name}</TableCell>
                       <TableCell>
                         <Badge
                           className={
-                            user.status === "Active"
+                            user.is_active
                               ? "border-emerald-200 bg-emerald-100 text-emerald-700 hover:bg-emerald-100"
                               : "border-slate-200 bg-slate-100 text-slate-600 hover:bg-slate-100"
                           }
                           variant="outline"
                         >
-                          {user.status}
+                          {user.is_active ? "Active" : "Inactive"}
                         </Badge>
                       </TableCell>
-                      <TableCell className="hidden text-sm text-slate-600 lg:table-cell">{user.lastLoginDate}</TableCell>
+                      <TableCell className="hidden text-sm text-slate-600 lg:table-cell">
+                        {formatDate(user.last_login_at)}
+                      </TableCell>
                       <TableCell>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
@@ -210,7 +221,7 @@ export const AdminsPage = () => {
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
                               className="text-slate-600"
-                              disabled={user.status === "Inactive"}
+                              disabled={!user.is_active}
                               onClick={() => handleDeactivate(user)}
                             >
                               Deactivate

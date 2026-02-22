@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { ShieldIcon } from 'lucide-react';
 import { LoginForm } from '@/components/login-form';
 import { ForgotPasswordForm } from '@/components/forgot-password-form';
 
@@ -66,6 +67,24 @@ export const LoginPage = () => {
         <p className="text-center text-xs text-slate-400 mt-5">
           © {new Date().getFullYear()} Service+. All rights reserved.
         </p>
+
+        {/* Super Admin Test Link */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.4, duration: 0.3 }}
+          className="mt-4"
+        >
+          <button
+            type="button"
+            onClick={() => navigate('/super-admin')}
+            className="w-full flex items-center justify-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-medium text-emerald-700 transition-colors hover:bg-emerald-100 hover:border-emerald-300"
+          >
+            <ShieldIcon className="h-4 w-4" />
+            Super Admin (Test)
+          </button>
+          <p className="mt-1.5 text-center text-xs text-slate-400">Testing only — direct access for super admin user 'S'</p>
+        </motion.div>
       </motion.div>
     </div>
   );

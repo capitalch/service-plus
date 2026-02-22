@@ -21,15 +21,23 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-import { selectClients, updateClientStatus } from "../super-admin-slice";
+import { selectClients, toggleClientActive } from "../super-admin-slice";
 import type { ClientType } from "../types";
 
+function formatDate(date: Date): string {
+  return date.toLocaleDateString("en-IN", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+}
+
 const handleEdit = (client: ClientType) => {
-  toast.info(`Editing ${client.clientName}`);
+  toast.info(`Editing ${client.name}`);
 };
 
 const handleView = (client: ClientType) => {
-  toast.info(`Viewing ${client.clientName}`);
+  toast.info(`Viewing ${client.name}`);
 };
 
 export const ClientOverviewTable = () => {
@@ -41,8 +49,8 @@ export const ClientOverviewTable = () => {
   };
 
   const handleDisable = (client: ClientType) => {
-    dispatch(updateClientStatus({ id: client.id, status: "Inactive" }));
-    toast.success(`${client.clientName} has been disabled`);
+    dispatch(toggleClientActive({ id: client.id, is_active: false }));
+    toast.success(`${client.name} has been disabled`);
   };
 
   return (
@@ -55,7 +63,7 @@ export const ClientOverviewTable = () => {
       {/* Section header */}
       <div className="flex items-center justify-between border-b px-4 py-3 sm:px-6 sm:py-4">
         <h2 className="text-sm font-semibold text-slate-900">
-          Client Overview
+          Business Unit Overview
         </h2>
         <Button onClick={handleAddClient} size="sm">
           <PlusIcon className="mr-1.5 h-3.5 w-3.5" />
@@ -70,11 +78,11 @@ export const ClientOverviewTable = () => {
             <TableRow className="bg-slate-50">
               {/* Always visible */}
               <TableHead className="text-xs font-semibold text-slate-600">
-                Client Name
+                Name
               </TableHead>
               {/* Hidden on xs, visible sm+ */}
               <TableHead className="hidden text-xs font-semibold text-slate-600 sm:table-cell">
-                Client Code
+                Code
               </TableHead>
               {/* Always visible */}
               <TableHead className="text-xs font-semibold text-slate-600">
@@ -103,29 +111,29 @@ export const ClientOverviewTable = () => {
               <TableRow className="hover:bg-slate-50/60" key={client.id}>
                 {/* Always visible */}
                 <TableCell className="font-medium text-slate-900">
-                  <div>{client.clientName}</div>
+                  <div>{client.name}</div>
                   {/* Show code inline on xs only */}
                   <div className="mt-0.5 text-xs text-slate-400 sm:hidden">
-                    {client.clientCode}
+                    {client.code}
                   </div>
                 </TableCell>
 
                 {/* Hidden on xs */}
                 <TableCell className="hidden text-sm text-slate-600 sm:table-cell">
-                  {client.clientCode}
+                  {client.code}
                 </TableCell>
 
                 {/* Always visible */}
                 <TableCell>
                   <Badge
                     className={
-                      client.status === "Active"
+                      client.is_active
                         ? "border-emerald-200 bg-emerald-100 text-emerald-700 hover:bg-emerald-100"
                         : "border-slate-200 bg-slate-100 text-slate-600 hover:bg-slate-100"
                     }
                     variant="outline"
                   >
-                    {client.status}
+                    {client.is_active ? "Active" : "Inactive"}
                   </Badge>
                 </TableCell>
 
@@ -141,7 +149,7 @@ export const ClientOverviewTable = () => {
 
                 {/* Hidden on xs/sm/md */}
                 <TableCell className="hidden text-sm text-slate-600 lg:table-cell">
-                  {client.createdDate}
+                  {formatDate(client.created_at)}
                 </TableCell>
 
                 {/* Always visible */}
@@ -163,7 +171,7 @@ export const ClientOverviewTable = () => {
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
                         className="text-slate-600"
-                        disabled={client.status === "Inactive"}
+                        disabled={!client.is_active}
                         onClick={() => handleDisable(client)}
                       >
                         Disable
