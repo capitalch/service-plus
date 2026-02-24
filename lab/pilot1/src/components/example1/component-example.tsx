@@ -67,12 +67,20 @@ import { PlusIcon, BluetoothIcon, MoreVerticalIcon, FileIcon, FolderIcon, Folder
 import { Components8bit } from "./components-8bit"
 import { LoginForm } from "./login-form"
 import Login04 from "./login-04"
-import { useNavigate } from "react-router-dom"
+import { ArrowLeftIcon } from "lucide-react"
+import { Link, useNavigate } from "react-router-dom"
 
 export function ComponentExample() {
   const navigate = useNavigate()
   return (
     <div className="flex flex-col">
+      <Link
+        className="m-4 flex w-fit items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800 transition-colors"
+        to="/landing"
+      >
+        <ArrowLeftIcon className="h-3.5 w-3.5" />
+        Home
+      </Link>
       <Button variant="outline" className="m-4 w-48" onClick={handleClickExample2}>
         Example 2: Redux counter
       </Button>

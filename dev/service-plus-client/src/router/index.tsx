@@ -20,14 +20,16 @@ import { SystemSettingsPage } from '@/features/super-admin/pages/system-settings
  */
 export const router = createBrowserRouter([
   {
+    path: '/',
+    errorElement: <ErrorPage />,
     children: [
       { element: <App />, index: true },
       { element: <LoginPage />, path: 'login' },
     ],
-    errorElement: <ErrorPage />,
-    path: '/',
   },
   {
+    path: '/super-admin',
+    errorElement: <ErrorPage />,
     children: [
       { element: <SuperAdminDashboard />, index: true },
       { element: <ClientsPage />, path: 'clients' },
@@ -36,7 +38,5 @@ export const router = createBrowserRouter([
       { element: <AuditLogsPage />, path: 'audit' },
       { element: <SystemSettingsPage />, path: 'settings' },
     ],
-    errorElement: <ErrorPage />,
-    path: '/super-admin',
   },
 ]);

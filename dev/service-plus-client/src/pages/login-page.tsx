@@ -52,7 +52,6 @@ export const LoginPage = () => {
               <LoginForm
                 key="login"
                 onForgotPassword={() => setView('forgotPassword')}
-                onSuccess={() => navigate('/')}
               />
             ) : (
               <ForgotPasswordForm

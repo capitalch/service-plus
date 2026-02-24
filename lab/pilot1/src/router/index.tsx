@@ -22,7 +22,7 @@ import { AuditLogsPageV3 } from "@/features/super-admin-v3/pages/audit-logs-page
 import { SystemSettingsPageV3 } from "@/features/super-admin-v3/pages/system-settings-page";
 import { createBrowserRouter } from "react-router-dom";
 
-export const router = createBrowserRouter([
+export const router1 = createBrowserRouter([
     {
         element: <ComponentExample />,
         path: "/",

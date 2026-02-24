@@ -14,12 +14,12 @@ export const TopHeaderV3 = ({ onMenuToggle }: TopHeaderV3PropsType) => {
 
             <Button
                 className="hidden items-center gap-1.5 text-xs text-slate-500 hover:text-slate-800 md:flex"
-                onClick={() => navigate("/")}
+                onClick={() => navigate("/super-admin-v3")}
                 size="sm"
                 variant="ghost"
             >
                 <ArrowLeftIcon className="h-3.5 w-3.5" />
-                Home
+                Back
             </Button>
             <div className="hidden h-4 w-px bg-slate-200 md:block" />
 

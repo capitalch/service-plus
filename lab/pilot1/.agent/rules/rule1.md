@@ -1,13 +1,16 @@
-# instructions
-- limit yourself to current folder
+---
+trigger: always_on
+---
+
 - Always make responsive design
-- When any text command is given to claude and last word is plan then do the plan only for the given command. Write your plan in the plan.md file in the plans folder in root. - Overwrite plan.md if required.
-- In plan.md write all the steps of execution as Step1, Step 2 and so on.
-- In plan.md include a workflow section which provides the workflow of entire effort
+- When any text command is given to ai and last word is plan or Plan then do the planning only for the given command. Write your plan in the planA.md file in the plans folder in root. Do not touch plan.md file.
+- Overwrite planA.md if aleady present.
+- In planA.md write all the steps of execution as Step1, Step 2 and so on.
+- In planA.md include a workflow section which provides the workflow of entire work.
 - When creating a form never use red color for any control css. Red color will only be used for indicating errors.
-- Always make use of shadcn components and framer-motion for transition wherever required
+- Always make use of shadcn components, and framer-motion for transition wherever required
 - For forms use react-hook-form and zod for validations and business rules
-- Use GraphQL with subscription support for authenticated query. - - Use apollo for GraphQL
+- Use GraphQL with subscription support for authenticated query. - - Use apollo for GraphQL.
 - Use Sonner for notifications
 - Generate GraphQL types using codegen
 - use pnpm and not npm
@@ -22,8 +25,8 @@
 - All type element names should be appended with Type word
 - Always sort functions with names in a react component. Always sort arrays, fields and object properties and parameters
 - Sort tailwind classes as best practises
-- The fastapi + graphql server is located at C:\projects\service-plus\dev\service-plus-server
-- /src/types/db-schema-service.ts is the file which has all the types for demo1 schema from database service-plus-service
-- /src/types/db-schema-security.ts is the file which has all the types for security schema from database service-plus-service
-- /src/types/db-schema-client.ts is the file which has all the types for public schema from database service-plus-client
-- Use these types to generate typescript types for graphql queries and mutations
+- The fastapi + graphql server is located at C:\projects\service-plus\dev\service-plus-server.
+- /src/types/db-schema-service.ts is the file which has all the types for demo1 schema from database service-plus-service.
+- /src/types/db-schema-security.ts is the file which has all the types for security schema from database service-plus-service.
+- /src/types/db-schema-client.ts is the file which has all the types for public schema from database service-plus-client.
+- Use these types to generate typescript types for graphql queries and mutations.

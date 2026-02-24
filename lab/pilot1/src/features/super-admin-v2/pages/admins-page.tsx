@@ -50,8 +50,8 @@ const cardVariants = {
     }),
 };
 
-function formatDate(date: Date): string {
-    return date.toLocaleDateString("en-IN", {
+function formatDate(date: string | Date): string {
+    return new Date(date).toLocaleDateString("en-IN", {
         day: "2-digit",
         month: "2-digit",
         year: "numeric",

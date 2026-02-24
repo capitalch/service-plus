@@ -1,7 +1,9 @@
 import { RouterProvider } from "react-router-dom";
 import { Toaster } from "sonner";
+import { router } from "./router/router";
 
-import { router } from "./router";
+// import { router } from "./router";
+
 
 export function App() {
     return (
