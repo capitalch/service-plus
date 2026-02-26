@@ -32,7 +32,7 @@ import {
 } from "@/components/ui/table";
 
 import { SuperAdminLayout } from "../components/super-admin-layout";
-import { selectAdminUsers, toggleAdminUserActive } from "@/features/super-admin/super-admin-slice";
+import { selectAdminUsers, toggleAdminUserActive } from "@/features/super-admin/store/super-admin-slice";
 import type { AdminUserRoleType, AdminUserType } from "@/features/super-admin/types";
 
 const roleStyles: Record<AdminUserRoleType, string> = {
@@ -50,8 +50,8 @@ const cardVariants = {
     }),
 };
 
-function formatDate(date: Date): string {
-    return date.toLocaleDateString("en-IN", {
+function formatDate(date: string): string {
+    return new Date(date).toLocaleDateString("en-IN", {
         day: "2-digit",
         month: "2-digit",
         year: "numeric",

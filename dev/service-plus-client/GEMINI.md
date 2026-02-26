@@ -1,16 +1,14 @@
----
-trigger: always_on
----
-
+# instructions
 - Always make responsive design
-- When any text command is given to claude and last word is plan then do the plan only for the given command. Write your plan in the planA.md file in the plans folder in root. Don not touch plan.md file.
+- When any text command is given and last word is plan then do the plan only for the given command. Write your plan in the planA.md file in the plans folder in root. Don not touch existing plan.md file.
 - Overwrite planA.md if aleady present.
 - In planA.md write all the steps of execution as Step1, Step 2 and so on.
 - In planA.md include a workflow section which provides the workflow of entire work.
 - When creating a form never use red color for any control css. Red color will only be used for indicating errors.
 - Always make use of shadcn components, and framer-motion for transition wherever required
 - For forms use react-hook-form and zod for validations and business rules
-- Use GraphQL with subscription support for authenticated query. - - Use apollo for GraphQL.
+- Use GraphQL with subscription support for authenticated query. 
+- Use apollo for GraphQL.
 - Use Sonner for notifications
 - Generate GraphQL types using codegen
 - use pnpm and not npm
@@ -29,4 +27,4 @@ trigger: always_on
 - /src/types/db-schema-service.ts is the file which has all the types for demo1 schema from database service-plus-service.
 - /src/types/db-schema-security.ts is the file which has all the types for security schema from database service-plus-service.
 - /src/types/db-schema-client.ts is the file which has all the types for public schema from database service-plus-client.
-- Use these types to generate typescript types for graphql queries and mutations.
+- Never use index.ts for re-exporting. Always use explicit named imports for intra-feature and cross-feature imports

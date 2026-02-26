@@ -32,7 +32,7 @@ import {
 } from "@/components/ui/table";
 
 import { SuperAdminLayout } from "../components/super-admin-layout";
-import { selectClients, toggleClientActive } from "@/features/super-admin/super-admin-slice";
+import { selectClients, toggleClientActive } from "@/features/super-admin/store/super-admin-slice";
 import type { ClientType } from "@/features/super-admin/types";
 
 const cardVariants = {
@@ -44,8 +44,8 @@ const cardVariants = {
     }),
 };
 
-function formatDate(date: Date): string {
-    return date.toLocaleDateString("en-IN", {
+function formatDate(date: string): string {
+    return new Date(date).toLocaleDateString("en-IN", {
         day: "2-digit",
         month: "2-digit",
         year: "numeric",

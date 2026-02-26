@@ -4,17 +4,18 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { Eye, EyeOff, Loader2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { ClientCombobox } from '@/components/client-combobox';
-import { loginSchema, type LoginFormData } from '@/schemas/auth-schemas';
-import { loginUser } from '@/store/api/auth-api';
-import type { ApiError, UserInstanceType } from '@/store/api/auth-api';
+import { ClientCombobox } from './client-combobox';
+import { loginSchema, type LoginFormData } from '../schemas/auth-schemas';
+import { loginUser } from '@/features/auth/services/auth-service';
+import type { ApiError, UserInstanceType } from '@/features/auth/services/auth-service';
 import { useAppDispatch } from '@/store/hooks';
-import { setCredentials } from '@/store/slices/auth-slice';
+import { setCredentials } from '@/features/auth/store/auth-slice';
 import { MESSAGES } from '@/constants/messages';
-import { useNavigate } from 'react-router-dom';
+import { ROUTES } from '@/router/routes';
 
 type LoginFormProps = {
   onForgotPassword: () => void;
@@ -67,9 +68,9 @@ export const LoginForm = ({ onForgotPassword }: LoginFormProps) => {
       );
 
       if (user.userType === 'S') {
-        navigate('/super-admin');
+        navigate(ROUTES.superAdmin.root);
       } else {
-        navigate('/');
+        navigate(ROUTES.home);
       }
 
       toast.success(MESSAGES.SUCCESS_LOGIN);

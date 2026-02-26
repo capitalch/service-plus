@@ -1,5 +1,4 @@
 import {
-    ArrowLeftIcon,
     BellIcon,
     LogOutIcon,
     MenuIcon,
@@ -9,7 +8,6 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -20,18 +18,22 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { ROUTES } from "@/router/routes";
+import { useAppDispatch } from "@/store/hooks";
+import { logout } from "@/features/auth/store/auth-slice";
 
 type TopHeaderPropsType = {
     onMenuToggle: () => void;
 };
 
 export const TopHeader = ({ onMenuToggle }: TopHeaderPropsType) => {
+    const dispatch = useAppDispatch();
     const navigate = useNavigate();
     const [hasNotification] = useState(true);
 
     const handleLogout = () => {
-        toast.info("Logging out...");
-        navigate("/");
+        dispatch(logout());
+        navigate(ROUTES.login);
     };
 
     return (
@@ -46,18 +48,6 @@ export const TopHeader = ({ onMenuToggle }: TopHeaderPropsType) => {
                 <MenuIcon className="h-5 w-5" />
                 <span className="sr-only">Toggle menu</span>
             </Button>
-
-            {/* Back to landing page */}
-            <Button
-                className="hidden items-center gap-1.5 text-xs text-slate-500 hover:text-slate-800 md:flex"
-                onClick={() => navigate("/")}
-                size="sm"
-                variant="ghost"
-            >
-                <ArrowLeftIcon className="h-3.5 w-3.5" />
-                Home
-            </Button>
-            <div className="hidden h-4 w-px bg-slate-200 md:block" />
 
             {/* Search bar */}
             <div className="relative flex-1 max-w-sm">
@@ -83,7 +73,7 @@ export const TopHeader = ({ onMenuToggle }: TopHeaderPropsType) => {
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                         <button
-                            className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm transition-colors hover:bg-slate-50"
+                            className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm transition-colors hover:bg-slate-50 cursor-pointer"
                             type="button"
                         >
                             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-600 text-xs font-bold text-white shadow-sm">

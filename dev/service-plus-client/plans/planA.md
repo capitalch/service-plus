@@ -1,197 +1,215 @@
-# Plan: Router & Navigation Code Improvements
+# Plan A — How GraphQL Is Being Used in This App
 
-## Workflow
+## Overview
 
-```
-Step 1 – Add NOT_FOUND and SUCCESS_LOGOUT to messages.ts
-         ↓
-Step 2 – Create src/router/routes.ts (ROUTES constants)
-         ↓
-Step 3 – Create src/router/protected-route.tsx (auth + role guard)
-         ↓
-Step 4 – Create src/pages/not-found-page.tsx (404 page)
-         ↓
-Step 5 – Refactor src/router/index.tsx (use ProtectedRoute + ROUTES + 404)
-         ↓
-Step 6 – Refactor src/app.tsx (remove local auth guard, simple redirect)
-         ↓
-Step 7 – Fix src/store/slices/auth-slice.ts (localStorage key bug on logout)
-         ↓
-Step 8 – Fix src/features/super-admin/components/top-header.tsx (dispatch logout + navigate to /login)
-         ↓
-Step 9 – Update src/features/super-admin/components/sidebar.tsx (use ROUTES constants)
-         ↓
-Step 10 – Verify with pnpm build + manual flow tests
-```
+The app uses **Apollo Client v4** for GraphQL with:
+- **HTTP** for authenticated queries & mutations
+- **WebSocket** for real-time subscriptions
+- **graphql-codegen** for auto-generating TypeScript types from `.graphql` files
+
+However, GraphQL is currently **wired up but not actively used** — all data comes from
+dummy Redux state. This plan explains every layer of the setup and what needs to happen
+to make it fully functional.
 
 ---
 
-## Issues to Fix
+## Layer-by-Layer Breakdown
 
-### Critical
-1. **Super-admin routes have NO auth protection** — Any unauthenticated user can navigate directly to `/super-admin/*`. Only `/` is guarded (inside `App.tsx` via `useEffect`).
-2. **`logout` reducer has a wrong localStorage key** — `setCredentials` saves token under `accessToken` but `logout` removes `authToken`. Token is never cleared from storage.
-3. **Logout does not dispatch `logout()` action** — `top-header.tsx` calls only `navigate("/")`, leaving token and user alive in Redux and `localStorage`.
+### Layer 1 — Apollo Client Setup (`src/lib/apollo-client.ts`)
 
-### Architectural
-4. **No `ProtectedRoute` component** — Auth guard lives as `useEffect + useNavigate` inside `App.tsx`. A declarative route wrapper is the standard React Router v6+ pattern.
-5. **No role-based route protection** — No mechanism verifies the user has `userType === 'S'` before serving super-admin pages.
-6. **No ROUTES constants** — Hardcoded path strings (`/super-admin`, `/super-admin/clients`, etc.) are scattered across `router/index.tsx` and `sidebar.tsx`, creating drift risk.
+This is the core configuration file. It creates a single `apolloClient` instance used
+globally across the app.
 
-### UX / Correctness
-7. **Logout navigates to `/` not `/login`** — Causes an extra unnecessary redirect hop before landing on login.
-8. **No 404 catch-all route** — Unknown URLs fall through to React Router's default error UI.
-9. **`App.tsx` renders `<ComponentExample />`** — Placeholder instead of redirecting authenticated users to their correct dashboard.
-
----
-
-## Steps
-
-### Step 1 — Update `src/constants/messages.ts`
-Add two new keys needed by new components:
-```ts
-NOT_FOUND: 'The page you are looking for does not exist.',
-SUCCESS_LOGOUT: 'You have been logged out successfully.',
+```
+                ┌─────────────────────────────────┐
+                │        apolloClient              │
+                │   (ApolloClient + InMemoryCache) │
+                └──────────────┬──────────────────┘
+                               │
+                         splitLink (router)
+                               │
+             ┌─────────────────┴──────────────────┐
+             │                                    │
+       Is it a Subscription?              Is it Query / Mutation?
+             │                                    │
+          wsLink                      authLink → httpLink
+    (WebSocket over ws://)         (HTTP POST with Bearer token)
 ```
 
----
-
-### Step 2 — Create `src/router/routes.ts`
-Single source of truth for all route paths. Import and use `ROUTES.*` everywhere instead of hardcoded strings.
-
-```ts
-export const ROUTES = {
-  home: '/',
-  login: '/login',
-  superAdmin: {
-    admins: '/super-admin/admins',
-    audit: '/super-admin/audit',
-    clients: '/super-admin/clients',
-    root: '/super-admin',
-    settings: '/super-admin/settings',
-    usage: '/super-admin/usage',
-  },
-} as const;
-```
+**Key behaviors:**
+- **`authLink`** — an Apollo "context link" that reads `accessToken` from `localStorage`
+  and injects `Authorization: Bearer <token>` into every HTTP request header.
+  This means **no explicit token passing needed** in individual queries.
+- **`httpLink`** — sends all queries and mutations as HTTP POST to `VITE_GRAPHQL_URL`
+  (default: `http://localhost:8000/graphql`)
+- **`wsLink`** — opens a persistent WebSocket to `VITE_GRAPHQL_WS_URL`
+  (default: `ws://localhost:8000/graphql`) for subscriptions. Token is passed via
+  `connectionParams` at connection time.
+- **`split()`** — the router. Inspects each operation at runtime:
+  - `subscription` → routes to `wsLink`
+  - `query` / `mutation` → routes to `authLink → httpLink`
 
 ---
 
-### Step 3 — Create `src/router/protected-route.tsx`
-Declarative route guard using arrow function component:
-- Reads `selectIsAuthenticated` from Redux — if `false`, redirects to `ROUTES.login`, preserving the attempted `location` in `state.from` for post-login redirect.
-- If `allowedRoles` prop is provided, reads `selectCurrentUser` and checks `user.userType` against the array. If not matching, redirects to `ROUTES.home`.
-- Returns `<Outlet />` when all checks pass.
+### Layer 2 — Provider Wiring (`src/main.tsx`)
 
 ```tsx
-type ProtectedRoutePropsType = {
-  allowedRoles?: string[];
-};
-
-export const ProtectedRoute = ({ allowedRoles }: ProtectedRoutePropsType) => {
-  const isAuthenticated = useAppSelector(selectIsAuthenticated);
-  const location = useLocation();
-  const user = useAppSelector(selectCurrentUser);
-
-  if (!isAuthenticated)
-    return <Navigate replace state={{ from: location }} to={ROUTES.login} />;
-
-  if (allowedRoles && user && !allowedRoles.includes(user.userType))
-    return <Navigate replace to={ROUTES.home} />;
-
-  return <Outlet />;
-};
+<ApolloProvider client={apolloClient}>   // ← Makes apolloClient available via hooks
+  <Provider store={store}>               // ← Redux
+    <RouterProvider router={router} />
+    <Toaster />
+  </Provider>
+</ApolloProvider>
 ```
 
----
-
-### Step 4 — Create `src/pages/not-found-page.tsx`
-Branded 404 page:
-- Framer Motion fade-in animation.
-- Large `404` display text, heading, and a description from `MESSAGES.NOT_FOUND`.
-- Shadcn `Button` that navigates to `ROUTES.home`.
+`ApolloProvider` wraps the entire React tree. This means any component in the app can
+call `useQuery`, `useMutation`, or `useSubscription` hooks directly — no prop drilling
+of the client required.
 
 ---
 
-### Step 5 — Refactor `src/router/index.tsx`
-Restructure the router to use `ProtectedRoute`, `ROUTES` constants, and add the 404 catch-all:
+### Layer 3 — GraphQL Operation Files (`src/graphql/`)
 
+Currently two placeholder files exist:
+
+**`graphql/queries/generic.graphql`**
+```graphql
+query GenericQuery($db_name: String!, $value: String!) {
+    genericQuery(db_name: $db_name, value: $value)
+}
 ```
-/                       (errorElement: ErrorPage)
-  /                     → ProtectedRoute → App
-  /login                → LoginPage
+This is a catch-all generic query that passes a database name and a value string to the
+server. The server (FastAPI + Strawberry) returns a raw result. This acts as a proof-of-
+concept before feature-specific queries are written.
 
-/super-admin            (errorElement: ErrorPage)
-  /super-admin          → ProtectedRoute (allowedRoles: ['S']) → SuperAdminDashboard
-  /super-admin/admins   → ProtectedRoute (allowedRoles: ['S']) → AdminsPage
-  /super-admin/audit    → ProtectedRoute (allowedRoles: ['S']) → AuditLogsPage
-  /super-admin/clients  → ProtectedRoute (allowedRoles: ['S']) → ClientsPage
-  /super-admin/settings → ProtectedRoute (allowedRoles: ['S']) → SystemSettingsPage
-  /super-admin/usage    → ProtectedRoute (allowedRoles: ['S']) → UsageHealthPage
-
-*                       → NotFoundPage
+**`graphql/subscriptions/generic.graphql`**
+```graphql
+subscription GenericSubscription($db_name: String!) {
+    genericSubscription(db_name: $db_name)
+}
 ```
-
-The `ProtectedRoute` wraps the entire `/super-admin` children block as a layout route.
-
----
-
-### Step 6 — Refactor `src/app.tsx`
-Remove the `useEffect + navigate` auth guard (it is now handled by `ProtectedRoute`). Since this component is only reachable when authenticated, replace the body with a smart redirect:
-- If `user.userType === 'S'` → `<Navigate replace to={ROUTES.superAdmin.root} />`
-- Otherwise → render the normal home dashboard
+A generic real-time subscription. When the server pushes data on `db_name`, this fires
+automatically via the WebSocket connection.
 
 ---
 
-### Step 7 — Fix `src/store/slices/auth-slice.ts`
-The `logout` reducer removes `authToken` but the key stored by `setCredentials` is `accessToken`. Fix:
-```ts
-// Before (bug):
-localStorage.removeItem('authToken');
+### Layer 4 — Code Generation (`codegen.ts` + `pnpm codegen`)
 
-// After (fix):
-localStorage.removeItem('accessToken');
-```
-
----
-
-### Step 8 — Fix `src/features/super-admin/components/top-header.tsx`
-Correct the `handleLogout` function:
-1. Import `useAppDispatch` and `logout` action from auth-slice.
-2. Dispatch `logout()` to clear Redux state and localStorage.
-3. Navigate to `ROUTES.login` (not `ROUTES.home`).
-4. Show `toast.success(MESSAGES.SUCCESS_LOGOUT)` instead of `toast.info("Logging out...")`.
+The `codegen.ts` file configures `graphql-codegen`:
 
 ```ts
-const handleLogout = () => {
-  dispatch(logout());
-  navigate(ROUTES.login);
-  toast.success(MESSAGES.SUCCESS_LOGOUT);
+const config: CodegenConfig = {
+    schema: process.env.VITE_GRAPHQL_URL || 'http://localhost:8000/graphql',
+    documents: ['src/graphql/**/*.graphql'],   // reads all .graphql files
+    generates: {
+        'src/graphql/generated/': {            // outputs here
+            preset: 'client',                  // client-preset: best for typed hooks
+            presetConfig: { gqlTagName: 'gql' },
+        },
+    },
+    ignoreNoDocuments: true,
 };
 ```
 
+**What `pnpm codegen` does:**
+1. Reads the live GraphQL schema from the server (`http://localhost:8000/graphql`)
+2. Scans all `.graphql` files in `src/graphql/`
+3. Auto-generates `src/graphql/generated/` containing:
+   - Fully typed `DocumentNode` exports for each query/mutation/subscription
+   - TypeScript types for all variables and return values
+   - A `gql` tag helper
+
+**What `pnpm codegen:watch` does:**
+- Same as above, but re-runs automatically whenever any `.graphql` file changes.
+
 ---
 
-### Step 9 — Update `src/features/super-admin/components/sidebar.tsx`
-Replace all hardcoded `href` strings in `navItems` with `ROUTES.superAdmin.*` constants:
+### Layer 5 — How a Feature Would Use It (Not Yet Done)
 
-```ts
-const navItems: NavItemType[] = [
-  { href: ROUTES.superAdmin.root,     icon: LayoutDashboardIcon, label: 'Dashboard' },
-  { href: ROUTES.superAdmin.admins,   icon: ShieldIcon,          label: 'Admins' },
-  { href: ROUTES.superAdmin.audit,    icon: ClipboardListIcon,   label: 'Audit Logs' },
-  { href: ROUTES.superAdmin.clients,  icon: UsersIcon,           label: 'Clients' },
-  { href: ROUTES.superAdmin.settings, icon: SettingsIcon,        label: 'System Settings' },
-  { href: ROUTES.superAdmin.usage,    icon: ActivityIcon,        label: 'Usage & Health' },
-];
+Here is the pattern that should be followed when adding real GraphQL data to a feature:
+
+#### Step A — Write the `.graphql` file inside the feature
+```graphql
+# src/features/super-admin/graphql/clients.graphql
+query GetClients {
+    clients {
+        id
+        name
+        code
+        is_active
+        activeAdminCount
+    }
+}
 ```
 
+#### Step B — Run codegen to generate types
+```bash
+pnpm codegen
+```
+This produces `src/graphql/generated/graphql.ts` with:
+```ts
+export const GetClientsDocument = gql`...`;
+export type GetClientsQuery = { clients: Array<{ id: number; name: string; ... }> };
+```
+
+#### Step C — Use generated hook in the component
+```tsx
+import { useQuery } from '@apollo/client';
+import { GetClientsDocument } from '@/graphql/generated/graphql';
+
+export const ClientsPage = () => {
+    const { data, loading, error } = useQuery(GetClientsDocument);
+    // data is fully typed as GetClientsQuery
+};
+```
+
+#### Step D — For authenticated queries
+No extra code needed — `authLink` automatically injects the token from `localStorage`
+into every HTTP request. The Apollo Client handles it transparently.
+
+#### Step E — For subscriptions (WebSocket)
+```tsx
+import { useSubscription } from '@apollo/client';
+import { GenericSubscriptionDocument } from '@/graphql/generated/graphql';
+
+const { data } = useSubscription(GenericSubscriptionDocument, {
+    variables: { db_name: 'service-plus' },
+});
+```
+Apollo automatically routes this over WebSocket because of the `split()` router.
+
 ---
 
-### Step 10 — Verify
-- Run `pnpm build` — zero TypeScript or import errors.
-- Navigate to `/super-admin` while logged out → redirects to `/login`.
-- Log in as Super Admin → lands on `/super-admin` dashboard.
-- Log in as regular user → lands on `/` (home).
-- Logout → clears Redux/localStorage, navigates to `/login`.
-- Navigate to `/unknown-path` → shows branded 404 page.
-- Refresh on `/super-admin/clients` while logged out → redirects to `/login`.
+## Current Status Summary
+
+| Concern | Status |
+|---------|--------|
+| Apollo Client setup | ✅ Fully configured (HTTP + WS + auth) |
+| ApolloProvider in tree | ✅ Wraps entire app in `main.tsx` |
+| `.graphql` files | ⚠️ Only 2 generic placeholders exist |
+| `pnpm codegen` | ⚠️ Will generate types — but no feature queries written yet |
+| `useQuery` / `useMutation` in components | ❌ Not used anywhere yet |
+| `useSubscription` in components | ❌ Not used anywhere yet |
+| All data currently comes from | ⚠️ Redux dummy state (`dummy-data.ts`) |
+
+---
+
+## What Needs to Happen Next
+
+1. **Write feature-specific `.graphql` files** inside each feature's `graphql/` folder
+   (e.g. `features/super-admin/graphql/clients.graphql`)
+2. **Run `pnpm codegen`** to generate typed hooks and types
+3. **Replace Redux dummy data** with real `useQuery` calls in components
+4. **Store server data in Redux** (optional — Apollo's `InMemoryCache` can serve as the
+   cache layer instead, reducing Redux state surface)
+5. **Add subscriptions** where real-time server push is needed (e.g. live activity logs)
+
+---
+
+## Environment Variables Required
+
+```env
+VITE_GRAPHQL_URL=http://localhost:8000/graphql      # HTTP endpoint
+VITE_GRAPHQL_WS_URL=ws://localhost:8000/graphql     # WebSocket endpoint
+```
+These should be in a `.env` file at the project root.

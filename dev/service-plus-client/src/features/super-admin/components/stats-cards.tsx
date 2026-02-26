@@ -9,7 +9,7 @@ import {
 import { useSelector } from "react-redux";
 
 import { Card, CardContent } from "@/components/ui/card";
-import { selectStats } from "@/features/super-admin/super-admin-slice";
+import { selectStats } from "@/features/super-admin/store/super-admin-slice";
 
 type StatCardItemType = {
     accent: string;

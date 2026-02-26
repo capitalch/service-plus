@@ -1,162 +1,211 @@
-# Plan: Navigation Code Review & Improvements
+# Plan: GraphQL + Apollo Client Setup
 
-## Issues Found
+## Context
 
-### Critical
-1. **Super-admin routes have NO auth protection** — Any unauthenticated user can navigate directly to `/super-admin/*` in the browser. Only the root `/` path is guarded by `App.tsx`.
-2. **Logout does not clear auth state** — `top-header.tsx` calls `navigate("/")` but never dispatches the `logout` action, leaving the token alive in Redux and `localStorage`.
-
-### Architectural
-3. **No `ProtectedRoute` component** — Auth guard is done via `useEffect + useNavigate` inside `App.tsx`. This is an anti-pattern; a declarative route wrapper component is the correct approach with React Router v6+.
-4. **No role-based route protection** — Super-admin routes only need an `isAuthenticated` check today, but there is no mechanism to verify the user actually has the `super_admin` role.
-5. **Hardcoded route strings everywhere** — Paths like `/super-admin`, `/super-admin/clients` etc. are duplicated in `router/index.tsx` and `sidebar.tsx`. A single `ROUTES` constants file eliminates drift.
-
-### UX / Correctness
-6. **Logout navigates to `/` not `/login`** — After logout the user lands on the protected root, which then redirects to `/login`, adding an unnecessary redirect hop.
-7. **No 404 catch-all route** — Unknown URLs fall through to React Router's default error, not a branded not-found page.
-8. **`App.tsx` renders `<ComponentExample />`** — The protected root component renders a placeholder. It should redirect authenticated users to their landing page (e.g. `/super-admin`).
+- Server: FastAPI + Ariadne GraphQL at `http://localhost:8000/graphql` with WebSocket subscription support
+- Auth token stored in Redux (`auth.token`) and `localStorage('accessToken')`
+- Rule: authenticated API calls use GraphQL with `Authorization` header; unauthenticated calls (login, clients search, forgot password) keep using Axios
+- Apollo Client with subscription support required
+- GraphQL types must be generated via codegen
 
 ---
 
 ## Workflow
 
 ```
-Step 1 – Create ROUTES constants file
+Step 1 – Install Apollo + codegen packages
          ↓
-Step 2 – Create ProtectedRoute component (auth + role guard)
+Step 2 – Create Apollo Client (src/lib/apollo-client.ts)
          ↓
-Step 3 – Refactor router to use ProtectedRoute & ROUTES constants
+Step 3 – Wrap app with ApolloProvider in main.tsx
          ↓
-Step 4 – Add 404 catch-all route
+Step 4 – Setup codegen config (codegen.ts + package.json script)
          ↓
-Step 5 – Fix App.tsx root redirect
+Step 5 – Create GraphQL folder structure with example documents
          ↓
-Step 6 – Fix logout action in top-header.tsx
-         ↓
-Step 7 – Update sidebar to use ROUTES constants
-         ↓
-Step 8 – Verify build & manual test
+Step 6 – Run codegen and verify build
 ```
 
 ---
 
 ## Steps
 
-### Step 1 — Create `src/router/routes.ts` (ROUTES constants)
+### Step 1 — Install packages
 
-Create a single source-of-truth for all route paths:
+```bash
+pnpm add @apollo/client graphql graphql-ws
 
-```ts
-export const ROUTES = {
-  home: '/',
-  login: '/login',
-  superAdmin: {
-    root: '/super-admin',
-    admins: '/super-admin/admins',
-    audit: '/super-admin/audit',
-    clients: '/super-admin/clients',
-    settings: '/super-admin/settings',
-    usage: '/super-admin/usage',
-  },
-} as const;
+pnpm add -D @graphql-codegen/cli @graphql-codegen/client-preset
 ```
 
-### Step 2 — Create `src/router/protected-route.tsx`
+| Package | Purpose |
+|---------|---------|
+| `@apollo/client` | Apollo Client core (queries, mutations, cache, `ApolloProvider`) |
+| `graphql` | Peer dependency for Apollo and codegen |
+| `graphql-ws` | WebSocket transport for GraphQL subscriptions |
+| `@graphql-codegen/cli` | Codegen CLI runner |
+| `@graphql-codegen/client-preset` | Generates typed hooks and fragment types |
 
-Create a declarative wrapper that:
-- Checks `selectIsAuthenticated` from the auth slice
-- Optionally checks `selectCurrentUser` role against a required role
-- Renders `<Outlet />` if allowed, otherwise `<Navigate>` to login (preserving `location.state` for post-login redirect)
+---
+
+### Step 2 — Create `src/lib/apollo-client.ts`
+
+Sets up a split link: subscriptions go over WebSocket, queries/mutations go over HTTP. Both links attach the `Authorization` token from `localStorage`.
+
+```ts
+import { ApolloClient, HttpLink, InMemoryCache, split } from '@apollo/client';
+import { GraphQLWsLink } from '@apollo/client/link/subscriptions';
+import { getMainDefinition } from '@apollo/client/utilities';
+import { setContext } from '@apollo/client/link/context';
+import { createClient } from 'graphql-ws';
+
+const GQL_HTTP_URL = import.meta.env.VITE_GRAPHQL_URL || 'http://localhost:8000/graphql';
+const GQL_WS_URL = import.meta.env.VITE_GRAPHQL_WS_URL || 'ws://localhost:8000/graphql';
+
+const getAuthToken = () => localStorage.getItem('accessToken');
+
+const httpLink = new HttpLink({ uri: GQL_HTTP_URL });
+
+const authLink = setContext((_, { headers }) => {
+    const token = getAuthToken();
+    return {
+        headers: {
+            ...headers,
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+    };
+});
+
+const wsLink = new GraphQLWsLink(
+    createClient({
+        url: GQL_WS_URL,
+        connectionParams: () => {
+            const token = getAuthToken();
+            return token ? { Authorization: `Bearer ${token}` } : {};
+        },
+    })
+);
+
+const splitLink = split(
+    ({ query }) => {
+        const definition = getMainDefinition(query);
+        return (
+            definition.kind === 'OperationDefinition' &&
+            definition.operation === 'subscription'
+        );
+    },
+    wsLink,
+    authLink.concat(httpLink)
+);
+
+export const apolloClient = new ApolloClient({
+    cache: new InMemoryCache(),
+    link: splitLink,
+});
+```
+
+Key design points:
+- `authLink` dynamically reads `localStorage` on every request — stays in sync after login/logout without needing to recreate the client
+- Subscriptions route through `wsLink` with `connectionParams` for auth
+- HTTP queries/mutations route through `authLink → httpLink`
+- `VITE_GRAPHQL_URL` and `VITE_GRAPHQL_WS_URL` env vars allow overriding per environment
+
+---
+
+### Step 3 — Wrap app with `ApolloProvider` in `src/main.tsx`
+
+Import `apolloClient` and `ApolloProvider`, wrap the root `RouterProvider`:
 
 ```tsx
-type ProtectedRoutePropsType = {
-  allowedRoles?: string[];
-};
+import { ApolloProvider } from '@apollo/client';
+import { apolloClient } from '@/lib/apollo-client';
 
-export const ProtectedRoute = ({ allowedRoles }: ProtectedRoutePropsType) => {
-  const isAuthenticated = useAppSelector(selectIsAuthenticated);
-  const user = useAppSelector(selectCurrentUser);
-  const location = useLocation();
-
-  if (!isAuthenticated) {
-    return <Navigate replace state={{ from: location }} to={ROUTES.login} />;
-  }
-  if (allowedRoles && user && !allowedRoles.includes(user.role)) {
-    return <Navigate replace to={ROUTES.home} />;
-  }
-  return <Outlet />;
-};
+// inside createRoot(...).render(...)
+<ApolloProvider client={apolloClient}>
+  <Provider store={store}>
+    <RouterProvider router={router} />
+  </Provider>
+</ApolloProvider>
 ```
 
-### Step 3 — Refactor `src/router/index.tsx`
+`ApolloProvider` wraps `Provider` (Redux) so that both are available to all components.
 
-- Import `ROUTES` and `ProtectedRoute`
-- Wrap super-admin children under `ProtectedRoute` with `allowedRoles={['super_admin']}`
-- Replace all hardcoded path strings with `ROUTES.*` constants
-- Keep existing `errorElement` boundaries
+---
 
-Updated structure:
-```
-/                   (errorElement)
-  /                 → ProtectedRoute → App (home redirect)
-  /login            → LoginPage
+### Step 4 — Create `codegen.ts` and add script to `package.json`
 
-/super-admin        (errorElement)
-  /                 → ProtectedRoute (role: super_admin) → SuperAdminDashboard
-  /clients          → ProtectedRoute (role: super_admin) → ClientsPage
-  /admins           → ...
-  /usage            → ...
-  /audit            → ...
-  /settings         → ...
-
-*                   → NotFoundPage (catch-all)
-```
-
-### Step 4 — Create `src/pages/not-found-page.tsx`
-
-A branded 404 page with:
-- "Page not found" message from `messages.ts`
-- Button linking back to `ROUTES.home`
-- Framer Motion fade-in animation
-
-### Step 5 — Fix `src/app.tsx` root redirect
-
-Replace the `useEffect + navigate` pattern with a simple redirect:
-- If authenticated → `<Navigate replace to={ROUTES.superAdmin.root} />`
-- The `ProtectedRoute` wrapper already handles unauthenticated redirect to login, so `App.tsx` only needs to decide where an authenticated user lands.
-
-### Step 6 — Fix logout in `src/features/super-admin/components/top-header.tsx`
-
-In `handleLogout`:
-1. Dispatch `logout()` action from `auth-slice` (clears Redux + localStorage)
-2. Navigate to `ROUTES.login` (not `ROUTES.home`)
+**`codegen.ts`** (project root):
 
 ```ts
-const handleLogout = () => {
-  dispatch(logout());
-  navigate(ROUTES.login);
+import type { CodegenConfig } from '@graphql-codegen/cli';
+
+const config: CodegenConfig = {
+    schema: process.env.VITE_GRAPHQL_URL || 'http://localhost:8000/graphql',
+    documents: ['src/graphql/**/*.graphql'],
+    generates: {
+        'src/graphql/generated/': {
+            preset: 'client',
+            presetConfig: {
+                gqlTagName: 'gql',
+            },
+        },
+    },
+    ignoreNoDocuments: true,
 };
+
+export default config;
 ```
 
-### Step 7 — Update `src/features/super-admin/components/sidebar.tsx`
+**Add to `package.json` scripts:**
 
-Replace hardcoded href strings in `navItems` with `ROUTES.superAdmin.*` constants:
-
-```ts
-const navItems: NavItemType[] = [
-  { href: ROUTES.superAdmin.root,     icon: LayoutDashboardIcon, label: 'Dashboard' },
-  { href: ROUTES.superAdmin.admins,   icon: ShieldIcon,          label: 'Admins' },
-  { href: ROUTES.superAdmin.audit,    icon: ClipboardListIcon,   label: 'Audit Logs' },
-  { href: ROUTES.superAdmin.clients,  icon: UsersIcon,           label: 'Clients' },
-  { href: ROUTES.superAdmin.settings, icon: SettingsIcon,        label: 'System Settings' },
-  { href: ROUTES.superAdmin.usage,    icon: ActivityIcon,        label: 'Usage & Health' },
-];
+```json
+"codegen": "graphql-codegen --config codegen.ts",
+"codegen:watch": "graphql-codegen --config codegen.ts --watch"
 ```
 
-### Step 8 — Verify
+---
 
-- Run `pnpm build` — zero TypeScript/import errors
-- Navigate to `/super-admin` while logged out → should redirect to `/login`
-- Log in → should land on `/super-admin` dashboard
-- Logout → should clear token and land on `/login`
-- Navigate to `/unknown-path` → should show 404 page
+### Step 5 — Create GraphQL folder structure
+
+```
+src/graphql/
+├── generated/          ← codegen output (do not edit manually)
+├── mutations/          ← .graphql mutation documents
+├── queries/            ← .graphql query documents
+└── subscriptions/      ← .graphql subscription documents
+```
+
+Add a `.gitignore` entry (or keep generated files — team preference). Add an example query document to validate the pipeline:
+
+**`src/graphql/queries/generic.graphql`:**
+
+```graphql
+query GenericQuery($db_name: String!, $value: String!) {
+    genericQuery(db_name: $db_name, value: $value)
+}
+```
+
+**`src/graphql/subscriptions/generic.graphql`:**
+
+```graphql
+subscription GenericSubscription($db_name: String!) {
+    genericSubscription(db_name: $db_name)
+}
+```
+
+---
+
+### Step 6 — Run codegen and verify build
+
+```bash
+# Generate types (server must be running)
+pnpm codegen
+
+# Verify TypeScript + Vite build
+pnpm build
+```
+
+Expected output:
+- `src/graphql/generated/` contains `graphql.ts` and `gql.ts` with typed hooks and fragment types
+- `pnpm build` exits with zero errors
+- No unused import warnings

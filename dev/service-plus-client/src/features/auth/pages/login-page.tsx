@@ -2,14 +2,27 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ShieldIcon } from 'lucide-react';
-import { LoginForm } from '@/components/login-form';
-import { ForgotPasswordForm } from '@/components/forgot-password-form';
+import { LoginForm } from '../components/login-form';
+import { ForgotPasswordForm } from '../components/forgot-password-form';
+import { ROUTES } from '@/router/routes';
+import { useAppDispatch } from '@/store/hooks';
+import { setCredentials } from '@/features/auth/store/auth-slice';
 
 type ViewState = 'login' | 'forgotPassword';
 
 export const LoginPage = () => {
   const [view, setView] = useState<ViewState>('login');
+  const dispatch = useAppDispatch();
   const navigate = useNavigate();
+
+  const handleTestSuperAdmin = () => {
+    dispatch(setCredentials({
+      clientId: 'test',
+      token: 'test-token',
+      user: { email: 'super.admin@serviceplus.io', userType: 'S', username: 'S' },
+    }));
+    navigate(ROUTES.superAdmin.root);
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
@@ -76,7 +89,7 @@ export const LoginPage = () => {
         >
           <button
             type="button"
-            onClick={() => navigate('/super-admin')}
+            onClick={handleTestSuperAdmin}
             className="w-full flex items-center justify-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-medium text-emerald-700 transition-colors hover:bg-emerald-100 hover:border-emerald-300"
           >
             <ShieldIcon className="h-4 w-4" />

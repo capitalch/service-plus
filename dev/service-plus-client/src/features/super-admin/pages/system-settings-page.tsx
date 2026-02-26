@@ -8,7 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 
 import { SuperAdminLayout } from "../components/super-admin-layout";
-import { dummySettingSections } from "@/features/super-admin/dummy-data";
+import { dummySettingSections } from "@/features/super-admin/data/dummy-data";
 import type { SettingSectionType } from "@/features/super-admin/types";
 
 const cardVariants = {

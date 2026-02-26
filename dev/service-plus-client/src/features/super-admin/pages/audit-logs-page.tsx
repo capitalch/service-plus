@@ -16,7 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
 import { SuperAdminLayout } from "../components/super-admin-layout";
-import { selectActivityLog } from "@/features/super-admin/super-admin-slice";
+import { selectActivityLog } from "@/features/super-admin/store/super-admin-slice";
 import type { ActivityActionType, ActivityLogItemType } from "@/features/super-admin/types";
 
 type FilterType = ActivityActionType | "All";

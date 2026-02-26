@@ -27,3 +27,4 @@
 - /src/types/db-schema-security.ts is the file which has all the types for security schema from database service-plus-service
 - /src/types/db-schema-client.ts is the file which has all the types for public schema from database service-plus-client
 - Use these types to generate typescript types for graphql queries and mutations
+- Never use index.ts for re-exporting. Always use explicit named imports for intra-feature and cross-feature imports

@@ -33,6 +33,9 @@ export const MESSAGES = {
   ERROR_RESET_LINK_FAILED: 'Failed to send reset link. Please try again.',
   SUCCESS_RESET_LINK_SENT: 'Password reset link has been sent to your email',
 
+  // Navigation
+  PAGE_NOT_FOUND: 'The page you are looking for does not exist.',
+
   // Network Errors
   ERROR_NETWORK: 'Network error. Please check your connection.',
   ERROR_SERVER: 'Server error. Please try again later.',

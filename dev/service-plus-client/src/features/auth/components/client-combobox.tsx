@@ -3,7 +3,7 @@ import { Check, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
-import { useClientSearch } from '@/hooks/use-client-search';
+import { useClientSearch } from '../hooks/use-client-search';
 
 type ClientComboboxProps = {
   error?: string;

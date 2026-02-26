@@ -19,7 +19,7 @@ import {
     dummyPlatformMetrics,
     dummySystemServices,
     dummyUptimeData,
-} from "@/features/super-admin/dummy-data";
+} from "@/features/super-admin/data/dummy-data";
 import type { MetricTrendType, ServiceHealthStatusType } from "@/features/super-admin/types";
 
 const statusDot: Record<ServiceHealthStatusType, string> = {

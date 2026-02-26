@@ -1,0 +1,3 @@
+query GenericQuery($db_name: String!, $value: String!) {
+    genericQuery(db_name: $db_name, value: $value)
+}

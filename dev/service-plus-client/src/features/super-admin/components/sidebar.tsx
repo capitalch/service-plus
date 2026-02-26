@@ -12,6 +12,7 @@ import {
 import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
+import { ROUTES } from "@/router/routes";
 import { cn } from "@/lib/utils";
 
 type NavItemType = {
@@ -26,12 +27,12 @@ type SidebarPropsType = {
 };
 
 const navItems: NavItemType[] = [
-    { href: "/super-admin", icon: LayoutDashboardIcon, label: "Dashboard" },
-    { href: "/super-admin/clients", icon: UsersIcon, label: "Clients" },
-    { href: "/super-admin/admins", icon: ShieldIcon, label: "Admins" },
-    { href: "/super-admin/usage", icon: ActivityIcon, label: "Usage & Health" },
-    { href: "/super-admin/audit", icon: ClipboardListIcon, label: "Audit Logs" },
-    { href: "/super-admin/settings", icon: SettingsIcon, label: "System Settings" },
+    { href: ROUTES.superAdmin.root, icon: LayoutDashboardIcon, label: "Dashboard" },
+    { href: ROUTES.superAdmin.admins, icon: ShieldIcon, label: "Admins" },
+    { href: ROUTES.superAdmin.audit, icon: ClipboardListIcon, label: "Audit Logs" },
+    { href: ROUTES.superAdmin.clients, icon: UsersIcon, label: "Clients" },
+    { href: ROUTES.superAdmin.settings, icon: SettingsIcon, label: "System Settings" },
+    { href: ROUTES.superAdmin.usage, icon: ActivityIcon, label: "Usage & Health" },
 ];
 
 const SidebarContent = ({

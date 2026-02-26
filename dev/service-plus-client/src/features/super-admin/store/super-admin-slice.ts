@@ -6,13 +6,13 @@ import {
     dummyAdminUsers,
     dummyClients,
     dummyStats,
-} from "./dummy-data";
+} from "@/features/super-admin/data/dummy-data";
 import type {
     ActivityLogItemType,
     AdminUserType,
     ClientType,
     StatsType,
-} from "./types";
+} from "@/features/super-admin/types";
 
 type SuperAdminStateType = {
     activityLog: ActivityLogItemType[];
@@ -34,7 +34,7 @@ const superAdminSlice = createSlice({
     reducers: {
         addAdminUser: (state, action: PayloadAction<Omit<AdminUserType, "id" | "created_at" | "updated_at" | "last_login_at">>) => {
             const newId = Math.max(0, ...state.adminUsers.map((u) => u.id)) + 1;
-            const now = new Date();
+            const now = new Date().toISOString();
             const buName = state.clients.find((c) => c.id === action.payload.bu_id)?.name ?? "";
             state.adminUsers.push({
                 ...action.payload,
@@ -50,7 +50,7 @@ const superAdminSlice = createSlice({
         },
         addClient: (state, action: PayloadAction<Pick<ClientType, "code" | "is_active" | "name">>) => {
             const newId = Math.max(0, ...state.clients.map((c) => c.id)) + 1;
-            const now = new Date();
+            const now = new Date().toISOString();
             state.clients.push({
                 ...action.payload,
                 activeAdminCount: 0,

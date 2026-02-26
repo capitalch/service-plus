@@ -1,8 +1,8 @@
 import { motion } from "framer-motion";
 
-import { ClientOverviewTable } from "./components/client-overview-table";
-import { StatsCards } from "./components/stats-cards";
-import { SuperAdminLayout } from "./components/super-admin-layout";
+import { ClientOverviewTable } from "../components/client-overview-table";
+import { StatsCards } from "../components/stats-cards";
+import { SuperAdminLayout } from "../components/super-admin-layout";
 
 export const SuperAdminDashboard = () => {
     return (
