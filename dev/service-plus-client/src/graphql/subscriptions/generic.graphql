@@ -1,3 +1,0 @@
-subscription GenericSubscription($db_name: String!) {
-    genericSubscription(db_name: $db_name)
-}

@@ -11,9 +11,7 @@
     "gen-types-service": "dotenv -- cross-var cross-env PG_TO_TS_CONN=%SERVICE_PLUS_SERVICE% pg-to-ts generate --schema demo1 -o src/types/db-schema-service.ts",
     "gen-types-security": "dotenv -- cross-var cross-env PG_TO_TS_CONN=%SERVICE_PLUS_SERVICE% pg-to-ts generate --schema security -o src/types/db-schema-security.ts",
     "gen-types-client": "dotenv -- cross-var cross-env PG_TO_TS_CONN=%SERVICE_PLUS_CLIENT% pg-to-ts generate -o src/types/db-schema-client.ts",
-    "gen-types-all": "pnpm run gen-types-service && pnpm run gen-types-security && pnpm run gen-types-client",
-    "codegen": "graphql-codegen --config codegen.ts",
-    "codegen:watch": "graphql-codegen --config codegen.ts --watch"
+    "gen-types-all": "pnpm run gen-types-service && pnpm run gen-types-security && pnpm run gen-types-client"
   },
   "dependencies": {
     "@apollo/client": "^4.1.6",
@@ -46,8 +44,6 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@graphql-codegen/cli": "^6.1.2",
-    "@graphql-codegen/client-preset": "^5.2.3",
     "@types/node": "^25.3.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",

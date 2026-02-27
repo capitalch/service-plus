@@ -8,8 +8,7 @@
 - Always make use of shadcn components and framer-motion for transition wherever required
 - For forms use react-hook-form and zod for validations and business rules
 - Use GraphQL with subscription support for authenticated query. - - Use apollo for GraphQL
-- Use Sonner for notifications
-- Generate GraphQL types using codegen
+- Use Sonner for notification
 - use pnpm and not npm
 - use React Router + Redux Toolkit
 - For global state management use redux

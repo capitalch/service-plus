@@ -1,6 +1,6 @@
 # instructions
 - Always make responsive design
-- When any text command is given and last word is plan then do the plan only for the given command. Write your plan in the planA.md file in the plans folder in root. Don not touch existing plan.md file.
+- When any text command is given and last word is plan then do the plan only for the given command. Write your plan in the planA.md file in the plans folder in root. Don't touch existing plan.md file.
 - Overwrite planA.md if aleady present.
 - In planA.md write all the steps of execution as Step1, Step 2 and so on.
 - In planA.md include a workflow section which provides the workflow of entire work.
@@ -10,7 +10,6 @@
 - Use GraphQL with subscription support for authenticated query. 
 - Use apollo for GraphQL.
 - Use Sonner for notifications
-- Generate GraphQL types using codegen
 - use pnpm and not npm
 - use React Router + Redux Toolkit
 - For global state management use redux
