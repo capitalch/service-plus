@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { apolloClient } from "@/lib/apollo-client";
 import { gql } from "@apollo/client";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
+import { graphQlUtils } from "@/lib/graphql-utils";
 
 export const SuperAdminDashboard = () => {
     return (
@@ -39,7 +40,13 @@ export const SuperAdminDashboard = () => {
             query: GRAPHQL_MAP.genericQuery,
             variables: {
                 db_name: "abcdef",
-                value: ""
+                value: graphQlUtils.buildGenericQueryValue({
+                    buCode: "abcdef",
+                    sqlId: "get_all_clients",
+                    sqlArgs: {
+                        
+                    }
+                })
             }
         })
         console.log(res)
