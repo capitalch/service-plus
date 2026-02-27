@@ -4,12 +4,41 @@ import { ClientOverviewTable } from "../components/client-overview-table";
 import { StatsCards } from "../components/stats-cards";
 import { SuperAdminLayout } from "../components/super-admin-layout";
 import { Button } from "@/components/ui/button";
-import { apolloClient } from "@/lib/apollo-client";
-import { gql } from "@apollo/client";
+import { useLazyQuery } from "@apollo/client/react";
+import { toast } from "sonner";
+
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
+import { MESSAGES } from "@/constants/messages";
 import { graphQlUtils } from "@/lib/graphql-utils";
 
 export const SuperAdminDashboard = () => {
+    const [executeGenericQuery, { loading }] = useLazyQuery(GRAPHQL_MAP.genericQuery);
+
+    const handleTestGraphQl = async () => {
+        try {
+            const res = await executeGenericQuery({
+                variables: {
+                    db_name: "abcdef",
+                    value: graphQlUtils.buildGenericQueryValue({
+                        buCode: "abcdef",
+                        sqlId: "get_all_clients",
+                    }),
+                },
+            });
+
+            if (res.error) {
+                console.error("GraphQL test error:", res.error);
+                toast.error(MESSAGES.ERROR_SERVER);
+                return;
+            }
+
+            console.log(res.data);
+            toast.success("GraphQL test query executed successfully.");
+        } catch (error) {
+            console.error("GraphQL test error:", error);
+            toast.error(MESSAGES.ERROR_SERVER);
+        }
+    };
     return (
         <SuperAdminLayout>
             <motion.div
@@ -25,7 +54,9 @@ export const SuperAdminDashboard = () => {
                         <p className="mt-1 text-sm text-slate-500">
                             Welcome back, Super Admin
                         </p>
-                        <Button variant="ghost" onClick={handleTestGraphQl}>Test graphql</Button>
+                        <Button disabled={loading} variant="ghost" onClick={handleTestGraphQl}>
+                            {loading ? "Testing..." : "Test graphql"}
+                        </Button>
                     </div>
                 </div>
 
@@ -34,21 +65,4 @@ export const SuperAdminDashboard = () => {
             </motion.div>
         </SuperAdminLayout>
     );
-
-    async function handleTestGraphQl() {
-        const res = await apolloClient.query({
-            query: GRAPHQL_MAP.genericQuery,
-            variables: {
-                db_name: "abcdef",
-                value: graphQlUtils.buildGenericQueryValue({
-                    buCode: "abcdef",
-                    sqlId: "get_all_clients",
-                    sqlArgs: {
-                        
-                    }
-                })
-            }
-        })
-        console.log(res)
-    }
 };
