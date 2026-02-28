@@ -60,8 +60,14 @@ const superAdminSlice = createSlice({
                 updated_at: now,
             });
             state.stats.totalBu += 1;
-            if (action.payload.is_active) state.stats.activeBu += 1;
-            else state.stats.inactiveBu += 1;
+            state.stats.totalClients += 1;
+            if (action.payload.is_active) {
+                state.stats.activeBu += 1;
+                state.stats.activeClients += 1;
+            } else {
+                state.stats.inactiveBu += 1;
+                state.stats.inactiveClients += 1;
+            }
         },
         setActivityLog: (state, action: PayloadAction<ActivityLogItemType[]>) => {
             state.activityLog = action.payload;

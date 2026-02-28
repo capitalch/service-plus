@@ -16,8 +16,9 @@
 - When creating a form, the * for mandatory fields should be red color
 - Keep all the messages and custom errors in a centralized sngle file as key values. Use the keys from this file to display any message including exception. Rule is any text longer than two words should stay in messages.ts. But keep all controls display text hard coded.
 - For protected api calls after login use graphql with header Authorization + token. Otherwise use axios for api calls
-- For components, hooks and inline handlers use arrow functions
-- For Utility functions and API helpers use Normal functions
+- For components, hooks use arrow functions
+- For Utility functions and API helpers and inline handlers use Normal functions
+- Always sort the functions in a file alphabetically
 - Use type instead of interface wherever possible
 - All type element names should be appended with Type word
 - Always sort functions with names in a react component. Always sort arrays, fields and object properties and parameters

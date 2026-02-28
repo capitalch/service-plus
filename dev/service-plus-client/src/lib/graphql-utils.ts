@@ -2,26 +2,25 @@ import _ from "lodash";
 
 export const graphQlUtils = {
 
-    buildGenericQueryValue: ({ buCode, sqlId, sqlArgs }: GenericQueryValueType): string => {
+    buildGenericQueryValue: ({ buCode, sqlArgs, sqlId }: GenericQueryValueType): string => {
         return encodeObj({
             buCode,
+            sqlArgs,
             sqlId,
-            sqlArgs
         })
     }
 }
 
-export function encodeObj(obj: any): string {
+export function encodeObj(obj: Record<string, unknown>): string {
     let ret = ''
     if (!_.isEmpty(obj)) {
-        ret = encodeURI(JSON.stringify(obj))
+        ret = encodeURIComponent(JSON.stringify(obj))
     }
     return ret
 }
 
 export type GenericQueryValueType = {
     buCode: string;
+    sqlArgs?: Record<string, unknown>;
     sqlId: string;
-    sqlArgs?: any;
-    [key: string]: any;
 }

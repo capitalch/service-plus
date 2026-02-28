@@ -14,10 +14,13 @@ export type ClientType = {
 export type StatsType = {
     activeAdminUsers: number;
     activeBu: number;
+    activeClients: number;
     inactiveAdminUsers: number;
     inactiveBu: number;
+    inactiveClients: number;
     totalAdminUsers: number;
     totalBu: number;
+    totalClients: number;
 };
 
 // ─── Admin Users (maps to User + UserBuRole + Role in db-schema-security) ─────

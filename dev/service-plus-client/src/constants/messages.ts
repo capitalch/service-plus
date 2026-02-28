@@ -25,6 +25,7 @@ export const MESSAGES = {
   ERROR_INVALID_CREDENTIALS: 'Invalid username or password',
   ERROR_LOGIN_FAILED: 'Login failed. Please check your credentials.',
   ERROR_SESSION_EXPIRED: 'Your session has expired. Please login again.',
+  SUCCESS_GRAPHQL_TEST: 'GraphQL test query executed successfully.',
   SUCCESS_LOGIN: 'Login successful! Redirecting...',
 
   // Forgot Password Success/Error
@@ -75,6 +76,7 @@ export const ERROR_MESSAGES = {
 } as const;
 
 export const SUCCESS_MESSAGES = {
+  GRAPHQL_TEST: MESSAGES.SUCCESS_GRAPHQL_TEST,
   LOGIN: MESSAGES.SUCCESS_LOGIN,
   RESET_LINK_SENT: MESSAGES.SUCCESS_RESET_LINK_SENT,
 } as const;

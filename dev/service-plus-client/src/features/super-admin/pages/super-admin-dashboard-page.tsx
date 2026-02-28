@@ -10,35 +10,11 @@ import { toast } from "sonner";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { MESSAGES } from "@/constants/messages";
 import { graphQlUtils } from "@/lib/graphql-utils";
+import { SQL_MAP } from "@/constants/sql-map";
 
 export const SuperAdminDashboard = () => {
     const [executeGenericQuery, { loading }] = useLazyQuery(GRAPHQL_MAP.genericQuery);
 
-    const handleTestGraphQl = async () => {
-        try {
-            const res = await executeGenericQuery({
-                variables: {
-                    db_name: "abcdef",
-                    value: graphQlUtils.buildGenericQueryValue({
-                        buCode: "abcdef",
-                        sqlId: "get_all_clients",
-                    }),
-                },
-            });
-
-            if (res.error) {
-                console.error("GraphQL test error:", res.error);
-                toast.error(MESSAGES.ERROR_SERVER);
-                return;
-            }
-
-            console.log(res.data);
-            toast.success("GraphQL test query executed successfully.");
-        } catch (error) {
-            console.error("GraphQL test error:", error);
-            toast.error(MESSAGES.ERROR_SERVER);
-        }
-    };
     return (
         <SuperAdminLayout>
             <motion.div
@@ -65,4 +41,30 @@ export const SuperAdminDashboard = () => {
             </motion.div>
         </SuperAdminLayout>
     );
+
+    async function handleTestGraphQl() {
+        try {
+            const res = await executeGenericQuery({
+                variables: {
+                    db_name: "abcdef",
+                    value: graphQlUtils.buildGenericQueryValue({
+                        buCode: "abcdef",
+                        sqlId: SQL_MAP.GET_ALL_CLIENTS,
+                    }),
+                },
+            });
+
+            if (res.error) {
+                console.error("GraphQL test error:", res.error);
+                toast.error(MESSAGES.ERROR_SERVER);
+                return;
+            }
+
+            console.log(res.data);
+            toast.success("GraphQL test query executed successfully.");
+        } catch (error) {
+            console.error("GraphQL test error:", error);
+            toast.error(MESSAGES.ERROR_SERVER);
+        }
+    }
 };

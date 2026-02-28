@@ -77,10 +77,13 @@ export const dummyClients: ClientType[] = [
 export const dummyStats: StatsType = {
     activeAdminUsers: 390,
     activeBu: 110,
+    activeClients: 4,
     inactiveAdminUsers: 30,
     inactiveBu: 10,
+    inactiveClients: 2,
     totalAdminUsers: 420,
     totalBu: 120,
+    totalClients: 6,
 };
 
 // ─── Admin Users (User + UserBuRole + Role tables) ────────────────────────────

@@ -1,6 +1,7 @@
 import type { Variants } from "framer-motion";
 import { motion } from "framer-motion";
 import {
+    Building2Icon,
     BuildingIcon,
     CheckCircle2Icon,
     MinusCircleIcon,
@@ -33,6 +34,27 @@ export const StatsCards = () => {
     const stats = useSelector(selectStats);
 
     const statItems: StatCardItemType[] = [
+        {
+            accent: "text-blue-600",
+            icon: Building2Icon,
+            iconBg: "bg-blue-100",
+            label: "Total Clients",
+            value: stats.totalClients,
+        },
+        {
+            accent: "text-emerald-600",
+            icon: CheckCircle2Icon,
+            iconBg: "bg-emerald-100",
+            label: "Active Clients",
+            value: stats.activeClients,
+        },
+        {
+            accent: "text-slate-500",
+            icon: MinusCircleIcon,
+            iconBg: "bg-slate-100",
+            label: "Inactive Clients",
+            value: stats.inactiveClients,
+        },
         {
             accent: "text-emerald-600",
             icon: BuildingIcon,
@@ -80,7 +102,7 @@ export const StatsCards = () => {
     return (
         <motion.div
             animate="visible"
-            className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6"
+            className="grid grid-cols-3 gap-4 lg:grid-cols-9"
             initial="hidden"
             variants={containerVariants}
         >
@@ -88,7 +110,7 @@ export const StatsCards = () => {
                 const Icon = item.icon;
                 return (
                     <motion.div key={item.label} variants={cardVariants}>
-                        <Card className="border border-slate-200/80 bg-white shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5">
+                        <Card className="border border-slate-200/80 bg-white shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
                             <CardContent className="p-4">
                                 <div className="mb-3 flex items-center justify-between">
                                     <p className="text-xs font-medium leading-tight text-slate-500">
