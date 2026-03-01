@@ -8,7 +8,7 @@ import {
     ShieldIcon,
 } from "lucide-react";
 import { useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -62,8 +62,8 @@ const handleEdit = (user: AdminUserType) => toast.info(`Editing ${user.full_name
 const handleView = (user: AdminUserType) => toast.info(`Viewing ${user.full_name}`);
 
 export const AdminsPage = () => {
-    const adminUsers = useSelector(selectAdminUsers);
-    const dispatch = useDispatch();
+    const adminUsers = useAppSelector(selectAdminUsers);
+    const dispatch = useAppDispatch();
     const [search, setSearch] = useState("");
 
     const activeCount = adminUsers.filter((u) => u.is_active).length;

@@ -10,7 +10,7 @@ import {
     UserXIcon,
 } from "lucide-react";
 import { useState } from "react";
-import { useSelector } from "react-redux";
+import { useAppSelector } from "@/store/hooks";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -93,7 +93,7 @@ const LogItem = ({ item }: { item: ActivityLogItemType }) => {
 };
 
 export const AuditLogsPage = () => {
-    const activityLog = useSelector(selectActivityLog);
+    const activityLog = useAppSelector(selectActivityLog);
     const [activeFilter, setActiveFilter] = useState<FilterType>("All");
 
     const filtered =

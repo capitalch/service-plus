@@ -1,5 +1,6 @@
 type Query {
     genericQuery(db_name: String!, value: String!): Generic
+    superAdminDashboardStats: Generic
 }
 
 type Mutation {

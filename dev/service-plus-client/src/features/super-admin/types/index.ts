@@ -4,6 +4,7 @@ export type ClientType = {
     activeAdminCount: number;
     code: string;
     created_at: string;
+    db_name: string | null;
     id: number;
     inactiveAdminCount: number;
     is_active: boolean;
@@ -15,12 +16,15 @@ export type StatsType = {
     activeAdminUsers: number;
     activeBu: number;
     activeClients: number;
+    activeUsers: number;
     inactiveAdminUsers: number;
     inactiveBu: number;
     inactiveClients: number;
+    inactiveUsers: number;
     totalAdminUsers: number;
     totalBu: number;
     totalClients: number;
+    totalUsers: number;
 };
 
 // ─── Admin Users (maps to User + UserBuRole + Role in db-schema-security) ─────

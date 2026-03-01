@@ -17,6 +17,7 @@ class AppMessages:
 
     # Error messages - General
     INTERNAL_SERVER_ERROR = "An internal server error occurred"
+    UNEXPECTED_ERROR = "An unexpected error occurred."
     INVALID_INPUT = "Invalid input provided"
     OPERATION_FAILED = "Operation failed"
 
@@ -28,9 +29,13 @@ class AppMessages:
     SERVICE_ORDER_NOT_FOUND = "Service order not found"
 
     # Success messages - Application
+    CLIENT_CREATED = "Client created successfully"
     CLIENTS_RETRIEVED = "Clients retrieved successfully"
 
     # Error messages - Validation
+    CLIENT_CODE_EXISTS = "A client with this code already exists"
+    CLIENT_DB_NAME_EXISTS = "A client with this database name already exists"
+    CLIENT_NAME_EXISTS = "A client with this name already exists"
     VALIDATION_ERROR = "Validation error occurred"
     REQUIRED_FIELD_MISSING = "Required field is missing"
     INVALID_EMAIL_FORMAT = "Invalid email format"

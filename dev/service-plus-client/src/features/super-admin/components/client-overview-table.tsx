@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { MoreHorizontalIcon, PlusIcon } from "lucide-react";
-import { useDispatch, useSelector } from "react-redux";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -36,8 +36,8 @@ const handleEdit = (client: ClientType) => toast.info(`Editing ${client.name}`);
 const handleView = (client: ClientType) => toast.info(`Viewing ${client.name}`);
 
 export const ClientOverviewTable = () => {
-    const clients = useSelector(selectClients);
-    const dispatch = useDispatch();
+    const clients = useAppSelector(selectClients);
+    const dispatch = useAppDispatch();
 
     const handleAddClient = () => toast.info("Add Client clicked");
 
@@ -80,6 +80,7 @@ export const ClientOverviewTable = () => {
                             <TableHead className="hidden text-xs font-semibold uppercase tracking-wide text-slate-500 md:table-cell">Active Admins</TableHead>
                             <TableHead className="hidden text-xs font-semibold uppercase tracking-wide text-slate-500 md:table-cell">Inactive Admins</TableHead>
                             <TableHead className="hidden text-xs font-semibold uppercase tracking-wide text-slate-500 lg:table-cell">Created On</TableHead>
+                            <TableHead className="hidden text-xs font-semibold uppercase tracking-wide text-slate-500 xl:table-cell">DB Name</TableHead>
                             <TableHead className="text-xs font-semibold uppercase tracking-wide text-slate-500">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
@@ -119,6 +120,9 @@ export const ClientOverviewTable = () => {
                                     <span className="font-semibold text-slate-400">{client.inactiveAdminCount}</span>
                                 </TableCell>
                                 <TableCell className="hidden text-sm text-slate-500 lg:table-cell">{formatDate(client.created_at)}</TableCell>
+                                <TableCell className="hidden xl:table-cell">
+                                    <span className="font-mono text-xs text-slate-500">{client.db_name ?? "—"}</span>
+                                </TableCell>
                                 <TableCell>
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild>

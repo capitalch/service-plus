@@ -55,6 +55,7 @@ const superAdminSlice = createSlice({
                 ...action.payload,
                 activeAdminCount: 0,
                 created_at: now,
+                db_name: null,
                 id: newId,
                 inactiveAdminCount: 0,
                 updated_at: now,

@@ -8,7 +8,7 @@ import {
     SearchIcon,
 } from "lucide-react";
 import { useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -56,8 +56,8 @@ const handleEdit = (client: ClientType) => toast.info(`Editing ${client.name}`);
 const handleView = (client: ClientType) => toast.info(`Viewing ${client.name}`);
 
 export const ClientsPage = () => {
-    const clients = useSelector(selectClients);
-    const dispatch = useDispatch();
+    const clients = useAppSelector(selectClients);
+    const dispatch = useAppDispatch();
     const [search, setSearch] = useState("");
 
     const filtered = clients.filter(

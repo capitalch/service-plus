@@ -38,6 +38,7 @@ export const MESSAGES = {
   PAGE_NOT_FOUND: 'The page you are looking for does not exist.',
 
   // Network Errors
+  ERROR_DASHBOARD_LOAD: 'Failed to load dashboard data.',
   ERROR_NETWORK: 'Network error. Please check your connection.',
   ERROR_SERVER: 'Server error. Please try again later.',
   ERROR_TIMEOUT: 'Request timeout. Please try again.',
@@ -66,6 +67,7 @@ export const VALIDATION_MESSAGES = {
 
 export const ERROR_MESSAGES = {
   ACCOUNT_LOCKED: MESSAGES.ERROR_ACCOUNT_LOCKED,
+  DASHBOARD_LOAD: MESSAGES.ERROR_DASHBOARD_LOAD,
   INVALID_CREDENTIALS: MESSAGES.ERROR_INVALID_CREDENTIALS,
   LOGIN_FAILED: MESSAGES.ERROR_LOGIN_FAILED,
   NETWORK: MESSAGES.ERROR_NETWORK,

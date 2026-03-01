@@ -30,3 +30,5 @@
 - Never use index.ts for re-exporting. Always use explicit named imports for intra-feature and cross-feature imports
 - Always do proper error handling
 - Always sort the ojects and types by its properties
+- Always use useAppDispatch instead of useDispatch
+- Always use useAppSelector instead of useSelector
