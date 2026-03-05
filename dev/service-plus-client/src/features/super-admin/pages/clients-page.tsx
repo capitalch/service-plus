@@ -37,6 +37,7 @@ import {
 } from "@/components/ui/table";
 
 import { AddClientDialog } from "../components/add-client-dialog";
+import { InitiateClientDialog } from "../components/initiate-client-dialog";
 import { SuperAdminLayout } from "../components/super-admin-layout";
 import { selectClients, setClients } from "@/features/super-admin/store/super-admin-slice";
 import type { ClientType } from "@/features/super-admin/types";
@@ -77,13 +78,13 @@ function formatDate(date: string): string {
 }
 
 const handleEdit = (client: ClientType) => toast.info(`Editing ${client.name}`);
-const handleInitiate = (client: ClientType) => toast.info(`Initiating ${client.name}`);
 const handleView = (client: ClientType) => toast.info(`Viewing ${client.name}`);
 
 export const ClientsPage = () => {
 	const dispatch = useAppDispatch();
 	const clients = useAppSelector(selectClients);
 	const [addOpen, setAddOpen] = useState(false);
+	const [initiateClient, setInitiateClient] = useState<ClientType | null>(null);
 	const [search, setSearch] = useState("");
 	const [sort, setSort] = useState<SortStateType>(DEFAULT_SORT);
 
@@ -122,6 +123,10 @@ export const ClientsPage = () => {
 	}, [clients, search, sort]);
 
 	const handleAddClient = () => setAddOpen(true);
+
+	function handleInitiate(client: ClientType) {
+		setInitiateClient(client);
+	}
 
 	const handleDisable = (client: ClientType) => {
 		toast.success(`${client.name} has been disabled`);
@@ -391,6 +396,14 @@ export const ClientsPage = () => {
 				</motion.div>
 			</motion.div>
 			<AddClientDialog open={addOpen} onOpenChange={setAddOpen} onSuccess={refetch} />
+			{initiateClient && (
+				<InitiateClientDialog
+					client={initiateClient}
+					open={!!initiateClient}
+					onOpenChange={(open) => { if (!open) setInitiateClient(null); }}
+					onSuccess={refetch}
+				/>
+			)}
 	</SuperAdminLayout>
 	);
 };

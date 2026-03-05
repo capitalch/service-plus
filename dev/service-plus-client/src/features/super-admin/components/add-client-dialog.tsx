@@ -79,7 +79,7 @@ type AddClientDialogPropsType = {
 };
 
 type GenericExistsQueryDataType = {
-	genericQuery: { exists: boolean } | null;
+	genericQuery: { exists: boolean }[] | null;
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -146,7 +146,7 @@ export const AddClientDialog = ({ onOpenChange, onSuccess, open }: AddClientDial
 				}),
 			},
 		}).then((res) => {
-			if (res.data?.genericQuery?.exists) {
+			if (res.data?.genericQuery?.[0]?.exists) {
 				setError("code", { message: MESSAGES.ERROR_CLIENT_CODE_EXISTS, type: "manual" });
 			} else {
 				clearErrors("code");
@@ -172,7 +172,7 @@ export const AddClientDialog = ({ onOpenChange, onSuccess, open }: AddClientDial
 				}),
 			},
 		}).then((res) => {
-			if (res.data?.genericQuery?.exists) {
+			if (res.data?.genericQuery?.[0]?.exists) {
 				setError("name", { message: MESSAGES.ERROR_CLIENT_NAME_EXISTS, type: "manual" });
 			} else {
 				clearErrors("name");

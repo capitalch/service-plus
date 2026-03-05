@@ -6,12 +6,80 @@ from typing import Any
 from ariadne import MutationType
 from app.logger import logger
 from app.exceptions import ValidationException, GraphQLException, AppMessages
-from app.graphql.resolvers.mutation_helper import resolve_generic_update_helper
+from app.graphql.resolvers.mutation_helper import (
+    resolve_create_admin_user_helper,
+    resolve_create_service_db_helper,
+    resolve_generic_update_helper,
+)
 # from app.graphql.pubsub import pubsub
 
 
 # Create MutationType instance
 mutation = MutationType()
+
+
+@mutation.field("createAdminUser")
+async def resolve_create_admin_user(
+    _,
+    info,
+    db_name: str,
+    email: str,
+    full_name: str,
+    password: str,
+    username: str,
+    mobile: str | None = None,
+) -> Any:
+    """Create a new admin user in the security schema of a client database.
+
+    Args:
+        db_name:   Target service database name.
+        email:     User email.
+        full_name: User full name.
+        password:  Plain-text password (hashed server-side).
+        username:  Username.
+        mobile:    Mobile number (optional).
+
+    Returns:
+        Dict with the newly created user id.
+    """
+    try:
+        return await resolve_create_admin_user_helper(
+            db_name=db_name,
+            email=email,
+            full_name=full_name,
+            mobile=mobile,
+            password=password,
+            username=username,
+        )
+    except ValidationException:
+        raise
+    except Exception as e:
+        logger.error(f"Error creating admin user: {str(e)}")
+        raise GraphQLException(
+            message=AppMessages.OPERATION_FAILED, extensions={"details": str(e)}
+        )
+
+
+@mutation.field("createServiceDb")
+async def resolve_create_service_db(_, info, client_id: int, db_name: str) -> Any:
+    """Create a new service database for a client.
+
+    Args:
+        client_id: ID of the client in the client database.
+        db_name:   Name of the new PostgreSQL database to create.
+
+    Returns:
+        Dict with client id and db_name on success.
+    """
+    try:
+        return await resolve_create_service_db_helper(client_id, db_name)
+    except ValidationException:
+        raise
+    except Exception as e:
+        logger.error(f"Error creating service database: {str(e)}")
+        raise GraphQLException(
+            message=AppMessages.OPERATION_FAILED, extensions={"details": str(e)}
+        )
 
 
 @mutation.field("genericUpdate")

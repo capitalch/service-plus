@@ -65,6 +65,19 @@ SELECT EXISTS(
 ```
 `pg_database` is a global catalog accessible from any DB connection, so the existing client-DB connection works.
 
+Add `UPDATE_CLIENT_DB_NAME`:
+```sql
+with
+    "p_db_name" as (values(%(db_name)s::text)),
+    -- "p_db_name" as (values('service_plus_demo'::text)) -- Test line
+    "p_id"      as (values(%(id)s::int))
+    -- "p_id"      as (values(1::int)) -- Test line
+UPDATE public.client
+SET db_name = (table "p_db_name")
+WHERE id = (table "p_id")
+RETURNING id, db_name
+```
+
 ### Step 2b – `app/graphql/schema.graphql`
 Add one mutation to the `Mutation` type:
 ```graphql
@@ -76,10 +89,16 @@ Add one async helper function:
 
 **`resolve_create_service_db_helper(client_id, db_name)`**
 1. Validate `db_name` format: must match `^service_plus_[a-z0-9_]+$`
-2. Check uniqueness via `pg_database`; raise `ValidationException` if taken
-3. `CREATE DATABASE <db_name>` using an **autocommit** connection (DDL cannot run inside a transaction block)
-4. Connect to the new database and execute the security-schema DDL template (tables: `bu`, `user`, `role`, `access_right`, `role_access_right`, `user_bu_role`) mirroring the structure from `service_plus_demo`'s security schema
-5. `UPDATE public.client SET db_name = %s WHERE id = %s RETURNING id` via client-DB connection
+2. Check uniqueness via `pg_database` using `exec_sql(db_name=None, schema="public", sql=SQL_MAP["CHECK_DB_NAME_EXISTS"], sql_args={"db_name": db_name})`; raise `ValidationException` if taken
+3. `CREATE DATABASE <db_name>` via `exec_sql_dml(db_name=None, schema="public", sql=pgsql.SQL("CREATE DATABASE {}").format(pgsql.Identifier(db_name)))`
+   - `db_name=None` connects to the client DB with **autocommit=True** (DDL cannot run inside a transaction block)
+   - Identifier quoting via `psycopg.sql.SQL` prevents SQL injection
+4. Execute the full security-schema DDL in the newly created database in a **single** call:
+   - `exec_sql(db_name=db_name, sql=<full_security_ddl_script>)` — the script includes `DROP SCHEMA IF EXISTS public CASCADE`, `CREATE SCHEMA IF NOT EXISTS security` followed by all table DDL (`bu`, `user`, `role`, `access_right`, `role_access_right`, `user_bu_role`) mirroring the structure from `service_plus_demo`'s security schema
+   - `DROP SCHEMA IF EXISTS public CASCADE` removes the default `public` schema that PostgreSQL creates automatically for every new database
+   - `exec_sql` is used (not `exec_sql_dml`) because `DROP SCHEMA`/`CREATE SCHEMA`/`CREATE TABLE` run fine inside a transaction; if any statement fails the whole schema creation rolls back automatically
+   - psycopg3 uses the **simple query protocol** (multi-statement string) when `sql_args` is empty, so the entire script executes in one `cur.execute()` call
+5. Update `db_name` on the client record via `exec_sql(db_name=None, schema="public", sql=SqlAuth.UPDATE_CLIENT_DB_NAME, sql_args={"db_name": db_name, "id": client_id})`
 6. Return `{"id": client_id, "db_name": db_name}`
 
 ### Step 2d – `app/graphql/resolvers/mutation.py`
