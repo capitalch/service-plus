@@ -19,6 +19,8 @@ class AppMessages:
     INTERNAL_SERVER_ERROR = "An internal server error occurred"
     UNEXPECTED_ERROR = "An unexpected error occurred."
     INVALID_INPUT = "Invalid input provided"
+    INVALID_JSON_OBJECT = "value must be a JSON object"
+    INVALID_JSON_VALUE = "value is not valid JSON"
     OPERATION_FAILED = "Operation failed"
 
     # Error messages - Not Found

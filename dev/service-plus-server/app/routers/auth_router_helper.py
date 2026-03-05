@@ -1,6 +1,6 @@
 from app.config import settings
 from app.core.security import create_access_token, verify_password
-from app.db.database import exec_sql
+from app.db.psycopg_driver import exec_sql
 from app.db.sql_auth import SqlAuth
 from app.exceptions import AppMessages, AuthorizationException
 from app.logger import logger

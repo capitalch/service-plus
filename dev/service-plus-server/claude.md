@@ -18,9 +18,11 @@
 
     Include a Workflow section that visualizes or describes the entire logic flow of the steps.
 
+    Write a plan.md file in the root directory's plans folder (overwrite if it exists).
+
 - Architecture & Organization
     Centralized Messaging: Keep all custom exception and application messages in a single dedicated class file. Use its properties for all error handling and user feedback.
-
+    
     SQL Isolation: * All Auth/Authz SQL must live in one specific Python class file.
 
     All Application-specific SQL must live in a separate Python class file.

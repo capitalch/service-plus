@@ -2,7 +2,6 @@ import {
     BellIcon,
     LogOutIcon,
     MenuIcon,
-    SearchIcon,
     SettingsIcon,
     UserIcon,
 } from "lucide-react";
@@ -48,16 +47,6 @@ export const TopHeader = ({ onMenuToggle }: TopHeaderPropsType) => {
                 <MenuIcon className="h-5 w-5" />
                 <span className="sr-only">Toggle menu</span>
             </Button>
-
-            {/* Search bar */}
-            <div className="relative flex-1 max-w-sm">
-                <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                <input
-                    className="h-9 w-full rounded-lg border border-slate-200 bg-slate-50 pl-9 pr-4 text-sm text-slate-700 placeholder-slate-400 outline-none transition-colors focus:border-emerald-400 focus:bg-white focus:ring-2 focus:ring-emerald-100"
-                    placeholder="Search..."
-                    type="text"
-                />
-            </div>
 
             <div className="ml-auto flex items-center gap-2">
                 {/* Notifications */}

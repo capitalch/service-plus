@@ -37,7 +37,14 @@ export const MESSAGES = {
   // Navigation
   PAGE_NOT_FOUND: 'The page you are looking for does not exist.',
 
+  // Client CRUD
+  ERROR_CLIENT_ADD_FAILED: 'Failed to add client. Please try again.',
+  ERROR_CLIENT_CODE_EXISTS: 'This code is already in use.',
+  ERROR_CLIENT_NAME_EXISTS: 'This name is already in use.',
+  SUCCESS_CLIENT_ADDED: 'Client added successfully.',
+
   // Network Errors
+  ERROR_CLIENTS_LOAD: 'Failed to load clients data.',
   ERROR_DASHBOARD_LOAD: 'Failed to load dashboard data.',
   ERROR_NETWORK: 'Network error. Please check your connection.',
   ERROR_SERVER: 'Server error. Please try again later.',

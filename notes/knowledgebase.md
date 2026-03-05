@@ -92,4 +92,16 @@ pnpm dlx shadcn@latest add sonner
 		    "gen-types-client": "dotenv -- cross-var cross-env PG_TO_TS_CONN=%SERVICE_PLUS_CLIENT% pg-to-ts generate -o src/types/db-schema-client.ts",
 		    "gen-types-all": "pnpm run gen-types-service && pnpm run gen-types-security && pnpm run gen-types-client"
 
-
+# Generic sql object for update:
+	export interface SqlObject {
+	  tableName?: string;
+	  fkeyName?: string;
+	  deletedIds?: (number | string)[];
+	  xData?: XData | XData[];
+	}
+	export interface XData {
+	  id?: number | string;
+	  isIdInsert?: boolean;
+	  xDetails?: SqlObject | SqlObject[];
+	  [columnName: string]: any;
+	}

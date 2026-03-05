@@ -32,3 +32,8 @@
 - Always sort the ojects and types by its properties
 - Always use useAppDispatch instead of useDispatch
 - Always use useAppSelector instead of useSelector
+- Always use apolloClient.query(...) instead of useApolloClient() hook
+- default debounce time is 1200ms
+- When creating a form, When validation happens the error should reflect immediately the result
+- When any validation fails the form should not submit and submit button should be disabled
+

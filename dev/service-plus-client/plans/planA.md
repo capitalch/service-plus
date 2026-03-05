@@ -1,47 +1,19 @@
-# Plan: Add Client Implementation
+# Plan A: Client Initiation UI
 
 ## Workflow
-SA fills "Add Client" form → GraphQL mutation `genericUpdate` → server creates client row in `service_plus_client.client` table AND creates new database with `security` schema AND creates admin user → optimistic Redux dispatch (`addClient`) → toast success → dialog closes → table refreshes.
+The workflow involves updating the Clients page to display an "Initiate" button for each client. This button's state and the resulting dialog UI depend dynamically on whether the client already has a `db_name` and an `active admin` user. The dialog will conditionally render forms for Database Creation and Admin Creation. Once both are present, the initiation process is complete, and the button is disabled.
 
-## Step 1: Define Zod Schema & Types
-- Create `src/features/super-admin/components/add-client-dialog/add-client-schema.ts`
-- Define `AddClientFormType` with `zod`:
-  - `adminEmail` (email, required)
-  - `adminFullName` (string, required)
-  - `adminPassword` (min 6, required)
-  - `adminUsername` (alphanumeric, min 5, required)
-  - `code` (uppercase letters only, min 2, required)
-  - `db_name` (snake_case, required)
-  - `is_active` (boolean, default true)
-  - `name` (string, required)
+## Step 1: Update Clients Table/List UI
+Modify the Clients data table to include an "Initiate" action button for each row. Implement logic to disable this button if both `db_name` and an active admin exist for that client.
 
-## Step 2: Add GraphQL Mutation to graphql-map.ts
-- Add `addClient` mutation to `GRAPHQL_MAP` using the existing `genericUpdate` mutation pattern.
+## Step 2: Create the Initiate Client Dialog Component
+Build a new reusable component, `InitiateClientDialog`, using shadcn/ui. This dialog will receive the selected client's data as props to determine which sections to display.
 
-## Step 3: Add SQL_MAP Entry
-- Add `ADD_CLIENT: "ADD_CLIENT"` to `src/constants/sql-map.ts`
+## Step 3: Implement Database Creation Section
+Inside the dialog, conditionally render the "Create Database" section if `db_name` is missing. This section should have a form or confirmation button to trigger the API mutation for database creation.
 
-## Step 4: Add Messages
-- Add `SUCCESS_CLIENT_ADDED`, `ERROR_CLIENT_ADD_FAILED` to `src/constants/messages.ts`
+## Step 4: Implement Admin Creation Section
+Inside the dialog, conditionally render the "Create Admin" section if no active admin is present. Provide a form (using `react-hook-form` and `zod`) to gather admin details (e.g., username, email, password) and submit them via a GraphQL mutation.
 
-## Step 5: Create AddClientDialog Component
-- Create `src/features/super-admin/components/add-client-dialog/add-client-dialog.tsx`
-- Uses `Dialog` (shadcn) for modal
-- Uses `react-hook-form` + zod resolver
-- Two-column form layout (single column on mobile) with these fields:
-  - **Client Info section**: `name`, `code`, `db_name`, `is_active` toggle
-  - **Admin User section**: `adminFullName`, `adminEmail`, `adminUsername`, `adminPassword`
-- On submit:
-  1. Call `useMutation` with `GRAPHQL_MAP.addClient`
-  2. On success: dispatch `addClient` to Redux, show `toast.success`, close dialog
-  3. On error: show `toast.error(MESSAGES.ERROR_CLIENT_ADD_FAILED)`
-
-## Step 6: Wire Dialog into clients-page.tsx
-- Replace `handleAddClient` toast placeholder with state to open the dialog
-- Render `<AddClientDialog open={isOpen} onOpenChange={setIsOpen} />`
-
-## Step 7: Wire Dialog into client-overview-table.tsx (Dashboard table)
-- Same wiring pattern as Step 6
-
-## Step 8: Add `addClient` mutation to Redux slice (if server call fails gracefully)
-- The Redux slice already has `addClient` reducer — no changes needed
+## Step 5: State Management & Integration
+Wire up the dialog and its forms to Apollo Client graphQL mutations (`apolloClient.query` and mutations). Ensure that upon successful creation of either the DB or the Admin, the server is re-queried or cache is updated so the UI dynamically adapts (e.g., hiding a section that was just completed) and sonner toast messages are displayed.

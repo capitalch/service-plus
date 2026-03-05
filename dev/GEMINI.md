@@ -19,7 +19,7 @@
 8. AU can create a new BU in the 'bu' table in 'security' schema of the service_plus_demo database. AU is asked for creation of a new BU when there is none.
 9. When AU creates a new bu in the bu table of the security schema of 'service_plus_demo' database, a new schema with the code column value of the bu table is created in the here service_plus_demo database. This schema will have all the tables required for the BU. The details of the schema is in 'demo1' schema of 'service_plus_demo' database. The 'demo1' schema is a template for the new schema with the code of bu as schema name. The tables in the new schema will be created by copying the tables from the 'demo1' schema.
 # Guidelines
-- When any text command is given to gemini and last word is plan then do the plan only for the given command. Write your plan in the planA.md file in the plans folder in root. 
+- When any text command is given to gemini and last word is plan then do the plan only for the given command. Write your plan in the planA.md file in the plans folder in root folder of the project. 
 - Overwrite planA.md if required.
 - In planA.md write all the steps of execution as Step1, Step 2 and so on.
 - In planA.md include a workflow section which provides the workflow of entire effort

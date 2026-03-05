@@ -1,10 +1,15 @@
-# Recap
-									- Redux
-	- Server side database connection and query
-									- using shadcn
 # To Do
-	- Clients fill in dropdown
-	- Supervisor 
+## Login
+- Forgot password
+									- Clients fill in dropdown
+									- Superadmin
+## Super admin login
+- Dashboard
+- Clients
+- Admins
+- Audit logs
+- System Settings
+- Usage and health
 # Project setup
 - Server
 									- Env

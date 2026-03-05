@@ -3,7 +3,8 @@
     "allow": [
       "Bash(pnpm dlx:*)",
       "mcp__ide__getDiagnostics",
-      "Bash(pnpm tsc:*)"
+      "Bash(pnpm tsc:*)",
+      "Bash(node:*)"
     ]
   }
 }

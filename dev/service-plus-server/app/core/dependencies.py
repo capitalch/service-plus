@@ -5,7 +5,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 
 from app.core.security import decode_token
-from app.db.database import get_db_connection
+from app.db.psycopg_driver import get_db_connection
 from app.db.auth_queries import AuthQueries
 from app.exceptions import AppMessages, AuthorizationException
 from app.logger import logger

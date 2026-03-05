@@ -2,12 +2,15 @@ import _ from "lodash";
 
 export const graphQlUtils = {
 
-    buildGenericQueryValue: ({ buCode, sqlArgs, sqlId }: GenericQueryValueType): string => {
+    buildGenericQueryValue: ({ sqlArgs, sqlId }: GenericQueryValueType): string => {
         return encodeObj({
-            buCode,
             sqlArgs,
             sqlId,
         })
+    },
+
+    buildGenericUpdateValue: (sqlObject: SqlObjectType): string => {
+        return encodeObj(sqlObject as Record<string, unknown>)
     }
 }
 
@@ -20,7 +23,22 @@ export function encodeObj(obj: Record<string, unknown>): string {
 }
 
 export type GenericQueryValueType = {
-    buCode: string;
     sqlArgs?: Record<string, unknown>;
     sqlId: string;
+}
+
+export type GenericUpdateValueType = SqlObjectType;
+
+export type SqlObjectType = {
+    deletedIds?: number[];
+    fkeyName?: string;
+    tableName: string;
+    xData: XDataItemType | XDataItemType[];
+}
+
+export type XDataItemType = {
+    id?: number;
+    isIdInsert?: boolean;
+    xDetails?: SqlObjectType | SqlObjectType[];
+    [key: string]: unknown;
 }
