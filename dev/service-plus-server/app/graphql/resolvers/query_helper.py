@@ -58,18 +58,25 @@ async def resolve_super_admin_clients_data_helper():
         active_admin   = 0
         inactive_admin = 0
 
+        db_name_valid = False
         if db_name_val:
-            bu_rows = await exec_sql(db_name=db_name_val, schema="security", sql=SqlAuth.GET_BU_USER_STATS)
-            if bu_rows:
-                r = bu_rows[0]
-                active_admin   = r.get("active_admin_users", 0)
-                inactive_admin = r.get("inactive_admin_users", 0)
+            exists_rows = await exec_sql(db_name=None, schema="public", sql=SqlAuth.CHECK_DB_NAME_EXISTS, sql_args={"db_name": db_name_val})
+            if exists_rows and exists_rows[0].get("exists"):
+                db_name_valid = True
+                bu_rows = await exec_sql(db_name=db_name_val, schema="security", sql=SqlAuth.GET_BU_USER_STATS)
+                if bu_rows:
+                    r = bu_rows[0]
+                    active_admin   = r.get("active_admin_users", 0)
+                    inactive_admin = r.get("inactive_admin_users", 0)
+            else:
+                logger.warning(f"Database '{db_name_val}' not found – flagging client")
 
         clients_data.append({
             "activeAdminCount":   active_admin,
             "code":               client_row.get("code"),
             "created_at":         client_row["created_at"].isoformat() if client_row.get("created_at") else None,
             "db_name":            db_name_val,
+            "db_name_valid":      db_name_valid,
             "id":                 client_row.get("id"),
             "inactiveAdminCount": inactive_admin,
             "is_active":          client_row.get("is_active"),
@@ -100,6 +107,11 @@ async def resolve_super_admin_dashboard_stats_helper():
         db_name_val = client_row.get("db_name")
 
         if db_name_val:
+            exists_rows = await exec_sql(db_name=None, schema="public", sql=SqlAuth.CHECK_DB_NAME_EXISTS, sql_args={"db_name": db_name_val})
+            if not (exists_rows and exists_rows[0].get("exists")):
+                logger.warning(f"Database '{db_name_val}' not found – skipping")
+                continue
+
             bu_rows = await exec_sql(db_name=db_name_val, schema="security", sql=SqlAuth.GET_BU_USER_STATS)
             if bu_rows:
                 r = bu_rows[0]

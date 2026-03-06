@@ -11,6 +11,7 @@ import {
 	RefreshCwIcon,
 	SearchIcon,
 	UsersIcon,
+	XCircleIcon,
 } from "lucide-react";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { useQuery } from "@apollo/client/react";
@@ -351,7 +352,15 @@ export const ClientsPage = () => {
 												</div>
 											</TableCell>
 											<TableCell className="hidden lg:table-cell">
-												<span className="font-mono text-xs text-slate-500">{client.db_name ?? "—"}</span>
+												<span className="inline-flex items-center gap-1 font-mono text-xs text-slate-500">
+													{client.db_name ?? "—"}
+													{client.db_name && client.db_name_valid && (
+														<CheckCircle2Icon className="h-3.5 w-3.5 text-emerald-500" title="Database exists" />
+													)}
+													{client.db_name && !client.db_name_valid && (
+														<XCircleIcon className="h-3.5 w-3.5 text-red-500" title="Database does not exist" />
+													)}
+												</span>
 											</TableCell>
 											<TableCell className="hidden text-sm text-slate-500 lg:table-cell">{formatDate(client.created_at)}</TableCell>
 											<TableCell>

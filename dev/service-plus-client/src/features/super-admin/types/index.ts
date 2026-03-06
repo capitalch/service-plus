@@ -5,6 +5,7 @@ export type ClientType = {
     code: string;
     created_at: string;
     db_name: string | null;
+    db_name_valid: boolean;
     id: number;
     inactiveAdminCount: number;
     is_active: boolean;

@@ -83,6 +83,7 @@ export const InitializeClientDialog = ({
 	const [checkingDb, setCheckingDb] = useState(false);
 	const [createdDbName, setCreatedDbName] = useState("");
 	const [creatingAdmin, setCreatingAdmin] = useState(false);
+	const [creatingDb, setCreatingDb] = useState(false);
 	const [dbNameAvailable, setDbNameAvailable] = useState<boolean | null>(null);
 	const [seedingData, setSeedingData] = useState(false);
 	const [step, setStep] = useState<StepType>(client?.db_name ? 3 : 1);
@@ -98,8 +99,6 @@ export const InitializeClientDialog = ({
 		mode: "onChange",
 		resolver: zodResolver(step3Schema),
 	});
-
-	const [createServiceDb, { loading: creatingDb }] = useMutation(GRAPHQL_MAP.createServiceDb);
 
 	const dbNameValue = useWatch({ control: step1Form.control, name: "db_name" });
 	const debouncedDbName = useDebounce(dbNameValue, 1200);
@@ -157,8 +156,10 @@ export const InitializeClientDialog = ({
 	}, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
 	async function onStep1Submit(data: Step1FormType) {
+		setCreatingDb(true);
 		try {
-			const result = await createServiceDb({
+			const result = await apolloClient.mutate({
+				mutation: GRAPHQL_MAP.createServiceDb,
 				variables: { client_id: client.id, db_name: data.db_name },
 			});
 			if (result.errors?.length) {
@@ -170,6 +171,8 @@ export const InitializeClientDialog = ({
 			toast.success(MESSAGES.SUCCESS_INITIALIZE_DB);
 		} catch {
 			toast.error(MESSAGES.ERROR_INITIALIZE_DB_FAILED);
+		} finally {
+			setCreatingDb(false);
 		}
 	}
 
