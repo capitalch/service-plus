@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict kcWNVQBdc1N4hGs4idlpEjFPj2LRlzaPSt0Tk9lvYdsuEt7aZ9zaydt7fk9lGCh
+\restrict fzQmUNdEgkWyDpEHW4XPBxylylrsTMkljmlvHTUXORLQeaXrOc4wp6VadgONhi9
 
 -- Dumped from database version 14.6
 -- Dumped by pg_dump version 18.0
@@ -18,6 +18,24 @@ SET check_function_bodies = false;
 SET xmloption = content;
 SET client_min_messages = warning;
 SET row_security = off;
+
+--
+-- Name: demo1; Type: SCHEMA; Schema: -; Owner: webadmin
+--
+
+CREATE SCHEMA demo1;
+
+
+ALTER SCHEMA demo1 OWNER TO webadmin;
+
+--
+-- Name: security; Type: SCHEMA; Schema: -; Owner: webadmin
+--
+
+CREATE SCHEMA security;
+
+
+ALTER SCHEMA security OWNER TO webadmin;
 
 SET default_tablespace = '';
 
@@ -1130,7 +1148,7 @@ ALTER TABLE demo1.technician ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
 --
 
 CREATE TABLE security.access_right (
-    id bigint NOT NULL,
+    id integer NOT NULL,
     code text NOT NULL,
     name text NOT NULL,
     module text NOT NULL,
@@ -1192,7 +1210,7 @@ ALTER TABLE security.bu ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
 --
 
 CREATE TABLE security.role (
-    id bigint NOT NULL,
+    id smallint NOT NULL,
     code text NOT NULL,
     name text NOT NULL,
     description text,
@@ -1210,26 +1228,12 @@ ALTER TABLE security.role OWNER TO webadmin;
 --
 
 CREATE TABLE security.role_access_right (
-    role_id bigint NOT NULL,
-    access_right_id bigint NOT NULL
+    role_id smallint NOT NULL,
+    access_right_id integer NOT NULL
 );
 
 
 ALTER TABLE security.role_access_right OWNER TO webadmin;
-
---
--- Name: role_id_seq; Type: SEQUENCE; Schema: security; Owner: webadmin
---
-
-ALTER TABLE security.role ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
-    SEQUENCE NAME security.role_id_seq
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1
-);
-
 
 --
 -- Name: user; Type: TABLE; Schema: security; Owner: webadmin
@@ -1639,6 +1643,16 @@ COPY security.access_right (id, code, name, module, description, created_at, upd
 --
 
 COPY security.bu (id, code, name, is_active, created_at, updated_at) FROM stdin;
+1	BU-KOL-01	Kolkata Sales Operations	t	2026-02-28 12:56:32.144693+00	2026-02-28 12:56:32.144693+00
+2	BU-KOL-02	Kolkata Service Delivery	t	2026-02-28 12:56:32.144693+00	2026-02-28 12:56:32.144693+00
+3	BU-MUM-01	Mumbai Regional Office	t	2026-02-28 12:56:32.144693+00	2026-02-28 12:56:32.144693+00
+4	BU-DEL-01	Delhi Logistics Hub	t	2026-02-28 12:56:32.144693+00	2026-02-28 12:56:32.144693+00
+5	BU-BLR-01	Bengaluru Tech Support	t	2026-02-28 12:56:32.144693+00	2026-02-28 12:56:32.144693+00
+6	BU-HYD-01	Hyderabad Backend Ops	t	2026-02-28 12:56:32.144693+00	2026-02-28 12:56:32.144693+00
+7	BU-CHX-01	Chennai Export Unit	t	2026-02-28 12:56:32.144693+00	2026-02-28 12:56:32.144693+00
+8	BU-PUN-01	Pune Manufacturing Div	f	2026-02-28 12:56:32.144693+00	2026-02-28 12:56:32.144693+00
+9	BU-GUR-01	Gurugram Corporate HQ	t	2026-02-28 12:56:32.144693+00	2026-02-28 12:56:32.144693+00
+10	BU-AHD-01	Ahmedabad Distribution	t	2026-02-28 12:56:32.144693+00	2026-02-28 12:56:32.144693+00
 \.
 
 
@@ -1663,6 +1677,121 @@ COPY security.role_access_right (role_id, access_right_id) FROM stdin;
 --
 
 COPY security."user" (id, username, email, mobile, password_hash, is_active, created_at, updated_at, full_name, is_admin) FROM stdin;
+1	user_1	user1@example.com	+919830000001	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 1	f
+2	user_2	user2@example.com	+919830000002	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 2	f
+3	user_3	user3@example.com	+919830000003	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 3	f
+4	user_4	user4@example.com	+919830000004	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 4	f
+5	user_5	user5@example.com	+919830000005	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 5	f
+6	user_6	user6@example.com	+919830000006	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 6	f
+7	user_7	user7@example.com	+919830000007	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 7	f
+8	user_8	user8@example.com	+919830000008	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 8	f
+9	user_9	user9@example.com	+919830000009	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 9	f
+10	user_10	user10@example.com	+919830000010	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 10	f
+11	user_11	user11@example.com	+919830000011	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 11	f
+12	user_12	user12@example.com	+919830000012	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 12	f
+13	user_13	user13@example.com	+919830000013	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 13	f
+14	user_14	user14@example.com	+919830000014	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 14	f
+15	user_15	user15@example.com	+919830000015	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 15	f
+16	user_16	user16@example.com	+919830000016	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 16	f
+17	user_17	user17@example.com	+919830000017	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 17	f
+18	user_18	user18@example.com	+919830000018	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 18	f
+19	user_19	user19@example.com	+919830000019	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 19	f
+20	user_20	user20@example.com	+919830000020	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 20	f
+21	user_21	user21@example.com	+919830000021	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 21	f
+22	user_22	user22@example.com	+919830000022	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 22	f
+23	user_23	user23@example.com	+919830000023	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 23	f
+24	user_24	user24@example.com	+919830000024	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 24	f
+25	user_25	user25@example.com	+919830000025	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 25	f
+26	user_26	user26@example.com	+919830000026	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 26	f
+27	user_27	user27@example.com	+919830000027	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 27	f
+28	user_28	user28@example.com	+919830000028	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 28	f
+29	user_29	user29@example.com	+919830000029	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 29	f
+30	user_30	user30@example.com	+919830000030	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 30	f
+31	user_31	user31@example.com	+919830000031	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 31	f
+32	user_32	user32@example.com	+919830000032	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 32	f
+33	user_33	user33@example.com	+919830000033	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 33	f
+34	user_34	user34@example.com	+919830000034	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 34	f
+35	user_35	user35@example.com	+919830000035	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 35	f
+36	user_36	user36@example.com	+919830000036	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 36	f
+37	user_37	user37@example.com	+919830000037	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 37	f
+38	user_38	user38@example.com	+919830000038	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 38	f
+39	user_39	user39@example.com	+919830000039	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 39	f
+40	user_40	user40@example.com	+919830000040	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 40	f
+41	user_41	user41@example.com	+919830000041	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 41	f
+42	user_42	user42@example.com	+919830000042	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 42	f
+43	user_43	user43@example.com	+919830000043	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 43	f
+44	user_44	user44@example.com	+919830000044	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 44	f
+45	user_45	user45@example.com	+919830000045	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 45	f
+46	user_46	user46@example.com	+919830000046	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 46	f
+47	user_47	user47@example.com	+919830000047	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 47	f
+48	user_48	user48@example.com	+919830000048	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 48	f
+49	user_49	user49@example.com	+919830000049	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 49	f
+50	user_50	user50@example.com	+919830000050	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 50	f
+51	user_51	user51@example.com	+919830000051	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 51	f
+52	user_52	user52@example.com	+919830000052	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 52	f
+53	user_53	user53@example.com	+919830000053	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 53	f
+54	user_54	user54@example.com	+919830000054	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 54	f
+55	user_55	user55@example.com	+919830000055	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 55	f
+56	user_56	user56@example.com	+919830000056	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 56	f
+57	user_57	user57@example.com	+919830000057	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 57	f
+58	user_58	user58@example.com	+919830000058	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 58	f
+59	user_59	user59@example.com	+919830000059	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 59	f
+60	user_60	user60@example.com	+919830000060	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 60	f
+61	user_61	user61@example.com	+919830000061	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 61	f
+62	user_62	user62@example.com	+919830000062	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 62	f
+63	user_63	user63@example.com	+919830000063	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 63	f
+64	user_64	user64@example.com	+919830000064	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 64	f
+65	user_65	user65@example.com	+919830000065	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 65	f
+66	user_66	user66@example.com	+919830000066	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 66	f
+67	user_67	user67@example.com	+919830000067	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 67	f
+68	user_68	user68@example.com	+919830000068	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 68	f
+69	user_69	user69@example.com	+919830000069	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 69	f
+70	user_70	user70@example.com	+919830000070	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 70	f
+71	user_71	user71@example.com	+919830000071	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 71	f
+72	user_72	user72@example.com	+919830000072	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 72	f
+73	user_73	user73@example.com	+919830000073	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 73	f
+74	user_74	user74@example.com	+919830000074	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 74	f
+75	user_75	user75@example.com	+919830000075	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 75	f
+76	user_76	user76@example.com	+919830000076	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 76	f
+77	user_77	user77@example.com	+919830000077	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 77	f
+78	user_78	user78@example.com	+919830000078	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 78	f
+79	user_79	user79@example.com	+919830000079	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 79	f
+80	user_80	user80@example.com	+919830000080	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 80	f
+81	user_81	user81@example.com	+919830000081	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 81	f
+82	user_82	user82@example.com	+919830000082	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 82	f
+83	user_83	user83@example.com	+919830000083	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 83	f
+84	user_84	user84@example.com	+919830000084	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 84	f
+85	user_85	user85@example.com	+919830000085	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 85	f
+86	user_86	user86@example.com	+919830000086	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 86	f
+87	user_87	user87@example.com	+919830000087	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 87	f
+88	user_88	user88@example.com	+919830000088	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 88	f
+89	user_89	user89@example.com	+919830000089	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 89	f
+90	user_90	user90@example.com	+919830000090	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 90	f
+91	user_91	user91@example.com	+919830000091	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 91	f
+92	user_92	user92@example.com	+919830000092	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 92	f
+93	user_93	user93@example.com	+919830000093	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 93	f
+94	user_94	user94@example.com	+919830000094	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 94	f
+95	user_95	user95@example.com	+919830000095	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 95	f
+96	user_96	user96@example.com	+919830000096	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 96	f
+97	user_97	user97@example.com	+919830000097	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 97	f
+98	user_98	user98@example.com	+919830000098	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 98	f
+99	user_99	user99@example.com	+919830000099	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 99	f
+100	user_100	user100@example.com	+919830000100	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Active User 100	f
+101	inactive_1	inactive1@example.com	+919831100001	$2b$12$eImiTXuWVxfM37uY4JANjQ==	f	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Inactive User 1	f
+102	inactive_2	inactive2@example.com	+919831100002	$2b$12$eImiTXuWVxfM37uY4JANjQ==	f	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Inactive User 2	f
+103	inactive_3	inactive3@example.com	+919831100003	$2b$12$eImiTXuWVxfM37uY4JANjQ==	f	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Inactive User 3	f
+104	inactive_4	inactive4@example.com	+919831100004	$2b$12$eImiTXuWVxfM37uY4JANjQ==	f	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Inactive User 4	f
+105	inactive_5	inactive5@example.com	+919831100005	$2b$12$eImiTXuWVxfM37uY4JANjQ==	f	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Inactive User 5	f
+106	inactive_6	inactive6@example.com	+919831100006	$2b$12$eImiTXuWVxfM37uY4JANjQ==	f	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Inactive User 6	f
+107	inactive_7	inactive7@example.com	+919831100007	$2b$12$eImiTXuWVxfM37uY4JANjQ==	f	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Inactive User 7	f
+108	inactive_8	inactive8@example.com	+919831100008	$2b$12$eImiTXuWVxfM37uY4JANjQ==	f	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Inactive User 8	f
+109	inactive_9	inactive9@example.com	+919831100009	$2b$12$eImiTXuWVxfM37uY4JANjQ==	f	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Inactive User 9	f
+110	inactive_10	inactive10@example.com	+919831100010	$2b$12$eImiTXuWVxfM37uY4JANjQ==	f	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	Inactive User 10	f
+111	admin_1	admin1@example.com	+919832200001	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	System Admin 1	t
+112	admin_2	admin2@example.com	+919832200002	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	System Admin 2	t
+113	admin_3	admin3@example.com	+919832200003	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	System Admin 3	t
+114	admin_4	admin4@example.com	+919832200004	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	System Admin 4	t
+115	admin_5	admin5@example.com	+919832200005	$2b$12$eImiTXuWVxfM37uY4JANjQ==	t	2026-02-28 12:53:10.745536+00	2026-02-28 12:53:10.745536+00	System Admin 5	t
 \.
 
 
@@ -1853,21 +1982,14 @@ SELECT pg_catalog.setval('security.access_right_id_seq', 1, false);
 -- Name: bu_id_seq; Type: SEQUENCE SET; Schema: security; Owner: webadmin
 --
 
-SELECT pg_catalog.setval('security.bu_id_seq', 1, false);
-
-
---
--- Name: role_id_seq; Type: SEQUENCE SET; Schema: security; Owner: webadmin
---
-
-SELECT pg_catalog.setval('security.role_id_seq', 1, false);
+SELECT pg_catalog.setval('security.bu_id_seq', 10, true);
 
 
 --
 -- Name: user_id_seq; Type: SEQUENCE SET; Schema: security; Owner: webadmin
 --
 
-SELECT pg_catalog.setval('security.user_id_seq', 1, false);
+SELECT pg_catalog.setval('security.user_id_seq', 115, true);
 
 
 --
@@ -3117,5 +3239,5 @@ ALTER TABLE ONLY security.user_bu_role
 -- PostgreSQL database dump complete
 --
 
-\unrestrict kcWNVQBdc1N4hGs4idlpEjFPj2LRlzaPSt0Tk9lvYdsuEt7aZ9zaydt7fk9lGCh
+\unrestrict fzQmUNdEgkWyDpEHW4XPBxylylrsTMkljmlvHTUXORLQeaXrOc4wp6VadgONhi9
 

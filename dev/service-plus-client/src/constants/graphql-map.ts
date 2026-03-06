@@ -7,16 +7,12 @@ export const GRAPHQL_MAP = {
             $email: String!
             $full_name: String!
             $mobile: String
-            $password: String!
-            $username: String!
         ) {
             createAdminUser(
                 db_name: $db_name
                 email: $email
                 full_name: $full_name
                 mobile: $mobile
-                password: $password
-                username: $username
             )
         }
     `,

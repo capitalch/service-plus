@@ -37,7 +37,7 @@ import {
 } from "@/components/ui/table";
 
 import { AddClientDialog } from "../components/add-client-dialog";
-import { InitiateClientDialog } from "../components/initiate-client-dialog";
+import { InitializeClientDialog } from "../components/initialize-client-dialog";
 import { SuperAdminLayout } from "../components/super-admin-layout";
 import { selectClients, setClients } from "@/features/super-admin/store/super-admin-slice";
 import type { ClientType } from "@/features/super-admin/types";
@@ -84,7 +84,7 @@ export const ClientsPage = () => {
 	const dispatch = useAppDispatch();
 	const clients = useAppSelector(selectClients);
 	const [addOpen, setAddOpen] = useState(false);
-	const [initiateClient, setInitiateClient] = useState<ClientType | null>(null);
+	const [initializeClient, setInitializeClient] = useState<ClientType | null>(null);
 	const [search, setSearch] = useState("");
 	const [sort, setSort] = useState<SortStateType>(DEFAULT_SORT);
 
@@ -124,8 +124,8 @@ export const ClientsPage = () => {
 
 	const handleAddClient = () => setAddOpen(true);
 
-	function handleInitiate(client: ClientType) {
-		setInitiateClient(client);
+	function handleInitialize(client: ClientType) {
+		setInitializeClient(client);
 	}
 
 	const handleDisable = (client: ClientType) => {
@@ -361,9 +361,9 @@ export const ClientsPage = () => {
 														disabled={!(!client.db_name || client.activeAdminCount === 0)}
 														size="sm"
 														variant="outline"
-														onClick={() => handleInitiate(client)}
+														onClick={() => handleInitialize(client)}
 													>
-														Initiate
+														Initialize
 													</Button>
 													<DropdownMenu>
 														<DropdownMenuTrigger asChild>
@@ -396,11 +396,11 @@ export const ClientsPage = () => {
 				</motion.div>
 			</motion.div>
 			<AddClientDialog open={addOpen} onOpenChange={setAddOpen} onSuccess={refetch} />
-			{initiateClient && (
-				<InitiateClientDialog
-					client={initiateClient}
-					open={!!initiateClient}
-					onOpenChange={(open) => { if (!open) setInitiateClient(null); }}
+			{initializeClient && (
+				<InitializeClientDialog
+					client={initializeClient}
+					open={!!initializeClient}
+					onOpenChange={(open) => { if (!open) setInitializeClient(null); }}
 					onSuccess={refetch}
 				/>
 			)}

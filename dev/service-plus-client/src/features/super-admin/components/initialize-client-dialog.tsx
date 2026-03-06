@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useMutation } from "@apollo/client/react";
 import { toast } from "sonner";
 import { AnimatePresence, motion } from "framer-motion";
 import { Check, Loader2, PartyPopper } from "lucide-react";
@@ -17,6 +16,7 @@ import { SQL_MAP } from "@/constants/sql-map";
 import { useDebounce } from "@/hooks/use-debounce";
 import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
+import { SEED_BATCHES } from "@/features/super-admin/constants/seed-data";
 import type { ClientType } from "@/features/super-admin/types/index";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -25,14 +25,15 @@ type CheckDbQueryDataType = {
 	genericQuery: { exists: boolean }[] | null;
 };
 
-type InitiateClientDialogPropsType = {
+type InitializeClientDialogPropsType = {
 	client: ClientType;
 	onOpenChange: (open: boolean) => void;
 	onSuccess: () => void;
 	open: boolean;
 };
 
-type StepType = 1 | 2 | "success";
+// Steps: 1=Create Database, 2=Seed Data, 3=Create Admin User
+type StepType = 1 | 2 | 3 | "success";
 
 // ─── Zod schemas ──────────────────────────────────────────────────────────────
 
@@ -43,19 +44,14 @@ const step1Schema = z.object({
 		.regex(/^service_plus_[a-z0-9_]+$/, "Invalid format: must be service_plus_<code>"),
 });
 
-const step2Schema = z.object({
+const step3Schema = z.object({
 	email: z.email({ message: MESSAGES.ERROR_EMAIL_INVALID }),
 	full_name: z.string().min(1, MESSAGES.ERROR_FULL_NAME_REQUIRED),
 	mobile: z.string().optional(),
-	password: z.string().min(6, "Password must be at least 6 characters"),
-	username: z
-		.string()
-		.min(3, "Username must be at least 3 characters")
-		.regex(/^[a-zA-Z0-9_]+$/, "Username can only contain letters, numbers and underscores"),
 });
 
 type Step1FormType = z.infer<typeof step1Schema>;
-type Step2FormType = z.infer<typeof step2Schema>;
+type Step3FormType = z.infer<typeof step3Schema>;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -78,16 +74,18 @@ function FieldError({ message }: { message?: string }) {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export const InitiateClientDialog = ({
+export const InitializeClientDialog = ({
 	client,
 	onOpenChange,
 	onSuccess,
 	open,
-}: InitiateClientDialogPropsType) => {
+}: InitializeClientDialogPropsType) => {
 	const [checkingDb, setCheckingDb] = useState(false);
 	const [createdDbName, setCreatedDbName] = useState("");
+	const [creatingAdmin, setCreatingAdmin] = useState(false);
 	const [dbNameAvailable, setDbNameAvailable] = useState<boolean | null>(null);
-	const [step, setStep] = useState<StepType>(client?.db_name ? 2 : 1);
+	const [seedingData, setSeedingData] = useState(false);
+	const [step, setStep] = useState<StepType>(client?.db_name ? 3 : 1);
 
 	const step1Form = useForm<Step1FormType>({
 		defaultValues: { db_name: `service_plus_${client.code.toLowerCase()}` },
@@ -95,27 +93,16 @@ export const InitiateClientDialog = ({
 		resolver: zodResolver(step1Schema),
 	});
 
-	const step2Form = useForm<Step2FormType>({
-		defaultValues: { email: "", full_name: "", mobile: "", password: "", username: "" },
+	const step3Form = useForm<Step3FormType>({
+		defaultValues: { email: "", full_name: "", mobile: "" },
 		mode: "onChange",
-		resolver: zodResolver(step2Schema),
+		resolver: zodResolver(step3Schema),
 	});
 
 	const [createServiceDb, { loading: creatingDb }] = useMutation(GRAPHQL_MAP.createServiceDb);
-	const [createAdminUser, { loading: creatingAdmin }] = useMutation(GRAPHQL_MAP.createAdminUser);
 
 	const dbNameValue = useWatch({ control: step1Form.control, name: "db_name" });
-	const emailValue = useWatch({ control: step2Form.control, name: "email" });
 	const debouncedDbName = useDebounce(dbNameValue, 1200);
-
-	const isUsernameDirty = !!step2Form.formState.dirtyFields.username;
-
-	// Auto-derive username from email local part unless user has manually edited it
-	useEffect(() => {
-		if (!emailValue || isUsernameDirty) return;
-		const localPart = emailValue.split("@")[0] ?? "";
-		step2Form.setValue("username", localPart, { shouldDirty: false, shouldValidate: true });
-	}, [emailValue]); // eslint-disable-line react-hooks/exhaustive-deps
 
 	// Debounced DB name uniqueness check
 	useEffect(() => {
@@ -162,9 +149,10 @@ export const InitiateClientDialog = ({
 			setCheckingDb(false);
 			setCreatedDbName("");
 			setDbNameAvailable(null);
-			setStep(client?.db_name ? 2 : 1);
+			setSeedingData(false);
+			setStep(client?.db_name ? 3 : 1);
 			step1Form.reset({ db_name: `service_plus_${client.code.toLowerCase()}` });
-			step2Form.reset({ email: "", full_name: "", mobile: "", password: "", username: "" });
+			step3Form.reset({ email: "", full_name: "", mobile: "" });
 		}
 	}, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -174,66 +162,97 @@ export const InitiateClientDialog = ({
 				variables: { client_id: client.id, db_name: data.db_name },
 			});
 			if (result.errors?.length) {
-				toast.error(MESSAGES.ERROR_INITIATE_DB_FAILED);
+				toast.error(MESSAGES.ERROR_INITIALIZE_DB_FAILED);
 				return;
 			}
 			setCreatedDbName(data.db_name);
 			setStep(2);
-			toast.success(MESSAGES.SUCCESS_INITIATE_DB);
+			toast.success(MESSAGES.SUCCESS_INITIALIZE_DB);
 		} catch {
-			toast.error(MESSAGES.ERROR_INITIATE_DB_FAILED);
+			toast.error(MESSAGES.ERROR_INITIALIZE_DB_FAILED);
 		}
 	}
 
-	async function onStep2Submit(data: Step2FormType) {
+	async function onSeedSubmit() {
 		const activeDb = createdDbName || client.db_name || "";
+		setSeedingData(true);
 		try {
-			const result = await createAdminUser({
+			for (const batch of SEED_BATCHES) {
+				const result = await apolloClient.mutate({
+					mutation: GRAPHQL_MAP.genericUpdate,
+					variables: {
+						db_name: activeDb,
+						schema: "security",
+						value: graphQlUtils.buildGenericUpdateValue(batch.sqlObject),
+					},
+				});
+				if (result.errors?.length) {
+					toast.error(MESSAGES.ERROR_INITIALIZE_SEED_FAILED);
+					return;
+				}
+			}
+			toast.success(MESSAGES.SUCCESS_INITIALIZE_SEED);
+			setStep(3);
+		} catch {
+			toast.error(MESSAGES.ERROR_INITIALIZE_SEED_FAILED);
+		} finally {
+			setSeedingData(false);
+		}
+	}
+
+	async function onStep3Submit(data: Step3FormType) {
+		const activeDb = createdDbName || client.db_name || "";
+		setCreatingAdmin(true);
+		try {
+			const result = await apolloClient.mutate({
+				mutation: GRAPHQL_MAP.createAdminUser,
 				variables: {
 					db_name: activeDb,
 					email: data.email,
 					full_name: data.full_name,
 					mobile: data.mobile || null,
-					password: data.password,
-					username: data.username,
 				},
 			});
 			if (result.errors?.length) {
-				toast.error(MESSAGES.ERROR_INITIATE_ADMIN_FAILED);
+				toast.error(MESSAGES.ERROR_INITIALIZE_ADMIN_FAILED);
 				return;
 			}
 			setStep("success");
-			toast.success(MESSAGES.SUCCESS_INITIATE_ADMIN);
+			toast.success(MESSAGES.SUCCESS_INITIALIZE_ADMIN);
 		} catch {
-			toast.error(MESSAGES.ERROR_INITIATE_ADMIN_FAILED);
+			toast.error(MESSAGES.ERROR_INITIALIZE_ADMIN_FAILED);
+		} finally {
+			setCreatingAdmin(false);
 		}
 	}
 
 	const step1Errors = step1Form.formState.errors;
-	const step2Errors = step2Form.formState.errors;
+	const step3Errors = step3Form.formState.errors;
 
 	const step1Busy = checkingDb || creatingDb;
-	const step1SubmitDisabled =
-		step1Busy || !dbNameAvailable || !!step1Errors.db_name;
+	const step1SubmitDisabled = step1Busy || !dbNameAvailable || !!step1Errors.db_name;
 
-	const step2Busy = creatingAdmin;
-	const step2SubmitDisabled = step2Busy || Object.keys(step2Errors).length > 0;
+	const step3Busy = creatingAdmin;
+	const step3SubmitDisabled = step3Busy || Object.keys(step3Errors).length > 0;
 
-	const dot1Done = step === 2 || step === "success";
+	const dot1Done = step === 2 || step === 3 || step === "success";
+	const dot2Done = step === 3 || step === "success";
 	const dot2Active = step === 2;
+	const dot3Active = step === 3;
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent className="w-full gap-0 overflow-hidden p-0 sm:max-w-[480px]">
-				<DialogTitle className="sr-only">Initiate Client: {client.name}</DialogTitle>
+				<DialogTitle className="sr-only">Initialize Client: {client.name}</DialogTitle>
 				<DialogDescription className="sr-only">
 					Set up the database and admin user for {client.name}.
 				</DialogDescription>
+
 				{/* Stepper header – hidden on success screen */}
 				{step !== "success" && (
 					<div className="bg-gradient-to-br from-slate-800 to-slate-900 px-5 py-5 sm:px-7">
 						<p className="mb-4 text-sm font-semibold text-slate-300">
-							Initiate Client:{" "}
+							Initialize Client:{" "}
 							<span className="text-emerald-400">{client.name}</span>
 						</p>
 						<div className="flex items-center gap-3">
@@ -250,7 +269,7 @@ export const InitiateClientDialog = ({
 								</div>
 								<span className="text-[10px] text-slate-400">Database</span>
 							</div>
-							{/* Connector */}
+							{/* Connector 1→2 */}
 							<div
 								className={`h-0.5 flex-1 rounded ${
 									dot1Done ? "bg-emerald-500" : "bg-slate-600"
@@ -260,12 +279,33 @@ export const InitiateClientDialog = ({
 							<div className="flex flex-col items-center gap-1">
 								<div
 									className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${
-										dot2Active
+										dot2Done
+											? "bg-emerald-500 text-white"
+											: dot2Active
 											? "bg-emerald-500 text-white"
 											: "bg-slate-600 text-slate-300"
 									}`}
 								>
-									2
+									{dot2Done ? <Check className="h-3.5 w-3.5" /> : "2"}
+								</div>
+								<span className="text-[10px] text-slate-400">Seed Data</span>
+							</div>
+							{/* Connector 2→3 */}
+							<div
+								className={`h-0.5 flex-1 rounded ${
+									dot2Done ? "bg-emerald-500" : "bg-slate-600"
+								}`}
+							/>
+							{/* Step 3 dot */}
+							<div className="flex flex-col items-center gap-1">
+								<div
+									className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${
+										dot3Active
+											? "bg-emerald-500 text-white"
+											: "bg-slate-600 text-slate-300"
+									}`}
+								>
+									3
 								</div>
 								<span className="text-[10px] text-slate-400">Admin User</span>
 							</div>
@@ -337,10 +377,81 @@ export const InitiateClientDialog = ({
 							</motion.div>
 						)}
 
-						{/* ── Step 2: Create Admin User ── */}
+						{/* ── Step 2: Seed Data ── */}
 						{step === 2 && (
 							<motion.div
 								key="step2"
+								animate={{ opacity: 1, y: 0 }}
+								exit={{ opacity: 0, y: -8 }}
+								initial={{ opacity: 0, y: 8 }}
+								transition={{ duration: 0.2 }}
+							>
+								<p className="mb-1 text-sm font-semibold text-slate-800">
+									Seed Data
+								</p>
+								<p className="mb-4 text-xs text-slate-500">
+									The following data will be inserted into the new database.
+								</p>
+								<div className="mb-5 flex flex-col gap-4">
+									{SEED_BATCHES.map((batch) => (
+										<div key={batch.label}>
+											<p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">
+												{batch.label}
+											</p>
+											<div className="overflow-hidden rounded-lg border border-slate-200">
+												{(Array.isArray(batch.sqlObject.xData)
+													? batch.sqlObject.xData
+													: [batch.sqlObject.xData]
+												).map((item, idx) => (
+													<div
+														key={idx}
+														className={`flex items-center justify-between px-3 py-2 text-sm ${
+															idx !== 0 ? "border-t border-slate-100" : ""
+														}`}
+													>
+														<span className="font-mono text-xs font-medium text-slate-700">
+															{String(item.code)}
+														</span>
+														<span className="text-xs text-slate-500">
+															{String(item.name)}
+														</span>
+													</div>
+												))}
+											</div>
+										</div>
+									))}
+								</div>
+								<div className="flex justify-end gap-2">
+									<Button
+										type="button"
+										variant="ghost"
+										onClick={() => onOpenChange(false)}
+									>
+										Cancel
+									</Button>
+									<Button
+										className="bg-emerald-600 text-white hover:bg-emerald-700"
+										disabled={seedingData}
+										onClick={onSeedSubmit}
+										type="button"
+									>
+										{seedingData ? (
+											<>
+												<Loader2 className="mr-2 h-4 w-4 animate-spin" />
+												Applying...
+											</>
+										) : (
+											"Apply Seed Data"
+										)}
+									</Button>
+								</div>
+							</motion.div>
+						)}
+
+						{/* ── Step 3: Create Admin User ── */}
+						{step === 3 && (
+							<motion.div
+								key="step3"
 								animate={{ opacity: 1, y: 0 }}
 								exit={{ opacity: 0, y: -8 }}
 								initial={{ opacity: 0, y: 8 }}
@@ -363,7 +474,7 @@ export const InitiateClientDialog = ({
 								)}
 								<form
 									className="flex flex-col gap-4"
-									onSubmit={step2Form.handleSubmit(onStep2Submit)}
+									onSubmit={step3Form.handleSubmit(onStep3Submit)}
 								>
 									<div className="flex flex-col gap-1.5">
 										<Label htmlFor="full_name">
@@ -373,11 +484,11 @@ export const InitiateClientDialog = ({
 										<Input
 											id="full_name"
 											placeholder="e.g. John Smith"
-											{...step2Form.register("full_name")}
+											{...step3Form.register("full_name")}
 											className="w-full"
-											disabled={step2Busy}
+											disabled={step3Busy}
 										/>
-										<FieldError message={step2Errors.full_name?.message} />
+										<FieldError message={step3Errors.full_name?.message} />
 									</div>
 									<div className="flex flex-col gap-1.5">
 										<Label htmlFor="email">
@@ -388,40 +499,11 @@ export const InitiateClientDialog = ({
 											id="email"
 											placeholder="admin@example.com"
 											type="email"
-											{...step2Form.register("email")}
+											{...step3Form.register("email")}
 											className="w-full"
-											disabled={step2Busy}
+											disabled={step3Busy}
 										/>
-										<FieldError message={step2Errors.email?.message} />
-									</div>
-									<div className="flex flex-col gap-1.5">
-										<Label htmlFor="username">
-											Username{" "}
-											<span className="text-red-500">*</span>
-										</Label>
-										<Input
-											id="username"
-											placeholder="e.g. johnsmith"
-											{...step2Form.register("username")}
-											className="w-full"
-											disabled={step2Busy}
-										/>
-										<FieldError message={step2Errors.username?.message} />
-									</div>
-									<div className="flex flex-col gap-1.5">
-										<Label htmlFor="password">
-											Temporary Password{" "}
-											<span className="text-red-500">*</span>
-										</Label>
-										<Input
-											id="password"
-											placeholder="Min. 6 characters"
-											type="password"
-											{...step2Form.register("password")}
-											className="w-full"
-											disabled={step2Busy}
-										/>
-										<FieldError message={step2Errors.password?.message} />
+										<FieldError message={step3Errors.email?.message} />
 									</div>
 									<div className="flex flex-col gap-1.5">
 										<Label htmlFor="mobile">Mobile</Label>
@@ -429,9 +511,9 @@ export const InitiateClientDialog = ({
 											id="mobile"
 											placeholder="+91 98765 43210"
 											type="tel"
-											{...step2Form.register("mobile")}
+											{...step3Form.register("mobile")}
 											className="w-full"
-											disabled={step2Busy}
+											disabled={step3Busy}
 										/>
 									</div>
 									<div className="flex justify-end gap-2">
@@ -444,7 +526,7 @@ export const InitiateClientDialog = ({
 										</Button>
 										<Button
 											className="bg-emerald-600 text-white hover:bg-emerald-700"
-											disabled={step2SubmitDisabled}
+											disabled={step3SubmitDisabled}
 											type="submit"
 										>
 											{creatingAdmin ? "Creating..." : "Create Admin"}
@@ -467,10 +549,10 @@ export const InitiateClientDialog = ({
 									<PartyPopper className="h-8 w-8 text-white" />
 								</div>
 								<h3 className="mb-2 text-lg font-bold text-slate-800">
-									Client Initiated!
+									Client Initialized!
 								</h3>
 								<p className="mb-6 text-sm text-slate-500">
-									Database and admin user have been set up successfully.
+									Database and admin user have been set up. Login credentials have been emailed to the admin.
 								</p>
 								<Button
 									className="bg-emerald-600 text-white hover:bg-emerald-700"

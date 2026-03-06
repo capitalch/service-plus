@@ -1,9 +1,11 @@
 import json
 import re
+import secrets
 from urllib.parse import unquote
 
 from psycopg import sql as pgsql
 
+from app.core.email import send_email
 from app.core.security import hash_password
 from app.db.psycopg_driver import exec_sql, exec_sql_dml, exec_sql_object
 from app.db.sql_auth import SqlAuth
@@ -17,20 +19,16 @@ async def resolve_create_admin_user_helper(
     email: str,
     full_name: str,
     mobile: str | None,
-    password: str,
-    username: str,
 ) -> dict:
     """
-    Hash the password and insert a new admin user into security.user
-    of the specified client database.
+    Auto-generate credentials, hash the password, insert a new admin user into
+    security.user of the specified client database, and email the credentials.
 
     Args:
         db_name:   Service database name.
-        email:     User email (unique).
+        email:     User email (unique). Credentials are sent here.
         full_name: User full name.
         mobile:    User mobile number (optional).
-        password:  Plain-text password – hashed server-side before storage.
-        username:  User username (unique).
 
     Returns:
         Dict with the newly created user id.
@@ -39,9 +37,18 @@ async def resolve_create_admin_user_helper(
         ValidationException: If required fields are missing.
         DatabaseException:   On any database error.
     """
+    # Derive username from email local-part
+    local = email.split("@")[0]
+    username = re.sub(r"[^a-zA-Z0-9_]", "", local).lower()[:30] or "admin"
+    if username and username[0].isdigit():
+        username = "adm_" + username
+
+    # Generate temporary password and hash it
+    temp_password = secrets.token_urlsafe(9)
+    password_hash = hash_password(temp_password)
+
     logger.info(f"Creating admin user '{username}' in database '{db_name}'")
 
-    password_hash = hash_password(password)
     sql_object = {
         "tableName": "user",
         "xData": {
@@ -57,6 +64,23 @@ async def resolve_create_admin_user_helper(
     record_id = await exec_sql_object(db_name, "security", sql_object)
 
     logger.info(f"Admin user created successfully with id: {record_id}")
+
+    # Email credentials (errors are logged, not re-raised)
+    try:
+        await send_email(
+            to=email,
+            subject="Your Admin Account Credentials",
+            body=(
+                f"Hello {full_name},\n\n"
+                f"Your admin account has been created.\n\n"
+                f"  Username : {username}\n"
+                f"  Password : {temp_password}\n\n"
+                f"Please log in and change your password immediately.\n"
+            ),
+        )
+    except Exception as mail_err:
+        logger.warning(f"Failed to send credentials email to {email}: {mail_err}")
+
     return {"id": record_id}
 
 

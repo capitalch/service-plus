@@ -43,15 +43,17 @@ export const MESSAGES = {
   ERROR_CLIENT_NAME_EXISTS: 'This name is already in use.',
   SUCCESS_CLIENT_ADDED: 'Client added successfully.',
 
-  // Client Initiate
+  // Client Initialize
   ERROR_DB_NAME_EXISTS: 'This database name is already taken.',
   ERROR_DB_NAME_REQUIRED: 'Database name is required.',
   ERROR_FULL_NAME_REQUIRED: 'Full name is required.',
-  ERROR_INITIATE_ADMIN_FAILED: 'Failed to create admin user. Please try again.',
-  ERROR_INITIATE_DB_FAILED: 'Failed to create database. Please try again.',
-  SUCCESS_CLIENT_INITIATED: 'Client initiated successfully.',
-  SUCCESS_INITIATE_ADMIN: 'Admin user created successfully.',
-  SUCCESS_INITIATE_DB: 'Database created successfully.',
+  ERROR_INITIALIZE_ADMIN_FAILED: 'Failed to create admin user. Please try again.',
+  ERROR_INITIALIZE_DB_FAILED: 'Failed to create database. Please try again.',
+  ERROR_INITIALIZE_SEED_FAILED: 'Failed to apply seed data. Please try again.',
+  SUCCESS_CLIENT_INITIALIZED: 'Client initialized successfully.',
+  SUCCESS_INITIALIZE_ADMIN: 'Admin user created. Login credentials have been emailed.',
+  SUCCESS_INITIALIZE_DB: 'Database created successfully.',
+  SUCCESS_INITIALIZE_SEED: 'Seed data applied successfully.',
 
   // Network Errors
   ERROR_CLIENTS_LOAD: 'Failed to load clients data.',
