@@ -81,12 +81,13 @@ export const InitializeClientDialog = ({
 	open,
 }: InitializeClientDialogPropsType) => {
 	const [checkingDb, setCheckingDb] = useState(false);
+	const [checkingSeed, setCheckingSeed] = useState(false);
 	const [createdDbName, setCreatedDbName] = useState("");
 	const [creatingAdmin, setCreatingAdmin] = useState(false);
 	const [creatingDb, setCreatingDb] = useState(false);
 	const [dbNameAvailable, setDbNameAvailable] = useState<boolean | null>(null);
 	const [seedingData, setSeedingData] = useState(false);
-	const [step, setStep] = useState<StepType>(client?.db_name ? 3 : 1);
+	const [step, setStep] = useState<StepType>(client?.db_name ? 2 : 1);
 
 	const step1Form = useForm<Step1FormType>({
 		defaultValues: { db_name: `service_plus_${client.code.toLowerCase()}` },
@@ -102,6 +103,34 @@ export const InitializeClientDialog = ({
 
 	const dbNameValue = useWatch({ control: step1Form.control, name: "db_name" });
 	const debouncedDbName = useDebounce(dbNameValue, 1200);
+
+	// Check if role seed data exists in the client DB (only when db_name is already set)
+	useEffect(() => {
+		if (!open || !client.db_name) return;
+		setCheckingSeed(true);
+		apolloClient
+			.query<CheckDbQueryDataType>({
+				fetchPolicy: "network-only",
+				query: GRAPHQL_MAP.genericQuery,
+				variables: {
+					db_name: client.db_name,
+					schema: "security",
+					value: graphQlUtils.buildGenericQueryValue({
+						sqlId: SQL_MAP.CHECK_ROLE_SEED_EXISTS,
+					}),
+				},
+			})
+			.then((res) => {
+				const exists = res.data?.genericQuery?.[0]?.exists ?? false;
+				setStep(exists ? 3 : 2);
+			})
+			.catch(() => {
+				setStep(2);
+			})
+			.finally(() => {
+				setCheckingSeed(false);
+			});
+	}, [open, client.db_name]); // eslint-disable-line react-hooks/exhaustive-deps
 
 	// Debounced DB name uniqueness check
 	useEffect(() => {
@@ -146,10 +175,11 @@ export const InitializeClientDialog = ({
 	useEffect(() => {
 		if (!open) {
 			setCheckingDb(false);
+			setCheckingSeed(false);
 			setCreatedDbName("");
 			setDbNameAvailable(null);
 			setSeedingData(false);
-			setStep(client?.db_name ? 3 : 1);
+			setStep(client?.db_name ? 2 : 1);
 			step1Form.reset({ db_name: `service_plus_${client.code.toLowerCase()}` });
 			step3Form.reset({ email: "", full_name: "", mobile: "" });
 		}
@@ -318,7 +348,13 @@ export const InitializeClientDialog = ({
 
 				{/* Step panels */}
 				<div className="p-5 sm:p-7">
-					<AnimatePresence mode="wait">
+					{checkingSeed && (
+						<div className="flex flex-col items-center gap-3 py-8">
+							<Loader2 className="h-7 w-7 animate-spin text-emerald-500" />
+							<p className="text-sm text-slate-500">Checking seed data…</p>
+						</div>
+					)}
+					{!checkingSeed && <AnimatePresence mode="wait">
 						{/* ── Step 1: Create Database ── */}
 						{step === 1 && (
 							<motion.div
@@ -568,7 +604,7 @@ export const InitializeClientDialog = ({
 								</Button>
 							</motion.div>
 						)}
-					</AnimatePresence>
+					</AnimatePresence>}
 				</div>
 			</DialogContent>
 		</Dialog>

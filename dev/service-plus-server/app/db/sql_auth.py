@@ -25,6 +25,12 @@ class SqlAuth:
         ) AS exists
     """
 
+    CHECK_ROLE_SEED_EXISTS = """
+        SELECT EXISTS(
+            SELECT 1 FROM security.role LIMIT 1
+        ) AS exists
+    """
+
     GET_ALL_CLIENTS_ON_CRITERIA = """
         with "criteria" as (values(%(criteria)s::text))
         -- with "criteria" as (values('cap'::text)) -- Test line
