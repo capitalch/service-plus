@@ -140,3 +140,4 @@ keys/
 *.jks
 *.log
 node_modules
+.vscode/settings.json
