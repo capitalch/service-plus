@@ -1,6 +1,7 @@
 """
 Database connection management using psycopg (psycopg3).
 """
+
 import psycopg
 from contextlib import asynccontextmanager
 from typing import Any, AsyncGenerator
@@ -14,18 +15,21 @@ from app.logger import logger
 
 class _IsoDateLoader(DateLoader):
     """Returns date values as ISO-formatted strings instead of date objects."""
+
     def load(self, data: bytes) -> str:
         return super().load(data).isoformat()
 
 
 class _IsoTimestampLoader(TimestampLoader):
     """Returns timestamp values as ISO-formatted strings instead of datetime objects."""
+
     def load(self, data: bytes) -> str:
         return super().load(data).isoformat()
 
 
 class _IsoTimestamptzLoader(TimestamptzLoader):
     """Returns timestamptz values as ISO-formatted strings instead of datetime objects."""
+
     def load(self, data: bytes) -> str:
         return super().load(data).isoformat()
 
@@ -117,7 +121,9 @@ async def exec_sql(
     schema_to_set = schema or "public"
     records: list[Any] = []
 
-    connection = get_service_db_connection(db_name) if db_name else get_client_db_connection()
+    connection = (
+        get_service_db_connection(db_name) if db_name else get_client_db_connection()
+    )
 
     async with connection as conn:
         async with conn.cursor(row_factory=dict_row) as cur:
@@ -126,7 +132,9 @@ async def exec_sql(
                 cur.adapters.register_loader("timestamp", _IsoTimestampLoader)
                 cur.adapters.register_loader("timestamptz", _IsoTimestamptzLoader)
             await cur.execute(
-                pgsql.SQL("SET search_path TO {}").format(pgsql.Identifier(schema_to_set))
+                pgsql.SQL("SET search_path TO {}").format(
+                    pgsql.Identifier(schema_to_set)
+                )
             )
             await cur.execute(sql, sql_args)
             if cur.description:
@@ -188,7 +196,9 @@ async def exec_sql_dml(
     async with _open_db_connection(**conn_settings, autocommit=True) as conn:
         async with conn.cursor() as cur:
             await cur.execute(
-                pgsql.SQL("SET search_path TO {}").format(pgsql.Identifier(schema_to_set))
+                pgsql.SQL("SET search_path TO {}").format(
+                    pgsql.Identifier(schema_to_set)
+                )
             )
             await cur.execute(sql, sql_args)
             row_count = cur.rowcount if cur.rowcount >= 0 else 0
@@ -218,12 +228,16 @@ async def exec_sql_object(
     schema_to_set = schema or "public"
     record_id: int | None = None
 
-    connection = get_service_db_connection(db_name) if db_name else get_client_db_connection()
+    connection = (
+        get_service_db_connection(db_name) if db_name else get_client_db_connection()
+    )
 
     async with connection as conn:
         async with conn.cursor(row_factory=dict_row) as cur:
             await cur.execute(
-                pgsql.SQL("SET search_path TO {}").format(pgsql.Identifier(schema_to_set))
+                pgsql.SQL("SET search_path TO {}").format(
+                    pgsql.Identifier(schema_to_set)
+                )
             )
             record_id = await process_details(sql_object, cur)
             # closing connection and cursor is handled by the context manager automatically
@@ -275,7 +289,9 @@ def get_insert_sql(
 
 
 @asynccontextmanager
-async def get_service_db_connection(db_name: str) -> AsyncGenerator[psycopg.AsyncConnection, None]:
+async def get_service_db_connection(
+    db_name: str,
+) -> AsyncGenerator[psycopg.AsyncConnection, None]:
     """
     Async context manager that yields a service database connection.
 
@@ -304,7 +320,7 @@ def get_sql(
     if x_data.get("id", None) and (not x_data.get("isIdInsert", None)):  # update
         sql, values_tuple = get_update_sql(x_data, table_name)
     else:  # insert
-        x_data.pop('isIdInsert', None)
+        x_data.pop("isIdInsert", None)
         sql, values_tuple = get_insert_sql(x_data, table_name, fkey_name, fkey_value)
     return (sql, values_tuple)
 
@@ -315,8 +331,7 @@ def get_update_sql(x_data: dict, table_name: str) -> tuple[pgsql.Composed, tuple
 
     logger.debug(f"Building UPDATE SQL for table '{table_name}'")
     assignments = pgsql.SQL(", ").join(
-        pgsql.SQL("{} = %s").format(pgsql.Identifier(col))
-        for col in data_copy
+        pgsql.SQL("{} = %s").format(pgsql.Identifier(col)) for col in data_copy
     )
     sql = pgsql.SQL("UPDATE {} SET {} WHERE id = %s RETURNING id").format(
         pgsql.Identifier(table_name),
