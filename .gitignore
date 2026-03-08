@@ -129,6 +129,9 @@ dmypy.json
 .pyre/
 *.ppk/
 
+# VSCode
+.vscode/settings.json
+
 # others
 config*.*
 __pycache*/
