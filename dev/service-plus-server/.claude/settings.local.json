@@ -14,7 +14,8 @@
       "Bash(python -m pip list:*)",
       "Bash(timeout 2 python:*)",
       "Bash(c:/projects/service-plus/env/Scripts/python.exe:*)",
-      "Bash(env/Scripts/python.exe -m pip:*)"
+      "Bash(env/Scripts/python.exe -m pip:*)",
+      "Bash(git:*)"
     ]
   }
 }
