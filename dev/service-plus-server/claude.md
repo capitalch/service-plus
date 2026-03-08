@@ -52,7 +52,7 @@
         AND is_active = true
         ORDER BY name
     Database schemas
-        The two database schemas are in service_plus_client.sql and service_plus_demo.sql files
+        The two database schemas are in service_plus_client.sql and service_plus_service.sql files
 - client
     - client is react + vite and is located at C:\projects\service-plus\dev\service-plus-client
 

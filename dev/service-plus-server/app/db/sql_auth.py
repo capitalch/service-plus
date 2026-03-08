@@ -1,10 +1,32 @@
 class SqlAuth:
+    CHECK_ADMIN_EMAIL_EXISTS = """
+        with "p_email" as (values(%(email)s::text))
+        -- with "p_email" as (values('admin@example.com'::text)) -- Test line
+        SELECT EXISTS(
+            SELECT 1 FROM security."user"
+            WHERE LOWER(email) = LOWER((table "p_email"))
+        ) AS exists
+    """
+
     CHECK_CLIENT_CODE_EXISTS = """
         with "p_code" as (values(%(code)s::text))
         -- with "p_code" as (values('ACME01'::text)) -- Test line
         SELECT EXISTS(
             SELECT 1 FROM public.client
             WHERE LOWER(code) = LOWER((table "p_code"))
+        ) AS exists
+    """
+
+    CHECK_CLIENT_CODE_EXISTS_EXCLUDE_ID = """
+        with
+            "p_code" as (values(%(code)s::text)),
+            -- "p_code" as (values('ACME01'::text)), -- Test line
+            "p_id"   as (values(%(id)s::int))
+            -- "p_id"   as (values(1::int)) -- Test line
+        SELECT EXISTS(
+            SELECT 1 FROM public.client
+            WHERE LOWER(code) = LOWER((table "p_code"))
+              AND id <> (table "p_id")
         ) AS exists
     """
 
@@ -17,9 +39,22 @@ class SqlAuth:
         ) AS exists
     """
 
+    CHECK_CLIENT_NAME_EXISTS_EXCLUDE_ID = """
+        with
+            "p_name" as (values(%(name)s::text)),
+            -- "p_name" as (values('Acme Corp'::text)), -- Test line
+            "p_id"   as (values(%(id)s::int))
+            -- "p_id"   as (values(1::int)) -- Test line
+        SELECT EXISTS(
+            SELECT 1 FROM public.client
+            WHERE LOWER(name) = LOWER((table "p_name"))
+              AND id <> (table "p_id")
+        ) AS exists
+    """
+
     CHECK_DB_NAME_EXISTS = """
         with "db_name" as (values(%(db_name)s::text))
-        -- with "db_name" as (values('service_plus_demo'::text)) -- Test line
+        -- with "db_name" as (values('service_plus_service'::text)) -- Test line
         SELECT EXISTS(
             SELECT 1 FROM pg_database WHERE datname = (table "db_name")
         ) AS exists
@@ -57,7 +92,10 @@ class SqlAuth:
     """
 
     GET_CLIENT_DB_NAMES = """
-        SELECT id, code, name, is_active, db_name, created_at, updated_at
+        SELECT id, code, name, is_active, db_name,
+               address_line1, address_line2, city, country_code,
+               email, gstin, pan, phone, pincode, state,
+               created_at, updated_at
         FROM public.client
         ORDER BY name
     """
@@ -73,7 +111,7 @@ class SqlAuth:
     UPDATE_CLIENT_DB_NAME = """
         with
             "p_db_name" as (values(%(db_name)s::text)),
-            -- "p_db_name" as (values('service_plus_demo'::text)) -- Test line
+            -- "p_db_name" as (values('service_plus_service'::text)) -- Test line
             "p_id"      as (values(%(id)s::int))
             -- "p_id"      as (values(1::int)) -- Test line
         UPDATE public.client
@@ -88,10 +126,10 @@ class SqlAuth:
         CREATE SCHEMA IF NOT EXISTS security;
 
         CREATE TABLE security.access_right (
-            id          bigint NOT NULL,
-            code        text   NOT NULL,
-            name        text   NOT NULL,
-            module      text   NOT NULL,
+            id          integer NOT NULL,
+            code        text    NOT NULL,
+            name        text    NOT NULL,
+            module      text    NOT NULL,
             description text,
             created_at  timestamp with time zone DEFAULT now() NOT NULL,
             updated_at  timestamp with time zone DEFAULT now() NOT NULL,
@@ -120,26 +158,22 @@ class SqlAuth:
         ALTER TABLE ONLY security.bu ADD CONSTRAINT bu_pkey PRIMARY KEY (id);
 
         CREATE TABLE security.role (
-            id          bigint  NOT NULL,
-            code        text    NOT NULL,
-            name        text    NOT NULL,
+            id          smallint NOT NULL,
+            code        text     NOT NULL,
+            name        text     NOT NULL,
             description text,
-            is_system   boolean DEFAULT false NOT NULL,
+            is_system   boolean  DEFAULT false NOT NULL,
             created_at  timestamp with time zone DEFAULT now() NOT NULL,
             updated_at  timestamp with time zone DEFAULT now() NOT NULL,
             CONSTRAINT role_code_check CHECK ((code ~ '^[A-Z_]+$'::text))
-        );
-        ALTER TABLE security.role ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
-            SEQUENCE NAME security.role_id_seq
-            START WITH 1 INCREMENT BY 1 NO MINVALUE NO MAXVALUE CACHE 1
         );
         ALTER TABLE ONLY security.role ADD CONSTRAINT role_code_key UNIQUE (code);
         ALTER TABLE ONLY security.role ADD CONSTRAINT role_pkey PRIMARY KEY (id);
         CREATE INDEX role_is_system_idx ON security.role USING btree (is_system);
 
         CREATE TABLE security.role_access_right (
-            role_id         bigint NOT NULL,
-            access_right_id bigint NOT NULL
+            role_id         smallint NOT NULL,
+            access_right_id integer  NOT NULL
         );
         ALTER TABLE ONLY security.role_access_right
             ADD CONSTRAINT role_access_right_pkey PRIMARY KEY (role_id, access_right_id);

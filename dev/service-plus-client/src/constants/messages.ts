@@ -37,11 +37,22 @@ export const MESSAGES = {
   // Navigation
   PAGE_NOT_FOUND: 'The page you are looking for does not exist.',
 
+  // Admin CRUD
+  ERROR_ADMIN_EMAIL_EXISTS: 'This email is already registered for this client.',
+  ERROR_CREATE_ADMIN_FAILED: 'Failed to create admin user. Please try again.',
+  SUCCESS_ADMIN_CREATED: 'Admin user created. Login credentials have been emailed.',
+
   // Client CRUD
   ERROR_CLIENT_ADD_FAILED: 'Failed to add client. Please try again.',
   ERROR_CLIENT_CODE_EXISTS: 'This code is already in use.',
+  ERROR_CLIENT_DISABLE_FAILED: 'Failed to disable client. Please try again.',
+  ERROR_CLIENT_ENABLE_FAILED: 'Failed to enable client. Please try again.',
   ERROR_CLIENT_NAME_EXISTS: 'This name is already in use.',
+  ERROR_CLIENT_UPDATE_FAILED: 'Failed to update client. Please try again.',
   SUCCESS_CLIENT_ADDED: 'Client added successfully.',
+  SUCCESS_CLIENT_DISABLED: 'Client has been disabled.',
+  SUCCESS_CLIENT_ENABLED: 'Client has been enabled.',
+  SUCCESS_CLIENT_UPDATED: 'Client updated successfully.',
 
   // Client Initialize
   ERROR_DB_NAME_EXISTS: 'This database name is already taken.',

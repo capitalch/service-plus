@@ -178,7 +178,7 @@ async def create_client_database(db_name: str) -> None:
 - Execute `CREATE DATABASE {db_name}` using `psycopg.sql.SQL` identifiers (safe)
 - Close autocommit connection
 - Open regular connection to new `db_name`
-- Execute `CREATE SCHEMA security` + all security table DDL (from embedded template string derived from `service_plus_demo.sql` security section)
+- Execute `CREATE SCHEMA security` + all security table DDL (from embedded template string derived from `service_plus_service.sql` security section)
 - Commit
 
 The security schema DDL template covers tables: `access_right`, `bu`, `role`, `role_access_right`, `user`, `user_bu_role` plus sequences, constraints, indexes, and triggers.

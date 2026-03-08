@@ -1,300 +1,258 @@
-# Plan: Server-generated Temporary Credentials for createAdminUser
+# Plan: Delete Disabled Client — Protected Dropdown Action
 
-## Overview
+## Objective
+Add a "Delete" action in the per-row actions dropdown on the Clients page.
 
-Currently Step 3 asks the SA to enter `username` and `password` for the admin user.
-The new behaviour: the server auto-generates both, hashes the password, stores it, and
-emails the plain-text credentials to the admin's email address. The admin user later
-changes them after first login. The SA only provides `full_name`, `email`, and `mobile`.
+**Rules:**
+- Only visible when `client.is_active = false` (disabled clients only)
+- Opens a confirmation dialog ("protected") before proceeding
+- Deletion removes the client row from `service_plus_client.public.client`
+- If the client has an associated `db_name`, that PostgreSQL database is also dropped
+- Server guards against deleting an active client (double-safety)
 
 ---
 
 ## Workflow
 
 ```
-SA fills Step 3 form: full_name, email, mobile (no username / no password)
-  │
-  ▼
-Client calls createAdminUser(db_name, email, full_name, mobile?)
-  │
-  ▼
-Server:
-  1. Derive temporary username from email local-part (sanitized, unique check not needed
-     for first admin — only one admin is created here)
-  2. Generate a random temporary password (12 chars, letters + digits)
-  3. Hash the password with hash_password()
-  4. INSERT into security.user with is_admin=True, is_active=True
-  5. Send email to admin's email with subject "Your Admin Credentials"
-     containing username and plain-text temp password
-  6. Return { id }
-  │
-  ▼
-Client shows success screen
-  (toast: "Admin user created. Credentials have been emailed.")
+ClientsPage (table row, is_active = false)
+  → Dropdown → "Delete" menu item (red, only when !is_active)
+    → DeleteClientDialog opens
+        Shows: client name, code, db_name (if any)
+        Warning: "This action is permanent and cannot be undone."
+        Warning: "The associated database <db_name> will also be deleted." (if db_name present)
+        User types client name to confirm (protected input guard)
+        → Submit enabled only when typed name matches client.name exactly
+          → deleteClient mutation (client_id)
+            Server:
+              1. Fetch client row — verify is_active = false (guard)
+              2. If db_name present → DROP DATABASE <db_name>
+              3. DELETE FROM public.client WHERE id = client_id
+              → Returns { id: client_id }
+            Client:
+              → toast success → onSuccess() → refetch clients list → close dialog
 ```
 
 ---
 
 ## Steps
 
-### Step 1 — Server: add email utility
+### Step 1 — Server: Add `DELETE_CLIENT` and `GET_CLIENT_BY_ID` SQL to `SqlAuth`
+**File:** `service-plus-server/app/db/sql_auth.py`
 
-**File:** `service-plus-server/app/core/email.py` (new file)
+Add two SQL constants (alphabetical order):
 
-Create a lightweight async email helper using Python's `smtplib` (or `aiosmtplib` if
-already in requirements). Read SMTP config from environment variables:
-
-```
-SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, SMTP_FROM
-```
-
-Expose one function:
-
-```python
-async def send_email(to: str, subject: str, body: str) -> None:
-    ...
+**`DELETE_CLIENT`** — deletes client row by id, returns id:
+```sql
+with "p_id" as (values(%(id)s::int))
+-- with "p_id" as (values(1::int)) -- Test line
+DELETE FROM public.client
+WHERE id = (table "p_id")
+RETURNING id
 ```
 
-If SMTP is not configured (env vars missing), log a warning and skip silently so that
-development environments without a mail server don't break.
-
----
-
-### Step 2 — Server: update `resolve_create_admin_user_helper`
-
-**File:** `service-plus-server/app/graphql/resolvers/mutation_helper.py`
-
-Changes:
-- Remove `password: str` and `username: str` parameters.
-- Add imports: `import secrets, string` and `from app.core.email import send_email`.
-- Generate username from email local-part: strip non-alphanumeric/underscore chars,
-  lower-case, truncate to 30 chars, prefix `adm_` if result starts with a digit.
-- Generate temp password: `secrets.token_urlsafe(9)` (12 printable URL-safe chars).
-- Hash password with existing `hash_password()`.
-- Insert user row (unchanged sql_object structure).
-- Call `send_email(...)` with credentials after successful insert.
-- Return `{"id": record_id}` (unchanged).
-
-```python
-async def resolve_create_admin_user_helper(
-    db_name: str,
-    email: str,
-    full_name: str,
-    mobile: str | None,
-) -> dict:
-    import re, secrets
-    from app.core.email import send_email
-
-    # Derive username
-    local = email.split("@")[0]
-    username = re.sub(r"[^a-zA-Z0-9_]", "", local).lower()[:30] or "admin"
-    if username[0].isdigit():
-        username = "adm_" + username
-
-    # Generate temporary password
-    temp_password = secrets.token_urlsafe(9)   # ~12 chars
-    password_hash = hash_password(temp_password)
-
-    sql_object = {
-        "tableName": "user",
-        "xData": {
-            "email": email,
-            "full_name": full_name,
-            "is_active": True,
-            "is_admin": True,
-            "mobile": mobile or None,
-            "password_hash": password_hash,
-            "username": username,
-        },
-    }
-    record_id = await exec_sql_object(db_name, "security", sql_object)
-
-    # Email credentials (fire-and-forget; errors are logged, not re-raised)
-    try:
-        await send_email(
-            to=email,
-            subject="Your Admin Account Credentials",
-            body=(
-                f"Hello {full_name},\n\n"
-                f"Your admin account has been created.\n\n"
-                f"  Username : {username}\n"
-                f"  Password : {temp_password}\n\n"
-                f"Please log in and change your password immediately.\n"
-            ),
-        )
-    except Exception as mail_err:
-        logger.warning(f"Failed to send credentials email to {email}: {mail_err}")
-
-    return {"id": record_id}
+**`GET_CLIENT_BY_ID`** — fetch client row for server-side guard:
+```sql
+with "p_id" as (values(%(id)s::int))
+-- with "p_id" as (values(1::int)) -- Test line
+SELECT id, name, is_active, db_name
+FROM public.client
+WHERE id = (table "p_id")
 ```
 
 ---
 
-### Step 3 — Server: update `resolve_create_admin_user` resolver signature
-
-**File:** `service-plus-server/app/graphql/resolvers/mutation.py`
-
-Remove `password: str` and `username: str` parameters from the resolver function and
-the helper call:
-
-```python
-@mutation.field("createAdminUser")
-async def resolve_create_admin_user(
-    _,
-    info,
-    db_name: str,
-    email: str,
-    full_name: str,
-    mobile: str | None = None,
-) -> Any:
-    ...
-    return await resolve_create_admin_user_helper(
-        db_name=db_name,
-        email=email,
-        full_name=full_name,
-        mobile=mobile,
-    )
-```
-
----
-
-### Step 4 — Server: update GraphQL schema
-
+### Step 2 — Server: Add `deleteClient` mutation to GraphQL schema
 **File:** `service-plus-server/app/graphql/schema.graphql`
 
-Remove `password: String!` and `username: String!` from the `createAdminUser` mutation
-definition:
-
+Add to the `Mutation` type (alphabetical order):
 ```graphql
-createAdminUser(
-    db_name: String!
-    email: String!
-    full_name: String!
-    mobile: String
-): Int
+deleteClient(client_id: Int!): Generic
 ```
 
 ---
 
-### Step 5 — Client: update `GRAPHQL_MAP.createAdminUser`
+### Step 3 — Server: Add `resolve_delete_client_helper` to `mutation_helper.py`
+**File:** `service-plus-server/app/graphql/resolvers/mutation_helper.py`
 
-**File:** `src/constants/graphql-map.ts`
+New async function `resolve_delete_client_helper(client_id: int) -> dict`:
 
-Remove `$password` and `$username` variables:
+Logic:
+1. Fetch the client row using `GET_CLIENT_BY_ID` (db_name=None, schema="public").
+2. If not found → raise `ValidationException(AppMessages.NOT_FOUND)`.
+3. If `client.is_active = True` → raise `ValidationException(AppMessages.CLIENT_MUST_BE_DISABLED)` (server-side guard — cannot delete active client).
+4. If `client.db_name` is not None → execute `DROP DATABASE <db_name>` using `exec_sql_dml` with `pgsql.SQL("DROP DATABASE IF EXISTS {}").format(pgsql.Identifier(db_name))` (requires autocommit — same pattern as `CREATE DATABASE`).
+5. Execute `DELETE_CLIENT` SQL with `sql_args={"id": client_id}` via `exec_sql`.
+6. Return `{"id": client_id}`.
 
-```typescript
-createAdminUser: gql`
-    mutation CreateAdminUser(
-        $db_name: String!
-        $email: String!
-        $full_name: String!
-        $mobile: String
-    ) {
-        createAdminUser(
-            db_name: $db_name
-            email: $email
-            full_name: $full_name
-            mobile: $mobile
+---
+
+### Step 4 — Server: Add `resolve_delete_client` resolver to `mutation.py`
+**File:** `service-plus-server/app/graphql/resolvers/mutation.py`
+
+Add resolver (alphabetical order):
+```python
+@mutation.field("deleteClient")
+async def resolve_delete_client(_, info, client_id: int) -> Any:
+    try:
+        return await resolve_delete_client_helper(client_id)
+    except ValidationException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting client: {str(e)}")
+        raise GraphQLException(
+            message=AppMessages.OPERATION_FAILED, extensions={"details": str(e)}
         )
+```
+
+Import `resolve_delete_client_helper` in the imports block.
+
+---
+
+### Step 5 — Server: Add `AppMessages` constants (if missing)
+**File:** `service-plus-server/app/exceptions.py`
+
+Check `AppMessages` class — add if not present (alphabetical):
+- `CLIENT_MUST_BE_DISABLED = "Client must be disabled before deletion."`
+- `NOT_FOUND = "Record not found."`
+
+---
+
+### Step 6 — Client: Add `deleteClient` mutation to `GRAPHQL_MAP`
+**File:** `service-plus-client/src/constants/graphql-map.ts`
+
+Add (alphabetical order):
+```ts
+deleteClient: gql`
+    mutation DeleteClient($client_id: Int!) {
+        deleteClient(client_id: $client_id)
     }
 `,
 ```
 
 ---
 
-### Step 6 — Client: update `step3Schema` and types
+### Step 7 — Client: Add message keys to `MESSAGES`
+**File:** `service-plus-client/src/constants/messages.ts`
 
-**File:** `src/features/super-admin/components/initialize-client-dialog.tsx`
-
-- Remove `password` and `username` fields from `step3Schema`.
-- Remove `Step3FormType` fields for `password` and `username`.
-- Updated schema:
-
-```typescript
-const step3Schema = z.object({
-    email: z.email({ message: MESSAGES.ERROR_EMAIL_INVALID }),
-    full_name: z.string().min(1, MESSAGES.ERROR_FULL_NAME_REQUIRED),
-    mobile: z.string().optional(),
-});
-```
+Add under `// Client CRUD` section (sorted):
+- `ERROR_CLIENT_DELETE_FAILED` — `"Failed to delete client. Please try again."`
+- `ERROR_CLIENT_DELETE_NOT_ALLOWED` — `"Only disabled clients can be deleted."`
+- `SUCCESS_CLIENT_DELETED` — `"Client deleted successfully."`
 
 ---
 
-### Step 7 — Client: update `initialize-client-dialog.tsx` component
+### Step 8 — Client: Create `delete-client-dialog.tsx`
+**File:** `service-plus-client/src/features/super-admin/components/delete-client-dialog.tsx`
 
-**File:** `src/features/super-admin/components/initialize-client-dialog.tsx`
+**Props:**
+```ts
+type DeleteClientDialogPropsType = {
+  client: ClientType | null;
+  onOpenChange: (open: boolean) => void;
+  onSuccess: () => void;
+  open: boolean;
+};
+```
 
-Changes:
-- Remove `useMutation(GRAPHQL_MAP.createAdminUser)` hook; use `apolloClient.mutate` instead (consistent with other calls in this file), add `useState` for `creatingAdmin`.
-- Remove `useEffect` that auto-derives `username` from email (no longer needed).
-- Remove `isUsernameDirty` ref.
-- Update `step3Form` `defaultValues` — remove `password` and `username`.
-- Update `step3Form.reset(...)` in the close effect — remove those fields.
-- Rewrite `onStep3Submit`:
+**Protection mechanism — name confirmation input:**
+- A text input where the user must type the client's name exactly to unlock the Delete button.
+- `confirmName` local state (string), reset on dialog open/close.
+- Submit enabled only when `confirmName === client.name` and not submitting.
 
-```typescript
-async function onStep3Submit(data: Step3FormType) {
-    const activeDb = createdDbName || client.db_name || "";
-    setCreatingAdmin(true);
-    try {
-        const result = await apolloClient.mutate({
-            mutation: GRAPHQL_MAP.createAdminUser,
-            variables: {
-                db_name: activeDb,
-                email: data.email,
-                full_name: data.full_name,
-                mobile: data.mobile || null,
-            },
-        });
-        if (result.errors?.length) {
-            toast.error(MESSAGES.ERROR_INITIALIZE_ADMIN_FAILED);
-            return;
-        }
-        setStep("success");
-        toast.success(MESSAGES.SUCCESS_INITIALIZE_ADMIN);
-    } catch {
-        toast.error(MESSAGES.ERROR_INITIALIZE_ADMIN_FAILED);
-    } finally {
-        setCreatingAdmin(false);
-    }
+**UI layout:**
+- Dialog header: "Delete Client" (use destructive intent styling — slate/dark, not red on controls per convention)
+- Body:
+  - Client info summary: name (bold), code, status badge (Inactive)
+  - Warning box (amber background): "This action is permanent and cannot be undone."
+  - If `client.db_name`: additional warning line: "The associated database **{client.db_name}** will also be permanently deleted."
+  - Confirmation label: `Type "{client.name}" to confirm`
+  - Input bound to `confirmName` state (not react-hook-form — it's a simple guard, not a form)
+- Footer: Cancel (ghost) + "Delete" button
+  - "Delete" button: `bg-red-600 hover:bg-red-700 text-white` — red is appropriate here as it is NOT a form control; it is an action confirmation button
+  - Disabled when `confirmName !== client.name` or `submitting`
+  - Shows Loader2 spinner while submitting
+
+**Submit handler:**
+```ts
+async function handleDelete() {
+  setSubmitting(true);
+  try {
+    const result = await apolloClient.mutate({
+      mutation: GRAPHQL_MAP.deleteClient,
+      variables: { client_id: client.id },
+    });
+    if (result.errors?.length) { toast.error(MESSAGES.ERROR_CLIENT_DELETE_FAILED); return; }
+    toast.success(MESSAGES.SUCCESS_CLIENT_DELETED);
+    onSuccess();
+    onOpenChange(false);
+  } catch {
+    toast.error(MESSAGES.ERROR_CLIENT_DELETE_FAILED);
+  } finally {
+    setSubmitting(false);
+  }
 }
 ```
 
-- Remove `Username` and `Temporary Password` input fields from the JSX (Step 3 panel).
-- Update `step3Busy` to use the new `creatingAdmin` state.
-- Update success screen paragraph to mention credentials were emailed.
+**Reset on close:** `useEffect` on `open` — when `!open` reset `confirmName` and `submitting`.
 
 ---
 
-### Step 8 — Client: add/update messages
+### Step 9 — Client: Update `clients-page.tsx`
+**File:** `service-plus-client/src/features/super-admin/pages/clients-page.tsx`
 
-**File:** `src/constants/messages.ts`
-
-Add:
-
-```typescript
-SUCCESS_INITIALIZE_ADMIN: 'Admin user created. Login credentials have been emailed.',
+**Add state:**
+```ts
+const [deleteClient, setDeleteClient] = useState<ClientType | null>(null);
 ```
 
-(replaces existing `'Admin user created successfully.'`)
+**Add handler** (sorted):
+```ts
+const handleDelete = (client: ClientType) => setDeleteClient(client);
+```
+
+**Add `DropdownMenuItem`** inside the dropdown, after the Disable/Enable item (only shown when `!client.is_active`):
+```tsx
+{!client.is_active && (
+  <>
+    <DropdownMenuSeparator />
+    <DropdownMenuItem
+      className="text-red-600 focus:text-red-600"
+      onClick={() => handleDelete(client)}
+    >
+      Delete
+    </DropdownMenuItem>
+  </>
+)}
+```
+
+**Add dialog mount** (alongside other dialogs at bottom of JSX):
+```tsx
+<DeleteClientDialog
+  client={deleteClient}
+  open={!!deleteClient}
+  onOpenChange={(open) => { if (!open) setDeleteClient(null); }}
+  onSuccess={handleRefetch}
+/>
+```
+
+**Add import:**
+```ts
+import { DeleteClientDialog } from "../components/delete-client-dialog";
+```
 
 ---
 
-## Summary of Files Changed
+## File Change Summary
 
-### Server
-
-| File | Change |
-|---|---|
-| `app/core/email.py` | New file — async `send_email` helper using SMTP env vars |
-| `app/graphql/resolvers/mutation_helper.py` | Remove `password`/`username` params; auto-generate both; send email |
-| `app/graphql/resolvers/mutation.py` | Remove `password`/`username` params from resolver |
-| `app/graphql/schema.graphql` | Remove `password`/`username` from `createAdminUser` mutation |
-
-### Client
-
-| File | Change |
-|---|---|
-| `src/constants/graphql-map.ts` | Remove `$password`/`$username` from `createAdminUser` mutation |
-| `src/constants/messages.ts` | Update `SUCCESS_INITIALIZE_ADMIN` to mention email |
-| `src/features/super-admin/components/initialize-client-dialog.tsx` | Remove username/password fields, schema fields, auto-derive effect; switch to `apolloClient.mutate` |
+| # | File | Action |
+|---|------|--------|
+| 1 | `service-plus-server/app/db/sql_auth.py` | Add `DELETE_CLIENT`, `GET_CLIENT_BY_ID` SQL |
+| 2 | `service-plus-server/app/graphql/schema.graphql` | Add `deleteClient` mutation |
+| 3 | `service-plus-server/app/graphql/resolvers/mutation_helper.py` | Add `resolve_delete_client_helper` |
+| 4 | `service-plus-server/app/graphql/resolvers/mutation.py` | Add `resolve_delete_client` resolver |
+| 5 | `service-plus-server/app/exceptions.py` | Add `CLIENT_MUST_BE_DISABLED`, `NOT_FOUND` to `AppMessages` (if missing) |
+| 6 | `service-plus-client/src/constants/graphql-map.ts` | Add `deleteClient` mutation |
+| 7 | `service-plus-client/src/constants/messages.ts` | Add 3 message keys |
+| 8 | `service-plus-client/src/features/super-admin/components/delete-client-dialog.tsx` | **New file** |
+| 9 | `service-plus-client/src/features/super-admin/pages/clients-page.tsx` | Add state, handler, menu item, dialog |

@@ -2,14 +2,24 @@
 
 export type ClientType = {
     activeAdminCount: number;
+    address_line1: string | null;
+    address_line2: string | null;
+    city: string | null;
     code: string;
+    country_code: string | null;
     created_at: string;
     db_name: string | null;
     db_name_valid: boolean;
+    email: string | null;
+    gstin: string | null;
     id: number;
     inactiveAdminCount: number;
     is_active: boolean;
     name: string;
+    pan: string | null;
+    phone: string | null;
+    pincode: string | null;
+    state: string | null;
     updated_at: string;
 };
 

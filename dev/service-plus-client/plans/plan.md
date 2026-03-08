@@ -1,47 +1,51 @@
-# Plan: Server-Side Handler for CHECK_ROLE_SEED_EXISTS
+# Plan: Refresh Client Table After Initialize Client Step 1
 
-## How genericQuery Works
+## Context
 
-`resolve_generic_query_helper` in `query_helper.py` resolves any `genericQuery` call by:
-1. Decoding the `value` payload to extract `sqlId` and `sqlArgs`.
-2. Doing `getattr(SqlAuth, sql_id, None)` to look up the raw SQL string.
-3. Calling `exec_sql(db_name, schema, sql, sql_args)` and returning the rows.
+After Step 1 of `InitializeClientDialog` succeeds (Create Database), the server saves `db_name`
+back to the `client` table in `service_plus_client` DB. Currently the UI table is only refreshed
+when the user clicks "Close" on the final success screen (via `onSuccess → refetch`).
 
-This means **no resolver, schema, or query.py changes are needed**. Adding a new `sqlId` only requires adding a new class attribute to `SqlAuth`.
+Goal: also refresh the table immediately after Step 1 completes so the DB Name column shows the
+new value without waiting for all 3 steps to finish.
 
 ---
 
 ## Workflow
 
-1. Client sends `genericQuery` with `sqlId = "CHECK_ROLE_SEED_EXISTS"`, `db_name = <client_db>`, `schema = "security"`.
-2. `resolve_generic_query_helper` calls `getattr(SqlAuth, "CHECK_ROLE_SEED_EXISTS")` — finds the new SQL.
-3. `exec_sql` connects to the client database, runs the SQL against the `security` schema.
-4. Returns `[{ "exists": true }]` or `[{ "exists": false }]`.
-5. Client uses the result to decide whether to skip step 2 or show it.
+```
+User clicks "Initialize" → InitializeClientDialog opens at Step 1
+  → User enters db_name, clicks "Create Database"
+  → onStep1Submit() fires → createServiceDb mutation → server saves db_name on client row
+  → [NEW] onStep1Success() callback fires → ClientsPage calls refetch()
+  → Client table refreshes: DB Name column now shows the new db_name + validity icon
+  → Dialog continues to Step 2 (Seed Data) and Step 3 (Admin User) as before
+  → User clicks "Close" on success screen → onSuccess() → refetch() again (no-op, already fresh)
+```
 
 ---
 
 ## Steps
 
-### Step 1 – Add `CHECK_ROLE_SEED_EXISTS` to `SqlAuth`
-**File:** `service-plus-server/app/db/sql_auth.py`
+### Step 1 — Add `onStep1Success` prop to `InitializeClientDialogPropsType`
 
-Add a new class attribute (sorted alphabetically between `CHECK_DB_NAME_EXISTS` and `GET_ALL_CLIENTS_ON_CRITERIA`):
+File: `src/features/super-admin/components/initialize-client-dialog.tsx`
 
-```python
-CHECK_ROLE_SEED_EXISTS = """
-    with "dummy" as (values(1::int))
-    -- with "dummy" as (values(1::int)) -- Test line
-    SELECT EXISTS(
-        SELECT 1 FROM security.role LIMIT 1
-    ) AS exists
-"""
-```
+- Add `onStep1Success?: () => void` to `InitializeClientDialogPropsType`.
+- Sort props alphabetically (keep consistent with existing convention).
 
-**Notes:**
-- Uses the `with "dummy"` CTE pattern consistent with other `SqlAuth` queries that take no runtime arguments (e.g. `GET_BU_USER_STATS`).
-- No `sql_args` are needed — the target database is selected via the `db_name` connection parameter, not via SQL arguments.
-- `LIMIT 1` keeps it efficient; `EXISTS` short-circuits anyway.
+### Step 2 — Call `onStep1Success` inside `onStep1Submit`
+
+File: `src/features/super-admin/components/initialize-client-dialog.tsx`
+
+- After `setStep(2)` and `toast.success(MESSAGES.SUCCESS_INITIALIZE_DB)` in `onStep1Submit`,
+  add `onStep1Success?.()`.
+
+### Step 3 — Pass `refetch` as `onStep1Success` in `ClientsPage`
+
+File: `src/features/super-admin/pages/clients-page.tsx`
+
+- In the `<InitializeClientDialog ... />` JSX, add `onStep1Success={refetch}`.
 
 ---
 
@@ -49,4 +53,5 @@ CHECK_ROLE_SEED_EXISTS = """
 
 | File | Change |
 |------|--------|
-| `service-plus-server/app/db/sql_auth.py` | Add `CHECK_ROLE_SEED_EXISTS` class attribute to `SqlAuth` |
+| `src/features/super-admin/components/initialize-client-dialog.tsx` | Add `onStep1Success?` prop; call it on step 1 success |
+| `src/features/super-admin/pages/clients-page.tsx` | Pass `refetch` as `onStep1Success` |

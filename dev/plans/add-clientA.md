@@ -53,11 +53,11 @@ Super Admin
 ### File: `service-plus-server/app/graphql/resolvers/mutation.py`
 - Add `@mutation.field("createClientDatabase")` resolver:
   - Look up client by `clientId` in `service_plus_client.client`
-  - Create DB `service_plus_<code>` using the `security` schema template from `service_plus_demo.sql`
+  - Create DB `service_plus_<code>` using the `security` schema template from `service_plus_service.sql`
   - Update `db_name` column in `service_plus_client.client`
 
 ### New File: `service-plus-server/app/helpers/client_helper.py`
-- `create_client(data)` → INSERT into `service_plus_client.client`
+- `create_client(data)`  → INSERT into `service_plus_client.client`
 - `create_client_database(client_id)` → CREATE DATABASE, run security schema DDL, UPDATE db_name
 - `create_admin_user(db_name, email)` → generate username/password, INSERT into `security.user`, send email
 - `modify_admin_user(db_name, user_id, action)` → UPDATE `security.user` (enable/disable/delete)

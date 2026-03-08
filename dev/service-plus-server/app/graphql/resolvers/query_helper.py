@@ -73,14 +73,24 @@ async def resolve_super_admin_clients_data_helper():
 
         clients_data.append({
             "activeAdminCount":   active_admin,
+            "address_line1":      client_row.get("address_line1"),
+            "address_line2":      client_row.get("address_line2"),
+            "city":               client_row.get("city"),
             "code":               client_row.get("code"),
+            "country_code":       client_row.get("country_code"),
             "created_at":         client_row["created_at"].isoformat() if client_row.get("created_at") else None,
             "db_name":            db_name_val,
             "db_name_valid":      db_name_valid,
+            "email":              client_row.get("email"),
+            "gstin":              client_row.get("gstin"),
             "id":                 client_row.get("id"),
             "inactiveAdminCount": inactive_admin,
             "is_active":          client_row.get("is_active"),
             "name":               client_row.get("name"),
+            "pan":                client_row.get("pan"),
+            "phone":              client_row.get("phone"),
+            "pincode":            client_row.get("pincode"),
+            "state":              client_row.get("state"),
             "updated_at":         client_row["updated_at"].isoformat() if client_row.get("updated_at") else None,
         })
 

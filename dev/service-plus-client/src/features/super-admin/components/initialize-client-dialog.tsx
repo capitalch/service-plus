@@ -28,6 +28,7 @@ type CheckDbQueryDataType = {
 type InitializeClientDialogPropsType = {
 	client: ClientType;
 	onOpenChange: (open: boolean) => void;
+	onStep1Success?: () => void;
 	onSuccess: () => void;
 	open: boolean;
 };
@@ -77,6 +78,7 @@ function FieldError({ message }: { message?: string }) {
 export const InitializeClientDialog = ({
 	client,
 	onOpenChange,
+	onStep1Success,
 	onSuccess,
 	open,
 }: InitializeClientDialogPropsType) => {
@@ -199,6 +201,7 @@ export const InitializeClientDialog = ({
 			setCreatedDbName(data.db_name);
 			setStep(2);
 			toast.success(MESSAGES.SUCCESS_INITIALIZE_DB);
+			onStep1Success?.();
 		} catch {
 			toast.error(MESSAGES.ERROR_INITIALIZE_DB_FAILED);
 		} finally {

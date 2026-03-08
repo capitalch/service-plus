@@ -38,8 +38,13 @@ import {
 } from "@/components/ui/table";
 
 import { AddClientDialog } from "../components/add-client-dialog";
+import { CreateAdminDialog } from "../components/create-admin-dialog";
+import { DisableClientDialog } from "../components/disable-client-dialog";
+import { EditClientDialog } from "../components/edit-client-dialog";
+import { EnableClientDialog } from "../components/enable-client-dialog";
 import { InitializeClientDialog } from "../components/initialize-client-dialog";
 import { SuperAdminLayout } from "../components/super-admin-layout";
+import { ViewClientDialog } from "../components/view-client-dialog";
 import { selectClients, setClients } from "@/features/super-admin/store/super-admin-slice";
 import type { ClientType } from "@/features/super-admin/types";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
@@ -78,16 +83,18 @@ function formatDate(date: string): string {
 	});
 }
 
-const handleEdit = (client: ClientType) => toast.info(`Editing ${client.name}`);
-const handleView = (client: ClientType) => toast.info(`Viewing ${client.name}`);
-
 export const ClientsPage = () => {
 	const dispatch = useAppDispatch();
 	const clients = useAppSelector(selectClients);
 	const [addOpen, setAddOpen] = useState(false);
+	const [createAdminClient, setCreateAdminClient] = useState<ClientType | null>(null);
+	const [disableClient, setDisableClient] = useState<ClientType | null>(null);
+	const [editClient, setEditClient] = useState<ClientType | null>(null);
+	const [enableClient, setEnableClient] = useState<ClientType | null>(null);
 	const [initializeClient, setInitializeClient] = useState<ClientType | null>(null);
 	const [search, setSearch] = useState("");
 	const [sort, setSort] = useState<SortStateType>(DEFAULT_SORT);
+	const [viewClient, setViewClient] = useState<ClientType | null>(null);
 
 	const { data, error, loading, refetch } = useQuery<ClientsPageDataType>(
 		GRAPHQL_MAP.superAdminClientsData,
@@ -124,14 +131,23 @@ export const ClientsPage = () => {
 	}, [clients, search, sort]);
 
 	const handleAddClient = () => setAddOpen(true);
+	const handleCreateAdmin = (client: ClientType) => setCreateAdminClient(client);
+	const handleDisable = (client: ClientType) => setDisableClient(client);
+	const handleEdit = (client: ClientType) => setEditClient(client);
+	const handleEnable = (client: ClientType) => setEnableClient(client);
 
 	function handleInitialize(client: ClientType) {
 		setInitializeClient(client);
 	}
 
-	const handleDisable = (client: ClientType) => {
-		toast.success(`${client.name} has been disabled`);
-	};
+	async function handleRefetch() {
+		const result = await refetch();
+		if (result.data?.superAdminClientsData?.clients) {
+			dispatch(setClients(result.data.superAdminClientsData.clients));
+		}
+	}
+
+	const handleView = (client: ClientType) => setViewClient(client);
 
 	function handleNameSort() {
 		setSort((prev) => {
@@ -355,10 +371,10 @@ export const ClientsPage = () => {
 												<span className="inline-flex items-center gap-1 font-mono text-xs text-slate-500">
 													{client.db_name ?? "—"}
 													{client.db_name && client.db_name_valid && (
-														<CheckCircle2Icon className="h-3.5 w-3.5 text-emerald-500" title="Database exists" />
+														<span title="Database exists"><CheckCircle2Icon className="h-3.5 w-3.5 text-emerald-500" /></span>
 													)}
 													{client.db_name && !client.db_name_valid && (
-														<XCircleIcon className="h-3.5 w-3.5 text-red-500" title="Database does not exist" />
+														<span title="Database does not exist"><XCircleIcon className="h-3.5 w-3.5 text-red-500" /></span>
 													)}
 												</span>
 											</TableCell>
@@ -384,14 +400,28 @@ export const ClientsPage = () => {
 														<DropdownMenuContent align="end" className="w-36">
 															<DropdownMenuItem onClick={() => handleView(client)}>View</DropdownMenuItem>
 															<DropdownMenuItem onClick={() => handleEdit(client)}>Edit</DropdownMenuItem>
-															<DropdownMenuSeparator />
 															<DropdownMenuItem
-																className="text-red-600 focus:text-red-600"
-																disabled={!client.is_active}
-																onClick={() => handleDisable(client)}
+																disabled={!(client.db_name && client.db_name_valid && client.is_active)}
+																onClick={() => handleCreateAdmin(client)}
 															>
-																Disable
+																Add Admin
 															</DropdownMenuItem>
+															<DropdownMenuSeparator />
+															{client.is_active ? (
+																<DropdownMenuItem
+																	className="text-amber-600 focus:text-amber-600"
+																	onClick={() => handleDisable(client)}
+																>
+																	Disable
+																</DropdownMenuItem>
+															) : (
+																<DropdownMenuItem
+																	className="text-emerald-600 focus:text-emerald-600"
+																	onClick={() => handleEnable(client)}
+																>
+																	Enable
+																</DropdownMenuItem>
+															)}
 														</DropdownMenuContent>
 													</DropdownMenu>
 												</div>
@@ -405,14 +435,46 @@ export const ClientsPage = () => {
 				</motion.div>
 			</motion.div>
 			<AddClientDialog open={addOpen} onOpenChange={setAddOpen} onSuccess={refetch} />
+		{createAdminClient && (
+			<CreateAdminDialog
+				client={createAdminClient}
+				open={!!createAdminClient}
+				onOpenChange={(open) => { if (!open) setCreateAdminClient(null); }}
+				onSuccess={handleRefetch}
+			/>
+		)}
 			{initializeClient && (
 				<InitializeClientDialog
 					client={initializeClient}
 					open={!!initializeClient}
 					onOpenChange={(open) => { if (!open) setInitializeClient(null); }}
+					onStep1Success={refetch}
 					onSuccess={refetch}
 				/>
 			)}
+			<ViewClientDialog
+				client={viewClient}
+				open={!!viewClient}
+				onOpenChange={(open) => { if (!open) setViewClient(null); }}
+			/>
+			<EditClientDialog
+				client={editClient}
+				open={!!editClient}
+				onOpenChange={(open) => { if (!open) setEditClient(null); }}
+				onSuccess={handleRefetch}
+			/>
+			<DisableClientDialog
+				client={disableClient}
+				open={!!disableClient}
+				onOpenChange={(open) => { if (!open) setDisableClient(null); }}
+				onSuccess={handleRefetch}
+			/>
+			<EnableClientDialog
+				client={enableClient}
+				open={!!enableClient}
+				onOpenChange={(open) => { if (!open) setEnableClient(null); }}
+				onSuccess={handleRefetch}
+			/>
 	</SuperAdminLayout>
 	);
 };
