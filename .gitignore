@@ -130,8 +130,8 @@ dmypy.json
 *.ppk/
 
 # VSCode
-.vscode/settings.json
-
+**/settings.json
+settings.json
 # others
 config*.*
 __pycache*/

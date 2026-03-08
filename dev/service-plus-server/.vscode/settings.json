@@ -1,7 +1,0 @@
-{
-    "python.defaultInterpreterPath": "c:/projects/service-plus/env/bin/python.exe",
-    "python.terminal.activateEnvironment": true,
-    "[python]": {
-        "editor.formatOnSave": true
-    }
-}
