@@ -9,7 +9,6 @@ from app.exceptions import GraphQLException, AppMessages
 # from app.config import settings
 from .query_helper import (
     resolve_generic_query_helper,
-    resolve_super_admin_admins_data_helper,
     resolve_super_admin_clients_data_helper,
     resolve_super_admin_dashboard_stats_helper,
 )
@@ -32,18 +31,6 @@ async def resolve_generic_query(_, info, db_name="", schema="public", value="") 
     except Exception as e:
         # Catch-all ONLY for unexpected crashes
         logger.error(f"Unexpected generic query failure: {str(e)}", exc_info=True)
-        raise GraphQLException(
-            message=AppMessages.INTERNAL_SERVER_ERROR,
-            extensions={"details": AppMessages.UNEXPECTED_ERROR}
-        )
-
-
-@query.field("superAdminAdminsData")
-async def resolve_super_admin_admins_data(_, info) -> Any:
-    try:
-        return await resolve_super_admin_admins_data_helper()
-    except Exception as e:
-        logger.error(f"Unexpected super admin admins data failure: {str(e)}", exc_info=True)
         raise GraphQLException(
             message=AppMessages.INTERNAL_SERVER_ERROR,
             extensions={"details": AppMessages.UNEXPECTED_ERROR}

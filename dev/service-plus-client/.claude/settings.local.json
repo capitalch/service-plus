@@ -8,7 +8,9 @@
       "Bash(powershell.exe:*)",
       "Bash(grep:*)",
       "Bash(python:*)",
-      "Bash(python3:*)"
+      "Bash(python3:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npx eslint:*)"
     ]
   }
 }

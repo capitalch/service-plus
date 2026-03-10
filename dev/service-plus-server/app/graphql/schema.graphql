@@ -1,6 +1,5 @@
 type Query {
     genericQuery(db_name: String!, schema: String, value: String!): Generic
-    superAdminAdminsData: Generic
     superAdminClientsData: Generic
     superAdminDashboardStats: Generic
 }

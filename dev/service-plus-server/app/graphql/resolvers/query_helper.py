@@ -43,55 +43,6 @@ async def resolve_generic_query_helper(db_name: str, schema: str = "public", val
     return rows
 
 
-async def resolve_super_admin_admins_data_helper():
-    logger.info("Super admin admins data requested")
-
-    client_rows = await exec_sql(db_name=None, schema="public", sql=SqlAuth.GET_CLIENT_DB_NAMES)
-
-    result = []
-    for client_row in client_rows:
-        db_name_val = client_row.get("db_name")
-        db_name_valid = False
-        admins = []
-
-        if db_name_val:
-            exists_rows = await exec_sql(
-                db_name=None, schema="public",
-                sql=SqlAuth.CHECK_DB_NAME_EXISTS,
-                sql_args={"db_name": db_name_val},
-            )
-            if exists_rows and exists_rows[0].get("exists"):
-                db_name_valid = True
-                admin_rows = await exec_sql(
-                    db_name=db_name_val, schema="security",
-                    sql=SqlAuth.GET_ADMIN_USERS,
-                )
-                for a in admin_rows:
-                    admins.append({
-                        "created_at": a["created_at"].isoformat() if a.get("created_at") else None,
-                        "email":      a.get("email"),
-                        "full_name":  a.get("full_name"),
-                        "id":         a.get("id"),
-                        "is_active":  a.get("is_active"),
-                        "mobile":     a.get("mobile"),
-                        "updated_at": a["updated_at"].isoformat() if a.get("updated_at") else None,
-                        "username":   a.get("username"),
-                    })
-
-        result.append({
-            "admins":           admins,
-            "client_code":      client_row.get("code"),
-            "client_id":        client_row.get("id"),
-            "client_is_active": client_row.get("is_active"),
-            "client_name":      client_row.get("name"),
-            "db_name":          db_name_val,
-            "db_name_valid":    db_name_valid,
-        })
-
-    logger.info("Super admin admins data completed successfully")
-    return result
-
-
 async def resolve_super_admin_clients_data_helper():
     logger.info("Super admin clients data requested")
 

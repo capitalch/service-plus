@@ -466,8 +466,8 @@ export const ClientsPage = () => {
 													</Badge>
 													{client.db_name && (
 														client.db_name_valid
-															? <DatabaseIcon className="h-3.5 w-3.5 text-emerald-500" title="Database ready" />
-															: <XCircleIcon className="h-3.5 w-3.5 text-red-400" title="Database not found" />
+															? <span title="Database ready"><DatabaseIcon className="h-3.5 w-3.5 text-emerald-500" /></span>
+															: <span title="Database not found"><XCircleIcon className="h-3.5 w-3.5 text-red-400" /></span>
 													)}
 												</div>
 												{/* Row 2: meta chips */}
@@ -520,15 +520,6 @@ export const ClientsPage = () => {
 												>
 													Initialize
 												</Button>
-												<Button
-													className="h-7 bg-emerald-600 px-2 text-xs text-white hover:bg-emerald-700 disabled:opacity-40"
-													disabled={!canAddAdmin}
-													size="sm"
-													onClick={() => handleCreateAdmin(client)}
-												>
-													<PlusIcon className="mr-1 h-3 w-3" />
-													Add Admin
-												</Button>
 												<DropdownMenu>
 													<DropdownMenuTrigger asChild>
 														<Button className="h-7 w-7 cursor-pointer text-slate-400 hover:text-slate-700" size="icon" variant="ghost">
@@ -537,6 +528,14 @@ export const ClientsPage = () => {
 														</Button>
 													</DropdownMenuTrigger>
 													<DropdownMenuContent align="end" className="w-36">
+														<DropdownMenuItem
+															className="cursor-pointer text-emerald-600 focus:text-emerald-600"
+															disabled={!canAddAdmin}
+															onClick={() => handleCreateAdmin(client)}
+														>
+															Add Admin
+														</DropdownMenuItem>
+														<DropdownMenuSeparator />
 														<DropdownMenuItem className="cursor-pointer" onClick={() => handleView(client)}>View</DropdownMenuItem>
 														<DropdownMenuItem className="cursor-pointer" onClick={() => handleEdit(client)}>Edit</DropdownMenuItem>
 														<DropdownMenuItem

@@ -46,11 +46,6 @@ export const GRAPHQL_MAP = {
             setAdminUserActive(db_name: $db_name, id: $id, is_active: $is_active)
         }
     `,
-    superAdminAdminsData: gql`
-        query SuperAdminAdminsData {
-            superAdminAdminsData
-        }
-    `,
     superAdminClientsData: gql`
         query SuperAdminClientsData {
             superAdminClientsData
