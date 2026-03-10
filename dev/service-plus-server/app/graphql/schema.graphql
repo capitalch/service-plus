@@ -1,5 +1,6 @@
 type Query {
     genericQuery(db_name: String!, schema: String, value: String!): Generic
+    superAdminAdminsData: Generic
     superAdminClientsData: Generic
     superAdminDashboardStats: Generic
 }
@@ -7,7 +8,11 @@ type Query {
 type Mutation {
     createAdminUser(db_name: String!, email: String!, full_name: String!, mobile: String): Generic
     createServiceDb(client_id: Int!, db_name: String!): Generic
+    deleteClient(client_id: Int!): Generic
+    dropDatabase(db_name: String!): Generic
     genericUpdate(db_name: String!, schema: String, value: String!): Generic
+    setAdminUserActive(db_name: String!, id: Int!, is_active: Boolean!): Generic
+    updateAdminUser(db_name: String!, email: String!, full_name: String!, id: Int!, mobile: String): Generic
 }
 
 type Subscription {

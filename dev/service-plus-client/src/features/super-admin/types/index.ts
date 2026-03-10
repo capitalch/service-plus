@@ -4,6 +4,7 @@ export type ClientType = {
     activeAdminCount: number;
     address_line1: string | null;
     address_line2: string | null;
+    admins: ClientAdminType[];
     city: string | null;
     code: string;
     country_code: string | null;
@@ -36,6 +37,29 @@ export type StatsType = {
     totalBu: number;
     totalClients: number;
     totalUsers: number;
+};
+
+// ─── Client Admin User (used in Admins page) ──────────────────────────────────
+
+export type ClientAdminType = {
+    created_at: string;
+    email: string;
+    full_name: string;
+    id: number;
+    is_active: boolean;
+    mobile: string | null;
+    updated_at: string;
+    username: string;
+};
+
+export type ClientWithAdminsType = {
+    admins: ClientAdminType[];
+    client_code: string;
+    client_id: number;
+    client_is_active: boolean;
+    client_name: string;
+    db_name: string | null;
+    db_name_valid: boolean;
 };
 
 // ─── Admin Users (maps to User + UserBuRole + Role in db-schema-security) ─────

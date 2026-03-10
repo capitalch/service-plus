@@ -14,6 +14,101 @@ from app.logger import logger
 
 
 
+async def resolve_delete_client_helper(client_id: int) -> dict:
+    # 1. Fetch client row for server-side guard
+    client_rows = await exec_sql(
+        db_name=None, schema="public",
+        sql=SqlAuth.GET_CLIENT_BY_ID,
+        sql_args={"id": client_id},
+    )
+    if not client_rows:
+        raise ValidationException(message=AppMessages.NOT_FOUND)
+
+    client = client_rows[0]
+    if client.get("is_active"):
+        raise ValidationException(
+            message=AppMessages.CLIENT_MUST_BE_DISABLED,
+            extensions={"field": "is_active"},
+        )
+
+    # 2. Drop the associated database if present
+    db_name_val = client.get("db_name")
+    if db_name_val:
+        logger.info(f"Dropping client database: {db_name_val}")
+        await exec_sql_dml(
+            db_name=None, schema="public",
+            sql=pgsql.SQL("DROP DATABASE IF EXISTS {}").format(pgsql.Identifier(db_name_val)),
+        )
+
+    # 3. Delete the client row
+    await exec_sql(
+        db_name=None, schema="public",
+        sql=SqlAuth.DELETE_CLIENT,
+        sql_args={"id": client_id},
+    )
+
+    logger.info(f"Client id={client_id} deleted")
+    return {"id": client_id}
+
+
+async def resolve_drop_database_helper(db_name: str) -> dict:
+    """
+    Physically drop an orphan PostgreSQL database.
+
+    Validates that the database name follows the service_plus_* pattern,
+    is not currently linked to any client, and exists before dropping.
+
+    Args:
+        db_name: Name of the database to drop.
+
+    Returns:
+        Dict with the dropped db_name.
+
+    Raises:
+        ValidationException: If name is invalid, still in use, or not found.
+    """
+    # 1. Validate format
+    if not re.match(r"^service_plus_[a-z0-9_]+$", db_name):
+        raise ValidationException(
+            message=AppMessages.INVALID_INPUT,
+            extensions={"detail": "Database name must match ^service_plus_[a-z0-9_]+$", "field": "db_name"},
+        )
+
+    # 2. Safety check — refuse to drop if still linked to a client
+    in_use_rows = await exec_sql(
+        db_name=None, schema="public",
+        sql=SqlAuth.CHECK_CLIENT_DB_NAME_IN_USE,
+        sql_args={"db_name": db_name},
+    )
+    if in_use_rows and in_use_rows[0].get("exists"):
+        raise ValidationException(
+            message=AppMessages.DB_DROP_FORBIDDEN,
+            extensions={"field": "db_name"},
+        )
+
+    # 3. Verify database exists
+    exists_rows = await exec_sql(
+        db_name=None, schema="public",
+        sql=SqlAuth.CHECK_DB_NAME_EXISTS,
+        sql_args={"db_name": db_name},
+    )
+    if not (exists_rows and exists_rows[0].get("exists")):
+        raise ValidationException(
+            message=AppMessages.RESOURCE_NOT_FOUND,
+            extensions={"field": "db_name"},
+        )
+
+    # 4. DROP DATABASE (requires autocommit)
+    logger.info(f"Dropping orphan database: {db_name}")
+    await exec_sql_dml(
+        db_name=None, schema="public",
+        sql=pgsql.SQL("DROP DATABASE {}").format(pgsql.Identifier(db_name)),
+    )
+
+    logger.info(f"Orphan database dropped: {db_name}")
+    return {"db_name": db_name}
+
+
 async def resolve_create_admin_user_helper(
     db_name: str,
     email: str,
@@ -149,6 +244,49 @@ async def resolve_create_service_db_helper(client_id: int, db_name: str) -> dict
 
     logger.info(f"Client {client_id} successfully initiated with db: {db_name}")
     return {"db_name": db_name, "id": client_id}
+
+
+async def resolve_set_admin_user_active_helper(db_name: str, id: int, is_active: bool) -> dict:
+    rows = await exec_sql(
+        db_name=db_name, schema="security",
+        sql=SqlAuth.SET_ADMIN_USER_ACTIVE,
+        sql_args={"id": id, "is_active": is_active},
+    )
+    if not rows:
+        raise ValidationException(
+            message=AppMessages.ADMIN_USER_NOT_FOUND,
+            extensions={"field": "id"},
+        )
+    logger.info(f"Admin user id={id} is_active set to {is_active} in {db_name}")
+    return rows[0]
+
+
+async def resolve_update_admin_user_helper(
+    db_name: str, id: int, full_name: str, email: str, mobile: str | None
+) -> dict:
+    dup_rows = await exec_sql(
+        db_name=db_name, schema="security",
+        sql=SqlAuth.CHECK_ADMIN_EMAIL_EXISTS_EXCLUDE_ID,
+        sql_args={"email": email, "id": id},
+    )
+    if dup_rows and dup_rows[0].get("exists"):
+        raise ValidationException(
+            message=AppMessages.ADMIN_EMAIL_EXISTS,
+            extensions={"field": "email"},
+        )
+
+    rows = await exec_sql(
+        db_name=db_name, schema="security",
+        sql=SqlAuth.UPDATE_ADMIN_USER,
+        sql_args={"email": email, "full_name": full_name, "id": id, "mobile": mobile or ""},
+    )
+    if not rows:
+        raise ValidationException(
+            message=AppMessages.ADMIN_USER_NOT_FOUND,
+            extensions={"field": "id"},
+        )
+    logger.info(f"Admin user id={id} updated in {db_name}")
+    return rows[0]
 
 
 async def resolve_generic_update_helper(db_name: str, schema: str = "public", value: str = "") -> int | None:

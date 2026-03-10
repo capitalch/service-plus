@@ -4,7 +4,11 @@
       "Bash(pnpm dlx:*)",
       "mcp__ide__getDiagnostics",
       "Bash(pnpm tsc:*)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "Bash(powershell.exe:*)",
+      "Bash(grep:*)",
+      "Bash(python:*)",
+      "Bash(python3:*)"
     ]
   }
 }

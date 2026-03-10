@@ -43,6 +43,55 @@ async def resolve_generic_query_helper(db_name: str, schema: str = "public", val
     return rows
 
 
+async def resolve_super_admin_admins_data_helper():
+    logger.info("Super admin admins data requested")
+
+    client_rows = await exec_sql(db_name=None, schema="public", sql=SqlAuth.GET_CLIENT_DB_NAMES)
+
+    result = []
+    for client_row in client_rows:
+        db_name_val = client_row.get("db_name")
+        db_name_valid = False
+        admins = []
+
+        if db_name_val:
+            exists_rows = await exec_sql(
+                db_name=None, schema="public",
+                sql=SqlAuth.CHECK_DB_NAME_EXISTS,
+                sql_args={"db_name": db_name_val},
+            )
+            if exists_rows and exists_rows[0].get("exists"):
+                db_name_valid = True
+                admin_rows = await exec_sql(
+                    db_name=db_name_val, schema="security",
+                    sql=SqlAuth.GET_ADMIN_USERS,
+                )
+                for a in admin_rows:
+                    admins.append({
+                        "created_at": a["created_at"].isoformat() if a.get("created_at") else None,
+                        "email":      a.get("email"),
+                        "full_name":  a.get("full_name"),
+                        "id":         a.get("id"),
+                        "is_active":  a.get("is_active"),
+                        "mobile":     a.get("mobile"),
+                        "updated_at": a["updated_at"].isoformat() if a.get("updated_at") else None,
+                        "username":   a.get("username"),
+                    })
+
+        result.append({
+            "admins":           admins,
+            "client_code":      client_row.get("code"),
+            "client_id":        client_row.get("id"),
+            "client_is_active": client_row.get("is_active"),
+            "client_name":      client_row.get("name"),
+            "db_name":          db_name_val,
+            "db_name_valid":    db_name_valid,
+        })
+
+    logger.info("Super admin admins data completed successfully")
+    return result
+
+
 async def resolve_super_admin_clients_data_helper():
     logger.info("Super admin clients data requested")
 
@@ -52,10 +101,13 @@ async def resolve_super_admin_clients_data_helper():
     client_rows = await exec_sql(db_name=None, schema="public", sql=SqlAuth.GET_CLIENT_DB_NAMES)
 
     clients_data = []
+    total_active_admins   = 0
+    total_inactive_admins = 0
 
     for client_row in client_rows:
         db_name_val = client_row.get("db_name")
         active_admin   = 0
+        admins         = []
         inactive_admin = 0
 
         db_name_valid = False
@@ -68,13 +120,30 @@ async def resolve_super_admin_clients_data_helper():
                     r = bu_rows[0]
                     active_admin   = r.get("active_admin_users", 0)
                     inactive_admin = r.get("inactive_admin_users", 0)
+
+                admin_rows = await exec_sql(db_name=db_name_val, schema="security", sql=SqlAuth.GET_ADMIN_USERS)
+                for a in admin_rows:
+                    admins.append({
+                        "created_at": a["created_at"].isoformat() if a.get("created_at") else None,
+                        "email":      a.get("email"),
+                        "full_name":  a.get("full_name"),
+                        "id":         a.get("id"),
+                        "is_active":  a.get("is_active"),
+                        "mobile":     a.get("mobile"),
+                        "updated_at": a["updated_at"].isoformat() if a.get("updated_at") else None,
+                        "username":   a.get("username"),
+                    })
             else:
                 logger.warning(f"Database '{db_name_val}' not found – flagging client")
+
+        total_active_admins   += active_admin
+        total_inactive_admins += inactive_admin
 
         clients_data.append({
             "activeAdminCount":   active_admin,
             "address_line1":      client_row.get("address_line1"),
             "address_line2":      client_row.get("address_line2"),
+            "admins":             admins,
             "city":               client_row.get("city"),
             "code":               client_row.get("code"),
             "country_code":       client_row.get("country_code"),
@@ -94,12 +163,20 @@ async def resolve_super_admin_clients_data_helper():
             "updated_at":         client_row["updated_at"].isoformat() if client_row.get("updated_at") else None,
         })
 
+    orphan_rows = await exec_sql(db_name=None, schema="public", sql=SqlAuth.GET_ORPHAN_DATABASES)
+    orphan_databases = [row["datname"] for row in orphan_rows]
+
     logger.info("Super admin clients data completed successfully")
     return {
-        "activeClients":   client_stats.get("active_clients", 0),
-        "clients":         clients_data,
-        "inactiveClients": client_stats.get("inactive_clients", 0),
-        "totalClients":    client_stats.get("total_clients", 0),
+        "activeAdmins":        total_active_admins,
+        "activeClients":       client_stats.get("active_clients", 0),
+        "clients":             clients_data,
+        "inactiveAdmins":      total_inactive_admins,
+        "inactiveClients":     client_stats.get("inactive_clients", 0),
+        "orphanDatabaseCount": len(orphan_databases),
+        "orphanDatabases":     orphan_databases,
+        "totalAdmins":         total_active_admins + total_inactive_admins,
+        "totalClients":        client_stats.get("total_clients", 0),
     }
 
 

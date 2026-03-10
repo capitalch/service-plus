@@ -25,6 +25,7 @@ class AppMessages:
 
     # Error messages - Not Found
     CLIENT_NOT_FOUND = "Client not found"
+    NOT_FOUND = "Record not found."
     CUSTOMER_NOT_FOUND = "Customer not found"
     DEVICE_NOT_FOUND = "Device not found"
     RESOURCE_NOT_FOUND = "Requested resource not found"
@@ -36,6 +37,7 @@ class AppMessages:
 
     # Error messages - Validation
     CLIENT_CODE_EXISTS = "A client with this code already exists"
+    CLIENT_MUST_BE_DISABLED = "Client must be disabled before deletion."
     CLIENT_DB_NAME_EXISTS = "A client with this database name already exists"
     CLIENT_NAME_EXISTS = "A client with this name already exists"
     VALIDATION_ERROR = "Validation error occurred"
@@ -45,6 +47,9 @@ class AppMessages:
     INVALID_DATE_FORMAT = "Invalid date format"
 
     # Error messages - Authorization / Authentication
+    ADMIN_EMAIL_EXISTS = "This email is already registered for this client"
+    ADMIN_USER_NOT_FOUND = "Admin user not found"
+    ADMIN_USER_UPDATE_FAILED = "Failed to update admin user"
     UNAUTHORIZED = "Unauthorized access"
     FORBIDDEN = "Access forbidden"
     INVALID_CREDENTIALS = "Invalid credentials provided"
@@ -65,6 +70,9 @@ class AppMessages:
     # Error messages - Database
     DATABASE_CONNECTION_FAILED = "Failed to connect to database"
     DATABASE_QUERY_FAILED = "Database query failed"
+    DB_DROP_FAILED = "Failed to drop the database"
+    DB_DROP_FORBIDDEN = "Cannot drop a database that is still linked to a client"
+    DB_NOT_ORPHAN = "Database is not an orphan — it is still linked to a client"
     DUPLICATE_ENTRY = "Duplicate entry exists"
 
     # Success messages

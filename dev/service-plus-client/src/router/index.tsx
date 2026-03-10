@@ -5,7 +5,6 @@ import LoginPage from '../features/auth/pages/login-page';
 import NotFoundPage from '../pages/not-found-page';
 import { SuperAdminDashboard } from '@/features/super-admin/pages/super-admin-dashboard-page';
 import { ClientsPage } from '@/features/super-admin/pages/clients-page';
-import { AdminsPage } from '@/features/super-admin/pages/admins-page';
 import { UsageHealthPage } from '@/features/super-admin/pages/usage-health-page';
 import { AuditLogsPage } from '@/features/super-admin/pages/audit-logs-page';
 import { SystemSettingsPage } from '@/features/super-admin/pages/system-settings-page';
@@ -42,7 +41,6 @@ export const router = createBrowserRouter([
     children: [
       { element: <SuperAdminDashboard />, index: true },
       { element: <ClientsPage />, path: 'clients' },
-      { element: <AdminsPage />, path: 'admins' },
       { element: <UsageHealthPage />, path: 'usage' },
       { element: <AuditLogsPage />, path: 'audit' },
       { element: <SystemSettingsPage />, path: 'settings' },

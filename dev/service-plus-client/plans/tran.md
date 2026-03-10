@@ -1,15 +1,9 @@
-# for clients menu item initiate button
-- Create a ui which is 2 step process:
-    - Step 1: create db
-        - if no db_name is present, show this section only, don't show admin section
-        - prompt the db_name as service_plus_<client_code> and it should be unique for each client
-        - before submit check if the db_name is already exists or not and don't allow to submit if it exists. Give proper message.
-    - Step 2: create admin
-        - if db_name is present, show this section only, don't show db section
-        - prompt the admin details: 
-            - full_name
-            - email
-            - mobile
-    - When Step 1 is completed successfully, show Step 2
-    - When Step 2 is completed successfully, show a success message and close the dialog. Then refesh the clients table.
+# for Admins menu item
+- Role field is not required because it has all powers
+- I want to see admin users client wise:
+    - Show all the clients and then their corresponding admin users
+    - Options to add a new admin user for a client
+    - Options to edit an existing admin user for a client
+    - Options to deactiva / activate an existing admin user for a client
+- Creation of admin will be same as implemented in clients section
 

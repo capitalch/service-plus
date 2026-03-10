@@ -9,13 +9,30 @@ from app.exceptions import ValidationException, GraphQLException, AppMessages
 from app.graphql.resolvers.mutation_helper import (
     resolve_create_admin_user_helper,
     resolve_create_service_db_helper,
+    resolve_delete_client_helper,
+    resolve_drop_database_helper,
     resolve_generic_update_helper,
+    resolve_set_admin_user_active_helper,
+    resolve_update_admin_user_helper,
 )
 # from app.graphql.pubsub import pubsub
 
 
 # Create MutationType instance
 mutation = MutationType()
+
+
+@mutation.field("deleteClient")
+async def resolve_delete_client(_, info, client_id: int) -> Any:
+    try:
+        return await resolve_delete_client_helper(client_id)
+    except ValidationException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting client: {str(e)}")
+        raise GraphQLException(
+            message=AppMessages.OPERATION_FAILED, extensions={"details": str(e)}
+        )
 
 
 @mutation.field("createAdminUser")
@@ -75,6 +92,55 @@ async def resolve_create_service_db(_, info, client_id: int, db_name: str) -> An
         logger.error(f"Error creating service database: {str(e)}")
         raise GraphQLException(
             message=AppMessages.OPERATION_FAILED, extensions={"details": str(e)}
+        )
+
+
+@mutation.field("dropDatabase")
+async def resolve_drop_database(_, info, db_name: str) -> Any:
+    """Physically drop an orphan PostgreSQL database.
+
+    Args:
+        db_name: Name of the orphan database to drop.
+
+    Returns:
+        Dict with the dropped db_name.
+    """
+    try:
+        return await resolve_drop_database_helper(db_name)
+    except ValidationException:
+        raise
+    except Exception as e:
+        logger.error(f"Error dropping database: {str(e)}")
+        raise GraphQLException(
+            message=AppMessages.DB_DROP_FAILED, extensions={"details": str(e)}
+        )
+
+
+@mutation.field("setAdminUserActive")
+async def resolve_set_admin_user_active(_, info, db_name: str, id: int, is_active: bool) -> Any:
+    try:
+        return await resolve_set_admin_user_active_helper(db_name, id, is_active)
+    except ValidationException:
+        raise
+    except Exception as e:
+        logger.error(f"Error setting admin user active: {str(e)}")
+        raise GraphQLException(
+            message=AppMessages.OPERATION_FAILED, extensions={"details": str(e)}
+        )
+
+
+@mutation.field("updateAdminUser")
+async def resolve_update_admin_user(
+    _, info, db_name: str, email: str, full_name: str, id: int, mobile: str | None = None
+) -> Any:
+    try:
+        return await resolve_update_admin_user_helper(db_name, id, full_name, email, mobile)
+    except ValidationException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating admin user: {str(e)}")
+        raise GraphQLException(
+            message=AppMessages.ADMIN_USER_UPDATE_FAILED, extensions={"details": str(e)}
         )
 
 

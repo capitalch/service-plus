@@ -8,6 +8,17 @@ class SqlAuth:
         ) AS exists
     """
 
+    CHECK_ADMIN_EMAIL_EXISTS_EXCLUDE_ID = """
+        with
+            "p_email" as (values(%(email)s::text)),
+            "p_id"    as (values(%(id)s::bigint))
+        SELECT EXISTS(
+            SELECT 1 FROM security."user"
+            WHERE LOWER(email) = LOWER((table "p_email"))
+              AND id <> (table "p_id")
+        ) AS exists
+    """
+
     CHECK_CLIENT_CODE_EXISTS = """
         with "p_code" as (values(%(code)s::text))
         -- with "p_code" as (values('ACME01'::text)) -- Test line
@@ -52,6 +63,13 @@ class SqlAuth:
         ) AS exists
     """
 
+    CHECK_CLIENT_DB_NAME_IN_USE = """
+        with "p_db_name" as (values(%(db_name)s::text))
+        SELECT EXISTS(
+            SELECT 1 FROM public.client WHERE db_name = (table "p_db_name")
+        ) AS exists
+    """
+
     CHECK_DB_NAME_EXISTS = """
         with "db_name" as (values(%(db_name)s::text))
         -- with "db_name" as (values('service_plus_service'::text)) -- Test line
@@ -64,6 +82,32 @@ class SqlAuth:
         SELECT EXISTS(
             SELECT 1 FROM security.role LIMIT 1
         ) AS exists
+    """
+
+    DELETE_CLIENT = """
+        with "p_id" as (values(%(id)s::int))
+        -- with "p_id" as (values(1::int)) -- Test line
+        DELETE FROM public.client
+        WHERE id = (table "p_id")
+        RETURNING id
+    """
+
+    GET_ORPHAN_DATABASES = """
+        SELECT datname
+        FROM pg_database
+        WHERE datname LIKE 'service_plus_%%'
+          AND datname <> 'service_plus_client'
+          AND datname NOT IN (
+              SELECT db_name FROM public.client WHERE db_name IS NOT NULL
+          )
+        ORDER BY datname
+    """
+
+    GET_ADMIN_USERS = """
+        SELECT id, username, email, mobile, full_name, is_active, created_at, updated_at
+        FROM security."user"
+        WHERE is_admin = true
+        ORDER BY full_name
     """
 
     GET_ALL_CLIENTS_ON_CRITERIA = """
@@ -91,6 +135,14 @@ class SqlAuth:
             (SELECT COUNT(*) FILTER (WHERE NOT is_active) FROM security."user")                          AS inactive_users
     """
 
+    GET_CLIENT_BY_ID = """
+        with "p_id" as (values(%(id)s::int))
+        -- with "p_id" as (values(1::int)) -- Test line
+        SELECT id, name, is_active, db_name
+        FROM public.client
+        WHERE id = (table "p_id")
+    """
+
     GET_CLIENT_DB_NAMES = """
         SELECT id, code, name, is_active, db_name,
                address_line1, address_line2, city, country_code,
@@ -106,6 +158,31 @@ class SqlAuth:
             COUNT(*) FILTER (WHERE is_active)     AS active_clients,
             COUNT(*) FILTER (WHERE NOT is_active) AS inactive_clients
         FROM public.client
+    """
+
+    SET_ADMIN_USER_ACTIVE = """
+        with
+            "p_id"        as (values(%(id)s::bigint)),
+            "p_is_active" as (values(%(is_active)s::boolean))
+        UPDATE security."user"
+        SET is_active = (table "p_is_active"), updated_at = now()
+        WHERE id = (table "p_id") AND is_admin = true
+        RETURNING id, is_active, updated_at
+    """
+
+    UPDATE_ADMIN_USER = """
+        with
+            "p_id"        as (values(%(id)s::bigint)),
+            "p_full_name" as (values(%(full_name)s::text)),
+            "p_email"     as (values(%(email)s::text)),
+            "p_mobile"    as (values(%(mobile)s::text))
+        UPDATE security."user"
+        SET full_name = (table "p_full_name"),
+            email     = (table "p_email"),
+            mobile    = NULLIF((table "p_mobile"), ''),
+            updated_at = now()
+        WHERE id = (table "p_id") AND is_admin = true
+        RETURNING id, email, full_name, mobile, updated_at
     """
 
     UPDATE_CLIENT_DB_NAME = """

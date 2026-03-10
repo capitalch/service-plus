@@ -17,7 +17,7 @@ import type { ClientType } from "@/features/super-admin/types";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type EnableClientDialogPropsType = {
+type DeactivateClientDialogPropsType = {
 	client: ClientType | null;
 	onOpenChange: (open: boolean) => void;
 	onSuccess: () => void;
@@ -26,7 +26,7 @@ type EnableClientDialogPropsType = {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export const EnableClientDialog = ({ client, onOpenChange, onSuccess, open }: EnableClientDialogPropsType) => {
+export const DeactivateClientDialog = ({ client, onOpenChange, onSuccess, open }: DeactivateClientDialogPropsType) => {
 	const [executeGenericUpdate, { loading: mutating }] = useMutation(GRAPHQL_MAP.genericUpdate);
 
 	if (!client) return null;
@@ -40,19 +40,19 @@ export const EnableClientDialog = ({ client, onOpenChange, onSuccess, open }: En
 					schema: "public",
 					value: graphQlUtils.buildGenericUpdateValue({
 						tableName: "client",
-						xData: { id: client.id, is_active: true },
+						xData: { id: client.id, is_active: false },
 					}),
 				},
 			});
 			if (result.errors?.length) {
-				toast.error(MESSAGES.ERROR_CLIENT_ENABLE_FAILED);
+				toast.error(MESSAGES.ERROR_CLIENT_DEACTIVATE_FAILED);
 				return;
 			}
-			toast.success(MESSAGES.SUCCESS_CLIENT_ENABLED);
+			toast.success(MESSAGES.SUCCESS_CLIENT_DEACTIVATED);
 			onSuccess();
 			onOpenChange(false);
 		} catch {
-			toast.error(MESSAGES.ERROR_CLIENT_ENABLE_FAILED);
+			toast.error(MESSAGES.ERROR_CLIENT_DEACTIVATE_FAILED);
 		}
 	}
 
@@ -60,12 +60,16 @@ export const EnableClientDialog = ({ client, onOpenChange, onSuccess, open }: En
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent className="sm:max-w-md">
 				<DialogHeader>
-					<DialogTitle>Enable Client</DialogTitle>
+					<DialogTitle>Deactivate Client</DialogTitle>
 					<DialogDescription>
-						Are you sure you want to enable <span className="font-semibold text-slate-800">{client.name}</span>?
-						This will restore access for all users.
+						Are you sure you want to deactivate <span className="font-semibold text-slate-800">{client.name}</span>?
+						This will prevent all users from logging in.
 					</DialogDescription>
 				</DialogHeader>
+
+				<p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
+					This action can be reversed by activating the client again.
+				</p>
 
 				<DialogFooter>
 					<Button
@@ -76,11 +80,12 @@ export const EnableClientDialog = ({ client, onOpenChange, onSuccess, open }: En
 						Cancel
 					</Button>
 					<Button
-						className="bg-emerald-600 text-white hover:bg-emerald-700"
+						className="border border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100 hover:text-amber-800"
 						disabled={mutating}
+						variant="outline"
 						onClick={handleConfirm}
 					>
-						{mutating ? "Enabling..." : "Enable"}
+						{mutating ? "Deactivating..." : "Deactivate"}
 					</Button>
 				</DialogFooter>
 			</DialogContent>
