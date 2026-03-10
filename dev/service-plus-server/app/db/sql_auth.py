@@ -8,6 +8,14 @@ class SqlAuth:
         ) AS exists
     """
 
+    CHECK_ADMIN_USERNAME_EXISTS = """
+        with "p_username" as (values(%(username)s::text))
+        SELECT EXISTS(
+            SELECT 1 FROM security."user"
+            WHERE LOWER(username) = LOWER((table "p_username"))
+        ) AS exists
+    """
+
     CHECK_ADMIN_EMAIL_EXISTS_EXCLUDE_ID = """
         with
             "p_email" as (values(%(email)s::text)),

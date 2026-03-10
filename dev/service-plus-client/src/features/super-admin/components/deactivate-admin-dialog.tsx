@@ -49,7 +49,7 @@ export const DeactivateAdminDialog = ({
                 mutation: GRAPHQL_MAP.setAdminUserActive,
                 variables: { db_name: dbName, id: admin.id, is_active: false },
             });
-            if (result.errors?.length) {
+            if (result.error) {
                 toast.error(MESSAGES.ERROR_ADMIN_DEACTIVATE_FAILED);
                 return;
             }

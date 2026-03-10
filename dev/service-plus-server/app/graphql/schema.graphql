@@ -5,7 +5,7 @@ type Query {
 }
 
 type Mutation {
-    createAdminUser(db_name: String!, email: String!, full_name: String!, mobile: String): Generic
+    createAdminUser(db_name: String!, email: String!, full_name: String!, mobile: String, username: String!): Generic
     createServiceDb(client_id: Int!, db_name: String!): Generic
     deleteClient(client_id: Int!): Generic
     dropDatabase(db_name: String!): Generic

@@ -49,7 +49,7 @@ export const ActivateAdminDialog = ({
                 mutation: GRAPHQL_MAP.setAdminUserActive,
                 variables: { db_name: dbName, id: admin.id, is_active: true },
             });
-            if (result.errors?.length) {
+            if (result.error) {
                 toast.error(MESSAGES.ERROR_ADMIN_ACTIVATE_FAILED);
                 return;
             }

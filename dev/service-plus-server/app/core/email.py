@@ -1,15 +1,4 @@
-"""
-Email utility: async wrapper around smtplib for sending plain-text emails.
-
-Configuration (environment variables / .env):
-    SMTP_HOST     - SMTP server host (default: localhost)
-    SMTP_PORT     - SMTP server port (default: 587)
-    SMTP_USER     - SMTP login username (optional)
-    SMTP_PASSWORD - SMTP login password (optional)
-    SMTP_FROM     - Sender address (default: noreply@localhost)
-
-If SMTP_HOST is not set, email sending is skipped and a warning is logged.
-"""
+"""Email utility: async wrapper around smtplib for sending plain-text emails."""
 
 import asyncio
 import smtplib

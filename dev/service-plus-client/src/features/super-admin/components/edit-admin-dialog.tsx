@@ -150,7 +150,7 @@ export const EditAdminDialog = ({
                     mobile: values.mobile || null,
                 },
             });
-            if (result.errors?.length) {
+            if (result.error) {
                 toast.error(MESSAGES.ERROR_ADMIN_UPDATE_FAILED);
                 return;
             }

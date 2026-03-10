@@ -129,7 +129,7 @@ export const DeleteClientDialog = ({ client, onOpenChange, onSuccess, open }: De
 				mutation: GRAPHQL_MAP.deleteClient,
 				variables: { client_id: client.id },
 			});
-			if (result.errors?.length) {
+			if (result.error) {
 				toast.error(MESSAGES.ERROR_CLIENT_DELETE_FAILED);
 				return;
 			}

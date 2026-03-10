@@ -161,7 +161,7 @@ export const AttachDbDialog = ({ client, onOpenChange, onSuccess, open }: Attach
 					}),
 				},
 			});
-			if (result.errors?.length) {
+			if (result.error) {
 				toast.error(MESSAGES.ERROR_CLIENT_ATTACH_DB_FAILED);
 				return;
 			}

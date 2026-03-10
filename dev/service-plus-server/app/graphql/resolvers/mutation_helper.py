@@ -114,16 +114,18 @@ async def resolve_create_admin_user_helper(
     email: str,
     full_name: str,
     mobile: str | None,
+    username: str,
 ) -> dict:
     """
-    Auto-generate credentials, hash the password, insert a new admin user into
-    security.user of the specified client database, and email the credentials.
+    Hash the password, insert a new admin user into security.user of the
+    specified client database, and email the credentials.
 
     Args:
         db_name:   Service database name.
         email:     User email (unique). Credentials are sent here.
         full_name: User full name.
         mobile:    User mobile number (optional).
+        username:  Username supplied by the SA (unique within the client DB).
 
     Returns:
         Dict with the newly created user id.
@@ -132,12 +134,6 @@ async def resolve_create_admin_user_helper(
         ValidationException: If required fields are missing.
         DatabaseException:   On any database error.
     """
-    # Derive username from email local-part
-    local = email.split("@")[0]
-    username = re.sub(r"[^a-zA-Z0-9_]", "", local).lower()[:30] or "admin"
-    if username and username[0].isdigit():
-        username = "adm_" + username
-
     # Generate temporary password and hash it
     temp_password = secrets.token_urlsafe(9)
     password_hash = hash_password(temp_password)
@@ -164,13 +160,11 @@ async def resolve_create_admin_user_helper(
     try:
         await send_email(
             to=email,
-            subject="Your Admin Account Credentials",
-            body=(
-                f"Hello {full_name},\n\n"
-                f"Your admin account has been created.\n\n"
-                f"  Username : {username}\n"
-                f"  Password : {temp_password}\n\n"
-                f"Please log in and change your password immediately.\n"
+            subject=AppMessages.EMAIL_ADMIN_CREDENTIALS_SUBJECT,
+            body=AppMessages.EMAIL_ADMIN_CREDENTIALS_BODY.format(
+                full_name=full_name,
+                username=username,
+                password=temp_password,
             ),
         )
     except Exception as mail_err:

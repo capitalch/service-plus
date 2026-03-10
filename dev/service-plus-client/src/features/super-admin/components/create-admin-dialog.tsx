@@ -20,7 +20,7 @@ import type { ClientType } from "@/features/super-admin/types/index";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type CheckEmailQueryDataType = {
+type CheckQueryDataType = {
 	genericQuery: { exists: boolean }[] | null;
 };
 
@@ -39,6 +39,11 @@ const createAdminSchema = z.object({
 	email: z.string().email({ message: MESSAGES.ERROR_EMAIL_INVALID }),
 	full_name: z.string().min(1, MESSAGES.ERROR_FULL_NAME_REQUIRED),
 	mobile: z.string().optional(),
+	username: z
+		.string()
+		.min(1, MESSAGES.ERROR_ADMIN_USERNAME_REQUIRED)
+		.min(5, MESSAGES.ERROR_USERNAME_MIN_LENGTH)
+		.regex(/^[a-zA-Z0-9]+$/, MESSAGES.ERROR_USERNAME_INVALID_FORMAT),
 });
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -69,11 +74,13 @@ export const CreateAdminDialog = ({
 	open,
 }: CreateAdminDialogPropsType) => {
 	const [checkingEmail, setCheckingEmail] = useState(false);
+	const [checkingUsername, setCheckingUsername] = useState(false);
 	const [emailTaken, setEmailTaken] = useState<boolean | null>(null);
 	const [submitting, setSubmitting] = useState(false);
+	const [usernameTaken, setUsernameTaken] = useState<boolean | null>(null);
 
 	const form = useForm<CreateAdminFormType>({
-		defaultValues: { email: "", full_name: "", mobile: "" },
+		defaultValues: { email: "", full_name: "", mobile: "", username: "" },
 		mode: "onChange",
 		resolver: zodResolver(createAdminSchema),
 	});
@@ -81,7 +88,55 @@ export const CreateAdminDialog = ({
 	const { formState: { errors } } = form;
 
 	const emailValue = useWatch({ control: form.control, name: "email" });
+	const usernameValue = useWatch({ control: form.control, name: "username" });
 	const debouncedEmail = useDebounce(emailValue, 1200);
+	const debouncedUsername = useDebounce(usernameValue, 1200);
+
+	// Debounced username uniqueness check
+	useEffect(() => {
+		if (!debouncedUsername) {
+			setUsernameTaken(null);
+			return;
+		}
+		const { invalid } = form.getFieldState("username");
+		if (invalid) {
+			setUsernameTaken(null);
+			return;
+		}
+		setCheckingUsername(true);
+		setUsernameTaken(null);
+		apolloClient
+			.query<CheckQueryDataType>({
+				fetchPolicy: "network-only",
+				query: GRAPHQL_MAP.genericQuery,
+				variables: {
+					db_name: client.db_name,
+					schema: "security",
+					value: graphQlUtils.buildGenericQueryValue({
+						sqlArgs: { username: debouncedUsername },
+						sqlId: SQL_MAP.CHECK_ADMIN_USERNAME_EXISTS,
+					}),
+				},
+			})
+			.then((res) => {
+				const exists = res.data?.genericQuery?.[0]?.exists ?? false;
+				setUsernameTaken(exists);
+				if (exists) {
+					form.setError("username", {
+						message: MESSAGES.ERROR_ADMIN_USERNAME_EXISTS,
+						type: "manual",
+					});
+				} else {
+					form.clearErrors("username");
+				}
+			})
+			.catch(() => {
+				setUsernameTaken(null);
+			})
+			.finally(() => {
+				setCheckingUsername(false);
+			});
+	}, [debouncedUsername]); // eslint-disable-line react-hooks/exhaustive-deps
 
 	// Debounced email uniqueness check
 	useEffect(() => {
@@ -97,7 +152,7 @@ export const CreateAdminDialog = ({
 		setCheckingEmail(true);
 		setEmailTaken(null);
 		apolloClient
-			.query<CheckEmailQueryDataType>({
+			.query<CheckQueryDataType>({
 				fetchPolicy: "network-only",
 				query: GRAPHQL_MAP.genericQuery,
 				variables: {
@@ -133,9 +188,11 @@ export const CreateAdminDialog = ({
 	useEffect(() => {
 		if (!open) {
 			setCheckingEmail(false);
+			setCheckingUsername(false);
 			setEmailTaken(null);
 			setSubmitting(false);
-			form.reset({ email: "", full_name: "", mobile: "" });
+			setUsernameTaken(null);
+			form.reset({ email: "", full_name: "", mobile: "", username: "" });
 		}
 	}, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -149,9 +206,10 @@ export const CreateAdminDialog = ({
 					email: data.email,
 					full_name: data.full_name,
 					mobile: data.mobile || null,
+					username: data.username,
 				},
 			});
-			if (result.errors?.length) {
+			if (result.error) {
 				toast.error(MESSAGES.ERROR_CREATE_ADMIN_FAILED);
 				return;
 			}
@@ -168,8 +226,10 @@ export const CreateAdminDialog = ({
 	const submitDisabled =
 		submitting ||
 		checkingEmail ||
+		checkingUsername ||
 		Object.keys(errors).length > 0 ||
-		emailTaken === true;
+		emailTaken === true ||
+		usernameTaken === true;
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
@@ -202,6 +262,29 @@ export const CreateAdminDialog = ({
 							disabled={submitting}
 						/>
 						<FieldError message={errors.full_name?.message} />
+					</div>
+
+					{/* Username */}
+					<div className="flex flex-col gap-1.5">
+						<Label htmlFor="username">
+							Username <span className="text-red-500">*</span>
+						</Label>
+						<div className="relative">
+							<Input
+								id="username"
+								placeholder="e.g. johnsmith"
+								{...form.register("username")}
+								className="pr-8"
+								disabled={submitting}
+							/>
+							{checkingUsername && (
+								<Loader2 className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-slate-400" />
+							)}
+							{!checkingUsername && usernameTaken === false && !errors.username && (
+								<Check className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-500" />
+							)}
+						</div>
+						<FieldError message={errors.username?.message} />
 					</div>
 
 					{/* Email */}

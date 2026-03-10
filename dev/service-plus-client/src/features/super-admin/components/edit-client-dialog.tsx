@@ -186,7 +186,7 @@ export const EditClientDialog = ({ client, onOpenChange, onSuccess, open }: Edit
 					}),
 				},
 			});
-			if (result.errors?.length) {
+			if (result.error) {
 				toast.error(MESSAGES.ERROR_CLIENT_UPDATE_FAILED);
 				return;
 			}

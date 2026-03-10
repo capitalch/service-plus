@@ -194,7 +194,7 @@ export const InitializeClientDialog = ({
 				mutation: GRAPHQL_MAP.createServiceDb,
 				variables: { client_id: client.id, db_name: data.db_name },
 			});
-			if (result.errors?.length) {
+			if (result.error) {
 				toast.error(MESSAGES.ERROR_INITIALIZE_DB_FAILED);
 				return;
 			}
@@ -222,7 +222,7 @@ export const InitializeClientDialog = ({
 						value: graphQlUtils.buildGenericUpdateValue(batch.sqlObject),
 					},
 				});
-				if (result.errors?.length) {
+				if (result.error) {
 					toast.error(MESSAGES.ERROR_INITIALIZE_SEED_FAILED);
 					return;
 				}
@@ -249,7 +249,7 @@ export const InitializeClientDialog = ({
 					mobile: data.mobile || null,
 				},
 			});
-			if (result.errors?.length) {
+			if (result.error) {
 				toast.error(MESSAGES.ERROR_INITIALIZE_ADMIN_FAILED);
 				return;
 			}

@@ -67,6 +67,16 @@ class AppMessages:
     # Validation messages
     PASSWORD_TOO_SHORT = "Password must be at least 8 characters long"
 
+    # Email messages
+    EMAIL_ADMIN_CREDENTIALS_BODY = (
+        "Hello {full_name},\n\n"
+        "Your admin account has been created.\n\n"
+        "  Username : {username}\n"
+        "  Password : {password}\n\n"
+        "Please log in and change your password immediately.\n"
+    )
+    EMAIL_ADMIN_CREDENTIALS_SUBJECT = "Your Admin Account Credentials"
+
     # Error messages - Database
     DATABASE_CONNECTION_FAILED = "Failed to connect to database"
     DATABASE_QUERY_FAILED = "Database query failed"

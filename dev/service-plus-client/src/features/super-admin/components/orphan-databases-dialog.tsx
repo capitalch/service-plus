@@ -53,7 +53,7 @@ export const OrphanDatabasesDialog = ({ databases, onOpenChange, onSuccess, open
 		if (!deletingDb || !isNameMatch) return;
 		try {
 			const result = await executeDropDatabase({ variables: { db_name: deletingDb } });
-			if (result.errors?.length) {
+			if (result.error) {
 				toast.error(MESSAGES.ERROR_ORPHAN_DB_DELETE_FAILED);
 				return;
 			}

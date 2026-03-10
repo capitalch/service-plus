@@ -44,7 +44,7 @@ export const DeactivateClientDialog = ({ client, onOpenChange, onSuccess, open }
 					}),
 				},
 			});
-			if (result.errors?.length) {
+			if (result.error) {
 				toast.error(MESSAGES.ERROR_CLIENT_DEACTIVATE_FAILED);
 				return;
 			}

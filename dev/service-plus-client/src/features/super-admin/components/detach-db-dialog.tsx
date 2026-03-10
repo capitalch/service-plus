@@ -45,7 +45,7 @@ export const DetachDbDialog = ({ client, onOpenChange, onSuccess, open }: Detach
 					}),
 				},
 			});
-			if (result.errors?.length) {
+			if (result.error) {
 				toast.error(MESSAGES.ERROR_CLIENT_DETACH_DB_FAILED);
 				return;
 			}
