@@ -1,6 +1,7 @@
 import json
 import re
 import secrets
+from datetime import datetime
 from urllib.parse import unquote
 
 from psycopg import sql as pgsql
@@ -12,6 +13,9 @@ from app.db.sql_auth import SqlAuth
 from app.exceptions import AppMessages, ValidationException
 from app.logger import logger
 
+
+def _serialize_row(row: dict) -> dict:
+    return {k: v.isoformat() if isinstance(v, datetime) else v for k, v in row.items()}
 
 
 async def resolve_delete_client_helper(client_id: int) -> dict:
@@ -157,6 +161,7 @@ async def resolve_create_admin_user_helper(
     logger.info(f"Admin user created successfully with id: {record_id}")
 
     # Email credentials (errors are logged, not re-raised)
+    email_sent = False
     try:
         await send_email(
             to=email,
@@ -167,10 +172,11 @@ async def resolve_create_admin_user_helper(
                 password=temp_password,
             ),
         )
+        email_sent = True
     except Exception as mail_err:
         logger.warning(f"Failed to send credentials email to {email}: {mail_err}")
 
-    return {"id": record_id}
+    return {"id": record_id, "email_sent": email_sent}
 
 
 async def resolve_create_service_db_helper(client_id: int, db_name: str) -> dict:
@@ -252,7 +258,7 @@ async def resolve_set_admin_user_active_helper(db_name: str, id: int, is_active:
             extensions={"field": "id"},
         )
     logger.info(f"Admin user id={id} is_active set to {is_active} in {db_name}")
-    return rows[0]
+    return _serialize_row(rows[0])
 
 
 async def resolve_update_admin_user_helper(
@@ -280,7 +286,74 @@ async def resolve_update_admin_user_helper(
             extensions={"field": "id"},
         )
     logger.info(f"Admin user id={id} updated in {db_name}")
-    return rows[0]
+    return _serialize_row(rows[0])
+
+
+async def resolve_mail_admin_credentials_helper(db_name: str, id: int) -> dict:
+    """
+    Generate a new temporary password for an admin user, update the hash in the
+    database, and email the new credentials.
+
+    Args:
+        db_name: Service database name.
+        id:      ID of the admin user in security."user".
+
+    Returns:
+        Dict with id and email_sent flag.
+
+    Raises:
+        ValidationException: If the admin user is not found.
+    """
+    # 1. Fetch admin user
+    rows = await exec_sql(
+        db_name=db_name, schema="security",
+        sql=SqlAuth.GET_ADMIN_USER_BY_ID,
+        sql_args={"id": id},
+    )
+    if not rows:
+        raise ValidationException(
+            message=AppMessages.ADMIN_USER_NOT_FOUND,
+            extensions={"field": "id"},
+        )
+    user = rows[0]
+
+    # 2. Generate new temporary password and hash it
+    temp_password = secrets.token_urlsafe(9)
+    password_hash = hash_password(temp_password)
+
+    # 3. Update password_hash in the database
+    updated = await exec_sql(
+        db_name=db_name, schema="security",
+        sql=SqlAuth.RESET_ADMIN_PASSWORD,
+        sql_args={"id": id, "password_hash": password_hash},
+    )
+    if not updated:
+        raise ValidationException(
+            message=AppMessages.ADMIN_USER_NOT_FOUND,
+            extensions={"field": "id"},
+        )
+
+    logger.info(f"Admin user id={id} password reset in {db_name}")
+
+    # 4. Email credentials
+    email_sent = False
+    email_error: str | None = None
+    try:
+        await send_email(
+            to=user["email"],
+            subject=AppMessages.EMAIL_RESET_CREDENTIALS_SUBJECT,
+            body=AppMessages.EMAIL_RESET_CREDENTIALS_BODY.format(
+                full_name=user["full_name"],
+                username=user["username"],
+                password=temp_password,
+            ),
+        )
+        email_sent = True
+    except Exception as mail_err:
+        email_error = str(mail_err)
+        logger.warning(f"Failed to send reset credentials email to {user['email']}: {mail_err}")
+
+    return {"id": id, "email_sent": email_sent, "email_error": email_error}
 
 
 async def resolve_generic_update_helper(db_name: str, schema: str = "public", value: str = "") -> int | None:

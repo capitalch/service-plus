@@ -76,6 +76,14 @@ class AppMessages:
         "Please log in and change your password immediately.\n"
     )
     EMAIL_ADMIN_CREDENTIALS_SUBJECT = "Your Admin Account Credentials"
+    EMAIL_RESET_CREDENTIALS_BODY = (
+        "Hello {full_name},\n\n"
+        "Your admin credentials have been reset.\n\n"
+        "  Username : {username}\n"
+        "  Password : {password}\n\n"
+        "Please log in and change your password immediately.\n"
+    )
+    EMAIL_RESET_CREDENTIALS_SUBJECT = "Your Admin Account Credentials (Reset)"
 
     # Error messages - Database
     DATABASE_CONNECTION_FAILED = "Failed to connect to database"

@@ -20,8 +20,7 @@ async def send_email(to: str, subject: str, body: str) -> None:
         body:    Plain-text email body.
     """
     if not settings.smtp_host:
-        logger.warning(f"SMTP not configured — skipping email to {to} (subject: {subject})")
-        return
+        raise RuntimeError(f"SMTP not configured — cannot send email to {to} (subject: {subject})")
 
     await asyncio.to_thread(_send_email_sync, to, subject, body)
 

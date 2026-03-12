@@ -43,6 +43,11 @@ export const GRAPHQL_MAP = {
             genericUpdate(db_name: $db_name, schema: $schema, value: $value)
         }
     `,
+    mailAdminCredentials: gql`
+        mutation MailAdminCredentials($db_name: String!, $id: Int!) {
+            mailAdminCredentials(db_name: $db_name, id: $id)
+        }
+    `,
     setAdminUserActive: gql`
         mutation SetAdminUserActive($db_name: String!, $id: Int!, $is_active: Boolean!) {
             setAdminUserActive(db_name: $db_name, id: $id, is_active: $is_active)

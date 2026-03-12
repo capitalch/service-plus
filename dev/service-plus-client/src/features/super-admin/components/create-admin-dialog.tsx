@@ -24,6 +24,10 @@ type CheckQueryDataType = {
 	genericQuery: { exists: boolean }[] | null;
 };
 
+type CreateAdminResultType = {
+	createAdminUser: { email_sent: boolean; id: number };
+};
+
 type CreateAdminDialogPropsType = {
 	client: ClientType;
 	onOpenChange: (open: boolean) => void;
@@ -199,7 +203,7 @@ export const CreateAdminDialog = ({
 	async function onSubmit(data: CreateAdminFormType) {
 		setSubmitting(true);
 		try {
-			const result = await apolloClient.mutate({
+			const result = await apolloClient.mutate<CreateAdminResultType>({
 				mutation: GRAPHQL_MAP.createAdminUser,
 				variables: {
 					db_name: client.db_name,
@@ -213,7 +217,12 @@ export const CreateAdminDialog = ({
 				toast.error(MESSAGES.ERROR_CREATE_ADMIN_FAILED);
 				return;
 			}
-			toast.success(MESSAGES.SUCCESS_ADMIN_CREATED);
+			const emailSent = result.data?.createAdminUser?.email_sent ?? false;
+			if (emailSent) {
+				toast.success(MESSAGES.SUCCESS_ADMIN_CREATED);
+			} else {
+				toast.warning(MESSAGES.WARN_ADMIN_EMAIL_NOT_SENT);
+			}
 			onSuccess();
 			onOpenChange(false);
 		} catch {

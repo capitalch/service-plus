@@ -53,6 +53,7 @@ import { DeleteClientDialog } from "../components/delete-client-dialog";
 import { DetachDbDialog } from "../components/detach-db-dialog";
 import { EditAdminDialog } from "../components/edit-admin-dialog";
 import { EditClientDialog } from "../components/edit-client-dialog";
+import { MailAdminCredentialsDialog } from "../components/mail-admin-credentials-dialog";
 import { InitializeClientDialog } from "../components/initialize-client-dialog";
 import { OrphanDatabasesDialog } from "../components/orphan-databases-dialog";
 import { SuperAdminLayout } from "../components/super-admin-layout";
@@ -129,6 +130,7 @@ export const ClientsPage = () => {
 	const [activateAdmin, setActivateAdmin] = useState<{ admin: ClientAdminType; client: ClientType } | null>(null);
 	const [deactivateAdmin, setDeactivateAdmin] = useState<{ admin: ClientAdminType; client: ClientType } | null>(null);
 	const [editAdmin, setEditAdmin] = useState<{ admin: ClientAdminType; client: ClientType } | null>(null);
+	const [mailAdminCredentials, setMailAdminCredentials] = useState<{ admin: ClientAdminType; client: ClientType } | null>(null);
 
 	// ── UI state ─────────────────────────────────────────────────────────────
 	const [expanded, setExpanded] = useState<Record<number, boolean>>({});
@@ -197,9 +199,10 @@ export const ClientsPage = () => {
 	}
 
 	// ── Admin handlers ───────────────────────────────────────────────────────
-	const handleActivateAdmin   = (admin: ClientAdminType, client: ClientType) => setActivateAdmin({ admin, client });
-	const handleDeactivateAdmin = (admin: ClientAdminType, client: ClientType) => setDeactivateAdmin({ admin, client });
-	const handleEditAdmin       = (admin: ClientAdminType, client: ClientType) => setEditAdmin({ admin, client });
+	const handleActivateAdmin       = (admin: ClientAdminType, client: ClientType) => setActivateAdmin({ admin, client });
+	const handleDeactivateAdmin     = (admin: ClientAdminType, client: ClientType) => setDeactivateAdmin({ admin, client });
+	const handleEditAdmin           = (admin: ClientAdminType, client: ClientType) => setEditAdmin({ admin, client });
+	const handleMailAdminCredentials = (admin: ClientAdminType, client: ClientType) => setMailAdminCredentials({ admin, client });
 
 	// ── Sort + expand ────────────────────────────────────────────────────────
 	function handleNameSort() {
@@ -645,12 +648,18 @@ export const ClientsPage = () => {
 																						<span className="sr-only">Actions</span>
 																					</Button>
 																				</DropdownMenuTrigger>
-																				<DropdownMenuContent align="end" className="w-36">
+																				<DropdownMenuContent align="end" className="w-52">
 																					<DropdownMenuItem
 																						className="cursor-pointer"
 																						onClick={() => handleEditAdmin(admin, client)}
 																					>
 																						Edit
+																					</DropdownMenuItem>
+																					<DropdownMenuItem
+																						className="cursor-pointer text-blue-600 focus:text-blue-600"
+																						onClick={() => handleMailAdminCredentials(admin, client)}
+																					>
+																						Reset password and mail
 																					</DropdownMenuItem>
 																					<DropdownMenuSeparator />
 																					{admin.is_active ? (
@@ -782,6 +791,15 @@ export const ClientsPage = () => {
 					dbName={deactivateAdmin.client.db_name!}
 					open={!!deactivateAdmin}
 					onOpenChange={(open) => { if (!open) setDeactivateAdmin(null); }}
+					onSuccess={handleRefetch}
+				/>
+			)}
+		{mailAdminCredentials && (
+				<MailAdminCredentialsDialog
+					admin={mailAdminCredentials.admin}
+					dbName={mailAdminCredentials.client.db_name!}
+					open={!!mailAdminCredentials}
+					onOpenChange={(open) => { if (!open) setMailAdminCredentials(null); }}
 					onSuccess={handleRefetch}
 				/>
 			)}

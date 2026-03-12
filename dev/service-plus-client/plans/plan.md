@@ -1,133 +1,97 @@
-# Plan: Add Username Field to Create Admin Dialog
+# Plan: Persist error/warning messages in MailAdminCredentialsDialog until user dismisses
 
-## Overview
+## Context
 
-The "Add Admin" form (`create-admin-dialog.tsx`) must collect a `username` from the SA.
-Username must be validated as unique within the client's security database via a debounced
-server-side check (same pattern as email uniqueness). The server currently auto-derives
-username from email — that logic must be replaced with the caller-supplied value.
+Currently, when the "Reset password and mail" operation fails or the email is not sent,
+`toast.error` / `toast.warning` (Sonner) are used. These auto-dismiss after a few
+seconds and the user cannot read the full message in time.
+
+The fix: replace transient toasts for **error and warning** outcomes with an inline
+alert inside the dialog. The alert has a close (×) button — it stays visible until the
+user clicks it. On success the dialog closes immediately, so the success toast stays
+as-is.
 
 ---
 
 ## Workflow
 
-```
-SA opens "Add Admin" dialog
-  → fills in: Full Name, Username (new), Email, Mobile
-  → on username input (debounced 1200ms) → genericQuery CHECK_ADMIN_USERNAME_EXISTS
-      → exists  → set error "Username already taken"
-      → !exists → show green tick
-  → on email input (debounced, unchanged) → CHECK_ADMIN_EMAIL_EXISTS
-  → submit → createAdminUser mutation (now includes username)
-  → server stores supplied username instead of auto-deriving it
-  → email sent with the supplied username + temp password
+Add inline alert state to the dialog → render an Alert component with a close button
+inside `DialogContent` → replace `toast.error` / `toast.warning` calls with state
+setters → keep `toast.success` unchanged → dialog close clears the alert state.
+
+---
+
+## Step 1 — Add `alert` state to `mail-admin-credentials-dialog.tsx`
+
+**File:** `service-plus-client/src/features/super-admin/components/mail-admin-credentials-dialog.tsx`
+
+Add a local type and state variable to hold the inline alert:
+
+```tsx
+type AlertStateType = { message: string; variant: "destructive" | "warning" } | null;
+const [alert, setAlert] = useState<AlertStateType>(null);
 ```
 
 ---
 
-## Steps
+## Step 2 — Replace `toast.error` / `toast.warning` with `setAlert`
 
-### Step 1 — Add SQL key: `sql-map.ts`
-**File:** `src/constants/sql-map.ts`
+In `handleMailCredentials`, replace:
 
-Add (alphabetically):
-```ts
-CHECK_ADMIN_USERNAME_EXISTS: "CHECK_ADMIN_USERNAME_EXISTS",
+| Old | New |
+|-----|-----|
+| `toast.error(MESSAGES.ERROR_ADMIN_MAIL_CREDENTIALS_FAILED)` | `setAlert({ message: MESSAGES.ERROR_ADMIN_MAIL_CREDENTIALS_FAILED, variant: "destructive" })` |
+| `toast.warning(MESSAGES.WARN_ADMIN_CREDENTIALS_MAIL_NOT_SENT)` | `setAlert({ message: MESSAGES.WARN_ADMIN_CREDENTIALS_MAIL_NOT_SENT, variant: "warning" })` |
+
+For both error and warning cases, **do not close the dialog** — keep it open so the
+user can read the message and dismiss it manually with the close button.
+
+Remove `onSuccess()` and `onOpenChange(false)` from the warning path — call them only
+on the success (`emailSent === true`) path.
+
+---
+
+## Step 3 — Render the inline Alert inside `DialogContent`
+
+Import `Alert`, `AlertDescription` from shadcn/ui and `XIcon` from lucide-react.
+
+Add just above `<DialogFooter>`:
+
+```tsx
+{alert && (
+    <Alert variant={alert.variant} className="relative pr-8">
+        <AlertDescription>{alert.message}</AlertDescription>
+        <button
+            aria-label="Dismiss"
+            className="absolute right-2 top-2 opacity-70 hover:opacity-100"
+            onClick={() => setAlert(null)}
+        >
+            <XIcon className="h-4 w-4" />
+        </button>
+    </Alert>
+)}
 ```
 
-### Step 2 — Add message keys: `messages.ts`
-**File:** `src/constants/messages.ts`
+---
 
-Add under **Admin CRUD** section (alphabetically):
-```ts
-ERROR_ADMIN_USERNAME_EXISTS: 'This username is already taken for this client.',
-ERROR_ADMIN_USERNAME_REQUIRED: 'Username is required.',
-```
+## Step 4 — Clear alert when dialog closes
 
-### Step 3 — Update GraphQL mutation: `graphql-map.ts`
-**File:** `src/constants/graphql-map.ts`
+Wrap the `onOpenChange` prop into a local handler that also clears the alert:
 
-Update `createAdminUser` mutation to include `$username: String!`:
-```graphql
-mutation CreateAdminUser(
-    $db_name: String!
-    $email: String!
-    $full_name: String!
-    $mobile: String
-    $username: String!
-) {
-    createAdminUser(
-        db_name: $db_name
-        email: $email
-        full_name: $full_name
-        mobile: $mobile
-        username: $username
-    )
+```tsx
+function handleOpenChange(open: boolean) {
+    if (!open) setAlert(null);
+    onOpenChange(open);
 }
 ```
 
-### Step 4 — Update `create-admin-dialog.tsx`
-**File:** `src/features/super-admin/components/create-admin-dialog.tsx`
-
-- Add `username` to `createAdminSchema`:
-  ```ts
-  username: z.string()
-      .min(1, MESSAGES.ERROR_ADMIN_USERNAME_REQUIRED)
-      .min(5, MESSAGES.ERROR_USERNAME_MIN_LENGTH)
-      .regex(/^[a-zA-Z0-9]+$/, MESSAGES.ERROR_USERNAME_INVALID_FORMAT),
-  ```
-- Add state: `checkingUsername`, `usernameTaken` (same pattern as email).
-- Add `useWatch` on `username`; debounce → `genericQuery` with `CHECK_ADMIN_USERNAME_EXISTS`.
-- Add Username input field (with spinner/tick feedback) between Full Name and Email.
-- Include `username` in `onSubmit` mutation variables.
-- Update `form.reset` and close-reset effect to include `username: ""`.
-- Update `submitDisabled` to also guard on `usernameTaken === true` and `checkingUsername`.
-
-### Step 5 — Add SQL: `sql_auth.py`
-**File:** `app/db/sql_auth.py`
-
-Add `CHECK_ADMIN_USERNAME_EXISTS` (same pattern as `CHECK_ADMIN_EMAIL_EXISTS`):
-```sql
-CHECK_ADMIN_USERNAME_EXISTS = """
-    with "p_username" as (values(%(username)s::text))
-    SELECT EXISTS(
-        SELECT 1 FROM security."user"
-        WHERE LOWER(username) = LOWER((table "p_username"))
-    ) AS exists
-"""
-```
-
-### Step 6 — Update GraphQL schema: `schema.graphql`
-**File:** `app/graphql/schema.graphql`
-
-Add `username: String!` to `createAdminUser` mutation:
-```
-createAdminUser(db_name: String!, email: String!, full_name: String!, mobile: String, username: String!): Generic
-```
-
-### Step 7 — Update mutation resolver: `mutation.py`
-**File:** `app/graphql/resolvers/mutation.py`
-
-Add `username: str` parameter to `resolve_create_admin_user` and pass it through to the helper.
-
-### Step 8 — Update mutation helper: `mutation_helper.py`
-**File:** `app/graphql/resolvers/mutation_helper.py`
-
-- Add `username: str` parameter to `resolve_create_admin_user_helper`.
-- Remove the auto-derive block (lines that build `username` from email local-part).
-- Use the supplied `username` directly.
+Use `handleOpenChange` on the `<Dialog>` `onOpenChange` prop and on the Cancel button's
+`onClick`.
 
 ---
 
-## Files Changed
+## Summary of files to change
 
 | File | Change |
 |------|--------|
-| `src/constants/sql-map.ts` | Add `CHECK_ADMIN_USERNAME_EXISTS` |
-| `src/constants/messages.ts` | Add `ERROR_ADMIN_USERNAME_EXISTS`, `ERROR_ADMIN_USERNAME_REQUIRED` |
-| `src/constants/graphql-map.ts` | Add `$username` to `createAdminUser` mutation |
-| `src/features/super-admin/components/create-admin-dialog.tsx` | Add username field with debounced uniqueness check |
-| `app/db/sql_auth.py` | Add `CHECK_ADMIN_USERNAME_EXISTS` SQL |
-| `app/graphql/schema.graphql` | Add `username: String!` to `createAdminUser` |
-| `app/graphql/resolvers/mutation.py` | Add `username` param + pass to helper |
-| `app/graphql/resolvers/mutation_helper.py` | Accept `username`, remove auto-derive logic |
+| `mail-admin-credentials-dialog.tsx` | Add `alert` state; replace error/warning toasts with inline Alert with close button; clear on dialog close |

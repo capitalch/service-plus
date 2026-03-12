@@ -25,6 +25,10 @@ type CheckDbQueryDataType = {
 	genericQuery: { exists: boolean }[] | null;
 };
 
+type CreateAdminResultType = {
+	createAdminUser: { email_sent: boolean; id: number };
+};
+
 type InitializeClientDialogPropsType = {
 	client: ClientType;
 	onOpenChange: (open: boolean) => void;
@@ -49,6 +53,11 @@ const step3Schema = z.object({
 	email: z.email({ message: MESSAGES.ERROR_EMAIL_INVALID }),
 	full_name: z.string().min(1, MESSAGES.ERROR_FULL_NAME_REQUIRED),
 	mobile: z.string().optional(),
+	username: z
+		.string()
+		.min(1, MESSAGES.ERROR_ADMIN_USERNAME_REQUIRED)
+		.min(5, MESSAGES.ERROR_USERNAME_MIN_LENGTH)
+		.regex(/^[a-zA-Z0-9]+$/, MESSAGES.ERROR_USERNAME_INVALID_FORMAT),
 });
 
 type Step1FormType = z.infer<typeof step1Schema>;
@@ -84,12 +93,14 @@ export const InitializeClientDialog = ({
 }: InitializeClientDialogPropsType) => {
 	const [checkingDb, setCheckingDb] = useState(false);
 	const [checkingSeed, setCheckingSeed] = useState(false);
+	const [checkingUsername, setCheckingUsername] = useState(false);
 	const [createdDbName, setCreatedDbName] = useState("");
 	const [creatingAdmin, setCreatingAdmin] = useState(false);
 	const [creatingDb, setCreatingDb] = useState(false);
 	const [dbNameAvailable, setDbNameAvailable] = useState<boolean | null>(null);
 	const [seedingData, setSeedingData] = useState(false);
 	const [step, setStep] = useState<StepType>(client?.db_name ? 2 : 1);
+	const [usernameTaken, setUsernameTaken] = useState<boolean | null>(null);
 
 	const step1Form = useForm<Step1FormType>({
 		defaultValues: { db_name: `service_plus_${client.code.toLowerCase()}` },
@@ -98,13 +109,15 @@ export const InitializeClientDialog = ({
 	});
 
 	const step3Form = useForm<Step3FormType>({
-		defaultValues: { email: "", full_name: "", mobile: "" },
+		defaultValues: { email: "", full_name: "", mobile: "", username: "" },
 		mode: "onChange",
 		resolver: zodResolver(step3Schema),
 	});
 
 	const dbNameValue = useWatch({ control: step1Form.control, name: "db_name" });
+	const usernameValue = useWatch({ control: step3Form.control, name: "username" });
 	const debouncedDbName = useDebounce(dbNameValue, 1200);
+	const debouncedUsername = useDebounce(usernameValue, 1200);
 
 	// Check if role seed data exists in the client DB (only when db_name is already set)
 	useEffect(() => {
@@ -173,17 +186,63 @@ export const InitializeClientDialog = ({
 			});
 	}, [debouncedDbName]); // eslint-disable-line react-hooks/exhaustive-deps
 
+	// Debounced username uniqueness check
+	useEffect(() => {
+		if (!debouncedUsername) {
+			setUsernameTaken(null);
+			return;
+		}
+		const { invalid } = step3Form.getFieldState("username");
+		if (invalid) {
+			setUsernameTaken(null);
+			return;
+		}
+		const activeDb = createdDbName || client.db_name || "";
+		if (!activeDb) return;
+		setCheckingUsername(true);
+		apolloClient
+			.query<CheckDbQueryDataType>({
+				fetchPolicy: "network-only",
+				query: GRAPHQL_MAP.genericQuery,
+				variables: {
+					db_name: activeDb,
+					schema: "security",
+					value: graphQlUtils.buildGenericQueryValue({
+						sqlArgs: { username: debouncedUsername },
+						sqlId: SQL_MAP.CHECK_ADMIN_USERNAME_EXISTS,
+					}),
+				},
+			})
+			.then((res) => {
+				const exists = res.data?.genericQuery?.[0]?.exists ?? false;
+				setUsernameTaken(exists);
+				if (exists) {
+					step3Form.setError("username", {
+						message: MESSAGES.ERROR_ADMIN_USERNAME_EXISTS,
+						type: "manual",
+					});
+				} else {
+					step3Form.clearErrors("username");
+				}
+			})
+			.finally(() => {
+				setCheckingUsername(false);
+			});
+	}, [debouncedUsername]); // eslint-disable-line react-hooks/exhaustive-deps
+
 	// Reset state when dialog closes
 	useEffect(() => {
 		if (!open) {
 			setCheckingDb(false);
 			setCheckingSeed(false);
+			setCheckingUsername(false);
 			setCreatedDbName("");
 			setDbNameAvailable(null);
 			setSeedingData(false);
 			setStep(client?.db_name ? 2 : 1);
+			setUsernameTaken(null);
 			step1Form.reset({ db_name: `service_plus_${client.code.toLowerCase()}` });
-			step3Form.reset({ email: "", full_name: "", mobile: "" });
+			step3Form.reset({ email: "", full_name: "", mobile: "", username: "" });
 		}
 	}, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -240,21 +299,27 @@ export const InitializeClientDialog = ({
 		const activeDb = createdDbName || client.db_name || "";
 		setCreatingAdmin(true);
 		try {
-			const result = await apolloClient.mutate({
+			const result = await apolloClient.mutate<CreateAdminResultType>({
 				mutation: GRAPHQL_MAP.createAdminUser,
 				variables: {
 					db_name: activeDb,
 					email: data.email,
 					full_name: data.full_name,
 					mobile: data.mobile || null,
+					username: data.username,
 				},
 			});
 			if (result.error) {
 				toast.error(MESSAGES.ERROR_INITIALIZE_ADMIN_FAILED);
 				return;
 			}
+			const emailSent = result.data?.createAdminUser?.email_sent ?? false;
+			if (emailSent) {
+				toast.success(MESSAGES.SUCCESS_INITIALIZE_ADMIN);
+			} else {
+				toast.warning(MESSAGES.WARN_INITIALIZE_ADMIN_EMAIL_NOT_SENT);
+			}
 			setStep("success");
-			toast.success(MESSAGES.SUCCESS_INITIALIZE_ADMIN);
 		} catch {
 			toast.error(MESSAGES.ERROR_INITIALIZE_ADMIN_FAILED);
 		} finally {
@@ -269,7 +334,11 @@ export const InitializeClientDialog = ({
 	const step1SubmitDisabled = step1Busy || !dbNameAvailable || !!step1Errors.db_name;
 
 	const step3Busy = creatingAdmin;
-	const step3SubmitDisabled = step3Busy || Object.keys(step3Errors).length > 0;
+	const step3SubmitDisabled =
+		step3Busy ||
+		checkingUsername ||
+		usernameTaken === true ||
+		Object.keys(step3Errors).length > 0;
 
 	const dot1Done = step === 2 || step === 3 || step === "success";
 	const dot2Done = step === 3 || step === "success";
@@ -531,6 +600,28 @@ export const InitializeClientDialog = ({
 											disabled={step3Busy}
 										/>
 										<FieldError message={step3Errors.full_name?.message} />
+									</div>
+									<div className="flex flex-col gap-1.5">
+										<Label htmlFor="username">
+											Username{" "}
+											<span className="text-red-500">*</span>
+										</Label>
+										<div className="relative">
+											<Input
+												id="username"
+												placeholder="e.g. johnsmith"
+												{...step3Form.register("username")}
+												className="w-full pr-8"
+												disabled={step3Busy}
+											/>
+											{checkingUsername && (
+												<Loader2 className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-slate-400" />
+											)}
+											{!checkingUsername && usernameTaken === false && !step3Errors.username && (
+												<Check className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-500" />
+											)}
+										</div>
+										<FieldError message={step3Errors.username?.message} />
 									</div>
 									<div className="flex flex-col gap-1.5">
 										<Label htmlFor="email">

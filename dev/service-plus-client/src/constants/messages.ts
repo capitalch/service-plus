@@ -40,6 +40,7 @@ export const MESSAGES = {
   // Admin CRUD
   ERROR_ADMIN_ACTIVATE_FAILED: 'Failed to activate admin user. Please try again.',
   ERROR_ADMIN_DEACTIVATE_FAILED: 'Failed to deactivate admin user. Please try again.',
+  ERROR_ADMIN_MAIL_CREDENTIALS_FAILED: 'Failed to send credentials email. Please try again.',
   ERROR_ADMIN_EMAIL_EXISTS: 'This email is already registered for this client.',
   ERROR_ADMIN_EMAIL_EXISTS_EDIT: 'This email is already registered for another user.',
   ERROR_ADMIN_USERNAME_EXISTS: 'This username is already taken for this client.',
@@ -48,6 +49,9 @@ export const MESSAGES = {
   ERROR_CREATE_ADMIN_FAILED: 'Failed to create admin user. Please try again.',
   SUCCESS_ADMIN_ACTIVATED: 'Admin user has been activated.',
   SUCCESS_ADMIN_CREATED: 'Admin user created. Login credentials have been emailed.',
+  SUCCESS_ADMIN_CREDENTIALS_MAILED: 'Credentials have been reset and emailed to the admin user.',
+  WARN_ADMIN_CREDENTIALS_MAIL_NOT_SENT: 'Password was reset, but the credentials email could not be sent. Please share credentials manually.',
+  WARN_ADMIN_EMAIL_NOT_SENT: 'Admin user account was created, but the credentials email could not be sent. Please share credentials manually.',
   SUCCESS_ADMIN_DEACTIVATED: 'Admin user has been deactivated.',
   SUCCESS_ADMIN_UPDATED: 'Admin user updated successfully.',
 
@@ -86,6 +90,7 @@ export const MESSAGES = {
   ERROR_INITIALIZE_SEED_FAILED: 'Failed to apply seed data. Please try again.',
   SUCCESS_CLIENT_INITIALIZED: 'Client initialized successfully.',
   SUCCESS_INITIALIZE_ADMIN: 'Admin user created. Login credentials have been emailed.',
+  WARN_INITIALIZE_ADMIN_EMAIL_NOT_SENT: 'Admin user account was created, but the credentials email could not be sent. Please share credentials manually.',
   SUCCESS_INITIALIZE_DB: 'Database created successfully.',
   SUCCESS_INITIALIZE_SEED: 'Seed data applied successfully.',
 

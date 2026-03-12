@@ -12,6 +12,7 @@ from app.graphql.resolvers.mutation_helper import (
     resolve_delete_client_helper,
     resolve_drop_database_helper,
     resolve_generic_update_helper,
+    resolve_mail_admin_credentials_helper,
     resolve_set_admin_user_active_helper,
     resolve_update_admin_user_helper,
 )
@@ -144,6 +145,19 @@ async def resolve_update_admin_user(
         logger.error(f"Error updating admin user: {str(e)}")
         raise GraphQLException(
             message=AppMessages.ADMIN_USER_UPDATE_FAILED, extensions={"details": str(e)}
+        )
+
+
+@mutation.field("mailAdminCredentials")
+async def resolve_mail_admin_credentials(_, info, db_name: str, id: int) -> Any:
+    try:
+        return await resolve_mail_admin_credentials_helper(db_name, id)
+    except ValidationException:
+        raise
+    except Exception as e:
+        logger.error(f"Error mailing admin credentials: {str(e)}")
+        raise GraphQLException(
+            message=AppMessages.OPERATION_FAILED, extensions={"details": str(e)}
         )
 
 
