@@ -45,6 +45,7 @@ export const MESSAGES = {
   ERROR_ADMIN_EMAIL_EXISTS_EDIT: 'This email is already registered for another user.',
   ERROR_ADMIN_USERNAME_EXISTS: 'This username is already taken for this client.',
   ERROR_ADMIN_USERNAME_REQUIRED: 'Username is required.',
+  ERROR_MOBILE_INVALID: 'Enter a valid mobile number (7–15 digits, optional + prefix).',
   ERROR_ADMIN_UPDATE_FAILED: 'Failed to update admin user. Please try again.',
   ERROR_CREATE_ADMIN_FAILED: 'Failed to create admin user. Please try again.',
   SUCCESS_ADMIN_ACTIVATED: 'Admin user has been activated.',
@@ -96,6 +97,7 @@ export const MESSAGES = {
 
   // Network Errors
   ERROR_CLIENTS_LOAD: 'Failed to load clients data.',
+  LOADING_CLIENTS: 'Loading clients…',
   ERROR_DASHBOARD_LOAD: 'Failed to load dashboard data.',
   ERROR_NETWORK: 'Network error. Please check your connection.',
   ERROR_SERVER: 'Server error. Please try again later.',

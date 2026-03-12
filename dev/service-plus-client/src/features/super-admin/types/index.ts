@@ -2,6 +2,7 @@
 
 export type ClientType = {
     activeAdminCount: number;
+    activeBuCount: number;
     address_line1: string | null;
     address_line2: string | null;
     admins: ClientAdminType[];
@@ -15,6 +16,7 @@ export type ClientType = {
     gstin: string | null;
     id: number;
     inactiveAdminCount: number;
+    inactiveBuCount: number;
     is_active: boolean;
     name: string;
     pan: string | null;

@@ -5,6 +5,7 @@ import {
 	ArrowUpDownIcon,
 	ArrowUpIcon,
 	BanIcon,
+	BuildingIcon,
 	CheckCircle2Icon,
 	ChevronRightIcon,
 	DatabaseIcon,
@@ -25,6 +26,7 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { PageLoader } from "@/components/ui/page-loader";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -252,6 +254,8 @@ export const ClientsPage = () => {
 
 	return (
 		<SuperAdminLayout>
+			<div className="relative">
+				{loading && <PageLoader message={MESSAGES.LOADING_CLIENTS} />}
 			<motion.div
 				animate={{ opacity: 1 }}
 				className="flex flex-col gap-6"
@@ -272,13 +276,8 @@ export const ClientsPage = () => {
 							variant="outline"
 							onClick={() => refetch()}
 						>
-							<motion.span
-								animate={loading ? { rotate: 360 } : { rotate: 0 }}
-								transition={loading ? { duration: 0.8, ease: "linear", repeat: Infinity } : { duration: 0 }}
-							>
-								<RefreshCwIcon className="h-3.5 w-3.5" />
-							</motion.span>
-							{loading ? "Refreshing..." : "Refresh"}
+							<RefreshCwIcon className="h-3.5 w-3.5" />
+							Refresh
 						</Button>
 						<Button
 							className="bg-emerald-600 text-white hover:bg-emerald-700"
@@ -488,13 +487,30 @@ export const ClientsPage = () => {
 														)}
 														<span className="text-slate-400">admins</span>
 													</span>
+													<span className="inline-flex items-center gap-1 text-[11px]">
+														<BuildingIcon className="h-3 w-3 text-slate-400" />
+														<span className="font-medium text-emerald-600">{client.activeBuCount}</span>
+														<span className="text-slate-400">active</span>
+														{client.inactiveBuCount > 0 && (
+															<>
+																<span className="text-slate-300">&middot;</span>
+																<span className="font-medium text-red-500">{client.inactiveBuCount}</span>
+																<span className="text-slate-400">inactive</span>
+															</>
+														)}
+														<span className="text-slate-400">BUs</span>
+													</span>
 													{client.db_name && (
 														<span className="hidden items-center gap-1 lg:inline-flex">
-															<DatabaseIcon className="h-3 w-3 text-slate-300" />
+															<DatabaseIcon className="h-3 w-3 text-slate-400" />
 															<span className="font-mono text-[11px] text-slate-400">{client.db_name}</span>
 														</span>
 													)}
-													<span className="hidden text-[11px] text-slate-300 lg:inline">&middot; {formatDate(client.created_at)}</span>
+													<span className="hidden text-[11px] text-slate-500 lg:inline">&middot; {formatDate(client.created_at)}</span>
+													<span className="hidden text-[11px] text-slate-500 lg:inline">&middot; upd. {formatDate(client.updated_at)}</span>
+													<span className="text-[10px] italic text-slate-400">
+														{isOpen ? "Click to hide admins" : "Click to show admins"}
+													</span>
 												</div>
 											</button>
 
@@ -604,6 +620,7 @@ export const ClientsPage = () => {
 																	<TableHead className="text-xs font-semibold uppercase tracking-wide text-slate-500">Full Name</TableHead>
 																	<TableHead className="hidden text-xs font-semibold uppercase tracking-wide text-slate-500 sm:table-cell">Email</TableHead>
 																	<TableHead className="hidden text-xs font-semibold uppercase tracking-wide text-slate-500 md:table-cell">Mobile</TableHead>
+																	<TableHead className="hidden text-xs font-semibold uppercase tracking-wide text-slate-500 lg:table-cell">Updated At</TableHead>
 																	<TableHead className="text-xs font-semibold uppercase tracking-wide text-slate-500">Status</TableHead>
 																	<TableHead className="text-xs font-semibold uppercase tracking-wide text-slate-500">Actions</TableHead>
 																</TableRow>
@@ -628,6 +645,7 @@ export const ClientsPage = () => {
 																		</TableCell>
 																		<TableCell className={`hidden text-sm sm:table-cell ${admin.is_active ? "text-slate-600" : "text-slate-400"}`}>{admin.email}</TableCell>
 																		<TableCell className={`hidden text-sm md:table-cell ${admin.is_active ? "text-slate-500" : "text-slate-400"}`}>{admin.mobile ?? "—"}</TableCell>
+																		<TableCell className={`hidden text-xs lg:table-cell ${admin.is_active ? "text-slate-500" : "text-slate-400"}`}>{formatDate(admin.updated_at)}</TableCell>
 																		<TableCell>
 																			<Badge
 																				className={
@@ -651,12 +669,14 @@ export const ClientsPage = () => {
 																				<DropdownMenuContent align="end" className="w-52">
 																					<DropdownMenuItem
 																						className="cursor-pointer"
+																						disabled={!admin.is_active}
 																						onClick={() => handleEditAdmin(admin, client)}
 																					>
 																						Edit
 																					</DropdownMenuItem>
 																					<DropdownMenuItem
 																						className="cursor-pointer text-blue-600 focus:text-blue-600"
+																						disabled={!admin.is_active}
 																						onClick={() => handleMailAdminCredentials(admin, client)}
 																					>
 																						Reset password and mail
@@ -695,6 +715,7 @@ export const ClientsPage = () => {
 					</div>
 				)}
 			</motion.div>
+			</div>
 
 			{/* ── Client dialogs ─────────────────────────────────────────────── */}
 			<AddClientDialog open={addOpen} onOpenChange={setAddOpen} onSuccess={handleRefetch} />

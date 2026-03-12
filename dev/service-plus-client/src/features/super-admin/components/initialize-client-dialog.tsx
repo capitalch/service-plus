@@ -52,7 +52,13 @@ const step1Schema = z.object({
 const step3Schema = z.object({
 	email: z.email({ message: MESSAGES.ERROR_EMAIL_INVALID }),
 	full_name: z.string().min(1, MESSAGES.ERROR_FULL_NAME_REQUIRED),
-	mobile: z.string().optional(),
+	mobile: z
+		.string()
+		.optional()
+		.refine(
+			(val) => !val || /^\+?[\d\s\-().]{7,15}$/.test(val),
+			{ message: MESSAGES.ERROR_MOBILE_INVALID },
+		),
 	username: z
 		.string()
 		.min(1, MESSAGES.ERROR_ADMIN_USERNAME_REQUIRED)
@@ -648,6 +654,7 @@ export const InitializeClientDialog = ({
 											className="w-full"
 											disabled={step3Busy}
 										/>
+										<FieldError message={step3Errors.mobile?.message} />
 									</div>
 									<div className="flex justify-end gap-2">
 										<Button

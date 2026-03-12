@@ -70,7 +70,13 @@ function FieldError({ message }: { message?: string }) {
 const editAdminSchema = z.object({
     email: z.string().email({ message: MESSAGES.ERROR_EMAIL_INVALID }),
     full_name: z.string().min(1, MESSAGES.ERROR_FULL_NAME_REQUIRED),
-    mobile: z.string().optional(),
+    mobile: z
+        .string()
+        .optional()
+        .refine(
+            (val) => !val || /^\+?[\d\s\-().]{7,15}$/.test(val),
+            { message: MESSAGES.ERROR_MOBILE_INVALID },
+        ),
 });
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -84,19 +90,20 @@ export const EditAdminDialog = ({
     open,
 }: EditAdminDialogPropsType) => {
     const {
+        clearErrors,
+        control,
         formState: { errors, isDirty, isSubmitting, isValid },
         handleSubmit,
         register,
         reset,
         setError,
-        clearErrors,
     } = useForm<EditAdminFormType>({
         defaultValues: { email: "", full_name: "", mobile: "" },
         mode: "onChange",
         resolver: zodResolver(editAdminSchema),
     });
 
-    const emailValue = useWatch({ name: "email" });
+    const emailValue = useWatch({ control, name: "email" });
     const debouncedEmail = useDebounce(emailValue, 1200);
 
     useEffect(() => {

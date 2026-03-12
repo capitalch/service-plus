@@ -245,7 +245,7 @@ export const CreateAdminDialog = ({
 			<DialogContent className="w-full sm:max-w-[440px]">
 				<DialogHeader>
 					<DialogTitle className="text-base font-semibold text-slate-800">
-						Create Admin User
+						Add Admin User
 					</DialogTitle>
 					<DialogDescription className="text-xs text-slate-500">
 						New admin for{" "}
@@ -348,10 +348,10 @@ export const CreateAdminDialog = ({
 							{submitting ? (
 								<>
 									<Loader2 className="mr-2 h-4 w-4 animate-spin" />
-									Creating...
+									Adding...
 								</>
 							) : (
-								"Create Admin"
+								"Add Admin"
 							)}
 						</Button>
 					</DialogFooter>

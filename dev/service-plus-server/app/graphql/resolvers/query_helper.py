@@ -58,8 +58,10 @@ async def resolve_super_admin_clients_data_helper():
     for client_row in client_rows:
         db_name_val = client_row.get("db_name")
         active_admin   = 0
+        active_bu      = 0
         admins         = []
         inactive_admin = 0
+        inactive_bu    = 0
 
         db_name_valid = False
         if db_name_val:
@@ -70,7 +72,9 @@ async def resolve_super_admin_clients_data_helper():
                 if bu_rows:
                     r = bu_rows[0]
                     active_admin   = r.get("active_admin_users", 0)
+                    active_bu      = r.get("active_bu", 0)
                     inactive_admin = r.get("inactive_admin_users", 0)
+                    inactive_bu    = r.get("inactive_bu", 0)
 
                 admin_rows = await exec_sql(db_name=db_name_val, schema="security", sql=SqlAuth.GET_ADMIN_USERS)
                 for a in admin_rows:
@@ -92,6 +96,7 @@ async def resolve_super_admin_clients_data_helper():
 
         clients_data.append({
             "activeAdminCount":   active_admin,
+            "activeBuCount":      active_bu,
             "address_line1":      client_row.get("address_line1"),
             "address_line2":      client_row.get("address_line2"),
             "admins":             admins,
@@ -105,6 +110,7 @@ async def resolve_super_admin_clients_data_helper():
             "gstin":              client_row.get("gstin"),
             "id":                 client_row.get("id"),
             "inactiveAdminCount": inactive_admin,
+            "inactiveBuCount":    inactive_bu,
             "is_active":          client_row.get("is_active"),
             "name":               client_row.get("name"),
             "pan":                client_row.get("pan"),
