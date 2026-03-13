@@ -8,6 +8,7 @@ import { ClientsPage } from '@/features/super-admin/pages/clients-page';
 import { UsageHealthPage } from '@/features/super-admin/pages/usage-health-page';
 import { AuditLogsPage } from '@/features/super-admin/pages/audit-logs-page';
 import { SystemSettingsPage } from '@/features/super-admin/pages/system-settings-page';
+import { AdminDashboardPage } from '@/features/admin/pages/admin-dashboard-page';
 import { ProtectedRoute } from './protected-route';
 import { ROUTES } from './routes';
 
@@ -44,6 +45,15 @@ export const router = createBrowserRouter([
       { element: <UsageHealthPage />, path: 'usage' },
       { element: <AuditLogsPage />, path: 'audit' },
       { element: <SystemSettingsPage />, path: 'settings' },
+    ],
+  },
+  // Admin User routes (/admin/*)
+  {
+    path: ROUTES.admin.root,
+    errorElement: <ErrorPage />,
+    element: <ProtectedRoute requiredSessionMode="admin" requiredUserType="A" />,
+    children: [
+      { element: <AdminDashboardPage />, index: true },
     ],
   },
   {

@@ -151,12 +151,51 @@ class SqlAuth:
             (SELECT COUNT(*) FILTER (WHERE NOT is_active) FROM security."user")                          AS inactive_users
     """
 
+    GET_USER_BY_IDENTITY = """
+        with "p_identity" as (values(%(identity)s::text))
+        -- with "p_identity" as (values('admin'::text)) -- Test line
+        SELECT
+            u.id,
+            u.email,
+            u.full_name,
+            u.is_active,
+            u.is_admin,
+            u.mobile,
+            u.password_hash,
+            u.username,
+            r.name AS role_name,
+            COALESCE(
+                ARRAY_AGG(ar.code ORDER BY ar.code) FILTER (WHERE ar.code IS NOT NULL),
+                ARRAY[]::text[]
+            ) AS access_rights
+        FROM security."user" u
+        LEFT JOIN security.user_bu_role ubr ON ubr.user_id = u.id AND ubr.is_active = true
+        LEFT JOIN security.role          r   ON r.id = ubr.role_id
+        LEFT JOIN security.role_access_right rar ON rar.role_id = r.id
+        LEFT JOIN security.access_right  ar  ON ar.id = rar.access_right_id
+        WHERE (
+            LOWER(u.username) = LOWER((table "p_identity"))
+            OR LOWER(u.email) = LOWER((table "p_identity"))
+        )
+        GROUP BY u.id, u.email, u.full_name, u.is_active, u.is_admin,
+                 u.mobile, u.password_hash, u.username, r.name
+    """
+
     GET_CLIENT_BY_ID = """
         with "p_id" as (values(%(id)s::int))
         -- with "p_id" as (values(1::int)) -- Test line
         SELECT id, name, is_active, db_name
         FROM public.client
         WHERE id = (table "p_id")
+    """
+
+    GET_CLIENT_DB_NAME = """
+        with "p_client_id" as (values(%(client_id)s::int))
+        -- with "p_client_id" as (values(1::int)) -- Test line
+        SELECT db_name
+        FROM public.client
+        WHERE id = (table "p_client_id")
+          AND is_active = true
     """
 
     GET_CLIENT_DB_NAMES = """

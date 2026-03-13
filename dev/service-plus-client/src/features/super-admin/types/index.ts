@@ -105,45 +105,136 @@ export type ActivityLogItemType = {
     timestamp: string;
 };
 
+export type AuditActorType = { type: string; username: string };
+
+export type AuditResourceType = { id: string | null; name: string | null; type: string };
+
+export type AuditEntryType = {
+    action:    string;
+    actor:     AuditActorType;
+    detail:    string | null;
+    id:        string;
+    outcome:   "failure" | "success";
+    resource:  AuditResourceType;
+    timestamp: string;
+};
+
+export type AuditLogPageType = {
+    items:      AuditEntryType[];
+    page:       number;
+    pageSize:   number;
+    totalItems: number;
+    totalPages: number;
+};
+
+export type AuditActionCountType = { action: string; count: number };
+
+export type AuditActorCountType = { actor: string; count: number };
+
+export type AuditOutcomeCountType = { failure: number; success: number };
+
+export type AuditTimeSeriesPointType = { count: number; date: string };
+
+export type AuditStatsType = {
+    actionCounts:  AuditActionCountType[];
+    actorCounts:   AuditActorCountType[];
+    outcomeCounts: AuditOutcomeCountType;
+    timeSeries:    AuditTimeSeriesPointType[];
+    totalEvents:   number;
+};
+
 // ─── Usage & Health ───────────────────────────────────────────────────────────
 
-export type ServiceHealthStatusType = "Degraded" | "Down" | "Healthy";
+export type HealthStatusType = "Degraded" | "Down" | "Healthy";
 
-export type SystemServiceType = {
-    id: string;
-    lastChecked: string;
-    name: string;
-    responseTime: number;
-    status: ServiceHealthStatusType;
-    uptime: number;
+export type ServiceCheckType = {
+    detail:     string | null;
+    latency_ms: number | null;
+    name:       string;
+    status:     HealthStatusType;
 };
 
-export type MetricTrendType = "down" | "neutral" | "up";
-
-export type PlatformMetricType = {
-    change: number;
-    id: string;
-    label: string;
-    trend: MetricTrendType;
-    unit: string;
-    value: string;
+export type AuditLogHealthType = {
+    file_count:  number;
+    last_write:  string | null;
+    size_bytes:  number;
+    today_count: number;
+    week_count:  number;
 };
 
-export type UptimeDataPointType = {
-    day: string;
-    uptime: number;
+export type DbSizeType = {
+    db_name:    string;
+    size_bytes: number;
 };
 
-// ─── System Settings ──────────────────────────────────────────────────────────
-
-export type SettingItemType = {
-    key: string;
-    label: string;
-    value: string;
+export type PlatformStatsType = {
+    active_clients:   number;
+    inactive_clients: number;
+    total_admins:     number;
+    total_clients:    number;
+    total_dbs:        number;
 };
 
-export type SettingSectionType = {
-    id: string;
-    items: SettingItemType[];
-    title: string;
+export type ServerInfoType = {
+    algorithm:   string;
+    app_name:    string;
+    app_version: string;
+    debug:       boolean;
+    host:        string;
+    port:        number;
+    uptime:      string;
+};
+
+export type UsageHealthType = {
+    audit_log:      AuditLogHealthType;
+    db_sizes:       DbSizeType[];
+    overall_status: HealthStatusType;
+    platform_stats: PlatformStatsType;
+    server_info:    ServerInfoType;
+    services:       ServiceCheckType[];
+};
+
+// ─── System Settings (read-only, mirroring config.py) ────────────────────────
+
+export type ApplicationSettingsType = {
+    app_name:    string;
+    app_version: string;
+    debug:       boolean;
+    host:        string;
+    port:        number;
+};
+
+export type AuditLogSettingsType = {
+    audit_log_dir:            string;
+    audit_log_max_read_days:  number;
+    audit_log_retention_days: number;
+};
+
+export type SecuritySettingsType = {
+    access_token_expire_minutes: number;
+    algorithm:                   string;
+    refresh_token_expire_days:   number;
+};
+
+export type SmtpSettingsType = {
+    smtp_from:     string;
+    smtp_host:     string;
+    smtp_password: string;
+    smtp_port:     number;
+    smtp_user:     string;
+};
+
+export type SuperAdminSettingsType = {
+    super_admin_email:         string;
+    super_admin_mobile:        string;
+    super_admin_password_hash: string;
+    super_admin_username:      string;
+};
+
+export type SystemSettingsType = {
+    application: ApplicationSettingsType;
+    audit_log:   AuditLogSettingsType;
+    security:    SecuritySettingsType;
+    smtp:        SmtpSettingsType;
+    super_admin: SuperAdminSettingsType;
 };

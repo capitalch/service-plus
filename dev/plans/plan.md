@@ -1,310 +1,140 @@
-# Plan: Audit Logs Page – Full Server Log Visibility
+# Plan: Fix Login for All User Types (SA / Admin / Business)
 
-## Objective
-Connect the existing Audit Logs page to real server data. Persist and display two categories of logs:
-1. **Audit Events** – structured business events (Client Created, Login, Admin Added, etc.)
-2. **Server Logs** – raw Python logger output at all levels (INFO, DEBUG, WARNING, ERROR)
+## Current State Analysis
 
-Both are stored in the `service_plus_client` database so the Super Admin can see platform-wide logs across all clients.
+| User Type | Server | Client | Status |
+|-----------|--------|--------|--------|
+| Super Admin (S) | ✅ Early-return path, skips client DB | ⚠️ Form requires client selection — SA has no client | Partial |
+| Admin User (A) | ❌ `username` missing from `LoginResponse` → Pydantic `ValidationError` → 500 | ✅ `RoleSelectionDialog` ready | Broken |
+| Business User (B) | ❌ Same `username` missing bug as Admin | ✅ Routes to client mode | Broken |
+
+### Root Causes
+
+1. **Server — `auth_router_helper.py` (line 136–144)**
+   Non-SA `LoginResponse(...)` call is missing `id=user["id"]` and `username=user["username"]`.
+   `username` has no default in `LoginResponse` schema → Pydantic raises `ValidationError` → server returns 500 for every admin/business login.
+
+2. **Server — `auth_schema.py`**
+   `client_id: str` is required. Super Admin does not belong to any client; forcing a `client_id` is semantically wrong (though the server ignores it for SA after the identity check).
+
+3. **Client — `auth-schemas.ts`**
+   `clientId: z.string().min(1, ...)` — mandatory. SA cannot submit the login form without selecting a client.
+
+4. **Client — `login-form.tsx`**
+   No hint to SA that the Client field is not required for them.
+
+---
+
+## Fix Plan
+
+### Step 1 — Server: Fix missing `id` & `username` in non-SA `LoginResponse`
+
+**File:** `service-plus-server/app/routers/auth_router_helper.py`
+
+Change the non-SA return (around line 136) from:
+```python
+return LoginResponse(
+    access_token=access_token,
+    access_rights=user["access_rights"] or [],
+    email=user["email"],
+    full_name=user["full_name"],
+    mobile=user["mobile"] or "",
+    role_name=user["role_name"] or "",
+    user_type=user_type,
+)
+```
+To:
+```python
+return LoginResponse(
+    access_token=access_token,
+    access_rights=user["access_rights"] or [],
+    email=user["email"],
+    full_name=user["full_name"],
+    id=user["id"],
+    mobile=user["mobile"] or "",
+    role_name=user["role_name"] or "",
+    user_type=user_type,
+    username=user["username"],
+)
+```
+
+---
+
+### Step 2 — Server: Make `client_id` optional in `LoginRequest`
+
+**File:** `service-plus-server/app/schemas/auth_schema.py`
+
+Change:
+```python
+client_id: str = Field(alias="clientId", description="ID of the client application")
+```
+To:
+```python
+client_id: str = Field(default="", alias="clientId", description="ID of the client application")
+```
+
+This allows SA to submit without a `clientId`. Non-SA users who omit it will get "invalid credentials" from step [2] of `login_helper` (correct behaviour).
+
+---
+
+### Step 3 — Client: Make `clientId` optional in Zod schema
+
+**File:** `service-plus-client/src/features/auth/schemas/auth-schemas.ts`
+
+Change:
+```ts
+clientId: z.string().min(1, MESSAGES.ERROR_CLIENT_REQUIRED),
+```
+To:
+```ts
+clientId: z.string().default(''),
+```
+
+---
+
+### Step 4 — Client: Add Super Admin hint in login form
+
+**File:** `service-plus-client/src/features/auth/components/login-form.tsx`
+
+Add a small helper text under the Client combobox:
+```tsx
+<p className="text-xs text-slate-400">Not required for Super Admin login</p>
+```
 
 ---
 
 ## Workflow
 
 ```
-Server Action / Logger call
+User submits login form
         │
-        ▼
-┌───────────────────┐     ┌──────────────────────┐
-│  audit_log table  │     │  server_log table     │
-│  (business events)│     │  (app log records)    │
-└───────────────────┘     └──────────────────────┘
-        │                          │
-        └──────────┬───────────────┘
-                   ▼
-          GraphQL Queries
-    (auditLogs / serverLogs)
-                   │
-                   ▼
-        Redux superAdminSlice
-    (activityLog / serverLogs)
-                   │
-                   ▼
-        AuditLogsPage (two tabs)
-    ┌─────────────┬────────────────┐
-    │ Audit Events│  Server Logs   │
-    │ (action     │  (INFO/DEBUG/  │
-    │  filter)    │  WARNING/ERROR)│
-    └─────────────┴────────────────┘
+        ├─ identity == SA username? (server check)
+        │       YES → verify SA password → return JWT (user_type="S")
+        │       NO  → resolve tenant DB via client_id
+        │               │
+        │               ├─ client not found → 401 Invalid credentials
+        │               └─ found → GET_USER_BY_IDENTITY
+        │                           │
+        │                           ├─ user not found / inactive → 401
+        │                           ├─ wrong password → 401
+        │                           └─ OK → determine user_type (A or B)
+        │                                   → build JWT with id, db_name, client_id
+        │                                   → return LoginResponse (with id + username) ✅
+        │
+Client receives LoginResponse
+        │
+        ├─ userType === 'S' → navigate /super-admin
+        ├─ userType === 'A' → show RoleSelectionDialog
+        │                       ├─ Admin Mode → setSessionMode('admin') → /admin
+        │                       └─ Client Mode → setSessionMode('client') → /
+        └─ userType === 'B' → setSessionMode('client') → /
 ```
 
----
-
-## Step 1 – Database: Add Tables to `service_plus_client`
-
-File: `service-plus-server/app/db/service_plus_client.sql`
-
-Add two new tables to the `public` schema:
-
-**`audit_log`** – structured business events
-```sql
-CREATE TABLE public.audit_log (
-    id           BIGSERIAL PRIMARY KEY,
-    action       TEXT NOT NULL,          -- e.g. 'Client Created', 'Login'
-    actor_email  TEXT,
-    actor_id     INTEGER,
-    actor_name   TEXT,
-    details      JSONB,                  -- optional extra payload
-    ip_address   TEXT,
-    target_name  TEXT,
-    created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-CREATE INDEX idx_audit_log_created_at ON public.audit_log (created_at DESC);
-CREATE INDEX idx_audit_log_action     ON public.audit_log (action);
-```
-
-**`server_log`** – raw Python logger records
-```sql
-CREATE TABLE public.server_log (
-    id            BIGSERIAL PRIMARY KEY,
-    level         TEXT NOT NULL,         -- INFO | DEBUG | WARNING | ERROR
-    message       TEXT NOT NULL,
-    module        TEXT,
-    func_name     TEXT,
-    line_no       INTEGER,
-    created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-CREATE INDEX idx_server_log_created_at ON public.server_log (created_at DESC);
-CREATE INDEX idx_server_log_level      ON public.server_log (level);
-```
-
-Also update `service-plus-client/src/types/db-schema-client.ts` with TypeScript types for both tables.
-
----
-
-## Step 2 – Server: DB Logging Handler
-
-File: `service-plus-server/app/logger.py`
-
-- Add a `DatabaseLogHandler(logging.Handler)` class.
-- On `emit()`, insert a row into `public.server_log` via a direct psycopg2 connection to `service_plus_client`.
-- Handle DB errors silently (fall back to console only) so a DB failure never breaks the app.
-- Register this handler on the root logger at startup (alongside the existing console handler).
-- Only persist records at WARNING level and above by default; make the threshold configurable via an environment variable `LOG_DB_LEVEL` (default `WARNING`). This keeps noise low but allows DEBUG visibility when needed.
-
----
-
-## Step 3 – Server: Audit Event Service
-
-New file: `service-plus-server/app/services/audit_service.py`
-
-- Function `log_audit_event(action, actor_name, actor_email, actor_id, target_name, ip_address, details)`.
-- Inserts a row into `public.audit_log` in `service_plus_client`.
-- Called from mutations/endpoints after successful operations (not inside try blocks where rollback could suppress them).
-
-Instrument the following existing server locations:
-
-| Location | Event |
-|---|---|
-| `auth_router.py` – login success | `Login` |
-| `mutation.py` – `createAdminUser` | `Admin Added` |
-| `mutation.py` – `setAdminUserActive` (deactivate) | `Admin Deactivated` |
-| `mutation.py` – `createServiceDb` | `Client Created` |
-| `mutation.py` – `deleteClient` / `dropDatabase` | `Client Disabled` |
-| `mutation.py` – any settings mutation | `Settings Changed` |
-
----
-
-## Step 4 – Server: GraphQL Schema & Resolvers
-
-File: `service-plus-server/app/graphql/schema.graphql`
-
-Add types and queries:
-```graphql
-type AuditLogEntry {
-    action:     String!
-    actorEmail: String
-    actorId:    Int
-    actorName:  String
-    createdAt:  String!
-    details:    String       # serialised JSON
-    id:         ID!
-    ipAddress:  String
-    targetName: String
-}
-
-type ServerLogEntry {
-    createdAt: String!
-    funcName:  String
-    id:        ID!
-    level:     String!
-    lineNo:    Int
-    message:   String!
-    module:    String
-}
-
-type AuditLogsResult {
-    entries:    [AuditLogEntry!]!
-    totalCount: Int!
-}
-
-type ServerLogsResult {
-    entries:    [ServerLogEntry!]!
-    totalCount: Int!
-}
-
-extend type Query {
-    auditLogs(action: String, limit: Int, offset: Int): AuditLogsResult!
-    serverLogs(level: String, limit: Int, offset: Int): ServerLogsResult!
-}
-```
-
-File: `service-plus-server/app/graphql/resolvers/query.py`
-
-Add resolvers `resolve_audit_logs` and `resolve_server_logs`:
-- Both accept optional `action`/`level`, `limit` (default 50), `offset` (default 0) for pagination.
-- Query `service_plus_client` DB.
-- Protected: require authenticated user with `userType == 'S'` (Super Admin only).
-
----
-
-## Step 5 – Client: Types
-
-File: `service-plus-client/src/features/super-admin/types/index.ts`
-
-Extend / add types:
-```typescript
-// Expand ActivityLogItemType to include optional details
-export type ActivityLogItemType = {
-    action:     ActivityActionType;
-    actorEmail: string;
-    actorId:    number | null;
-    actorName:  string;
-    details:    string | null;
-    id:         string;
-    ipAddress:  string | null;
-    targetName: string;
-    timestamp:  string;
-};
-
-// New: server log types
-export type ServerLogLevelType = "DEBUG" | "ERROR" | "INFO" | "WARNING";
-
-export type ServerLogItemType = {
-    createdAt: string;
-    funcName:  string | null;
-    id:        string;
-    level:     ServerLogLevelType;
-    lineNo:    number | null;
-    message:   string;
-    module:    string | null;
-};
-
-export type ServerLogFilterType = ServerLogLevelType | "All";
-```
-
-File: `service-plus-client/src/types/db-schema-client.ts`
-
-Add TypeScript types for `AuditLogType` and `ServerLogType` matching the DB columns.
-
----
-
-## Step 6 – Client: GraphQL Queries
-
-New file: `service-plus-client/src/features/super-admin/graphql/audit-queries.ts`
-
-```typescript
-export const AUDIT_LOGS_QUERY = gql`...`   // auditLogs(action, limit, offset)
-export const SERVER_LOGS_QUERY = gql`...`  // serverLogs(level, limit, offset)
-```
-
----
-
-## Step 7 – Client: API Service
-
-New file: `service-plus-client/src/features/super-admin/services/audit-log-service.ts`
-
-- `fetchAuditLogs(action?, limit?, offset?)` – calls `AUDIT_LOGS_QUERY` via `apolloClient.query()`
-- `fetchServerLogs(level?, limit?, offset?)` – calls `SERVER_LOGS_QUERY` via `apolloClient.query()`
-- Both return typed results; errors handled and thrown for callers.
-
----
-
-## Step 8 – Client: Redux Slice
-
-File: `service-plus-client/src/features/super-admin/store/super-admin-slice.ts`
-
-Add to state and reducers:
-```typescript
-serverLogs: ServerLogItemType[]        // new
-serverLogsTotalCount: number           // new
-auditLogsTotalCount: number            // new (for pagination)
-```
-
-Add actions: `setServerLogs`, `setServerLogsTotalCount`, `setAuditLogsTotalCount`
-
-Add selectors: `selectServerLogs`, `selectServerLogsTotalCount`, `selectAuditLogsTotalCount`
-
----
-
-## Step 9 – Client: Update AuditLogsPage
-
-File: `service-plus-client/src/features/super-admin/pages/audit-logs-page.tsx`
-
-Changes:
-1. **Two tabs** using shadcn `Tabs` component: "Audit Events" | "Server Logs"
-2. **Audit Events tab** – existing UI, now fetches from `fetchAuditLogs()` on mount; replaces mock data; adds pagination (Load More button).
-3. **Server Logs tab** – new section:
-   - Level filter buttons: All | INFO | DEBUG | WARNING | ERROR (colour-coded badges: green/slate/amber/red)
-   - Each log row shows: level badge, timestamp, module:line_no, message, function name
-   - Pagination (Load More)
-4. **Loading state** – show a subtle spinner while fetching.
-5. **Error state** – use Sonner toast on fetch failure with message key from `messages.ts`.
-6. On tab switch, fetch if the slice data is empty.
-
----
-
-## Step 10 – Client: Messages
-
-File: `service-plus-client/src/lib/messages.ts` (or wherever centralised messages live)
-
-Add keys:
-```typescript
-AUDIT_LOGS_FETCH_ERROR: "Failed to load audit logs. Please try again.",
-SERVER_LOGS_FETCH_ERROR: "Failed to load server logs. Please try again.",
-```
-
----
-
-## Step 11 – Server: Migration Script
-
-New file: `service-plus-server/app/db/migrations/add_audit_and_server_log_tables.sql`
-
-Contains the `CREATE TABLE` statements from Step 1, ready to run against `service_plus_client`.
-
----
-
-## Summary of Files Changed / Created
-
-### Server
-| Action | File |
-|---|---|
-| Modify | `app/db/service_plus_client.sql` |
-| New | `app/db/migrations/add_audit_and_server_log_tables.sql` |
-| Modify | `app/logger.py` |
-| New | `app/services/audit_service.py` |
-| Modify | `app/graphql/schema.graphql` |
-| Modify | `app/graphql/resolvers/query.py` |
-| Modify | `app/routers/auth_router.py` |
-| Modify | `app/graphql/resolvers/mutation.py` |
-
-### Client
-| Action | File |
-|---|---|
-| Modify | `src/types/db-schema-client.ts` |
-| Modify | `src/features/super-admin/types/index.ts` |
-| New | `src/features/super-admin/graphql/audit-queries.ts` |
-| New | `src/features/super-admin/services/audit-log-service.ts` |
-| Modify | `src/features/super-admin/store/super-admin-slice.ts` |
-| Modify | `src/features/super-admin/pages/audit-logs-page.tsx` |
-| Modify | `src/lib/messages.ts` |
+## Summary
+
+| File | Change |
+|------|--------|
+| `app/routers/auth_router_helper.py` | Add `id` and `username` to non-SA `LoginResponse` |
+| `app/schemas/auth_schema.py` | Make `client_id` optional (default `""`) |
+| `src/features/auth/schemas/auth-schemas.ts` | Make `clientId` optional in Zod schema |
+| `src/features/auth/components/login-form.tsx` | Add "Not required for Super Admin" hint |

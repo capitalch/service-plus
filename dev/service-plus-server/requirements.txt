@@ -1,9 +1,10 @@
+aiofiles
+ariadne
+bcrypt
 fastapi
-uvicorn[standard]
+psycopg[binary]
 pydantic
 pydantic-settings
-ariadne
-psycopg[binary]
-websockets
 PyJWT
-bcrypt
+uvicorn[standard]
+websockets

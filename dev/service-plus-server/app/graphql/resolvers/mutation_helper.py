@@ -6,6 +6,7 @@ from urllib.parse import unquote
 
 from psycopg import sql as pgsql
 
+from app.core.audit_log import AuditAction, audit_logger
 from app.core.email import send_email
 from app.core.security import hash_password
 from app.db.psycopg_driver import exec_sql, exec_sql_dml, exec_sql_object
@@ -52,6 +53,12 @@ async def resolve_delete_client_helper(client_id: int) -> dict:
     )
 
     logger.info(f"Client id={client_id} deleted")
+    await audit_logger.log(
+        action=AuditAction.DELETE_CLIENT,
+        resource_id=str(client_id),
+        resource_name=client.get("name", ""),
+        resource_type="client",
+    )
     return {"id": client_id}
 
 
@@ -110,6 +117,11 @@ async def resolve_drop_database_helper(db_name: str) -> dict:
     )
 
     logger.info(f"Orphan database dropped: {db_name}")
+    await audit_logger.log(
+        action=AuditAction.DROP_DATABASE,
+        resource_name=db_name,
+        resource_type="database",
+    )
     return {"db_name": db_name}
 
 
@@ -176,6 +188,12 @@ async def resolve_create_admin_user_helper(
     except Exception as mail_err:
         logger.warning(f"Failed to send credentials email to {email}: {mail_err}")
 
+    await audit_logger.log(
+        action=AuditAction.CREATE_ADMIN_USER,
+        resource_id=str(record_id),
+        resource_name=username,
+        resource_type="admin_user",
+    )
     return {"id": record_id, "email_sent": email_sent}
 
 
@@ -243,6 +261,11 @@ async def resolve_create_service_db_helper(client_id: int, db_name: str) -> dict
     )
 
     logger.info(f"Client {client_id} successfully initiated with db: {db_name}")
+    await audit_logger.log(
+        action=AuditAction.CREATE_SERVICE_DB,
+        resource_name=db_name,
+        resource_type="database",
+    )
     return {"db_name": db_name, "id": client_id}
 
 
@@ -258,6 +281,11 @@ async def resolve_set_admin_user_active_helper(db_name: str, id: int, is_active:
             extensions={"field": "id"},
         )
     logger.info(f"Admin user id={id} is_active set to {is_active} in {db_name}")
+    await audit_logger.log(
+        action=AuditAction.ACTIVATE_ADMIN_USER if is_active else AuditAction.DEACTIVATE_ADMIN_USER,
+        resource_id=str(id),
+        resource_type="admin_user",
+    )
     return _serialize_row(rows[0])
 
 
@@ -286,6 +314,12 @@ async def resolve_update_admin_user_helper(
             extensions={"field": "id"},
         )
     logger.info(f"Admin user id={id} updated in {db_name}")
+    await audit_logger.log(
+        action=AuditAction.UPDATE_ADMIN_USER,
+        resource_id=str(id),
+        resource_name=full_name,
+        resource_type="admin_user",
+    )
     return _serialize_row(rows[0])
 
 
@@ -353,6 +387,13 @@ async def resolve_mail_admin_credentials_helper(db_name: str, id: int) -> dict:
         email_error = str(mail_err)
         logger.warning(f"Failed to send reset credentials email to {user['email']}: {mail_err}")
 
+    await audit_logger.log(
+        action=AuditAction.MAIL_ADMIN_CREDENTIALS,
+        detail=f"email_sent={email_sent}" + (f", error={email_error}" if email_error else ""),
+        resource_id=str(id),
+        resource_name=user.get("username", ""),
+        resource_type="admin_user",
+    )
     return {"id": id, "email_sent": email_sent, "email_error": email_error}
 
 

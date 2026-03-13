@@ -93,6 +93,16 @@ class AppMessages:
     DB_NOT_ORPHAN = "Database is not an orphan — it is still linked to a client"
     DUPLICATE_ENTRY = "Duplicate entry exists"
 
+    # Audit log messages
+    AUDIT_LOG_RETRIEVED   = "Audit log entries retrieved."
+    AUDIT_STATS_RETRIEVED = "Audit log statistics retrieved."
+
+    # System settings messages
+    SETTINGS_RETRIEVED = "System settings retrieved."
+
+    # Usage & health messages
+    USAGE_HEALTH_RETRIEVED = "Usage and health data retrieved."
+
     # Success messages
     RECORD_CREATED = "Record created successfully"
     RECORD_UPDATED = "Record updated successfully"

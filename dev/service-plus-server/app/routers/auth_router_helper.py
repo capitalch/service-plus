@@ -1,4 +1,5 @@
 from app.config import settings
+from app.core.audit_log import AuditAction, audit_logger
 from app.core.security import create_access_token, verify_password
 from app.db.psycopg_driver import exec_sql
 from app.db.sql_auth import SqlAuth
@@ -23,6 +24,13 @@ async def login_helper(body: LoginRequest) -> LoginResponse:
     # [1] SuperAdmin check
     if body.identity == settings.super_admin_username:
         if not verify_password(body.password, settings.super_admin_password_hash):
+            await audit_logger.log(
+                action=AuditAction.LOGIN_FAILED,
+                actor_username=body.identity,
+                detail="Invalid password for super admin",
+                outcome="failure",
+                resource_type="session",
+            )
             raise AuthorizationException(AppMessages.INVALID_CREDENTIALS)
         access_token = create_access_token({
             "sub": "S",
@@ -31,6 +39,11 @@ async def login_helper(body: LoginRequest) -> LoginResponse:
             "db_name": None,
         })
         logger.info(AppMessages.LOGIN_SUCCESSFUL)
+        await audit_logger.log(
+            action=AuditAction.LOGIN,
+            actor_username=body.identity,
+            resource_type="session",
+        )
         return LoginResponse(
             access_token=access_token,
             access_rights=[],
@@ -50,6 +63,13 @@ async def login_helper(body: LoginRequest) -> LoginResponse:
         sql_args={"client_id": body.client_id},
     )
     if not client_rows:
+        await audit_logger.log(
+            action=AuditAction.LOGIN_FAILED,
+            actor_username=body.identity,
+            detail="Client not found",
+            outcome="failure",
+            resource_type="session",
+        )
         raise AuthorizationException(AppMessages.INVALID_CREDENTIALS)
     db_name: str = client_rows[0]["db_name"]
 
@@ -61,13 +81,34 @@ async def login_helper(body: LoginRequest) -> LoginResponse:
         sql_args={"identity": body.identity},
     )
     if not user_rows:
+        await audit_logger.log(
+            action=AuditAction.LOGIN_FAILED,
+            actor_username=body.identity,
+            detail="User not found",
+            outcome="failure",
+            resource_type="session",
+        )
         raise AuthorizationException(AppMessages.INVALID_CREDENTIALS)
     user = user_rows[0]
     if not user["is_active"]:
+        await audit_logger.log(
+            action=AuditAction.LOGIN_FAILED,
+            actor_username=body.identity,
+            detail="Account inactive",
+            outcome="failure",
+            resource_type="session",
+        )
         raise AuthorizationException(AppMessages.FORBIDDEN)
 
     # [4] Verify password
     if not verify_password(body.password, user["password_hash"]):
+        await audit_logger.log(
+            action=AuditAction.LOGIN_FAILED,
+            actor_username=body.identity,
+            detail="Invalid password",
+            outcome="failure",
+            resource_type="session",
+        )
         raise AuthorizationException(AppMessages.INVALID_CREDENTIALS)
 
     # [5] Determine user type
@@ -83,6 +124,13 @@ async def login_helper(body: LoginRequest) -> LoginResponse:
 
     # [7] Log success
     logger.info(f"{AppMessages.LOGIN_SUCCESSFUL}: user_id={user['id']}, client_id={body.client_id}")
+    await audit_logger.log(
+        action=AuditAction.LOGIN,
+        actor_type="admin_user" if user["is_admin"] else "user",
+        actor_username=user.get("username", body.identity),
+        resource_name=db_name,
+        resource_type="session",
+    )
 
     # [8] Return response
     return LoginResponse(

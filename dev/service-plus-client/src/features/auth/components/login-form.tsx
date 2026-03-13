@@ -13,9 +13,10 @@ import { loginSchema, type LoginFormData } from '../schemas/auth-schemas';
 import { loginUser } from '@/features/auth/services/auth-service';
 import type { ApiError, UserInstanceType } from '@/features/auth/services/auth-service';
 import { useAppDispatch } from '@/store/hooks';
-import { setCredentials } from '@/features/auth/store/auth-slice';
+import { setCredentials, setSessionMode } from '@/features/auth/store/auth-slice';
 import { MESSAGES } from '@/constants/messages';
 import { ROUTES } from '@/router/routes';
+import { RoleSelectionDialog } from './role-selection-dialog';
 
 type LoginFormProps = {
   onForgotPassword: () => void;
@@ -26,6 +27,7 @@ export const LoginForm = ({ onForgotPassword }: LoginFormProps) => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [showRoleDialog, setShowRoleDialog] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
 
   const {
@@ -67,13 +69,16 @@ export const LoginForm = ({ onForgotPassword }: LoginFormProps) => {
         })
       );
 
+      toast.success(MESSAGES.SUCCESS_LOGIN);
+
       if (user.userType === 'S') {
         navigate(ROUTES.superAdmin.root);
+      } else if (user.userType === 'A') {
+        setShowRoleDialog(true);
       } else {
+        dispatch(setSessionMode('client'));
         navigate(ROUTES.home);
       }
-
-      toast.success(MESSAGES.SUCCESS_LOGIN);
     } catch (error) {
       const errorMessage = (error as ApiError)?.message || MESSAGES.ERROR_LOGIN_FAILED;
       toast.error(errorMessage);
@@ -82,7 +87,15 @@ export const LoginForm = ({ onForgotPassword }: LoginFormProps) => {
     }
   };
 
+  function handleModeSelect(mode: 'admin' | 'client') {
+    dispatch(setSessionMode(mode));
+    setShowRoleDialog(false);
+    navigate(mode === 'admin' ? ROUTES.admin.root : ROUTES.home);
+  }
+
   return (
+    <>
+    <RoleSelectionDialog isOpen={showRoleDialog} onSelect={handleModeSelect} />
     <motion.form
       initial={{ opacity: 0, x: 10 }}
       animate={{ opacity: 1, x: 0 }}
@@ -203,5 +216,6 @@ export const LoginForm = ({ onForgotPassword }: LoginFormProps) => {
         )}
       </Button>
     </motion.form>
+    </>
   );
 };

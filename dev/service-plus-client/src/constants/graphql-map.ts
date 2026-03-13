@@ -1,6 +1,34 @@
 import { gql } from "@apollo/client";
 
 export const GRAPHQL_MAP = {
+    auditLogs: gql`
+        query AuditLogs(
+            $action:    String
+            $actor:     String
+            $from_date: String
+            $outcome:   String
+            $page:      Int
+            $page_size: Int
+            $search:    String
+            $to_date:   String
+        ) {
+            auditLogs(
+                action:    $action
+                actor:     $actor
+                from_date: $from_date
+                outcome:   $outcome
+                page:      $page
+                page_size: $page_size
+                search:    $search
+                to_date:   $to_date
+            )
+        }
+    `,
+    auditLogStats: gql`
+        query AuditLogStats($from_date: String, $to_date: String) {
+            auditLogStats(from_date: $from_date, to_date: $to_date)
+        }
+    `,
     deleteClient: gql`
         mutation DeleteClient($client_id: Int!) {
             deleteClient(client_id: $client_id)
@@ -61,6 +89,16 @@ export const GRAPHQL_MAP = {
     superAdminDashboardStats: gql`
         query SuperAdminDashboardStats {
             superAdminDashboardStats
+        }
+    `,
+    systemSettings: gql`
+        query SystemSettings {
+            systemSettings
+        }
+    `,
+    usageHealth: gql`
+        query UsageHealth {
+            usageHealth
         }
     `,
     updateAdminUser: gql`

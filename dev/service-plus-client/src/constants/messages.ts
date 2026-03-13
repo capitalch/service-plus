@@ -37,6 +37,11 @@ export const MESSAGES = {
   // Navigation
   PAGE_NOT_FOUND: 'The page you are looking for does not exist.',
 
+  // Audit Logs
+  ERROR_AUDIT_EXPORT_FAILED:  'Failed to export audit log. Please try again.',
+  ERROR_AUDIT_LOAD_FAILED:    'Failed to load audit log entries. Please try again.',
+  ERROR_AUDIT_STATS_FAILED:   'Failed to load audit log statistics. Please try again.',
+
   // Admin CRUD
   ERROR_ADMIN_ACTIVATE_FAILED: 'Failed to activate admin user. Please try again.',
   ERROR_ADMIN_DEACTIVATE_FAILED: 'Failed to deactivate admin user. Please try again.',
@@ -94,6 +99,20 @@ export const MESSAGES = {
   WARN_INITIALIZE_ADMIN_EMAIL_NOT_SENT: 'Admin user account was created, but the credentials email could not be sent. Please share credentials manually.',
   SUCCESS_INITIALIZE_DB: 'Database created successfully.',
   SUCCESS_INITIALIZE_SEED: 'Seed data applied successfully.',
+
+  // Role Selection
+  INFO_ADMIN_MODE_DESC:       'Manage your client — users, business units, and settings.',
+  INFO_ADMIN_MODE_TITLE:      'Admin Mode',
+  INFO_CHOOSE_MODE_SUBTITLE:  'You are logged in as an Admin User. Select how you would like to work.',
+  INFO_CHOOSE_MODE_TITLE:     'Choose How to Continue',
+  INFO_CLIENT_MODE_DESC:      'Work as a client user with full access to the service platform.',
+  INFO_CLIENT_MODE_TITLE:     'Client Mode',
+
+  // System Settings
+  ERROR_SETTINGS_LOAD_FAILED: 'Failed to load system settings. Please try again.',
+
+  // Usage & Health
+  ERROR_USAGE_HEALTH_LOAD_FAILED: 'Failed to load usage and health data. Please try again.',
 
   // Network Errors
   ERROR_CLIENTS_LOAD: 'Failed to load clients data.',

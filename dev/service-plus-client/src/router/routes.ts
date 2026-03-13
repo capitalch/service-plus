@@ -1,11 +1,17 @@
 export const ROUTES = {
-    home: '/',
+    home:  '/',
     login: '/login',
+    admin: {
+        audit:    '/admin/audit',
+        root:     '/admin',
+        settings: '/admin/settings',
+        users:    '/admin/users',
+    },
     superAdmin: {
-        root: '/super-admin',
-        audit: '/super-admin/audit',
-        clients: '/super-admin/clients',
+        audit:    '/super-admin/audit',
+        clients:  '/super-admin/clients',
+        root:     '/super-admin',
         settings: '/super-admin/settings',
-        usage: '/super-admin/usage',
+        usage:    '/super-admin/usage',
     },
 } as const;

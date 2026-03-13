@@ -6,10 +6,11 @@ import type { UserInstanceType } from '@/features/auth/services/auth-service';
  * Authentication State Interface
  */
 type AuthState = {
-    user: UserInstanceType | null;
-    token: string | null;
-    isAuthenticated: boolean;
+    isAuthenticated:  boolean;
     selectedClientId: string | null;
+    sessionMode:      'admin' | 'client' | null;
+    token:            string | null;
+    user:             UserInstanceType | null;
 }
 
 /**
@@ -17,15 +18,17 @@ type AuthState = {
  * Loads token and user from localStorage if available
  */
 function loadInitialState(): AuthState {
-    const token = localStorage.getItem('accessToken');
-    const userStr = localStorage.getItem('user');
-    const user = userStr ? JSON.parse(userStr) : null;
+    const token       = localStorage.getItem('accessToken');
+    const userStr     = localStorage.getItem('user');
+    const user        = userStr ? JSON.parse(userStr) : null;
+    const sessionMode = localStorage.getItem('sessionMode') as 'admin' | 'client' | null;
 
     return {
-        user,
-        token,
-        isAuthenticated: !!token,
+        isAuthenticated:  !!token,
         selectedClientId: null,
+        sessionMode,
+        token,
+        user,
     };
 }
 
@@ -48,30 +51,37 @@ export const authSlice = createSlice({
             action: PayloadAction<{ user: UserInstanceType; token: string; clientId: string }>
         ) => {
             const { user, token, clientId } = action.payload;
-            state.user = user;
-            state.token = token;
-            state.isAuthenticated = true;
+            state.isAuthenticated  = true;
             state.selectedClientId = clientId;
+            state.token            = token;
+            state.user             = user;
 
             // Persist to localStorage
             localStorage.setItem('accessToken', token);
-            localStorage.setItem('user', JSON.stringify(user));
             localStorage.setItem('selectedClientId', clientId);
+            localStorage.setItem('user', JSON.stringify(user));
+        },
+
+        setSessionMode: (state, action: PayloadAction<'admin' | 'client'>) => {
+            state.sessionMode = action.payload;
+            localStorage.setItem('sessionMode', action.payload);
         },
 
         /**
          * Clear authentication state on logout
          */
         logout: (state) => {
-            state.user = null;
-            state.token = null;
-            state.isAuthenticated = false;
+            state.isAuthenticated  = false;
             state.selectedClientId = null;
+            state.sessionMode      = null;
+            state.token            = null;
+            state.user             = null;
 
             // Clear localStorage
             localStorage.removeItem('accessToken');
-            localStorage.removeItem('user');
             localStorage.removeItem('selectedClientId');
+            localStorage.removeItem('sessionMode');
+            localStorage.removeItem('user');
         },
 
         /**
@@ -97,15 +107,16 @@ export const authSlice = createSlice({
 /**
  * Export actions
  */
-export const { setCredentials, logout, updateUser, setSelectedClient } = authSlice.actions;
+export const { logout, setCredentials, setSelectedClient, setSessionMode, updateUser } = authSlice.actions;
 
 /**
  * Export selectors
  */
-export const selectCurrentUser = (state: { auth: AuthState }) => state.auth.user;
+export const selectAuthToken       = (state: { auth: AuthState }) => state.auth.token;
+export const selectCurrentUser     = (state: { auth: AuthState }) => state.auth.user;
 export const selectIsAuthenticated = (state: { auth: AuthState }) => state.auth.isAuthenticated;
-export const selectAuthToken = (state: { auth: AuthState }) => state.auth.token;
 export const selectSelectedClientId = (state: { auth: AuthState }) => state.auth.selectedClientId;
+export const selectSessionMode     = (state: { auth: AuthState }) => state.auth.sessionMode;
 
 /**
  * Export reducer

@@ -3,15 +3,17 @@ FastAPI application entry point.
 """
 
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
-from app.logger import logger
+from app.core.audit_log import audit_logger
 from app.exceptions import AppMessages
 from app.graphql.schema import create_graphql_app
-from app.routers.base_router import router as base_router
+from app.logger import logger
 from app.routers.auth_router import router as auth_router
+from app.routers.base_router import router as base_router
 
 
 @asynccontextmanager
@@ -24,8 +26,13 @@ async def lifespan(app: FastAPI):
     logger.info(f"GraphQL endpoint: http://{settings.host}:{settings.port}{settings.graphql_path}")
     logger.info(f"GraphQL Playground: {'Enabled' if settings.graphql_playground else 'Disabled'}")
     logger.info("=" * 80)
+    # Ensure audit log directory exists and purge old files
+    Path(settings.audit_log_dir).mkdir(parents=True, exist_ok=True)
+    purged = await audit_logger.purge_old_files()
+    if purged:
+        logger.info(f"Purged {purged} old audit log file(s)")
     logger.info(AppMessages.SERVER_STARTED)
-    yield # Shutdown
+    yield  # Shutdown
     logger.info(AppMessages.SERVER_STOPPED)
 
 
