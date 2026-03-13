@@ -138,7 +138,9 @@ async def login_helper(body: LoginRequest) -> LoginResponse:
         access_rights=user["access_rights"] or [],
         email=user["email"],
         full_name=user["full_name"],
+        id=user["id"],
         mobile=user["mobile"] or "",
         role_name=user["role_name"] or "",
         user_type=user_type,
+        username=user["username"],
     )

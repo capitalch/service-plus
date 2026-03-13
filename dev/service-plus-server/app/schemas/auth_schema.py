@@ -23,7 +23,7 @@ class LoginRequest(BaseModel):
     """Request body for POST /api/auth/login."""
 
     client_id: str = Field(
-        alias="clientId", description="ID of the client application")
+        default="", alias="clientId", description="ID of the client application")
     identity: str = Field(alias="emailOrUsername",
                           description="email or username")
     password: str

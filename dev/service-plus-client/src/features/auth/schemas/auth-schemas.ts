@@ -6,7 +6,7 @@ import { MESSAGES } from '@/constants/messages';
  * Validates client selection, email/username, and password
  */
 export const loginSchema = z.object({
-  clientId: z.string().min(1, MESSAGES.ERROR_CLIENT_REQUIRED),
+  clientId: z.string().default(''),
   emailOrUsername: z
     .string()
     .min(1, MESSAGES.ERROR_EMAIL_OR_USERNAME_REQUIRED)

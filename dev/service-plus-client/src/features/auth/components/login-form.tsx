@@ -115,6 +115,7 @@ export const LoginForm = ({ onForgotPassword }: LoginFormProps) => {
           onValueChange={(value) => setValue('clientId', value, { shouldValidate: true })}
           error={errors.clientId?.message}
         />
+        <p className="text-xs text-slate-400">Not required for Super Admin login</p>
       </div>
 
       {/* Email / Username Field */}
