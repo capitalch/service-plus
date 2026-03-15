@@ -127,7 +127,11 @@ export const DeleteClientDialog = ({ client, onOpenChange, onSuccess, open }: De
 		try {
 			const result = await apolloClient.mutate({
 				mutation: GRAPHQL_MAP.deleteClient,
-				variables: { client_id: client.id },
+				variables: {
+					db_name: "",
+					schema: "public",
+					value: encodeURIComponent(JSON.stringify({ client_id: client.id })),
+				},
 			});
 			if (result.error) {
 				toast.error(MESSAGES.ERROR_CLIENT_DELETE_FAILED);

@@ -1,45 +1,48 @@
+import { useEffect } from "react";
 import { motion } from "framer-motion";
-import { ShieldCheckIcon, UsersIcon, BuildingIcon } from "lucide-react";
+import { RefreshCwIcon } from "lucide-react";
+import { useQuery } from "@apollo/client/react";
+import { toast } from "sonner";
 
-import { Card, CardContent } from "@/components/ui/card";
-import { useAppSelector } from "@/store/hooks";
-import { selectCurrentUser, selectSelectedClientId } from "@/features/auth/store/auth-slice";
+import { Button } from "@/components/ui/button";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import { selectCurrentUser, selectDbName } from "@/features/auth/store/auth-slice";
+import { setStats } from "@/features/admin/store/admin-slice";
+import { AdminStatsCards } from "@/features/admin/components/admin-stats-cards";
+import type { AdminDashboardStatsType } from "@/features/admin/types";
+import { GRAPHQL_MAP } from "@/constants/graphql-map";
+import { MESSAGES } from "@/constants/messages";
 import { AdminLayout } from "../components/admin-layout";
 
-const cardVariants = {
-    hidden:  { opacity: 0, y: 12 },
-    visible: (i: number) => ({
-        opacity: 1,
-        transition: { delay: i * 0.08, duration: 0.3, ease: "easeOut" as const },
-        y: 0,
-    }),
+type AdminDashboardDataType = {
+    adminDashboardStats: AdminDashboardStatsType;
 };
-
-type StatCardPropsType = {
-    icon:  React.ElementType;
-    label: string;
-    sub:   string;
-    value: string;
-};
-
-function StatCard({ icon: Icon, label, sub, value }: StatCardPropsType) {
-    return (
-        <Card className="border border-slate-200/80 bg-white shadow-sm">
-            <CardContent className="p-5">
-                <div className="mb-3 flex items-center gap-2">
-                    <Icon className="h-4 w-4 text-teal-500" />
-                    <p className="text-xs font-medium text-slate-500">{label}</p>
-                </div>
-                <p className="text-2xl font-bold text-teal-600">{value}</p>
-                <p className="mt-0.5 text-xs text-slate-400">{sub}</p>
-            </CardContent>
-        </Card>
-    );
-}
 
 export const AdminDashboardPage = () => {
+    const dispatch = useAppDispatch();
+    const dbName   = useAppSelector(selectDbName);
     const user     = useAppSelector(selectCurrentUser);
-    const clientId = useAppSelector(selectSelectedClientId);
+
+    const { data, error, loading, refetch } = useQuery<AdminDashboardDataType>(
+        GRAPHQL_MAP.adminDashboardStats,
+        {
+            notifyOnNetworkStatusChange: true,
+            skip:      !dbName,
+            variables: { db_name: dbName ?? '' },
+        }
+    );
+
+    useEffect(() => {
+        if (data?.adminDashboardStats) {
+            dispatch(setStats(data.adminDashboardStats));
+        }
+    }, [data, dispatch]);
+
+    useEffect(() => {
+        if (error) {
+            toast.error(MESSAGES.ERROR_DASHBOARD_LOAD);
+        }
+    }, [error]);
 
     return (
         <AdminLayout>
@@ -49,25 +52,39 @@ export const AdminDashboardPage = () => {
                 initial={{ opacity: 0 }}
                 transition={{ duration: 0.25 }}
             >
-                <div>
-                    <h1 className="text-xl font-bold text-slate-900">Admin Dashboard</h1>
-                    <p className="mt-1 text-sm text-slate-500">
-                        Welcome back, {user?.fullName ?? user?.username}.
-                        {clientId && <span className="ml-1 text-slate-400">Client ID: {clientId}</span>}
-                    </p>
+                <div className="flex items-center justify-between">
+                    <div>
+                        <h1 className="text-xl font-bold text-slate-900">Admin Dashboard</h1>
+                        <p className="mt-1 text-sm text-slate-500">
+                            Welcome back, {user?.fullName ?? user?.username}.
+                        </p>
+                    </div>
+                    <Button
+                        className="gap-1.5 border border-slate-200 bg-white text-slate-600 shadow-sm hover:bg-slate-50 hover:text-slate-900"
+                        disabled={loading}
+                        size="sm"
+                        variant="outline"
+                        onClick={() => refetch()}
+                    >
+                        <motion.span
+                            animate={loading ? { rotate: 360 } : { rotate: 0 }}
+                            transition={loading ? { duration: 0.8, ease: "linear", repeat: Infinity } : { duration: 0 }}
+                        >
+                            <RefreshCwIcon className="h-3.5 w-3.5" />
+                        </motion.span>
+                        {loading ? "Refreshing..." : "Refresh"}
+                    </Button>
                 </div>
 
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                    {[
-                        { icon: UsersIcon,       label: "Admin Users",    sub: "In this client database", value: "—" },
-                        { icon: BuildingIcon,    label: "Business Units", sub: "Active BUs",              value: "—" },
-                        { icon: ShieldCheckIcon, label: "Audit Events",   sub: "Last 7 days",             value: "—" },
-                    ].map((card, i) => (
-                        <motion.div animate="visible" custom={i} initial="hidden" key={card.label} variants={cardVariants}>
-                            <StatCard icon={card.icon} label={card.label} sub={card.sub} value={card.value} />
-                        </motion.div>
-                    ))}
-                </div>
+                {loading ? (
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                        {Array.from({ length: 3 }).map((_, i) => (
+                            <div key={i} className="h-44 animate-pulse rounded-xl bg-slate-100" />
+                        ))}
+                    </div>
+                ) : (
+                    <AdminStatsCards />
+                )}
 
                 <div className="rounded-lg border border-teal-100 bg-teal-50 p-4 text-sm text-teal-700">
                     <p className="font-medium">Admin mode is active.</p>

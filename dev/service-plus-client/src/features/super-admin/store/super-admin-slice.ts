@@ -1,12 +1,6 @@
 import { createSlice } from "@reduxjs/toolkit";
 import type { PayloadAction } from "@reduxjs/toolkit";
 
-import {
-    dummyActivityLog,
-    dummyAdminUsers,
-    dummyClients,
-    dummyStats,
-} from "@/features/super-admin/data/dummy-data";
 import type {
     ActivityLogItemType,
     AdminUserType,
@@ -22,10 +16,23 @@ type SuperAdminStateType = {
 };
 
 const initialState: SuperAdminStateType = {
-    activityLog: dummyActivityLog,
-    adminUsers: dummyAdminUsers,
-    clients: dummyClients,
-    stats: dummyStats,
+    activityLog: [],
+    adminUsers:  [],
+    clients:     [],
+    stats: {
+        activeAdminUsers:   0,
+        activeBu:           0,
+        activeClients:      0,
+        activeUsers:        0,
+        inactiveAdminUsers: 0,
+        inactiveBu:         0,
+        inactiveClients:    0,
+        inactiveUsers:      0,
+        totalAdminUsers:    0,
+        totalBu:            0,
+        totalClients:       0,
+        totalUsers:         0,
+    },
 };
 
 const superAdminSlice = createSlice({

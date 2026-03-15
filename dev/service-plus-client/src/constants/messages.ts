@@ -42,6 +42,51 @@ export const MESSAGES = {
   ERROR_AUDIT_LOAD_FAILED:    'Failed to load audit log entries. Please try again.',
   ERROR_AUDIT_STATS_FAILED:   'Failed to load audit log statistics. Please try again.',
 
+  // Business Users
+  ERROR_BUSINESS_USER_ACTIVATE_FAILED: 'Failed to activate business user. Please try again.',
+  ERROR_BUSINESS_USER_BU_REQUIRED: 'Please select at least one business unit.',
+  ERROR_BUSINESS_USER_CREATE_FAILED: 'Failed to create business user. Please try again.',
+  ERROR_BUSINESS_USER_DEACTIVATE_FAILED: 'Failed to deactivate business user. Please try again.',
+  ERROR_BUSINESS_USER_DELETE_FAILED: 'Failed to delete business user. Please try again.',
+  ERROR_BUSINESS_USER_EMAIL_EXISTS: 'This email is already registered.',
+  ERROR_BUSINESS_USER_EMAIL_EXISTS_EDIT: 'This email is already used by another user.',
+  ERROR_BUSINESS_USER_LOAD_FAILED: 'Failed to load business users. Please try again.',
+  ERROR_BUSINESS_USER_MAIL_CREDENTIALS_FAILED: 'Failed to reset and send credentials. Please try again.',
+  ERROR_BUSINESS_USER_ROLE_REQUIRED: 'Please select a role.',
+  ERROR_BUSINESS_USER_UPDATE_FAILED: 'Failed to update business user. Please try again.',
+  ERROR_BUSINESS_USER_USERNAME_EXISTS: 'This username is already taken.',
+  ERROR_BUSINESS_USER_USERNAME_EXISTS_EDIT: 'This username is already used by another user.',
+  SUCCESS_BUSINESS_USER_ACTIVATED: 'Business user has been activated.',
+  SUCCESS_BUSINESS_USER_CREDENTIALS_MAILED: 'Password has been reset and credentials emailed.',
+  WARN_BUSINESS_USER_BU_ROLE_ASSIGN_FAILED: 'User was created but business unit and role could not be assigned. Use the Associate BU & Role action.',
+  WARN_BUSINESS_USER_CREDENTIALS_MAIL_NOT_SENT: 'Password was reset, but the credentials email could not be sent. Please share credentials manually.',
+  SUCCESS_BUSINESS_USER_CREATED: 'Business user created. Login credentials have been emailed.',
+  SUCCESS_BUSINESS_USER_DEACTIVATED: 'Business user has been deactivated.',
+  SUCCESS_BUSINESS_USER_DELETED: 'Business user has been deleted.',
+  SUCCESS_BUSINESS_USER_UPDATED: 'Business user updated successfully.',
+  SUCCESS_BU_ROLE_ASSOCIATED: 'Business unit and role associations updated.',
+
+  // Business Units
+  ERROR_BU_ACTIVATE_FAILED: 'Failed to activate business unit. Please try again.',
+  ERROR_BU_CODE_EXISTS: 'This code is already in use.',
+  ERROR_BU_CODE_EXISTS_EDIT: 'This code is already used by another business unit.',
+  ERROR_BU_CREATE_FAILED: 'Failed to create business unit. Please try again.',
+  ERROR_BU_DEACTIVATE_FAILED: 'Failed to deactivate business unit. Please try again.',
+  ERROR_BU_DELETE_FAILED: 'Failed to delete business unit. Please try again.',
+  ERROR_BU_LOAD_FAILED: 'Failed to load business units. Please try again.',
+  ERROR_BU_UPDATE_FAILED: 'Failed to update business unit. Please try again.',
+  SUCCESS_BU_ACTIVATED: 'Business unit has been activated.',
+  SUCCESS_BU_CREATED: 'Business unit created successfully.',
+  SUCCESS_BU_DEACTIVATED: 'Business unit has been deactivated.',
+  SUCCESS_BU_DELETED: 'Business unit has been deleted.',
+  SUCCESS_BU_UPDATED: 'Business unit updated successfully.',
+
+  // Roles
+  ERROR_ROLES_LOAD_FAILED: 'Failed to load roles. Please try again.',
+  ERROR_SEED_ROLES_FAILED: 'Failed to apply seed roles. Please try again.',
+  INFO_SEED_ROLES_ALREADY_EXISTS: 'Seed roles are already present in this client\'s database.',
+  SUCCESS_SEED_ROLES: 'Seed roles applied successfully.',
+
   // Admin CRUD
   ERROR_ADMIN_ACTIVATE_FAILED: 'Failed to activate admin user. Please try again.',
   ERROR_ADMIN_DEACTIVATE_FAILED: 'Failed to deactivate admin user. Please try again.',
@@ -99,14 +144,6 @@ export const MESSAGES = {
   WARN_INITIALIZE_ADMIN_EMAIL_NOT_SENT: 'Admin user account was created, but the credentials email could not be sent. Please share credentials manually.',
   SUCCESS_INITIALIZE_DB: 'Database created successfully.',
   SUCCESS_INITIALIZE_SEED: 'Seed data applied successfully.',
-
-  // Role Selection
-  INFO_ADMIN_MODE_DESC:       'Manage your client — users, business units, and settings.',
-  INFO_ADMIN_MODE_TITLE:      'Admin Mode',
-  INFO_CHOOSE_MODE_SUBTITLE:  'You are logged in as an Admin User. Select how you would like to work.',
-  INFO_CHOOSE_MODE_TITLE:     'Choose How to Continue',
-  INFO_CLIENT_MODE_DESC:      'Work as a client user with full access to the service platform.',
-  INFO_CLIENT_MODE_TITLE:     'Client Mode',
 
   // System Settings
   ERROR_SETTINGS_LOAD_FAILED: 'Failed to load system settings. Please try again.',

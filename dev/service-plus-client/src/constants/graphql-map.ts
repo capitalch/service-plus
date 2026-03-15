@@ -1,6 +1,11 @@
 import { gql } from "@apollo/client";
 
 export const GRAPHQL_MAP = {
+    adminDashboardStats: gql`
+        query AdminDashboardStats($db_name: String!) {
+            adminDashboardStats(db_name: $db_name)
+        }
+    `,
     auditLogs: gql`
         query AuditLogs(
             $action:    String
@@ -29,36 +34,29 @@ export const GRAPHQL_MAP = {
             auditLogStats(from_date: $from_date, to_date: $to_date)
         }
     `,
-    deleteClient: gql`
-        mutation DeleteClient($client_id: Int!) {
-            deleteClient(client_id: $client_id)
-        }
-    `,
     createAdminUser: gql`
-        mutation CreateAdminUser(
-            $db_name: String!
-            $email: String!
-            $full_name: String!
-            $mobile: String
-            $username: String!
-        ) {
-            createAdminUser(
-                db_name: $db_name
-                email: $email
-                full_name: $full_name
-                mobile: $mobile
-                username: $username
-            )
+        mutation CreateAdminUser($db_name: String!, $schema: String, $value: String!) {
+            createAdminUser(db_name: $db_name, schema: $schema, value: $value)
         }
     `,
-    dropDatabase: gql`
-        mutation DropDatabase($db_name: String!) {
-            dropDatabase(db_name: $db_name)
+    createBusinessUser: gql`
+        mutation CreateBusinessUser($db_name: String!, $schema: String, $value: String!) {
+            createBusinessUser(db_name: $db_name, schema: $schema, value: $value)
         }
     `,
     createServiceDb: gql`
-        mutation CreateServiceDb($client_id: Int!, $db_name: String!) {
-            createServiceDb(client_id: $client_id, db_name: $db_name)
+        mutation CreateServiceDb($db_name: String!, $schema: String, $value: String!) {
+            createServiceDb(db_name: $db_name, schema: $schema, value: $value)
+        }
+    `,
+    deleteClient: gql`
+        mutation DeleteClient($db_name: String!, $schema: String, $value: String!) {
+            deleteClient(db_name: $db_name, schema: $schema, value: $value)
+        }
+    `,
+    dropDatabase: gql`
+        mutation DropDatabase($db_name: String!, $schema: String, $value: String!) {
+            dropDatabase(db_name: $db_name, schema: $schema, value: $value)
         }
     `,
     genericQuery: gql`
@@ -72,13 +70,18 @@ export const GRAPHQL_MAP = {
         }
     `,
     mailAdminCredentials: gql`
-        mutation MailAdminCredentials($db_name: String!, $id: Int!) {
-            mailAdminCredentials(db_name: $db_name, id: $id)
+        mutation MailAdminCredentials($db_name: String!, $schema: String, $value: String!) {
+            mailAdminCredentials(db_name: $db_name, schema: $schema, value: $value)
         }
     `,
-    setAdminUserActive: gql`
-        mutation SetAdminUserActive($db_name: String!, $id: Int!, $is_active: Boolean!) {
-            setAdminUserActive(db_name: $db_name, id: $id, is_active: $is_active)
+    mailBusinessUserCredentials: gql`
+        mutation MailBusinessUserCredentials($db_name: String!, $schema: String, $value: String!) {
+            mailBusinessUserCredentials(db_name: $db_name, schema: $schema, value: $value)
+        }
+    `,
+    setUserBuRole: gql`
+        mutation SetUserBuRole($db_name: String!, $schema: String, $value: String!) {
+            setUserBuRole(db_name: $db_name, schema: $schema, value: $value)
         }
     `,
     superAdminClientsData: gql`
@@ -99,23 +102,6 @@ export const GRAPHQL_MAP = {
     usageHealth: gql`
         query UsageHealth {
             usageHealth
-        }
-    `,
-    updateAdminUser: gql`
-        mutation UpdateAdminUser(
-            $db_name: String!
-            $email: String!
-            $full_name: String!
-            $id: Int!
-            $mobile: String
-        ) {
-            updateAdminUser(
-                db_name: $db_name
-                email: $email
-                full_name: $full_name
-                id: $id
-                mobile: $mobile
-            )
         }
     `,
 };

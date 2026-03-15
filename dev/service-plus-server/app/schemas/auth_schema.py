@@ -43,6 +43,7 @@ class LoginResponse(BaseModel):
     full_name: str = Field(alias="fullName", description="User's full name")
     id: int | None = Field(default=None, description="User's unique identifier")
 
+    db_name: str | None = Field(default=None, alias="dbName", description="Tenant database name")
     mobile: str = Field(description="User's mobile number")
     role_name: str = Field(alias="roleName", description="User's role name")
     username: str = Field(description="User's username")

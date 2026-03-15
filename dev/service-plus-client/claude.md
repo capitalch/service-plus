@@ -37,4 +37,20 @@
 - default debounce time is 1200ms
 - When creating a form, When validation happens the error should reflect immediately the result
 - When any validation fails the form should not submit and submit button should be disabled
+- Make use of genericQuery and genericUpdate as far as possible for insert, update, delete and get operations.
+- For all new queries and mutations try to use genericQuery and genericUpdate as far as possible
+- For all new queries and mutations try to use parameters in format ($db_name: String!, $schema: String, $value: String!)
+- Capabilities Summary of genericUpdate
+    | Feature | Supported |
+    |---------|-----------|
+    | Single master INSERT | ✅ |
+    | Single master UPDATE | ✅ |
+    | Multiple child rows (xData as list) | ✅ |
+    | Single child row (xData as dict) | ✅ |
+    | FK auto-injected from parent RETURNING id | ✅ |
+    | Unlimited nesting depth (recursive) | ✅ |
+    | Multiple sibling child tables (xDetails as list) | ✅ |
+    | Delete child rows by id list (deletedIds) | ✅ |
+    | Full transaction (all-or-nothing) | ✅ |
+    | isIdInsert flag to force INSERT with explicit id | ✅ |
 

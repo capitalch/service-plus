@@ -14,6 +14,7 @@ import {
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { MESSAGES } from "@/constants/messages";
 import { apolloClient } from "@/lib/apollo-client";
+import { graphQlUtils } from "@/lib/graphql-utils";
 import type { ClientAdminType } from "@/features/super-admin/types";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -46,8 +47,15 @@ export const ActivateAdminDialog = ({
         setSubmitting(true);
         try {
             const result = await apolloClient.mutate({
-                mutation: GRAPHQL_MAP.setAdminUserActive,
-                variables: { db_name: dbName, id: admin.id, is_active: true },
+                mutation: GRAPHQL_MAP.genericUpdate,
+                variables: {
+                    db_name: dbName,
+                    schema: "security",
+                    value: graphQlUtils.buildGenericUpdateValue({
+                        tableName: "user",
+                        xData: { id: admin.id, is_active: true },
+                    }),
+                },
             });
             if (result.error) {
                 toast.error(MESSAGES.ERROR_ADMIN_ACTIVATE_FAILED);

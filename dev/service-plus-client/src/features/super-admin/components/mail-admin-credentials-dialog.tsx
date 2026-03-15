@@ -62,7 +62,11 @@ export const MailAdminCredentialsDialog = ({
         try {
             const result = await apolloClient.mutate<MailAdminCredentialsResultType>({
                 mutation: GRAPHQL_MAP.mailAdminCredentials,
-                variables: { db_name: dbName, id: admin.id },
+                variables: {
+                    db_name: dbName,
+                    schema: "security",
+                    value: encodeURIComponent(JSON.stringify({ id: admin.id })),
+                },
             });
             if (result.error) {
                 setAlert({ message: MESSAGES.ERROR_ADMIN_MAIL_CREDENTIALS_FAILED, variant: "destructive" });

@@ -1,34 +1,35 @@
 # To Do
 ## Login
 - Forgot password
+- Remember me
+									- Selection of super admin vs others for login
 									- Clients fill in dropdown
 									- Superadmin
 ## Super admin login
-- login
-	- Forgot password
-	- remember me
-- Clients
-	- Stats: Orphon databases. A button to view orphon databases
-	- Testing
-		- Add client
-		- initialize
-			- Database
-			- Seed data
-			- Create admin
-		- Actions
-			- disable
-			- Add admin
-			- Edit
-			- View
-	- Actions new
-		- Delete disabled rows
-		- Remove database
+							- Clients
+								- Stats: Orphon databases. A button to view orphon databases
+								- Testing
+									- Add client
+									- initialize
+										- Database
+										- Seed data
+										- Create admin
+									- Actions
+										- disable
+										- Add admin
+										- Edit
+										- View
+								- Actions new
+									- Delete disabled rows
+									- Remove database
 
-									- Dashboard
-- Admins
-- Audit logs
-- System Settings
-- Usage and health
+								- Dashboard
+								- Audit logs
+								- System Settings
+								- Usage and health
+- Admins login
+
+
 # Project setup
 - Server
 									- Env

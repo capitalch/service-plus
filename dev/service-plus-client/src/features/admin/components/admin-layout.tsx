@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { BriefcaseIcon, LogOutIcon, ShieldCheckIcon, UsersIcon } from "lucide-react";
+import { BriefcaseIcon, BuildingIcon, ListChecksIcon, LogOutIcon, ScrollTextIcon, ShieldCheckIcon, UsersIcon } from "lucide-react";
 import { NavLink, useNavigate } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
@@ -12,8 +12,11 @@ type AdminLayoutPropsType = {
 };
 
 const NAV_ITEMS = [
-    { icon: ShieldCheckIcon, label: "Dashboard", to: ROUTES.admin.root },
-    { icon: UsersIcon,       label: "Users",     to: ROUTES.admin.users },
+    { icon: ShieldCheckIcon,  label: "Dashboard",      to: ROUTES.admin.root },
+    { icon: UsersIcon,        label: "Business Users", to: ROUTES.admin.users },
+    { icon: BuildingIcon,     label: "Business Units", to: ROUTES.admin.businessUnits },
+    { icon: ListChecksIcon,   label: "Roles",          to: ROUTES.admin.roles },
+    { icon: ScrollTextIcon,   label: "Audit Logs",     to: ROUTES.admin.audit },
 ];
 
 export const AdminLayout = ({ children }: AdminLayoutPropsType) => {

@@ -33,7 +33,7 @@ export const LoginPage = () => {
         className="w-full max-w-sm"
       >
         {/* Card */}
-        <div className="bg-white border border-slate-200 rounded-xl shadow-sm px-8 py-9">
+        <div className="bg-white border border-slate-200 rounded-xl shadow-sm px-8 py-4">
           {/* Logo */}
           <div className="flex items-center gap-2.5 mb-4">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600 shrink-0">

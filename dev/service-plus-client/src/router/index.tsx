@@ -9,6 +9,10 @@ import { UsageHealthPage } from '@/features/super-admin/pages/usage-health-page'
 import { AuditLogsPage } from '@/features/super-admin/pages/audit-logs-page';
 import { SystemSettingsPage } from '@/features/super-admin/pages/system-settings-page';
 import { AdminDashboardPage } from '@/features/admin/pages/admin-dashboard-page';
+import { AdminAuditLogsPage } from '@/features/admin/pages/admin-audit-logs-page';
+import { BusinessUnitsPage } from '@/features/admin/pages/business-units-page';
+import { BusinessUsersPage } from '@/features/admin/pages/business-users-page';
+import { RolesPage } from '@/features/admin/pages/roles-page';
 import { ProtectedRoute } from './protected-route';
 import { ROUTES } from './routes';
 
@@ -53,7 +57,11 @@ export const router = createBrowserRouter([
     errorElement: <ErrorPage />,
     element: <ProtectedRoute requiredSessionMode="admin" requiredUserType="A" />,
     children: [
-      { element: <AdminDashboardPage />, index: true },
+      { element: <AdminDashboardPage />,  index: true },
+      { element: <AdminAuditLogsPage />,  path: 'audit' },
+      { element: <BusinessUnitsPage />,   path: 'business-units' },
+      { element: <BusinessUsersPage />,   path: 'users' },
+      { element: <RolesPage />,           path: 'roles' },
     ],
   },
   {

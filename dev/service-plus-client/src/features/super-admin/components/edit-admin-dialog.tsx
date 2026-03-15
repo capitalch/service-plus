@@ -148,13 +148,14 @@ export const EditAdminDialog = ({
         if (!admin) return;
         try {
             const result = await apolloClient.mutate({
-                mutation: GRAPHQL_MAP.updateAdminUser,
+                mutation: GRAPHQL_MAP.genericUpdate,
                 variables: {
                     db_name: dbName,
-                    email: values.email,
-                    full_name: values.full_name,
-                    id: admin.id,
-                    mobile: values.mobile || null,
+                    schema: "security",
+                    value: graphQlUtils.buildGenericUpdateValue({
+                        tableName: "user",
+                        xData: { email: values.email, full_name: values.full_name, id: admin.id, mobile: values.mobile || null },
+                    }),
                 },
             });
             if (result.error) {

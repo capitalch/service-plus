@@ -6,7 +6,12 @@
       "Bash(c:\\\\projects\\\\service-plus\\\\env\\\\Scripts\\\\python.exe -c \"import aiofiles; print\\('aiofiles OK:', aiofiles.__version__\\)\")",
       "Bash(\"c:/projects/service-plus/env/Scripts/python.exe\" -m pip install aiofiles -q && \"c:/projects/service-plus/env/Scripts/python.exe\" -c \"import aiofiles; print\\('aiofiles OK:', aiofiles.__version__\\)\")",
       "Bash(\"c:/projects/service-plus/env/Scripts/python.exe\" -c \"import aiofiles; print\\('aiofiles imported OK'\\)\")",
-      "Bash(find \"C:\\\\projects\\\\service-plus\\\\dev\\\\service-plus-client\\\\src\\\\pages\" -type f -name \"*.tsx\" 2>/dev/null | head -20)"
+      "Bash(find \"C:\\\\projects\\\\service-plus\\\\dev\\\\service-plus-client\\\\src\\\\pages\" -type f -name \"*.tsx\" 2>/dev/null | head -20)",
+      "Bash(find:*)",
+      "Bash(cd:*)",
+      "Bash(pnpm tsc:*)",
+      "Bash(pnpm eslint:*)",
+      "Bash(pnpm exec:*)"
     ]
   }
 }

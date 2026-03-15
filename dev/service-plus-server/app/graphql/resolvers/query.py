@@ -8,6 +8,7 @@ from app.logger import logger
 from app.exceptions import GraphQLException, AppMessages
 # from app.config import settings
 from .query_helper import (
+    resolve_admin_dashboard_stats_helper,
     resolve_audit_log_stats_helper,
     resolve_audit_logs_helper,
     resolve_generic_query_helper,
@@ -20,6 +21,18 @@ from .query_helper import (
 
 # Create QueryType instance
 query = QueryType()
+
+
+@query.field("adminDashboardStats")
+async def resolve_admin_dashboard_stats(_, info, db_name: str = "") -> Any:
+    try:
+        return await resolve_admin_dashboard_stats_helper(db_name)
+    except Exception as e:
+        logger.error(f"Unexpected admin dashboard stats failure: {str(e)}", exc_info=True)
+        raise GraphQLException(
+            message=AppMessages.INTERNAL_SERVER_ERROR,
+            extensions={"details": AppMessages.UNEXPECTED_ERROR},
+        )
 
 
 @query.field("auditLogs")

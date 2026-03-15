@@ -207,10 +207,13 @@ export const CreateAdminDialog = ({
 				mutation: GRAPHQL_MAP.createAdminUser,
 				variables: {
 					db_name: client.db_name,
-					email: data.email,
-					full_name: data.full_name,
-					mobile: data.mobile || null,
-					username: data.username,
+					schema: "security",
+					value: encodeURIComponent(JSON.stringify({
+						email: data.email,
+						full_name: data.full_name,
+						mobile: data.mobile || null,
+						username: data.username,
+					})),
 				},
 			});
 			if (result.error) {

@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import { ClientCombobox } from './client-combobox';
 import { loginSchema, type LoginFormData } from '../schemas/auth-schemas';
 import { loginUser } from '@/features/auth/services/auth-service';
@@ -16,7 +17,6 @@ import { useAppDispatch } from '@/store/hooks';
 import { setCredentials, setSessionMode } from '@/features/auth/store/auth-slice';
 import { MESSAGES } from '@/constants/messages';
 import { ROUTES } from '@/router/routes';
-import { RoleSelectionDialog } from './role-selection-dialog';
 
 type LoginFormProps = {
   onForgotPassword: () => void;
@@ -27,13 +27,13 @@ export const LoginForm = ({ onForgotPassword }: LoginFormProps) => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [showRoleDialog, setShowRoleDialog] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
 
   const {
     register,
     handleSubmit,
     formState: { errors },
+    clearErrors,
     setValue,
     watch,
   } = useForm<LoginFormData>({
@@ -41,17 +41,20 @@ export const LoginForm = ({ onForgotPassword }: LoginFormProps) => {
     defaultValues: {
       clientId: '',
       emailOrUsername: '',
+      isSuperAdmin: false,
       password: '',
     },
   });
 
   const clientId = watch('clientId');
+  const isSuperAdmin = watch('isSuperAdmin');
 
   const onSubmit = async (data: LoginFormData) => {
     try {
       setIsLoading(true);
       const result = await loginUser(data);
       const user: UserInstanceType = {
+        dbName: result.dbName,
         email: result.email,
         fullName: result.fullName,
         id: result.id,
@@ -73,8 +76,6 @@ export const LoginForm = ({ onForgotPassword }: LoginFormProps) => {
 
       if (user.userType === 'S') {
         navigate(ROUTES.superAdmin.root);
-      } else if (user.userType === 'A') {
-        setShowRoleDialog(true);
       } else {
         dispatch(setSessionMode('client'));
         navigate(ROUTES.home);
@@ -87,35 +88,28 @@ export const LoginForm = ({ onForgotPassword }: LoginFormProps) => {
     }
   };
 
-  function handleModeSelect(mode: 'admin' | 'client') {
-    dispatch(setSessionMode(mode));
-    setShowRoleDialog(false);
-    navigate(mode === 'admin' ? ROUTES.admin.root : ROUTES.home);
-  }
-
   return (
     <>
-    <RoleSelectionDialog isOpen={showRoleDialog} onSelect={handleModeSelect} />
     <motion.form
       initial={{ opacity: 0, x: 10 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: -10 }}
       transition={{ duration: 0.25 }}
       onSubmit={handleSubmit(onSubmit)}
-      className="space-y-5"
+      className="space-y-4"
     >
       {/* Client Field */}
       <div className="space-y-1.5">
         <Label htmlFor="client" className="text-sm font-medium text-slate-700">
           Client
-          <span className="ml-0.5 text-red-500">*</span>
+          {!isSuperAdmin && <span className="ml-0.5 text-red-500">*</span>}
         </Label>
         <ClientCombobox
+          disabled={isSuperAdmin}
           value={clientId}
           onValueChange={(value) => setValue('clientId', value, { shouldValidate: true })}
           error={errors.clientId?.message}
         />
-        <p className="text-xs text-slate-400">Not required for Super Admin login</p>
       </div>
 
       {/* Email / Username Field */}
@@ -216,6 +210,24 @@ export const LoginForm = ({ onForgotPassword }: LoginFormProps) => {
           'Sign In'
         )}
       </Button>
+      {/* Super Admin Toggle — subtle, bottom-right */}
+      <div className="flex items-center justify-end gap-2 pt-1">
+        <label htmlFor="isSuperAdmin" className="cursor-pointer select-none text-xs text-slate-400 hover:text-slate-500 transition-colors">
+          Super Admin
+        </label>
+        <Switch
+          id="isSuperAdmin"
+          checked={isSuperAdmin}
+          className="scale-75 origin-right cursor-pointer"
+          onCheckedChange={(checked) => {
+            setValue('isSuperAdmin', checked, { shouldValidate: true });
+            if (checked) {
+              setValue('clientId', '', { shouldValidate: false });
+              clearErrors('clientId');
+            }
+          }}
+        />
+      </div>
     </motion.form>
     </>
   );

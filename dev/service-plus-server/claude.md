@@ -32,6 +32,7 @@
     GraphQL: Use GraphQL for all secured/authenticated data calls.
 
     Sorting: Within every file, always sort code alphabetically by function names, class names, endpoint names, and field names.
+    Make use of genericQuery and genericUpdate as far as possible for insert, update, delete and get operations.
 
     SQL Generation Standards
         When generating SQL queries, you must adhere to this specific syntax:

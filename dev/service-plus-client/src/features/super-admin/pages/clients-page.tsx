@@ -57,6 +57,7 @@ import { EditAdminDialog } from "../components/edit-admin-dialog";
 import { EditClientDialog } from "../components/edit-client-dialog";
 import { MailAdminCredentialsDialog } from "../components/mail-admin-credentials-dialog";
 import { InitializeClientDialog } from "../components/initialize-client-dialog";
+import { SeedRolesDialog } from "../components/seed-roles-dialog";
 import { OrphanDatabasesDialog } from "../components/orphan-databases-dialog";
 import { SuperAdminLayout } from "../components/super-admin-layout";
 import { ViewClientDialog } from "../components/view-client-dialog";
@@ -126,6 +127,7 @@ export const ClientsPage = () => {
 	const [editClient, setEditClient] = useState<ClientType | null>(null);
 	const [initializeClient, setInitializeClient] = useState<ClientType | null>(null);
 	const [orphanDbsOpen, setOrphanDbsOpen] = useState(false);
+	const [seedRolesClient, setSeedRolesClient] = useState<ClientType | null>(null);
 	const [viewClient, setViewClient] = useState<ClientType | null>(null);
 
 	// ── Admin dialog state ───────────────────────────────────────────────────
@@ -187,6 +189,7 @@ export const ClientsPage = () => {
 	const handleDelete      = (client: ClientType) => setDeleteClient(client);
 	const handleDetachDb    = (client: ClientType) => setDetachDbClient(client);
 	const handleEdit        = (client: ClientType) => setEditClient(client);
+	const handleSeedRoles   = (client: ClientType) => setSeedRolesClient(client);
 	const handleView        = (client: ClientType) => setViewClient(client);
 
 	function handleInitialize(client: ClientType) {
@@ -571,6 +574,13 @@ export const ClientsPage = () => {
 														>
 															Detach DB
 														</DropdownMenuItem>
+														<DropdownMenuItem
+															className="cursor-pointer text-violet-600 focus:text-violet-600"
+															disabled={!client.db_name}
+															onClick={() => handleSeedRoles(client)}
+														>
+															Seed Roles
+														</DropdownMenuItem>
 														<DropdownMenuSeparator />
 														{client.is_active ? (
 															<DropdownMenuItem
@@ -733,6 +743,14 @@ export const ClientsPage = () => {
 					open={!!initializeClient}
 					onOpenChange={(open) => { if (!open) setInitializeClient(null); }}
 					onStep1Success={handleRefetch}
+					onSuccess={handleRefetch}
+				/>
+			)}
+			{seedRolesClient && (
+				<SeedRolesDialog
+					client={seedRolesClient}
+					open={!!seedRolesClient}
+					onOpenChange={(open) => { if (!open) setSeedRolesClient(null); }}
 					onSuccess={handleRefetch}
 				/>
 			)}

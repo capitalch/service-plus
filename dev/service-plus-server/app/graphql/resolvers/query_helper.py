@@ -16,6 +16,32 @@ from app.logger import logger
 _MODULE_LOAD_TIME: float = _time.time()
 
 
+async def resolve_admin_dashboard_stats_helper(db_name: str) -> dict:
+    """Return BU/user stats and 7-day audit event count for a single client DB."""
+    logger.info(f"Admin dashboard stats requested for db_name={db_name!r}")
+
+    today    = date.today()
+    week_ago = today - timedelta(days=6)
+
+    bu_rows = await exec_sql(db_name=db_name, schema="security", sql=SqlAuth.GET_BU_USER_STATS)
+    row = bu_rows[0] if bu_rows else {}
+
+    audit_stats = await audit_logger.stats(week_ago, today)
+
+    return {
+        "activeAdminUsers":    int(row.get("active_admin_users",   0)),
+        "activeBusinessUsers": int(row.get("active_users",   0)) - int(row.get("active_admin_users",   0)),
+        "activeBu":            int(row.get("active_bu",            0)),
+        "auditEventsWeek":     int(audit_stats.get("totalEvents",  0)),
+        "inactiveAdminUsers":    int(row.get("inactive_admin_users", 0)),
+        "inactiveBusinessUsers": int(row.get("inactive_users", 0)) - int(row.get("inactive_admin_users", 0)),
+        "inactiveBu":          int(row.get("inactive_bu",          0)),
+        "totalAdminUsers":    int(row.get("total_admin_users",    0)),
+        "totalBusinessUsers": int(row.get("total_users",    0)) - int(row.get("total_admin_users",    0)),
+        "totalBu":            int(row.get("total_bu",             0)),
+    }
+
+
 async def resolve_audit_log_stats_helper(
     from_date: str | None = None,
     to_date: str | None = None,

@@ -1,31 +1,52 @@
-# File-Based Audit Logging Implementation Plan
+# Plan: Client-Side Email Uniqueness Validation for Business User Edit
 
-## Workflow Overview
-1. **Setup File Logger**: Configure the Python backend (FastAPI) to write audit events to a dedicated log file (e.g., `audit.log`) in an easily parsed format like JSON.
-2. **Intercept Actions**: Implement a middleware or dependency in the server to capture and log relevant user actions (creates, updates, deletes, logins).
-3. **Expose Log Data**: Create a new API endpoint on the server that reads the `audit.log` file (with pagination/chunking to support large files) and returns the data to the client.
-4. **Client UI Update**: Modify the existing "Audit Logs" page in the React client to fetch data from this new endpoint, parse the JSON, and display it in a data table.
+## Goal
+Validate business user email uniqueness on the client-side during the edit workflow, preventing submission if the given email already belongs to another existing user.
 
-## Step 1: Server-Side File Logging Configuration
-- Modify `service-plus-server/app/logger.py` to add a new customized logger specifically for audit events.
-- Implement a `logging.handlers.RotatingFileHandler` configured to write to a designated directory (e.g., `logs/audit.log`).
-- Set the log formatter to output logs in JSON format. This will ensure that fields such as `timestamp`, `user_id`, `action`, `resource`, and `details` can be easily parsed by the API later.
+## Workflow
+1. Intercept email changes in the edit business user form using `useWatch` and debounce the input to avoid excessive API calls.
+2. If the new email is valid and different from the user's original email, trigger a validation query.
+3. Use the existing `genericQuery` functionality with `SQL_MAP.CHECK_BUSINESS_USER_EMAIL_EXISTS_EXCLUDE_ID` to perform the database check.
+4. Update form state and prevent submission if the exact email is taken by another user.
 
-## Step 2: Capture Audit Events
-- Create a utility function `log_audit_event(user_id, action, resource, details)`.
-- Option A (Middleware): Create a FastAPI middleware that intercepts requests where the HTTP method is POST, PUT, PATCH, or DELETE, extracting the user ID from the token and logging the action.
-- Option B (Manual Calls): Inject the `log_audit_event` call directly into the specific route handlers or repository methods where significant actions occur. 
-- *Recommendation*: Use Option A for broad coverage, supplemented with Option B for sensitive operations requiring specific detail.
+## Step-by-Step Execution
 
-## Step 3: Create the Audit Logs API Endpoint
-- Create a new router file `service-plus-server/app/routers/audit_logs.py`.
-- Define an endpoint `GET /api/v1/audit-logs`.
-- Implement logic to read the `audit.log` file. Since log files can grow large, the endpoint should read the file from the bottom up (most recent first) and support pagination parameters (`skip`, `limit`).
-- Parse each valid JSON line into a Python dict and return a list of these objects as the JSON response.
-- Secure the endpoint so only SuperAdmins (or authorized users) can access it.
+### Step 1: Add State Variables in `edit-business-user-dialog.tsx`
+- Add `checkingEmail` (boolean, default false) to track API loading state.
+- Add `emailTaken` (boolean | null, default null) to store the validation result.
+- Hook into the form's email field using `useWatch` and debounce the value using `useDebounce` (default 1200ms).
 
-## Step 4: Client-Side Integration
-- In `service-plus-client/src/features/super-admin/api/` (or equivalent API service folder), add a new API call `getAuditLogs({ skip, limit })` that targets the new endpoint.
-- Define the TypeScript interface for the audit log entry (e.g., `AuditLogEntry`).
-- Update `service-plus-client/src/features/super-admin/components/` (the Audit Logs page/table component) to use this new API call instead of any existing mock/DB-based calls.
-- Implement basic pagination in the UI table to allow navigating older file logs.
+### Step 2: Implement the Validation `useEffect` Hook
+- Create a `useEffect` that depends on `debouncedEmail`.
+- Ensure it skips execution if:
+  - `debouncedEmail` hasn't changed from the user's original email.
+  - The email field is already failing local format validation (checked via `form.getFieldState("email")`).
+- Trigger `apolloClient.query` using `GRAPHQL_MAP.genericQuery` and `SQL_MAP.CHECK_BUSINESS_USER_EMAIL_EXISTS_EXCLUDE_ID`.
+- Pass parameters using the standard genericQuery format:
+  ```typescript
+  variables: {
+      db_name: dbName,
+      schema: "security",
+      value: graphQlUtils.buildGenericQueryValue({
+          sqlArgs: { email: debouncedEmail, id: user.id },
+          sqlId: SQL_MAP.CHECK_BUSINESS_USER_EMAIL_EXISTS_EXCLUDE_ID,
+      }),
+  }
+  ```
+- If the result indicates the email exists, call `form.setError("email", { ... })` using the appropriate message from `MESSAGES`.
+- If the result is false, call `form.clearErrors("email")`.
+
+### Step 3: Handle UI Feedback and Submit Validation
+- In the JSX, add a conditional loading spinner (`Loader2`) inside the email input when `checkingEmail` is true.
+- Add a success indicator (`Check` icon) when `checkingEmail` is false, `emailTaken` is false, and there are no other errors.
+- Ensure the `submitDisabled` logic accounts for `checkingEmail` and `emailTaken === true` to properly prevent form submission before/during/after validation.
+
+### Step 4: Add Username Validation Consistency (Optional but recommended)
+- If the username is also editable, apply the identical debounced validation pattern using `SQL_MAP.CHECK_BUSINESS_USER_USERNAME_EXISTS_EXCLUDE_ID`.
+
+## Verification Plan
+1. Open the Edit Business User dialog.
+2. Enter an email address that belongs to a different business user.
+3. Observe the UI reflecting the loading state, followed by an error message.
+4. Verify that the Submit button is completely disabled.
+5. Revert the email back to the user's original email; verify that no validation error occurs and the submit button re-enables.

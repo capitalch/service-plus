@@ -2,10 +2,12 @@ export const ROUTES = {
     home:  '/',
     login: '/login',
     admin: {
-        audit:    '/admin/audit',
-        root:     '/admin',
-        settings: '/admin/settings',
-        users:    '/admin/users',
+        audit:         '/admin/audit',
+        businessUnits: '/admin/business-units',
+        roles:         '/admin/roles',
+        root:          '/admin',
+        settings:      '/admin/settings',
+        users:         '/admin/users',
     },
     superAdmin: {
         audit:    '/super-admin/audit',

@@ -49,6 +49,8 @@ class AppMessages:
     # Error messages - Authorization / Authentication
     ADMIN_EMAIL_EXISTS = "This email is already registered for this client"
     ADMIN_USER_NOT_FOUND = "Admin user not found"
+    BUSINESS_USER_EMAIL_EXISTS = "This email is already registered as a business user"
+    BUSINESS_USER_USERNAME_EXISTS = "This username is already taken by another business user"
     ADMIN_USER_UPDATE_FAILED = "Failed to update admin user"
     UNAUTHORIZED = "Unauthorized access"
     FORBIDDEN = "Access forbidden"

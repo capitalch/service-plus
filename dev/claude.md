@@ -23,3 +23,18 @@
 - Overwrite plan.md if required.
 - In plan.md write all the steps of execution as Step1, Step 2 and so on.
 - In plan.md include a workflow section which provides the workflow of entire effort
+- For all new queries and mutations try to use genericQuery and genericUpdate as far as possible
+- For all new queries and mutations try to use parameters in format ($db_name: String!, $schema: String, $value: String!)
+- Capabilities Summary of genericUpdate
+    | Feature | Supported |
+    |---------|-----------|
+    | Single master INSERT | ✅ |
+    | Single master UPDATE | ✅ |
+    | Multiple child rows (xData as list) | ✅ |
+    | Single child row (xData as dict) | ✅ |
+    | FK auto-injected from parent RETURNING id | ✅ |
+    | Unlimited nesting depth (recursive) | ✅ |
+    | Multiple sibling child tables (xDetails as list) | ✅ |
+    | Delete child rows by id list (deletedIds) | ✅ |
+    | Full transaction (all-or-nothing) | ✅ |
+    | isIdInsert flag to force INSERT with explicit id | ✅ |

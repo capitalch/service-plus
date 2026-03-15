@@ -6,12 +6,13 @@ import { Input } from '@/components/ui/input';
 import { useClientSearch } from '../hooks/use-client-search';
 
 type ClientComboboxProps = {
+  disabled?: boolean;
   error?: string;
   onValueChange: (value: string) => void;
   value: string;
 };
 
-export const ClientCombobox = ({ error, onValueChange, value }: ClientComboboxProps) => {
+export const ClientCombobox = ({ disabled, error, onValueChange, value }: ClientComboboxProps) => {
   const { clients, hasMinimumChars, isLoading, setCriteria } = useClientSearch();
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const [inputValue, setInputValue] = useState('');
@@ -98,6 +99,7 @@ export const ClientCombobox = ({ error, onValueChange, value }: ClientComboboxPr
           aria-haspopup="listbox"
           autoComplete="off"
           className="pr-8 text-sm"
+          disabled={disabled}
           onBlur={handleBlur}
           onChange={handleInputChange}
           onFocus={handleFocus}

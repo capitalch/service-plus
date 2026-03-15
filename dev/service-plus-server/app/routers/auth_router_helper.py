@@ -71,7 +71,16 @@ async def login_helper(body: LoginRequest) -> LoginResponse:
             resource_type="session",
         )
         raise AuthorizationException(AppMessages.INVALID_CREDENTIALS)
-    db_name: str = client_rows[0]["db_name"]
+    db_name: str | None = client_rows[0]["db_name"]
+    if not db_name:
+        await audit_logger.log(
+            action=AuditAction.LOGIN_FAILED,
+            actor_username=body.identity,
+            detail="Client database not initialized",
+            outcome="failure",
+            resource_type="session",
+        )
+        raise AuthorizationException(AppMessages.INVALID_CREDENTIALS)
 
     # [3] Authenticate user
     user_rows = await exec_sql(
@@ -136,6 +145,7 @@ async def login_helper(body: LoginRequest) -> LoginResponse:
     return LoginResponse(
         access_token=access_token,
         access_rights=user["access_rights"] or [],
+        db_name=db_name,
         email=user["email"],
         full_name=user["full_name"],
         id=user["id"],

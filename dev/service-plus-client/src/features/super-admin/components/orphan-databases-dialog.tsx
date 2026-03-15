@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { useMutation } from "@apollo/client/react";
+import { apolloClient } from "@/lib/apollo-client";
 import { DatabaseIcon, InfoIcon, TriangleAlertIcon } from "lucide-react";
 import { toast } from "sonner";
 
@@ -32,9 +32,8 @@ type OrphanDatabasesDialogPropsType = {
 export const OrphanDatabasesDialog = ({ databases, onOpenChange, onSuccess, open }: OrphanDatabasesDialogPropsType) => {
 	const [confirmInput, setConfirmInput] = useState("");
 	const [deletingDb, setDeletingDb] = useState<string | null>(null);
+	const [dropping, setDropping] = useState(false);
 	const [localDatabases, setLocalDatabases] = useState<string[]>(databases);
-
-	const [executeDropDatabase, { loading: dropping }] = useMutation(GRAPHQL_MAP.dropDatabase);
 
 	useEffect(() => {
 		setLocalDatabases(databases);
@@ -51,8 +50,16 @@ export const OrphanDatabasesDialog = ({ databases, onOpenChange, onSuccess, open
 
 	async function handleConfirmDelete() {
 		if (!deletingDb || !isNameMatch) return;
+		setDropping(true);
 		try {
-			const result = await executeDropDatabase({ variables: { db_name: deletingDb } });
+			const result = await apolloClient.mutate({
+				mutation: GRAPHQL_MAP.dropDatabase,
+				variables: {
+					db_name: "",
+					schema: "public",
+					value: encodeURIComponent(JSON.stringify({ db_name: deletingDb })),
+				},
+			});
 			if (result.error) {
 				toast.error(MESSAGES.ERROR_ORPHAN_DB_DELETE_FAILED);
 				return;
@@ -64,6 +71,8 @@ export const OrphanDatabasesDialog = ({ databases, onOpenChange, onSuccess, open
 			onSuccess();
 		} catch {
 			toast.error(MESSAGES.ERROR_ORPHAN_DB_DELETE_FAILED);
+		} finally {
+			setDropping(false);
 		}
 	}
 

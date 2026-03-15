@@ -257,7 +257,11 @@ export const InitializeClientDialog = ({
 		try {
 			const result = await apolloClient.mutate({
 				mutation: GRAPHQL_MAP.createServiceDb,
-				variables: { client_id: client.id, db_name: data.db_name },
+				variables: {
+					db_name: "",
+					schema: "public",
+					value: encodeURIComponent(JSON.stringify({ client_id: client.id, new_db_name: data.db_name })),
+				},
 			});
 			if (result.error) {
 				toast.error(MESSAGES.ERROR_INITIALIZE_DB_FAILED);
@@ -309,10 +313,13 @@ export const InitializeClientDialog = ({
 				mutation: GRAPHQL_MAP.createAdminUser,
 				variables: {
 					db_name: activeDb,
-					email: data.email,
-					full_name: data.full_name,
-					mobile: data.mobile || null,
-					username: data.username,
+					schema: "security",
+					value: encodeURIComponent(JSON.stringify({
+						email: data.email,
+						full_name: data.full_name,
+						mobile: data.mobile || null,
+						username: data.username,
+					})),
 				},
 			});
 			if (result.error) {

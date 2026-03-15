@@ -1,4 +1,75 @@
 class SqlAuth:
+    CHECK_BUSINESS_USER_EMAIL_EXISTS = """
+        with "p_email" as (values(%(email)s::text))
+        -- with "p_email" as (values('user@example.com'::text)) -- Test line
+        SELECT EXISTS(
+            SELECT 1 FROM security."user"
+            WHERE LOWER(email) = LOWER((table "p_email"))
+        ) AS exists
+    """
+
+    CHECK_BUSINESS_USER_EMAIL_EXISTS_EXCLUDE_ID = """
+        with
+            "p_email" as (values(%(email)s::text)),
+            "p_id"    as (values(%(id)s::bigint))
+        -- with
+        --     "p_email" as (values('user@example.com'::text)), -- Test line
+        --     "p_id"    as (values(1::bigint)) -- Test line
+        SELECT EXISTS(
+            SELECT 1 FROM security."user"
+            WHERE LOWER(email) = LOWER((table "p_email"))
+              AND id <> (table "p_id")
+        ) AS exists
+    """
+
+    CHECK_BUSINESS_USER_USERNAME_EXISTS = """
+        with "p_username" as (values(%(username)s::text))
+        -- with "p_username" as (values('jsmith'::text)) -- Test line
+        SELECT EXISTS(
+            SELECT 1 FROM security."user"
+            WHERE LOWER(username) = LOWER((table "p_username"))
+              AND is_admin = false
+        ) AS exists
+    """
+
+    CHECK_BUSINESS_USER_USERNAME_EXISTS_EXCLUDE_ID = """
+        with
+            "p_username" as (values(%(username)s::text)),
+            "p_id"       as (values(%(id)s::bigint))
+        -- with
+        --     "p_username" as (values('jsmith'::text)), -- Test line
+        --     "p_id"       as (values(1::bigint)) -- Test line
+        SELECT EXISTS(
+            SELECT 1 FROM security."user"
+            WHERE LOWER(username) = LOWER((table "p_username"))
+              AND is_admin = false
+              AND id <> (table "p_id")
+        ) AS exists
+    """
+
+    CHECK_BU_CODE_EXISTS = """
+        with "p_code" as (values(%(code)s::text))
+        -- with "p_code" as (values('SALES'::text)) -- Test line
+        SELECT EXISTS(
+            SELECT 1 FROM security.bu
+            WHERE LOWER(code) = LOWER((table "p_code"))
+        ) AS exists
+    """
+
+    CHECK_BU_CODE_EXISTS_EXCLUDE_ID = """
+        with
+            "p_code" as (values(%(code)s::text)),
+            "p_id"   as (values(%(id)s::bigint))
+        -- with
+        --     "p_code" as (values('SALES'::text)), -- Test line
+        --     "p_id"   as (values(1::bigint)) -- Test line
+        SELECT EXISTS(
+            SELECT 1 FROM security.bu
+            WHERE LOWER(code) = LOWER((table "p_code"))
+              AND id <> (table "p_id")
+        ) AS exists
+    """
+
     CHECK_ADMIN_EMAIL_EXISTS = """
         with "p_email" as (values(%(email)s::text))
         -- with "p_email" as (values('admin@example.com'::text)) -- Test line
@@ -126,6 +197,13 @@ class SqlAuth:
         ORDER BY full_name
     """
 
+    GET_ALL_BUS = """
+        with "dummy" as (values(1::int))
+        SELECT id, code, name, is_active, created_at, updated_at
+        FROM security.bu
+        ORDER BY name
+    """
+
     GET_ALL_CLIENTS_ON_CRITERIA = """
         with "criteria" as (values(%(criteria)s::text))
         -- with "criteria" as (values('cap'::text)) -- Test line
@@ -133,6 +211,13 @@ class SqlAuth:
         FROM client
         WHERE LOWER("name") LIKE LOWER((table "criteria") || '%%')
           AND is_active = true
+        ORDER BY name
+    """
+
+    GET_ALL_ROLES = """
+        with "dummy" as (values(1::int))
+        SELECT id, code, description, is_system, name, created_at, updated_at
+        FROM security.role
         ORDER BY name
     """
 
@@ -149,6 +234,49 @@ class SqlAuth:
             (SELECT COUNT(*)                              FROM security."user")                           AS total_users,
             (SELECT COUNT(*) FILTER (WHERE is_active)     FROM security."user")                          AS active_users,
             (SELECT COUNT(*) FILTER (WHERE NOT is_active) FROM security."user")                          AS inactive_users
+    """
+
+    GET_BUSINESS_USER_BY_ID = """
+        with "p_id" as (values(%(id)s::bigint))
+        -- with "p_id" as (values(1::bigint)) -- Test line
+        SELECT id, email, full_name, is_active, is_admin, mobile, username
+        FROM security."user"
+        WHERE id = (table "p_id") AND is_admin = false
+    """
+
+    GET_BUSINESS_USERS = """
+        with "dummy" as (values(1::int))
+        SELECT
+            u.id,
+            u.created_at,
+            u.email,
+            u.full_name,
+            u.is_active,
+            u.mobile,
+            u.updated_at,
+            u.username,
+            COALESCE(
+                ARRAY_AGG(ubr.bu_id ORDER BY ubr.bu_id) FILTER (WHERE ubr.bu_id IS NOT NULL),
+                ARRAY[]::bigint[]
+            ) AS bu_ids,
+            MAX(ubr.role_id) AS role_id,
+            MAX(r.name)      AS role_name
+        FROM security."user" u
+        LEFT JOIN security.user_bu_role ubr ON ubr.user_id = u.id
+        LEFT JOIN security.role          r   ON r.id = ubr.role_id
+        WHERE u.is_admin = false
+        GROUP BY u.id, u.created_at, u.email, u.full_name, u.is_active,
+                 u.mobile, u.updated_at, u.username
+        ORDER BY u.full_name
+    """
+
+    GET_USER_BU_ROLE = """
+        with "p_user_id" as (values(%(user_id)s::bigint))
+        -- with "p_user_id" as (values(1::bigint)) -- Test line
+        SELECT bu_id, role_id
+        FROM security.user_bu_role
+        WHERE user_id = (table "p_user_id")
+        ORDER BY bu_id
     """
 
     GET_USER_BY_IDENTITY = """
@@ -260,6 +388,17 @@ class SqlAuth:
         UPDATE security."user"
         SET password_hash = (table "p_password_hash"), updated_at = now()
         WHERE id = (table "p_id") AND is_admin = true
+        RETURNING id
+    """
+
+    RESET_BUSINESS_USER_PASSWORD = """
+        with
+            "p_id"            as (values(%(id)s::bigint)),
+            -- "p_id"            as (values(1::bigint)) -- Test line
+            "p_password_hash" as (values(%(password_hash)s::text))
+        UPDATE security."user"
+        SET password_hash = (table "p_password_hash"), updated_at = now()
+        WHERE id = (table "p_id") AND is_admin = false
         RETURNING id
     """
 

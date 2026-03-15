@@ -1,140 +1,76 @@
-# Plan: Fix Login for All User Types (SA / Admin / Business)
+# Plan: Fix Email Uniqueness Check — Remove is_admin Filter
 
-## Current State Analysis
+## Root Cause
 
-| User Type | Server | Client | Status |
-|-----------|--------|--------|--------|
-| Super Admin (S) | ✅ Early-return path, skips client DB | ⚠️ Form requires client selection — SA has no client | Partial |
-| Admin User (A) | ❌ `username` missing from `LoginResponse` → Pydantic `ValidationError` → 500 | ✅ `RoleSelectionDialog` ready | Broken |
-| Business User (B) | ❌ Same `username` missing bug as Admin | ✅ Routes to client mode | Broken |
+`security."user"` has `UNIQUE (email)` covering ALL rows (admins + business users).
 
-### Root Causes
+Both check SQLs filter `AND is_admin = false`, so they only search among business users.
 
-1. **Server — `auth_router_helper.py` (line 136–144)**
-   Non-SA `LoginResponse(...)` call is missing `id=user["id"]` and `username=user["username"]`.
-   `username` has no default in `LoginResponse` schema → Pydantic raises `ValidationError` → server returns 500 for every admin/business login.
+If the email being entered belongs to an **admin user**, the check finds nothing
+→ returns `exists = false` → green check → form submits → PostgreSQL UNIQUE
+constraint fires at the server → runtime error.
 
-2. **Server — `auth_schema.py`**
-   `client_id: str` is required. Super Admin does not belong to any client; forcing a `client_id` is semantically wrong (though the server ignores it for SA after the identity check).
+## Fix
 
-3. **Client — `auth-schemas.ts`**
-   `clientId: z.string().min(1, ...)` — mandatory. SA cannot submit the login form without selecting a client.
+Remove `AND is_admin = false` from:
+1. `CHECK_BUSINESS_USER_EMAIL_EXISTS`          (used in create dialog)
+2. `CHECK_BUSINESS_USER_EMAIL_EXISTS_EXCLUDE_ID` (used in edit dialog)
 
-4. **Client — `login-form.tsx`**
-   No hint to SA that the Client field is not required for them.
+Both should check against the ENTIRE `security."user"` table, matching the scope
+of the actual unique constraint.
 
 ---
 
-## Fix Plan
+## Steps
 
-### Step 1 — Server: Fix missing `id` & `username` in non-SA `LoginResponse`
+### Step 1 — Fix SQL in `sql_auth.py`
 
-**File:** `service-plus-server/app/routers/auth_router_helper.py`
+**File:** `service-plus-server/app/db/sql_auth.py`
 
-Change the non-SA return (around line 136) from:
-```python
-return LoginResponse(
-    access_token=access_token,
-    access_rights=user["access_rights"] or [],
-    email=user["email"],
-    full_name=user["full_name"],
-    mobile=user["mobile"] or "",
-    role_name=user["role_name"] or "",
-    user_type=user_type,
-)
-```
-To:
-```python
-return LoginResponse(
-    access_token=access_token,
-    access_rights=user["access_rights"] or [],
-    email=user["email"],
-    full_name=user["full_name"],
-    id=user["id"],
-    mobile=user["mobile"] or "",
-    role_name=user["role_name"] or "",
-    user_type=user_type,
-    username=user["username"],
-)
+**1a. `CHECK_BUSINESS_USER_EMAIL_EXISTS`** — remove `AND is_admin = false`:
+
+```sql
+-- Before:
+SELECT EXISTS(
+    SELECT 1 FROM security."user"
+    WHERE LOWER(email) = LOWER((table "p_email"))
+      AND is_admin = false
+) AS exists
+
+-- After:
+SELECT EXISTS(
+    SELECT 1 FROM security."user"
+    WHERE LOWER(email) = LOWER((table "p_email"))
+) AS exists
 ```
 
----
+**1b. `CHECK_BUSINESS_USER_EMAIL_EXISTS_EXCLUDE_ID`** — remove `AND is_admin = false`:
 
-### Step 2 — Server: Make `client_id` optional in `LoginRequest`
+```sql
+-- Before:
+SELECT EXISTS(
+    SELECT 1 FROM security."user"
+    WHERE LOWER(email) = LOWER((table "p_email"))
+      AND is_admin = false
+      AND id <> (table "p_id")
+) AS exists
 
-**File:** `service-plus-server/app/schemas/auth_schema.py`
-
-Change:
-```python
-client_id: str = Field(alias="clientId", description="ID of the client application")
-```
-To:
-```python
-client_id: str = Field(default="", alias="clientId", description="ID of the client application")
-```
-
-This allows SA to submit without a `clientId`. Non-SA users who omit it will get "invalid credentials" from step [2] of `login_helper` (correct behaviour).
-
----
-
-### Step 3 — Client: Make `clientId` optional in Zod schema
-
-**File:** `service-plus-client/src/features/auth/schemas/auth-schemas.ts`
-
-Change:
-```ts
-clientId: z.string().min(1, MESSAGES.ERROR_CLIENT_REQUIRED),
-```
-To:
-```ts
-clientId: z.string().default(''),
+-- After:
+SELECT EXISTS(
+    SELECT 1 FROM security."user"
+    WHERE LOWER(email) = LOWER((table "p_email"))
+      AND id <> (table "p_id")
+) AS exists
 ```
 
 ---
 
-### Step 4 — Client: Add Super Admin hint in login form
+## Files to Change
 
-**File:** `service-plus-client/src/features/auth/components/login-form.tsx`
+| Action | File |
+|--------|------|
+| Modify | `service-plus-server/app/db/sql_auth.py` |
 
-Add a small helper text under the Client combobox:
-```tsx
-<p className="text-xs text-slate-400">Not required for Super Admin login</p>
-```
-
----
-
-## Workflow
-
-```
-User submits login form
-        │
-        ├─ identity == SA username? (server check)
-        │       YES → verify SA password → return JWT (user_type="S")
-        │       NO  → resolve tenant DB via client_id
-        │               │
-        │               ├─ client not found → 401 Invalid credentials
-        │               └─ found → GET_USER_BY_IDENTITY
-        │                           │
-        │                           ├─ user not found / inactive → 401
-        │                           ├─ wrong password → 401
-        │                           └─ OK → determine user_type (A or B)
-        │                                   → build JWT with id, db_name, client_id
-        │                                   → return LoginResponse (with id + username) ✅
-        │
-Client receives LoginResponse
-        │
-        ├─ userType === 'S' → navigate /super-admin
-        ├─ userType === 'A' → show RoleSelectionDialog
-        │                       ├─ Admin Mode → setSessionMode('admin') → /admin
-        │                       └─ Client Mode → setSessionMode('client') → /
-        └─ userType === 'B' → setSessionMode('client') → /
-```
-
-## Summary
-
-| File | Change |
-|------|--------|
-| `app/routers/auth_router_helper.py` | Add `id` and `username` to non-SA `LoginResponse` |
-| `app/schemas/auth_schema.py` | Make `client_id` optional (default `""`) |
-| `src/features/auth/schemas/auth-schemas.ts` | Make `clientId` optional in Zod schema |
-| `src/features/auth/components/login-form.tsx` | Add "Not required for Super Admin" hint |
+No frontend changes needed — the frontend code is already correct.
+The debounced check, spinner, green check, and submit guards all work as intended
+once the SQL returns the correct result.

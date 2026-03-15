@@ -34,6 +34,7 @@ export type LoginRequestType = {
 export type LoginResponseType = {
     accessToken: string;
     accessRights?: string[] | null | [];
+    dbName?: string | null;
     email: string;
     fullName?: string;
     id?: string;
@@ -47,6 +48,7 @@ export type SearchClientsResponseType = ClientType[];
 
 export type UserInstanceType = {
     accessRights?: string[] | null | [];
+    dbName?: string | null;
     email: string;
     fullName?: string;
     id?: string;
