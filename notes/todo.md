@@ -41,10 +41,21 @@
 				- financial_year
 				- job_delivery_manner
 				- job_receive_condition
+				- job_receive_manner
+					- walk-in
+					- courier
+					- pickup
+					- online
 				- job_status
+					- under process
+					- waiting for spare parts
+					- ready
+					- delivered ok
+					- delivered not ok
+					- Sent to company
 				- job_type
 				- stock_transaction_type
-				
+
 	- Roles
 	- Audit Logs
 
