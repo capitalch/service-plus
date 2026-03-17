@@ -28,7 +28,25 @@
 								- System Settings
 								- Usage and health
 - Admins login
-
+	- Dashboard
+	- Budiness Users
+	- Business Units
+		- Three steps process
+			a) bu name
+			b) schema creation
+			c) seed data
+				- state in proper format
+				- customer type
+				- document_type
+				- financial_year
+				- job_delivery_manner
+				- job_receive_condition
+				- job_status
+				- job_type
+				- stock_transaction_type
+				
+	- Roles
+	- Audit Logs
 
 # Project setup
 - Server
