@@ -25,6 +25,17 @@ export type ForgotPasswordResponse = {
     success: boolean;
 };
 
+export type SetPasswordResponseType = {
+    message: string;
+    success: boolean;
+};
+
+export type ValidateResetTokenResponseType = {
+    full_name: string;
+    username: string;
+    valid: boolean;
+};
+
 export type LoginRequestType = {
     clientId: string;
     emailOrUsername: string;
@@ -67,7 +78,7 @@ function extractApiError(err: unknown): ApiError {
     if (err instanceof AxiosError && err.response) {
         return {
             errors: err.response.data?.errors,
-            message: err.response.data?.message || 'Request failed',
+            message: err.response.data?.detail || err.response.data?.message || 'Request failed',
             status: err.response.status,
         };
     }
@@ -100,3 +111,31 @@ export async function searchClients(criteria: string): Promise<SearchClientsResp
         throw extractApiError(err);
     }
 }
+
+export async function sendTestEmail(): Promise<{ detail?: string; message: string; status: string }> {
+    try {
+        const response = await axiosInstance.post('/api/utils/test-email');
+        return response.data;
+    } catch (err) {
+        throw extractApiError(err);
+    }
+}
+
+export async function setNewPassword(token: string, newPassword: string): Promise<SetPasswordResponseType> {
+    try {
+        const response = await axiosInstance.post('/api/auth/set-password', { token, new_password: newPassword });
+        return response.data;
+    } catch (err) {
+        throw extractApiError(err);
+    }
+}
+
+export async function validateResetToken(token: string): Promise<ValidateResetTokenResponseType> {
+    try {
+        const response = await axiosInstance.post('/api/auth/validate-reset-token', { token });
+        return response.data;
+    } catch (err) {
+        throw extractApiError(err);
+    }
+}
+

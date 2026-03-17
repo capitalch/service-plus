@@ -1,11 +1,20 @@
+from fastapi import HTTPException
+
 from app.config import settings
 from app.core.audit_log import AuditAction, audit_logger
-from app.core.security import create_access_token, verify_password
+from app.core.security import create_access_token, decode_token, hash_password, verify_password
 from app.db.psycopg_driver import exec_sql
 from app.db.sql_auth import SqlAuth
 from app.exceptions import AppMessages, AuthorizationException
 from app.logger import logger
-from app.schemas.auth_schema import ClientResponse, LoginRequest, LoginResponse
+from app.schemas.auth_schema import (
+    ClientResponse,
+    LoginRequest,
+    LoginResponse,
+    SetPasswordRequest,
+    SetPasswordResponse,
+    ValidateResetTokenResponse,
+)
 
 
 async def get_clients_helper(criteria: str = "") -> list[ClientResponse]:
@@ -153,4 +162,85 @@ async def login_helper(body: LoginRequest) -> LoginResponse:
         role_name=user["role_name"] or "",
         user_type=user_type,
         username=user["username"],
+    )
+
+
+async def set_password_helper(body: SetPasswordRequest) -> SetPasswordResponse:
+    """Hash the new password and persist it; token must be a valid reset token."""
+
+    # [1] Decode and validate token
+    try:
+        payload = decode_token(body.token)
+    except AuthorizationException:
+        raise HTTPException(status_code=400, detail=AppMessages.RESET_TOKEN_INVALID)
+
+    if payload.get("type") != "reset":
+        raise HTTPException(status_code=400, detail=AppMessages.RESET_TOKEN_WRONG_TYPE)
+
+    # [2] Validate new password length
+    if len(body.new_password) < 8:
+        raise HTTPException(status_code=400, detail=AppMessages.PASSWORD_TOO_SHORT)
+
+    user_id  = payload.get("sub")
+    db_name  = payload.get("db_name")
+
+    # [3] Confirm user still active
+    rows = await exec_sql(
+        db_name=db_name, schema="security",
+        sql=SqlAuth.GET_USER_BY_ID_FOR_RESET,
+        sql_args={"id": user_id},
+    )
+    if not rows or not rows[0].get("is_active"):
+        raise HTTPException(status_code=400, detail=AppMessages.RESET_TOKEN_INVALID)
+
+    # [4] Hash and persist
+    password_hash = hash_password(body.new_password)
+    await exec_sql(
+        db_name=db_name, schema="security",
+        sql=SqlAuth.SET_USER_PASSWORD,
+        sql_args={"id": user_id, "password_hash": password_hash},
+    )
+    logger.info(f"Password reset for user_id={user_id} in {db_name}")
+
+    # [5] Audit
+    await audit_logger.log(
+        action=AuditAction.PASSWORD_RESET,
+        actor_type="admin_user",
+        actor_username=rows[0].get("username", ""),
+        resource_id=str(user_id),
+        resource_type="admin_user",
+    )
+
+    return SetPasswordResponse(success=True, message=AppMessages.PASSWORD_RESET_SUCCESS)
+
+
+async def validate_reset_token_helper(token: str) -> ValidateResetTokenResponse:
+    """Decode the reset token and return user display info without changing anything."""
+
+    # [1] Decode and validate token
+    try:
+        payload = decode_token(token)
+    except AuthorizationException:
+        raise HTTPException(status_code=400, detail=AppMessages.RESET_TOKEN_INVALID)
+
+    if payload.get("type") != "reset":
+        raise HTTPException(status_code=400, detail=AppMessages.RESET_TOKEN_WRONG_TYPE)
+
+    user_id = payload.get("sub")
+    db_name = payload.get("db_name")
+
+    # [2] Fetch user and confirm active
+    rows = await exec_sql(
+        db_name=db_name, schema="security",
+        sql=SqlAuth.GET_USER_BY_ID_FOR_RESET,
+        sql_args={"id": user_id},
+    )
+    if not rows or not rows[0].get("is_active"):
+        raise HTTPException(status_code=400, detail=AppMessages.RESET_TOKEN_INVALID)
+
+    user = rows[0]
+    return ValidateResetTokenResponse(
+        full_name=user["full_name"],
+        username=user["username"],
+        valid=True,
     )

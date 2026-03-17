@@ -39,7 +39,10 @@ type EditBusinessUnitFormType = z.infer<typeof editBusinessUnitSchema>;
 // ─── Schema ───────────────────────────────────────────────────────────────────
 
 const editBusinessUnitSchema = z.object({
-    name: z.string().min(2, "Name must be at least 2 characters"),
+    name: z
+        .string()
+        .min(2, "Name must be at least 2 characters")
+        .regex(/^[a-zA-Z0-9 ]+$/, "Name can only contain letters, numbers and spaces."),
 });
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

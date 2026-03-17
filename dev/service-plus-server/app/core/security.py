@@ -53,6 +53,21 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     return token
 
 
+def create_reset_token(data: dict) -> str:
+    """
+    Create a signed JWT password-reset token (48-hour expiry, type="reset").
+
+    Args:
+        data: Claims to embed; must include 'sub' (user_id), 'db_name', 'client_id'.
+    """
+    payload = data.copy()
+    expire = datetime.now(timezone.utc) + timedelta(hours=48)
+    payload.update({"exp": expire, "type": "reset"})
+    token = jwt.encode(payload, settings.secret_key, algorithm=settings.algorithm)
+    logger.debug(f"Reset token created for subject: {data.get('sub')}")
+    return token
+
+
 def create_refresh_token(data: dict) -> str:
     """
     Create a signed JWT refresh token.

@@ -9,13 +9,20 @@ import {
 	CheckCircle2Icon,
 	ChevronRightIcon,
 	DatabaseIcon,
+	EyeIcon,
+	KeyRoundIcon,
+	MailIcon,
 	MinusCircleIcon,
 	MoreHorizontalIcon,
+	PencilIcon,
 	PlusIcon,
 	RefreshCwIcon,
 	SearchIcon,
 	ServerCrashIcon,
 	ShieldIcon,
+	Trash2Icon,
+	UnplugIcon,
+	UserPlusIcon,
 	UsersIcon,
 	XCircleIcon,
 } from "lucide-react";
@@ -44,6 +51,7 @@ import {
 	TableRow,
 } from "@/components/ui/table";
 
+import { sendTestEmail } from "@/features/auth/services/auth-service";
 import { ActivateAdminDialog } from "../components/activate-admin-dialog";
 import { ActivateClientDialog } from "../components/activate-client-dialog";
 import { AddClientDialog } from "../components/add-client-dialog";
@@ -138,6 +146,7 @@ export const ClientsPage = () => {
 
 	// ── UI state ─────────────────────────────────────────────────────────────
 	const [expanded, setExpanded] = useState<Record<number, boolean>>({});
+	const [isSendingTestEmail, setIsSendingTestEmail] = useState(false);
 	const [search, setSearch] = useState("");
 	const [sort, setSort] = useState<SortStateType>(DEFAULT_SORT);
 
@@ -200,6 +209,22 @@ export const ClientsPage = () => {
 		const result = await refetch();
 		if (result.data?.superAdminClientsData?.clients) {
 			dispatch(setClients(result.data.superAdminClientsData.clients));
+		}
+	}
+
+	async function handleSendTestEmail() {
+		setIsSendingTestEmail(true);
+		try {
+			const result = await sendTestEmail();
+			if (result.status === "ok") {
+				toast.success(MESSAGES.SUCCESS_TEST_EMAIL_SENT);
+			} else {
+				toast.error(`${MESSAGES.ERROR_TEST_EMAIL_FAILED} — ${result.detail ?? result.message}`);
+			}
+		} catch {
+			toast.error(MESSAGES.ERROR_TEST_EMAIL_FAILED);
+		} finally {
+			setIsSendingTestEmail(false);
 		}
 	}
 
@@ -281,6 +306,17 @@ export const ClientsPage = () => {
 						>
 							<RefreshCwIcon className="h-3.5 w-3.5" />
 							Refresh
+						</Button>
+						<Button
+							className="gap-1.5 border border-amber-300 bg-amber-50 text-amber-700 shadow-sm hover:bg-amber-100 hover:text-amber-800"
+							disabled={isSendingTestEmail}
+							size="sm"
+							title="Send a test email to capitalch@gmail.com to verify SMTP connectivity"
+							variant="outline"
+							onClick={handleSendTestEmail}
+						>
+							<MailIcon className="h-3.5 w-3.5" />
+							{isSendingTestEmail ? "Sending…" : "Test Email"}
 						</Button>
 						<Button
 							className="bg-emerald-600 text-white hover:bg-emerald-700"
@@ -476,43 +512,45 @@ export const ClientsPage = () => {
 													)}
 												</div>
 												{/* Row 2: meta chips */}
-												<div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
-													<span className="inline-flex items-center gap-1 text-[11px]">
-														<ShieldIcon className="h-3 w-3 text-slate-300" />
-														<span className="font-medium text-teal-600">{client.activeAdminCount}</span>
-														<span className="text-slate-400">active</span>
+												<div className="mt-2 flex flex-wrap items-center gap-2">
+													{/* Admins chip */}
+													<span className="inline-flex items-center gap-1.5 rounded-full border border-teal-200 bg-teal-50 px-2.5 py-0.5 text-xs font-semibold text-teal-700">
+														<ShieldIcon className="h-3.5 w-3.5" />
+														<span>{client.activeAdminCount} active</span>
 														{client.inactiveAdminCount > 0 && (
 															<>
-																<span className="text-slate-300">&middot;</span>
-																<span className="font-medium text-red-500">{client.inactiveAdminCount}</span>
-																<span className="text-slate-400">inactive</span>
+																<span className="text-teal-300">·</span>
+																<span className="text-red-500">{client.inactiveAdminCount} inactive</span>
 															</>
 														)}
-														<span className="text-slate-400">admins</span>
+														<span className="font-normal text-teal-500">admins</span>
 													</span>
-													<span className="inline-flex items-center gap-1 text-[11px]">
-														<BuildingIcon className="h-3 w-3 text-slate-400" />
-														<span className="font-medium text-emerald-600">{client.activeBuCount}</span>
-														<span className="text-slate-400">active</span>
+													{/* BUs chip */}
+													<span className="inline-flex items-center gap-1.5 rounded-full border border-indigo-200 bg-indigo-50 px-2.5 py-0.5 text-xs font-semibold text-indigo-700">
+														<BuildingIcon className="h-3.5 w-3.5" />
+														<span>{client.activeBuCount} active</span>
 														{client.inactiveBuCount > 0 && (
 															<>
-																<span className="text-slate-300">&middot;</span>
-																<span className="font-medium text-red-500">{client.inactiveBuCount}</span>
-																<span className="text-slate-400">inactive</span>
+																<span className="text-indigo-300">·</span>
+																<span className="text-red-500">{client.inactiveBuCount} inactive</span>
 															</>
 														)}
-														<span className="text-slate-400">BUs</span>
+														<span className="font-normal text-indigo-500">BUs</span>
 													</span>
+													{/* DB name chip */}
 													{client.db_name && (
-														<span className="hidden items-center gap-1 lg:inline-flex">
-															<DatabaseIcon className="h-3 w-3 text-slate-400" />
-															<span className="font-mono text-[11px] text-slate-400">{client.db_name}</span>
+														<span className="hidden items-center gap-1.5 rounded-full border border-slate-200 bg-slate-100 px-2.5 py-0.5 lg:inline-flex">
+															<DatabaseIcon className="h-3.5 w-3.5 text-slate-500" />
+															<span className="font-mono text-xs font-medium text-slate-600">{client.db_name}</span>
 														</span>
 													)}
-													<span className="hidden text-[11px] text-slate-500 lg:inline">&middot; {formatDate(client.created_at)}</span>
-													<span className="hidden text-[11px] text-slate-500 lg:inline">&middot; upd. {formatDate(client.updated_at)}</span>
-													<span className="text-[10px] italic text-slate-400">
-														{isOpen ? "Click to hide admins" : "Click to show admins"}
+													{/* Dates */}
+													<span className="hidden text-xs font-medium text-slate-400 lg:inline">Created {formatDate(client.created_at)}</span>
+													<span className="hidden text-xs font-medium text-slate-400 lg:inline">· Upd. {formatDate(client.updated_at)}</span>
+													{/* Show/hide admins toggle */}
+													<span className="inline-flex items-center gap-1.5 rounded-full border border-sky-300 bg-sky-100 px-2.5 py-0.5 text-xs font-bold text-sky-700">
+														<UsersIcon className="h-3.5 w-3.5" />
+														{isOpen ? "Hide admins" : "Show admins"}
 													</span>
 												</div>
 											</button>
@@ -549,22 +587,30 @@ export const ClientsPage = () => {
 															<span className="sr-only">Actions</span>
 														</Button>
 													</DropdownMenuTrigger>
-													<DropdownMenuContent align="end" className="w-36">
+													<DropdownMenuContent align="end" className="w-40">
 														<DropdownMenuItem
 															className="cursor-pointer text-emerald-600 focus:text-emerald-600"
 															disabled={!canAddAdmin}
 															onClick={() => handleCreateAdmin(client)}
 														>
+															<UserPlusIcon className="mr-2 h-4 w-4" />
 															Add Admin
 														</DropdownMenuItem>
 														<DropdownMenuSeparator />
-														<DropdownMenuItem className="cursor-pointer" onClick={() => handleView(client)}>View</DropdownMenuItem>
-														<DropdownMenuItem className="cursor-pointer" onClick={() => handleEdit(client)}>Edit</DropdownMenuItem>
+														<DropdownMenuItem className="cursor-pointer" onClick={() => handleView(client)}>
+															<EyeIcon className="mr-2 h-4 w-4" />
+															View
+														</DropdownMenuItem>
+														<DropdownMenuItem className="cursor-pointer" onClick={() => handleEdit(client)}>
+															<PencilIcon className="mr-2 h-4 w-4" />
+															Edit
+														</DropdownMenuItem>
 														<DropdownMenuItem
 															className="cursor-pointer text-blue-600 focus:text-blue-600"
 															disabled={!!client.db_name}
 															onClick={() => handleAttachDb(client)}
 														>
+															<DatabaseIcon className="mr-2 h-4 w-4" />
 															Attach DB
 														</DropdownMenuItem>
 														<DropdownMenuItem
@@ -572,6 +618,7 @@ export const ClientsPage = () => {
 															disabled={!client.db_name || client.is_active}
 															onClick={() => handleDetachDb(client)}
 														>
+															<UnplugIcon className="mr-2 h-4 w-4" />
 															Detach DB
 														</DropdownMenuItem>
 														<DropdownMenuItem
@@ -579,6 +626,7 @@ export const ClientsPage = () => {
 															disabled={!client.db_name}
 															onClick={() => handleSeedRoles(client)}
 														>
+															<ShieldIcon className="mr-2 h-4 w-4" />
 															Seed Roles
 														</DropdownMenuItem>
 														<DropdownMenuSeparator />
@@ -587,6 +635,7 @@ export const ClientsPage = () => {
 																className="cursor-pointer text-amber-600 focus:text-amber-600"
 																onClick={() => handleDeactivate(client)}
 															>
+																<BanIcon className="mr-2 h-4 w-4" />
 																Deactivate
 															</DropdownMenuItem>
 														) : (
@@ -595,6 +644,7 @@ export const ClientsPage = () => {
 																	className="cursor-pointer text-emerald-600 focus:text-emerald-600"
 																	onClick={() => handleActivate(client)}
 																>
+																	<CheckCircle2Icon className="mr-2 h-4 w-4" />
 																	Activate
 																</DropdownMenuItem>
 																<DropdownMenuSeparator />
@@ -602,6 +652,7 @@ export const ClientsPage = () => {
 																	className="cursor-pointer text-red-600 focus:text-red-600"
 																	onClick={() => handleDelete(client)}
 																>
+																	<Trash2Icon className="mr-2 h-4 w-4" />
 																	Delete
 																</DropdownMenuItem>
 															</>
@@ -649,6 +700,7 @@ export const ClientsPage = () => {
 																				</div>
 																				<div>
 																					<div className={`text-sm ${admin.is_active ? "" : "text-slate-400 line-through decoration-slate-300"}`}>{admin.full_name}</div>
+																					<div className="mt-0.5 text-xs text-slate-500 font-mono">{admin.username}</div>
 																					<div className="mt-0.5 text-xs text-slate-400 sm:hidden">{admin.email}</div>
 																				</div>
 																			</div>
@@ -682,6 +734,7 @@ export const ClientsPage = () => {
 																						disabled={!admin.is_active}
 																						onClick={() => handleEditAdmin(admin, client)}
 																					>
+																						<PencilIcon className="mr-2 h-4 w-4" />
 																						Edit
 																					</DropdownMenuItem>
 																					<DropdownMenuItem
@@ -689,7 +742,8 @@ export const ClientsPage = () => {
 																						disabled={!admin.is_active}
 																						onClick={() => handleMailAdminCredentials(admin, client)}
 																					>
-																						Reset password and mail
+																						<KeyRoundIcon className="mr-2 h-4 w-4" />
+																						Mail the Reset Password Link
 																					</DropdownMenuItem>
 																					<DropdownMenuSeparator />
 																					{admin.is_active ? (
@@ -697,6 +751,7 @@ export const ClientsPage = () => {
 																							className="cursor-pointer text-amber-600 focus:text-amber-600"
 																							onClick={() => handleDeactivateAdmin(admin, client)}
 																						>
+																							<BanIcon className="mr-2 h-4 w-4" />
 																							Deactivate
 																						</DropdownMenuItem>
 																					) : (
@@ -704,6 +759,7 @@ export const ClientsPage = () => {
 																							className="cursor-pointer text-emerald-600 focus:text-emerald-600"
 																							onClick={() => handleActivateAdmin(admin, client)}
 																						>
+																							<CheckCircle2Icon className="mr-2 h-4 w-4" />
 																							Activate
 																						</DropdownMenuItem>
 																					)}
@@ -836,6 +892,7 @@ export const ClientsPage = () => {
 		{mailAdminCredentials && (
 				<MailAdminCredentialsDialog
 					admin={mailAdminCredentials.admin}
+					clientId={mailAdminCredentials.client.id}
 					dbName={mailAdminCredentials.client.db_name!}
 					open={!!mailAdminCredentials}
 					onOpenChange={(open) => { if (!open) setMailAdminCredentials(null); }}

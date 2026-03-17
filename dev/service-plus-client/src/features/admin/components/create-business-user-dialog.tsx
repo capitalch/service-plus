@@ -344,7 +344,8 @@ export const CreateBusinessUserDialog = ({
                 return;
             }
 
-            const newUserId = createResult.data.createBusinessUser.id;
+            const newUserId  = createResult.data.createBusinessUser.id;
+            const emailSent  = createResult.data.createBusinessUser.email_sent;
 
             // Step 2: Assign BU and Role
             try {
@@ -363,6 +364,8 @@ export const CreateBusinessUserDialog = ({
 
                 if (buRoleResult.error) {
                     toast.warning(MESSAGES.WARN_BUSINESS_USER_BU_ROLE_ASSIGN_FAILED);
+                } else if (!emailSent) {
+                    toast.warning(MESSAGES.WARN_BUSINESS_USER_EMAIL_NOT_SENT);
                 } else {
                     toast.success(MESSAGES.SUCCESS_BUSINESS_USER_CREATED);
                 }

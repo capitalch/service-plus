@@ -66,26 +66,82 @@ class AppMessages:
     LOGOUT_SUCCESSFUL = "Logout successful"
     REGISTRATION_SUCCESSFUL = "Registration successful"
 
+    # Password reset messages
+    PASSWORD_RESET_SUCCESS = "Password has been reset successfully"
+    RESET_TOKEN_INVALID = "Password reset link is invalid or has expired"
+    RESET_TOKEN_WRONG_TYPE = "Token is not a valid reset token"
+
     # Validation messages
     PASSWORD_TOO_SHORT = "Password must be at least 8 characters long"
 
     # Email messages
+    EMAIL_CLIENT_WELCOME_BODY = (
+        "Hello,\n\n"
+        "Welcome to Service Plus! Your client account has been created.\n\n"
+        "  Client Name : {name}\n"
+        "  Client Code : {code}\n\n"
+        "Your Super Admin will share further setup and login details with you shortly.\n\n"
+        "-- Service Plus"
+    )
+    EMAIL_CLIENT_WELCOME_SUBJECT = "Welcome to Service Plus"
+
+    EMAIL_NEW_ADMIN_LINK_BODY = (
+        "Hello {full_name},\n\n"
+        "Your admin account has been created.\n\n"
+        "  Login ID : {username}\n\n"
+        "Click the link below to set your password (valid for 48 hours):\n\n"
+        "  {reset_link}\n\n"
+        "If you did not expect this email, please ignore it.\n\n"
+        "-- Service Plus"
+    )
+    EMAIL_NEW_ADMIN_LINK_SUBJECT = "Your Admin Account — Set Your Password"
+
+    EMAIL_RESET_LINK_BODY = (
+        "Hello {full_name},\n\n"
+        "A Super Admin has requested a password reset for your admin account.\n\n"
+        "Click the link below to set your new password (valid for 48 hours):\n\n"
+        "  {reset_link}\n\n"
+        "If you did not request this, please contact your Super Admin.\n\n"
+        "-- Service Plus"
+    )
+    EMAIL_RESET_LINK_SUBJECT = "Reset Your Admin Password"
+
     EMAIL_ADMIN_CREDENTIALS_BODY = (
         "Hello {full_name},\n\n"
         "Your admin account has been created.\n\n"
-        "  Username : {username}\n"
-        "  Password : {password}\n\n"
-        "Please log in and change your password immediately.\n"
+        "  Login ID   : {username}\n"
+        "  Access key : {password}\n\n"
+        "Use the above details to sign in, then update your access key immediately.\n"
     )
-    EMAIL_ADMIN_CREDENTIALS_SUBJECT = "Your Admin Account Credentials"
+    EMAIL_ADMIN_CREDENTIALS_SUBJECT = "Admin Account Created"
     EMAIL_RESET_CREDENTIALS_BODY = (
         "Hello {full_name},\n\n"
-        "Your admin credentials have been reset.\n\n"
-        "  Username : {username}\n"
-        "  Password : {password}\n\n"
-        "Please log in and change your password immediately.\n"
+        "Your admin account access key has been reset by a Super Admin.\n\n"
+        "  Login ID : {username}\n\n"
+        "Please obtain your new access key from the Super Admin and sign in immediately.\n"
     )
-    EMAIL_RESET_CREDENTIALS_SUBJECT = "Your Admin Account Credentials (Reset)"
+    EMAIL_RESET_CREDENTIALS_SUBJECT = "Admin Account Access Reset"
+
+    EMAIL_NEW_BU_USER_LINK_BODY = (
+        "Hello {full_name},\n\n"
+        "Your account has been created.\n\n"
+        "  Login ID : {username}\n\n"
+        "Click the link below to set your password (valid for 48 hours):\n\n"
+        "  {reset_link}\n\n"
+        "If you did not expect this email, please ignore it.\n\n"
+        "-- Service Plus"
+    )
+    EMAIL_NEW_BU_USER_LINK_SUBJECT = "Your Account — Set Your Password"
+
+    EMAIL_BU_RESET_LINK_BODY = (
+        "Hello {full_name},\n\n"
+        "A password reset has been requested for your account.\n\n"
+        "Click the link below to set your new password (valid for 48 hours):\n\n"
+        "  {reset_link}\n\n"
+        "If you did not request this, please contact your administrator.\n\n"
+        "-- Service Plus"
+    )
+    EMAIL_BU_RESET_LINK_SUBJECT = "Reset Your Password"
 
     # Error messages - Database
     DATABASE_CONNECTION_FAILED = "Failed to connect to database"
@@ -94,6 +150,20 @@ class AppMessages:
     DB_DROP_FORBIDDEN = "Cannot drop a database that is still linked to a client"
     DB_NOT_ORPHAN = "Database is not an orphan — it is still linked to a client"
     DUPLICATE_ENTRY = "Duplicate entry exists"
+
+    # Test email
+    EMAIL_TEST_SUBJECT = "Service Plus - Connectivity Test"
+    EMAIL_TEST_BODY = (
+        "Hello,\n\n"
+        "This is an automated connectivity test from the Service Plus system.\n\n"
+        "If you received this message, the mail server is configured correctly\n"
+        "and outbound delivery is working as expected.\n\n"
+        "No action is required.\n\n"
+        "-- Service Plus"
+    )
+    EMAIL_TEST_RECIPIENT = "capitalch@gmail.com"
+    EMAIL_TEST_SENT = "Test email dispatched successfully"
+    EMAIL_TEST_FAILED = "Failed to dispatch test email"
 
     # Audit log messages
     AUDIT_LOG_RETRIEVED   = "Audit log entries retrieved."

@@ -182,6 +182,14 @@ class SqlAuth:
         ORDER BY datname
     """
 
+    GET_USER_BY_ID_FOR_RESET = """
+        with "p_id" as (values(%(id)s::bigint))
+        -- with "p_id" as (values(1::bigint)) -- Test line
+        SELECT id, username, full_name, is_active
+        FROM security."user"
+        WHERE id = (table "p_id")
+    """
+
     GET_ADMIN_USER_BY_ID = """
         with "p_id" as (values(%(id)s::bigint))
         -- with "p_id" as (values(1::bigint)) -- Test line
@@ -378,6 +386,17 @@ class SqlAuth:
         SET db_name = (table "p_db_name")
         WHERE id = (table "p_id")
         RETURNING id, db_name
+    """
+
+    SET_USER_PASSWORD = """
+        with
+            "p_id"            as (values(%(id)s::bigint)),
+            -- "p_id"            as (values(1::bigint)) -- Test line
+            "p_password_hash" as (values(%(password_hash)s::text))
+        UPDATE security."user"
+        SET password_hash = (table "p_password_hash"), updated_at = now()
+        WHERE id = (table "p_id")
+        RETURNING id
     """
 
     RESET_ADMIN_PASSWORD = """

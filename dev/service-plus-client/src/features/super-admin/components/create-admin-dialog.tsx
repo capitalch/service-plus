@@ -209,6 +209,7 @@ export const CreateAdminDialog = ({
 					db_name: client.db_name,
 					schema: "security",
 					value: encodeURIComponent(JSON.stringify({
+						client_id: client.id,
 						email: data.email,
 						full_name: data.full_name,
 						mobile: data.mobile || null,

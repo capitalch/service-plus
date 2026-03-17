@@ -98,17 +98,17 @@ export const MailBusinessUserCredentialsDialog = ({
         <Dialog open={open} onOpenChange={handleOpenChange}>
             <DialogContent className="sm:max-w-sm">
                 <DialogHeader>
-                    <DialogTitle>Reset password and mail</DialogTitle>
+                    <DialogTitle>Send password reset link</DialogTitle>
                     <DialogDescription>
-                        Reset and email credentials for{" "}
+                        Send a reset link to{" "}
                         <span className="font-semibold text-slate-800">{user.full_name}</span>
                         {" "}·{" "}
                         <span className="text-slate-500">{user.email}</span>
                     </DialogDescription>
                 </DialogHeader>
                 <p className="text-sm text-slate-600">
-                    A new temporary password will be generated and emailed to the user.
-                    The existing password will be replaced immediately.
+                    A reset link (valid for 48 hours) will be emailed to the user.
+                    No password is changed at this stage.
                 </p>
                 {alert && (
                     <Alert className="relative pr-8" variant={alert.variant}>
@@ -137,7 +137,7 @@ export const MailBusinessUserCredentialsDialog = ({
                         onClick={handleSendCredentials}
                     >
                         {submitting && <Loader2Icon className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
-                        Send Credentials
+                        Send Reset Link
                     </Button>
                 </DialogFooter>
             </DialogContent>

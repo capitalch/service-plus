@@ -315,6 +315,7 @@ export const InitializeClientDialog = ({
 					db_name: activeDb,
 					schema: "security",
 					value: encodeURIComponent(JSON.stringify({
+						client_id: client.id,
 						email: data.email,
 						full_name: data.full_name,
 						mobile: data.mobile || null,

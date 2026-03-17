@@ -9,6 +9,7 @@ from app.exceptions import ValidationException, GraphQLException, AppMessages
 from app.graphql.resolvers.mutation_helper import (
     resolve_create_admin_user_helper,
     resolve_create_business_user_helper,
+    resolve_create_client_helper,
     resolve_create_service_db_helper,
     resolve_delete_client_helper,
     resolve_drop_database_helper,
@@ -32,6 +33,19 @@ async def resolve_create_admin_user(_, info, db_name: str = "", schema: str = "s
         raise
     except Exception as e:
         logger.error(f"Error creating admin user: {str(e)}")
+        raise GraphQLException(
+            message=AppMessages.OPERATION_FAILED, extensions={"details": str(e)}
+        )
+
+
+@mutation.field("createClient")
+async def resolve_create_client(_, info, db_name: str = "", schema: str = "public", value: str = "") -> Any:
+    try:
+        return await resolve_create_client_helper(db_name, schema, value)
+    except ValidationException:
+        raise
+    except Exception as e:
+        logger.error(f"Error creating client: {str(e)}")
         raise GraphQLException(
             message=AppMessages.OPERATION_FAILED, extensions={"details": str(e)}
         )

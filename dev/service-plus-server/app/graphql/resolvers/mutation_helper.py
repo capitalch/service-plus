@@ -8,7 +8,8 @@ from psycopg import sql as pgsql
 
 from app.core.audit_log import AuditAction, audit_logger
 from app.core.email import send_email
-from app.core.security import hash_password
+from app.core.security import create_reset_token, hash_password
+from app.config import settings
 from app.db.psycopg_driver import exec_sql, exec_sql_dml, exec_sql_object, get_service_db_connection
 from app.db.sql_auth import SqlAuth
 from app.exceptions import AppMessages, ValidationException
@@ -38,13 +39,14 @@ def _serialize_row(row: dict) -> dict:
 
 async def resolve_create_admin_user_helper(db_name: str, schema: str, value: str) -> dict:
     """
-    Decode value payload, hash a temp password, create an admin user (is_admin=True)
-    in the specified client database, and email credentials.
+    Decode value payload, create an admin user (is_admin=True) with a random unusable
+    password, then email a 48-hour reset link so the admin sets their own password.
 
-    Value payload (URL-encoded JSON): { email, full_name, mobile, username }
+    Value payload (URL-encoded JSON): { client_id, email, full_name, mobile, username }
     """
     payload = _decode_value(value, "createAdminUser")
 
+    client_id = payload.get("client_id")
     email     = payload.get("email", "")
     full_name = payload.get("full_name", "")
     mobile    = payload.get("mobile") or None
@@ -56,8 +58,8 @@ async def resolve_create_admin_user_helper(db_name: str, schema: str, value: str
             extensions={"fields": ["email", "full_name", "username"]},
         )
 
-    temp_password = secrets.token_urlsafe(9)
-    password_hash = hash_password(temp_password)
+    # Store a random unusable hash — admin cannot log in until they set a password
+    password_hash = hash_password(secrets.token_urlsafe(32))
 
     logger.info(f"Creating admin user '{username}' in database '{db_name}'")
 
@@ -76,20 +78,28 @@ async def resolve_create_admin_user_helper(db_name: str, schema: str, value: str
     record_id = await exec_sql_object(db_name, schema or "security", sql_object)
     logger.info(f"Admin user created successfully with id: {record_id}")
 
+    # Generate reset link so admin can set their own password
+    token = create_reset_token({
+        "sub":       str(record_id),
+        "db_name":   db_name,
+        "client_id": client_id,
+    })
+    reset_link = f"{settings.frontend_url}/reset-password?token={token}"
+
     email_sent = False
     try:
         await send_email(
             to=email,
-            subject=AppMessages.EMAIL_ADMIN_CREDENTIALS_SUBJECT,
-            body=AppMessages.EMAIL_ADMIN_CREDENTIALS_BODY.format(
+            subject=AppMessages.EMAIL_NEW_ADMIN_LINK_SUBJECT,
+            body=AppMessages.EMAIL_NEW_ADMIN_LINK_BODY.format(
                 full_name=full_name,
+                reset_link=reset_link,
                 username=username,
-                password=temp_password,
             ),
         )
         email_sent = True
     except Exception as mail_err:
-        logger.warning(f"Failed to send credentials email to {email}: {mail_err}")
+        logger.warning(f"Failed to send welcome email to {email}: {mail_err}")
 
     await audit_logger.log(
         action=AuditAction.CREATE_ADMIN_USER,
@@ -146,8 +156,8 @@ async def resolve_create_business_user_helper(db_name: str, schema: str, value: 
             extensions={"field": "email"},
         )
 
-    temp_password = secrets.token_urlsafe(9)
-    password_hash = hash_password(temp_password)
+    # Store a random unusable hash — user cannot log in until they set a password via reset link
+    password_hash = hash_password(secrets.token_urlsafe(32))
 
     logger.info(f"Creating business user '{username}' in database '{db_name}'")
 
@@ -166,26 +176,83 @@ async def resolve_create_business_user_helper(db_name: str, schema: str, value: 
     record_id = await exec_sql_object(db_name, schema_name, sql_object)
     logger.info(f"Business user created with id: {record_id}")
 
+    # Generate reset link so user can set their own password
+    token = create_reset_token({"sub": str(record_id), "db_name": db_name})
+    reset_link = f"{settings.frontend_url}/reset-password?token={token}"
+
     email_sent = False
     try:
         await send_email(
             to=email,
-            subject=AppMessages.EMAIL_ADMIN_CREDENTIALS_SUBJECT,
-            body=AppMessages.EMAIL_ADMIN_CREDENTIALS_BODY.format(
+            subject=AppMessages.EMAIL_NEW_BU_USER_LINK_SUBJECT,
+            body=AppMessages.EMAIL_NEW_BU_USER_LINK_BODY.format(
                 full_name=full_name,
+                reset_link=reset_link,
                 username=username,
-                password=temp_password,
             ),
         )
         email_sent = True
     except Exception as mail_err:
-        logger.warning(f"Failed to send credentials email to {email}: {mail_err}")
+        logger.warning(f"Failed to send setup link email to {email}: {mail_err}")
 
     await audit_logger.log(
         action=AuditAction.CREATE_ADMIN_USER,
         resource_id=str(record_id),
         resource_name=username,
         resource_type="business_user",
+    )
+    return {"email_sent": email_sent, "id": record_id}
+
+
+async def resolve_create_client_helper(db_name: str, schema: str, value: str) -> dict:
+    """
+    Decode value payload, insert a new client row, and optionally send a welcome
+    email to the client's email address if one was provided.
+
+    Value payload (URL-encoded JSON): { address_line1?, address_line2?, city?,
+        code, country_code?, email?, gstin?, is_active, name, pan?, phone?,
+        pincode?, state? }
+    """
+    payload = _decode_value(value, "createClient")
+
+    code      = payload.get("code", "")
+    name      = payload.get("name", "")
+    email     = payload.get("email") or None
+
+    if not code or not name:
+        raise ValidationException(
+            message=AppMessages.REQUIRED_FIELD_MISSING,
+            extensions={"fields": ["code", "name"]},
+        )
+
+    xData: dict = {"code": code, "name": name, "is_active": payload.get("is_active", True)}
+    for field in ("address_line1", "address_line2", "city", "country_code",
+                  "email", "gstin", "pan", "phone", "pincode", "state"):
+        val = payload.get(field)
+        if val:
+            xData[field] = val
+
+    sql_object = {"tableName": "client", "xData": xData}
+    record_id = await exec_sql_object(None, "public", sql_object)
+    logger.info(f"Client '{name}' created with id={record_id}")
+
+    email_sent = False
+    if email:
+        try:
+            await send_email(
+                to=email,
+                subject=AppMessages.EMAIL_CLIENT_WELCOME_SUBJECT,
+                body=AppMessages.EMAIL_CLIENT_WELCOME_BODY.format(code=code, name=name),
+            )
+            email_sent = True
+        except Exception as mail_err:
+            logger.warning(f"Failed to send welcome email to {email}: {mail_err}")
+
+    await audit_logger.log(
+        action=AuditAction.CREATE_CLIENT,
+        resource_id=str(record_id),
+        resource_name=name,
+        resource_type="client",
     )
     return {"email_sent": email_sent, "id": record_id}
 
@@ -414,41 +481,28 @@ async def resolve_mail_business_user_credentials_helper(db_name: str, schema: st
         )
     user = rows[0]
 
-    # 2. Generate new temporary password and hash it
-    temp_password = secrets.token_urlsafe(9)
-    password_hash = hash_password(temp_password)
+    logger.info(f"Generating reset link for business user id={id_} in {db_name}")
 
-    # 3. Update password_hash (is_admin=false guard)
-    updated = await exec_sql(
-        db_name=db_name, schema=schema_name,
-        sql=SqlAuth.RESET_BUSINESS_USER_PASSWORD,
-        sql_args={"id": id_, "password_hash": password_hash},
-    )
-    if not updated:
-        raise ValidationException(
-            message=AppMessages.NOT_FOUND,
-            extensions={"field": "id"},
-        )
+    # 2. Generate reset token — no password change in DB at this stage
+    token = create_reset_token({"sub": str(id_), "db_name": db_name})
+    reset_link = f"{settings.frontend_url}/reset-password?token={token}"
 
-    logger.info(f"Business user id={id_} password reset in {db_name}")
-
-    # 4. Email credentials
+    # 3. Email reset link
     email_sent = False
     email_error: str | None = None
     try:
         await send_email(
             to=user["email"],
-            subject=AppMessages.EMAIL_RESET_CREDENTIALS_SUBJECT,
-            body=AppMessages.EMAIL_RESET_CREDENTIALS_BODY.format(
+            subject=AppMessages.EMAIL_BU_RESET_LINK_SUBJECT,
+            body=AppMessages.EMAIL_BU_RESET_LINK_BODY.format(
                 full_name=user["full_name"],
-                username=user["username"],
-                password=temp_password,
+                reset_link=reset_link,
             ),
         )
         email_sent = True
     except Exception as mail_err:
         email_error = str(mail_err)
-        logger.warning(f"Failed to send reset credentials email to {user['email']}: {mail_err}")
+        logger.warning(f"Failed to send reset link email to {user['email']}: {mail_err}")
 
     await audit_logger.log(
         action=AuditAction.MAIL_ADMIN_CREDENTIALS,
@@ -507,14 +561,15 @@ async def resolve_generic_update_helper(db_name: str, schema: str = "public", va
 
 async def resolve_mail_admin_credentials_helper(db_name: str, schema: str, value: str) -> dict:
     """
-    Decode value payload, generate a new temporary password for the admin user,
-    update the hash in the database, and email the new credentials.
+    Decode value payload, generate a password-reset JWT, and email the reset link
+    to the admin user. No password is changed at this stage.
 
-    Value payload (URL-encoded JSON): { id }
+    Value payload (URL-encoded JSON): { id, client_id }
     """
     payload = _decode_value(value, "mailAdminCredentials")
 
-    id_ = payload.get("id")
+    id_       = payload.get("id")
+    client_id = payload.get("client_id")
     if not id_:
         raise ValidationException(
             message=AppMessages.REQUIRED_FIELD_MISSING,
@@ -534,41 +589,31 @@ async def resolve_mail_admin_credentials_helper(db_name: str, schema: str, value
         )
     user = rows[0]
 
-    # 2. Generate new temporary password and hash it
-    temp_password = secrets.token_urlsafe(9)
-    password_hash = hash_password(temp_password)
+    # 2. Generate reset token (48-hour expiry)
+    token = create_reset_token({
+        "sub":       str(id_),
+        "db_name":   db_name,
+        "client_id": client_id,
+    })
+    reset_link = f"{settings.frontend_url}/reset-password?token={token}"
+    logger.info(f"Password reset link generated for admin user id={id_} in {db_name}")
 
-    # 3. Update password_hash in the database
-    updated = await exec_sql(
-        db_name=db_name, schema=schema or "security",
-        sql=SqlAuth.RESET_ADMIN_PASSWORD,
-        sql_args={"id": id_, "password_hash": password_hash},
-    )
-    if not updated:
-        raise ValidationException(
-            message=AppMessages.ADMIN_USER_NOT_FOUND,
-            extensions={"field": "id"},
-        )
-
-    logger.info(f"Admin user id={id_} password reset in {db_name}")
-
-    # 4. Email credentials
+    # 3. Email reset link
     email_sent = False
     email_error: str | None = None
     try:
         await send_email(
             to=user["email"],
-            subject=AppMessages.EMAIL_RESET_CREDENTIALS_SUBJECT,
-            body=AppMessages.EMAIL_RESET_CREDENTIALS_BODY.format(
+            subject=AppMessages.EMAIL_RESET_LINK_SUBJECT,
+            body=AppMessages.EMAIL_RESET_LINK_BODY.format(
                 full_name=user["full_name"],
-                username=user["username"],
-                password=temp_password,
+                reset_link=reset_link,
             ),
         )
         email_sent = True
     except Exception as mail_err:
         email_error = str(mail_err)
-        logger.warning(f"Failed to send reset credentials email to {user['email']}: {mail_err}")
+        logger.warning(f"Failed to send reset link email to {user['email']}: {mail_err}")
 
     await audit_logger.log(
         action=AuditAction.MAIL_ADMIN_CREDENTIALS,

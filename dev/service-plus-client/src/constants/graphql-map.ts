@@ -39,6 +39,11 @@ export const GRAPHQL_MAP = {
             createAdminUser(db_name: $db_name, schema: $schema, value: $value)
         }
     `,
+    createClient: gql`
+        mutation CreateClient($db_name: String!, $schema: String, $value: String!) {
+            createClient(db_name: $db_name, schema: $schema, value: $value)
+        }
+    `,
     createBusinessUser: gql`
         mutation CreateBusinessUser($db_name: String!, $schema: String, $value: String!) {
             createBusinessUser(db_name: $db_name, schema: $schema, value: $value)

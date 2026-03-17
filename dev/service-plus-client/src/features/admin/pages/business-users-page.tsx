@@ -240,7 +240,7 @@ export const BusinessUsersPage = () => {
                                                 </div>
 
                                                 {/* Index badge */}
-                                                <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 font-mono text-[10px] text-slate-400">
+                                                <span className="shrink-0 rounded-full bg-teal-600 px-2.5 py-1 font-mono text-xs font-bold text-white shadow-sm">
                                                     #{idx + 1}
                                                 </span>
 

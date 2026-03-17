@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useMutation } from "@apollo/client/react";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -16,7 +15,6 @@ import { SQL_MAP } from "@/constants/sql-map";
 import { useDebounce } from "@/hooks/use-debounce";
 import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
-import type { XDataItemType } from "@/lib/graphql-utils";
 
 // ─── Zod schema ───────────────────────────────────────────────────────────────
 
@@ -72,6 +70,10 @@ const EMPTY_DEFAULTS: AddClientFormType = {
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+type CreateClientResultType = {
+	createClient: { email_sent: boolean; id: number };
+};
+
 type AddClientDialogPropsType = {
 	onOpenChange: (open: boolean) => void;
 	onSuccess: () => void;
@@ -119,7 +121,7 @@ export const AddClientDialog = ({ onOpenChange, onSuccess, open }: AddClientDial
 	});
 
 	const [checkingUnique, setCheckingUnique] = useState(false);
-	const [executeGenericUpdate, { loading: mutating }] = useMutation(GRAPHQL_MAP.genericUpdate);
+	const [mutating, setMutating] = useState(false);
 
 	const codeValue = useWatch({ control, name: "code" });
 	const nameValue = useWatch({ control, name: "name" });
@@ -183,31 +185,30 @@ export const AddClientDialog = ({ onOpenChange, onSuccess, open }: AddClientDial
 	}, [debouncedName]); // eslint-disable-line react-hooks/exhaustive-deps
 
 	async function onSubmit(data: AddClientFormType) {
-		const xData: XDataItemType = {
-			code: data.code,
+		const payload: Record<string, unknown> = {
+			code:      data.code,
 			is_active: data.is_active,
-			name: data.name,
+			name:      data.name,
 		};
-		if (data.address_line1) xData.address_line1 = data.address_line1;
-		if (data.address_line2) xData.address_line2 = data.address_line2;
-		if (data.city) xData.city = data.city;
-		if (data.country_code) xData.country_code = data.country_code;
-		if (data.email) xData.email = data.email;
-		if (data.gstin) xData.gstin = data.gstin;
-		if (data.pan) xData.pan = data.pan;
-		if (data.phone) xData.phone = data.phone;
-		if (data.pincode) xData.pincode = data.pincode;
-		if (data.state) xData.state = data.state;
+		if (data.address_line1) payload.address_line1 = data.address_line1;
+		if (data.address_line2) payload.address_line2 = data.address_line2;
+		if (data.city)          payload.city          = data.city;
+		if (data.country_code)  payload.country_code  = data.country_code;
+		if (data.email)         payload.email         = data.email;
+		if (data.gstin)         payload.gstin         = data.gstin;
+		if (data.pan)           payload.pan           = data.pan;
+		if (data.phone)         payload.phone         = data.phone;
+		if (data.pincode)       payload.pincode       = data.pincode;
+		if (data.state)         payload.state         = data.state;
 
+		setMutating(true);
 		try {
-			const result = await executeGenericUpdate({
+			const result = await apolloClient.mutate<CreateClientResultType>({
+				mutation: GRAPHQL_MAP.createClient,
 				variables: {
 					db_name: "",
 					schema: "public",
-					value: graphQlUtils.buildGenericUpdateValue({
-						tableName: "client",
-						xData,
-					}),
+					value: encodeURIComponent(JSON.stringify(payload)),
 				},
 			});
 
@@ -216,11 +217,21 @@ export const AddClientDialog = ({ onOpenChange, onSuccess, open }: AddClientDial
 				return;
 			}
 
-			toast.success(MESSAGES.SUCCESS_CLIENT_ADDED);
+			const emailSent = result.data?.createClient?.email_sent ?? false;
+			if (emailSent) {
+				toast.success(MESSAGES.SUCCESS_CLIENT_ADDED_WITH_EMAIL);
+			} else if (data.email) {
+				toast.success(MESSAGES.SUCCESS_CLIENT_ADDED);
+				toast.warning(MESSAGES.WARN_CLIENT_WELCOME_EMAIL_NOT_SENT);
+			} else {
+				toast.success(MESSAGES.SUCCESS_CLIENT_ADDED);
+			}
 			onSuccess();
 			onOpenChange(false);
 		} catch {
 			toast.error(MESSAGES.ERROR_CLIENT_ADD_FAILED);
+		} finally {
+			setMutating(false);
 		}
 	}
 

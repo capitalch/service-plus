@@ -1,76 +1,73 @@
-# Plan: Fix Email Uniqueness Check — Remove is_admin Filter
+# Plan: Business Unit Code & Name Validation
 
-## Root Cause
-
-`security."user"` has `UNIQUE (email)` covering ALL rows (admins + business users).
-
-Both check SQLs filter `AND is_admin = false`, so they only search among business users.
-
-If the email being entered belongs to an **admin user**, the check finds nothing
-→ returns `exists = false` → green check → form submits → PostgreSQL UNIQUE
-constraint fires at the server → runtime error.
-
-## Fix
-
-Remove `AND is_admin = false` from:
-1. `CHECK_BUSINESS_USER_EMAIL_EXISTS`          (used in create dialog)
-2. `CHECK_BUSINESS_USER_EMAIL_EXISTS_EXCLUDE_ID` (used in edit dialog)
-
-Both should check against the ENTIRE `security."user"` table, matching the scope
-of the actual unique constraint.
+## Objective
+Update the `create-business-unit-dialog.tsx` validation schema so that:
+- **Code**: length 5–8 (> 4 and < 9), alphanumeric + `_` only, no space, no `-`, no other special chars
+- **Name**: alphanumeric + space only, no special chars
 
 ---
 
-## Steps
+## Workflow
 
-### Step 1 — Fix SQL in `sql_auth.py`
-
-**File:** `service-plus-server/app/db/sql_auth.py`
-
-**1a. `CHECK_BUSINESS_USER_EMAIL_EXISTS`** — remove `AND is_admin = false`:
-
-```sql
--- Before:
-SELECT EXISTS(
-    SELECT 1 FROM security."user"
-    WHERE LOWER(email) = LOWER((table "p_email"))
-      AND is_admin = false
-) AS exists
-
--- After:
-SELECT EXISTS(
-    SELECT 1 FROM security."user"
-    WHERE LOWER(email) = LOWER((table "p_email"))
-) AS exists
 ```
-
-**1b. `CHECK_BUSINESS_USER_EMAIL_EXISTS_EXCLUDE_ID`** — remove `AND is_admin = false`:
-
-```sql
--- Before:
-SELECT EXISTS(
-    SELECT 1 FROM security."user"
-    WHERE LOWER(email) = LOWER((table "p_email"))
-      AND is_admin = false
-      AND id <> (table "p_id")
-) AS exists
-
--- After:
-SELECT EXISTS(
-    SELECT 1 FROM security."user"
-    WHERE LOWER(email) = LOWER((table "p_email"))
-      AND id <> (table "p_id")
-) AS exists
+[User opens Add Business Unit dialog]
+        │
+        ▼
+  Enters Code (5–8 chars, a-z A-Z 0-9 _ only)
+        │
+        ▼
+  Real-time uniqueness check (debounced 1200ms) — unchanged
+        │
+        ▼
+  Enters Name (alphanumeric + space only)
+        │
+        ▼
+  Submits → validation passes → BU created
 ```
 
 ---
 
-## Files to Change
+## Step 1 — Update Zod schema in `create-business-unit-dialog.tsx`
 
-| Action | File |
-|--------|------|
-| Modify | `service-plus-server/app/db/sql_auth.py` |
+File: `service-plus-client/src/features/admin/components/create-business-unit-dialog.tsx`
 
-No frontend changes needed — the frontend code is already correct.
-The debounced check, spinner, green check, and submit guards all work as intended
-once the SQL returns the correct result.
+Change the `createBusinessUnitSchema`:
+
+| Field | Old rule | New rule |
+|-------|----------|----------|
+| `code` | min 1, max 20, `/^[a-zA-Z0-9_]+$/` | min 5 (`"Code must be at least 5 characters"`), max 8 (`"Code must be 8 characters or fewer"`), `/^[a-zA-Z0-9_]+$/` (`"Code can only contain letters, numbers and underscores. No spaces or hyphens."`) |
+| `name` | `min(2)` only | `min(2)`, `/^[a-zA-Z0-9 ]+$/` (`"Name can only contain letters, numbers and spaces."`) |
+
+New schema:
+```typescript
+const createBusinessUnitSchema = z.object({
+    code: z
+        .string()
+        .min(5, "Code must be at least 5 characters")
+        .max(8, "Code must be 8 characters or fewer")
+        .regex(/^[a-zA-Z0-9_]+$/, "Code can only contain letters, numbers and underscores. No spaces or hyphens."),
+    name: z
+        .string()
+        .min(2, "Name must be at least 2 characters")
+        .regex(/^[a-zA-Z0-9 ]+$/, "Name can only contain letters, numbers and spaces."),
+});
+```
+
+---
+
+## Step 2 — Verify no other files need changes
+
+- `edit-business-unit-dialog.tsx` — code is read-only; only `name` is editable. Apply the same name regex there too.
+- No backend changes needed (DB constraint is on uniqueness, not length/format — these are UI-only rules).
+
+### Name validation update for `edit-business-unit-dialog.tsx`
+
+File: `service-plus-client/src/features/admin/components/edit-business-unit-dialog.tsx`
+
+Add regex to name field:
+```typescript
+name: z
+    .string()
+    .min(2, "Name must be at least 2 characters")
+    .regex(/^[a-zA-Z0-9 ]+$/, "Name can only contain letters, numbers and spaces."),
+```

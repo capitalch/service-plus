@@ -2,6 +2,7 @@ import { createBrowserRouter } from 'react-router-dom';
 import App from '../app';
 import ErrorPage from '../pages/error-page';
 import LoginPage from '../features/auth/pages/login-page';
+import { ResetPasswordPage } from '../features/auth/pages/reset-password-page';
 import NotFoundPage from '../pages/not-found-page';
 import { SuperAdminDashboard } from '@/features/super-admin/pages/super-admin-dashboard-page';
 import { ClientsPage } from '@/features/super-admin/pages/clients-page';
@@ -36,7 +37,8 @@ export const router = createBrowserRouter([
           { element: <App />, index: true },
         ],
       },
-      { element: <LoginPage />, path: 'login' }, // Note: we keep 'login' relative to '/' as per React Router convention, or just use ROUTES.login directly.  Using the constant is better for refactoring.
+      { element: <LoginPage />, path: 'login' },
+      { element: <ResetPasswordPage />, path: 'reset-password' },
     ],
   },
   {

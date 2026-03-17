@@ -51,16 +51,17 @@ export const MESSAGES = {
   ERROR_BUSINESS_USER_EMAIL_EXISTS: 'This email is already registered.',
   ERROR_BUSINESS_USER_EMAIL_EXISTS_EDIT: 'This email is already used by another user.',
   ERROR_BUSINESS_USER_LOAD_FAILED: 'Failed to load business users. Please try again.',
-  ERROR_BUSINESS_USER_MAIL_CREDENTIALS_FAILED: 'Failed to reset and send credentials. Please try again.',
+  ERROR_BUSINESS_USER_MAIL_CREDENTIALS_FAILED: 'Failed to send the reset link. Please try again.',
   ERROR_BUSINESS_USER_ROLE_REQUIRED: 'Please select a role.',
   ERROR_BUSINESS_USER_UPDATE_FAILED: 'Failed to update business user. Please try again.',
   ERROR_BUSINESS_USER_USERNAME_EXISTS: 'This username is already taken.',
   ERROR_BUSINESS_USER_USERNAME_EXISTS_EDIT: 'This username is already used by another user.',
   SUCCESS_BUSINESS_USER_ACTIVATED: 'Business user has been activated.',
-  SUCCESS_BUSINESS_USER_CREDENTIALS_MAILED: 'Password has been reset and credentials emailed.',
+  SUCCESS_BUSINESS_USER_CREDENTIALS_MAILED: 'Password reset link sent to the user\'s email.',
   WARN_BUSINESS_USER_BU_ROLE_ASSIGN_FAILED: 'User was created but business unit and role could not be assigned. Use the Associate BU & Role action.',
-  WARN_BUSINESS_USER_CREDENTIALS_MAIL_NOT_SENT: 'Password was reset, but the credentials email could not be sent. Please share credentials manually.',
-  SUCCESS_BUSINESS_USER_CREATED: 'Business user created. Login credentials have been emailed.',
+  WARN_BUSINESS_USER_CREDENTIALS_MAIL_NOT_SENT: 'Reset link could not be emailed. Please check the user\'s email address.',
+  WARN_BUSINESS_USER_EMAIL_NOT_SENT: 'Business user created, but the setup email could not be sent. Use "Reset password and mail" to resend.',
+  SUCCESS_BUSINESS_USER_CREATED: 'Business user created. A password setup link has been emailed.',
   SUCCESS_BUSINESS_USER_DEACTIVATED: 'Business user has been deactivated.',
   SUCCESS_BUSINESS_USER_DELETED: 'Business user has been deleted.',
   SUCCESS_BUSINESS_USER_UPDATED: 'Business user updated successfully.',
@@ -87,6 +88,13 @@ export const MESSAGES = {
   INFO_SEED_ROLES_ALREADY_EXISTS: 'Seed roles are already present in this client\'s database.',
   SUCCESS_SEED_ROLES: 'Seed roles applied successfully.',
 
+  // Reset Password (self-service via link)
+  ERROR_RESET_PASSWORD_FAILED: 'Failed to reset password. Please try again.',
+  ERROR_RESET_PASSWORD_TOO_SHORT: 'Password must be at least 8 characters.',
+  ERROR_RESET_PASSWORDS_MISMATCH: 'Passwords do not match.',
+  ERROR_RESET_TOKEN_INVALID: 'This reset link is invalid or has expired (links are valid for 48 hours). Please request a new one.',
+  SUCCESS_RESET_PASSWORD: 'Password reset successfully. You can now log in.',
+
   // Admin CRUD
   ERROR_ADMIN_ACTIVATE_FAILED: 'Failed to activate admin user. Please try again.',
   ERROR_ADMIN_DEACTIVATE_FAILED: 'Failed to deactivate admin user. Please try again.',
@@ -99,10 +107,10 @@ export const MESSAGES = {
   ERROR_ADMIN_UPDATE_FAILED: 'Failed to update admin user. Please try again.',
   ERROR_CREATE_ADMIN_FAILED: 'Failed to create admin user. Please try again.',
   SUCCESS_ADMIN_ACTIVATED: 'Admin user has been activated.',
-  SUCCESS_ADMIN_CREATED: 'Admin user created. Login credentials have been emailed.',
-  SUCCESS_ADMIN_CREDENTIALS_MAILED: 'Credentials have been reset and emailed to the admin user.',
-  WARN_ADMIN_CREDENTIALS_MAIL_NOT_SENT: 'Password was reset, but the credentials email could not be sent. Please share credentials manually.',
-  WARN_ADMIN_EMAIL_NOT_SENT: 'Admin user account was created, but the credentials email could not be sent. Please share credentials manually.',
+  SUCCESS_ADMIN_CREATED: 'Admin user created. A password setup link has been emailed.',
+  SUCCESS_ADMIN_CREDENTIALS_MAILED: 'Password reset link sent to the admin\'s email.',
+  WARN_ADMIN_CREDENTIALS_MAIL_NOT_SENT: 'Reset link could not be emailed. Please check the admin\'s email address.',
+  WARN_ADMIN_EMAIL_NOT_SENT: 'Admin user account was created, but the password setup email could not be sent. Use "Mail the Reset Password Link" to resend.',
   SUCCESS_ADMIN_DEACTIVATED: 'Admin user has been deactivated.',
   SUCCESS_ADMIN_UPDATED: 'Admin user updated successfully.',
 
@@ -125,6 +133,8 @@ export const MESSAGES = {
   ERROR_CLIENT_NAME_MISMATCH: 'Client name does not match. Please type the exact name.',
   ERROR_CLIENT_UPDATE_FAILED: 'Failed to update client. Please try again.',
   SUCCESS_CLIENT_ADDED: 'Client added successfully.',
+  SUCCESS_CLIENT_ADDED_WITH_EMAIL: 'Client added. Welcome email sent.',
+  WARN_CLIENT_WELCOME_EMAIL_NOT_SENT: 'Client added, but the welcome email could not be sent.',
   SUCCESS_CLIENT_DB_DETACHED: 'Database has been detached from the client.',
   SUCCESS_CLIENT_DELETED: 'Client has been deleted.',
   SUCCESS_CLIENT_ACTIVATED: 'Client has been activated.',
@@ -140,8 +150,8 @@ export const MESSAGES = {
   ERROR_INITIALIZE_DB_FAILED: 'Failed to create database. Please try again.',
   ERROR_INITIALIZE_SEED_FAILED: 'Failed to apply seed data. Please try again.',
   SUCCESS_CLIENT_INITIALIZED: 'Client initialized successfully.',
-  SUCCESS_INITIALIZE_ADMIN: 'Admin user created. Login credentials have been emailed.',
-  WARN_INITIALIZE_ADMIN_EMAIL_NOT_SENT: 'Admin user account was created, but the credentials email could not be sent. Please share credentials manually.',
+  SUCCESS_INITIALIZE_ADMIN: 'Admin user created. A password setup link has been emailed.',
+  WARN_INITIALIZE_ADMIN_EMAIL_NOT_SENT: 'Admin user account was created, but the password setup email could not be sent. Use "Mail the Reset Password Link" to resend.',
   SUCCESS_INITIALIZE_DB: 'Database created successfully.',
   SUCCESS_INITIALIZE_SEED: 'Seed data applied successfully.',
 
@@ -150,6 +160,10 @@ export const MESSAGES = {
 
   // Usage & Health
   ERROR_USAGE_HEALTH_LOAD_FAILED: 'Failed to load usage and health data. Please try again.',
+
+  // Test Email
+  ERROR_TEST_EMAIL_FAILED: 'Failed to send test email. Check SMTP configuration.',
+  SUCCESS_TEST_EMAIL_SENT: 'Test email sent successfully to capitalch@gmail.com.',
 
   // Network Errors
   ERROR_CLIENTS_LOAD: 'Failed to load clients data.',

@@ -4,6 +4,34 @@ Pydantic schemas for authentication endpoints.
 from pydantic import BaseModel, ConfigDict, Field
 
 
+class SetPasswordRequest(BaseModel):
+    """Request body for POST /api/auth/set-password."""
+
+    new_password: str
+    token: str
+
+
+class SetPasswordResponse(BaseModel):
+    """Response for POST /api/auth/set-password."""
+
+    message: str
+    success: bool
+
+
+class ValidateResetTokenRequest(BaseModel):
+    """Request body for POST /api/auth/validate-reset-token."""
+
+    token: str
+
+
+class ValidateResetTokenResponse(BaseModel):
+    """Response for POST /api/auth/validate-reset-token."""
+
+    full_name: str
+    username: str
+    valid: bool
+
+
 class ClientRequest(BaseModel):
     """Request body for POST /api/auth/clients."""
 

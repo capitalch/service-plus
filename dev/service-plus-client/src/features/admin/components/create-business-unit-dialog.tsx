@@ -45,10 +45,13 @@ type CreateBusinessUnitFormType = z.infer<typeof createBusinessUnitSchema>;
 const createBusinessUnitSchema = z.object({
     code: z
         .string()
-        .min(1, "Code is required")
-        .max(20, "Code must be 20 characters or fewer")
-        .regex(/^[a-zA-Z0-9_]+$/, "Code can only contain letters, numbers and underscores"),
-    name: z.string().min(2, "Name must be at least 2 characters"),
+        .min(5, "Code must be at least 5 characters")
+        .max(8, "Code must be 8 characters or fewer")
+        .regex(/^[a-zA-Z0-9_]+$/, "Code can only contain letters, numbers and underscores. No spaces or hyphens."),
+    name: z
+        .string()
+        .min(2, "Name must be at least 2 characters")
+        .regex(/^[a-zA-Z0-9 ]+$/, "Name can only contain letters, numbers and spaces."),
 });
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

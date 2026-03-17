@@ -1,6 +1,7 @@
 export const ROUTES = {
-    home:  '/',
-    login: '/login',
+    home:          '/',
+    login:         '/login',
+    resetPassword: '/reset-password',
     admin: {
         audit:         '/admin/audit',
         businessUnits: '/admin/business-units',
