@@ -152,11 +152,11 @@ export const UsageHealthPage = () => {
             setLoading(true);
             setError(null);
             try {
-                const result = await apolloClient.query({
+                const result = await apolloClient.query<{ usageHealth: UsageHealthType }>({
                     fetchPolicy: "network-only",
                     query: GRAPHQL_MAP.usageHealth,
                 });
-                setData(result.data.usageHealth as UsageHealthType);
+                setData(result.data?.usageHealth ?? null);
             } catch {
                 setError(MESSAGES.ERROR_USAGE_HEALTH_LOAD_FAILED);
             } finally {

@@ -40,11 +40,6 @@ type EditAdminDialogPropsType = {
     open: boolean;
 };
 
-type EditAdminFormType = {
-    email: string;
-    full_name: string;
-    mobile: string;
-};
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -78,6 +73,8 @@ const editAdminSchema = z.object({
             { message: MESSAGES.ERROR_MOBILE_INVALID },
         ),
 });
+
+type EditAdminFormType = z.infer<typeof editAdminSchema>;
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -147,7 +144,7 @@ export const EditAdminDialog = ({
     async function onSubmit(values: EditAdminFormType) {
         if (!admin) return;
         try {
-            const result = await apolloClient.mutate({
+            await apolloClient.mutate({
                 mutation: GRAPHQL_MAP.genericUpdate,
                 variables: {
                     db_name: dbName,
@@ -158,10 +155,6 @@ export const EditAdminDialog = ({
                     }),
                 },
             });
-            if (result.error) {
-                toast.error(MESSAGES.ERROR_ADMIN_UPDATE_FAILED);
-                return;
-            }
             toast.success(MESSAGES.SUCCESS_ADMIN_UPDATED);
             onSuccess();
             onOpenChange(false);

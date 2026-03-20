@@ -79,7 +79,7 @@ export const SeedRolesDialog = ({
 		setSeeding(true);
 		try {
 			for (const batch of SEED_BATCHES) {
-				const result = await apolloClient.mutate({
+				await apolloClient.mutate({
 					mutation: GRAPHQL_MAP.genericUpdate,
 					variables: {
 						db_name: client.db_name,
@@ -87,10 +87,6 @@ export const SeedRolesDialog = ({
 						value: graphQlUtils.buildGenericUpdateValue(batch.sqlObject),
 					},
 				});
-				if (result.errors?.length) {
-					toast.error(MESSAGES.ERROR_SEED_ROLES_FAILED);
-					return;
-				}
 			}
 			toast.success(MESSAGES.SUCCESS_SEED_ROLES);
 			onSuccess();

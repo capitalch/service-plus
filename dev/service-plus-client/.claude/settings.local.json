@@ -11,7 +11,8 @@
       "Bash(python3:*)",
       "Bash(npx tsc:*)",
       "Bash(npx eslint:*)",
-      "Bash(ls not:*)"
+      "Bash(ls not:*)",
+      "Bash(echo \"Exit code: $?\")"
     ]
   }
 }

@@ -4,7 +4,7 @@ import { InfoIcon } from "lucide-react";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { apolloClient } from "@/lib/apollo-client";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
@@ -107,11 +107,11 @@ export const SystemSettingsPage = () => {
             setLoading(true);
             setError(null);
             try {
-                const result = await apolloClient.query({
+                const result = await apolloClient.query<{ systemSettings: SystemSettingsType }>({
                     fetchPolicy: "network-only",
                     query: GRAPHQL_MAP.systemSettings,
                 });
-                setSettings(result.data.systemSettings as SystemSettingsType);
+                setSettings(result.data?.systemSettings ?? null);
             } catch {
                 setError(MESSAGES.ERROR_SETTINGS_LOAD_FAILED);
             } finally {
@@ -149,27 +149,25 @@ export const SystemSettingsPage = () => {
                 )}
 
                 {settings && (
-                    <>
-                        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                            {buildSections(settings).map((section, i) => (
-                                <motion.div animate="visible" custom={i} initial="hidden" key={section.title} variants={cardVariants}>
-                                    <Card className="h-full border border-slate-200/80 bg-white shadow-sm">
-                                        <CardContent className="p-6">
-                                            <div className="mb-4">
-                                                <h2 className="text-sm font-semibold text-slate-900">{section.title}</h2>
-                                            </div>
-                                            <Separator className="mb-4" />
-                                            <div className="flex flex-col gap-3">
-                                                {section.rows.map((row) => (
-                                                    <SettingRow key={row.label} label={row.label} value={row.value} />
-                                                ))}
-                                            </div>
-                                        </CardContent>
-                                    </Card>
-                                </motion.div>
-                            ))}
-                        </div>
-                    </>
+                    <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                        {buildSections(settings).map((section, i) => (
+                            <motion.div animate="visible" custom={i} initial="hidden" key={section.title} variants={cardVariants}>
+                                <Card className="h-full border border-slate-200/80 bg-white shadow-sm">
+                                    <CardHeader className="pb-2 px-6">
+                                        <CardTitle className="text-sm font-semibold text-slate-900">{section.title}</CardTitle>
+                                    </CardHeader>
+                                    <Separator />
+                                    <CardContent className="pb-6 pt-4 px-6">
+                                        <div className="flex flex-col gap-3">
+                                            {section.rows.map((row) => (
+                                                <SettingRow key={row.label} label={row.label} value={row.value} />
+                                            ))}
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            </motion.div>
+                        ))}
+                    </div>
                 )}
             </motion.div>
         </SuperAdminLayout>

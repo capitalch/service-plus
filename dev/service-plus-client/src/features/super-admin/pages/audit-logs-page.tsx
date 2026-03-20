@@ -208,6 +208,9 @@ export const AuditLogsPage = () => {
     // Detail dialog
     const [selectedEntry, setSelectedEntry] = useState<AuditEntryType | null>(null);
 
+    // Refresh counter
+    const [refreshKey, setRefreshKey] = useState<number>(0);
+
     // ── Effects ──────────────────────────────────────────────────────────────
 
     useEffect(() => {
@@ -215,12 +218,12 @@ export const AuditLogsPage = () => {
             setStatsLoading(true);
             setStatsError(false);
             try {
-                const result = await apolloClient.query({
+                const result = await apolloClient.query<{ auditLogStats: AuditStatsType }>({
                     fetchPolicy: "network-only",
                     query: GRAPHQL_MAP.auditLogStats,
                     variables: { from_date: fromDate, to_date: toDate },
                 });
-                setStats((result.data?.auditLogStats as AuditStatsType) ?? null);
+                setStats(result.data?.auditLogStats ?? null);
             } catch {
                 setStatsError(true);
                 toast.error(MESSAGES.ERROR_AUDIT_STATS_FAILED);
@@ -229,7 +232,7 @@ export const AuditLogsPage = () => {
             }
         }
         void loadStats();
-    }, [fromDate, toDate]);
+    }, [fromDate, toDate, refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Reset to page 1 when filters change
     useEffect(() => { setPage(1); }, [fromDate, toDate, debouncedSearch, actionFilter, outcomeFilter]);
@@ -239,7 +242,7 @@ export const AuditLogsPage = () => {
             setLogsLoading(true);
             setLogsError(false);
             try {
-                const result = await apolloClient.query({
+                const result = await apolloClient.query<{ auditLogs: AuditLogPageType }>({
                     fetchPolicy: "network-only",
                     query: GRAPHQL_MAP.auditLogs,
                     variables: {
@@ -252,7 +255,7 @@ export const AuditLogsPage = () => {
                         to_date:   toDate,
                     },
                 });
-                setLogPage((result.data?.auditLogs as AuditLogPageType) ?? null);
+                setLogPage(result.data?.auditLogs ?? null);
             } catch {
                 setLogsError(true);
                 toast.error(MESSAGES.ERROR_AUDIT_LOAD_FAILED);
@@ -261,7 +264,7 @@ export const AuditLogsPage = () => {
             }
         }
         void loadLogs();
-    }, [fromDate, toDate, debouncedSearch, actionFilter, outcomeFilter, page]);
+    }, [fromDate, toDate, debouncedSearch, actionFilter, outcomeFilter, page, refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // ── Handlers ─────────────────────────────────────────────────────────────
 
@@ -274,57 +277,9 @@ export const AuditLogsPage = () => {
     }
 
     function handleRefresh() {
-        setFromDate((v) => v);   // trigger re-render by toggling; easier: use a key
         setPage(1);
-        // Force reload by briefly resetting state
-        setStats(null);
-        setLogPage(null);
-        setStatsLoading(true);
-        setLogsLoading(true);
-        // Effects will fire naturally since deps didn't actually change,
-        // so we trigger them via a counter.
         setRefreshKey((k) => k + 1);
     }
-
-    // ── Refresh key trick ─────────────────────────────────────────────────────
-    const [refreshKey, setRefreshKey] = useState<number>(0);
-
-    useEffect(() => {
-        if (refreshKey === 0) return;
-        async function reload() {
-            setStatsLoading(true);
-            setStatsError(false);
-            try {
-                const r = await apolloClient.query({
-                    fetchPolicy: "network-only",
-                    query: GRAPHQL_MAP.auditLogStats,
-                    variables: { from_date: fromDate, to_date: toDate },
-                });
-                setStats((r.data?.auditLogStats as AuditStatsType) ?? null);
-            } catch { setStatsError(true); } finally { setStatsLoading(false); }
-
-            setLogsLoading(true);
-            setLogsError(false);
-            try {
-                const r = await apolloClient.query({
-                    fetchPolicy: "network-only",
-                    query: GRAPHQL_MAP.auditLogs,
-                    variables: {
-                        action:    actionFilter  || undefined,
-                        from_date: fromDate,
-                        outcome:   outcomeFilter || undefined,
-                        page: 1,
-                        page_size: PAGE_SIZE,
-                        search:    debouncedSearch || undefined,
-                        to_date:   toDate,
-                    },
-                });
-                setLogPage((r.data?.auditLogs as AuditLogPageType) ?? null);
-            } catch { setLogsError(true); } finally { setLogsLoading(false); }
-        }
-        void reload();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [refreshKey]);
 
     // ── Derived ───────────────────────────────────────────────────────────────
 

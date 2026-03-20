@@ -70,10 +70,6 @@ export const MailBusinessUserCredentialsDialog = ({
                     value: encodeURIComponent(JSON.stringify({ id: user.id })),
                 },
             });
-            if (result.errors?.length) {
-                setAlert({ message: MESSAGES.ERROR_BUSINESS_USER_MAIL_CREDENTIALS_FAILED, variant: "destructive" });
-                return;
-            }
             const emailSent = result.data?.mailBusinessUserCredentials?.email_sent ?? false;
             if (emailSent) {
                 toast.success(MESSAGES.SUCCESS_BUSINESS_USER_CREDENTIALS_MAILED);

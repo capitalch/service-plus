@@ -166,7 +166,7 @@ export const EditBusinessUserDialog = ({
         if (!user || !dbName) return;
         if (values.email !== user.email && emailTaken !== false) return;
         try {
-            const result = await apolloClient.mutate({
+            await apolloClient.mutate({
                 mutation: GRAPHQL_MAP.genericUpdate,
                 variables: {
                     db_name: dbName,
@@ -182,10 +182,6 @@ export const EditBusinessUserDialog = ({
                     }),
                 },
             });
-            if (result.errors) {
-                toast.error(MESSAGES.ERROR_BUSINESS_USER_UPDATE_FAILED);
-                return;
-            }
             toast.success(MESSAGES.SUCCESS_BUSINESS_USER_UPDATED);
             onSuccess();
             onOpenChange(false);

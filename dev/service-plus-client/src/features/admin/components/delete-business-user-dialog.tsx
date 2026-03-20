@@ -45,7 +45,7 @@ export const DeleteBusinessUserDialog = ({
         if (!user || !dbName) return;
         setSubmitting(true);
         try {
-            const result = await apolloClient.mutate({
+            await apolloClient.mutate({
                 mutation: GRAPHQL_MAP.genericUpdate,
                 variables: {
                     db_name: dbName,
@@ -57,10 +57,6 @@ export const DeleteBusinessUserDialog = ({
                     }),
                 },
             });
-            if (result.errors) {
-                toast.error(MESSAGES.ERROR_BUSINESS_USER_DELETE_FAILED);
-                return;
-            }
             toast.success(MESSAGES.SUCCESS_BUSINESS_USER_DELETED);
             onSuccess();
             onOpenChange(false);

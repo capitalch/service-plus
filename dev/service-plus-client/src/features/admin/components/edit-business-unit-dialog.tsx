@@ -94,7 +94,7 @@ export const EditBusinessUnitDialog = ({
         if (!dbName) return;
         setSubmitting(true);
         try {
-            const result = await apolloClient.mutate({
+            await apolloClient.mutate({
                 mutation: GRAPHQL_MAP.genericUpdate,
                 variables: {
                     db_name: dbName,
@@ -105,10 +105,6 @@ export const EditBusinessUnitDialog = ({
                     }),
                 },
             });
-            if (result.errors) {
-                toast.error(MESSAGES.ERROR_BU_UPDATE_FAILED);
-                return;
-            }
             toast.success(MESSAGES.SUCCESS_BU_UPDATED);
             onSuccess();
             onOpenChange(false);

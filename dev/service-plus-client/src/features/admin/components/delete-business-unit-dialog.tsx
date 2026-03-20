@@ -45,7 +45,7 @@ export const DeleteBusinessUnitDialog = ({
         if (!bu || !dbName) return;
         setSubmitting(true);
         try {
-            const result = await apolloClient.mutate({
+            await apolloClient.mutate({
                 mutation: GRAPHQL_MAP.genericUpdate,
                 variables: {
                     db_name: dbName,
@@ -53,13 +53,10 @@ export const DeleteBusinessUnitDialog = ({
                     value: graphQlUtils.buildGenericUpdateValue({
                         deletedIds: [bu.id],
                         tableName: "bu",
+                        xData: {},
                     }),
                 },
             });
-            if (result.errors) {
-                toast.error(MESSAGES.ERROR_BU_DELETE_FAILED);
-                return;
-            }
             toast.success(MESSAGES.SUCCESS_BU_DELETED);
             onSuccess();
             onOpenChange(false);

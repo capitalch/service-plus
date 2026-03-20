@@ -1,6 +1,8 @@
 import { createSlice } from "@reduxjs/toolkit";
 import type { PayloadAction } from "@reduxjs/toolkit";
 
+import type { RootState } from "@/store/index";
+
 import type {
     ActivityLogItemType,
     AdminUserType,
@@ -60,12 +62,26 @@ const superAdminSlice = createSlice({
             const now = new Date().toISOString();
             state.clients.push({
                 ...action.payload,
-                activeAdminCount: 0,
-                created_at: now,
-                db_name: null,
-                id: newId,
+                activeAdminCount:  0,
+                activeBuCount:     0,
+                address_line1:     null,
+                address_line2:     null,
+                admins:            [],
+                city:              null,
+                country_code:      null,
+                created_at:        now,
+                db_name:           null,
+                db_name_valid:     false,
+                email:             null,
+                gstin:             null,
+                id:                newId,
                 inactiveAdminCount: 0,
-                updated_at: now,
+                inactiveBuCount:   0,
+                pan:               null,
+                phone:             null,
+                pincode:           null,
+                state:             null,
+                updated_at:        now,
             });
             state.stats.totalBu += 1;
             state.stats.totalClients += 1;
@@ -123,14 +139,7 @@ export const {
 
 export const superAdminReducer = superAdminSlice.reducer;
 
-export const selectActivityLog = (state: { superAdmin: SuperAdminStateType }) =>
-    state.superAdmin.activityLog;
-
-export const selectAdminUsers = (state: { superAdmin: SuperAdminStateType }) =>
-    state.superAdmin.adminUsers;
-
-export const selectClients = (state: { superAdmin: SuperAdminStateType }) =>
-    state.superAdmin.clients;
-
-export const selectStats = (state: { superAdmin: SuperAdminStateType }) =>
-    state.superAdmin.stats;
+export const selectActivityLog = (state: RootState) => state.superAdmin.activityLog;
+export const selectAdminUsers  = (state: RootState) => state.superAdmin.adminUsers;
+export const selectClients     = (state: RootState) => state.superAdmin.clients;
+export const selectStats       = (state: RootState) => state.superAdmin.stats;

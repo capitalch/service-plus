@@ -45,7 +45,7 @@ export const ActivateBusinessUserDialog = ({
         if (!user || !dbName) return;
         setSubmitting(true);
         try {
-            const result = await apolloClient.mutate({
+            await apolloClient.mutate({
                 mutation: GRAPHQL_MAP.genericUpdate,
                 variables: {
                     db_name: dbName,
@@ -56,10 +56,6 @@ export const ActivateBusinessUserDialog = ({
                     }),
                 },
             });
-            if (result.errors) {
-                toast.error(MESSAGES.ERROR_BUSINESS_USER_ACTIVATE_FAILED);
-                return;
-            }
             toast.success(MESSAGES.SUCCESS_BUSINESS_USER_ACTIVATED);
             onSuccess();
             onOpenChange(false);

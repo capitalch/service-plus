@@ -155,7 +155,7 @@ export const AssociateBuRoleDialog = ({
         if (!user || !dbName) return;
         setSubmitting(true);
         try {
-            const result = await apolloClient.mutate({
+            await apolloClient.mutate({
                 mutation: GRAPHQL_MAP.setUserBuRole,
                 variables: {
                     db_name: dbName,
@@ -167,10 +167,6 @@ export const AssociateBuRoleDialog = ({
                     }),
                 },
             });
-            if (result.errors) {
-                toast.error(MESSAGES.ERROR_UNKNOWN);
-                return;
-            }
             toast.success(MESSAGES.SUCCESS_BU_ROLE_ASSOCIATED);
             onSuccess();
             onOpenChange(false);

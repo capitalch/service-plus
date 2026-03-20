@@ -149,7 +149,7 @@ export const CreateBusinessUnitDialog = ({
         if (!dbName) return;
         setSubmitting(true);
         try {
-            const result = await apolloClient.mutate({
+            await apolloClient.mutate({
                 mutation: GRAPHQL_MAP.genericUpdate,
                 variables: {
                     db_name: dbName,
@@ -160,10 +160,6 @@ export const CreateBusinessUnitDialog = ({
                     }),
                 },
             });
-            if (result.errors) {
-                toast.error(MESSAGES.ERROR_BU_CREATE_FAILED);
-                return;
-            }
             toast.success(MESSAGES.SUCCESS_BU_CREATED);
             onSuccess();
             onOpenChange(false);
