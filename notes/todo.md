@@ -36,7 +36,8 @@
 			b) schema creation
 			c) seed data
 				- state in proper format
-				- customer type
+				- customer type: No identity
+					- corporate
 				- document_type
 				- financial_year
 				- job_delivery_manner
