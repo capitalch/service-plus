@@ -201,7 +201,6 @@ export const AdminAuditLogsPage = () => {
     // Stats data
     const [stats, setStats]               = useState<AuditStatsType | null>(null);
     const [statsLoading, setStatsLoading] = useState<boolean>(true);
-    const [statsError, setStatsError]     = useState<boolean>(false);
 
     // Log entries data
     const [logPage, setLogPage]           = useState<AuditLogPageType | null>(null);
@@ -219,16 +218,14 @@ export const AdminAuditLogsPage = () => {
     useEffect(() => {
         async function loadStats() {
             setStatsLoading(true);
-            setStatsError(false);
             try {
-                const result = await apolloClient.query({
+                const result = await apolloClient.query<{ auditLogStats: AuditStatsType }>({
                     fetchPolicy: "network-only",
                     query: GRAPHQL_MAP.auditLogStats,
                     variables: { from_date: fromDate, to_date: toDate },
                 });
-                setStats((result.data?.auditLogStats as AuditStatsType) ?? null);
+                setStats(result.data?.auditLogStats ?? null);
             } catch {
-                setStatsError(true);
                 toast.error(MESSAGES.ERROR_AUDIT_STATS_FAILED);
             } finally {
                 setStatsLoading(false);
@@ -244,7 +241,7 @@ export const AdminAuditLogsPage = () => {
             setLogsLoading(true);
             setLogsError(false);
             try {
-                const result = await apolloClient.query({
+                const result = await apolloClient.query<{ auditLogs: AuditLogPageType }>({
                     fetchPolicy: "network-only",
                     query: GRAPHQL_MAP.auditLogs,
                     variables: {
@@ -257,7 +254,7 @@ export const AdminAuditLogsPage = () => {
                         to_date:   toDate,
                     },
                 });
-                setLogPage((result.data?.auditLogs as AuditLogPageType) ?? null);
+                setLogPage(result.data?.auditLogs ?? null);
             } catch {
                 setLogsError(true);
                 toast.error(MESSAGES.ERROR_AUDIT_LOAD_FAILED);
@@ -272,20 +269,19 @@ export const AdminAuditLogsPage = () => {
         if (refreshKey === 0) return;
         async function reload() {
             setStatsLoading(true);
-            setStatsError(false);
             try {
-                const r = await apolloClient.query({
+                const r = await apolloClient.query<{ auditLogStats: AuditStatsType }>({
                     fetchPolicy: "network-only",
                     query: GRAPHQL_MAP.auditLogStats,
                     variables: { from_date: fromDate, to_date: toDate },
                 });
-                setStats((r.data?.auditLogStats as AuditStatsType) ?? null);
-            } catch { setStatsError(true); } finally { setStatsLoading(false); }
+                setStats(r.data?.auditLogStats ?? null);
+            } catch { /* ignore */ } finally { setStatsLoading(false); }
 
             setLogsLoading(true);
             setLogsError(false);
             try {
-                const r = await apolloClient.query({
+                const r = await apolloClient.query<{ auditLogs: AuditLogPageType }>({
                     fetchPolicy: "network-only",
                     query: GRAPHQL_MAP.auditLogs,
                     variables: {
@@ -298,7 +294,7 @@ export const AdminAuditLogsPage = () => {
                         to_date:   toDate,
                     },
                 });
-                setLogPage((r.data?.auditLogs as AuditLogPageType) ?? null);
+                setLogPage(r.data?.auditLogs ?? null);
             } catch { setLogsError(true); } finally { setLogsLoading(false); }
         }
         void reload();
@@ -420,7 +416,7 @@ export const AdminAuditLogsPage = () => {
                                         <YAxis allowDecimals={false} tick={{ fontSize: 10 }} width={28} />
                                         <Tooltip
                                             contentStyle={{ fontSize: 12 }}
-                                            formatter={(v: number) => [v, "Events"]}
+                                            formatter={(v: unknown) => [v as number, "Events"]}
                                         />
                                         <Area
                                             dataKey="count"
@@ -458,7 +454,7 @@ export const AdminAuditLogsPage = () => {
                                         />
                                         <Tooltip
                                             contentStyle={{ fontSize: 12 }}
-                                            formatter={(v: number) => [v, "Count"]}
+                                            formatter={(v: unknown) => [v as number, "Count"]}
                                         />
                                         <Bar dataKey="count" fill="#6366f1" radius={[0, 3, 3, 0]} />
                                     </BarChart>

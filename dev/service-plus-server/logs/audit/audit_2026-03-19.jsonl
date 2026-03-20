@@ -1,0 +1,2 @@
+{"action": "LOGIN", "actor": {"type": "super_admin", "username": "superadmin"}, "detail": null, "id": "510569b2-64f9-4492-bc8d-1e482b5f6c56", "outcome": "success", "resource": {"id": null, "name": null, "type": "session"}, "timestamp": "2026-03-19T19:52:58.326623+00:00"}
+{"action": "LOGIN", "actor": {"type": "super_admin", "username": "superadmin"}, "detail": null, "id": "bde52121-b5ee-4700-ae9c-a125142336ba", "outcome": "success", "resource": {"id": null, "name": null, "type": "session"}, "timestamp": "2026-03-19T20:12:42.696360+00:00"}
