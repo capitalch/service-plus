@@ -1,52 +1,25 @@
-# Plan: Client-Side Email Uniqueness Validation for Business User Edit
-
-## Goal
-Validate business user email uniqueness on the client-side during the edit workflow, preventing submission if the given email already belongs to another existing user.
+# Execution Plan for tran.md
 
 ## Workflow
-1. Intercept email changes in the edit business user form using `useWatch` and debounce the input to avoid excessive API calls.
-2. If the new email is valid and different from the user's original email, trigger a validation query.
-3. Use the existing `genericQuery` functionality with `SQL_MAP.CHECK_BUSINESS_USER_EMAIL_EXISTS_EXCLUDE_ID` to perform the database check.
-4. Update form state and prevent submission if the exact email is taken by another user.
+The workflow of the entire effort consists of extracting the seed data listed in `tran.md`, verifying the schemas for these tables against the client-side database schema definition, and then creating a data file in the client folder. This data file will store the structured seed data so that it can be submitted to the server-side database tables.
 
-## Step-by-Step Execution
+## Steps
 
-### Step 1: Add State Variables in `edit-business-user-dialog.tsx`
-- Add `checkingEmail` (boolean, default false) to track API loading state.
-- Add `emailTaken` (boolean | null, default null) to store the validation result.
-- Hook into the form's email field using `useWatch` and debounce the value using `useDebounce` (default 1200ms).
+**Step 1:** Read and analyze `service-plus-client/src/types/db-schema-service.ts` to understand the exact column names, data types, and required fields for the following tables:
+- `customer_type`
+- `document_type`
+- `job_delivery_manner`
+- `job_receive_condition`
+- `job_receive_manner`
+- `job_status`
+- `job_type`
+- `stock_transaction_type`
+- `state`
 
-### Step 2: Implement the Validation `useEffect` Hook
-- Create a `useEffect` that depends on `debouncedEmail`.
-- Ensure it skips execution if:
-  - `debouncedEmail` hasn't changed from the user's original email.
-  - The email field is already failing local format validation (checked via `form.getFieldState("email")`).
-- Trigger `apolloClient.query` using `GRAPHQL_MAP.genericQuery` and `SQL_MAP.CHECK_BUSINESS_USER_EMAIL_EXISTS_EXCLUDE_ID`.
-- Pass parameters using the standard genericQuery format:
-  ```typescript
-  variables: {
-      db_name: dbName,
-      schema: "security",
-      value: graphQlUtils.buildGenericQueryValue({
-          sqlArgs: { email: debouncedEmail, id: user.id },
-          sqlId: SQL_MAP.CHECK_BUSINESS_USER_EMAIL_EXISTS_EXCLUDE_ID,
-      }),
-  }
-  ```
-- If the result indicates the email exists, call `form.setError("email", { ... })` using the appropriate message from `MESSAGES`.
-- If the result is false, call `form.clearErrors("email")`.
+**Step 2:** Create a new data file (e.g., `service-plus-client/src/data/seedData.ts`) in the client folder.
 
-### Step 3: Handle UI Feedback and Submit Validation
-- In the JSX, add a conditional loading spinner (`Loader2`) inside the email input when `checkingEmail` is true.
-- Add a success indicator (`Check` icon) when `checkingEmail` is false, `emailTaken` is false, and there are no other errors.
-- Ensure the `submitDisabled` logic accounts for `checkingEmail` and `emailTaken === true` to properly prevent form submission before/during/after validation.
+**Step 3:** Format the raw seed data provided in `tran.md` into valid TypeScript arrays of objects, mapping them carefully to the schemas verified in Step 1. Ensure that types (e.g., numbers, strings, booleans for the `state` table) match the expected database schema.
 
-### Step 4: Add Username Validation Consistency (Optional but recommended)
-- If the username is also editable, apply the identical debounced validation pattern using `SQL_MAP.CHECK_BUSINESS_USER_USERNAME_EXISTS_EXCLUDE_ID`.
+**Step 4:** Export these arrays from the data file so that they can be utilized for inserting data into the server-side database, using mutations like `genericUpdate` when requested.
 
-## Verification Plan
-1. Open the Edit Business User dialog.
-2. Enter an email address that belongs to a different business user.
-3. Observe the UI reflecting the loading state, followed by an error message.
-4. Verify that the Submit button is completely disabled.
-5. Revert the email back to the user's original email; verify that no validation error occurs and the submit button re-enables.
+**Step 5:** Review the final data file to ensure data integrity, correct mapping, and absence of syntax errors.
