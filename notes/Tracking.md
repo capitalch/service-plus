@@ -10,6 +10,9 @@
 		- Aug 2026
 
 # Tracking
+- 22-03-2026
+	- Admin and super admin features along with all databases implemented
+	- Starte working on UI design of main service software
 - 21-02-2026
 	- Working on SuperAdmin feature
 - 18-02-2026 - 20-02-2026

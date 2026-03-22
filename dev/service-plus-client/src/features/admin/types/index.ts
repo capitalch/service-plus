@@ -12,12 +12,13 @@ export type AdminDashboardStatsType = {
 };
 
 export type BusinessUnitType = {
-    code:       string;
-    created_at: string;
-    id:         number;
-    is_active:  boolean;
-    name:       string;
-    updated_at: string;
+    code:          string;
+    created_at:    string;
+    id:            number;
+    is_active:     boolean;
+    name:          string;
+    schema_exists: boolean;
+    updated_at:    string;
 };
 
 export type BusinessUserType = {

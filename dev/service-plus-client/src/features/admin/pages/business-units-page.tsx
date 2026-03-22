@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import {
+    DatabaseIcon,
     MoreHorizontalIcon,
+    PencilIcon,
     PlusIcon,
     RefreshCwIcon,
     Trash2Icon,
@@ -37,10 +39,12 @@ import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectBusinessUnits, setBusinessUnits } from "@/features/admin/store/admin-slice";
 import { AdminLayout } from "@/features/admin/components/admin-layout";
 import { ActivateBusinessUnitDialog } from "@/features/admin/components/activate-business-unit-dialog";
+import { CreateBuSchemaDialog } from "@/features/admin/components/create-bu-schema-dialog";
 import { CreateBusinessUnitDialog } from "@/features/admin/components/create-business-unit-dialog";
 import { DeactivateBusinessUnitDialog } from "@/features/admin/components/deactivate-business-unit-dialog";
 import { DeleteBusinessUnitDialog } from "@/features/admin/components/delete-business-unit-dialog";
 import { EditBusinessUnitDialog } from "@/features/admin/components/edit-business-unit-dialog";
+import { OrphanBuSchemasDialog } from "@/features/admin/components/orphan-bu-schemas-dialog";
 import type { BusinessUnitType } from "@/features/admin/types/index";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -73,6 +77,8 @@ export const BusinessUnitsPage = () => {
     const [deleteBu, setDeleteBu]         = useState<BusinessUnitType | null>(null);
     const [editBu, setEditBu]             = useState<BusinessUnitType | null>(null);
     const [loading, setLoading]           = useState(false);
+    const [orphanOpen, setOrphanOpen]     = useState(false);
+    const [schemaBu, setSchemaBu]         = useState<BusinessUnitType | null>(null);
 
     const loadBusinessUnits = useCallback(async () => {
         if (!dbName) return;
@@ -85,7 +91,7 @@ export const BusinessUnitsPage = () => {
                     db_name: dbName,
                     schema: "security",
                     value: graphQlUtils.buildGenericQueryValue({
-                        sqlId: SQL_MAP.GET_ALL_BUS,
+                        sqlId: SQL_MAP.GET_ALL_BUS_WITH_SCHEMA_STATUS,
                     }),
                 },
             });
@@ -104,11 +110,12 @@ export const BusinessUnitsPage = () => {
     }, [loadBusinessUnits]);
 
     // ── Handlers ─────────────────────────────────────────────────────────────
-    const handleActivate   = (bu: BusinessUnitType) => setActivateBu(bu);
-    const handleCreate     = () => setCreateOpen(true);
-    const handleDeactivate = (bu: BusinessUnitType) => setDeactivateBu(bu);
-    const handleDelete     = (bu: BusinessUnitType) => setDeleteBu(bu);
-    const handleEdit       = (bu: BusinessUnitType) => setEditBu(bu);
+    const handleActivate      = (bu: BusinessUnitType) => setActivateBu(bu);
+    const handleCreate        = () => setCreateOpen(true);
+    const handleCreateSchema  = (bu: BusinessUnitType) => setSchemaBu(bu);
+    const handleDeactivate    = (bu: BusinessUnitType) => setDeactivateBu(bu);
+    const handleDelete        = (bu: BusinessUnitType) => setDeleteBu(bu);
+    const handleEdit          = (bu: BusinessUnitType) => setEditBu(bu);
 
     return (
         <AdminLayout>
@@ -136,6 +143,15 @@ export const BusinessUnitsPage = () => {
                         >
                             <RefreshCwIcon className="h-3.5 w-3.5" />
                             Refresh
+                        </Button>
+                        <Button
+                            className="gap-1.5 border border-amber-200 bg-amber-50 text-amber-700 shadow-sm hover:bg-amber-100"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setOrphanOpen(true)}
+                        >
+                            <DatabaseIcon className="h-3.5 w-3.5" />
+                            Orphaned Schemas
                         </Button>
                         <Button
                             className="bg-teal-600 text-white hover:bg-teal-700"
@@ -178,6 +194,9 @@ export const BusinessUnitsPage = () => {
                                             Status
                                         </TableHead>
                                         <TableHead className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                            Schema
+                                        </TableHead>
+                                        <TableHead className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                                             Actions
                                         </TableHead>
                                     </TableRow>
@@ -202,8 +221,8 @@ export const BusinessUnitsPage = () => {
                                                 {idx + 1}
                                             </TableCell>
                                             <TableCell>
-                                                <span className="font-mono text-xs font-semibold uppercase text-slate-700">
-                                                    {bu.code}
+                                                <span className="font-mono text-xs font-semibold text-slate-700">
+                                                    {bu.code.toLowerCase()}
                                                 </span>
                                             </TableCell>
                                             <TableCell className={`font-medium ${bu.is_active ? "text-slate-900" : "text-slate-400 line-through decoration-slate-300"}`}>
@@ -227,6 +246,23 @@ export const BusinessUnitsPage = () => {
                                                 </Badge>
                                             </TableCell>
                                             <TableCell>
+                                                <Badge
+                                                    className={
+                                                        bu.schema_exists
+                                                            ? "border-teal-200 bg-teal-50 text-teal-700 hover:bg-teal-50"
+                                                            : "border-orange-200 bg-orange-50 text-orange-600 hover:bg-orange-50"
+                                                    }
+                                                    variant="outline"
+                                                >
+                                                    <span
+                                                        className={`mr-1 h-1.5 w-1.5 rounded-full ${
+                                                            bu.schema_exists ? "bg-teal-500" : "bg-orange-400"
+                                                        }`}
+                                                    />
+                                                    {bu.schema_exists ? "Exists" : "Missing"}
+                                                </Badge>
+                                            </TableCell>
+                                            <TableCell>
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild>
                                                         <Button
@@ -238,12 +274,25 @@ export const BusinessUnitsPage = () => {
                                                             <span className="sr-only">Actions</span>
                                                         </Button>
                                                     </DropdownMenuTrigger>
-                                                    <DropdownMenuContent align="end" className="w-40">
+                                                    <DropdownMenuContent align="end" className="w-52">
+                                                        {!bu.schema_exists && (
+                                                            <>
+                                                                <DropdownMenuItem
+                                                                    className="cursor-pointer text-violet-600 focus:text-violet-600"
+                                                                    onClick={() => handleCreateSchema(bu)}
+                                                                >
+                                                                    <DatabaseIcon className="mr-1.5 h-3.5 w-3.5" />
+                                                                    Create Schema & Seed Data
+                                                                </DropdownMenuItem>
+                                                                <DropdownMenuSeparator />
+                                                            </>
+                                                        )}
                                                         <DropdownMenuItem
-                                                            className="cursor-pointer"
+                                                            className="cursor-pointer text-sky-600 focus:text-sky-600"
                                                             disabled={!bu.is_active}
                                                             onClick={() => handleEdit(bu)}
                                                         >
+                                                            <PencilIcon className="mr-1.5 h-3.5 w-3.5" />
                                                             Edit
                                                         </DropdownMenuItem>
                                                         <DropdownMenuSeparator />
@@ -292,6 +341,14 @@ export const BusinessUnitsPage = () => {
                 onOpenChange={setCreateOpen}
                 onSuccess={loadBusinessUnits}
             />
+            {schemaBu && (
+                <CreateBuSchemaDialog
+                    bu={schemaBu}
+                    open={!!schemaBu}
+                    onOpenChange={(open) => { if (!open) setSchemaBu(null); }}
+                    onSuccess={loadBusinessUnits}
+                />
+            )}
             {editBu && (
                 <EditBusinessUnitDialog
                     open={!!editBu}
@@ -324,6 +381,10 @@ export const BusinessUnitsPage = () => {
                     onSuccess={loadBusinessUnits}
                 />
             )}
+            <OrphanBuSchemasDialog
+                open={orphanOpen}
+                onOpenChange={setOrphanOpen}
+            />
         </AdminLayout>
     );
 };

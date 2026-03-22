@@ -70,6 +70,29 @@ class SqlAuth:
         ) AS exists
     """
 
+    CHECK_BU_NAME_EXISTS = """
+        with "p_name" as (values(%(name)s::text))
+        -- with "p_name" as (values('Sales Unit'::text)) -- Test line
+        SELECT EXISTS(
+            SELECT 1 FROM security.bu
+            WHERE LOWER(name) = LOWER((table "p_name"))
+        ) AS exists
+    """
+
+    CHECK_BU_NAME_EXISTS_EXCLUDE_ID = """
+        with
+            "p_name" as (values(%(name)s::text)),
+            "p_id"   as (values(%(id)s::bigint))
+        -- with
+        --     "p_name" as (values('Sales Unit'::text)), -- Test line
+        --     "p_id"   as (values(1::bigint))           -- Test line
+        SELECT EXISTS(
+            SELECT 1 FROM security.bu
+            WHERE LOWER(name) = LOWER((table "p_name"))
+              AND id <> (table "p_id")
+        ) AS exists
+    """
+
     CHECK_ADMIN_EMAIL_EXISTS = """
         with "p_email" as (values(%(email)s::text))
         -- with "p_email" as (values('admin@example.com'::text)) -- Test line
@@ -212,6 +235,18 @@ class SqlAuth:
         ORDER BY name
     """
 
+    GET_ALL_BUS_WITH_SCHEMA_STATUS = """
+        with "dummy" as (values(1::int))
+        SELECT
+            b.id, b.code, b.name, b.is_active, b.created_at, b.updated_at,
+            EXISTS (
+                SELECT 1 FROM pg_catalog.pg_namespace
+                WHERE nspname = LOWER(b.code)
+            ) AS schema_exists
+        FROM security.bu b
+        ORDER BY b.name
+    """
+
     GET_ALL_CLIENTS_ON_CRITERIA = """
         with "criteria" as (values(%(criteria)s::text))
         -- with "criteria" as (values('cap'::text)) -- Test line
@@ -220,6 +255,18 @@ class SqlAuth:
         WHERE LOWER("name") LIKE LOWER((table "criteria") || '%%')
           AND is_active = true
         ORDER BY name
+    """
+
+    GET_ORPHAN_BU_SCHEMAS = """
+        SELECT n.nspname AS schema_name
+        FROM pg_catalog.pg_namespace n
+        WHERE n.nspname NOT IN ('public', 'security', 'information_schema')
+          AND n.nspname NOT LIKE 'pg_%%'
+          AND NOT EXISTS (
+              SELECT 1 FROM security.bu
+              WHERE LOWER(code) = n.nspname
+          )
+        ORDER BY n.nspname
     """
 
     GET_ALL_ROLES = """
@@ -349,6 +396,18 @@ class SqlAuth:
             COUNT(*) FILTER (WHERE is_active)     AS active_clients,
             COUNT(*) FILTER (WHERE NOT is_active) AS inactive_clients
         FROM public.client
+    """
+
+    INSERT_BU = """
+        with
+            "p_code" as (values(%(code)s::text)),
+            "p_name" as (values(%(name)s::text))
+        -- with
+        --     "p_code" as (values('sales'::text)), -- Test line
+        --     "p_name" as (values('Sales Unit'::text)) -- Test line
+        INSERT INTO security.bu (code, name)
+        VALUES ((table "p_code"), (table "p_name"))
+        RETURNING id
     """
 
     SET_ADMIN_USER_ACTIVE = """

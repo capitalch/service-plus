@@ -39,6 +39,11 @@ export const GRAPHQL_MAP = {
             createAdminUser(db_name: $db_name, schema: $schema, value: $value)
         }
     `,
+    createBuSchemaAndFeedSeedData: gql`
+        mutation CreateBuSchemaAndFeedSeedData($db_name: String!, $schema: String, $value: String!) {
+            createBuSchemaAndFeedSeedData(db_name: $db_name, schema: $schema, value: $value)
+        }
+    `,
     createClient: gql`
         mutation CreateClient($db_name: String!, $schema: String, $value: String!) {
             createClient(db_name: $db_name, schema: $schema, value: $value)
@@ -52,6 +57,11 @@ export const GRAPHQL_MAP = {
     createServiceDb: gql`
         mutation CreateServiceDb($db_name: String!, $schema: String, $value: String!) {
             createServiceDb(db_name: $db_name, schema: $schema, value: $value)
+        }
+    `,
+    deleteBuSchema: gql`
+        mutation DeleteBuSchema($db_name: String!, $schema: String, $value: String!) {
+            deleteBuSchema(db_name: $db_name, schema: $schema, value: $value)
         }
     `,
     deleteClient: gql`

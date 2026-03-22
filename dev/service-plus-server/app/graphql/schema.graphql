@@ -11,9 +11,11 @@ type Query {
 
 type Mutation {
     createAdminUser(db_name: String!, schema: String, value: String!): Generic
+    createBuSchemaAndFeedSeedData(db_name: String!, schema: String, value: String!): Generic
     createBusinessUser(db_name: String!, schema: String, value: String!): Generic
     createClient(db_name: String!, schema: String, value: String!): Generic
     createServiceDb(db_name: String!, schema: String, value: String!): Generic
+    deleteBuSchema(db_name: String!, schema: String, value: String!): Generic
     deleteClient(db_name: String!, schema: String, value: String!): Generic
     dropDatabase(db_name: String!, schema: String, value: String!): Generic
     genericUpdate(db_name: String!, schema: String, value: String!): Generic

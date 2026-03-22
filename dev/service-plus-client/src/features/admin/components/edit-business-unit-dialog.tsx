@@ -132,10 +132,10 @@ export const EditBusinessUnitDialog = ({
                     <div className="flex flex-col gap-1.5">
                         <Label>Code</Label>
                         <Input
-                            className="font-mono uppercase text-slate-500"
+                            className="font-mono text-slate-500"
                             disabled
                             readOnly
-                            value={bu.code}
+                            value={bu.code.toLowerCase()}
                         />
                         <p className="text-[11px] text-slate-400">Code cannot be changed.</p>
                     </div>

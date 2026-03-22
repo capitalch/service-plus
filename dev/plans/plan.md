@@ -1,245 +1,385 @@
-# Plan: Execute tran.md — Create & Run Seed Data File
+# Plan: BU Schema Maintenance (tran.md)
 
-## Objective
-Create a SQL seed data file for the BU schema (`demo1`) and insert all reference/lookup table data defined in `plans/tran.md`.
+## Overview
+
+Three requirements from tran.md:
+1. **Delete BU** — when an inactive BU is deleted, also drop its schema from the database (if it exists), with a confirmation step requiring the user to type the schema name.
+2. **Orphaned Schemas** — show a panel listing schemas present in the database but with no corresponding row in `security.bu`; allow selective deletion.
+3. **Lowercase schema names** — enforce lowercase for BU codes / schema names everywhere.
 
 ---
 
 ## Workflow
 
 ```
-plans/tran.md (data definitions)
-        │
-        ▼
-Step 1: Create seed SQL file
-        service-plus-server/app/db/seed_demo1.sql
-        │
-        ▼
-Step 2: Validate column mapping against db-schema-service.ts
-        │
-        ▼
-Step 3: Run seed SQL against demo1 schema in service_plus_service DB
-        │
-        ▼
-Result: All lookup tables populated with reference data
+┌─ Delete Business Unit (updated) ──────────────────────────────────────────┐
+│  1. User clicks Delete on an inactive BU row                               │
+│  2. Dialog shows warning: "This will also DROP the <code> schema from DB"  │
+│     (shown only when schema_exists = true)                                 │
+│  3. User must type the BU code to confirm                                  │
+│  4. On confirm → call deleteBuSchema(db_name, schema="security",           │
+│       value={code, deleteBuRow:true})                                      │
+│     Server:                                                                │
+│       a. DROP SCHEMA IF EXISTS <code> CASCADE                              │
+│       b. DELETE FROM security.bu WHERE code = <code>                       │
+│  5. Reload BU list                                                         │
+└────────────────────────────────────────────────────────────────────────────┘
+
+┌─ Orphaned Schemas panel (new) ─────────────────────────────────────────────┐
+│  1. User clicks "Orphaned Schemas" button on Business Units page           │
+│  2. Dialog fetches GET_ORPHAN_BU_SCHEMAS → list of schema names in         │
+│     pg_namespace that have no matching row in security.bu                  │
+│  3. User selects one or more orphaned schemas                              │
+│  4. User types the schema name to confirm (for each, or one at a time)     │
+│  5. On confirm → call deleteBuSchema(value={code, deleteBuRow:false})      │
+│     Server: DROP SCHEMA IF EXISTS <code> CASCADE                           │
+│  6. Refresh orphan list                                                    │
+└────────────────────────────────────────────────────────────────────────────┘
+
+┌─ Lowercase enforcement ─────────────────────────────────────────────────────┐
+│  - Server helper already lowercases code on create                          │
+│  - Zod schema already transforms code to lowercase on create                │
+│  - Display table already shows bu.code.toLowerCase()                        │
+│  - Confirm dialogs must compare/display in lowercase                        │
+└────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Step 1 — Create `service-plus-server/app/db/seed_demo1.sql`
+## Files Changed
 
-Create the file with `INSERT ... ON CONFLICT DO NOTHING` for idempotency.
-All inserts target the `demo1` schema.
+| # | File | Change |
+|---|------|--------|
+| 1 | `service-plus-server/app/db/sql_auth.py` | Add `GET_ORPHAN_BU_SCHEMAS` |
+| 2 | `service-plus-server/app/exceptions.py` | Add `BU_SCHEMA_DROP_FAILED`, `BU_SCHEMA_NAME_MISMATCH` |
+| 3 | `service-plus-server/app/graphql/schema.graphql` | Add `deleteBuSchema` mutation |
+| 4 | `service-plus-server/app/graphql/resolvers/mutation.py` | Register handler |
+| 5 | `service-plus-server/app/graphql/resolvers/mutation_helper.py` | Add helper |
+| 6 | `service-plus-client/src/constants/graphql-map.ts` | Add `deleteBuSchema` GQL |
+| 7 | `service-plus-client/src/constants/sql-map.ts` | Add `GET_ORPHAN_BU_SCHEMAS` |
+| 8 | `service-plus-client/src/constants/messages.ts` | Add messages |
+| 9 | `service-plus-client/src/features/admin/components/delete-business-unit-dialog.tsx` | Rewrite with schema-drop confirmation |
+| 10 | `service-plus-client/src/features/admin/components/orphan-bu-schemas-dialog.tsx` | New component |
+| 11 | `service-plus-client/src/features/admin/pages/business-units-page.tsx` | Add Orphaned Schemas button + dialog wiring |
 
-### Table: `customer_type`
-Columns: `id, code, name`
-```sql
-INSERT INTO demo1.customer_type (id, code, name) VALUES
-    (1, 'INDIVIDUAL',      'Individual Customer'),
-    (2, 'CORPORATE',       'Corporate / Company'),
-    (3, 'DEALER',          'Dealer / Retail Partner'),
-    (4, 'SERVICE_PARTNER', 'Authorized Service Partner'),
-    (5, 'INSTITUTION',     'Institution (School, Govt, NGO)'),
-    (6, 'MARKETPLACE',     'Online Marketplace Customer'),
-    (7, 'MISCELLANEOUS',   'Miscellaneous')
-ON CONFLICT (id) DO NOTHING;
-```
+---
 
-### Table: `document_type`
-Columns: `id, code, prefix, name, description`
-```sql
-INSERT INTO demo1.document_type (id, code, prefix, name, description) VALUES
-    (1, 'JOB_SHEET',              'JS',  'Job Sheet',              'Service job intake and tracking document'),
-    (2, 'SERVICE_INVOICE',        'SI',  'Service Invoice',        'Service invoice issued to customer'),
-    (3, 'MONEY_RECEIPT',          'MR',  'Money Receipt',          'Receipt issued against payment received from customer'),
-    (4, 'SALES_INVOICE',          'SAL', 'Sales Invoice',          'Sales invoice issued to customer'),
-    (5, 'PURCHASE_INVOICE',       'PI',  'Purchase Invoice',       'Purchase invoice from supplier'),
-    (6, 'SALES_RETURN_INVOICE',   'SRI', 'Sales Return Invoice',   'Sales return invoice issued to customer'),
-    (7, 'PURCHASE_RETURN_INVOICE','PRI', 'Purchase Return Invoice','Purchase return invoice issued to supplier'),
-    (8, 'SERVICE_RETURN_INVOICE', 'SVI', 'Service Return Invoice', 'Service return invoice issued to customer')
-ON CONFLICT (id) DO NOTHING;
-```
+## Step 1 — `sql_auth.py`: Add `GET_ORPHAN_BU_SCHEMAS`
 
-### Table: `job_delivery_manner`
-Columns: `id, code, name, description`
-```sql
-INSERT INTO demo1.job_delivery_manner (id, code, name, description) VALUES
-    (1, 'SELF',           'Self',           'Customer picked up the item themselves'),
-    (2, 'HOME_DELIVERY',  'Home Delivery',  'Item delivered to customer''s home'),
-    (3, 'COURIER',        'Courier',        'Item sent via courier or shipping service'),
-    (4, 'POST',           'Post',           'Item sent via post'),
-    (5, 'OTHER',          'Other',          'Other delivery method'),
-    (6, 'NOT_APPLICABLE', 'Not Applicable', 'Not applicable')
-ON CONFLICT (id) DO NOTHING;
-```
+Add (alphabetically sorted):
 
-### Table: `job_receive_condition`
-Columns: `id, code, name, description`
-```sql
-INSERT INTO demo1.job_receive_condition (id, code, name, description) VALUES
-    (1,  'DEAD',           'Dead',                      'Item is completely dead'),
-    (2,  'NOT_WORKING',    'Not Working',               'Item is completely non-functional at the time of receipt'),
-    (3,  'PARTIAL_WORKING','Partially Working',         'Item is working but with reported issues or faults'),
-    (4,  'DAMAGED',        'Damaged',                   'Item has visible physical damage affecting usability'),
-    (5,  'MINOR_DAMAGE',   'Minor Damage',              'Item has minor scratches, dents, or cosmetic issues'),
-    (6,  'MISSING_PARTS',  'Missing Parts / Accessories','Some parts or accessories are missing'),
-    (7,  'WATER_DAMAGE',   'Water Damaged',             'Item shows signs of liquid damage'),
-    (8,  'BURNT',          'Burnt / Electrical Damage', 'Item has electrical damage'),
-    (9,  'PHYSICAL_BREAK', 'Physically Broken',         'Item is broken'),
-    (10, 'UNKNOWN',        'Condition Unknown',         'Condition not verified')
-ON CONFLICT (id) DO NOTHING;
-```
-
-### Table: `job_receive_manner`
-Columns: `id, code, name`
-```sql
-INSERT INTO demo1.job_receive_manner (id, code, name) VALUES
-    (1, 'WALKIN', 'Walk-in (Customer Visit)'),
-    (2, 'PICKUP', 'Home Pickup'),
-    (3, 'ONLINE', 'Online Booking'),
-    (4, 'PHONE',  'Phone Booking'),
-    (5, 'COURIER','Received via Courier'),
-    (6, 'AMC',    'AMC / Contract Service'),
-    (7, 'POST',   'Received via Postal Service'),
-    (8, 'OTHER',  'Other')
-ON CONFLICT (id) DO NOTHING;
-```
-
-### Table: `job_status`
-Columns: `id, code, name, description, display_order` (`display_order` is required)
-```sql
-INSERT INTO demo1.job_status (id, code, name, description, display_order) VALUES
-    (1,  'RECEIVED',         'Received',         'Item received',                  1),
-    (2,  'ASSIGNED',         'Assigned',         'Assigned to technician',         2),
-    (3,  'ESTIMATED',        'Estimated',        'Cost estimation is done',        3),
-    (4,  'ESTIMATE_APPROVED','Estimate Approved', 'Customer approved estimate',    4),
-    (5,  'ESTIMATE_REJECTED','Estimate Rejected', 'Customer rejected estimate',    5),
-    (6,  'IN_PROGRESS',      'In Progress',       'Work in progress',              6),
-    (7,  'PARTS_PENDING',    'Parts Pending',     'Waiting for parts',             7),
-    (8,  'ON_HOLD',          'On Hold',           'Temporarily paused',            8),
-    (9,  'OUTSOURCED',       'Outsourced',        'Sent to vendor',                9),
-    (10, 'SENT_TO_COMPANY',  'Sent to Company',   'Sent to company',              10),
-    (11, 'COMPLETED_OK',     'Completed OK',      'Work completed',               11),
-    (12, 'RETURN',           'Return',            'Ready to return',              12),
-    (13, 'DELIVERED_OK',     'Delivered OK',      'Delivered successfully',       13),
-    (14, 'DELIVERED_NOT_OK', 'Delivered Not OK',  'Delivered but issue remains',  14),
-    (15, 'CANCELLED',        'Cancelled',         'Job cancelled',                15),
-    (16, 'DISPOSED',         'Disposed',          'Item disposed',                16)
-ON CONFLICT (id) DO NOTHING;
-```
-
-### Table: `job_type`
-Columns: `id, code, name, description`
-```sql
-INSERT INTO demo1.job_type (id, code, name, description) VALUES
-    (1,  'MAKE_READY',    'Make Ready',    'Make item ready'),
-    (2,  'ESTIMATE',      'Estimate',      'Estimate for repair'),
-    (3,  'UNDER_WARRANTY','Under Warranty','Warranty service'),
-    (4,  'INSTALLATION',  'Installation',  'Installing product'),
-    (5,  'DEMO',          'Demo',          'Product demo'),
-    (6,  'MAINTENANCE',   'Maintenance',   'Preventive maintenance'),
-    (7,  'INSPECTION',    'Inspection',    'Diagnosis only'),
-    (8,  'AMC_SERVICE',   'AMC Service',   'AMC service'),
-    (9,  'UPGRADE',       'Upgrade',       'Upgrade components'),
-    (10, 'REFURBISH',     'Refurbishment', 'Restore item')
-ON CONFLICT (id) DO NOTHING;
-```
-
-### Table: `stock_transaction_type`
-Columns: `id, code, name, dr_cr, description`
-```sql
-INSERT INTO demo1.stock_transaction_type (id, code, name, dr_cr, description) VALUES
-    (1,  'CONSUMPTION',    'Consumption',    'C', 'Consumed'),
-    (2,  'PURCHASE',       'Purchase',       'D', 'Stock received'),
-    (3,  'SALES',          'Sales',          'C', 'Stock sold'),
-    (4,  'SALES_RETURN',   'Sales Return',   'D', 'Customer return'),
-    (5,  'PURCHASE_RETURN','Purchase Return','C', 'Return to supplier'),
-    (6,  'OPENING',        'Opening Stock',  'D', 'Opening stock'),
-    (7,  'ADJUSTMENT_IN',  'Adjustment In',  'D', 'Increase'),
-    (8,  'ADJUSTMENT_OUT', 'Adjustment Out', 'C', 'Decrease'),
-    (9,  'LOAN_IN',        'Loan In',        'D', 'Received loan'),
-    (10, 'LOAN_OUT',       'Loan Out',       'C', 'Given loan')
-ON CONFLICT (id) DO NOTHING;
-```
-
-### Table: `state`
-Columns: `id, code, name, country_code, gst_state_code, is_union_territory`
-```sql
-INSERT INTO demo1.state (id, code, name, country_code, gst_state_code, is_union_territory) VALUES
-    (1,  'AN', 'Andaman and Nicobar Islands',              'IN', '35', true),
-    (2,  'AP', 'Andhra Pradesh',                           'IN', '37', false),
-    (3,  'AR', 'Arunachal Pradesh',                        'IN', '12', false),
-    (4,  'AS', 'Assam',                                    'IN', '18', false),
-    (5,  'BR', 'Bihar',                                    'IN', '10', false),
-    (6,  'CG', 'Chhattisgarh',                             'IN', '22', false),
-    (7,  'GA', 'Goa',                                      'IN', '30', false),
-    (8,  'GJ', 'Gujarat',                                  'IN', '24', false),
-    (9,  'HR', 'Haryana',                                  'IN', '06', false),
-    (10, 'HP', 'Himachal Pradesh',                         'IN', '02', false),
-    (11, 'JH', 'Jharkhand',                                'IN', '20', false),
-    (12, 'KA', 'Karnataka',                                'IN', '29', false),
-    (13, 'KL', 'Kerala',                                   'IN', '32', false),
-    (14, 'MP', 'Madhya Pradesh',                           'IN', '23', false),
-    (15, 'MH', 'Maharashtra',                              'IN', '27', false),
-    (16, 'MN', 'Manipur',                                  'IN', '14', false),
-    (17, 'ML', 'Meghalaya',                                'IN', '17', false),
-    (18, 'MZ', 'Mizoram',                                  'IN', '15', false),
-    (19, 'NL', 'Nagaland',                                 'IN', '13', false),
-    (20, 'OD', 'Odisha',                                   'IN', '21', false),
-    (21, 'PB', 'Punjab',                                   'IN', '03', false),
-    (22, 'RJ', 'Rajasthan',                                'IN', '08', false),
-    (23, 'SK', 'Sikkim',                                   'IN', '11', false),
-    (24, 'TN', 'Tamil Nadu',                               'IN', '33', false),
-    (25, 'TS', 'Telangana',                                'IN', '36', false),
-    (26, 'TR', 'Tripura',                                  'IN', '16', false),
-    (27, 'UP', 'Uttar Pradesh',                            'IN', '09', false),
-    (28, 'UK', 'Uttarakhand',                              'IN', '05', false),
-    (29, 'WB', 'West Bengal',                              'IN', '19', false),
-    (30, 'CH', 'Chandigarh',                               'IN', '04', true),
-    (31, 'DN', 'Dadra and Nagar Haveli and Daman and Diu', 'IN', '26', true),
-    (32, 'DL', 'Delhi',                                    'IN', '07', true),
-    (33, 'JK', 'Jammu and Kashmir',                        'IN', '01', true),
-    (34, 'LA', 'Ladakh',                                   'IN', '38', true),
-    (35, 'LD', 'Lakshadweep',                              'IN', '31', true),
-    (36, 'PY', 'Puducherry',                               'IN', '34', true)
-ON CONFLICT (id) DO NOTHING;
+```python
+GET_ORPHAN_BU_SCHEMAS = """
+    with "dummy" as (values(1::int))
+    -- with "dummy" as (values(1::int)) -- Test line
+    SELECT n.nspname AS schema_name
+    FROM pg_catalog.pg_namespace n
+    WHERE n.nspname NOT IN ('public', 'security', 'information_schema')
+      AND n.nspname NOT LIKE 'pg_%'
+      AND NOT EXISTS (
+          SELECT 1 FROM security.bu
+          WHERE LOWER(code) = n.nspname
+      )
+    ORDER BY n.nspname
+"""
 ```
 
 ---
 
-## Step 2 — Column Mapping Validation
+## Step 2 — `exceptions.py`: Add AppMessages
 
-| Table | Required columns | Notes |
-|-------|-----------------|-------|
-| `customer_type` | id, code, name | — |
-| `document_type` | id, code, prefix, name | prefix sourced from tran.md |
-| `job_delivery_manner` | id, code, name | description optional, included |
-| `job_receive_condition` | id, code, name | description optional, included |
-| `job_receive_manner` | id, code, name | — |
-| `job_status` | id, code, name, display_order | display_order = sequential id |
-| `job_type` | id, code, name | description optional, included |
-| `stock_transaction_type` | id, code, name, dr_cr | C=Credit (out), D=Debit (in) |
-| `state` | id, code, name | country_code defaults to 'IN', is_union_territory per data |
+Add (alphabetically sorted):
+```python
+BU_SCHEMA_DROP_FAILED   = "Failed to drop the business unit schema"
+BU_SCHEMA_NAME_MISMATCH = "Schema name does not match. Please type the exact name."
+```
 
 ---
 
-## Step 3 — Run the Seed File
+## Step 3 — `schema.graphql`: Add Mutation
 
-```bash
-psql -U webadmin -d service_plus_service -f service-plus-server/app/db/seed_demo1.sql
+Add to Mutation type (alphabetically):
+```graphql
+deleteBuSchema(db_name: String!, schema: String, value: String!): Generic
 ```
 
-Verify row counts after run:
-```sql
-SELECT 'customer_type'        AS tbl, COUNT(*) FROM demo1.customer_type        UNION ALL
-SELECT 'document_type',              COUNT(*) FROM demo1.document_type              UNION ALL
-SELECT 'job_delivery_manner',        COUNT(*) FROM demo1.job_delivery_manner        UNION ALL
-SELECT 'job_receive_condition',      COUNT(*) FROM demo1.job_receive_condition      UNION ALL
-SELECT 'job_receive_manner',         COUNT(*) FROM demo1.job_receive_manner         UNION ALL
-SELECT 'job_status',                 COUNT(*) FROM demo1.job_status                 UNION ALL
-SELECT 'job_type',                   COUNT(*) FROM demo1.job_type                   UNION ALL
-SELECT 'stock_transaction_type',     COUNT(*) FROM demo1.stock_transaction_type     UNION ALL
-SELECT 'state',                      COUNT(*) FROM demo1.state;
+---
+
+## Step 4 — `mutation.py`: Register Handler
+
+Add import:
+```python
+resolve_delete_bu_schema_helper,
 ```
 
-Expected counts: 7, 8, 6, 10, 8, 16, 10, 10, 36.
+Add handler (alphabetically after `resolve_create_client`):
+```python
+@mutation.field("deleteBuSchema")
+async def resolve_delete_bu_schema(
+    _, info, db_name: str = "", schema: str = "security", value: str = ""
+) -> Any:
+    try:
+        return await resolve_delete_bu_schema_helper(db_name, schema, value)
+    except ValidationException:
+        raise
+    except Exception as e:
+        logger.error(f"Error dropping BU schema: {str(e)}", exc_info=True)
+        raise GraphQLException(
+            message=AppMessages.BU_SCHEMA_DROP_FAILED, extensions={"details": str(e)}
+        )
+```
+
+---
+
+## Step 5 — `mutation_helper.py`: Add Helper
+
+Add `resolve_delete_bu_schema_helper` (alphabetically sorted):
+
+```python
+async def resolve_delete_bu_schema_helper(
+    db_name: str, schema: str, value: str
+) -> dict:
+    """
+    Drop a BU schema from the database and optionally delete the security.bu row.
+
+    Value payload (URL-encoded JSON): { code, delete_bu_row: bool }
+    - code: schema name (lowercase, 3–9 chars, alphanumeric + underscore)
+    - delete_bu_row: if true, also DELETE FROM security.bu WHERE LOWER(code) = code
+    """
+    payload = _decode_value(value, "deleteBuSchema")
+
+    code: str          = (payload.get("code") or "").lower().strip()
+    delete_bu_row: bool = bool(payload.get("delete_bu_row", False))
+
+    if not code:
+        raise ValidationException(
+            message=AppMessages.REQUIRED_FIELD_MISSING,
+            extensions={"field": "code"},
+        )
+
+    # Validate code format
+    if not re.match(r"^[a-z0-9_]{3,9}$", code):
+        raise ValidationException(
+            message=AppMessages.INVALID_INPUT,
+            extensions={"detail": "Code must be 3–9 alphanumeric/underscore characters", "field": "code"},
+        )
+
+    # Drop schema CASCADE (autocommit DDL)
+    logger.info(f"Dropping schema '{code}' in db '{db_name}'")
+    await exec_sql_dml(
+        db_name=db_name, schema="security",
+        sql=pgsql.SQL("DROP SCHEMA IF EXISTS {} CASCADE").format(pgsql.Identifier(code)),
+    )
+
+    # Optionally delete the bu row
+    if delete_bu_row:
+        logger.info(f"Deleting security.bu row for code='{code}'")
+        await exec_sql(
+            db_name=db_name, schema="security",
+            sql="""
+                with "p_code" as (values(%(code)s::text))
+                DELETE FROM security.bu
+                WHERE LOWER(code) = LOWER((table "p_code"))
+                RETURNING id
+            """,
+            sql_args={"code": code},
+        )
+
+    await audit_logger.log(
+        action=AuditAction.DROP_DATABASE,
+        resource_name=code,
+        resource_type="bu_schema",
+    )
+    logger.info(f"Schema '{code}' dropped successfully")
+    return {"code": code, "delete_bu_row": delete_bu_row}
+```
+
+---
+
+## Step 6 — `graphql-map.ts`: Add Mutation
+
+Add (alphabetically sorted between `deleteClient` and `dropDatabase`):
+```ts
+deleteBuSchema: gql`
+    mutation DeleteBuSchema($db_name: String!, $schema: String, $value: String!) {
+        deleteBuSchema(db_name: $db_name, schema: $schema, value: $value)
+    }
+`,
+```
+
+---
+
+## Step 7 — `sql-map.ts`: Add Key
+
+Add (alphabetically sorted in GET_* section):
+```ts
+GET_ORPHAN_BU_SCHEMAS: "GET_ORPHAN_BU_SCHEMAS",
+```
+
+---
+
+## Step 8 — `messages.ts`: Add Messages
+
+Add under Business Units section (alphabetically):
+```ts
+ERROR_BU_SCHEMA_DELETE_FAILED:   'Failed to drop business unit schema. Please try again.',
+ERROR_BU_SCHEMA_NAME_MISMATCH:   'Schema name does not match. Please type the exact name.',
+ERROR_ORPHAN_BU_LOAD_FAILED:     'Failed to load orphaned schemas. Please try again.',
+ERROR_ORPHAN_BU_DELETE_FAILED:   'Failed to delete orphaned schema. Please try again.',
+INFO_BU_SCHEMA_DROP_WARNING:     'This will permanently drop the schema and all its data from the database.',
+SUCCESS_BU_SCHEMA_DELETED:       'Business unit and its schema have been permanently deleted.',
+SUCCESS_ORPHAN_BU_DELETED:       'Orphaned schema has been permanently deleted.',
+```
+
+---
+
+## Step 9 — `delete-business-unit-dialog.tsx`: Rewrite
+
+### Props (unchanged)
+```ts
+type DeleteBusinessUnitDialogPropsType = {
+    bu: BusinessUnitType | null;
+    onOpenChange: (open: boolean) => void;
+    onSuccess: () => void;
+    open: boolean;
+};
+```
+
+### Behaviour changes:
+- Add `confirmCode` state (`string`), `submitting` state.
+- If `bu.schema_exists` is true, show a warning box (amber) explaining the schema will be dropped.
+- Show a text input asking the user to type the BU code to confirm (compare against `bu.code.toLowerCase()`).
+- Delete button disabled until `confirmCode.toLowerCase() === bu.code.toLowerCase()`.
+- On confirm:
+  - If `bu.schema_exists`: call `deleteBuSchema` with `{ code: bu.code.toLowerCase(), delete_bu_row: true }`.
+  - If `!bu.schema_exists`: call existing `genericUpdate` with `deletedIds: [bu.id]` (no schema to drop).
+- Show `SUCCESS_BU_SCHEMA_DELETED` or `SUCCESS_BU_DELETED` toast accordingly.
+- Reset `confirmCode` on close.
+
+### Key snippet:
+```tsx
+const [confirmCode, setConfirmCode] = useState("");
+
+const deleteEnabled = confirmCode.toLowerCase() === (bu?.code ?? "").toLowerCase();
+
+async function handleDelete() {
+    if (!bu || !dbName) return;
+    setSubmitting(true);
+    try {
+        if (bu.schema_exists) {
+            await apolloClient.mutate({
+                mutation: GRAPHQL_MAP.deleteBuSchema,
+                variables: {
+                    db_name: dbName,
+                    schema: "security",
+                    value: encodeURIComponent(
+                        JSON.stringify({ code: bu.code.toLowerCase(), delete_bu_row: true })
+                    ),
+                },
+            });
+            toast.success(MESSAGES.SUCCESS_BU_SCHEMA_DELETED);
+        } else {
+            await apolloClient.mutate({
+                mutation: GRAPHQL_MAP.genericUpdate,
+                variables: {
+                    db_name: dbName,
+                    schema: "security",
+                    value: graphQlUtils.buildGenericUpdateValue({
+                        deletedIds: [bu.id],
+                        tableName: "bu",
+                        xData: {},
+                    }),
+                },
+            });
+            toast.success(MESSAGES.SUCCESS_BU_DELETED);
+        }
+        onSuccess();
+        onOpenChange(false);
+    } catch {
+        toast.error(MESSAGES.ERROR_BU_SCHEMA_DELETE_FAILED);
+    } finally {
+        setSubmitting(false);
+    }
+}
+```
+
+---
+
+## Step 10 — `orphan-bu-schemas-dialog.tsx`: New Component
+
+New file: `service-plus-client/src/features/admin/components/orphan-bu-schemas-dialog.tsx`
+
+### Behaviour:
+- On open, fetch `GET_ORPHAN_BU_SCHEMAS` via `genericQuery`.
+- Display list of orphan schema names. Each row has a checkbox and a "Delete" action.
+- Single-item delete: inline confirmation input (type schema name) + Delete button.
+- Bulk delete via selected checkboxes: a "Delete Selected" button at the bottom — triggers the same per-item confirmation flow one at a time (or a single confirm input for the first selected item with count shown).
+- Each deletion calls `deleteBuSchema` with `{ code: schemaName, delete_bu_row: false }`.
+- After each deletion, remove the item from the local list without re-fetching.
+- "Refresh" button re-fetches the list.
+
+### Types:
+```ts
+type OrphanSchemaType = { schema_name: string };
+
+type OrphanBuSchemasDialogPropsType = {
+    onOpenChange: (open: boolean) => void;
+    open: boolean;
+};
+```
+
+### Layout:
+```
+┌─ Orphaned Schemas ─────────────────────────────────────────────────────────┐
+│  These schemas exist in the database but have no matching Business Unit.   │
+│                                                                            │
+│  [ ] schema_a        [Delete]  ← expands inline confirmation              │
+│  [ ] schema_b        [Delete]                                              │
+│                                                                            │
+│  [Refresh]                              [Delete Selected] [Close]          │
+└────────────────────────────────────────────────────────────────────────────┘
+```
+
+Inline confirmation (when Delete clicked on a row):
+```
+  Type "schema_a" to confirm: [ _________________ ]  [Confirm]  [Cancel]
+```
+
+---
+
+## Step 11 — `business-units-page.tsx`: Add Orphaned Schemas Button
+
+### Changes:
+1. Import `OrphanBuSchemasDialog`.
+2. Add `orphanOpen` state (`boolean`, default `false`).
+3. Add "Orphaned Schemas" button in the header button group (between Refresh and Add Business Unit):
+```tsx
+<Button
+    className="gap-1.5 border border-amber-200 bg-amber-50 text-amber-700 shadow-sm hover:bg-amber-100"
+    size="sm"
+    variant="outline"
+    onClick={() => setOrphanOpen(true)}
+>
+    <DatabaseIcon className="h-3.5 w-3.5" />
+    Orphaned Schemas
+</Button>
+```
+4. Wire dialog:
+```tsx
+<OrphanBuSchemasDialog
+    open={orphanOpen}
+    onOpenChange={setOrphanOpen}
+/>
+```
+
+---
+
+## Key Design Notes
+
+1. **`DELETE SCHEMA` uses `exec_sql_dml`** (autocommit) because DDL `DROP SCHEMA` cannot run inside a psycopg transaction. If the BU row delete runs in the same call, it runs separately via `exec_sql` after the schema drop.
+
+2. **Orphan definition**: any schema in `pg_namespace` that is not a system schema (`pg_*`, `information_schema`, `public`, `security`) AND has no matching lowercase code in `security.bu`.
+
+3. **Lowercase enforcement**: already handled server-side (`.lower().strip()`) and client-side (Zod `.transform((v) => v.toLowerCase())`). Confirmation inputs compare with `.toLowerCase()` on both sides.
+
+4. **`schema_exists` field on `BusinessUnitType`**: already returned by `GET_ALL_BUS_WITH_SCHEMA_STATUS` and used by the page. The `DeleteBusinessUnitDialog` will use `bu.schema_exists` to decide the deletion path.

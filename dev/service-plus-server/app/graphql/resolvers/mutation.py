@@ -8,9 +8,11 @@ from app.logger import logger
 from app.exceptions import ValidationException, GraphQLException, AppMessages
 from app.graphql.resolvers.mutation_helper import (
     resolve_create_admin_user_helper,
+    resolve_create_bu_schema_and_feed_seed_data_helper,
     resolve_create_business_user_helper,
     resolve_create_client_helper,
     resolve_create_service_db_helper,
+    resolve_delete_bu_schema_helper,
     resolve_delete_client_helper,
     resolve_drop_database_helper,
     resolve_generic_update_helper,
@@ -35,6 +37,21 @@ async def resolve_create_admin_user(_, info, db_name: str = "", schema: str = "s
         logger.error(f"Error creating admin user: {str(e)}")
         raise GraphQLException(
             message=AppMessages.OPERATION_FAILED, extensions={"details": str(e)}
+        )
+
+
+@mutation.field("createBuSchemaAndFeedSeedData")
+async def resolve_create_bu_schema_and_feed_seed_data(
+    _, info, db_name: str = "", schema: str = "security", value: str = ""
+) -> Any:
+    try:
+        return await resolve_create_bu_schema_and_feed_seed_data_helper(db_name, schema, value)
+    except ValidationException:
+        raise
+    except Exception as e:
+        logger.error(f"Error creating BU schema: {str(e)}", exc_info=True)
+        raise GraphQLException(
+            message=AppMessages.BU_SCHEMA_CREATE_FAILED, extensions={"details": str(e)}
         )
 
 
@@ -74,6 +91,21 @@ async def resolve_create_service_db(_, info, db_name: str = "", schema: str = "s
         logger.error(f"Error creating service database: {str(e)}")
         raise GraphQLException(
             message=AppMessages.OPERATION_FAILED, extensions={"details": str(e)}
+        )
+
+
+@mutation.field("deleteBuSchema")
+async def resolve_delete_bu_schema(
+    _, info, db_name: str = "", schema: str = "security", value: str = ""
+) -> Any:
+    try:
+        return await resolve_delete_bu_schema_helper(db_name, schema, value)
+    except ValidationException:
+        raise
+    except Exception as e:
+        logger.error(f"Error dropping BU schema: {str(e)}", exc_info=True)
+        raise GraphQLException(
+            message=AppMessages.BU_SCHEMA_DROP_FAILED, extensions={"details": str(e)}
         )
 
 

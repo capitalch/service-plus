@@ -1,64 +1,53 @@
-# Plan: Fix `result.errors` Dead Code in Apollo Client 4.x Mutations
+# Plan: Fix Server-Side Bug — Pass BU id from Client to Skip Row Checks
 
 ## Problem
 
-In Apollo Client 4.x, `apolloClient.mutate()` **throws** an `ApolloError` when GraphQL errors occur — it never silently returns them in `result.errors`. The pattern `const result = await apolloClient.mutate(...)` followed by `if (result.errors)` is therefore dead code and the `result` variable is unused.
+`resolve_create_bu_schema_and_feed_seed_data_helper` always runs uniqueness checks
+and INSERT (steps 4–6). When the BU row already exists, step 4 raises `BU_CODE_EXISTS`.
 
-**Fix for each file:**
-1. Remove `const result =` — change to plain `await apolloClient.mutate(...)`
-2. Remove the `if (result.errors) { ... return; }` block
-3. The `catch` block already handles all error cases
+## Solution
+
+The client already holds `bu.id` (from the Redux store). Include it in the payload.
+On the server, if `id` is present in the payload → BU row already exists → skip steps
+4, 5, 6 entirely and use the supplied `id`. Proceed directly to schema creation (steps 7–10).
 
 ---
 
 ## Workflow
 
-Find all occurrences → fix each file → verify with `pnpm tsc --noEmit`.
+Client sends `{ code, id, name }` instead of `{ code, name }`.
+Server checks: `if id present → repair path (skip insert); else → new BU path (original flow)`.
 
 ---
 
-## Files to Fix (8 files)
+## Step 1 — Client: include `bu.id` in the payload (`create-bu-schema-dialog.tsx`)
 
-| # | File | Line |
-|---|------|------|
-| 1 | `src/features/admin/components/associate-bu-role-dialog.tsx` | 170 |
-| 2 | `src/features/admin/components/create-business-unit-dialog.tsx` | 163 |
-| 3 | `src/features/admin/components/deactivate-business-unit-dialog.tsx` | 59 |
-| 4 | `src/features/admin/components/deactivate-business-user-dialog.tsx` | 59 |
-| 5 | `src/features/admin/components/delete-business-unit-dialog.tsx` | 59 |
-| 6 | `src/features/admin/components/delete-business-user-dialog.tsx` | 60 |
-| 7 | `src/features/admin/components/edit-business-unit-dialog.tsx` | 108 |
-| 8 | `src/features/admin/components/edit-business-user-dialog.tsx` | 185 |
-
-*(Already fixed: `activate-business-unit-dialog.tsx`, `activate-business-user-dialog.tsx`)*
+Change line 62 from:
+```ts
+JSON.stringify({ code: bu.code.toLowerCase(), name: bu.name })
+```
+to:
+```ts
+JSON.stringify({ code: bu.code.toLowerCase(), id: bu.id, name: bu.name })
+```
 
 ---
 
-## Steps
+## Step 2 — Server: branch on `id` presence in `mutation_helper.py`
 
-### Step 1 — Fix `associate-bu-role-dialog.tsx` (line 170)
-Remove `const result =` and `if (result.errors)` block.
+After format validations (steps 1–3, unchanged), add:
 
-### Step 2 — Fix `create-business-unit-dialog.tsx` (line 163)
-Remove `const result =` and `if (result.errors)` block.
+```python
+# 4. If id supplied, BU row already exists — skip uniqueness checks and INSERT
+bu_id = payload.get("id")
+if bu_id:
+    bu_id = int(bu_id)
+else:
+    # existing steps 4–6: uniqueness checks + INSERT
+    ...
+    bu_id = rows[0]["id"] if rows else None
 
-### Step 3 — Fix `deactivate-business-unit-dialog.tsx` (line 59)
-Remove `const result =` and `if (result.errors)` block.
+# Steps 7–10 (schema, DDL, seed, audit) unchanged — run for both paths
+```
 
-### Step 4 — Fix `deactivate-business-user-dialog.tsx` (line 59)
-Remove `const result =` and `if (result.errors)` block.
-
-### Step 5 — Fix `delete-business-unit-dialog.tsx` (line 59)
-Remove `const result =` and `if (result.errors)` block.
-
-### Step 6 — Fix `delete-business-user-dialog.tsx` (line 60)
-Remove `const result =` and `if (result.errors)` block.
-
-### Step 7 — Fix `edit-business-unit-dialog.tsx` (line 108)
-Remove `const result =` and `if (result.errors)` block.
-
-### Step 8 — Fix `edit-business-user-dialog.tsx` (line 185)
-Remove `const result =` and `if (result.errors)` block.
-
-### Step 9 — Verify
-Run `pnpm tsc --noEmit` — expect exit code 0.
+No new SQL query needed — `id` is taken directly from the payload.

@@ -12,6 +12,7 @@ from app.core.security import create_reset_token, hash_password
 from app.config import settings
 from app.db.psycopg_driver import exec_sql, exec_sql_dml, exec_sql_object, get_service_db_connection
 from app.db.sql_auth import SqlAuth
+from app.db.sql_bu import SqlBu
 from app.exceptions import AppMessages, ValidationException
 from app.logger import logger
 
@@ -108,6 +109,112 @@ async def resolve_create_admin_user_helper(db_name: str, schema: str, value: str
         resource_type="admin_user",
     )
     return {"email_sent": email_sent, "id": record_id}
+
+
+async def resolve_create_bu_schema_and_feed_seed_data_helper(
+    db_name: str, schema: str, value: str
+) -> dict:
+    """
+    Create a new BU row in security.bu, then create a new schema named after the BU code,
+    create all 35 tables (from BU_SCHEMA_DDL), and seed 9 lookup tables (BU_SEED_SQL).
+
+    Value payload (URL-encoded JSON): { code, name }
+    """
+    payload = _decode_value(value, "createBuSchemaAndFeedSeedData")
+
+    code: str = (payload.get("code") or "").lower().strip()
+    name: str = (payload.get("name") or "").strip()
+
+    # 1. Validate presence
+    if not code or not name:
+        raise ValidationException(
+            message=AppMessages.REQUIRED_FIELD_MISSING,
+            extensions={"fields": ["code", "name"]},
+        )
+
+    # 2. Validate code format: alphanumeric + underscore, 3–9 chars
+    if not re.match(r"^[a-z0-9_]{3,9}$", code):
+        raise ValidationException(
+            message=AppMessages.INVALID_INPUT,
+            extensions={"detail": "Code must be 3–9 alphanumeric/underscore characters", "field": "code"},
+        )
+
+    # 3. Validate name format: alphanumeric + spaces, min 3 chars
+    if not re.match(r"^[a-zA-Z0-9 ]{3,}$", name):
+        raise ValidationException(
+            message=AppMessages.INVALID_INPUT,
+            extensions={"detail": "Name must be at least 3 alphanumeric characters", "field": "name"},
+        )
+
+    # 4. If id supplied, BU row already exists — skip uniqueness checks and INSERT
+    raw_id = payload.get("id")
+    if raw_id:
+        bu_id = int(raw_id)
+        logger.info(f"Schema-repair path: using existing BU id={bu_id} for code='{code}'")
+    else:
+        # 4a. Check code uniqueness
+        rows = await exec_sql(
+            db_name=db_name, schema="security",
+            sql=SqlAuth.CHECK_BU_CODE_EXISTS,
+            sql_args={"code": code},
+        )
+        if rows and rows[0].get("exists"):
+            raise ValidationException(
+                message=AppMessages.BU_CODE_EXISTS,
+                extensions={"field": "code"},
+            )
+
+        # 4b. Check name uniqueness
+        rows = await exec_sql(
+            db_name=db_name, schema="security",
+            sql=SqlAuth.CHECK_BU_NAME_EXISTS,
+            sql_args={"name": name},
+        )
+        if rows and rows[0].get("exists"):
+            raise ValidationException(
+                message=AppMessages.BU_NAME_EXISTS,
+                extensions={"field": "name"},
+            )
+
+        # 4c. Insert BU row into security.bu
+        logger.info(f"Creating BU '{code}' / '{name}' in db '{db_name}'")
+        rows = await exec_sql(
+            db_name=db_name, schema="security",
+            sql=SqlAuth.INSERT_BU,
+            sql_args={"code": code, "name": name},
+        )
+        bu_id = rows[0]["id"] if rows else None
+
+    # 7. Create schema <code>
+    logger.info(f"Creating schema '{code}' in db '{db_name}'")
+    await exec_sql(
+        db_name=db_name, schema="security",
+        sql=pgsql.SQL("CREATE SCHEMA IF NOT EXISTS {}").format(pgsql.Identifier(code)),
+    )
+
+    # 8. Create all BU tables in the new schema
+    logger.info(f"Running BU_SCHEMA_DDL in schema '{code}'")
+    await exec_sql(
+        db_name=db_name, schema=code,
+        sql=SqlBu.BU_SCHEMA_DDL,
+    )
+
+    # 9. Seed lookup data
+    logger.info(f"Seeding lookup data in schema '{code}'")
+    await exec_sql(
+        db_name=db_name, schema=code,
+        sql=SqlBu.BU_SEED_SQL,
+    )
+
+    # 10. Audit log
+    await audit_logger.log(
+        action=AuditAction.CREATE_BU_SCHEMA,
+        resource_name=code,
+        resource_type="bu_schema",
+    )
+
+    logger.info(f"BU '{code}' created successfully with schema and seed data")
+    return {"code": code, "id": bu_id, "name": name}
 
 
 async def resolve_create_business_user_helper(db_name: str, schema: str, value: str) -> dict:
@@ -328,6 +435,61 @@ async def resolve_create_service_db_helper(db_name: str, schema: str, value: str
         resource_type="database",
     )
     return {"db_name": new_db_name, "id": client_id}
+
+
+async def resolve_delete_bu_schema_helper(db_name: str, schema: str, value: str) -> dict:
+    """
+    Drop a BU schema from the database and optionally delete the security.bu row.
+
+    Value payload (URL-encoded JSON): { code, delete_bu_row: bool }
+    - code: schema name (lowercase, 3–9 chars, alphanumeric + underscore)
+    - delete_bu_row: if true, also DELETE FROM security.bu WHERE LOWER(code) = code
+    """
+    payload = _decode_value(value, "deleteBuSchema")
+
+    code: str          = (payload.get("code") or "").lower().strip()
+    delete_bu_row: bool = bool(payload.get("delete_bu_row", False))
+
+    if not code:
+        raise ValidationException(
+            message=AppMessages.REQUIRED_FIELD_MISSING,
+            extensions={"field": "code"},
+        )
+
+    if not re.match(r"^[a-z0-9_]{3,9}$", code):
+        raise ValidationException(
+            message=AppMessages.INVALID_INPUT,
+            extensions={"detail": "Code must be 3–9 alphanumeric/underscore characters", "field": "code"},
+        )
+
+    # Drop schema CASCADE (autocommit DDL)
+    logger.info(f"Dropping schema '{code}' in db '{db_name}'")
+    await exec_sql_dml(
+        db_name=db_name, schema="security",
+        sql=pgsql.SQL("DROP SCHEMA IF EXISTS {} CASCADE").format(pgsql.Identifier(code)),
+    )
+
+    # Optionally delete the bu row
+    if delete_bu_row:
+        logger.info(f"Deleting security.bu row for code='{code}'")
+        await exec_sql(
+            db_name=db_name, schema="security",
+            sql="""
+                with "p_code" as (values(%(code)s::text))
+                DELETE FROM security.bu
+                WHERE LOWER(code) = LOWER((table "p_code"))
+                RETURNING id
+            """,
+            sql_args={"code": code},
+        )
+
+    await audit_logger.log(
+        action=AuditAction.DROP_DATABASE,
+        resource_name=code,
+        resource_type="bu_schema",
+    )
+    logger.info(f"Schema '{code}' dropped successfully")
+    return {"code": code, "delete_bu_row": delete_bu_row}
 
 
 async def resolve_delete_client_helper(db_name: str, schema: str, value: str) -> dict:
