@@ -10,36 +10,156 @@
 	- New Job
 	- Query Job
 	- Transact Job
+	- Finalize ready job
 	- Deliver Job
+	- Opening Job
+	- Money receipt
 - Dashboard
 	- Job status
 	- Revenue
 - Master
-	- Document Types
+	- Branch
+	- Document Type
 	- Financial Year
+	- Customer Type
 	- Customer
+	- Job delivery manner
+	- Job receive condition
+	- Job receive manner
+	- Job status
+	- Job type
+	- State / Province
 	- Parts
-	- Brands
-	- Suppliers
-	- Technicians
-	- Products
-	- Models
+	- Brand
+	- Supplier
+	- Technician
+	- Product
+	- Model
+	- Part location
 - Settings
 	- Company info
 	- Branch setup
-	
+	- Job slip
+	- Money receipt
 - Reports
 	- Parts Summary
 	- Job status
 	- Cash register
-	- Performance
+	- Detailed Performance
+	- Summary performance
 	- Sales
 	- Jobs
+	- Stock transaction
 - Parts Inventory
+	- Consumption
 	- Purchase invoice
 	- Sale invoice
 	- Stock Adjust
 	- Loan
+	- Opening stock
+	- Part finder
+# modify seed data and table columns
+add is_system column to:
+	- customer_type
+	- document_type
+	- job_delivery_manner
+	- job_receive_condition
+	- job_type
+	- state
+	- stock_transaction_type
+# seed data
+	- financial year
+	- branch
+	
+Final Organized Menu (Recommended)
+🧾 Jobs (Core Workflow)
+
+Everything related to job lifecycle
+
+	New Job
+	Job List / Search
+	Update Job (instead of “Transact Job”)
+	Ready for Delivery (instead of “Finalize ready job”)
+	Deliver Job
+	Opening Jobs (bulk import / migration)
+	Receipts (instead of “Money receipt” — more generic)
+📊 Dashboard
+
+Quick insights
+	Overview
+	Job Status
+	Revenue
+	Technician Performance (add this 👍)
+📦 Inventory (Parts Management)
+
+Stock + parts operations
+
+	Stock Overview
+	Consumption (Job Usage)
+	Purchase Entry
+	Sales Entry
+	Stock Adjustment
+	Stock Transfer (recommended addition)
+	Loan / Issue & Return
+	Opening Stock
+	Part Finder
+📑 Reports
+
+Read-only analytics
+
+	Job Reports
+	Job Status Report
+	Job History
+	Financial Reports
+	Revenue Report
+	Cash Register
+	Inventory Reports
+	Parts Summary
+	Stock Ledger (add this 🔥)
+	Stock Movement
+	Performance Reports
+	Technician Performance
+	Summary Performance
+	Detailed Performance
+🧩 Masters
+
+All configurations / static data
+
+	📍 Organization
+	Branch
+	Financial Year
+	State / Province
+	👥 Customer & Vendor
+	Customer Type
+	Customer
+	Supplier
+	🧾 Document & Workflow
+	Document Type
+	Job Type
+	Job Status
+	Job Receive Manner
+	Job Delivery Manner
+	Job Receive Condition
+	🏷️ Product & Parts
+	Brand
+	Product
+	Model
+	Parts
+	Part Location
+	👨‍🔧 Resources
+	Technician
+⚙️ Settings
+
+System-level configuration
+
+	Company Profile (better wording)
+	Branch Configuration
+	Print Templates
+	Job Slip
+	Receipt
+	Numbering / Auto Series (important addition 🔥)
+	User & Roles (must-have for real system)
+
 	
 				## Super admin login
 							- Clients
