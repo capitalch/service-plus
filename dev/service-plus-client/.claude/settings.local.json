@@ -12,7 +12,8 @@
       "Bash(npx tsc:*)",
       "Bash(npx eslint:*)",
       "Bash(ls not:*)",
-      "Bash(echo \"Exit code: $?\")"
+      "Bash(echo \"Exit code: $?\")",
+      "Bash(npx vite:*)"
     ]
   }
 }

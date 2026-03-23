@@ -1,53 +1,148 @@
-# Plan: Fix Server-Side Bug — Pass BU id from Client to Skip Row Checks
+# Plan: Client Mode UI — Business User & Admin User
 
-## Problem
-
-`resolve_create_bu_schema_and_feed_seed_data_helper` always runs uniqueness checks
-and INSERT (steps 4–6). When the BU row already exists, step 4 raises `BU_CODE_EXISTS`.
-
-## Solution
-
-The client already holds `bu.id` (from the Redux store). Include it in the payload.
-On the server, if `id` is present in the payload → BU row already exists → skip steps
-4, 5, 6 entirely and use the supplied `id`. Proceed directly to schema creation (steps 7–10).
+## Context
+Replace the current placeholder `client-dashboard-page.tsx` with a full VSCode-style console UI
+matching `src/features/temp/client-mode-ui.html`. Serves both:
+- **Admin users (type A in client mode)** — full access, can switch back to Admin Mode
+- **Business users (type B)** — access filtered by `user.accessRights[]`
 
 ---
 
-## Workflow
+## Complete Menu System
 
-Client sends `{ code, id, name }` instead of `{ code, name }`.
-Server checks: `if id present → repair path (skip insert); else → new BU path (original flow)`.
+### Top Navigation (fixed h-12 header, horizontal tabs)
+| Tab | Material Icon | Route |
+|-----|--------------|-------|
+| Dashboard | `dashboard` | `/client` |
+| Jobs | `build` | `/client/jobs` |
+| Customers | `group` | `/client/customers` |
+| Inventory | `inventory_2` | `/client/inventory` |
+| Reports | `analytics` | `/client/reports` |
+| Settings | `settings` | `/client/settings` |
+
+### Activity Bar (fixed w-16 left strip, icon-only)
+- Mirrors the 6 top-nav tabs with icon buttons
+- Active tab: left border `border-[#007acc]` + filled icon + `bg-[#131313]`
+- Bottom section: account icon, help icon
+- Admin-only: "Switch to Admin Mode" button (dispatches `setSessionMode('admin')`)
+
+### Explorer Panel (fixed w-64 secondary sidebar, context-sensitive)
+
+**Dashboard:**
+- Active Jobs tree (recent 5 jobs, each links to `/client/jobs/:id`)
+- Recent Customers tree (recent 3 customers)
+- Quick Actions: New Job, New Customer, Create Invoice
+
+**Jobs:**
+- New Job (action button)
+- Job Queue subtree: Open, In Progress, Awaiting Parts, Ready for Pickup, Critical
+- Closed Today (count badge)
+
+**Customers:**
+- New Customer (action button)
+- Customer Types (submenu)
+- Search Customers
+
+**Inventory:**
+- Parts Master
+- Brands
+- Suppliers
+- Purchase Invoices
+- Sales Invoices
+- Stock Transactions
+- Stock Adjustments
+
+**Reports:**
+- Job Status Report
+- Cash Register
+- Performance Report
+- Sales Report
+- Operational Report
+
+**Settings:**
+- Company Info
+- Branch Setup
+- Technicians
+- Products & Models
+- Document Sequences
+- Job Receive Conditions
+
+### Status Bar (fixed h-6 bottom, bg `#007acc`)
+- Left: green dot + "Connected", branch name
+- Center: "ServicePlus v2.1.0"
+- Right: last sync time, UTF-8, current date
 
 ---
 
-## Step 1 — Client: include `bu.id` in the payload (`create-bu-schema-dialog.tsx`)
+## Role Differences
+| Feature | Admin (A in client mode) | Business User (B) |
+|---------|--------------------------|-------------------|
+| Layout | Same VSCode shell | Same VSCode shell |
+| Menu tabs | All 6 visible | All 6 visible |
+| Explorer items | All visible | Filtered by `accessRights[]` |
+| Switch to Admin Mode | Shown (activity bar bottom) | Hidden |
 
-Change line 62 from:
+---
+
+## Files to Create
+
+### `src/features/client/components/`
+1. **`client-layout.tsx`** — Shell: composes top-nav + activity-bar + explorer-panel + `<main>` + status-bar. Tracks `activeSection` from current route via `useLocation()`.
+2. **`client-top-nav.tsx`** — Fixed h-12 header: logo, tab nav links, search input, notifications bell with badge, user name + role chip.
+3. **`client-activity-bar.tsx`** — Fixed w-16 strip: 6 icon buttons (NavLink), account/help at bottom, admin-only switch button.
+4. **`client-explorer-panel.tsx`** — Fixed w-64 sidebar: renders tree content per `activeSection` prop.
+5. **`client-status-bar.tsx`** — Fixed h-6 bottom bar.
+
+### `src/features/client/pages/` (placeholder pages, all wrapped in `ClientLayout`)
+6. **`client-jobs-page.tsx`**
+7. **`client-customers-page.tsx`**
+8. **`client-inventory-page.tsx`**
+9. **`client-reports-page.tsx`**
+10. **`client-settings-page.tsx`**
+
+---
+
+## Files to Modify
+
+### `src/features/client/pages/client-dashboard-page.tsx`
+Replace placeholder with real dashboard:
+- 4 stats cards: Active Jobs, Pending Pickup, Revenue Today, Total Customers
+- Recent Repair Queue table: Job ID, Device & Issue, Customer, Status, Technician, Due Date
+- Wrap everything in `<ClientLayout>`
+
+### `src/router/routes.ts`
+Add client routes:
 ```ts
-JSON.stringify({ code: bu.code.toLowerCase(), name: bu.name })
+client: {
+    root:      '/client',
+    jobs:      '/client/jobs',
+    customers: '/client/customers',
+    inventory: '/client/inventory',
+    reports:   '/client/reports',
+    settings:  '/client/settings',
+}
 ```
-to:
-```ts
-JSON.stringify({ code: bu.code.toLowerCase(), id: bu.id, name: bu.name })
-```
+
+### `src/app.tsx`
+Add `<ProtectedRoute requiredSessionMode="client">` wrappers for all `/client/*` paths.
+
+### `tailwind.config.ts`
+Extend with Material Design dark palette from `client-mode-ui.html` (lines 17–64):
+`surface`, `primary`, `primary-container`, `surface-container`, `surface-container-high`, `on-surface`, `on-surface-variant`, `outline`, `outline-variant`, etc.
 
 ---
 
-## Step 2 — Server: branch on `id` presence in `mutation_helper.py`
+## Active Section State
+- `ClientLayout` derives `activeSection` from `useLocation()` pathname
+- Passed as props to `ClientTopNav`, `ClientActivityBar`, `ClientExplorerPanel`
+- No extra state management needed (route is the source of truth)
 
-After format validations (steps 1–3, unchanged), add:
+---
 
-```python
-# 4. If id supplied, BU row already exists — skip uniqueness checks and INSERT
-bu_id = payload.get("id")
-if bu_id:
-    bu_id = int(bu_id)
-else:
-    # existing steps 4–6: uniqueness checks + INSERT
-    ...
-    bu_id = rows[0]["id"] if rows else None
-
-# Steps 7–10 (schema, DDL, seed, audit) unchanged — run for both paths
-```
-
-No new SQL query needed — `id` is taken directly from the payload.
+## Verification
+1. Login as type A → switch to client mode → VSCode-style layout renders with dark theme
+2. Login as type B → same layout, no "Switch to Admin Mode" button visible
+3. Click each top-nav tab → explorer panel updates to correct contextual content
+4. Navigate to `/client/jobs`, `/client/customers`, etc. → correct page loads
+5. Status bar shows connection indicator + current date
+6. Activity bar icon highlights match the active route

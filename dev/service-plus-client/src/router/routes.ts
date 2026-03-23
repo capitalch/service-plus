@@ -2,6 +2,14 @@ export const ROUTES = {
     home:          '/',
     login:         '/login',
     resetPassword: '/reset-password',
+    client: {
+        root:      '/client',
+        jobs:      '/client/jobs',
+        customers: '/client/customers',
+        inventory: '/client/inventory',
+        reports:   '/client/reports',
+        settings:  '/client/settings',
+    },
     admin: {
         audit:         '/admin/audit',
         businessUnits: '/admin/business-units',

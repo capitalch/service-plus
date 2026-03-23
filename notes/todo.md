@@ -2,10 +2,46 @@
 ## Login
 - Forgot password
 - Remember me
-									- Selection of super admin vs others for login
-									- Clients fill in dropdown
-									- Superadmin
-## Super admin login
+								- Selection of super admin vs others for login
+								- Clients fill in dropdown
+								- Superadmin
+# Menu System
+- Job
+	- New Job
+	- Query Job
+	- Transact Job
+	- Deliver Job
+- Dashboard
+	- Job status
+	- Revenue
+- Master
+	- Document Types
+	- Financial Year
+	- Customer
+	- Parts
+	- Brands
+	- Suppliers
+	- Technicians
+	- Products
+	- Models
+- Settings
+	- Company info
+	- Branch setup
+	
+- Reports
+	- Parts Summary
+	- Job status
+	- Cash register
+	- Performance
+	- Sales
+	- Jobs
+- Parts Inventory
+	- Purchase invoice
+	- Sale invoice
+	- Stock Adjust
+	- Loan
+	
+				## Super admin login
 							- Clients
 								- Stats: Orphon databases. A button to view orphon databases
 								- Testing
@@ -27,38 +63,38 @@
 								- Audit logs
 								- System Settings
 								- Usage and health
-- Admins login
-	- Dashboard
-	- Budiness Users
-	- Business Units
-		- Three steps process
-			a) bu name
-			b) schema creation
-			c) seed data
-				- state in proper format
-				- customer type: No identity
-					- corporate
-				- document_type
-				- financial_year
-				- job_delivery_manner
-				- job_receive_condition
-				- job_receive_manner
-					- walk-in
-					- courier
-					- pickup
-					- online
-				- job_status
-					- under process
-					- waiting for spare parts
-					- ready
-					- delivered ok
-					- delivered not ok
-					- Sent to company
-				- job_type
-				- stock_transaction_type
+				- Admins login
+					- Dashboard
+					- Budiness Users
+					- Business Units
+						- Three steps process
+							a) bu name
+							b) schema creation
+							c) seed data
+								- state in proper format
+								- customer type: No identity
+									- corporate
+								- document_type
+								- financial_year
+								- job_delivery_manner
+								- job_receive_condition
+								- job_receive_manner
+									- walk-in
+									- courier
+									- pickup
+									- online
+								- job_status
+									- under process
+									- waiting for spare parts
+									- ready
+									- delivered ok
+									- delivered not ok
+									- Sent to company
+								- job_type
+								- stock_transaction_type
 
-	- Roles
-	- Audit Logs
+					- Roles
+					- Audit Logs
 
 # Project setup
 - Server

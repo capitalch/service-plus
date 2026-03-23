@@ -1,7 +1,6 @@
 import { Navigate } from 'react-router-dom';
 import { useAppSelector } from '@/store/hooks';
 import { selectCurrentUser, selectSessionMode } from '@/features/auth/store/auth-slice';
-import { ClientDashboardPage } from '@/features/client/pages/client-dashboard-page';
 import { ROUTES } from '@/router/routes';
 
 /**
@@ -18,7 +17,7 @@ export const App = () => {
     if (sessionMode === 'admin') return <Navigate replace to={ROUTES.admin.root} />;
 
     // Client mode (type B always, type A after choosing client mode)
-    return <ClientDashboardPage />;
+    return <Navigate replace to={ROUTES.client.root} />;
 };
 
 export default App;

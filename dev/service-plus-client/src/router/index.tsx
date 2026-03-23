@@ -14,6 +14,12 @@ import { AdminAuditLogsPage } from '@/features/admin/pages/admin-audit-logs-page
 import { BusinessUnitsPage } from '@/features/admin/pages/business-units-page';
 import { BusinessUsersPage } from '@/features/admin/pages/business-users-page';
 import { RolesPage } from '@/features/admin/pages/roles-page';
+import { ClientDashboardPage } from '@/features/client/pages/client-dashboard-page';
+import { ClientJobsPage } from '@/features/client/pages/client-jobs-page';
+import { ClientCustomersPage } from '@/features/client/pages/client-customers-page';
+import { ClientInventoryPage } from '@/features/client/pages/client-inventory-page';
+import { ClientReportsPage } from '@/features/client/pages/client-reports-page';
+import { ClientSettingsPage } from '@/features/client/pages/client-settings-page';
 import { ProtectedRoute } from './protected-route';
 import { ROUTES } from './routes';
 
@@ -21,10 +27,10 @@ import { ROUTES } from './routes';
  * Router configuration using React Router v7
  * Routes:
  * - /login: Authentication page (unprotected)
- * - /: Main application (protected)
- * - /super-admin: Super admin dashboard and nested pages (protected)
- *
- * errorElement on the root layout catches errors from all child routes
+ * - /: Main application entry (protected, redirects based on user type/session)
+ * - /client/*: Client mode pages (protected, requires session mode 'client')
+ * - /admin/*: Admin mode pages (protected, requires user type A + session mode 'admin')
+ * - /super-admin/*: Super admin pages (protected)
  */
 export const router = createBrowserRouter([
   {
@@ -41,16 +47,30 @@ export const router = createBrowserRouter([
       { element: <ResetPasswordPage />, path: 'reset-password' },
     ],
   },
+  // Client mode routes (/client/*)
+  {
+    path: ROUTES.client.root,
+    errorElement: <ErrorPage />,
+    element: <ProtectedRoute requiredSessionMode="client" />,
+    children: [
+      { element: <ClientDashboardPage />, index: true },
+      { element: <ClientJobsPage />,      path: 'jobs' },
+      { element: <ClientCustomersPage />, path: 'customers' },
+      { element: <ClientInventoryPage />, path: 'inventory' },
+      { element: <ClientReportsPage />,   path: 'reports' },
+      { element: <ClientSettingsPage />,  path: 'settings' },
+    ],
+  },
   {
     path: ROUTES.superAdmin.root,
     errorElement: <ErrorPage />,
     element: <ProtectedRoute />,
     children: [
       { element: <SuperAdminDashboard />, index: true },
-      { element: <ClientsPage />, path: 'clients' },
-      { element: <UsageHealthPage />, path: 'usage' },
-      { element: <AuditLogsPage />, path: 'audit' },
-      { element: <SystemSettingsPage />, path: 'settings' },
+      { element: <ClientsPage />,         path: 'clients' },
+      { element: <UsageHealthPage />,     path: 'usage' },
+      { element: <AuditLogsPage />,       path: 'audit' },
+      { element: <SystemSettingsPage />,  path: 'settings' },
     ],
   },
   // Admin User routes (/admin/*)
@@ -71,4 +91,3 @@ export const router = createBrowserRouter([
     element: <NotFoundPage />,
   },
 ]);
-
