@@ -1,4 +1,4 @@
-import { LayoutDashboard, Wrench, Users, Package, BarChart3, Settings, UserCircle, HelpCircle, ShieldCheck } from "lucide-react";
+import { BarChart3, BookOpen, HelpCircle, LayoutDashboard, Package, ShieldCheck, SlidersHorizontal, UserCircle, Wrench } from "lucide-react";
 import type { ComponentType } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 
@@ -10,12 +10,12 @@ import type { Section } from "./client-layout";
 type ActivityItem = { icon: ComponentType<{ className?: string; strokeWidth?: number }>; section: Section; to: string; title: string };
 
 const ACTIVITY_ITEMS: ActivityItem[] = [
-    { icon: LayoutDashboard, section: 'dashboard', to: ROUTES.client.root,      title: 'Dashboard' },
-    { icon: Wrench,          section: 'jobs',      to: ROUTES.client.jobs,      title: 'Jobs' },
-    { icon: Users,           section: 'customers', to: ROUTES.client.customers, title: 'Customers' },
-    { icon: Package,         section: 'inventory', to: ROUTES.client.inventory, title: 'Inventory' },
-    { icon: BarChart3,       section: 'reports',   to: ROUTES.client.reports,   title: 'Reports' },
-    { icon: Settings,        section: 'settings',  to: ROUTES.client.settings,  title: 'Settings' },
+    { icon: LayoutDashboard,    section: 'dashboard',      to: ROUTES.client.root,           title: 'Dashboard' },
+    { icon: Wrench,             section: 'jobs',           to: ROUTES.client.jobs,           title: 'Jobs' },
+    { icon: Package,            section: 'inventory',      to: ROUTES.client.inventory,      title: 'Inventory' },
+    { icon: BarChart3,          section: 'reports',        to: ROUTES.client.reports,        title: 'Reports' },
+    { icon: BookOpen,           section: 'masters',        to: ROUTES.client.masters,        title: 'Masters' },
+    { icon: SlidersHorizontal,  section: 'configurations', to: ROUTES.client.configurations, title: 'Configurations' },
 ];
 
 type Props = { activeSection: Section };

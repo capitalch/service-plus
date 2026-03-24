@@ -6,58 +6,84 @@
 								- Clients fill in dropdown
 								- Superadmin
 # Menu System
-- Job
+- Jobs
+	# Everything related to service job lifecycle
 	- New Job
-	- Query Job
-	- Transact Job
-	- Finalize ready job
+	- Job List / Search
+	- Update Job
+	- Ready for Delivery
 	- Deliver Job
-	- Opening Job
-	- Money receipt
+	- Opening Jobs
+	- Receipts
 - Dashboard
-	- Job status
+	# Quick insights
+	- Overview
+	- Job Status
 	- Revenue
-- Master
-	- Branch
-	- Document Type
-	- Financial Year
-	- Customer Type
-	- Customer
-	- Job delivery manner
-	- Job receive condition
-	- Job receive manner
-	- Job status
-	- Job type
-	- State / Province
-	- Parts
-	- Brand
-	- Supplier
-	- Technician
-	- Product
-	- Model
-	- Part location
-- Settings
-	- Company info
-	- Branch setup
-	- Job slip
-	- Money receipt
-- Reports
-	- Parts Summary
-	- Job status
-	- Cash register
-	- Detailed Performance
-	- Summary performance
-	- Sales
-	- Jobs
-	- Stock transaction
-- Parts Inventory
-	- Consumption
-	- Purchase invoice
-	- Sale invoice
-	- Stock Adjust
-	- Loan
+	- Technician Performance
+- Inventory (Spare Parts Management)
+	# Stock + parts operations
+	- Stock Overview
+	- Consumption (Parts Usage)
+	- Purchase Entry
+	- Sales Entry
+	- Stock Adjustment
+	- Stock Transfer
+	- Loan / Issue & Return
 	- Opening stock
 	- Part finder
+- Reports
+	# Read-only analytics
+	- Job Reports
+		- Job Status Report
+		- Job History
+	- Financial Reports
+		- Revenue Report
+		- Cash Register
+		- Sales Report
+	- Inventory Reports
+		- Parts Summary
+		- Stock Ledger
+		- Stock Movement
+	- Performance Reports
+		- Technician Performance
+		- Summary Performance
+		- Detailed Performance
+- Masters
+	# All configurations / static data
+	- 📍 Organization
+		- Branch
+		- Financial Year
+		- State / Province
+	- 👥 Entities
+		
+		- Customer
+		- Vendor
+		- Technician
+	- 🧾 Service Config
+		- Customer Type
+		- Document Type
+		- Job Type
+		- Job Status
+		- Job Receive Manner
+		- Job Delivery Manner
+		- Job Receive Condition
+	- 🏷️ Product & Parts
+		- Brand
+		- Product
+		- Model
+		- Parts
+		- Part Location
+- Configurations
+	# System-level configuration
+	- Company Profile
+	- Branch Configuration
+	- Print Templates
+		- Job Slip
+		- Receipt Layouts
+	- Numbering / Auto Series
+
+
 # modify seed data and table columns
 add is_system column to:
 	- customer_type

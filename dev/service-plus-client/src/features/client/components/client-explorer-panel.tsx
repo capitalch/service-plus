@@ -1,8 +1,11 @@
 import type { ComponentType } from "react";
+import { useState } from "react";
 import {
-    AlertCircle, BarChart3, Building2, ChevronDown, ClipboardList,
-    FileText, Package, PlusCircle, RotateCcw, Settings,
-    ShoppingCart, User, UserPlus, Users, Wrench,
+    BarChart3, BookOpen, Building2, ChevronDown, ChevronRight,
+    ClipboardList, DollarSign, FileText, Globe, Hash,
+    LayoutDashboard, MapPin, Package, PlusCircle, PrinterCheck,
+    RefreshCcw, RotateCcw, Settings2, ShoppingCart,
+    Tag, TrendingUp, Truck, User, UserCog, Users, Wrench,
 } from "lucide-react";
 
 import type { Section } from "./client-layout";
@@ -19,13 +22,13 @@ function SectionHeader({ label }: { label: string }) {
 }
 
 type TreeItemProps = {
-    icon: ComponentType<{ className?: string }>;
-    label: string;
     active?: boolean;
+    icon: ComponentType<{ className?: string }>;
     iconColor?: string;
+    label: string;
 };
 
-function TreeItem({ icon: Icon, label, active = false, iconColor }: TreeItemProps) {
+function TreeItem({ active = false, icon: Icon, iconColor, label }: TreeItemProps) {
     return (
         <div
             className={`group flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 transition-colors duration-150 ${
@@ -47,80 +50,57 @@ function ActionItem({ icon: Icon, label }: { icon: ComponentType<{ className?: s
     );
 }
 
+type CollapsibleGroupProps = {
+    children: React.ReactNode;
+    defaultOpen?: boolean;
+    label: string;
+};
+
+function CollapsibleGroup({ children, defaultOpen = true, label }: CollapsibleGroupProps) {
+    const [open, setOpen] = useState(defaultOpen);
+    return (
+        <section>
+            <button
+                className="mb-1 flex w-full items-center gap-1.5 rounded px-1 py-1 text-left transition-colors hover:bg-[#2a2a2a]"
+                onClick={() => setOpen(o => !o)}
+            >
+                {open
+                    ? <ChevronDown className="h-3 w-3 text-[#a1a1aa]" />
+                    : <ChevronRight className="h-3 w-3 text-[#a1a1aa]" />}
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-[#9fcaff]">{label}</p>
+            </button>
+            {open && <div className="ml-3 space-y-1">{children}</div>}
+        </section>
+    );
+}
+
+function ConfigurationsExplorer() {
+    return (
+        <div className="space-y-4">
+            <SectionHeader label="System Configuration" />
+            <div className="space-y-1">
+                <TreeItem icon={Building2}  label="Company Profile" />
+                <TreeItem icon={Settings2}  label="Branch Configuration" />
+                <TreeItem icon={Hash}       label="Numbering / Auto Series" />
+            </div>
+            <CollapsibleGroup label="Print Templates">
+                <TreeItem icon={PrinterCheck} label="Job Slip" />
+                <TreeItem icon={FileText}     label="Receipt Layouts" />
+            </CollapsibleGroup>
+        </div>
+    );
+}
+
 function DashboardExplorer() {
     return (
-        <div className="space-y-6">
-            <section>
-                <SectionHeader label="Active Jobs" />
-                <div className="ml-4 space-y-1">
-                    <TreeItem icon={AlertCircle} label="JOB-2024-001 iPhone 15" active />
-                    <TreeItem icon={AlertCircle} label="JOB-2024-002 MacBook Pro" />
-                    <TreeItem icon={AlertCircle} label="JOB-2024-003 Samsung S24" />
-                </div>
-            </section>
-            <section>
-                <SectionHeader label="Recent Customers" />
-                <div className="ml-4 space-y-1">
-                    <TreeItem icon={User} label="Rahul Sharma" />
-                    <TreeItem icon={User} label="Priya Patel" />
-                    <TreeItem icon={User} label="Amit Singh" />
-                </div>
-            </section>
-            <section>
-                <SectionHeader label="Quick Actions" />
-                <div className="ml-4 space-y-1">
-                    <ActionItem icon={PlusCircle} label="New Job" />
-                    <ActionItem icon={UserPlus} label="New Customer" />
-                    <ActionItem icon={FileText} label="Create Invoice" />
-                </div>
-            </section>
-        </div>
-    );
-}
-
-function JobsExplorer() {
-    return (
-        <div className="space-y-6">
-            <section>
-                <div className="space-y-1">
-                    <ActionItem icon={PlusCircle} label="New Job" />
-                </div>
-            </section>
-            <section>
-                <SectionHeader label="Job Queue" />
-                <div className="ml-4 space-y-1">
-                    <TreeItem icon={AlertCircle} label="Open (4)" />
-                    <TreeItem icon={AlertCircle} label="In Progress (3)" />
-                    <TreeItem icon={AlertCircle} label="Awaiting Parts (2)" />
-                    <TreeItem icon={AlertCircle} label="Ready for Pickup (5)" />
-                    <TreeItem icon={AlertCircle} label="Critical (1)" iconColor="text-[#ffb4ab]" />
-                </div>
-            </section>
-            <section>
-                <SectionHeader label="History" />
-                <div className="ml-4 space-y-1">
-                    <TreeItem icon={ClipboardList} label="Closed Today (8)" />
-                </div>
-            </section>
-        </div>
-    );
-}
-
-function CustomersExplorer() {
-    return (
-        <div className="space-y-6">
-            <section>
-                <div className="space-y-1">
-                    <ActionItem icon={UserPlus} label="New Customer" />
-                </div>
-            </section>
-            <section>
-                <SectionHeader label="Browse" />
-                <div className="ml-4 space-y-1">
-                    <TreeItem icon={Users} label="All Customers" />
-                    <TreeItem icon={ClipboardList} label="Customer Types" />
-                </div>
-            </section>
+        <div className="space-y-4">
+            <SectionHeader label="Quick Insights" />
+            <div className="space-y-1">
+                <TreeItem icon={LayoutDashboard} label="Overview" active />
+                <TreeItem icon={ClipboardList}   label="Job Status" />
+                <TreeItem icon={DollarSign}      label="Revenue" />
+                <TreeItem icon={TrendingUp}      label="Technician Performance" />
+            </div>
         </div>
     );
 }
@@ -128,78 +108,120 @@ function CustomersExplorer() {
 function InventoryExplorer() {
     return (
         <div className="space-y-4">
+            <SectionHeader label="Stock + Parts Operations" />
+            <div className="space-y-1">
+                <TreeItem icon={Package}       label="Stock Overview" />
+                <TreeItem icon={RotateCcw}     label="Consumption (Parts Usage)" />
+                <TreeItem icon={ShoppingCart}  label="Purchase Entry" />
+                <TreeItem icon={Tag}           label="Sales Entry" />
+                <TreeItem icon={RefreshCcw}    label="Stock Adjustment" />
+                <TreeItem icon={Truck}         label="Stock Transfer" />
+                <TreeItem icon={ClipboardList} label="Loan / Issue & Return" />
+                <TreeItem icon={Package}       label="Opening Stock" />
+                <TreeItem icon={Globe}         label="Part Finder" />
+            </div>
+        </div>
+    );
+}
+
+function JobsExplorer() {
+    return (
+        <div className="space-y-4">
             <section>
-                <SectionHeader label="Master Data" />
-                <div className="ml-4 space-y-1">
-                    <TreeItem icon={Package} label="Parts Master" />
-                    <TreeItem icon={Building2} label="Brands" />
-                    <TreeItem icon={Users} label="Suppliers" />
+                <div className="space-y-1">
+                    <ActionItem icon={PlusCircle} label="New Job" />
                 </div>
             </section>
-            <section>
-                <SectionHeader label="Transactions" />
-                <div className="ml-4 space-y-1">
-                    <TreeItem icon={ShoppingCart} label="Purchase Invoices" />
-                    <TreeItem icon={FileText} label="Sales Invoices" />
-                    <TreeItem icon={RotateCcw} label="Stock Transactions" />
-                    <TreeItem icon={ClipboardList} label="Stock Adjustments" />
-                </div>
-            </section>
+            <SectionHeader label="Job Lifecycle" />
+            <div className="space-y-1">
+                <TreeItem icon={ClipboardList} label="Job List / Search" />
+                <TreeItem icon={Wrench}        label="Update Job" />
+                <TreeItem icon={FileText}      label="Ready for Delivery" />
+                <TreeItem icon={Truck}         label="Deliver Job" />
+                <TreeItem icon={RotateCcw}     label="Opening Jobs" />
+                <TreeItem icon={DollarSign}    label="Receipts" />
+            </div>
+        </div>
+    );
+}
+
+function MastersExplorer() {
+    return (
+        <div className="space-y-3">
+            <SectionHeader label="Master Data" />
+            <CollapsibleGroup label="Organization">
+                <TreeItem icon={Building2} label="Branch" />
+                <TreeItem icon={Hash}      label="Financial Year" />
+                <TreeItem icon={MapPin}    label="State / Province" />
+            </CollapsibleGroup>
+            <CollapsibleGroup label="Entities">
+                <TreeItem icon={User}    label="Customer" />
+                <TreeItem icon={Truck}   label="Vendor" />
+                <TreeItem icon={UserCog} label="Technician" />
+            </CollapsibleGroup>
+            <CollapsibleGroup label="Service Config" defaultOpen={false}>
+                <TreeItem icon={Users}         label="Customer Type" />
+                <TreeItem icon={FileText}      label="Document Type" />
+                <TreeItem icon={Wrench}        label="Job Type" />
+                <TreeItem icon={ClipboardList} label="Job Status" />
+                <TreeItem icon={RotateCcw}     label="Job Receive Manner" />
+                <TreeItem icon={Truck}         label="Job Delivery Manner" />
+                <TreeItem icon={Settings2}     label="Job Receive Condition" />
+            </CollapsibleGroup>
+            <CollapsibleGroup label="Product & Parts" defaultOpen={false}>
+                <TreeItem icon={Tag}      label="Brand" />
+                <TreeItem icon={Package}  label="Product" />
+                <TreeItem icon={BookOpen} label="Model" />
+                <TreeItem icon={Package}  label="Parts" />
+                <TreeItem icon={MapPin}   label="Part Location" />
+            </CollapsibleGroup>
         </div>
     );
 }
 
 function ReportsExplorer() {
     return (
-        <div className="space-y-4">
-            <section>
-                <SectionHeader label="Reports" />
-                <div className="ml-4 space-y-1">
-                    <TreeItem icon={ClipboardList} label="Job Status Report" />
-                    <TreeItem icon={FileText} label="Cash Register" />
-                    <TreeItem icon={BarChart3} label="Performance Report" />
-                    <TreeItem icon={BarChart3} label="Sales Report" />
-                    <TreeItem icon={BarChart3} label="Operational Report" />
-                </div>
-            </section>
-        </div>
-    );
-}
-
-function SettingsExplorer() {
-    return (
-        <div className="space-y-4">
-            <section>
-                <SectionHeader label="Configuration" />
-                <div className="ml-4 space-y-1">
-                    <TreeItem icon={Building2} label="Company Info" />
-                    <TreeItem icon={Building2} label="Branch Setup" />
-                    <TreeItem icon={Wrench} label="Technicians" />
-                    <TreeItem icon={Package} label="Products & Models" />
-                    <TreeItem icon={FileText} label="Document Sequences" />
-                    <TreeItem icon={Settings} label="Job Conditions" />
-                </div>
-            </section>
+        <div className="space-y-3">
+            <SectionHeader label="Analytics" />
+            <CollapsibleGroup label="Job Reports">
+                <TreeItem icon={ClipboardList} label="Job Status Report" />
+                <TreeItem icon={FileText}      label="Job History" />
+            </CollapsibleGroup>
+            <CollapsibleGroup label="Financial Reports">
+                <TreeItem icon={DollarSign} label="Revenue Report" />
+                <TreeItem icon={FileText}   label="Cash Register" />
+                <TreeItem icon={BarChart3}  label="Sales Report" />
+            </CollapsibleGroup>
+            <CollapsibleGroup label="Inventory Reports" defaultOpen={false}>
+                <TreeItem icon={Package}       label="Parts Summary" />
+                <TreeItem icon={ClipboardList} label="Stock Ledger" />
+                <TreeItem icon={RotateCcw}     label="Stock Movement" />
+            </CollapsibleGroup>
+            <CollapsibleGroup label="Performance Reports" defaultOpen={false}>
+                <TreeItem icon={TrendingUp} label="Technician Performance" />
+                <TreeItem icon={BarChart3}  label="Summary Performance" />
+                <TreeItem icon={BarChart3}  label="Detailed Performance" />
+            </CollapsibleGroup>
         </div>
     );
 }
 
 const EXPLORERS: Record<Section, ComponentType> = {
-    dashboard: DashboardExplorer,
-    jobs:      JobsExplorer,
-    customers: CustomersExplorer,
-    inventory: InventoryExplorer,
-    reports:   ReportsExplorer,
-    settings:  SettingsExplorer,
+    configurations: ConfigurationsExplorer,
+    dashboard:      DashboardExplorer,
+    inventory:      InventoryExplorer,
+    jobs:           JobsExplorer,
+    masters:        MastersExplorer,
+    reports:        ReportsExplorer,
 };
 
 const SECTION_LABELS: Record<Section, string> = {
-    dashboard: 'Navigation Console',
-    jobs:      'Jobs Console',
-    customers: 'Customers Console',
-    inventory: 'Inventory Console',
-    reports:   'Reports Console',
-    settings:  'Settings Console',
+    configurations: 'Configurations Console',
+    dashboard:      'Navigation Console',
+    inventory:      'Inventory Console',
+    jobs:           'Jobs Console',
+    masters:        'Masters Console',
+    reports:        'Reports Console',
 };
 
 export const ClientExplorerPanel = ({ activeSection }: Props) => {

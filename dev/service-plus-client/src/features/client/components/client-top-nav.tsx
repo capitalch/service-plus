@@ -9,12 +9,12 @@ import type { Section } from "./client-layout";
 type NavItem = { label: string; section: Section; to: string; end?: boolean };
 
 const NAV_ITEMS: NavItem[] = [
-    { label: 'Dashboard', section: 'dashboard', to: ROUTES.client.root,      end: true },
-    { label: 'Jobs',      section: 'jobs',      to: ROUTES.client.jobs },
-    { label: 'Customers', section: 'customers', to: ROUTES.client.customers },
-    { label: 'Inventory', section: 'inventory', to: ROUTES.client.inventory },
-    { label: 'Reports',   section: 'reports',   to: ROUTES.client.reports },
-    { label: 'Settings',  section: 'settings',  to: ROUTES.client.settings },
+    { label: 'Jobs',           section: 'jobs',           to: ROUTES.client.jobs },
+    { label: 'Dashboard',      section: 'dashboard',      to: ROUTES.client.root,           end: true },
+    { label: 'Inventory',      section: 'inventory',      to: ROUTES.client.inventory },
+    { label: 'Reports',        section: 'reports',        to: ROUTES.client.reports },
+    { label: 'Masters',        section: 'masters',        to: ROUTES.client.masters },
+    { label: 'Configurations', section: 'configurations', to: ROUTES.client.configurations },
 ];
 
 type Props = { activeSection: Section };

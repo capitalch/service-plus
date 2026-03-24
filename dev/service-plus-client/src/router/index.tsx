@@ -14,12 +14,12 @@ import { AdminAuditLogsPage } from '@/features/admin/pages/admin-audit-logs-page
 import { BusinessUnitsPage } from '@/features/admin/pages/business-units-page';
 import { BusinessUsersPage } from '@/features/admin/pages/business-users-page';
 import { RolesPage } from '@/features/admin/pages/roles-page';
+import { ClientConfigurationsPage } from '@/features/client/pages/client-configurations-page';
 import { ClientDashboardPage } from '@/features/client/pages/client-dashboard-page';
-import { ClientJobsPage } from '@/features/client/pages/client-jobs-page';
-import { ClientCustomersPage } from '@/features/client/pages/client-customers-page';
 import { ClientInventoryPage } from '@/features/client/pages/client-inventory-page';
+import { ClientJobsPage } from '@/features/client/pages/client-jobs-page';
+import { ClientMastersPage } from '@/features/client/pages/client-masters-page';
 import { ClientReportsPage } from '@/features/client/pages/client-reports-page';
-import { ClientSettingsPage } from '@/features/client/pages/client-settings-page';
 import { ProtectedRoute } from './protected-route';
 import { ROUTES } from './routes';
 
@@ -53,12 +53,12 @@ export const router = createBrowserRouter([
     errorElement: <ErrorPage />,
     element: <ProtectedRoute requiredSessionMode="client" />,
     children: [
-      { element: <ClientDashboardPage />, index: true },
-      { element: <ClientJobsPage />,      path: 'jobs' },
-      { element: <ClientCustomersPage />, path: 'customers' },
-      { element: <ClientInventoryPage />, path: 'inventory' },
-      { element: <ClientReportsPage />,   path: 'reports' },
-      { element: <ClientSettingsPage />,  path: 'settings' },
+      { element: <ClientDashboardPage />,      index: true },
+      { element: <ClientConfigurationsPage />, path: 'configurations' },
+      { element: <ClientInventoryPage />,      path: 'inventory' },
+      { element: <ClientJobsPage />,           path: 'jobs' },
+      { element: <ClientMastersPage />,        path: 'masters' },
+      { element: <ClientReportsPage />,        path: 'reports' },
     ],
   },
   {

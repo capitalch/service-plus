@@ -3,12 +3,12 @@ export const ROUTES = {
     login:         '/login',
     resetPassword: '/reset-password',
     client: {
-        root:      '/client',
-        jobs:      '/client/jobs',
-        customers: '/client/customers',
-        inventory: '/client/inventory',
-        reports:   '/client/reports',
-        settings:  '/client/settings',
+        configurations: '/client/configurations',
+        inventory:      '/client/inventory',
+        jobs:           '/client/jobs',
+        masters:        '/client/masters',
+        reports:        '/client/reports',
+        root:           '/client',
     },
     admin: {
         audit:         '/admin/audit',

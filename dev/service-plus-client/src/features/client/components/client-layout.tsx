@@ -6,14 +6,14 @@ import { ClientActivityBar } from "./client-activity-bar";
 import { ClientExplorerPanel } from "./client-explorer-panel";
 import { ClientStatusBar } from "./client-status-bar";
 
-export type Section = 'dashboard' | 'jobs' | 'customers' | 'inventory' | 'reports' | 'settings';
+export type Section = 'configurations' | 'dashboard' | 'inventory' | 'jobs' | 'masters' | 'reports';
 
 function sectionFromPath(pathname: string): Section {
-    if (pathname.startsWith('/client/jobs'))      return 'jobs';
-    if (pathname.startsWith('/client/customers')) return 'customers';
-    if (pathname.startsWith('/client/inventory')) return 'inventory';
-    if (pathname.startsWith('/client/reports'))   return 'reports';
-    if (pathname.startsWith('/client/settings'))  return 'settings';
+    if (pathname.startsWith('/client/configurations')) return 'configurations';
+    if (pathname.startsWith('/client/inventory'))      return 'inventory';
+    if (pathname.startsWith('/client/jobs'))           return 'jobs';
+    if (pathname.startsWith('/client/masters'))        return 'masters';
+    if (pathname.startsWith('/client/reports'))        return 'reports';
     return 'dashboard';
 }
 
