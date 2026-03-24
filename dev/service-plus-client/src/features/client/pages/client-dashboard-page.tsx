@@ -34,12 +34,6 @@ const JOBS = [
 
 export const ClientDashboardPage = () => (
     <ClientLayout>
-        {/* Breadcrumb */}
-        <div className="mb-6 flex items-center gap-2 text-[10px] font-medium uppercase tracking-widest text-[#a1a1aa]">
-            <span>Console</span>
-            <span className="text-[#9fcaff]">/ Dashboard</span>
-        </div>
-
         {/* Stats cards */}
         <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-4">
             {STATS.map(({ label, value, sub, subColor, trending }) => (
