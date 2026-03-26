@@ -8,6 +8,7 @@ execute in the correct schema automatically.
 
 
 class SqlBu:
+    """DDL and seed SQL constants for creating a new Business Unit schema."""
 
     BU_SCHEMA_DDL = """
         CREATE TABLE app_setting (
@@ -24,7 +25,6 @@ class SqlBu:
 
         CREATE TABLE branch (
             id bigint NOT NULL,
-            bu_id bigint NOT NULL,
             code text NOT NULL,
             name text NOT NULL,
             phone text,
@@ -111,7 +111,8 @@ class SqlBu:
             name text NOT NULL,
             description text,
             is_active boolean DEFAULT true NOT NULL,
-            display_order smallint
+            display_order smallint,
+            is_system boolean NOT NULL
         );
 
         CREATE TABLE document_sequence (
@@ -137,6 +138,7 @@ class SqlBu:
             prefix text NOT NULL,
             name text NOT NULL,
             description text,
+            is_system boolean NOT NULL,
             CONSTRAINT document_type_code_chk CHECK ((code ~ '^[A-Z_]+$'::text))
         );
 
@@ -207,7 +209,8 @@ class SqlBu:
             display_order smallint,
             is_active boolean DEFAULT true NOT NULL,
             created_at timestamp with time zone DEFAULT now() NOT NULL,
-            updated_at timestamp with time zone DEFAULT now() NOT NULL
+            updated_at timestamp with time zone DEFAULT now() NOT NULL,
+            is_system boolean NOT NULL
         );
 
         CREATE TABLE job_invoice (
@@ -300,7 +303,8 @@ class SqlBu:
             display_order smallint,
             is_active boolean DEFAULT true NOT NULL,
             created_at timestamp with time zone DEFAULT now() NOT NULL,
-            updated_at timestamp with time zone DEFAULT now() NOT NULL
+            updated_at timestamp with time zone DEFAULT now() NOT NULL,
+            is_system boolean NOT NULL
         );
 
         CREATE TABLE job_receive_manner (
@@ -354,7 +358,8 @@ class SqlBu:
             display_order smallint,
             is_active boolean DEFAULT true NOT NULL,
             created_at timestamp with time zone DEFAULT now() NOT NULL,
-            updated_at timestamp with time zone DEFAULT now() NOT NULL
+            updated_at timestamp with time zone DEFAULT now() NOT NULL,
+            is_system boolean NOT NULL
         );
 
         CREATE TABLE product (
@@ -593,6 +598,7 @@ class SqlBu:
             dr_cr character(1) NOT NULL,
             description text,
             is_active boolean DEFAULT true NOT NULL,
+            is_system boolean NOT NULL,
             CONSTRAINT stock_transaction_type_dr_cr_check CHECK ((dr_cr = ANY (ARRAY['D'::bpchar, 'C'::bpchar])))
         );
 
@@ -642,7 +648,6 @@ class SqlBu:
         -- Primary keys and unique constraints
         ALTER TABLE ONLY app_setting ADD CONSTRAINT app_setting_key_uidx UNIQUE (setting_key);
         ALTER TABLE ONLY app_setting ADD CONSTRAINT app_setting_pkey PRIMARY KEY (id);
-        ALTER TABLE ONLY branch ADD CONSTRAINT branch_bu_code_uidx UNIQUE (bu_id, code);
         ALTER TABLE ONLY branch ADD CONSTRAINT branch_pkey PRIMARY KEY (id);
         ALTER TABLE ONLY brand ADD CONSTRAINT brand_code_key UNIQUE (code);
         ALTER TABLE ONLY brand ADD CONSTRAINT brand_pkey PRIMARY KEY (id);
@@ -783,47 +788,47 @@ class SqlBu:
     """
 
     BU_SEED_SQL = """
-        INSERT INTO customer_type (id, code, name) VALUES
-            (1, 'INDIVIDUAL',      'Individual Customer'),
-            (2, 'CORPORATE',       'Corporate / Company'),
-            (3, 'DEALER',          'Dealer / Retail Partner'),
-            (4, 'SERVICE_PARTNER', 'Authorized Service Partner'),
-            (5, 'INSTITUTION',     'Institution (School, Govt, NGO)'),
-            (6, 'MARKETPLACE',     'Online Marketplace Customer'),
-            (7, 'MISCELLANEOUS',   'Miscellaneous')
+        INSERT INTO customer_type (id, code, name, is_system) VALUES
+            (1, 'INDIVIDUAL',      'Individual Customer',              true),
+            (2, 'CORPORATE',       'Corporate / Company',              true),
+            (3, 'DEALER',          'Dealer / Retail Partner',          true),
+            (4, 'SERVICE_PARTNER', 'Authorized Service Partner',       true),
+            (5, 'INSTITUTION',     'Institution (School, Govt, NGO)',  true),
+            (6, 'MARKETPLACE',     'Online Marketplace Customer',      true),
+            (7, 'MISCELLANEOUS',   'Miscellaneous',                    true)
         ON CONFLICT (id) DO NOTHING;
 
-        INSERT INTO document_type (id, code, prefix, name, description) VALUES
-            (1, 'JOB_SHEET',               'JS',  'Job Sheet',               'Service job intake and tracking document'),
-            (2, 'SERVICE_INVOICE',         'SI',  'Service Invoice',         'Service invoice issued to customer'),
-            (3, 'MONEY_RECEIPT',           'MR',  'Money Receipt',           'Receipt issued against payment received from customer'),
-            (4, 'SALES_INVOICE',           'SAL', 'Sales Invoice',           'Sales invoice issued to customer'),
-            (5, 'PURCHASE_INVOICE',        'PI',  'Purchase Invoice',        'Purchase invoice from supplier'),
-            (6, 'SALES_RETURN_INVOICE',    'SRI', 'Sales Return Invoice',    'Sales return invoice issued to customer'),
-            (7, 'PURCHASE_RETURN_INVOICE', 'PRI', 'Purchase Return Invoice', 'Purchase return invoice issued to supplier'),
-            (8, 'SERVICE_RETURN_INVOICE',  'SVI', 'Service Return Invoice',  'Service return invoice issued to customer')
+        INSERT INTO document_type (id, code, prefix, name, description, is_system) VALUES
+            (1, 'JOB_SHEET',               'JS',  'Job Sheet',               'Service job intake and tracking document',              true),
+            (2, 'SERVICE_INVOICE',         'SI',  'Service Invoice',         'Service invoice issued to customer',                    true),
+            (3, 'MONEY_RECEIPT',           'MR',  'Money Receipt',           'Receipt issued against payment received from customer',  true),
+            (4, 'SALES_INVOICE',           'SAL', 'Sales Invoice',           'Sales invoice issued to customer',                      true),
+            (5, 'PURCHASE_INVOICE',        'PI',  'Purchase Invoice',        'Purchase invoice from supplier',                        true),
+            (6, 'SALES_RETURN_INVOICE',    'SRI', 'Sales Return Invoice',    'Sales return invoice issued to customer',               true),
+            (7, 'PURCHASE_RETURN_INVOICE', 'PRI', 'Purchase Return Invoice', 'Purchase return invoice issued to supplier',            true),
+            (8, 'SERVICE_RETURN_INVOICE',  'SVI', 'Service Return Invoice',  'Service return invoice issued to customer',             true)
         ON CONFLICT (id) DO NOTHING;
 
-        INSERT INTO job_delivery_manner (id, code, name) VALUES
-            (1, 'SELF',           'Self'),
-            (2, 'HOME_DELIVERY',  'Home Delivery'),
-            (3, 'COURIER',        'Courier'),
-            (4, 'POST',           'Post'),
-            (5, 'OTHER',          'Other'),
-            (6, 'NOT_APPLICABLE', 'Not Applicable')
+        INSERT INTO job_delivery_manner (id, code, name, is_system) VALUES
+            (1, 'SELF',           'Self',           true),
+            (2, 'HOME_DELIVERY',  'Home Delivery',  true),
+            (3, 'COURIER',        'Courier',        true),
+            (4, 'POST',           'Post',           true),
+            (5, 'OTHER',          'Other',          true),
+            (6, 'NOT_APPLICABLE', 'Not Applicable', true)
         ON CONFLICT (id) DO NOTHING;
 
-        INSERT INTO job_receive_condition (id, code, name, description) VALUES
-            (1,  'DEAD',           'Dead',                        'Item is completely dead'),
-            (2,  'NOT_WORKING',    'Not Working',                 'Item is completely non-functional at the time of receipt'),
-            (3,  'PARTIAL_WORKING','Partially Working',           'Item is working but with reported issues or faults'),
-            (4,  'DAMAGED',        'Damaged',                     'Item has visible physical damage affecting usability'),
-            (5,  'MINOR_DAMAGE',   'Minor Damage',                'Item has minor scratches, dents, or cosmetic issues'),
-            (6,  'MISSING_PARTS',  'Missing Parts / Accessories', 'Some parts or accessories are missing'),
-            (7,  'WATER_DAMAGE',   'Water Damaged',               'Item shows signs of liquid damage'),
-            (8,  'BURNT',          'Burnt / Electrical Damage',   'Item has electrical damage'),
-            (9,  'PHYSICAL_BREAK', 'Physically Broken',           'Item is broken'),
-            (10, 'UNKNOWN',        'Condition Unknown',           'Condition not verified')
+        INSERT INTO job_receive_condition (id, code, name, description, is_system) VALUES
+            (1,  'DEAD',           'Dead',                        'Item is completely dead',                                           true),
+            (2,  'NOT_WORKING',    'Not Working',                 'Item is completely non-functional at the time of receipt',          true),
+            (3,  'PARTIAL_WORKING','Partially Working',           'Item is working but with reported issues or faults',                true),
+            (4,  'DAMAGED',        'Damaged',                     'Item has visible physical damage affecting usability',             true),
+            (5,  'MINOR_DAMAGE',   'Minor Damage',                'Item has minor scratches, dents, or cosmetic issues',              true),
+            (6,  'MISSING_PARTS',  'Missing Parts / Accessories', 'Some parts or accessories are missing',                           true),
+            (7,  'WATER_DAMAGE',   'Water Damaged',               'Item shows signs of liquid damage',                               true),
+            (8,  'BURNT',          'Burnt / Electrical Damage',   'Item has electrical damage',                                      true),
+            (9,  'PHYSICAL_BREAK', 'Physically Broken',           'Item is broken',                                                  true),
+            (10, 'UNKNOWN',        'Condition Unknown',           'Condition not verified',                                          true)
         ON CONFLICT (id) DO NOTHING;
 
         INSERT INTO job_receive_manner (id, code, name) VALUES
@@ -856,30 +861,30 @@ class SqlBu:
             (16, 'DISPOSED',          'Disposed',         'Item disposed',              16)
         ON CONFLICT (id) DO NOTHING;
 
-        INSERT INTO job_type (id, code, name, description) VALUES
-            (1,  'MAKE_READY',     'Make Ready',    'Make item ready'),
-            (2,  'ESTIMATE',       'Estimate',      'Estimate for repair'),
-            (3,  'UNDER_WARRANTY', 'Under Warranty','Warranty service'),
-            (4,  'INSTALLATION',   'Installation',  'Installing product'),
-            (5,  'DEMO',           'Demo',          'Product demo'),
-            (6,  'MAINTENANCE',    'Maintenance',   'Preventive maintenance'),
-            (7,  'INSPECTION',     'Inspection',    'Diagnosis only'),
-            (8,  'AMC_SERVICE',    'AMC Service',   'AMC service'),
-            (9,  'UPGRADE',        'Upgrade',       'Upgrade components'),
-            (10, 'REFURBISH',      'Refurbishment', 'Restore item')
+        INSERT INTO job_type (id, code, name, description, is_system) VALUES
+            (1,  'MAKE_READY',     'Make Ready',    'Make item ready',          true),
+            (2,  'ESTIMATE',       'Estimate',      'Estimate for repair',      true),
+            (3,  'UNDER_WARRANTY', 'Under Warranty','Warranty service',         true),
+            (4,  'INSTALLATION',   'Installation',  'Installing product',       true),
+            (5,  'DEMO',           'Demo',          'Product demo',             true),
+            (6,  'MAINTENANCE',    'Maintenance',   'Preventive maintenance',   true),
+            (7,  'INSPECTION',     'Inspection',    'Diagnosis only',           true),
+            (8,  'AMC_SERVICE',    'AMC Service',   'AMC service',              true),
+            (9,  'UPGRADE',        'Upgrade',       'Upgrade components',       true),
+            (10, 'REFURBISH',      'Refurbishment', 'Restore item',             true)
         ON CONFLICT (id) DO NOTHING;
 
-        INSERT INTO stock_transaction_type (id, code, name, dr_cr, description) VALUES
-            (1,  'CONSUMPTION',     'Consumption',    'C', 'Consumed'),
-            (2,  'PURCHASE',        'Purchase',       'D', 'Stock received'),
-            (3,  'SALES',           'Sales',          'C', 'Stock sold'),
-            (4,  'SALES_RETURN',    'Sales Return',   'D', 'Customer return'),
-            (5,  'PURCHASE_RETURN', 'Purchase Return','C', 'Return to supplier'),
-            (6,  'OPENING',         'Opening Stock',  'D', 'Opening stock'),
-            (7,  'ADJUSTMENT_IN',   'Adjustment In',  'D', 'Increase'),
-            (8,  'ADJUSTMENT_OUT',  'Adjustment Out', 'C', 'Decrease'),
-            (9,  'LOAN_IN',         'Loan In',        'D', 'Received loan'),
-            (10, 'LOAN_OUT',        'Loan Out',       'C', 'Given loan')
+        INSERT INTO stock_transaction_type (id, code, name, dr_cr, description, is_system) VALUES
+            (1,  'CONSUMPTION',     'Consumption',    'C', 'Consumed',            true),
+            (2,  'PURCHASE',        'Purchase',       'D', 'Stock received',      true),
+            (3,  'SALES',           'Sales',          'C', 'Stock sold',          true),
+            (4,  'SALES_RETURN',    'Sales Return',   'D', 'Customer return',     true),
+            (5,  'PURCHASE_RETURN', 'Purchase Return','C', 'Return to supplier',  true),
+            (6,  'OPENING',         'Opening Stock',  'D', 'Opening stock',       true),
+            (7,  'ADJUSTMENT_IN',   'Adjustment In',  'D', 'Increase',            true),
+            (8,  'ADJUSTMENT_OUT',  'Adjustment Out', 'C', 'Decrease',            true),
+            (9,  'LOAN_IN',         'Loan In',        'D', 'Received loan',       true),
+            (10, 'LOAN_OUT',        'Loan Out',       'C', 'Given loan',          true)
         ON CONFLICT (id) DO NOTHING;
 
         INSERT INTO state (id, code, name, country_code, gst_state_code, is_union_territory) VALUES
@@ -919,5 +924,46 @@ class SqlBu:
             (34, 'LA', 'Ladakh',                                   'IN', '38', true),
             (35, 'LD', 'Lakshadweep',                              'IN', '31', true),
             (36, 'PY', 'Puducherry',                               'IN', '34', true)
+        ON CONFLICT (id) DO NOTHING;
+
+        INSERT INTO branch (code, name, address_line1, state_id, pincode, is_head_office)
+        SELECT 'HO', 'Head Office', '123 Main St', 29, '700001', true
+        WHERE NOT EXISTS (SELECT 1 FROM branch WHERE code = 'HO');
+
+        INSERT INTO financial_year (id, start_date, end_date) VALUES
+            (2022, '2022-04-01', '2023-03-31'),
+            (2023, '2023-04-01', '2024-03-31'),
+            (2024, '2024-04-01', '2025-03-31'),
+            (2025, '2025-04-01', '2026-03-31'),
+            (2026, '2026-04-01', '2027-03-31'),
+            (2027, '2027-04-01', '2028-03-31'),
+            (2028, '2028-04-01', '2029-03-31'),
+            (2029, '2029-04-01', '2030-03-31'),
+            (2030, '2030-04-01', '2031-03-31'),
+            (2031, '2031-04-01', '2032-03-31'),
+            (2032, '2032-04-01', '2033-03-31'),
+            (2033, '2033-04-01', '2034-03-31'),
+            (2034, '2034-04-01', '2035-03-31'),
+            (2035, '2035-04-01', '2036-03-31'),
+            (2036, '2036-04-01', '2037-03-31'),
+            (2037, '2037-04-01', '2038-03-31'),
+            (2038, '2038-04-01', '2039-03-31'),
+            (2039, '2039-04-01', '2040-03-31'),
+            (2040, '2040-04-01', '2041-03-31'),
+            (2041, '2041-04-01', '2042-03-31'),
+            (2042, '2042-04-01', '2043-03-31'),
+            (2043, '2043-04-01', '2044-03-31'),
+            (2044, '2044-04-01', '2045-03-31'),
+            (2045, '2045-04-01', '2046-03-31'),
+            (2046, '2046-04-01', '2047-03-31'),
+            (2047, '2047-04-01', '2048-03-31'),
+            (2048, '2048-04-01', '2049-03-31'),
+            (2049, '2049-04-01', '2050-03-31'),
+            (2050, '2050-04-01', '2051-03-31'),
+            (2051, '2051-04-01', '2052-03-31'),
+            (2052, '2052-04-01', '2053-03-31'),
+            (2053, '2053-04-01', '2054-03-31'),
+            (2054, '2054-04-01', '2055-03-31'),
+            (2055, '2055-04-01', '2056-03-31')
         ON CONFLICT (id) DO NOTHING;
     """

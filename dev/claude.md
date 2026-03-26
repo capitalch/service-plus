@@ -19,8 +19,9 @@
 8. AU can create a new BU in the 'bu' table in 'security' schema of the service_plus_service database. AU is asked for creation of a new BU when there is none.
 9. When AU creates a new bu in the bu table of the security schema of 'service_plus_service' database, a new schema with the code column value of the bu table is created in the here service_plus_service database. This schema will have all the tables required for the BU. The details of the schema is in 'demo1' schema of 'service_plus_service' database. The 'demo1' schema is a template for the new schema with the code of bu as schema name. The tables in the new schema will be created by copying the tables from the 'demo1' schema.
 # Guidelines
-- When any text command is given to claude and last word is plan then do the plan only for the given command. Write your plan in the plan.md file in the plans folder (in windows it is C:\projects\service-plus\dev\plans) of the project.
-- Overwrite plan.md if required.
+- When any command is given to claude and last word is plan  or Plan, then do the plan only for the given command. Don't do any other changes. Write your plan in the plan.md file in the plans folder (in windows it is C:\projects\service-plus\dev\plans, in linux it is /home/sushant/projects/service-plus/dev/plans) of the project.
+- Make sure that you write plan.md in correct plans folder only. 
+- Overwrite plan.md if it exists.
 - In plan.md write all the steps of execution as Step1, Step 2 and so on.
 - In plan.md include a workflow section which provides the workflow of entire effort
 - For all new queries and mutations try to use genericQuery and genericUpdate as far as possible

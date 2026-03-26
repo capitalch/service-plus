@@ -47,7 +47,6 @@ const app_setting = {
 // Table branch
 export interface Branch {
   id: number;
-  bu_id: number;
   code: string;
   name: string;
   phone: string | null;
@@ -65,7 +64,6 @@ export interface Branch {
 }
 export interface BranchInput {
   id: number;
-  bu_id: number;
   code: string;
   name: string;
   phone?: string | null;
@@ -83,8 +81,8 @@ export interface BranchInput {
 }
 const branch = {
   tableName: 'branch',
-  columns: ['id', 'bu_id', 'code', 'name', 'phone', 'email', 'address_line1', 'address_line2', 'state_id', 'city', 'pincode', 'gstin', 'is_active', 'is_head_office', 'created_at', 'updated_at'],
-  requiredForInsert: ['id', 'bu_id', 'code', 'name', 'address_line1', 'state_id', 'pincode'],
+  columns: ['id', 'code', 'name', 'phone', 'email', 'address_line1', 'address_line2', 'state_id', 'city', 'pincode', 'gstin', 'is_active', 'is_head_office', 'created_at', 'updated_at'],
+  requiredForInsert: ['id', 'code', 'name', 'address_line1', 'state_id', 'pincode'],
   primaryKey: 'id',
   foreignKeys: { state_id: { table: 'state', column: 'id', $type: null as unknown as State }, },
   $type: null as unknown as Branch,
@@ -221,6 +219,7 @@ export interface CustomerType {
   description: string | null;
   is_active: boolean;
   display_order: number | null;
+  is_system: boolean;
 }
 export interface CustomerTypeInput {
   id: number;
@@ -229,11 +228,12 @@ export interface CustomerTypeInput {
   description?: string | null;
   is_active?: boolean;
   display_order?: number | null;
+  is_system: boolean;
 }
 const customer_type = {
   tableName: 'customer_type',
-  columns: ['id', 'code', 'name', 'description', 'is_active', 'display_order'],
-  requiredForInsert: ['id', 'code', 'name'],
+  columns: ['id', 'code', 'name', 'description', 'is_active', 'display_order', 'is_system'],
+  requiredForInsert: ['id', 'code', 'name', 'is_system'],
   primaryKey: 'id',
   foreignKeys: {},
   $type: null as unknown as CustomerType,
@@ -283,6 +283,7 @@ export interface DocumentType {
   prefix: string;
   name: string;
   description: string | null;
+  is_system: boolean;
 }
 export interface DocumentTypeInput {
   id: number;
@@ -290,11 +291,12 @@ export interface DocumentTypeInput {
   prefix: string;
   name: string;
   description?: string | null;
+  is_system: boolean;
 }
 const document_type = {
   tableName: 'document_type',
-  columns: ['id', 'code', 'prefix', 'name', 'description'],
-  requiredForInsert: ['id', 'code', 'prefix', 'name'],
+  columns: ['id', 'code', 'prefix', 'name', 'description', 'is_system'],
+  requiredForInsert: ['id', 'code', 'prefix', 'name', 'is_system'],
   primaryKey: 'id',
   foreignKeys: {},
   $type: null as unknown as DocumentType,
@@ -440,6 +442,7 @@ export interface JobDeliveryManner {
   is_active: boolean;
   created_at: Date;
   updated_at: Date;
+  is_system: boolean;
 }
 export interface JobDeliveryMannerInput {
   id: number;
@@ -449,11 +452,12 @@ export interface JobDeliveryMannerInput {
   is_active?: boolean;
   created_at?: Date;
   updated_at?: Date;
+  is_system: boolean;
 }
 const job_delivery_manner = {
   tableName: 'job_delivery_manner',
-  columns: ['id', 'code', 'name', 'display_order', 'is_active', 'created_at', 'updated_at'],
-  requiredForInsert: ['id', 'code', 'name'],
+  columns: ['id', 'code', 'name', 'display_order', 'is_active', 'created_at', 'updated_at', 'is_system'],
+  requiredForInsert: ['id', 'code', 'name', 'is_system'],
   primaryKey: 'id',
   foreignKeys: {},
   $type: null as unknown as JobDeliveryManner,
@@ -628,6 +632,7 @@ export interface JobReceiveCondition {
   is_active: boolean;
   created_at: Date;
   updated_at: Date;
+  is_system: boolean;
 }
 export interface JobReceiveConditionInput {
   id: number;
@@ -638,11 +643,12 @@ export interface JobReceiveConditionInput {
   is_active?: boolean;
   created_at?: Date;
   updated_at?: Date;
+  is_system: boolean;
 }
 const job_receive_condition = {
   tableName: 'job_receive_condition',
-  columns: ['id', 'code', 'name', 'description', 'display_order', 'is_active', 'created_at', 'updated_at'],
-  requiredForInsert: ['id', 'code', 'name'],
+  columns: ['id', 'code', 'name', 'description', 'display_order', 'is_active', 'created_at', 'updated_at', 'is_system'],
+  requiredForInsert: ['id', 'code', 'name', 'is_system'],
   primaryKey: 'id',
   foreignKeys: {},
   $type: null as unknown as JobReceiveCondition,
@@ -764,6 +770,7 @@ export interface JobType {
   is_active: boolean;
   created_at: Date;
   updated_at: Date;
+  is_system: boolean;
 }
 export interface JobTypeInput {
   id: number;
@@ -774,11 +781,12 @@ export interface JobTypeInput {
   is_active?: boolean;
   created_at?: Date;
   updated_at?: Date;
+  is_system: boolean;
 }
 const job_type = {
   tableName: 'job_type',
-  columns: ['id', 'code', 'name', 'description', 'display_order', 'is_active', 'created_at', 'updated_at'],
-  requiredForInsert: ['id', 'code', 'name'],
+  columns: ['id', 'code', 'name', 'description', 'display_order', 'is_active', 'created_at', 'updated_at', 'is_system'],
+  requiredForInsert: ['id', 'code', 'name', 'is_system'],
   primaryKey: 'id',
   foreignKeys: {},
   $type: null as unknown as JobType,
@@ -1255,6 +1263,7 @@ export interface StockTransactionType {
   dr_cr: string;
   description: string | null;
   is_active: boolean;
+  is_system: boolean;
 }
 export interface StockTransactionTypeInput {
   id: number;
@@ -1263,11 +1272,12 @@ export interface StockTransactionTypeInput {
   dr_cr: string;
   description?: string | null;
   is_active?: boolean;
+  is_system: boolean;
 }
 const stock_transaction_type = {
   tableName: 'stock_transaction_type',
-  columns: ['id', 'code', 'name', 'dr_cr', 'description', 'is_active'],
-  requiredForInsert: ['id', 'code', 'name', 'dr_cr'],
+  columns: ['id', 'code', 'name', 'dr_cr', 'description', 'is_active', 'is_system'],
+  requiredForInsert: ['id', 'code', 'name', 'dr_cr', 'is_system'],
   primaryKey: 'id',
   foreignKeys: {},
   $type: null as unknown as StockTransactionType,

@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import type { ReactNode } from "react";
 import { BriefcaseIcon, BuildingIcon, ListChecksIcon, LogOutIcon, ScrollTextIcon, ShieldCheckIcon, UsersIcon } from "lucide-react";
 import { NavLink, useNavigate } from "react-router-dom";
@@ -23,6 +24,10 @@ export const AdminLayout = ({ children }: AdminLayoutPropsType) => {
     const dispatch = useAppDispatch();
     const navigate = useNavigate();
     const user     = useAppSelector(selectCurrentUser);
+
+    useEffect(() => {
+        document.documentElement.classList.remove('dark');
+    }, []);
 
     function handleLogout() {
         dispatch(logout());

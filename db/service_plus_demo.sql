@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict YQrduaUG28NQ2CciYNWp35oQEa3YLJOzTb8IjcxBPZfSNokvQ3GGRnh1kQ7KPtM
+\restrict 04T1t2rf3Yq0DubQjW88GQdYSOXGYNzqrUuqfrEBuwrrwq7MhyxbwgeeaF1b2jj
 
 -- Dumped from database version 14.6
 -- Dumped by pg_dump version 17.9 (Ubuntu 17.9-0ubuntu0.25.10.1)
@@ -57,7 +57,6 @@ ALTER TABLE demo1.app_setting OWNER TO webadmin;
 
 CREATE TABLE demo1.branch (
     id bigint NOT NULL,
-    bu_id bigint NOT NULL,
     code text NOT NULL,
     name text NOT NULL,
     phone text,
@@ -199,7 +198,8 @@ CREATE TABLE demo1.customer_type (
     name text NOT NULL,
     description text,
     is_active boolean DEFAULT true NOT NULL,
-    display_order smallint
+    display_order smallint,
+    is_system boolean NOT NULL
 );
 
 
@@ -248,6 +248,7 @@ CREATE TABLE demo1.document_type (
     prefix text NOT NULL,
     name text NOT NULL,
     description text,
+    is_system boolean NOT NULL,
     CONSTRAINT document_type_code_chk CHECK ((code ~ '^[A-Z_]+$'::text))
 );
 
@@ -350,7 +351,8 @@ CREATE TABLE demo1.job_delivery_manner (
     display_order smallint,
     is_active boolean DEFAULT true NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    is_system boolean NOT NULL
 );
 
 
@@ -528,7 +530,8 @@ CREATE TABLE demo1.job_receive_condition (
     display_order smallint,
     is_active boolean DEFAULT true NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    is_system boolean NOT NULL
 );
 
 
@@ -619,7 +622,8 @@ CREATE TABLE demo1.job_type (
     display_order smallint,
     is_active boolean DEFAULT true NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    is_system boolean NOT NULL
 );
 
 
@@ -1039,6 +1043,7 @@ CREATE TABLE demo1.stock_transaction_type (
     dr_cr character(1) NOT NULL,
     description text,
     is_active boolean DEFAULT true NOT NULL,
+    is_system boolean NOT NULL,
     CONSTRAINT stock_transaction_type_dr_cr_check CHECK ((dr_cr = ANY (ARRAY['D'::bpchar, 'C'::bpchar])))
 );
 
@@ -1134,14 +1139,6 @@ ALTER TABLE ONLY demo1.app_setting
 
 ALTER TABLE ONLY demo1.app_setting
     ADD CONSTRAINT app_setting_pkey PRIMARY KEY (id);
-
-
---
--- Name: branch branch_bu_code_uidx; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
---
-
-ALTER TABLE ONLY demo1.branch
-    ADD CONSTRAINT branch_bu_code_uidx UNIQUE (bu_id, code);
 
 
 --
@@ -2183,5 +2180,5 @@ ALTER TABLE ONLY demo1.technician
 -- PostgreSQL database dump complete
 --
 
-\unrestrict YQrduaUG28NQ2CciYNWp35oQEa3YLJOzTb8IjcxBPZfSNokvQ3GGRnh1kQ7KPtM
+\unrestrict 04T1t2rf3Yq0DubQjW88GQdYSOXGYNzqrUuqfrEBuwrrwq7MhyxbwgeeaF1b2jj
 

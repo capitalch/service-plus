@@ -116,6 +116,41 @@
     --radius-4xl: calc(var(--radius) + 16px);
 }
 
+/* ── Client layout theme tokens ── */
+.client-theme {
+    --cl-deep:        #0e0e0e;
+    --cl-bg:          #131313;
+    --cl-surface:     #1c1c1c;
+    --cl-surface-2:   #202020;
+    --cl-surface-3:   #1b1b1c;
+    --cl-hover:       #2a2a2a;
+    --cl-input-bg:    #353535;
+    --cl-text:        #e5e2e1;
+    --cl-text-muted:  #a1a1aa;
+    --cl-text-input:  #c0c7d3;
+    --cl-border:      rgba(255, 255, 255, 0.05);
+    --cl-divider:     rgba(255, 255, 255, 0.05);
+    --cl-accent:      #007acc;
+    --cl-accent-text: #9fcaff;
+}
+
+.client-theme[data-theme="light"] {
+    --cl-deep:        #f0f0f0;
+    --cl-bg:          #ffffff;
+    --cl-surface:     #f5f5f5;
+    --cl-surface-2:   #ebebeb;
+    --cl-surface-3:   #e4e4e4;
+    --cl-hover:       #e0e0e0;
+    --cl-input-bg:    #eaeaea;
+    --cl-text:        #1a1a1a;
+    --cl-text-muted:  #6b7280;
+    --cl-text-input:  #374151;
+    --cl-border:      rgba(0, 0, 0, 0.1);
+    --cl-divider:     rgba(0, 0, 0, 0.08);
+    --cl-accent:      #007acc;
+    --cl-accent-text: #005fa3;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

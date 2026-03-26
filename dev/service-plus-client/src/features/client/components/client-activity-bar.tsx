@@ -10,8 +10,8 @@ import type { Section } from "./client-layout";
 type ActivityItem = { icon: ComponentType<{ className?: string; strokeWidth?: number }>; section: Section; to: string; title: string };
 
 const ACTIVITY_ITEMS: ActivityItem[] = [
-    { icon: LayoutDashboard,    section: 'dashboard',      to: ROUTES.client.root,           title: 'Dashboard' },
     { icon: Wrench,             section: 'jobs',           to: ROUTES.client.jobs,           title: 'Jobs' },
+    { icon: LayoutDashboard,    section: 'dashboard',      to: ROUTES.client.root,           title: 'Dashboard' },
     { icon: Package,            section: 'inventory',      to: ROUTES.client.inventory,      title: 'Inventory' },
     { icon: BarChart3,          section: 'reports',        to: ROUTES.client.reports,        title: 'Reports' },
     { icon: BookOpen,           section: 'masters',        to: ROUTES.client.masters,        title: 'Masters' },
@@ -32,7 +32,7 @@ export const ClientActivityBar = ({ activeSection }: Props) => {
     }
 
     return (
-        <aside className="fixed left-0 top-12 z-40 flex h-[calc(100%-4.5rem)] w-16 flex-col items-center bg-[#0e0e0e] py-4">
+        <aside className="fixed left-0 top-12 z-40 hidden h-[calc(100%-4.5rem)] w-16 flex-col items-center bg-[var(--cl-deep)] py-4 md:flex">
             <div className="flex w-full flex-col items-center gap-6">
                 {ACTIVITY_ITEMS.map(({ icon: Icon, section, to, title }) => {
                     const isActive = activeSection === section;
@@ -44,8 +44,8 @@ export const ClientActivityBar = ({ activeSection }: Props) => {
                             title={title}
                             className={`flex w-full items-center justify-center py-3 transition-all duration-150 active:scale-90 ${
                                 isActive
-                                    ? 'border-l-2 border-[#007acc] bg-[#131313] text-[#9fcaff]'
-                                    : 'text-[#a1a1aa] hover:bg-[#2a2a2a] hover:text-[#e5e2e1]'
+                                    ? 'border-l-2 border-[var(--cl-accent)] bg-[var(--cl-bg)] text-[var(--cl-accent-text)]'
+                                    : 'text-[var(--cl-text-muted)] hover:bg-[var(--cl-hover)] hover:text-[var(--cl-text)]'
                             }`}
                         >
                             <Icon className="h-5 w-5" strokeWidth={isActive ? 2 : 1.5} />
@@ -59,15 +59,15 @@ export const ClientActivityBar = ({ activeSection }: Props) => {
                     <button
                         onClick={handleSwitchToAdmin}
                         title="Switch to Admin Mode"
-                        className="text-[#a1a1aa] transition-all hover:text-[#9fcaff]"
+                        className="cursor-pointer text-[var(--cl-text-muted)] transition-all hover:text-[var(--cl-accent-text)]"
                     >
                         <ShieldCheck className="h-5 w-5" />
                     </button>
                 )}
-                <button className="text-[#a1a1aa] transition-all hover:text-[#e5e2e1]" title="Account">
+                <button className="cursor-pointer text-[var(--cl-text-muted)] transition-all hover:text-[var(--cl-text)]" title="Account">
                     <UserCircle className="h-5 w-5" />
                 </button>
-                <button className="text-[#a1a1aa] transition-all hover:text-[#e5e2e1]" title="Help">
+                <button className="cursor-pointer text-[var(--cl-text-muted)] transition-all hover:text-[var(--cl-text)]" title="Help">
                     <HelpCircle className="h-5 w-5" />
                 </button>
             </div>

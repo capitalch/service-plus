@@ -23,11 +23,11 @@ export const ProtectedRoute = ({ requiredSessionMode, requiredUserType }: Protec
     }
 
     if (requiredUserType && user?.userType !== requiredUserType) {
-        return <Navigate replace to={ROUTES.login} />;
+        return <Navigate replace to={ROUTES.home} />;
     }
 
     if (requiredSessionMode && sessionMode !== requiredSessionMode) {
-        return <Navigate replace to={ROUTES.login} />;
+        return <Navigate replace to={ROUTES.home} />;
     }
 
     return <Outlet />;

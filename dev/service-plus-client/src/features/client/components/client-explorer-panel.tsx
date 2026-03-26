@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { createContext, useContext, useState } from "react";
 import type { ComponentType } from "react";
 import {
     BarChart3, BookOpen, Building2, ChevronDown, ChevronRight,
@@ -7,11 +7,15 @@ import {
     RefreshCcw, RotateCcw, Settings2, ShoppingCart,
     Tag, TrendingUp, Truck, User, UserCog, Users, Wrench,
 } from "lucide-react";
+import { NavLink } from "react-router-dom";
 
-import { useClientSelection } from "./client-layout";
+import { useClientSelection, useLayout } from "./client-layout";
 import type { Section } from "./client-layout";
+import { ROUTES } from "@/router/routes";
 
 type Props = { activeSection: Section };
+
+const GroupContext = createContext<string>('');
 
 type TreeItemProps = {
     icon: ComponentType<{ className?: string }>;
@@ -21,15 +25,16 @@ type TreeItemProps = {
 
 function TreeItem({ icon: Icon, iconColor, label }: TreeItemProps) {
     const { onSelect, selected } = useClientSelection();
+    const group = useContext(GroupContext);
     const isActive = selected === label;
 
     return (
         <div
-            onClick={() => onSelect(label)}
+            onClick={() => onSelect(label, group || undefined)}
             className={`group flex cursor-pointer items-center gap-2 rounded px-2 py-2 transition-colors duration-150 ${
                 isActive
-                    ? 'bg-[#007acc] text-white shadow-md'
-                    : 'text-[#a1a1aa] hover:bg-[#2a2a2a] hover:text-[#e5e2e1]'
+                    ? 'bg-[var(--cl-accent)] text-white shadow-md'
+                    : 'text-[var(--cl-text-muted)] hover:bg-[var(--cl-hover)] hover:text-[var(--cl-text)]'
             }`}
         >
             <Icon className={`h-4 w-4 shrink-0 ${iconColor ?? (isActive ? 'text-white' : '')}`} />
@@ -50,15 +55,19 @@ function CollapsibleGroup({ children, defaultOpen = true, label }: CollapsibleGr
     return (
         <section>
             <button
-                className="mb-1 flex w-full items-center gap-1.5 rounded px-1 py-1 text-left transition-colors hover:bg-[#2a2a2a]"
+                className="mb-1 flex w-full items-center gap-1.5 rounded px-1 py-1 text-left transition-colors hover:bg-[var(--cl-hover)]"
                 onClick={() => setOpen(o => !o)}
             >
                 {open
-                    ? <ChevronDown className="h-3 w-3 text-[#a1a1aa]" />
-                    : <ChevronRight className="h-3 w-3 text-[#a1a1aa]" />}
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-[#9fcaff]">{label}</p>
+                    ? <ChevronDown className="h-3 w-3 text-[var(--cl-text-muted)]" />
+                    : <ChevronRight className="h-3 w-3 text-[var(--cl-text-muted)]" />}
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--cl-accent-text)]">{label}</p>
             </button>
-            {open && <div className="ml-3 space-y-1">{children}</div>}
+            {open && (
+                <GroupContext.Provider value={label}>
+                    <div className="ml-3 space-y-1">{children}</div>
+                </GroupContext.Provider>
+            )}
         </section>
     );
 }
@@ -204,16 +213,62 @@ const SECTION_TITLES: Record<Section, string> = {
     reports:        'Analytics',
 };
 
+type MobileNavItem = { label: string; section: Section; to: string; end?: boolean };
+
+const MOBILE_NAV_ITEMS: MobileNavItem[] = [
+    { label: 'Jobs',    section: 'jobs',           to: ROUTES.client.jobs },
+    { label: 'Dash',    section: 'dashboard',      to: ROUTES.client.root,           end: true },
+    { label: 'Inv',     section: 'inventory',      to: ROUTES.client.inventory },
+    { label: 'Reports', section: 'reports',        to: ROUTES.client.reports },
+    { label: 'Masters', section: 'masters',        to: ROUTES.client.masters },
+    { label: 'Config',  section: 'configurations', to: ROUTES.client.configurations },
+];
+
 export const ClientExplorerPanel = ({ activeSection }: Props) => {
+    const { explorerOpen, toggleExplorer } = useLayout();
     const ExplorerContent = EXPLORERS[activeSection];
 
+    // Position: left-0 on mobile (activity bar hidden), left-16 on md+ (right of activity bar)
+    // Slide in/out with transform
+    const translateClass = explorerOpen ? 'translate-x-0' : '-translate-x-full';
+
     return (
-        <aside className="fixed left-16 top-12 z-30 flex h-[calc(100%-4.5rem)] w-64 flex-col border-r border-white/5 bg-[#1c1c1c]">
-            <div className="border-b border-white/5 px-3 pb-3 pt-6">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-[#9fcaff]">
-                    {SECTION_TITLES[activeSection]}
-                </p>
+        <aside className={`fixed top-12 z-30 flex h-[calc(100%-4.5rem)] w-64 flex-col border-r border-[var(--cl-border)] bg-[var(--cl-surface)] transition-transform duration-200 ease-in-out left-0 md:left-16 ${translateClass}`}>
+            <div className="border-b border-[var(--cl-border)] px-3 pb-3 pt-4">
+                <div className="flex items-center justify-between">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--cl-accent-text)]">
+                        {SECTION_TITLES[activeSection]}
+                    </p>
+                    {/* Close button — only useful on mobile/tablet overlay */}
+                    <button
+                        onClick={toggleExplorer}
+                        className="rounded p-0.5 text-[var(--cl-text-muted)] transition-colors hover:bg-[var(--cl-hover)] hover:text-[var(--cl-text)] lg:hidden"
+                    >
+                        <ChevronRight className="h-3.5 w-3.5" />
+                    </button>
+                </div>
             </div>
+
+            {/* Mobile section nav — hidden on md+ since top nav covers it */}
+            <div className="border-b border-[var(--cl-border)] px-2 py-2 md:hidden">
+                <div className="grid grid-cols-3 gap-1">
+                    {MOBILE_NAV_ITEMS.map(({ label, section, to, end }) => (
+                        <NavLink
+                            key={to}
+                            to={to}
+                            end={end}
+                            className={`rounded px-2 py-1.5 text-center text-[10px] font-semibold uppercase tracking-wide transition-colors ${
+                                activeSection === section
+                                    ? 'bg-[var(--cl-accent)] text-white'
+                                    : 'text-[var(--cl-text-muted)] hover:bg-[var(--cl-hover)] hover:text-[var(--cl-text)]'
+                            }`}
+                        >
+                            {label}
+                        </NavLink>
+                    ))}
+                </div>
+            </div>
+
             <div className="flex-1 overflow-y-auto px-3 py-4">
                 <ExplorerContent />
             </div>

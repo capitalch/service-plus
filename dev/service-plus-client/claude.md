@@ -1,7 +1,8 @@
 # instructions
 - limit yourself to current folder
 - Always make responsive design
-- When any text command is given to claude and last word is plan then do the plan only for the given command. Write your plan in the plan.md file in the plans folder(in windows it is C:\projects\service-plus\dev\service-plus-client/plans ). 
+- When any text command is given to claude and last word is plan then do the plan only for the given command. Write your plan in the plan.md file in the plans folder(in windows it is C:\projects\service-plus\dev\service-plus-client/plans, In linux it is /home/sushant/projects/service-plus/dev/service-plus-client/plans  ). 
+- Make sure that you write plan.md in correct plans folder only. 
 - Overwrite plan.md if required.
 - In plan.md write all the steps of execution as Step1, Step 2 and so on.
 - In plan.md include a workflow section which provides the workflow of entire effort
