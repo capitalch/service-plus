@@ -1,0 +1,2 @@
+{"action": "DROP_DATABASE", "actor": {"type": "super_admin", "username": "super_admin"}, "detail": null, "id": "cc27338f-642b-4409-b500-64f2e0ee7a3e", "outcome": "success", "resource": {"id": null, "name": "buahd01", "type": "bu_schema"}, "timestamp": "2026-03-26T15:41:41.096500+00:00"}
+{"action": "DROP_DATABASE", "actor": {"type": "super_admin", "username": "super_admin"}, "detail": null, "id": "6ae3f490-7404-4d4c-91b3-2a10f8907a67", "outcome": "success", "resource": {"id": null, "name": "bublr01", "type": "bu_schema"}, "timestamp": "2026-03-26T15:42:18.104392+00:00"}
