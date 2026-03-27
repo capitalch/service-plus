@@ -109,6 +109,71 @@ export const MESSAGES = {
   SUCCESS_BRANCH_DELETED:          'Branch deleted successfully.',
   SUCCESS_BRANCH_UPDATED:          'Branch updated successfully.',
 
+  // Financial Year CRUD
+  ERROR_FY_CREATE_FAILED: 'Failed to create financial year. Please try again.',
+  ERROR_FY_DATE_OVERLAP:  'Date range overlaps with an existing financial year.',
+  ERROR_FY_DELETE_FAILED: 'Failed to delete financial year. Please try again.',
+  ERROR_FY_ID_EXISTS:     'A financial year with this year already exists.',
+  ERROR_FY_LOAD_FAILED:   'Failed to load financial years. Please try again.',
+  ERROR_FY_UPDATE_FAILED: 'Failed to update financial year. Please try again.',
+  SUCCESS_FY_CREATED:     'Financial year created successfully.',
+  SUCCESS_FY_DELETED:     'Financial year deleted successfully.',
+  SUCCESS_FY_UPDATED:     'Financial year updated successfully.',
+
+  // State / Province CRUD
+  ERROR_STATE_CODE_EXISTS:      'This code is already in use.',
+  ERROR_STATE_CODE_EXISTS_EDIT: 'This code is already used by another state.',
+  ERROR_STATE_CREATE_FAILED:    'Failed to create state. Please try again.',
+  ERROR_STATE_DELETE_FAILED:    'Failed to delete state. Please try again.',
+  ERROR_STATE_DELETE_IN_USE:    'This state cannot be deleted as it is referenced by existing records.',
+  ERROR_STATE_LOAD_FAILED:      'Failed to load states. Please try again.',
+  ERROR_STATE_NAME_EXISTS:      'This name is already in use.',
+  ERROR_STATE_NAME_EXISTS_EDIT: 'This name is already used by another state.',
+  ERROR_STATE_UPDATE_FAILED:    'Failed to update state. Please try again.',
+  SUCCESS_STATE_CREATED:        'State created successfully.',
+  SUCCESS_STATE_DELETED:        'State deleted successfully.',
+  SUCCESS_STATE_UPDATED:        'State updated successfully.',
+
+  // Lookup tables (shared)
+  ERROR_LOOKUP_CODE_EXISTS:       'This code is already in use.',
+  ERROR_LOOKUP_CODE_EXISTS_EDIT:  'This code is already used by another record.',
+  ERROR_LOOKUP_DELETE_SYSTEM:     'System records cannot be deleted.',
+
+  // Vendor CRUD
+  ERROR_VENDOR_CREATE_FAILED:      'Failed to create vendor. Please try again.',
+  ERROR_VENDOR_DELETE_FAILED:      'Failed to delete vendor. Please try again.',
+  ERROR_VENDOR_DELETE_IN_USE:      'This vendor cannot be deleted as it is referenced by existing purchase invoices.',
+  ERROR_VENDOR_LOAD_FAILED:        'Failed to load vendors. Please try again.',
+  ERROR_VENDOR_NAME_EXISTS:        'This name is already in use.',
+  ERROR_VENDOR_NAME_EXISTS_EDIT:   'This name is already used by another vendor.',
+  ERROR_VENDOR_UPDATE_FAILED:      'Failed to update vendor. Please try again.',
+  SUCCESS_VENDOR_CREATED:          'Vendor created successfully.',
+  SUCCESS_VENDOR_DELETED:          'Vendor deleted successfully.',
+  SUCCESS_VENDOR_UPDATED:          'Vendor updated successfully.',
+
+  // Technician CRUD
+  ERROR_TECHNICIAN_CODE_EXISTS:      'This code is already in use for this branch.',
+  ERROR_TECHNICIAN_CODE_EXISTS_EDIT: 'This code is already used by another technician in this branch.',
+  ERROR_TECHNICIAN_CREATE_FAILED:    'Failed to create technician. Please try again.',
+  ERROR_TECHNICIAN_DELETE_FAILED:    'Failed to delete technician. Please try again.',
+  ERROR_TECHNICIAN_DELETE_IN_USE:    'This technician cannot be deleted as it is referenced by existing jobs.',
+  ERROR_TECHNICIAN_LOAD_FAILED:      'Failed to load technicians. Please try again.',
+  ERROR_TECHNICIAN_UPDATE_FAILED:    'Failed to update technician. Please try again.',
+  SUCCESS_TECHNICIAN_CREATED:        'Technician created successfully.',
+  SUCCESS_TECHNICIAN_DELETED:        'Technician deleted successfully.',
+  SUCCESS_TECHNICIAN_UPDATED:        'Technician updated successfully.',
+
+  // Customer CRUD
+  ERROR_CUSTOMER_CREATE_FAILED:      'Failed to create customer. Please try again.',
+  ERROR_CUSTOMER_DELETE_FAILED:      'Failed to delete customer. Please try again.',
+  ERROR_CUSTOMER_DELETE_IN_USE:      'This customer cannot be deleted as it is referenced by existing jobs or invoices.',
+  ERROR_CUSTOMER_LOAD_FAILED:        'Failed to load customers. Please try again.',
+  ERROR_CUSTOMER_TYPES_LOAD_FAILED:  'Failed to load customer types. Please try again.',
+  ERROR_CUSTOMER_UPDATE_FAILED:      'Failed to update customer. Please try again.',
+  SUCCESS_CUSTOMER_CREATED:          'Customer created successfully.',
+  SUCCESS_CUSTOMER_DELETED:          'Customer deleted successfully.',
+  SUCCESS_CUSTOMER_UPDATED:          'Customer updated successfully.',
+
   // Roles
   ERROR_ROLES_LOAD_FAILED: 'Failed to load roles. Please try again.',
   ERROR_SEED_ROLES_FAILED: 'Failed to apply seed roles. Please try again.',

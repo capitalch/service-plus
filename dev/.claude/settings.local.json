@@ -12,7 +12,9 @@
       "Bash(pnpm tsc:*)",
       "Bash(pnpm eslint:*)",
       "Bash(pnpm exec:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(npx tsc:*)",
+      "Bash(pg_dump --version)"
     ]
   }
 }

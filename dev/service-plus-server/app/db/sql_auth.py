@@ -436,6 +436,644 @@ class SqlAuth:
         ORDER BY name
     """
 
+    GET_ALL_STATES_FULL = """
+        with "dummy" as (values(1::int))
+        -- with "dummy" as (values(1::int)) -- Test line
+        SELECT id, code, name, country_code, gst_state_code, is_union_territory, is_active
+        FROM state
+        ORDER BY name
+    """
+
+    CHECK_STATE_CODE_EXISTS = """
+        with "p_code" as (values(%(code)s::text))
+        -- with "p_code" as (values('MH'::text)) -- Test line
+        SELECT EXISTS(
+            SELECT 1 FROM state
+            WHERE UPPER(code) = UPPER((table "p_code"))
+        ) AS exists
+    """
+
+    CHECK_STATE_CODE_EXISTS_EXCLUDE_ID = """
+        with
+            "p_code" as (values(%(code)s::text)),
+            "p_id"   as (values(%(id)s::int))
+        -- with
+        --     "p_code" as (values('MH'::text)),  -- Test line
+        --     "p_id"   as (values(1::int))        -- Test line
+        SELECT EXISTS(
+            SELECT 1 FROM state
+            WHERE UPPER(code) = UPPER((table "p_code"))
+              AND id <> (table "p_id")
+        ) AS exists
+    """
+
+    CHECK_STATE_NAME_EXISTS = """
+        with "p_name" as (values(%(name)s::text))
+        -- with "p_name" as (values('Maharashtra'::text)) -- Test line
+        SELECT EXISTS(
+            SELECT 1 FROM state
+            WHERE LOWER(name) = LOWER((table "p_name"))
+        ) AS exists
+    """
+
+    CHECK_STATE_NAME_EXISTS_EXCLUDE_ID = """
+        with
+            "p_name" as (values(%(name)s::text)),
+            "p_id"   as (values(%(id)s::int))
+        -- with
+        --     "p_name" as (values('Maharashtra'::text)), -- Test line
+        --     "p_id"   as (values(1::int))               -- Test line
+        SELECT EXISTS(
+            SELECT 1 FROM state
+            WHERE LOWER(name) = LOWER((table "p_name"))
+              AND id <> (table "p_id")
+        ) AS exists
+    """
+
+    CHECK_STATE_IN_USE = """
+        with "p_id" as (values(%(id)s::int))
+        -- with "p_id" as (values(1::int)) -- Test line
+        SELECT EXISTS (
+            SELECT 1 FROM branch           WHERE state_id = (table "p_id")
+            UNION ALL
+            SELECT 1 FROM company_info     WHERE state_id = (table "p_id")
+            UNION ALL
+            SELECT 1 FROM customer_contact WHERE state_id = (table "p_id")
+            UNION ALL
+            SELECT 1 FROM supplier         WHERE state_id = (table "p_id")
+        ) AS in_use
+    """
+
+    CHECK_CUSTOMER_IN_USE = """
+        with "p_id" as (values(%(id)s::bigint))
+        -- with "p_id" as (values(1::bigint)) -- Test line
+        SELECT EXISTS (
+            SELECT 1 FROM job           WHERE customer_contact_id = (table "p_id")
+            UNION ALL
+            SELECT 1 FROM sales_invoice WHERE customer_contact_id = (table "p_id")
+        ) AS in_use
+    """
+
+    GET_ALL_CUSTOMERS = """
+        with "dummy" as (values(1::int))
+        -- with "dummy" as (values(1::int)) -- Test line
+        SELECT
+            cc.id, cc.customer_type_id, cc.full_name, cc.gstin,
+            cc.mobile, cc.alternate_mobile, cc.email,
+            cc.address_line1, cc.address_line2, cc.landmark,
+            cc.state_id, cc.city, cc.postal_code, cc.remarks, cc.is_active,
+            ct.name AS customer_type_name,
+            s.name  AS state_name
+        FROM customer_contact cc
+        JOIN  customer_type ct ON ct.id = cc.customer_type_id
+        LEFT JOIN state s      ON s.id  = cc.state_id
+        ORDER BY cc.full_name NULLS LAST, cc.mobile
+    """
+
+    GET_ALL_CUSTOMER_TYPES = """
+        with "dummy" as (values(1::int))
+        -- with "dummy" as (values(1::int)) -- Test line
+        SELECT id, code, name
+        FROM customer_type
+        WHERE is_active = true
+        ORDER BY display_order NULLS LAST, name
+    """
+
+    CHECK_VENDOR_NAME_EXISTS = """
+        with "p_name" as (values(%(name)s::text))
+        -- with "p_name" as (values('Acme Corp'::text)) -- Test line
+        SELECT EXISTS(
+            SELECT 1 FROM supplier
+            WHERE LOWER(name) = LOWER((table "p_name"))
+        ) AS exists
+    """
+
+    CHECK_VENDOR_NAME_EXISTS_EXCLUDE_ID = """
+        with
+            "p_name" as (values(%(name)s::text)),
+            "p_id"   as (values(%(id)s::bigint))
+        -- with
+        --     "p_name" as (values('Acme Corp'::text)), -- Test line
+        --     "p_id"   as (values(1::bigint))          -- Test line
+        SELECT EXISTS(
+            SELECT 1 FROM supplier
+            WHERE LOWER(name) = LOWER((table "p_name"))
+              AND id <> (table "p_id")
+        ) AS exists
+    """
+
+    CHECK_VENDOR_IN_USE = """
+        with "p_id" as (values(%(id)s::bigint))
+        -- with "p_id" as (values(1::bigint)) -- Test line
+        SELECT EXISTS (
+            SELECT 1 FROM purchase_invoice WHERE supplier_id = (table "p_id")
+        ) AS in_use
+    """
+
+    GET_ALL_VENDORS = """
+        with "dummy" as (values(1::int))
+        -- with "dummy" as (values(1::int)) -- Test line
+        SELECT
+            v.id, v.name, v.gstin, v.pan, v.phone, v.email,
+            v.address_line1, v.address_line2, v.city, v.state_id,
+            v.pincode, v.is_active, v.remarks,
+            s.name AS state_name
+        FROM supplier v
+        LEFT JOIN state s ON s.id = v.state_id
+        ORDER BY v.name
+    """
+
+    CHECK_TECHNICIAN_CODE_EXISTS = """
+        with
+            "p_code"      as (values(%(code)s::text)),
+            "p_branch_id" as (values(%(branch_id)s::bigint))
+        -- with
+        --     "p_code"      as (values('TECH01'::text)),  -- Test line
+        --     "p_branch_id" as (values(1::bigint))        -- Test line
+        SELECT EXISTS(
+            SELECT 1 FROM technician
+            WHERE UPPER(code) = UPPER((table "p_code"))
+              AND branch_id   = (table "p_branch_id")
+        ) AS exists
+    """
+
+    CHECK_TECHNICIAN_CODE_EXISTS_EXCLUDE_ID = """
+        with
+            "p_code"      as (values(%(code)s::text)),
+            "p_branch_id" as (values(%(branch_id)s::bigint)),
+            "p_id"        as (values(%(id)s::bigint))
+        -- with
+        --     "p_code"      as (values('TECH01'::text)), -- Test line
+        --     "p_branch_id" as (values(1::bigint)),      -- Test line
+        --     "p_id"        as (values(1::bigint))       -- Test line
+        SELECT EXISTS(
+            SELECT 1 FROM technician
+            WHERE UPPER(code) = UPPER((table "p_code"))
+              AND branch_id   = (table "p_branch_id")
+              AND id         <> (table "p_id")
+        ) AS exists
+    """
+
+    CHECK_TECHNICIAN_IN_USE = """
+        with "p_id" as (values(%(id)s::bigint))
+        -- with "p_id" as (values(1::bigint)) -- Test line
+        SELECT EXISTS (
+            SELECT 1 FROM job              WHERE technician_id = (table "p_id")
+            UNION ALL
+            SELECT 1 FROM job_transaction  WHERE technician_id = (table "p_id")
+        ) AS in_use
+    """
+
+    GET_ALL_TECHNICIANS = """
+        with "dummy" as (values(1::int))
+        -- with "dummy" as (values(1::int)) -- Test line
+        SELECT
+            t.id, t.branch_id, t.code, t.name, t.phone, t.email,
+            t.specialization, t.leaving_date, t.is_active,
+            b.name AS branch_name
+        FROM technician t
+        JOIN branch b ON b.id = t.branch_id
+        ORDER BY t.name
+    """
+
+    # ── Customer Type ─────────────────────────────────────────────────────────
+
+    GET_CUSTOMER_TYPES = """
+        with "dummy" as (values(1::int))
+        -- with "dummy" as (values(1::int)) -- Test line
+        SELECT id, code, name, description, display_order, is_active, is_system
+        FROM customer_type
+        ORDER BY display_order NULLS LAST, name
+    """
+
+    CHECK_CUSTOMER_TYPE_CODE_EXISTS = """
+        with "p_code" as (values(%(code)s::text))
+        -- with "p_code" as (values('IND'::text)) -- Test line
+        SELECT EXISTS(
+            SELECT 1 FROM customer_type
+            WHERE UPPER(code) = UPPER((table "p_code"))
+        ) AS exists
+    """
+
+    CHECK_CUSTOMER_TYPE_CODE_EXISTS_EXCLUDE_ID = """
+        with
+            "p_code" as (values(%(code)s::text)),
+            "p_id"   as (values(%(id)s::smallint))
+        -- with
+        --     "p_code" as (values('IND'::text)),  -- Test line
+        --     "p_id"   as (values(1::smallint))   -- Test line
+        SELECT EXISTS(
+            SELECT 1 FROM customer_type
+            WHERE UPPER(code) = UPPER((table "p_code"))
+              AND id <> (table "p_id")
+        ) AS exists
+    """
+
+    CHECK_CUSTOMER_TYPE_IN_USE = """
+        with "p_id" as (values(%(id)s::smallint))
+        -- with "p_id" as (values(1::smallint)) -- Test line
+        SELECT EXISTS (
+            SELECT 1 FROM customer_contact WHERE customer_type_id = (table "p_id")
+        ) AS in_use
+    """
+
+    # ── Document Type ─────────────────────────────────────────────────────────
+
+    GET_DOCUMENT_TYPES = """
+        with "dummy" as (values(1::int))
+        -- with "dummy" as (values(1::int)) -- Test line
+        SELECT id, code, prefix, name, description, is_system
+        FROM document_type
+        ORDER BY code
+    """
+
+    CHECK_DOCUMENT_TYPE_CODE_EXISTS = """
+        with "p_code" as (values(%(code)s::text))
+        -- with "p_code" as (values('JOB'::text)) -- Test line
+        SELECT EXISTS(
+            SELECT 1 FROM document_type
+            WHERE UPPER(code) = UPPER((table "p_code"))
+        ) AS exists
+    """
+
+    CHECK_DOCUMENT_TYPE_CODE_EXISTS_EXCLUDE_ID = """
+        with
+            "p_code" as (values(%(code)s::text)),
+            "p_id"   as (values(%(id)s::smallint))
+        -- with
+        --     "p_code" as (values('JOB'::text)),  -- Test line
+        --     "p_id"   as (values(1::smallint))   -- Test line
+        SELECT EXISTS(
+            SELECT 1 FROM document_type
+            WHERE UPPER(code) = UPPER((table "p_code"))
+              AND id <> (table "p_id")
+        ) AS exists
+    """
+
+    CHECK_DOCUMENT_TYPE_IN_USE = """
+        with "p_id" as (values(%(id)s::smallint))
+        -- with "p_id" as (values(1::smallint)) -- Test line
+        SELECT EXISTS (
+            SELECT 1 FROM document_sequence WHERE document_type_id = (table "p_id")
+        ) AS in_use
+    """
+
+    # ── Job Type ──────────────────────────────────────────────────────────────
+
+    GET_JOB_TYPES = """
+        with "dummy" as (values(1::int))
+        -- with "dummy" as (values(1::int)) -- Test line
+        SELECT id, code, name, description, display_order, is_active, is_system
+        FROM job_type
+        ORDER BY display_order NULLS LAST, name
+    """
+
+    CHECK_JOB_TYPE_CODE_EXISTS = """
+        with "p_code" as (values(%(code)s::text))
+        -- with "p_code" as (values('REPAIR'::text)) -- Test line
+        SELECT EXISTS(
+            SELECT 1 FROM job_type
+            WHERE UPPER(code) = UPPER((table "p_code"))
+        ) AS exists
+    """
+
+    CHECK_JOB_TYPE_CODE_EXISTS_EXCLUDE_ID = """
+        with
+            "p_code" as (values(%(code)s::text)),
+            "p_id"   as (values(%(id)s::smallint))
+        -- with
+        --     "p_code" as (values('REPAIR'::text)), -- Test line
+        --     "p_id"   as (values(1::smallint))     -- Test line
+        SELECT EXISTS(
+            SELECT 1 FROM job_type
+            WHERE UPPER(code) = UPPER((table "p_code"))
+              AND id <> (table "p_id")
+        ) AS exists
+    """
+
+    CHECK_JOB_TYPE_IN_USE = """
+        with "p_id" as (values(%(id)s::smallint))
+        -- with "p_id" as (values(1::smallint)) -- Test line
+        SELECT EXISTS (
+            SELECT 1 FROM job WHERE job_type_id = (table "p_id")
+        ) AS in_use
+    """
+
+    # ── Job Receive Manner ────────────────────────────────────────────────────
+
+    GET_JOB_RECEIVE_MANNERS = """
+        with "dummy" as (values(1::int))
+        -- with "dummy" as (values(1::int)) -- Test line
+        SELECT id, code, name, display_order, is_active, is_system
+        FROM job_receive_manner
+        ORDER BY display_order, name
+    """
+
+    CHECK_JOB_RECEIVE_MANNER_CODE_EXISTS = """
+        with "p_code" as (values(%(code)s::text))
+        -- with "p_code" as (values('WALKIN'::text)) -- Test line
+        SELECT EXISTS(
+            SELECT 1 FROM job_receive_manner
+            WHERE UPPER(code) = UPPER((table "p_code"))
+        ) AS exists
+    """
+
+    CHECK_JOB_RECEIVE_MANNER_CODE_EXISTS_EXCLUDE_ID = """
+        with
+            "p_code" as (values(%(code)s::text)),
+            "p_id"   as (values(%(id)s::smallint))
+        -- with
+        --     "p_code" as (values('WALKIN'::text)), -- Test line
+        --     "p_id"   as (values(1::smallint))     -- Test line
+        SELECT EXISTS(
+            SELECT 1 FROM job_receive_manner
+            WHERE UPPER(code) = UPPER((table "p_code"))
+              AND id <> (table "p_id")
+        ) AS exists
+    """
+
+    CHECK_JOB_RECEIVE_MANNER_IN_USE = """
+        with "p_id" as (values(%(id)s::smallint))
+        -- with "p_id" as (values(1::smallint)) -- Test line
+        SELECT EXISTS (
+            SELECT 1 FROM job WHERE job_receive_manner_id = (table "p_id")
+        ) AS in_use
+    """
+
+    # ── Job Delivery Manner ───────────────────────────────────────────────────
+
+    GET_JOB_DELIVERY_MANNERS = """
+        with "dummy" as (values(1::int))
+        -- with "dummy" as (values(1::int)) -- Test line
+        SELECT id, code, name, display_order, is_active, is_system
+        FROM job_delivery_manner
+        ORDER BY display_order NULLS LAST, name
+    """
+
+    CHECK_JOB_DELIVERY_MANNER_CODE_EXISTS = """
+        with "p_code" as (values(%(code)s::text))
+        -- with "p_code" as (values('PICKUP'::text)) -- Test line
+        SELECT EXISTS(
+            SELECT 1 FROM job_delivery_manner
+            WHERE UPPER(code) = UPPER((table "p_code"))
+        ) AS exists
+    """
+
+    CHECK_JOB_DELIVERY_MANNER_CODE_EXISTS_EXCLUDE_ID = """
+        with
+            "p_code" as (values(%(code)s::text)),
+            "p_id"   as (values(%(id)s::smallint))
+        -- with
+        --     "p_code" as (values('PICKUP'::text)), -- Test line
+        --     "p_id"   as (values(1::smallint))     -- Test line
+        SELECT EXISTS(
+            SELECT 1 FROM job_delivery_manner
+            WHERE UPPER(code) = UPPER((table "p_code"))
+              AND id <> (table "p_id")
+        ) AS exists
+    """
+
+    CHECK_JOB_DELIVERY_MANNER_IN_USE = """
+        with "dummy" as (values(1::int))
+        SELECT false AS in_use
+    """
+
+    # ── Job Receive Condition ─────────────────────────────────────────────────
+
+    GET_JOB_RECEIVE_CONDITIONS = """
+        with "dummy" as (values(1::int))
+        -- with "dummy" as (values(1::int)) -- Test line
+        SELECT id, code, name, description, display_order, is_active, is_system
+        FROM job_receive_condition
+        ORDER BY display_order NULLS LAST, name
+    """
+
+    CHECK_JOB_RECEIVE_CONDITION_CODE_EXISTS = """
+        with "p_code" as (values(%(code)s::text))
+        -- with "p_code" as (values('GOOD'::text)) -- Test line
+        SELECT EXISTS(
+            SELECT 1 FROM job_receive_condition
+            WHERE UPPER(code) = UPPER((table "p_code"))
+        ) AS exists
+    """
+
+    CHECK_JOB_RECEIVE_CONDITION_CODE_EXISTS_EXCLUDE_ID = """
+        with
+            "p_code" as (values(%(code)s::text)),
+            "p_id"   as (values(%(id)s::smallint))
+        -- with
+        --     "p_code" as (values('GOOD'::text)),  -- Test line
+        --     "p_id"   as (values(1::smallint))    -- Test line
+        SELECT EXISTS(
+            SELECT 1 FROM job_receive_condition
+            WHERE UPPER(code) = UPPER((table "p_code"))
+              AND id <> (table "p_id")
+        ) AS exists
+    """
+
+    CHECK_JOB_RECEIVE_CONDITION_IN_USE = """
+        with "p_id" as (values(%(id)s::smallint))
+        -- with "p_id" as (values(1::smallint)) -- Test line
+        SELECT EXISTS (
+            SELECT 1 FROM job WHERE job_receive_condition_id = (table "p_id")
+        ) AS in_use
+    """
+
+    # ── Brand ─────────────────────────────────────────────────────────────────
+
+    GET_ALL_BRANDS = """
+        with "dummy" as (values(1::int))
+        -- with "dummy" as (values(1::int)) -- Test line
+        SELECT id, code, name, is_active,
+               false       AS is_system,
+               NULL::text  AS description,
+               NULL::int   AS display_order,
+               NULL::text  AS prefix
+        FROM brand
+        ORDER BY name
+    """
+
+    CHECK_BRAND_CODE_EXISTS = """
+        with "p_code" as (values(%(code)s::text))
+        -- with "p_code" as (values('SAMSUNG'::text)) -- Test line
+        SELECT EXISTS(
+            SELECT 1 FROM brand
+            WHERE UPPER(code) = UPPER((table "p_code"))
+        ) AS exists
+    """
+
+    CHECK_BRAND_CODE_EXISTS_EXCLUDE_ID = """
+        with
+            "p_code" as (values(%(code)s::text)),
+            "p_id"   as (values(%(id)s::bigint))
+        -- with
+        --     "p_code" as (values('SAMSUNG'::text)), -- Test line
+        --     "p_id"   as (values(1::bigint))        -- Test line
+        SELECT EXISTS(
+            SELECT 1 FROM brand
+            WHERE UPPER(code) = UPPER((table "p_code"))
+              AND id <> (table "p_id")
+        ) AS exists
+    """
+
+    CHECK_BRAND_IN_USE = """
+        with "p_id" as (values(%(id)s::bigint))
+        -- with "p_id" as (values(1::bigint)) -- Test line
+        SELECT EXISTS (
+            SELECT 1 FROM spare_part_master  WHERE brand_id = (table "p_id")
+            UNION ALL
+            SELECT 1 FROM product_brand_model WHERE brand_id = (table "p_id")
+        ) AS in_use
+    """
+
+    # ── Product ───────────────────────────────────────────────────────────────
+
+    GET_ALL_PRODUCTS = """
+        with "dummy" as (values(1::int))
+        -- with "dummy" as (values(1::int)) -- Test line
+        SELECT id, name, is_active
+        FROM product
+        ORDER BY name
+    """
+
+    CHECK_PRODUCT_NAME_EXISTS = """
+        with "p_name" as (values(%(name)s::text))
+        -- with "p_name" as (values('LAPTOP'::text)) -- Test line
+        SELECT EXISTS(
+            SELECT 1 FROM product
+            WHERE UPPER(name) = UPPER((table "p_name"))
+        ) AS exists
+    """
+
+    CHECK_PRODUCT_NAME_EXISTS_EXCLUDE_ID = """
+        with
+            "p_name" as (values(%(name)s::text)),
+            "p_id"   as (values(%(id)s::bigint))
+        -- with
+        --     "p_name" as (values('LAPTOP'::text)), -- Test line
+        --     "p_id"   as (values(1::bigint))       -- Test line
+        SELECT EXISTS(
+            SELECT 1 FROM product
+            WHERE UPPER(name) = UPPER((table "p_name"))
+              AND id <> (table "p_id")
+        ) AS exists
+    """
+
+    CHECK_PRODUCT_IN_USE = """
+        with "p_id" as (values(%(id)s::bigint))
+        -- with "p_id" as (values(1::bigint)) -- Test line
+        SELECT EXISTS (
+            SELECT 1 FROM product_brand_model WHERE product_id = (table "p_id")
+        ) AS in_use
+    """
+
+    # ── Model (product_brand_model) ───────────────────────────────────────────
+
+    GET_ALL_MODELS = """
+        with "dummy" as (values(1::int))
+        -- with "dummy" as (values(1::int)) -- Test line
+        SELECT
+            m.id, m.product_id, m.brand_id, m.model_name,
+            m.launch_year, m.remarks, m.is_active,
+            p.name AS product_name,
+            b.name AS brand_name
+        FROM product_brand_model m
+        JOIN product p ON p.id = m.product_id
+        JOIN brand   b ON b.id = m.brand_id
+        ORDER BY p.name, b.name, m.model_name
+    """
+
+    CHECK_MODEL_EXISTS = """
+        with
+            "p_product_id" as (values(%(product_id)s::bigint)),
+            "p_brand_id"   as (values(%(brand_id)s::bigint)),
+            "p_model_name" as (values(%(model_name)s::text))
+        SELECT EXISTS(
+            SELECT 1 FROM product_brand_model
+            WHERE product_id            = (table "p_product_id")
+              AND brand_id              = (table "p_brand_id")
+              AND UPPER(model_name)     = UPPER((table "p_model_name"))
+        ) AS exists
+    """
+
+    CHECK_MODEL_EXISTS_EXCLUDE_ID = """
+        with
+            "p_product_id" as (values(%(product_id)s::bigint)),
+            "p_brand_id"   as (values(%(brand_id)s::bigint)),
+            "p_model_name" as (values(%(model_name)s::text)),
+            "p_id"         as (values(%(id)s::bigint))
+        SELECT EXISTS(
+            SELECT 1 FROM product_brand_model
+            WHERE product_id            = (table "p_product_id")
+              AND brand_id              = (table "p_brand_id")
+              AND UPPER(model_name)     = UPPER((table "p_model_name"))
+              AND id                   <> (table "p_id")
+        ) AS exists
+    """
+
+    CHECK_MODEL_IN_USE = """
+        with "p_id" as (values(%(id)s::bigint))
+        -- with "p_id" as (values(1::bigint)) -- Test line
+        SELECT EXISTS (
+            SELECT 1 FROM job WHERE product_brand_model_id = (table "p_id")
+        ) AS in_use
+    """
+
+    # ── Spare Part Master ─────────────────────────────────────────────────────
+
+    GET_ALL_PARTS = """
+        with "dummy" as (values(1::int))
+        -- with "dummy" as (values(1::int)) -- Test line
+        SELECT
+            p.id, p.brand_id, p.part_code, p.part_name,
+            p.part_description, p.category, p.model, p.uom,
+            p.cost_price, p.mrp, p.hsn_code, p.gst_rate, p.is_active,
+            b.name AS brand_name
+        FROM spare_part_master p
+        JOIN brand b ON b.id = p.brand_id
+        ORDER BY b.name, p.part_code
+    """
+
+    CHECK_PART_CODE_EXISTS = """
+        with
+            "p_brand_id"  as (values(%(brand_id)s::bigint)),
+            "p_part_code" as (values(%(part_code)s::text))
+        SELECT EXISTS(
+            SELECT 1 FROM spare_part_master
+            WHERE brand_id              = (table "p_brand_id")
+              AND UPPER(part_code)      = UPPER((table "p_part_code"))
+        ) AS exists
+    """
+
+    CHECK_PART_CODE_EXISTS_EXCLUDE_ID = """
+        with
+            "p_brand_id"  as (values(%(brand_id)s::bigint)),
+            "p_part_code" as (values(%(part_code)s::text)),
+            "p_id"        as (values(%(id)s::bigint))
+        SELECT EXISTS(
+            SELECT 1 FROM spare_part_master
+            WHERE brand_id              = (table "p_brand_id")
+              AND UPPER(part_code)      = UPPER((table "p_part_code"))
+              AND id                   <> (table "p_id")
+        ) AS exists
+    """
+
+    CHECK_PART_IN_USE = """
+        with "p_id" as (values(%(id)s::bigint))
+        -- with "p_id" as (values(1::bigint)) -- Test line
+        SELECT EXISTS (
+            SELECT 1 FROM job_part_used         WHERE part_id = (table "p_id")
+            UNION ALL
+            SELECT 1 FROM purchase_invoice_line WHERE part_id = (table "p_id")
+            UNION ALL
+            SELECT 1 FROM sales_invoice_line    WHERE part_id = (table "p_id")
+            UNION ALL
+            SELECT 1 FROM stock_adjustment_line WHERE part_id = (table "p_id")
+            UNION ALL
+            SELECT 1 FROM stock_transaction     WHERE part_id = (table "p_id")
+        ) AS in_use
+    """
+
     GET_BU_USER_STATS = """
         with "dummy" as (values(1::int))
         -- with "dummy" as (values(1::int)) -- Test line
