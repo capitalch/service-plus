@@ -132,6 +132,8 @@ export interface User {
   updated_at: Date;
   full_name: string;
   is_admin: boolean;
+  last_used_bu_id: number | null;
+  last_used_branch_id: number | null;
 }
 export interface UserInput {
   id: number;
@@ -144,10 +146,12 @@ export interface UserInput {
   updated_at?: Date;
   full_name: string;
   is_admin?: boolean;
+  last_used_bu_id?: number | null;
+  last_used_branch_id?: number | null;
 }
 const user = {
   tableName: 'user',
-  columns: ['id', 'username', 'email', 'mobile', 'password_hash', 'is_active', 'created_at', 'updated_at', 'full_name', 'is_admin'],
+  columns: ['id', 'username', 'email', 'mobile', 'password_hash', 'is_active', 'created_at', 'updated_at', 'full_name', 'is_admin', 'last_used_bu_id', 'last_used_branch_id'],
   requiredForInsert: ['id', 'username', 'email', 'password_hash', 'full_name'],
   primaryKey: 'id',
   foreignKeys: {},
