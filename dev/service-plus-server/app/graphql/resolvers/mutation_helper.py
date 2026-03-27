@@ -437,6 +437,61 @@ async def resolve_create_service_db_helper(db_name: str, schema: str, value: str
     return {"db_name": new_db_name, "id": client_id}
 
 
+async def resolve_feed_bu_seed_data_helper(db_name: str, schema: str, value: str) -> dict:
+    """
+    Feed seed data into an existing BU schema without recreating the schema or tables.
+    All INSERTs in BU_SEED_SQL use ON CONFLICT DO NOTHING — fully idempotent.
+
+    Value payload (URL-encoded JSON): { code }
+    """
+    payload = _decode_value(value, "feedBuSeedData")
+
+    code: str = (payload.get("code") or "").lower().strip()
+
+    if not code:
+        raise ValidationException(
+            message=AppMessages.REQUIRED_FIELD_MISSING,
+            extensions={"field": "code"},
+        )
+
+    if not re.match(r"^[a-z0-9_]{3,9}$", code):
+        raise ValidationException(
+            message=AppMessages.INVALID_INPUT,
+            extensions={"detail": "Code must be 3–9 alphanumeric/underscore characters", "field": "code"},
+        )
+
+    # Guard: schema must already exist
+    rows = await exec_sql(
+        db_name=db_name, schema="security",
+        sql="""
+            with "dummy" as (values(1::int))
+            SELECT EXISTS (
+                SELECT 1 FROM pg_catalog.pg_namespace WHERE nspname = %(code)s
+            ) AS exists
+        """,
+        sql_args={"code": code},
+    )
+    if not (rows and rows[0].get("exists")):
+        raise ValidationException(
+            message=AppMessages.RESOURCE_NOT_FOUND,
+            extensions={"detail": f"Schema '{code}' does not exist", "field": "code"},
+        )
+
+    logger.info(f"Seeding lookup data into existing schema '{code}' in db '{db_name}'")
+    await exec_sql(
+        db_name=db_name, schema=code,
+        sql=SqlBu.BU_SEED_SQL,
+    )
+
+    await audit_logger.log(
+        action=AuditAction.FEED_BU_SEED_DATA,
+        resource_name=code,
+        resource_type="bu_schema",
+    )
+    logger.info(f"Seed data fed into schema '{code}' successfully")
+    return {"code": code}
+
+
 async def resolve_delete_bu_schema_helper(db_name: str, schema: str, value: str) -> dict:
     """
     Drop a BU schema from the database and optionally delete the security.bu row.

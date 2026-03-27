@@ -42,13 +42,24 @@ export type LoginRequestType = {
     password: string;
 };
 
+export type BuContextType = {
+    code:          string;
+    id:            number;
+    is_active:     boolean;
+    name:          string;
+    schema_exists: boolean;
+};
+
 export type LoginResponseType = {
     accessToken: string;
     accessRights?: string[] | null | [];
+    availableBus?: BuContextType[];
     dbName?: string | null;
     email: string;
     fullName?: string;
     id?: string;
+    lastUsedBranchId?: number | null;
+    lastUsedBuId?: number | null;
     mobile?: string;
     roleName?: string;
     username: string;
@@ -59,10 +70,13 @@ export type SearchClientsResponseType = ClientType[];
 
 export type UserInstanceType = {
     accessRights?: string[] | null | [];
+    availableBus?: BuContextType[];
     dbName?: string | null;
     email: string;
     fullName?: string;
     id?: string;
+    lastUsedBranchId?: number | null;
+    lastUsedBuId?: number | null;
     mobile?: string;
     roleName?: string;
     userType: 'A' | 'B' | 'S';

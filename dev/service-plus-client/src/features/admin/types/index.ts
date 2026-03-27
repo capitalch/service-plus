@@ -18,6 +18,7 @@ export type BusinessUnitType = {
     is_active:     boolean;
     name:          string;
     schema_exists: boolean;
+    seed_exists:   boolean;
     updated_at:    string;
 };
 

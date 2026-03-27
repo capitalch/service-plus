@@ -150,14 +150,28 @@ async def login_helper(body: LoginRequest) -> LoginResponse:
         resource_type="session",
     )
 
-    # [8] Return response
+    # [8] Fetch available BUs for this user (only for non-super-admin)
+    available_bus = []
+    if user.get("id"):
+        user_bus_rows = await exec_sql(
+            db_name=db_name,
+            schema="security",
+            sql=SqlAuth.GET_USER_BUS,
+            sql_args={"user_id": user["id"]},
+        )
+        available_bus = [dict(row) for row in (user_bus_rows or [])]
+
+    # [9] Return response
     return LoginResponse(
         access_token=access_token,
         access_rights=user["access_rights"] or [],
+        available_bus=available_bus,
         db_name=db_name,
         email=user["email"],
         full_name=user["full_name"],
         id=user["id"],
+        last_used_branch_id=user.get("last_used_branch_id"),
+        last_used_bu_id=user.get("last_used_bu_id"),
         mobile=user["mobile"] or "",
         role_name=user["role_name"] or "",
         user_type=user_type,

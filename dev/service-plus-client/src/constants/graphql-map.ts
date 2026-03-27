@@ -59,6 +59,11 @@ export const GRAPHQL_MAP = {
             createServiceDb(db_name: $db_name, schema: $schema, value: $value)
         }
     `,
+    feedBuSeedData: gql`
+        mutation FeedBuSeedData($db_name: String!, $schema: String, $value: String!) {
+            feedBuSeedData(db_name: $db_name, schema: $schema, value: $value)
+        }
+    `,
     deleteBuSchema: gql`
         mutation DeleteBuSchema($db_name: String!, $schema: String, $value: String!) {
             deleteBuSchema(db_name: $db_name, schema: $schema, value: $value)

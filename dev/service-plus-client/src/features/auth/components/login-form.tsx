@@ -15,6 +15,7 @@ import { loginUser } from '@/features/auth/services/auth-service';
 import type { ApiError, UserInstanceType } from '@/features/auth/services/auth-service';
 import { useAppDispatch } from '@/store/hooks';
 import { setCredentials, setSessionMode } from '@/features/auth/store/auth-slice';
+import { setAvailableBus, setCurrentBu } from '@/store/context-slice';
 import { MESSAGES } from '@/constants/messages';
 import { ROUTES } from '@/router/routes';
 
@@ -54,23 +55,26 @@ export const LoginForm = ({ onForgotPassword }: LoginFormProps) => {
       setIsLoading(true);
       const result = await loginUser(data);
       const user: UserInstanceType = {
-        dbName: result.dbName,
-        email: result.email,
-        fullName: result.fullName,
-        id: result.id,
-        mobile: result.mobile,
-        roleName: result.roleName,
-        userType: result.userType,
-        username: result.username,
+        availableBus:      result.availableBus,
+        dbName:            result.dbName,
+        email:             result.email,
+        fullName:          result.fullName,
+        id:                result.id,
+        lastUsedBranchId:  result.lastUsedBranchId,
+        lastUsedBuId:      result.lastUsedBuId,
+        mobile:            result.mobile,
+        roleName:          result.roleName,
+        userType:          result.userType,
+        username:          result.username,
       };
 
-      dispatch(
-        setCredentials({
-          user: user,
-          token: result.accessToken,
-          clientId: data.clientId,
-        })
-      );
+      dispatch(setCredentials({ user, token: result.accessToken, clientId: data.clientId }));
+
+      // Initialise context slice
+      const buses = result.availableBus ?? [];
+      dispatch(setAvailableBus(buses));
+      const currentBu = buses.find(b => b.id === result.lastUsedBuId) ?? buses[0] ?? null;
+      dispatch(setCurrentBu(currentBu));
 
       toast.success(MESSAGES.SUCCESS_LOGIN);
 

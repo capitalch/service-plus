@@ -71,7 +71,10 @@ class LoginResponse(BaseModel):
     full_name: str = Field(alias="fullName", description="User's full name")
     id: int | None = Field(default=None, description="User's unique identifier")
 
+    available_bus: list[dict] = Field(default_factory=list, alias="availableBus", description="BUs available to the user")
     db_name: str | None = Field(default=None, alias="dbName", description="Tenant database name")
+    last_used_branch_id: int | None = Field(default=None, alias="lastUsedBranchId", description="Last used branch ID")
+    last_used_bu_id: int | None = Field(default=None, alias="lastUsedBuId", description="Last used BU ID")
     mobile: str = Field(description="User's mobile number")
     role_name: str = Field(alias="roleName", description="User's role name")
     username: str = Field(description="User's username")

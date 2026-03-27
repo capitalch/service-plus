@@ -113,9 +113,12 @@ export const { logout, setCredentials, setSelectedClient, setSessionMode, update
  * Export selectors
  */
 export const selectAuthToken        = (state: { auth: AuthState }) => state.auth.token;
+export const selectAvailableBus     = (state: { auth: AuthState }) => state.auth.user?.availableBus ?? [];
 export const selectCurrentUser      = (state: { auth: AuthState }) => state.auth.user;
 export const selectDbName           = (state: { auth: AuthState }) => state.auth.user?.dbName ?? null;
 export const selectIsAuthenticated  = (state: { auth: AuthState }) => state.auth.isAuthenticated;
+export const selectLastUsedBranchId = (state: { auth: AuthState }) => state.auth.user?.lastUsedBranchId ?? null;
+export const selectLastUsedBuId     = (state: { auth: AuthState }) => state.auth.user?.lastUsedBuId ?? null;
 export const selectSelectedClientId = (state: { auth: AuthState }) => state.auth.selectedClientId;
 export const selectSessionMode      = (state: { auth: AuthState }) => state.auth.sessionMode;
 

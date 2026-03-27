@@ -15,6 +15,7 @@ from app.graphql.resolvers.mutation_helper import (
     resolve_delete_bu_schema_helper,
     resolve_delete_client_helper,
     resolve_drop_database_helper,
+    resolve_feed_bu_seed_data_helper,
     resolve_generic_update_helper,
     resolve_mail_admin_credentials_helper,
     resolve_mail_business_user_credentials_helper,
@@ -91,6 +92,21 @@ async def resolve_create_service_db(_, info, db_name: str = "", schema: str = "s
         logger.error(f"Error creating service database: {str(e)}")
         raise GraphQLException(
             message=AppMessages.OPERATION_FAILED, extensions={"details": str(e)}
+        )
+
+
+@mutation.field("feedBuSeedData")
+async def resolve_feed_bu_seed_data(
+    _, info, db_name: str = "", schema: str = "security", value: str = ""
+) -> Any:
+    try:
+        return await resolve_feed_bu_seed_data_helper(db_name, schema, value)
+    except ValidationException:
+        raise
+    except Exception as e:
+        logger.error(f"Error feeding BU seed data: {str(e)}", exc_info=True)
+        raise GraphQLException(
+            message=AppMessages.BU_SEED_FEED_FAILED, extensions={"details": str(e)}
         )
 
 

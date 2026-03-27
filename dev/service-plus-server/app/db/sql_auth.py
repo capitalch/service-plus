@@ -242,7 +242,15 @@ class SqlAuth:
             EXISTS (
                 SELECT 1 FROM pg_catalog.pg_namespace
                 WHERE nspname = LOWER(b.code)
-            ) AS schema_exists
+            ) AS schema_exists,
+            EXISTS (
+                SELECT 1
+                FROM   pg_catalog.pg_class     c
+                JOIN   pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+                WHERE  n.nspname  = LOWER(b.code)
+                  AND  c.relname  = 'job_status'
+                  AND  c.reltuples > 0
+            ) AS seed_exists
         FROM security.bu b
         ORDER BY b.name
     """
@@ -334,6 +342,31 @@ class SqlAuth:
         ORDER BY bu_id
     """
 
+    GET_BU_BRANCHES = """
+        with "dummy" as (values(1::int))
+        -- with "dummy" as (values(1::int)) -- Test line
+        SELECT id, code, is_active, is_head_office, name
+        FROM branch
+        WHERE is_active = true
+        ORDER BY is_head_office DESC, name
+    """
+
+    GET_USER_BUS = """
+        with "p_user_id" as (values(%(user_id)s::bigint))
+        -- with "p_user_id" as (values(1::bigint)) -- Test line
+        SELECT b.id, b.code, b.is_active, b.name,
+               EXISTS (
+                   SELECT 1 FROM pg_catalog.pg_namespace n
+                   WHERE n.nspname = LOWER(b.code)
+               ) AS schema_exists
+        FROM security.user_bu_role ubr
+        JOIN security.bu b ON b.id = ubr.bu_id
+        WHERE ubr.user_id = (table "p_user_id")
+          AND ubr.is_active = true
+          AND b.is_active = true
+        ORDER BY b.name
+    """
+
     GET_USER_BY_IDENTITY = """
         with "p_identity" as (values(%(identity)s::text))
         -- with "p_identity" as (values('admin'::text)) -- Test line
@@ -343,6 +376,8 @@ class SqlAuth:
             u.full_name,
             u.is_active,
             u.is_admin,
+            u.last_used_branch_id,
+            u.last_used_bu_id,
             u.mobile,
             u.password_hash,
             u.username,
@@ -361,6 +396,7 @@ class SqlAuth:
             OR LOWER(u.email) = LOWER((table "p_identity"))
         )
         GROUP BY u.id, u.email, u.full_name, u.is_active, u.is_admin,
+                 u.last_used_branch_id, u.last_used_bu_id,
                  u.mobile, u.password_hash, u.username, r.name
     """
 

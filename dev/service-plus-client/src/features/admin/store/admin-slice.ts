@@ -35,6 +35,10 @@ const adminSlice = createSlice({
             const bu = state.businessUnits.find((b) => b.id === action.payload);
             if (bu) bu.schema_exists = true;
         },
+        markBuSeedExists: (state, action: PayloadAction<number>) => {
+            const bu = state.businessUnits.find((b) => b.id === action.payload);
+            if (bu) bu.seed_exists = true;
+        },
         setBusinessUnits: (state, action: PayloadAction<BusinessUnitType[]>) => {
             state.businessUnits = action.payload;
         },
@@ -50,7 +54,7 @@ const adminSlice = createSlice({
     },
 });
 
-export const { markBuSchemaExists, setBusinessUnits, setBusinessUsers, setRoles, setStats } = adminSlice.actions;
+export const { markBuSchemaExists, markBuSeedExists, setBusinessUnits, setBusinessUsers, setRoles, setStats } = adminSlice.actions;
 
 export const adminReducer = adminSlice.reducer;
 

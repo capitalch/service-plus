@@ -40,6 +40,7 @@ import { selectBusinessUnits, setBusinessUnits } from "@/features/admin/store/ad
 import { AdminLayout } from "@/features/admin/components/admin-layout";
 import { ActivateBusinessUnitDialog } from "@/features/admin/components/activate-business-unit-dialog";
 import { CreateBuSchemaDialog } from "@/features/admin/components/create-bu-schema-dialog";
+import { FeedBuSeedDataDialog } from "@/features/admin/components/feed-bu-seed-data-dialog";
 import { CreateBusinessUnitDialog } from "@/features/admin/components/create-business-unit-dialog";
 import { DeactivateBusinessUnitDialog } from "@/features/admin/components/deactivate-business-unit-dialog";
 import { DeleteBusinessUnitDialog } from "@/features/admin/components/delete-business-unit-dialog";
@@ -79,6 +80,7 @@ export const BusinessUnitsPage = () => {
     const [loading, setLoading]           = useState(false);
     const [orphanOpen, setOrphanOpen]     = useState(false);
     const [schemaBu, setSchemaBu]         = useState<BusinessUnitType | null>(null);
+    const [seedBu,   setSeedBu]           = useState<BusinessUnitType | null>(null);
 
     const loadBusinessUnits = useCallback(async () => {
         if (!dbName) return;
@@ -113,6 +115,7 @@ export const BusinessUnitsPage = () => {
     const handleActivate      = (bu: BusinessUnitType) => setActivateBu(bu);
     const handleCreate        = () => setCreateOpen(true);
     const handleCreateSchema  = (bu: BusinessUnitType) => setSchemaBu(bu);
+    const handleSeedData      = (bu: BusinessUnitType) => setSeedBu(bu);
     const handleDeactivate    = (bu: BusinessUnitType) => setDeactivateBu(bu);
     const handleDelete        = (bu: BusinessUnitType) => setDeleteBu(bu);
     const handleEdit          = (bu: BusinessUnitType) => setEditBu(bu);
@@ -287,6 +290,18 @@ export const BusinessUnitsPage = () => {
                                                                 <DropdownMenuSeparator />
                                                             </>
                                                         )}
+                                                        {bu.schema_exists && !bu.seed_exists && (
+                                                            <>
+                                                                <DropdownMenuItem
+                                                                    className="cursor-pointer text-indigo-600 focus:text-indigo-600"
+                                                                    onClick={() => handleSeedData(bu)}
+                                                                >
+                                                                    <DatabaseIcon className="mr-1.5 h-3.5 w-3.5" />
+                                                                    Add Seed Data
+                                                                </DropdownMenuItem>
+                                                                <DropdownMenuSeparator />
+                                                            </>
+                                                        )}
                                                         <DropdownMenuItem
                                                             className="cursor-pointer text-sky-600 focus:text-sky-600"
                                                             disabled={!bu.is_active}
@@ -346,6 +361,14 @@ export const BusinessUnitsPage = () => {
                     bu={schemaBu}
                     open={!!schemaBu}
                     onOpenChange={(open) => { if (!open) setSchemaBu(null); }}
+                    onSuccess={loadBusinessUnits}
+                />
+            )}
+            {seedBu && (
+                <FeedBuSeedDataDialog
+                    bu={seedBu}
+                    open={!!seedBu}
+                    onOpenChange={(open) => { if (!open) setSeedBu(null); }}
                     onSuccess={loadBusinessUnits}
                 />
             )}

@@ -85,6 +85,7 @@ export const MESSAGES = {
   ERROR_BU_DEACTIVATE_FAILED: 'Failed to deactivate business unit. Please try again.',
   ERROR_BU_DELETE_FAILED: 'Failed to delete business unit. Please try again.',
   ERROR_BU_LOAD_FAILED: 'Failed to load business units. Please try again.',
+  ERROR_BU_SEED_FEED_FAILED: 'Failed to seed business unit data. Please try again.',
   ERROR_BU_UPDATE_FAILED: 'Failed to update business unit. Please try again.',
   SUCCESS_BU_ACTIVATED: 'Business unit has been activated.',
   SUCCESS_BU_CREATED: 'Business unit created successfully.',
@@ -174,6 +175,11 @@ export const MESSAGES = {
   // Test Email
   ERROR_TEST_EMAIL_FAILED: 'Failed to send test email. Check SMTP configuration.',
   SUCCESS_TEST_EMAIL_SENT: 'Test email sent successfully to capitalch@gmail.com.',
+
+  // BU / Branch Switcher
+  ERROR_BU_SWITCH_FAILED:     'Failed to switch business unit. Please try again.',
+  ERROR_BRANCH_SWITCH_FAILED: 'Failed to switch branch. Please try again.',
+  ERROR_BRANCHES_LOAD_FAILED: 'Failed to load branches. Please try again.',
 
   // Network Errors
   ERROR_CLIENTS_LOAD: 'Failed to load clients data.',

@@ -6,6 +6,8 @@ import { NavLink, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { logout, selectCurrentUser, setSessionMode } from "@/features/auth/store/auth-slice";
+import { clearContext } from "@/store/context-slice";
+import { BuBranchSwitcher } from "@/features/admin/components/bu-branch-switcher";
 import { ROUTES } from "@/router/routes";
 
 type AdminLayoutPropsType = {
@@ -31,6 +33,7 @@ export const AdminLayout = ({ children }: AdminLayoutPropsType) => {
 
     function handleLogout() {
         dispatch(logout());
+        dispatch(clearContext());
         navigate(ROUTES.login);
     }
 
@@ -105,7 +108,10 @@ export const AdminLayout = ({ children }: AdminLayoutPropsType) => {
                         </div>
                         <span className="text-sm font-semibold text-slate-800">Admin Panel</span>
                     </div>
-                    <div className="ml-auto flex items-center gap-3">
+                    <div className="flex flex-1 items-center justify-center lg:justify-start">
+                        <BuBranchSwitcher />
+                    </div>
+                    <div className="flex items-center gap-3">
                         <span className="text-xs text-slate-400">
                             {user?.fullName ?? user?.username}
                         </span>

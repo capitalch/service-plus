@@ -59,21 +59,11 @@ Header (every page)
 
 ---
 
-## Step 1 — DB Migration
-
-New file: `service-plus-server/db/migrations/add_last_used_context.sql`
-
-```sql
-ALTER TABLE security."user"
-    ADD COLUMN IF NOT EXISTS last_used_bu_id     bigint NULL,
-    ADD COLUMN IF NOT EXISTS last_used_branch_id bigint NULL;
-```
-
-Run this against every tenant database (the server-side migration helper or manually).
+## ~~Step 1 — DB Migration~~ ✅ Done
 
 ---
 
-## Step 2 — `sql_auth.py`: SQL Additions
+## ~~Step 2 — `sql_auth.py`: SQL Additions~~ ✅ Done
 
 ### Modify `GET_USER_BY_IDENTITY`
 
@@ -83,8 +73,6 @@ Add `u.last_used_bu_id` and `u.last_used_branch_id` to the SELECT list, and to t
 
 ```python
 GET_BU_BRANCHES = """
-    with "dummy" as (values(1::int))
-    -- with "dummy" as (values(1::int)) -- Test line
     SELECT id, code, is_active, is_head_office, name
     FROM branch
     WHERE is_active = true
@@ -116,7 +104,7 @@ GET_USER_BUS = """
 
 ---
 
-## Step 3 — `auth_schema.py`: Expand LoginResponse
+## ~~Step 3 — `auth_schema.py`: Expand LoginResponse~~ ✅ Done
 
 Add to `LoginResponse`:
 
@@ -128,7 +116,7 @@ last_used_bu_id:     int | None  = Field(default=None, alias="lastUsedBuId")
 
 ---
 
-## Step 4 — `auth_router_helper.py`: Fetch User BUs on Login
+## ~~Step 4 — `auth_router_helper.py`: Fetch User BUs on Login~~ ✅ Done
 
 After the existing user fetch and before building `LoginResponse`, fetch available BUs:
 
@@ -153,7 +141,7 @@ return LoginResponse(
 
 ---
 
-## Step 5 — `auth-slice.ts`: Add Context Fields to UserInstanceType
+## ~~Step 5 — `auth-slice.ts`: Add Context Fields to UserInstanceType~~ ✅ Done
 
 ```typescript
 type UserInstanceType = {
@@ -191,7 +179,7 @@ Also update `LoginResponseType` in `auth-service.ts` to include the new fields.
 
 ---
 
-## Step 6 — `context-slice.ts`: New Redux Slice
+## ~~Step 6 — `context-slice.ts`: New Redux Slice~~ ✅ Done
 
 New file: `service-plus-client/src/store/context-slice.ts`
 
@@ -242,7 +230,7 @@ Selectors:
 
 ---
 
-## Step 7 — `store.ts`: Register contextReducer
+## ~~Step 7 — `store.ts`: Register contextReducer~~ ✅ Done
 
 ```typescript
 import { contextReducer } from "@/store/context-slice";
@@ -261,13 +249,13 @@ Update `RootState` type accordingly.
 
 ---
 
-## Step 8 — (verify) `hooks.ts`
+## ~~Step 8 — (verify) `hooks.ts`~~ ✅ No change needed
 
 No change needed if `useAppDispatch` and `useAppSelector` already use `RootState` from the store.
 
 ---
 
-## Step 9 — `sql-map.ts`: Add Keys
+## ~~Step 9 — `sql-map.ts`: Add Keys~~ ✅ Done
 
 ```typescript
 GET_BU_BRANCHES: "GET_BU_BRANCHES",
@@ -276,7 +264,7 @@ GET_USER_BUS:    "GET_USER_BUS",
 
 ---
 
-## Step 10 — `messages.ts`: Add Messages
+## ~~Step 10 — `messages.ts`: Add Messages~~ ✅ Done
 
 ```typescript
 // BU / Branch Switcher
@@ -287,7 +275,7 @@ ERROR_BRANCHES_LOAD_FAILED: 'Failed to load branches. Please try again.',
 
 ---
 
-## Step 11 — Login Handler: Initialize Context After Login
+## ~~Step 11 — Login Handler: Initialize Context After Login~~ ✅ Done
 
 In the login success handler (wherever `setCredentials` is dispatched), also:
 
@@ -310,7 +298,7 @@ Also dispatch `clearContext()` on logout.
 
 ---
 
-## Step 12 — `bu-branch-switcher.tsx`: New Component
+## ~~Step 12 — `bu-branch-switcher.tsx`: New Component~~ ✅ Done
 
 New file: `service-plus-client/src/features/admin/components/bu-branch-switcher.tsx`
 
@@ -334,7 +322,7 @@ type GenericBranchDataType = { genericQuery: BranchContextType[] | null };
 
 ---
 
-## Step 13 — `admin-layout.tsx`: Mount Switcher in Header
+## ~~Step 13 — `admin-layout.tsx`: Mount Switcher in Header~~ ✅ Done
 
 Add `BuBranchSwitcher` between the left/logo area and the right action buttons:
 

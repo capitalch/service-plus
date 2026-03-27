@@ -39,6 +39,7 @@ class AppMessages:
     BU_CODE_EXISTS          = "A business unit with this code already exists"
     BU_NAME_EXISTS          = "A business unit with this name already exists"
     BU_SCHEMA_CREATE_FAILED = "Failed to create business unit schema"
+    BU_SEED_FEED_FAILED     = "Failed to seed business unit data"
     BU_SCHEMA_DROP_FAILED   = "Failed to drop the business unit schema"
     BU_SCHEMA_NAME_MISMATCH = "Schema name does not match. Please type the exact name."
     CLIENT_CODE_EXISTS = "A client with this code already exists"
