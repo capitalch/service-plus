@@ -1,6 +1,7 @@
 import { NavLink } from "react-router-dom";
 import { Bell, Menu, Moon, PanelLeft, Search, Sun } from "lucide-react";
 
+import { BuBranchSwitcher } from "@/features/admin/components/bu-branch-switcher";
 import { useAppSelector } from "@/store/hooks";
 import { selectCurrentUser } from "@/features/auth/store/auth-slice";
 import { ROUTES } from "@/router/routes";
@@ -64,6 +65,11 @@ export const ClientTopNav = ({ activeSection }: Props) => {
                         </NavLink>
                     ))}
                 </nav>
+
+                <div className="hidden items-center lg:flex">
+                    <div className="mx-2 h-5 w-px bg-[var(--cl-border)]" />
+                    <BuBranchSwitcher variant="client" />
+                </div>
 
                 <button
                     onClick={toggleTheme}

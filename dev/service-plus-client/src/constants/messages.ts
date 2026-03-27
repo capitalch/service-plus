@@ -93,6 +93,22 @@ export const MESSAGES = {
   SUCCESS_BU_DELETED: 'Business unit has been deleted.',
   SUCCESS_BU_UPDATED: 'Business unit updated successfully.',
 
+  // Branch CRUD
+  ERROR_BRANCH_CODE_EXISTS:        'This code is already in use.',
+  ERROR_BRANCH_CODE_EXISTS_EDIT:   'This code is already used by another branch.',
+  ERROR_BRANCH_CREATE_FAILED:      'Failed to create branch. Please try again.',
+  ERROR_BRANCH_DELETE_FAILED:      'Failed to delete branch. Please try again.',
+  ERROR_BRANCH_DELETE_HEAD_OFFICE: 'Head Office branch cannot be deleted.',
+  ERROR_BRANCH_DELETE_IN_USE:      'This branch cannot be deleted as it is referenced by existing records.',
+  ERROR_BRANCH_LOAD_FAILED:        'Failed to load branches. Please try again.',
+  ERROR_BRANCH_NAME_EXISTS:        'This name is already in use.',
+  ERROR_BRANCH_NAME_EXISTS_EDIT:   'This name is already used by another branch.',
+  ERROR_BRANCH_UPDATE_FAILED:      'Failed to update branch. Please try again.',
+  ERROR_STATES_LOAD_FAILED:        'Failed to load states. Please try again.',
+  SUCCESS_BRANCH_CREATED:          'Branch created successfully.',
+  SUCCESS_BRANCH_DELETED:          'Branch deleted successfully.',
+  SUCCESS_BRANCH_UPDATED:          'Branch updated successfully.',
+
   // Roles
   ERROR_ROLES_LOAD_FAILED: 'Failed to load roles. Please try again.',
   ERROR_SEED_ROLES_FAILED: 'Failed to apply seed roles. Please try again.',

@@ -463,12 +463,7 @@ async def resolve_feed_bu_seed_data_helper(db_name: str, schema: str, value: str
     # Guard: schema must already exist
     rows = await exec_sql(
         db_name=db_name, schema="security",
-        sql="""
-            with "dummy" as (values(1::int))
-            SELECT EXISTS (
-                SELECT 1 FROM pg_catalog.pg_namespace WHERE nspname = %(code)s
-            ) AS exists
-        """,
+        sql=SqlAuth.CHECK_SCHEMA_EXISTS,
         sql_args={"code": code},
     )
     if not (rows and rows[0].get("exists")):
@@ -529,12 +524,7 @@ async def resolve_delete_bu_schema_helper(db_name: str, schema: str, value: str)
         logger.info(f"Deleting security.bu row for code='{code}'")
         await exec_sql(
             db_name=db_name, schema="security",
-            sql="""
-                with "p_code" as (values(%(code)s::text))
-                DELETE FROM security.bu
-                WHERE LOWER(code) = LOWER((table "p_code"))
-                RETURNING id
-            """,
+            sql=SqlAuth.DELETE_BU_BY_CODE,
             sql_args={"code": code},
         )
 

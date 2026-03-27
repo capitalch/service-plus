@@ -30,11 +30,33 @@ import type { BranchContextType, BuContextType } from "@/store/context-slice";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+type BuBranchSwitcherPropsType = { variant?: 'admin' | 'client' };
+
 type GenericBranchDataType = { genericQuery: BranchContextType[] | null };
+
+// ─── Style maps ───────────────────────────────────────────────────────────────
+
+const STYLES = {
+    admin: {
+        icon:      'text-teal-500',
+        label:     'text-slate-600',
+        labelSize: 'text-[10px]',
+        static:    'border border-slate-200 bg-slate-50 text-slate-600',
+        trigger:   'border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 focus:ring-0',
+    },
+    client: {
+        icon:      'text-[var(--cl-accent-text)]',
+        label:     'text-[var(--cl-accent-text)] font-semibold',
+        labelSize: 'text-xs',
+        static:    'border border-[var(--cl-border)] bg-[var(--cl-surface-2)] text-[var(--cl-text)] font-medium',
+        trigger:   'border-[var(--cl-border)] bg-[var(--cl-surface-2)] text-[var(--cl-text)] font-medium hover:bg-[var(--cl-hover)] focus:ring-1 focus:ring-[var(--cl-accent)]',
+    },
+} as const;
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export const BuBranchSwitcher = () => {
+export const BuBranchSwitcher = ({ variant = 'admin' }: BuBranchSwitcherPropsType) => {
+    const s = STYLES[variant];
     const dispatch        = useAppDispatch();
     const dbName          = useAppSelector(selectDbName);
     const user            = useAppSelector(selectCurrentUser);
@@ -177,57 +199,72 @@ export const BuBranchSwitcher = () => {
 
     // ── Render ────────────────────────────────────────────────────────────────
 
+    const isClient = variant === 'client';
+
     return (
-        <div className="flex items-center gap-2">
+        <div className={`flex items-center gap-2 ${isClient ? 'rounded-md border border-[var(--cl-accent)]/50 bg-[var(--cl-hover)] px-2.5 py-1' : ''}`}>
             {/* BU selector */}
-            {availableBus.length === 1 ? (
-                <span className="flex items-center gap-1.5 rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs text-slate-600">
-                    <BuildingIcon className="h-3 w-3 shrink-0 text-teal-600" />
-                    {currentBu?.name ?? availableBus[0].name}
+            <div className={`flex items-center gap-1.5 ${isClient ? '' : 'flex-col gap-0.5 items-start'}`}>
+                <span className={`flex shrink-0 items-center gap-1 font-medium ${s.labelSize} ${s.label}`}>
+                    <BuildingIcon className={`h-3 w-3 shrink-0 ${s.icon}`} />
+                    {isClient ? 'BU' : 'Business Unit'}
                 </span>
-            ) : (
-                <Select
-                    value={currentBu ? String(currentBu.id) : undefined}
-                    onValueChange={handleBuChange}
-                >
-                    <SelectTrigger className="h-7 gap-1.5 border-slate-200 bg-slate-50 pl-2 pr-2 text-xs text-slate-600 hover:bg-slate-100 focus:ring-0">
-                        <BuildingIcon className="h-3 w-3 shrink-0 text-teal-600" />
-                        <SelectValue placeholder="Business Unit" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {availableBus.map(bu => (
-                            <SelectItem key={bu.id} value={String(bu.id)} className="text-xs">
-                                {bu.name}
-                            </SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
-            )}
+                {availableBus.length === 1 ? (
+                    <span className={`flex h-7 items-center rounded-md border px-2.5 text-xs ${s.static}`}>
+                        {currentBu?.name ?? availableBus[0].name}
+                    </span>
+                ) : (
+                    <Select
+                        value={currentBu ? String(currentBu.id) : undefined}
+                        onValueChange={handleBuChange}
+                    >
+                        <SelectTrigger className={`h-7 gap-1 pl-2.5 pr-2 text-xs ${s.trigger}`}>
+                            <SelectValue placeholder="Select BU" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {availableBus.map(bu => (
+                                <SelectItem key={bu.id} value={String(bu.id)} className="text-xs">
+                                    {bu.name}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                )}
+            </div>
 
             {/* Branch selector */}
-            {availableBranches.length === 1 ? (
-                <span className="flex items-center gap-1.5 rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs text-slate-600">
-                    <GitBranchIcon className="h-3 w-3 shrink-0 text-teal-600" />
-                    {currentBranch?.name ?? availableBranches[0].name}
-                </span>
-            ) : availableBranches.length > 1 ? (
-                <Select
-                    value={currentBranch ? String(currentBranch.id) : undefined}
-                    onValueChange={handleBranchChange}
-                >
-                    <SelectTrigger className="h-7 gap-1.5 border-slate-200 bg-slate-50 pl-2 pr-2 text-xs text-slate-600 hover:bg-slate-100 focus:ring-0">
-                        <GitBranchIcon className="h-3 w-3 shrink-0 text-teal-600" />
-                        <SelectValue placeholder="Branch" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {availableBranches.map(branch => (
-                            <SelectItem key={branch.id} value={String(branch.id)} className="text-xs">
-                                {branch.name}
-                            </SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
-            ) : null}
+            {availableBranches.length >= 1 && (
+                <>
+                    {isClient && <div className="h-4 w-px shrink-0 bg-[var(--cl-border)]" />}
+                    <div className={`flex items-center gap-1.5 ${isClient ? '' : 'flex-col gap-0.5 items-start'}`}>
+                        <span className={`flex shrink-0 items-center gap-1 font-medium ${s.labelSize} ${s.label}`}>
+                            <GitBranchIcon className={`h-3 w-3 shrink-0 ${s.icon}`} />
+                            Branch
+                        </span>
+                        {availableBranches.length === 1 ? (
+                            <span className={`flex h-7 items-center rounded-md border px-2.5 text-xs ${s.static}`}>
+                                {currentBranch?.name ?? availableBranches[0].name}
+                            </span>
+                        ) : (
+                            <Select
+                                value={currentBranch ? String(currentBranch.id) : undefined}
+                                onValueChange={handleBranchChange}
+                            >
+                                <SelectTrigger className={`h-7 gap-1 pl-2.5 pr-2 text-xs ${s.trigger}`}>
+                                    <SelectValue placeholder="Select Branch" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {availableBranches.map(branch => (
+                                        <SelectItem key={branch.id} value={String(branch.id)} className="text-xs">
+                                            {branch.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        )}
+                    </div>
+                </>
+            )}
         </div>
     );
 };

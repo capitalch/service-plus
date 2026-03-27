@@ -55,13 +55,13 @@ function CollapsibleGroup({ children, defaultOpen = true, label }: CollapsibleGr
     return (
         <section>
             <button
-                className="mb-1 flex w-full items-center gap-1.5 rounded px-1 py-1 text-left transition-colors hover:bg-[var(--cl-hover)]"
+                className="mb-1 flex w-full items-center gap-1.5 rounded border-l-2 border-[var(--cl-accent)] px-2 py-1.5 text-left transition-colors hover:bg-[var(--cl-hover)]"
                 onClick={() => setOpen(o => !o)}
             >
                 {open
-                    ? <ChevronDown className="h-3 w-3 text-[var(--cl-text-muted)]" />
-                    : <ChevronRight className="h-3 w-3 text-[var(--cl-text-muted)]" />}
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--cl-accent-text)]">{label}</p>
+                    ? <ChevronDown className="h-3.5 w-3.5 shrink-0 text-[var(--cl-accent-text)]" />
+                    : <ChevronRight className="h-3.5 w-3.5 shrink-0 text-[var(--cl-accent-text)]" />}
+                <p className="text-xs font-bold uppercase tracking-wide text-[var(--cl-accent-text)]">{label}</p>
             </button>
             {open && (
                 <GroupContext.Provider value={label}>

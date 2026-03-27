@@ -79,6 +79,8 @@ export const selectAvailableBranches = (state: ContextRootState) => state.contex
 export const selectAvailableBus      = (state: ContextRootState) => state.context.availableBus;
 export const selectCurrentBranch     = (state: ContextRootState) => state.context.currentBranch;
 export const selectCurrentBu         = (state: ContextRootState) => state.context.currentBu;
+export const selectSchema            = (state: ContextRootState): string | null =>
+    state.context.currentBu?.code?.toLowerCase() ?? null;
 
 // ─── Reducer ──────────────────────────────────────────────────────────────────
 

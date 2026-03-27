@@ -47,6 +47,72 @@ class SqlAuth:
         ) AS exists
     """
 
+    CHECK_BRANCH_CODE_EXISTS = """
+        with "p_code" as (values(%(code)s::text))
+        -- with "p_code" as (values('HQ'::text)) -- Test line
+        SELECT EXISTS(
+            SELECT 1 FROM branch
+            WHERE LOWER(code) = LOWER((table "p_code"))
+        ) AS exists
+    """
+
+    CHECK_BRANCH_CODE_EXISTS_EXCLUDE_ID = """
+        with
+            "p_code" as (values(%(code)s::text)),
+            "p_id"   as (values(%(id)s::bigint))
+        -- with
+        --     "p_code" as (values('HQ'::text)),    -- Test line
+        --     "p_id"   as (values(1::bigint))       -- Test line
+        SELECT EXISTS(
+            SELECT 1 FROM branch
+            WHERE LOWER(code) = LOWER((table "p_code"))
+              AND id <> (table "p_id")
+        ) AS exists
+    """
+
+    CHECK_BRANCH_IN_USE = """
+        with "p_id" as (values(%(id)s::bigint))
+        -- with "p_id" as (values(1::bigint)) -- Test line
+        SELECT EXISTS (
+            SELECT 1 FROM technician        WHERE branch_id = (table "p_id")
+            UNION ALL
+            SELECT 1 FROM document_sequence WHERE branch_id = (table "p_id")
+            UNION ALL
+            SELECT 1 FROM job               WHERE branch_id = (table "p_id")
+            UNION ALL
+            SELECT 1 FROM purchase_invoice  WHERE branch_id = (table "p_id")
+            UNION ALL
+            SELECT 1 FROM sales_invoice     WHERE branch_id = (table "p_id")
+            UNION ALL
+            SELECT 1 FROM stock_adjustment  WHERE branch_id = (table "p_id")
+            UNION ALL
+            SELECT 1 FROM stock_transaction WHERE branch_id = (table "p_id")
+        ) AS in_use
+    """
+
+    CHECK_BRANCH_NAME_EXISTS = """
+        with "p_name" as (values(%(name)s::text))
+        -- with "p_name" as (values('Head Office'::text)) -- Test line
+        SELECT EXISTS(
+            SELECT 1 FROM branch
+            WHERE LOWER(name) = LOWER((table "p_name"))
+        ) AS exists
+    """
+
+    CHECK_BRANCH_NAME_EXISTS_EXCLUDE_ID = """
+        with
+            "p_name" as (values(%(name)s::text)),
+            "p_id"   as (values(%(id)s::bigint))
+        -- with
+        --     "p_name" as (values('Head Office'::text)), -- Test line
+        --     "p_id"   as (values(1::bigint))             -- Test line
+        SELECT EXISTS(
+            SELECT 1 FROM branch
+            WHERE LOWER(name) = LOWER((table "p_name"))
+              AND id <> (table "p_id")
+        ) AS exists
+    """
+
     CHECK_BU_CODE_EXISTS = """
         with "p_code" as (values(%(code)s::text))
         -- with "p_code" as (values('SALES'::text)) -- Test line
@@ -180,10 +246,66 @@ class SqlAuth:
         ) AS exists
     """
 
+    CHECK_FY_DATE_OVERLAP = """
+        with
+            "p_start" as (values(%(start_date)s::date)),
+            "p_end"   as (values(%(end_date)s::date))
+        -- with
+        --     "p_start" as (values('2024-04-01'::date)), -- Test line
+        --     "p_end"   as (values('2025-03-31'::date))  -- Test line
+        SELECT EXISTS (
+            SELECT 1 FROM financial_year
+            WHERE start_date < (table "p_end")
+              AND end_date   > (table "p_start")
+        ) AS overlaps
+    """
+
+    CHECK_FY_DATE_OVERLAP_EXCLUDE_ID = """
+        with
+            "p_start" as (values(%(start_date)s::date)),
+            "p_end"   as (values(%(end_date)s::date)),
+            "p_id"    as (values(%(id)s::int))
+        -- with
+        --     "p_start" as (values('2024-04-01'::date)), -- Test line
+        --     "p_end"   as (values('2025-03-31'::date)), -- Test line
+        --     "p_id"    as (values(2024::int))            -- Test line
+        SELECT EXISTS (
+            SELECT 1 FROM financial_year
+            WHERE start_date < (table "p_end")
+              AND end_date   > (table "p_start")
+              AND id        <> (table "p_id")
+        ) AS overlaps
+    """
+
+    CHECK_FY_ID_EXISTS = """
+        with "p_id" as (values(%(id)s::int))
+        -- with "p_id" as (values(2024::int)) -- Test line
+        SELECT EXISTS (
+            SELECT 1 FROM financial_year
+            WHERE id = (table "p_id")
+        ) AS exists
+    """
+
     CHECK_ROLE_SEED_EXISTS = """
         SELECT EXISTS(
             SELECT 1 FROM security.role LIMIT 1
         ) AS exists
+    """
+
+    CHECK_SCHEMA_EXISTS = """
+        with "p_code" as (values(%(code)s::text))
+        -- with "p_code" as (values('demo1'::text)) -- Test line
+        SELECT EXISTS (
+            SELECT 1 FROM pg_catalog.pg_namespace WHERE nspname = (table "p_code")
+        ) AS exists
+    """
+
+    DELETE_BU_BY_CODE = """
+        with "p_code" as (values(%(code)s::text))
+        -- with "p_code" as (values('demo1'::text)) -- Test line
+        DELETE FROM security.bu
+        WHERE LOWER(code) = LOWER((table "p_code"))
+        RETURNING id
     """
 
     DELETE_CLIENT = """
@@ -228,6 +350,19 @@ class SqlAuth:
         ORDER BY full_name
     """
 
+    GET_ALL_BRANCHES = """
+        with "dummy" as (values(1::int))
+        -- with "dummy" as (values(1::int)) -- Test line
+        SELECT b.id, b.address_line1, b.address_line2,
+               b.city, b.code, b.email,
+               b.gstin, b.is_active, b.is_head_office,
+               b.name, b.phone, b.pincode,
+               b.state_id, s.name AS state_name
+        FROM branch b
+        LEFT JOIN state s ON s.id = b.state_id
+        ORDER BY b.is_head_office DESC, b.name
+    """
+
     GET_ALL_BUS = """
         with "dummy" as (values(1::int))
         SELECT id, code, name, is_active, created_at, updated_at
@@ -253,6 +388,14 @@ class SqlAuth:
             ) AS seed_exists
         FROM security.bu b
         ORDER BY b.name
+    """
+
+    GET_ALL_FINANCIAL_YEARS = """
+        with "dummy" as (values(1::int))
+        -- with "dummy" as (values(1::int)) -- Test line
+        SELECT id, end_date, start_date
+        FROM financial_year
+        ORDER BY id DESC
     """
 
     GET_ALL_CLIENTS_ON_CRITERIA = """
@@ -281,6 +424,15 @@ class SqlAuth:
         with "dummy" as (values(1::int))
         SELECT id, code, description, is_system, name, created_at, updated_at
         FROM security.role
+        ORDER BY name
+    """
+
+    GET_ALL_STATES = """
+        with "dummy" as (values(1::int))
+        -- with "dummy" as (values(1::int)) -- Test line
+        SELECT id, code, name
+        FROM state
+        WHERE is_active = true
         ORDER BY name
     """
 
