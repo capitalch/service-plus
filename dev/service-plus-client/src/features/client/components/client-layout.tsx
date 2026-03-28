@@ -137,8 +137,8 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
                     />
                 )}
 
-                <main className={`absolute bottom-6 right-0 top-9.5 overflow-y-auto p-4 sm:p-6 transition-[left] duration-200 ${mainLeft}`}>
-                    <div className="mb-4 border-b border-[var(--cl-border)] pb-3 sm:mb-6">
+                <main className={`absolute bottom-6 right-0 top-9.5 flex flex-col p-4 pt-3 sm:p-6 sm:pt-4 transition-[left] duration-200 ${mainLeft}`}>
+                    <div className="mb-3 sm:mb-4">
                         <p className="text-xs font-semibold text-[var(--cl-accent-text)]">
                             {displayTitle}
                         </p>

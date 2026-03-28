@@ -119,7 +119,7 @@ export const EditBusinessUnitDialog = ({
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="w-full sm:max-w-[420px]">
                 <DialogHeader>
-                    <DialogTitle className="text-base font-semibold text-slate-800">
+                    <DialogTitle className="text-base font-semibold text-foreground">
                         Edit Business Unit
                     </DialogTitle>
                     <DialogDescription className="text-xs text-slate-500">

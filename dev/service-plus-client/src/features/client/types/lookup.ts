@@ -35,7 +35,9 @@ export type LookupConfig = {
     hasIsActive:                   boolean;
     hasPrefix:                     boolean;
     hasSystemFlag?:                boolean;  // false = table has no is_system column (e.g. brand)
+    readonly?:                     boolean;  // true = no add/edit/delete; display only
     // UI text
+    entityName:                    string;
     sectionTitle:                  string;
     sectionDescription:            string;
     // Messages

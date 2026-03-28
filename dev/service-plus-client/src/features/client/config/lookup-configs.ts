@@ -13,6 +13,7 @@ export const BRAND_CONFIG: LookupConfig = {
     hasIsActive:                   true,
     hasPrefix:                     false,
     hasSystemFlag:                 false,  // brand has no is_system column
+    entityName:                    "Brand",
     sectionTitle:                  "Brands",
     sectionDescription:            "Manage product brands.",
     messages: {
@@ -38,6 +39,7 @@ export const CUSTOMER_TYPE_CONFIG: LookupConfig = {
     hasDisplayOrder:               true,
     hasIsActive:                   true,
     hasPrefix:                     false,
+    entityName:                    "Customer Type",
     sectionTitle:                  "Customer Types",
     sectionDescription:            "Manage customer type classifications.",
     messages: {
@@ -63,6 +65,7 @@ export const DOCUMENT_TYPE_CONFIG: LookupConfig = {
     hasDisplayOrder:               false,
     hasIsActive:                   false,
     hasPrefix:                     true,
+    entityName:                    "Document Type",
     sectionTitle:                  "Document Types",
     sectionDescription:            "Manage document type definitions (e.g. Job card, Invoice).",
     messages: {
@@ -88,6 +91,7 @@ export const JOB_TYPE_CONFIG: LookupConfig = {
     hasDisplayOrder:               true,
     hasIsActive:                   true,
     hasPrefix:                     false,
+    entityName:                    "Job Type",
     sectionTitle:                  "Job Types",
     sectionDescription:            "Manage job type classifications.",
     messages: {
@@ -113,6 +117,7 @@ export const JOB_RECEIVE_MANNER_CONFIG: LookupConfig = {
     hasDisplayOrder:               true,
     hasIsActive:                   true,
     hasPrefix:                     false,
+    entityName:                    "Job Receive Manner",
     sectionTitle:                  "Job Receive Manners",
     sectionDescription:            "Manage how jobs are received (e.g. Walk-in, Courier).",
     messages: {
@@ -138,6 +143,7 @@ export const JOB_DELIVERY_MANNER_CONFIG: LookupConfig = {
     hasDisplayOrder:               true,
     hasIsActive:                   true,
     hasPrefix:                     false,
+    entityName:                    "Job Delivery Manner",
     sectionTitle:                  "Job Delivery Manners",
     sectionDescription:            "Manage how completed jobs are delivered back to customers.",
     messages: {
@@ -152,6 +158,33 @@ export const JOB_DELIVERY_MANNER_CONFIG: LookupConfig = {
     },
 };
 
+export const JOB_STATUS_CONFIG: LookupConfig = {
+    checkCodeExistsSqlId:          "",
+    checkCodeExistsExcludeIdSqlId: "",
+    checkInUseSqlId:               "",
+    getAllSqlId:                   SQL_MAP.GET_JOB_STATUSES,
+    tableName:                     "job_status",
+    codeLettersOnly:               true,
+    hasDescription:                true,
+    hasDisplayOrder:               true,
+    hasIsActive:                   true,
+    hasPrefix:                     false,
+    readonly:                      true,
+    entityName:                    "Job Status",
+    sectionTitle:                  "Job Statuses",
+    sectionDescription:            "View job status definitions. These are system-managed and cannot be modified.",
+    messages: {
+        createFailed: "",
+        created:      "",
+        deleteFailed: "",
+        deleted:      "",
+        deleteInUse:  "",
+        loadFailed:   "Failed to load job statuses. Please try again.",
+        updateFailed: "",
+        updated:      "",
+    },
+};
+
 export const JOB_RECEIVE_CONDITION_CONFIG: LookupConfig = {
     checkCodeExistsSqlId:          SQL_MAP.CHECK_JOB_RECEIVE_CONDITION_CODE_EXISTS,
     checkCodeExistsExcludeIdSqlId: SQL_MAP.CHECK_JOB_RECEIVE_CONDITION_CODE_EXISTS_EXCLUDE_ID,
@@ -163,6 +196,7 @@ export const JOB_RECEIVE_CONDITION_CONFIG: LookupConfig = {
     hasDisplayOrder:               true,
     hasIsActive:                   true,
     hasPrefix:                     false,
+    entityName:                    "Job Receive Condition",
     sectionTitle:                  "Job Receive Conditions",
     sectionDescription:            "Manage the condition in which jobs are received (e.g. Good, Damaged).",
     messages: {

@@ -19,6 +19,7 @@ import {
     JOB_DELIVERY_MANNER_CONFIG,
     JOB_RECEIVE_CONDITION_CONFIG,
     JOB_RECEIVE_MANNER_CONFIG,
+    JOB_STATUS_CONFIG,
     JOB_TYPE_CONFIG,
 } from "@/features/client/config/lookup-configs";
 
@@ -54,6 +55,7 @@ function MastersContent() {
     if (selected === "Job Delivery Manner")   return <LookupSection config={JOB_DELIVERY_MANNER_CONFIG} />;
     if (selected === "Job Receive Condition") return <LookupSection config={JOB_RECEIVE_CONDITION_CONFIG} />;
     if (selected === "Job Receive Manner")    return <LookupSection config={JOB_RECEIVE_MANNER_CONFIG} />;
+    if (selected === "Job Status")            return <LookupSection config={JOB_STATUS_CONFIG} />;
     if (selected === "Job Type")              return <LookupSection config={JOB_TYPE_CONFIG} />;
     if (selected === "Model")                 return <ModelSection />;
     if (selected === "Parts")                 return <PartsSection />;

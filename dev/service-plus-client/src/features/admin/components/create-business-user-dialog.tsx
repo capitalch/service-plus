@@ -397,7 +397,7 @@ export const CreateBusinessUserDialog = ({
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="w-full sm:max-w-[440px]">
                 <DialogHeader>
-                    <DialogTitle className="text-base font-semibold text-slate-800">
+                    <DialogTitle className="text-base font-semibold text-foreground">
                         Add Business User
                     </DialogTitle>
                     <DialogDescription className="text-xs text-slate-500">

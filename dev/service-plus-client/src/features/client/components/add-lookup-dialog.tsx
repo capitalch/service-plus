@@ -159,8 +159,8 @@ export const AddLookupDialog = ({
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-md">
                 <DialogHeader>
-                    <DialogTitle className="text-base font-semibold text-slate-800">
-                        Add Record
+                    <DialogTitle className="text-base font-semibold text-foreground">
+                        Add {config.entityName}
                     </DialogTitle>
                 </DialogHeader>
 
@@ -260,7 +260,7 @@ export const AddLookupDialog = ({
                             type="submit"
                         >
                             {submitting ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : null}
-                            Add
+                            Add {config.entityName}
                         </Button>
                     </DialogFooter>
                 </form>

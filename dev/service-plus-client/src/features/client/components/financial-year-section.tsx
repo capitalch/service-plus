@@ -1,10 +1,14 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import {
+    ArrowDownIcon,
+    ArrowUpDownIcon,
+    ArrowUpIcon,
     MoreHorizontalIcon,
     PencilIcon,
     PlusIcon,
     RefreshCwIcon,
+    SearchIcon,
     Trash2Icon,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -17,6 +21,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
 import {
     Table,
     TableBody,
@@ -61,6 +66,9 @@ const rowVariants = {
     }),
 };
 
+const thClass     = "text-xs font-semibold uppercase tracking-wide text-[var(--cl-text-muted)]";
+const thSortClass = `${thClass} cursor-pointer select-none hover:text-[var(--cl-text)]`;
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export const FinancialYearSection = () => {
@@ -72,6 +80,9 @@ export const FinancialYearSection = () => {
     const [editFy,     setEditFy]     = useState<FinancialYearType | null>(null);
     const [fys,        setFys]        = useState<FinancialYearType[]>([]);
     const [loading,    setLoading]    = useState(false);
+    const [search,     setSearch]     = useState("");
+    const [sortCol,    setSortCol]    = useState<string | null>(null);
+    const [sortDir,    setSortDir]    = useState<"asc" | "desc">("asc");
 
     const loadFys = useCallback(async () => {
         if (!dbName || !schema) return;
@@ -98,6 +109,41 @@ export const FinancialYearSection = () => {
         loadFys();
     }, [loadFys]);
 
+    function handleSort(col: string) {
+        if (sortCol === col) setSortDir(d => d === "asc" ? "desc" : "asc");
+        else { setSortCol(col); setSortDir("asc"); }
+    }
+
+    function SortIcon({ col }: { col: string }) {
+        if (sortCol !== col) return <ArrowUpDownIcon className="ml-1 inline h-3 w-3 opacity-40" />;
+        return sortDir === "asc"
+            ? <ArrowUpIcon   className="ml-1 inline h-3 w-3" />
+            : <ArrowDownIcon className="ml-1 inline h-3 w-3" />;
+    }
+
+    const displayFys = useMemo(() => {
+        let rows = fys;
+        if (search.trim()) {
+            const q = search.toLowerCase();
+            rows = rows.filter(r =>
+                String(r.id).includes(q) ||
+                r.start_date.toLowerCase().includes(q) ||
+                r.end_date.toLowerCase().includes(q)
+            );
+        }
+        if (sortCol) {
+            rows = [...rows].sort((a, b) => {
+                const av = (a as Record<string, unknown>)[sortCol];
+                const bv = (b as Record<string, unknown>)[sortCol];
+                if (av == null) return 1;
+                if (bv == null) return -1;
+                const cmp = typeof av === "number" ? av - (bv as number) : String(av).localeCompare(String(bv));
+                return sortDir === "asc" ? cmp : -cmp;
+            });
+        }
+        return rows;
+    }, [fys, search, sortCol, sortDir]);
+
     if (!schema) {
         return (
             <div className="flex items-center justify-center rounded-lg border border-[var(--cl-border)] bg-[var(--cl-surface-2)] p-20">
@@ -115,7 +161,7 @@ export const FinancialYearSection = () => {
         <>
             <motion.div
                 animate={{ opacity: 1 }}
-                className="flex flex-col gap-6"
+                className="flex min-h-0 flex-1 flex-col gap-4"
                 initial={{ opacity: 0 }}
                 transition={{ duration: 0.25 }}
             >
@@ -149,6 +195,25 @@ export const FinancialYearSection = () => {
                     </div>
                 </div>
 
+                {/* Search + count */}
+                <div className="flex items-center gap-3">
+                    <div className="relative flex-1">
+                        <SearchIcon className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--cl-text-muted)]" />
+                        <Input
+                            className="h-8 pl-8 text-sm"
+                            disabled={loading}
+                            placeholder="Search financial years…"
+                            value={search}
+                            onChange={e => setSearch(e.target.value)}
+                        />
+                    </div>
+                    {!loading && fys.length > 0 && (
+                        <p className="shrink-0 text-xs text-[var(--cl-text-muted)]">
+                            {displayFys.length} of {fys.length}
+                        </p>
+                    )}
+                </div>
+
                 {/* Table */}
                 {loading && fys.length === 0 ? (
                     <div className="flex flex-col gap-2">
@@ -161,67 +226,77 @@ export const FinancialYearSection = () => {
                         No financial years found. Click &quot;Add Financial Year&quot; to create one.
                     </div>
                 ) : (
-                    <div className="overflow-hidden rounded-xl border border-[var(--cl-border)] bg-[var(--cl-surface-2)] shadow-sm">
-                        <div className="overflow-x-auto">
+                    <div
+                        className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-[var(--cl-border)] bg-[var(--cl-surface-2)] shadow-sm"
+                    >
+                        <div className="overflow-x-auto overflow-y-auto">
                             <Table>
                                 <TableHeader>
-                                    <TableRow className="bg-[var(--cl-surface-3)] hover:bg-[var(--cl-surface-3)]">
-                                        <TableHead className="w-8 text-center text-xs font-semibold uppercase tracking-wide text-[var(--cl-text-muted)]">#</TableHead>
-                                        <TableHead className="text-xs font-semibold uppercase tracking-wide text-[var(--cl-text-muted)]">Year</TableHead>
-                                        <TableHead className="text-xs font-semibold uppercase tracking-wide text-[var(--cl-text-muted)]">Start Date</TableHead>
-                                        <TableHead className="text-xs font-semibold uppercase tracking-wide text-[var(--cl-text-muted)]">End Date</TableHead>
-                                        <TableHead className="text-xs font-semibold uppercase tracking-wide text-[var(--cl-text-muted)]">Actions</TableHead>
+                                    <TableRow className="sticky top-0 z-10 bg-[var(--cl-surface-3)] hover:bg-[var(--cl-surface-3)]">
+                                        <TableHead className={`w-8 text-center ${thClass}`}>#</TableHead>
+                                        <TableHead className={thSortClass} onClick={() => handleSort("id")}>Year<SortIcon col="id" /></TableHead>
+                                        <TableHead className={thSortClass} onClick={() => handleSort("start_date")}>Start Date<SortIcon col="start_date" /></TableHead>
+                                        <TableHead className={thSortClass} onClick={() => handleSort("end_date")}>End Date<SortIcon col="end_date" /></TableHead>
+                                        <TableHead className={thClass}>Actions</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {fys.map((fy, idx) => (
-                                        <motion.tr
-                                            animate="visible"
-                                            className="border-b border-[var(--cl-border)] transition-colors last:border-b-0 hover:bg-[var(--cl-surface-3)]"
-                                            custom={idx}
-                                            initial="hidden"
-                                            key={fy.id}
-                                            variants={rowVariants}
-                                        >
-                                            <TableCell className="text-center text-xs text-[var(--cl-text-muted)]">{idx + 1}</TableCell>
-                                            <TableCell>
-                                                <span className="font-mono text-xs font-semibold text-[var(--cl-text)]">{fy.id}</span>
-                                            </TableCell>
-                                            <TableCell className="text-sm text-[var(--cl-text-muted)]">{formatDate(fy.start_date)}</TableCell>
-                                            <TableCell className="text-sm text-[var(--cl-text-muted)]">{formatDate(fy.end_date)}</TableCell>
-                                            <TableCell>
-                                                <DropdownMenu>
-                                                    <DropdownMenuTrigger asChild>
-                                                        <Button
-                                                            className="h-7 w-7 cursor-pointer text-[var(--cl-text-muted)] hover:text-[var(--cl-text)]"
-                                                            size="icon"
-                                                            variant="ghost"
-                                                        >
-                                                            <MoreHorizontalIcon className="h-4 w-4" />
-                                                            <span className="sr-only">Actions</span>
-                                                        </Button>
-                                                    </DropdownMenuTrigger>
-                                                    <DropdownMenuContent align="end" className="w-44">
-                                                        <DropdownMenuItem
-                                                            className="cursor-pointer text-sky-600 focus:text-sky-600"
-                                                            onClick={() => setEditFy(fy)}
-                                                        >
-                                                            <PencilIcon className="mr-1.5 h-3.5 w-3.5" />
-                                                            Edit
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuSeparator />
-                                                        <DropdownMenuItem
-                                                            className="cursor-pointer text-red-600 focus:text-red-600"
-                                                            onClick={() => setDeleteFy(fy)}
-                                                        >
-                                                            <Trash2Icon className="mr-1.5 h-3.5 w-3.5" />
-                                                            Delete
-                                                        </DropdownMenuItem>
-                                                    </DropdownMenuContent>
-                                                </DropdownMenu>
-                                            </TableCell>
-                                        </motion.tr>
-                                    ))}
+                                    {displayFys.length === 0 ? (
+                                        <tr>
+                                            <td colSpan={99} className="px-6 py-10 text-center text-sm text-[var(--cl-text-muted)]">
+                                                No results match &ldquo;{search}&rdquo;.
+                                            </td>
+                                        </tr>
+                                    ) : (
+                                        displayFys.map((fy, idx) => (
+                                            <motion.tr
+                                                animate="visible"
+                                                className="border-b border-[var(--cl-border)] transition-colors last:border-b-0 hover:bg-[var(--cl-surface-3)]"
+                                                custom={idx}
+                                                initial="hidden"
+                                                key={fy.id}
+                                                variants={rowVariants}
+                                            >
+                                                <TableCell className="text-center text-xs text-[var(--cl-text-muted)]">{idx + 1}</TableCell>
+                                                <TableCell>
+                                                    <span className="font-mono text-xs font-semibold text-[var(--cl-text)]">{fy.id}</span>
+                                                </TableCell>
+                                                <TableCell className="text-sm text-[var(--cl-text-muted)]">{formatDate(fy.start_date)}</TableCell>
+                                                <TableCell className="text-sm text-[var(--cl-text-muted)]">{formatDate(fy.end_date)}</TableCell>
+                                                <TableCell>
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger asChild>
+                                                            <Button
+                                                                className="h-7 w-7 cursor-pointer text-[var(--cl-text-muted)] hover:text-[var(--cl-text)]"
+                                                                size="icon"
+                                                                variant="ghost"
+                                                            >
+                                                                <MoreHorizontalIcon className="h-4 w-4" />
+                                                                <span className="sr-only">Actions</span>
+                                                            </Button>
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent align="end" className="w-44">
+                                                            <DropdownMenuItem
+                                                                className="cursor-pointer text-sky-600 focus:text-sky-600"
+                                                                onClick={() => setEditFy(fy)}
+                                                            >
+                                                                <PencilIcon className="mr-1.5 h-3.5 w-3.5" />
+                                                                Edit
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuSeparator />
+                                                            <DropdownMenuItem
+                                                                className="cursor-pointer text-red-600 focus:text-red-600"
+                                                                onClick={() => setDeleteFy(fy)}
+                                                            >
+                                                                <Trash2Icon className="mr-1.5 h-3.5 w-3.5" />
+                                                                Delete
+                                                            </DropdownMenuItem>
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
+                                                </TableCell>
+                                            </motion.tr>
+                                        ))
+                                    )}
                                 </TableBody>
                             </Table>
                         </div>

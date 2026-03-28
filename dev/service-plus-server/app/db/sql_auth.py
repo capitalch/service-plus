@@ -759,6 +759,16 @@ class SqlAuth:
         ) AS in_use
     """
 
+    # ── Job Status ────────────────────────────────────────────────────────────
+
+    GET_JOB_STATUSES = """
+        with "dummy" as (values(1::int))
+        -- with "dummy" as (values(1::int)) -- Test line
+        SELECT id, code, name, description, display_order, is_active, is_system
+        FROM job_status
+        ORDER BY display_order NULLS LAST, name
+    """
+
     # ── Job Receive Manner ────────────────────────────────────────────────────
 
     GET_JOB_RECEIVE_MANNERS = """
@@ -1421,3 +1431,47 @@ class SqlAuth:
         CREATE INDEX user_bu_role_user_id_idx ON security.user_bu_role USING btree (user_id);
         """
 
+    # ── Company Info (Configurations) ─────────────────────────────────────────
+
+    GET_COMPANY_INFO = """
+        SELECT id, company_name, address_line1, address_line2,
+               city, state_id, country, pincode, phone, email, gstin, is_active
+        FROM company_info
+        ORDER BY id
+        LIMIT 1
+    """
+
+    CHECK_COMPANY_INFO_EXISTS = """
+        with "dummy" as (values(1::int))
+        SELECT EXISTS(SELECT 1 FROM company_info) AS exists
+    """
+
+    # ── Document Sequences (Configurations) ───────────────────────────────────
+
+    GET_DOCUMENT_SEQUENCES = """
+        with "p_branch_id" as (values(%(branch_id)s::bigint))
+        SELECT 
+            dt.id as document_type_id, dt.name as document_type_name, dt.code as document_type_code,
+            ds.id as id, ds.prefix, ds.next_number, ds.padding, ds.separator, ds.branch_id
+        FROM document_type dt
+        LEFT JOIN document_sequence ds ON ds.document_type_id = dt.id AND ds.branch_id = (table "p_branch_id")
+        ORDER BY dt.id
+    """
+
+    # ── Inventory (Stock Overview) ────────────────────────────────────────────
+
+    GET_STOCK_OVERVIEW = """
+        with "p_branch_id" as (values(%(branch_id)s::bigint))
+        SELECT 
+            sp.id AS part_id,
+            sp.part_code,
+            sp.part_name,
+            sp.category,
+            sp.uom,
+            sp.cost_price,
+            COALESCE(SUM(CASE WHEN st.dr_cr = 'D' THEN st.qty ELSE -st.qty END), 0) AS current_stock
+        FROM spare_part_master sp
+        LEFT JOIN stock_transaction st ON st.part_id = sp.id AND st.branch_id = (table "p_branch_id")
+        GROUP BY sp.id, sp.part_code, sp.part_name, sp.category, sp.uom, sp.cost_price
+        ORDER BY sp.part_name
+    """

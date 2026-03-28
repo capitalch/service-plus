@@ -188,7 +188,7 @@ export const EditTechnicianDialog = ({
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-lg">
                 <DialogHeader>
-                    <DialogTitle className="text-base font-semibold text-slate-800">
+                    <DialogTitle className="text-base font-semibold text-foreground">
                         Edit Technician
                     </DialogTitle>
                 </DialogHeader>

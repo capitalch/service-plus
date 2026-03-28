@@ -81,7 +81,7 @@ export const CreateBuSchemaDialog = ({
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="w-full sm:max-w-[400px]">
                 <DialogHeader>
-                    <DialogTitle className="text-base font-semibold text-slate-800">
+                    <DialogTitle className="text-base font-semibold text-foreground">
                         Create Schema & Seed Data
                     </DialogTitle>
                 </DialogHeader>

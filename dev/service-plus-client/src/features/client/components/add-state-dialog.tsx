@@ -207,7 +207,7 @@ export const AddStateDialog = ({
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-sm">
                 <DialogHeader>
-                    <DialogTitle className="text-base font-semibold text-slate-800">
+                    <DialogTitle className="text-base font-semibold text-foreground">
                         Add State / Province
                     </DialogTitle>
                 </DialogHeader>

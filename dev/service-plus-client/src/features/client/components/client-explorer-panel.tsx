@@ -55,7 +55,7 @@ function CollapsibleGroup({ children, defaultOpen = true, label }: CollapsibleGr
     return (
         <section>
             <button
-                className="mb-1 flex w-full items-center gap-1.5 rounded border-l-2 border-[var(--cl-accent)] px-2 py-1.5 text-left transition-colors hover:bg-[var(--cl-hover)]"
+                className="mb-1 flex w-full cursor-pointer items-center gap-1.5 rounded border-l-2 border-[var(--cl-accent)] px-2 py-1.5 text-left transition-colors hover:bg-[var(--cl-hover)]"
                 onClick={() => setOpen(o => !o)}
             >
                 {open
@@ -77,7 +77,6 @@ function ConfigurationsExplorer() {
         <div className="space-y-4">
             <div className="space-y-1">
                 <TreeItem icon={Building2}    label="Company Profile" />
-                <TreeItem icon={Settings2}    label="Branch Configuration" />
                 <TreeItem icon={Hash}         label="Numbering / Auto Series" />
             </div>
             <CollapsibleGroup label="Print Templates">

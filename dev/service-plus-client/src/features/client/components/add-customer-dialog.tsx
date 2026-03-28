@@ -156,7 +156,7 @@ export const AddCustomerDialog = ({
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="flex max-h-[90vh] flex-col sm:max-w-2xl">
                 <DialogHeader>
-                    <DialogTitle className="text-base font-semibold text-slate-800">
+                    <DialogTitle className="text-base font-semibold text-foreground">
                         Add Customer
                     </DialogTitle>
                 </DialogHeader>

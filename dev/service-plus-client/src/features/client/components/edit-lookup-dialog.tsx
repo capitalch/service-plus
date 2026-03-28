@@ -164,8 +164,8 @@ export const EditLookupDialog = ({
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-md">
                 <DialogHeader>
-                    <DialogTitle className="text-base font-semibold text-slate-800">
-                        Edit Record
+                    <DialogTitle className="text-base font-semibold text-foreground">
+                        Edit {config.entityName}
                     </DialogTitle>
                 </DialogHeader>
 

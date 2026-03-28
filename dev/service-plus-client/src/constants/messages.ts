@@ -270,6 +270,19 @@ export const MESSAGES = {
   ERROR_SERVER: 'Server error. Please try again later.',
   ERROR_TIMEOUT: 'Request timeout. Please try again.',
   ERROR_UNKNOWN: 'An unexpected error occurred. Please try again.',
+
+  // Company Profile (Configurations)
+  ERROR_COMPANY_PROFILE_LOAD_FAILED: 'Failed to load company profile. Please try again.',
+  ERROR_COMPANY_PROFILE_SAVE_FAILED: 'Failed to save company profile. Please try again.',
+  SUCCESS_COMPANY_PROFILE_SAVED:     'Company profile saved successfully.',
+
+  // Document Sequences (Configurations)
+  ERROR_DOCUMENT_SEQUENCE_LOAD_FAILED: 'Failed to load document sequences. Please try again.',
+  ERROR_DOCUMENT_SEQUENCE_SAVE_FAILED: 'Failed to save document sequences. Please try again.',
+  SUCCESS_DOCUMENT_SEQUENCE_SAVED:     'Document sequences saved successfully.',
+
+  // Inventory
+  ERROR_STOCK_OVERVIEW_LOAD_FAILED:    'Failed to load stock overview. Please try again.',
 } as const;
 
 // Type for message keys
