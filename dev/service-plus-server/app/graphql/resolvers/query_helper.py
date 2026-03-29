@@ -9,7 +9,8 @@ from urllib.parse import unquote
 from app.config import settings
 from app.core.audit_log import audit_logger
 from app.db.psycopg_driver import exec_sql
-from app.db.sql_auth import SqlAuth
+from app.db.sql_app import SqlApp
+from app.db.sql_store import SqlStore
 from app.exceptions import AppMessages, ValidationException
 from app.logger import logger
 
@@ -23,7 +24,7 @@ async def resolve_admin_dashboard_stats_helper(db_name: str) -> dict:
     today    = date.today()
     week_ago = today - timedelta(days=6)
 
-    bu_rows = await exec_sql(db_name=db_name, schema="security", sql=SqlAuth.GET_BU_USER_STATS)
+    bu_rows = await exec_sql(db_name=db_name, schema="security", sql=SqlStore.GET_BU_USER_STATS)
     row = bu_rows[0] if bu_rows else {}
 
     audit_stats = await audit_logger.stats(week_ago, today)
@@ -240,9 +241,9 @@ async def resolve_usage_health_helper() -> dict:
 
     async def _get_platform_stats() -> dict:
         try:
-            client_stats_rows = await exec_sql(db_name=None, schema="public", sql=SqlAuth.GET_CLIENT_STATS)
+            client_stats_rows = await exec_sql(db_name=None, schema="public", sql=SqlStore.GET_CLIENT_STATS)
             client_stats = client_stats_rows[0] if client_stats_rows else {}
-            client_rows  = await exec_sql(db_name=None, schema="public", sql=SqlAuth.GET_CLIENT_DB_NAMES)
+            client_rows  = await exec_sql(db_name=None, schema="public", sql=SqlStore.GET_CLIENT_DB_NAMES)
             total_dbs    = sum(1 for r in client_rows if r.get("db_name"))
             total_admins = 0
             for client_row in client_rows:
@@ -252,12 +253,12 @@ async def resolve_usage_health_helper() -> dict:
                 try:
                     exists_rows = await exec_sql(
                         db_name=None, schema="public",
-                        sql=SqlAuth.CHECK_DB_NAME_EXISTS,
+                        sql=SqlStore.CHECK_DB_NAME_EXISTS,
                         sql_args={"db_name": db_name_val},
                     )
                     if not (exists_rows and exists_rows[0].get("exists")):
                         continue
-                    bu_rows = await exec_sql(db_name=db_name_val, schema="security", sql=SqlAuth.GET_BU_USER_STATS)
+                    bu_rows = await exec_sql(db_name=db_name_val, schema="security", sql=SqlStore.GET_BU_USER_STATS)
                     if bu_rows:
                         total_admins += int(bu_rows[0].get("total_admin_users", 0))
                 except Exception:
@@ -345,7 +346,7 @@ async def resolve_generic_query_helper(db_name: str, schema: str = "public", val
     sql_id:   str  = params.get("sqlId", "")
     sql_args: dict = params.get("sqlArgs", {}) or {}
 
-    sql = getattr(SqlAuth, sql_id, None)
+    sql = getattr(SqlStore, sql_id, None) or getattr(SqlApp, sql_id, None)
     if not sql:
         logger.error(f"Unknown sqlId in genericQuery: {sql_id!r}")
         raise ValidationException(
@@ -363,10 +364,10 @@ async def resolve_generic_query_helper(db_name: str, schema: str = "public", val
 async def resolve_super_admin_clients_data_helper():
     logger.info("Super admin clients data requested")
 
-    client_stats_rows = await exec_sql(db_name=None, schema="public", sql=SqlAuth.GET_CLIENT_STATS)
+    client_stats_rows = await exec_sql(db_name=None, schema="public", sql=SqlStore.GET_CLIENT_STATS)
     client_stats = client_stats_rows[0] if client_stats_rows else {}
 
-    client_rows = await exec_sql(db_name=None, schema="public", sql=SqlAuth.GET_CLIENT_DB_NAMES)
+    client_rows = await exec_sql(db_name=None, schema="public", sql=SqlStore.GET_CLIENT_DB_NAMES)
 
     clients_data = []
     total_active_admins   = 0
@@ -382,10 +383,10 @@ async def resolve_super_admin_clients_data_helper():
 
         db_name_valid = False
         if db_name_val:
-            exists_rows = await exec_sql(db_name=None, schema="public", sql=SqlAuth.CHECK_DB_NAME_EXISTS, sql_args={"db_name": db_name_val})
+            exists_rows = await exec_sql(db_name=None, schema="public", sql=SqlStore.CHECK_DB_NAME_EXISTS, sql_args={"db_name": db_name_val})
             if exists_rows and exists_rows[0].get("exists"):
                 db_name_valid = True
-                bu_rows = await exec_sql(db_name=db_name_val, schema="security", sql=SqlAuth.GET_BU_USER_STATS)
+                bu_rows = await exec_sql(db_name=db_name_val, schema="security", sql=SqlStore.GET_BU_USER_STATS)
                 if bu_rows:
                     r = bu_rows[0]
                     active_admin   = r.get("active_admin_users", 0)
@@ -393,7 +394,7 @@ async def resolve_super_admin_clients_data_helper():
                     inactive_admin = r.get("inactive_admin_users", 0)
                     inactive_bu    = r.get("inactive_bu", 0)
 
-                admin_rows = await exec_sql(db_name=db_name_val, schema="security", sql=SqlAuth.GET_ADMIN_USERS)
+                admin_rows = await exec_sql(db_name=db_name_val, schema="security", sql=SqlStore.GET_ADMIN_USERS)
                 for a in admin_rows:
                     admins.append({
                         "created_at": a["created_at"].isoformat() if a.get("created_at") else None,
@@ -437,7 +438,7 @@ async def resolve_super_admin_clients_data_helper():
             "updated_at":         client_row["updated_at"].isoformat() if client_row.get("updated_at") else None,
         })
 
-    orphan_rows = await exec_sql(db_name=None, schema="public", sql=SqlAuth.GET_ORPHAN_DATABASES)
+    orphan_rows = await exec_sql(db_name=None, schema="public", sql=SqlStore.GET_ORPHAN_DATABASES)
     orphan_databases = [row["datname"] for row in orphan_rows]
 
     logger.info("Super admin clients data completed successfully")
@@ -457,10 +458,10 @@ async def resolve_super_admin_clients_data_helper():
 async def resolve_super_admin_dashboard_stats_helper():
     logger.info("Super admin dashboard stats requested")
 
-    client_stats_rows = await exec_sql(db_name=None, schema="public", sql=SqlAuth.GET_CLIENT_STATS)
+    client_stats_rows = await exec_sql(db_name=None, schema="public", sql=SqlStore.GET_CLIENT_STATS)
     client_stats = client_stats_rows[0] if client_stats_rows else {}
 
-    client_rows = await exec_sql(db_name=None, schema="public", sql=SqlAuth.GET_CLIENT_DB_NAMES)
+    client_rows = await exec_sql(db_name=None, schema="public", sql=SqlStore.GET_CLIENT_DB_NAMES)
 
     active_admin_users = active_bu = active_users = inactive_admin_users = inactive_bu = inactive_users = total_admin_users = total_bu = total_users = 0
 
@@ -468,12 +469,12 @@ async def resolve_super_admin_dashboard_stats_helper():
         db_name_val = client_row.get("db_name")
 
         if db_name_val:
-            exists_rows = await exec_sql(db_name=None, schema="public", sql=SqlAuth.CHECK_DB_NAME_EXISTS, sql_args={"db_name": db_name_val})
+            exists_rows = await exec_sql(db_name=None, schema="public", sql=SqlStore.CHECK_DB_NAME_EXISTS, sql_args={"db_name": db_name_val})
             if not (exists_rows and exists_rows[0].get("exists")):
                 logger.warning(f"Database '{db_name_val}' not found – skipping")
                 continue
 
-            bu_rows = await exec_sql(db_name=db_name_val, schema="security", sql=SqlAuth.GET_BU_USER_STATS)
+            bu_rows = await exec_sql(db_name=db_name_val, schema="security", sql=SqlStore.GET_BU_USER_STATS)
             if bu_rows:
                 r = bu_rows[0]
                 active_admin_users   += r.get("active_admin_users", 0)

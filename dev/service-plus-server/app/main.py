@@ -16,6 +16,7 @@ from app.routers.auth_router import router as auth_router
 from app.routers.base_router import router as base_router
 
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan event handler."""
@@ -54,8 +55,9 @@ app.add_middleware(
 )
 
 # Include routers
-app.include_router(base_router)
 app.include_router(auth_router)
+app.include_router(base_router)
+
 
 # Mount GraphQL application
 graphql_app = create_graphql_app()

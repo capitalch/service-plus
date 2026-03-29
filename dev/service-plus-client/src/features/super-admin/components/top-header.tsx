@@ -88,7 +88,7 @@ export const TopHeader = ({ onMenuToggle }: TopHeaderPropsType) => {
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
-                            className="text-red-600 focus:text-red-600"
+                            className="text-red-600 focus:text-red-600 cursor-pointer"
                             onClick={handleLogout}
                         >
                             <LogOutIcon className="mr-2 h-4 w-4" />

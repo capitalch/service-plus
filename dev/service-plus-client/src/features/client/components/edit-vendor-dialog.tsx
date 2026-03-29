@@ -61,7 +61,7 @@ const editVendorSchema = z.object({
     address_line1: z.string().optional(),
     address_line2: z.string().optional(),
     city:          z.string().optional(),
-    state_id:      z.coerce.number({ required_error: "State is required" }).positive("State is required"),
+    state_id:      z.coerce.number().positive("State is required"),
     pincode:       z.string().optional(),
     remarks:       z.string().optional(),
 });
@@ -187,7 +187,7 @@ export const EditVendorDialog = ({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-xl">
+            <DialogContent aria-describedby={undefined} className="sm:max-w-xl">
                 <DialogHeader>
                     <DialogTitle className="text-base font-semibold text-foreground">
                         Edit Vendor

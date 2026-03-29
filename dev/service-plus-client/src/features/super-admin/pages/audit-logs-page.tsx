@@ -133,7 +133,7 @@ const EntryDetailDialog = ({
     onClose: () => void;
 }) => (
     <Dialog open={!!entry} onOpenChange={(o) => { if (!o) onClose(); }}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent aria-describedby={undefined} className="sm:max-w-lg">
             <DialogHeader>
                 <DialogTitle>Audit Entry Detail</DialogTitle>
             </DialogHeader>

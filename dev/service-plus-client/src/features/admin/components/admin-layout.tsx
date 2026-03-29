@@ -85,15 +85,6 @@ export const AdminLayout = ({ children }: AdminLayoutPropsType) => {
                         <BriefcaseIcon className="h-3.5 w-3.5" />
                         Switch to Client Mode
                     </Button>
-                    <Button
-                        className="w-full justify-start gap-2 text-slate-500 hover:bg-slate-100 hover:text-slate-700"
-                        onClick={handleLogout}
-                        size="sm"
-                        variant="ghost"
-                    >
-                        <LogOutIcon className="h-3.5 w-3.5" />
-                        Sign Out
-                    </Button>
                 </div>
             </aside>
 
@@ -121,14 +112,13 @@ export const AdminLayout = ({ children }: AdminLayoutPropsType) => {
                             <BriefcaseIcon className="h-3 w-3" />
                             Client Mode
                         </Button>
-                        <Button
-                            className="h-7 px-2.5 text-xs text-slate-500 hover:bg-slate-100 lg:hidden"
+                        <button
+                            className="rounded p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-red-500 cursor-pointer"
+                            title="Logout"
                             onClick={handleLogout}
-                            size="sm"
-                            variant="ghost"
                         >
-                            <LogOutIcon className="h-3 w-3" />
-                        </Button>
+                            <LogOutIcon className="h-4 w-4" />
+                        </button>
                     </div>
                 </header>
 

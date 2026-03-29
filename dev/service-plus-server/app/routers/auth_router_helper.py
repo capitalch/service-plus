@@ -4,7 +4,7 @@ from app.config import settings
 from app.core.audit_log import AuditAction, audit_logger
 from app.core.security import create_access_token, decode_token, hash_password, verify_password
 from app.db.psycopg_driver import exec_sql
-from app.db.sql_auth import SqlAuth
+from app.db.sql_store import SqlStore
 from app.exceptions import AppMessages, AuthorizationException
 from app.logger import logger
 from app.schemas.auth_schema import (
@@ -21,7 +21,7 @@ async def get_clients_helper(criteria: str = "") -> list[ClientResponse]:
     """Retrieve clients from the database, optionally filtered by name prefix."""
     rows = await exec_sql(
         db_name=None,
-        sql=SqlAuth.GET_ALL_CLIENTS_ON_CRITERIA,
+        sql=SqlStore.GET_ALL_CLIENTS_ON_CRITERIA,
         sql_args={"criteria": criteria},
     )
     return [ClientResponse(**row) for row in rows]
@@ -68,7 +68,7 @@ async def login_helper(body: LoginRequest) -> LoginResponse:
     # [2] Resolve tenant
     client_rows = await exec_sql(
         db_name=None,
-        sql=SqlAuth.GET_CLIENT_DB_NAME,
+        sql=SqlStore.GET_CLIENT_DB_NAME,
         sql_args={"client_id": body.client_id},
     )
     if not client_rows:
@@ -95,7 +95,7 @@ async def login_helper(body: LoginRequest) -> LoginResponse:
     user_rows = await exec_sql(
         db_name=db_name,
         schema="security",
-        sql=SqlAuth.GET_USER_BY_IDENTITY,
+        sql=SqlStore.GET_USER_BY_IDENTITY,
         sql_args={"identity": body.identity},
     )
     if not user_rows:
@@ -156,7 +156,7 @@ async def login_helper(body: LoginRequest) -> LoginResponse:
         user_bus_rows = await exec_sql(
             db_name=db_name,
             schema="security",
-            sql=SqlAuth.GET_USER_BUS,
+            sql=SqlStore.GET_USER_BUS,
             sql_args={"user_id": user["id"]},
         )
         available_bus = [dict(row) for row in (user_bus_rows or [])]
@@ -201,7 +201,7 @@ async def set_password_helper(body: SetPasswordRequest) -> SetPasswordResponse:
     # [3] Confirm user still active
     rows = await exec_sql(
         db_name=db_name, schema="security",
-        sql=SqlAuth.GET_USER_BY_ID_FOR_RESET,
+        sql=SqlStore.GET_USER_BY_ID_FOR_RESET,
         sql_args={"id": user_id},
     )
     if not rows or not rows[0].get("is_active"):
@@ -211,7 +211,7 @@ async def set_password_helper(body: SetPasswordRequest) -> SetPasswordResponse:
     password_hash = hash_password(body.new_password)
     await exec_sql(
         db_name=db_name, schema="security",
-        sql=SqlAuth.SET_USER_PASSWORD,
+        sql=SqlStore.SET_USER_PASSWORD,
         sql_args={"id": user_id, "password_hash": password_hash},
     )
     logger.info(f"Password reset for user_id={user_id} in {db_name}")
@@ -246,7 +246,7 @@ async def validate_reset_token_helper(token: str) -> ValidateResetTokenResponse:
     # [2] Fetch user and confirm active
     rows = await exec_sql(
         db_name=db_name, schema="security",
-        sql=SqlAuth.GET_USER_BY_ID_FOR_RESET,
+        sql=SqlStore.GET_USER_BY_ID_FOR_RESET,
         sql_args={"id": user_id},
     )
     if not rows or not rows[0].get("is_active"):

@@ -212,3 +212,4 @@ Insert **after** the "Create Schema & Seed Data" block, **before** Edit:
 | Schema exists but tables missing (DDL failed) | Backend errors → dialog retry; user should use "Create Schema & Seed Data" (repair path) instead |
 | `reltuples = 0` after fresh seed before ANALYZE | `markBuSeedExists` flips local state immediately; next reload reflects DB truth |
 | Admin BU selector picks a schema-less BU | `schema_exists` guard in `bu-branch-switcher.tsx` (already handled) |
+

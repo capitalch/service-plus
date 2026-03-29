@@ -69,7 +69,7 @@ const editBranchSchema = z.object({
     name:           z.string().min(2, "Name must be at least 2 characters"),
     phone:          z.string().optional(),
     pincode:        z.string().min(4, "Pincode is required"),
-    state_id:       z.coerce.number({ required_error: "State is required" }).positive("State is required"),
+    state_id:       z.coerce.number().positive("State is required"),
 });
 
 // ─── Field error ──────────────────────────────────────────────────────────────
@@ -206,7 +206,7 @@ export const EditBranchDialog = ({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-lg">
+            <DialogContent aria-describedby={undefined} className="sm:max-w-lg">
                 <DialogHeader>
                     <DialogTitle className="text-base font-semibold text-foreground">
                         Edit Branch

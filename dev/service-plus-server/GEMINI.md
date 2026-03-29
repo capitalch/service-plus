@@ -3,3 +3,4 @@
 - In planA.md write all the steps of execution as Step1, Step 2 and so on.
 - In planA.md include a workflow section which provides the workflow of entire work.
 - Make use of genericQuery and genericUpdate as far as possible for insert, update, delete and get operations.
+- All sql scripts should be in sql_store.py

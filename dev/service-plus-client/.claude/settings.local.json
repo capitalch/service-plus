@@ -13,7 +13,8 @@
       "Bash(npx eslint:*)",
       "Bash(ls not:*)",
       "Bash(echo \"Exit code: $?\")",
-      "Bash(npx vite:*)"
+      "Bash(npx vite:*)",
+      "Bash(pnpm run:*)"
     ]
   }
 }

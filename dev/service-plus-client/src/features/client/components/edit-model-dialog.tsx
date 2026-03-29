@@ -48,8 +48,8 @@ type CheckQueryDataType = {
 };
 
 const schema = z.object({
-    product_id:  z.coerce.number({ required_error: "Product is required" }).positive("Product is required"),
-    brand_id:    z.coerce.number({ required_error: "Brand is required"   }).positive("Brand is required"),
+    product_id:  z.coerce.number().positive("Product is required"),
+    brand_id:    z.coerce.number().positive("Brand is required"),
     model_name:  z.string().min(1, "Model name is required").max(100),
     launch_year: z.coerce.number().int().min(1900).max(2100).optional().or(z.literal("")).transform(v => v === "" ? undefined : Number(v)),
     remarks:     z.string().optional(),
@@ -173,7 +173,7 @@ export const EditModelDialog = ({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-lg">
+            <DialogContent aria-describedby={undefined} className="sm:max-w-lg">
                 <DialogHeader>
                     <DialogTitle className="text-base font-semibold text-foreground">
                         Edit Model

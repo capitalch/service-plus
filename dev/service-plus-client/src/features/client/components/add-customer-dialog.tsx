@@ -46,7 +46,7 @@ type AddCustomerFormType = z.infer<typeof addCustomerSchema>;
 // ─── Schema ───────────────────────────────────────────────────────────────────
 
 const addCustomerSchema = z.object({
-    customer_type_id: z.coerce.number({ required_error: "Customer type is required" }).positive("Customer type is required"),
+    customer_type_id: z.coerce.number().positive("Customer type is required"),
     full_name:        z.string().optional(),
     mobile:           z.string().min(1, "Mobile is required"),
     alternate_mobile: z.string().optional(),
@@ -55,7 +55,7 @@ const addCustomerSchema = z.object({
     address_line1:    z.string().min(1, "Address line 1 is required"),
     address_line2:    z.string().optional(),
     landmark:         z.string().optional(),
-    state_id:         z.coerce.number({ required_error: "State is required" }).positive("State is required"),
+    state_id:         z.coerce.number().positive("State is required"),
     city:             z.string().optional(),
     postal_code:      z.string().optional(),
     remarks:          z.string().optional(),
@@ -154,7 +154,7 @@ export const AddCustomerDialog = ({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="flex max-h-[90vh] flex-col sm:max-w-2xl">
+            <DialogContent aria-describedby={undefined} className="flex max-h-[90vh] flex-col sm:max-w-2xl">
                 <DialogHeader>
                     <DialogTitle className="text-base font-semibold text-foreground">
                         Add Customer

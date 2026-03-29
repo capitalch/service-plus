@@ -8,6 +8,7 @@ from typing import Any, AsyncGenerator
 from psycopg import sql as pgsql
 from psycopg.rows import dict_row
 from psycopg.types.datetime import DateLoader, TimestampLoader, TimestamptzLoader
+from psycopg.types.numeric import FloatLoader
 from app.config import settings
 from app.exceptions import AppMessages, DatabaseException
 from app.logger import logger
@@ -32,6 +33,10 @@ class _IsoTimestamptzLoader(TimestamptzLoader):
 
     def load(self, data: bytes) -> str:
         return super().load(data).isoformat()
+
+
+class _FloatNumericLoader(FloatLoader):
+    """Returns numeric/decimal values as float instead of Decimal (JSON-serializable)."""
 
 
 @asynccontextmanager
@@ -127,6 +132,7 @@ async def exec_sql(
 
     async with connection as conn:
         async with conn.cursor(row_factory=dict_row) as cur:
+            cur.adapters.register_loader("numeric", _FloatNumericLoader)
             if text_dates:
                 cur.adapters.register_loader("date", _IsoDateLoader)
                 cur.adapters.register_loader("timestamp", _IsoTimestampLoader)

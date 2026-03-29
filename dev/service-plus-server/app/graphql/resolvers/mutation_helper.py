@@ -11,7 +11,7 @@ from app.core.email import send_email
 from app.core.security import create_reset_token, hash_password
 from app.config import settings
 from app.db.psycopg_driver import exec_sql, exec_sql_dml, exec_sql_object, get_service_db_connection
-from app.db.sql_auth import SqlAuth
+from app.db.sql_store import SqlStore
 from app.db.sql_bu import SqlBu
 from app.exceptions import AppMessages, ValidationException
 from app.logger import logger
@@ -155,7 +155,7 @@ async def resolve_create_bu_schema_and_feed_seed_data_helper(
         # 4a. Check code uniqueness
         rows = await exec_sql(
             db_name=db_name, schema="security",
-            sql=SqlAuth.CHECK_BU_CODE_EXISTS,
+            sql=SqlStore.CHECK_BU_CODE_EXISTS,
             sql_args={"code": code},
         )
         if rows and rows[0].get("exists"):
@@ -167,7 +167,7 @@ async def resolve_create_bu_schema_and_feed_seed_data_helper(
         # 4b. Check name uniqueness
         rows = await exec_sql(
             db_name=db_name, schema="security",
-            sql=SqlAuth.CHECK_BU_NAME_EXISTS,
+            sql=SqlStore.CHECK_BU_NAME_EXISTS,
             sql_args={"name": name},
         )
         if rows and rows[0].get("exists"):
@@ -180,7 +180,7 @@ async def resolve_create_bu_schema_and_feed_seed_data_helper(
         logger.info(f"Creating BU '{code}' / '{name}' in db '{db_name}'")
         rows = await exec_sql(
             db_name=db_name, schema="security",
-            sql=SqlAuth.INSERT_BU,
+            sql=SqlStore.INSERT_BU,
             sql_args={"code": code, "name": name},
         )
         bu_id = rows[0]["id"] if rows else None
@@ -242,7 +242,7 @@ async def resolve_create_business_user_helper(db_name: str, schema: str, value: 
     # Check username uniqueness
     uname_rows = await exec_sql(
         db_name=db_name, schema=schema_name,
-        sql=SqlAuth.CHECK_BUSINESS_USER_USERNAME_EXISTS,
+        sql=SqlStore.CHECK_BUSINESS_USER_USERNAME_EXISTS,
         sql_args={"username": username},
     )
     if uname_rows and uname_rows[0].get("exists"):
@@ -254,7 +254,7 @@ async def resolve_create_business_user_helper(db_name: str, schema: str, value: 
     # Check email uniqueness
     email_rows = await exec_sql(
         db_name=db_name, schema=schema_name,
-        sql=SqlAuth.CHECK_BUSINESS_USER_EMAIL_EXISTS,
+        sql=SqlStore.CHECK_BUSINESS_USER_EMAIL_EXISTS,
         sql_args={"email": email},
     )
     if email_rows and email_rows[0].get("exists"):
@@ -394,7 +394,7 @@ async def resolve_create_service_db_helper(db_name: str, schema: str, value: str
     rows = await exec_sql(
         db_name=None,
         schema="public",
-        sql=SqlAuth.CHECK_DB_NAME_EXISTS,
+        sql=SqlStore.CHECK_DB_NAME_EXISTS,
         sql_args={"db_name": new_db_name},
     )
     if rows and rows[0].get("exists"):
@@ -416,7 +416,7 @@ async def resolve_create_service_db_helper(db_name: str, schema: str, value: str
     await exec_sql(
         db_name=new_db_name,
         schema="security",
-        sql=SqlAuth.SECURITY_SCHEMA_DDL,
+        sql=SqlStore.SECURITY_SCHEMA_DDL,
     )
 
     # 5. Persist new_db_name on the client record
@@ -424,7 +424,7 @@ async def resolve_create_service_db_helper(db_name: str, schema: str, value: str
     await exec_sql(
         db_name=None,
         schema="public",
-        sql=SqlAuth.UPDATE_CLIENT_DB_NAME,
+        sql=SqlStore.UPDATE_CLIENT_DB_NAME,
         sql_args={"db_name": new_db_name, "id": client_id},
     )
 
@@ -463,7 +463,7 @@ async def resolve_feed_bu_seed_data_helper(db_name: str, schema: str, value: str
     # Guard: schema must already exist
     rows = await exec_sql(
         db_name=db_name, schema="security",
-        sql=SqlAuth.CHECK_SCHEMA_EXISTS,
+        sql=SqlStore.CHECK_SCHEMA_EXISTS,
         sql_args={"code": code},
     )
     if not (rows and rows[0].get("exists")):
@@ -524,7 +524,7 @@ async def resolve_delete_bu_schema_helper(db_name: str, schema: str, value: str)
         logger.info(f"Deleting security.bu row for code='{code}'")
         await exec_sql(
             db_name=db_name, schema="security",
-            sql=SqlAuth.DELETE_BU_BY_CODE,
+            sql=SqlStore.DELETE_BU_BY_CODE,
             sql_args={"code": code},
         )
 
@@ -556,7 +556,7 @@ async def resolve_delete_client_helper(db_name: str, schema: str, value: str) ->
     # 1. Fetch client row for server-side guard
     client_rows = await exec_sql(
         db_name=None, schema="public",
-        sql=SqlAuth.GET_CLIENT_BY_ID,
+        sql=SqlStore.GET_CLIENT_BY_ID,
         sql_args={"id": client_id},
     )
     if not client_rows:
@@ -581,7 +581,7 @@ async def resolve_delete_client_helper(db_name: str, schema: str, value: str) ->
     # 3. Delete the client row
     await exec_sql(
         db_name=None, schema="public",
-        sql=SqlAuth.DELETE_CLIENT,
+        sql=SqlStore.DELETE_CLIENT,
         sql_args={"id": client_id},
     )
 
@@ -620,7 +620,7 @@ async def resolve_drop_database_helper(db_name: str, schema: str, value: str) ->
     # 2. Safety check — refuse to drop if still linked to a client
     in_use_rows = await exec_sql(
         db_name=None, schema="public",
-        sql=SqlAuth.CHECK_CLIENT_DB_NAME_IN_USE,
+        sql=SqlStore.CHECK_CLIENT_DB_NAME_IN_USE,
         sql_args={"db_name": target_db},
     )
     if in_use_rows and in_use_rows[0].get("exists"):
@@ -632,7 +632,7 @@ async def resolve_drop_database_helper(db_name: str, schema: str, value: str) ->
     # 3. Verify database exists
     exists_rows = await exec_sql(
         db_name=None, schema="public",
-        sql=SqlAuth.CHECK_DB_NAME_EXISTS,
+        sql=SqlStore.CHECK_DB_NAME_EXISTS,
         sql_args={"db_name": target_db},
     )
     if not (exists_rows and exists_rows[0].get("exists")):
@@ -678,7 +678,7 @@ async def resolve_mail_business_user_credentials_helper(db_name: str, schema: st
     # 1. Fetch business user (is_admin=false guard)
     rows = await exec_sql(
         db_name=db_name, schema=schema_name,
-        sql=SqlAuth.GET_BUSINESS_USER_BY_ID,
+        sql=SqlStore.GET_BUSINESS_USER_BY_ID,
         sql_args={"id": id_},
     )
     if not rows:
@@ -786,7 +786,7 @@ async def resolve_mail_admin_credentials_helper(db_name: str, schema: str, value
     # 1. Fetch admin user
     rows = await exec_sql(
         db_name=db_name, schema=schema or "security",
-        sql=SqlAuth.GET_ADMIN_USER_BY_ID,
+        sql=SqlStore.GET_ADMIN_USER_BY_ID,
         sql_args={"id": id_},
     )
     if not rows:
@@ -856,7 +856,7 @@ async def resolve_set_user_bu_role_helper(db_name: str, schema: str, value: str)
     # Verify user exists and is a business user
     user_rows = await exec_sql(
         db_name=db_name, schema=schema_name,
-        sql=SqlAuth.GET_BUSINESS_USER_BY_ID,
+        sql=SqlStore.GET_BUSINESS_USER_BY_ID,
         sql_args={"id": user_id},
     )
     if not user_rows:

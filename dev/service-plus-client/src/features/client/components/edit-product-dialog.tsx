@@ -139,7 +139,7 @@ export const EditProductDialog = ({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-sm">
+            <DialogContent aria-describedby={undefined} className="sm:max-w-sm">
                 <DialogHeader>
                     <DialogTitle className="text-base font-semibold text-foreground">
                         Edit Product

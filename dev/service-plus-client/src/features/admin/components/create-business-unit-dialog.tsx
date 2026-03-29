@@ -269,7 +269,7 @@ export const CreateBusinessUnitDialog = ({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="w-full sm:max-w-[440px]">
+            <DialogContent aria-describedby={undefined} className="w-full sm:max-w-[440px]">
                 <DialogHeader>
                     <DialogTitle className="text-base font-semibold text-foreground">
                         Add Business Unit

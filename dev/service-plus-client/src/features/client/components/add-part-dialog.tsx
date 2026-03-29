@@ -46,7 +46,7 @@ type CheckQueryDataType = {
 };
 
 const schema = z.object({
-    brand_id:         z.coerce.number({ required_error: "Brand is required" }).positive("Brand is required"),
+    brand_id:         z.coerce.number().positive("Brand is required"),
     part_code:        z.string().min(1, "Part code is required").max(50).transform(v => v.toUpperCase()),
     part_name:        z.string().min(1, "Part name is required").max(200),
     part_description: z.string().optional(),
@@ -171,7 +171,7 @@ export const AddPartDialog = ({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogContent aria-describedby={undefined} className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle className="text-base font-semibold text-foreground">
                         Add Part

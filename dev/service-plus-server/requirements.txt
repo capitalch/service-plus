@@ -2,6 +2,9 @@ aiofiles
 ariadne
 bcrypt
 fastapi
+openpyxl
+pandas
+python-multipart
 psycopg[binary]
 pydantic
 pydantic-settings

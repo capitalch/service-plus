@@ -11,7 +11,7 @@ export type Section = 'configurations' | 'dashboard' | 'inventory' | 'jobs' | 'm
 
 type ThemeContextType = { isDark: boolean; toggleTheme: () => void };
 
-export const ThemeContext = createContext<ThemeContextType>({ isDark: true, toggleTheme: () => {} });
+export const ThemeContext = createContext<ThemeContextType>({ isDark: false, toggleTheme: () => {} });
 
 export const useTheme = () => useContext(ThemeContext);
 
@@ -77,7 +77,7 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
     const [explorerOpen, setExplorerOpen]   = useState(() => window.innerWidth >= 1024);
     const [isDark, setIsDark]               = useState(() => {
         const stored = localStorage.getItem('client-theme');
-        return stored ? stored === 'dark' : true;
+        return stored ? stored === 'dark' : false;
     });
 
     useEffect(() => {

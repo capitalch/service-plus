@@ -51,7 +51,7 @@ type CheckQueryDataType = {
 // ─── Schema ───────────────────────────────────────────────────────────────────
 
 const addTechnicianSchema = z.object({
-    branch_id:      z.coerce.number({ required_error: "Branch is required" }).positive("Branch is required"),
+    branch_id:      z.coerce.number().positive("Branch is required"),
     code:           z.string()
                       .min(1, "Code is required")
                       .max(20, "Code must be 20 characters or fewer")
@@ -182,7 +182,7 @@ export const AddTechnicianDialog = ({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-lg">
+            <DialogContent aria-describedby={undefined} className="sm:max-w-lg">
                 <DialogHeader>
                     <DialogTitle className="text-base font-semibold text-foreground">
                         Add Technician

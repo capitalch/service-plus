@@ -283,6 +283,16 @@ export const MESSAGES = {
 
   // Inventory
   ERROR_STOCK_OVERVIEW_LOAD_FAILED:    'Failed to load stock overview. Please try again.',
+
+  // Parts Import
+  ERROR_IMPORT_BRAND_REQUIRED:       'Please select a brand before uploading.',
+  ERROR_IMPORT_FAILED:               'Import failed. Please try again.',
+  ERROR_IMPORT_FILE_INVALID_TYPE:    'Invalid file type. Please upload a .csv, .xlsx, or .xls file.',
+  ERROR_IMPORT_FILE_REQUIRED:        'Please select a file to upload.',
+  ERROR_IMPORT_MAPPING_MANDATORY:    'Part Code and Part Name must be mapped before importing.',
+  ERROR_IMPORT_PARSE_ERROR:          'Failed to parse the file. Please check the file format.',
+  ERROR_IMPORT_UPLOAD_ERROR:         'Failed to upload file. Please try again.',
+  SUCCESS_IMPORT_COMPLETE:           'Import completed successfully.',
 } as const;
 
 // Type for message keys

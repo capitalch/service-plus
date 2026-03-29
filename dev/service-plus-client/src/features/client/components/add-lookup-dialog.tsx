@@ -157,7 +157,7 @@ export const AddLookupDialog = ({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-md">
+            <DialogContent aria-describedby={undefined} className="sm:max-w-md">
                 <DialogHeader>
                     <DialogTitle className="text-base font-semibold text-foreground">
                         Add {config.entityName}

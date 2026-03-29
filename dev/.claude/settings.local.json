@@ -14,7 +14,11 @@
       "Bash(pnpm exec:*)",
       "Bash(ls:*)",
       "Bash(npx tsc:*)",
-      "Bash(pg_dump --version)"
+      "Bash(pg_dump --version)",
+      "Bash(c:/projects/service-plus/env/Scripts/python.exe -c \"from app.routers.parts_import import router; print\\(''Router OK''\\)\")",
+      "Bash(c:/projects/service-plus/env/Scripts/python.exe -m pip install python-multipart --quiet)",
+      "Bash(c:/projects/service-plus/env/Scripts/python.exe -c \"from app.main import app; print\\('App OK'\\)\" 2>&1)",
+      "Bash(python:*)"
     ]
   }
 }

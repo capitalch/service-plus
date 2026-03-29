@@ -181,6 +181,14 @@ class AppMessages:
     # Usage & health messages
     USAGE_HEALTH_RETRIEVED = "Usage and health data retrieved."
 
+    # Import messages
+    IMPORT_COMPLETE          = "Import completed successfully"
+    IMPORT_FILE_REQUIRED     = "A file must be provided for import"
+    IMPORT_INVALID_FILE_TYPE = "Invalid file type. Allowed: .csv, .xlsx, .xls"
+    IMPORT_MISSING_MANDATORY = "Mandatory columns (part_code, part_name) must be mapped"
+    IMPORT_PARSE_ERROR       = "Failed to parse the uploaded file"
+    IMPORT_UPLOAD_NOT_FOUND  = "Upload session not found or expired"
+
     # Success messages
     RECORD_CREATED = "Record created successfully"
     RECORD_UPDATED = "Record updated successfully"

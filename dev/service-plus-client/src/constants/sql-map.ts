@@ -99,6 +99,11 @@ export const SQL_MAP = {
     CHECK_MODEL_IN_USE:                  "CHECK_MODEL_IN_USE",
     // Parts (spare_part_master)
     GET_ALL_PARTS:                        "GET_ALL_PARTS",
+    GET_PARTS_BY_BRAND_COUNT:             "GET_PARTS_BY_BRAND_COUNT",
+    GET_PARTS_BY_BRAND_PAGED:             "GET_PARTS_BY_BRAND_PAGED",
+    GET_EXISTING_PART_CODES:              "GET_EXISTING_PART_CODES",
+    GET_PARTS_COUNT:                      "GET_PARTS_COUNT",
+    GET_PARTS_PAGED:                      "GET_PARTS_PAGED",
     CHECK_PART_CODE_EXISTS:               "CHECK_PART_CODE_EXISTS",
     CHECK_PART_CODE_EXISTS_EXCLUDE_ID:    "CHECK_PART_CODE_EXISTS_EXCLUDE_ID",
     CHECK_PART_IN_USE:                    "CHECK_PART_IN_USE",

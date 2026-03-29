@@ -1,4 +1,4 @@
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import type { ComponentType } from "react";
 import {
     BarChart3, BookOpen, Building2, ChevronDown, ChevronRight,
@@ -51,7 +51,12 @@ type CollapsibleGroupProps = {
 };
 
 function CollapsibleGroup({ children, defaultOpen = true, label }: CollapsibleGroupProps) {
-    const [open, setOpen] = useState(defaultOpen);
+    const { selectedGroup } = useClientSelection();
+    const [open, setOpen] = useState(() => defaultOpen || selectedGroup === label);
+
+    useEffect(() => {
+        if (selectedGroup === label) setOpen(true);
+    }, [selectedGroup, label]);
     return (
         <section>
             <button

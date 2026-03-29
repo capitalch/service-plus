@@ -1,9 +1,9 @@
-import { NavLink } from "react-router-dom";
-import { Bell, Menu, Moon, PanelLeft, Search, Sun } from "lucide-react";
+import { useNavigate, NavLink } from "react-router-dom";
+import { Bell, LogOut, Menu, Moon, PanelLeft, Search, Sun } from "lucide-react";
 
 import { BuBranchSwitcher } from "@/features/admin/components/bu-branch-switcher";
-import { useAppSelector } from "@/store/hooks";
-import { selectCurrentUser } from "@/features/auth/store/auth-slice";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import { logout, selectCurrentUser } from "@/features/auth/store/auth-slice";
 import { ROUTES } from "@/router/routes";
 import { useLayout, useTheme } from "./client-layout";
 import type { Section } from "./client-layout";
@@ -22,9 +22,16 @@ const NAV_ITEMS: NavItem[] = [
 type Props = { activeSection: Section };
 
 export const ClientTopNav = ({ activeSection }: Props) => {
+    const dispatch                      = useAppDispatch();
+    const navigate                      = useNavigate();
     const user                         = useAppSelector(selectCurrentUser);
     const { isDark, toggleTheme }      = useTheme();
     const { toggleExplorer }           = useLayout();
+
+    function handleLogout() {
+        dispatch(logout());
+        navigate(ROUTES.login);
+    }
 
     return (
         <header className="fixed left-0 right-0 top-0 z-50 flex h-12 items-center justify-between border-b border-[var(--cl-border)] bg-[var(--cl-bg)] px-3 sm:px-4">
@@ -97,7 +104,7 @@ export const ClientTopNav = ({ activeSection }: Props) => {
                     </span>
                 </div>
 
-                <div className="flex items-center gap-3 border-l border-[var(--cl-border)] pl-2">
+                <div className="flex items-center gap-2 border-l border-[var(--cl-border)] pl-2">
                     <div className="hidden text-right sm:block">
                         <p className="text-[11px] font-bold leading-tight text-[var(--cl-text)]">
                             {user?.fullName ?? user?.username}
@@ -106,6 +113,13 @@ export const ClientTopNav = ({ activeSection }: Props) => {
                             {user?.roleName ?? (user?.userType === 'A' ? 'Admin' : 'User')}
                         </p>
                     </div>
+                    <button
+                        className="rounded p-1.5 text-[var(--cl-text-muted)] transition-colors hover:bg-[var(--cl-hover)] hover:text-red-500 cursor-pointer"
+                        title="Logout"
+                        onClick={handleLogout}
+                    >
+                        <LogOut className="h-4 w-4" />
+                    </button>
                 </div>
             </div>
         </header>
