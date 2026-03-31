@@ -86,8 +86,21 @@ export const EditPartDialog = ({
     const schema_ = useAppSelector(selectSchema);
 
     const form = useForm<FormType>({
+        defaultValues: {
+            brand_id:         part.brand_id,
+            category:         part.category ?? "",
+            cost_price:       part.cost_price as any ?? "",
+            gst_rate:         part.gst_rate as any ?? "",
+            hsn_code:         part.hsn_code ?? "",
+            model:            part.model ?? "",
+            mrp:              part.mrp as any ?? "",
+            part_code:        part.part_code,
+            part_description: part.part_description ?? "",
+            part_name:        part.part_name,
+            uom:              part.uom,
+        },
         mode:     "onChange",
-        resolver: zodResolver(schema),
+        resolver: zodResolver(schema) as any,
     });
 
     const { formState: { errors } } = form;
@@ -99,16 +112,16 @@ export const EditPartDialog = ({
         if (!open) return;
         form.reset({
             brand_id:         part.brand_id,
-            part_code:        part.part_code,
-            part_name:        part.part_name,
-            part_description: part.part_description ?? "",
             category:         part.category ?? "",
-            model:            part.model ?? "",
-            uom:              part.uom,
-            cost_price:       part.cost_price ?? ("" as unknown as number),
-            mrp:              part.mrp ?? ("" as unknown as number),
+            cost_price:       part.cost_price as any ?? "",
+            gst_rate:         part.gst_rate as any ?? "",
             hsn_code:         part.hsn_code ?? "",
-            gst_rate:         part.gst_rate ?? ("" as unknown as number),
+            model:            part.model ?? "",
+            mrp:              part.mrp as any ?? "",
+            part_code:        part.part_code,
+            part_description: part.part_description ?? "",
+            part_name:        part.part_name,
+            uom:              part.uom,
         });
         setCodeTaken(null);
     }, [open]); // eslint-disable-line react-hooks/exhaustive-deps

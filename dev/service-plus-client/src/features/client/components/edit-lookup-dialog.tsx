@@ -76,8 +76,15 @@ export const EditLookupDialog = ({
     type FormType = z.infer<typeof formSchema>;
 
     const form = useForm<FormType>({
+        defaultValues: {
+            code:          record.code,
+            description:   record.description   ?? "",
+            display_order: record.display_order as any ?? "",
+            name:          record.name,
+            prefix:        record.prefix         ?? "",
+        },
         mode:     "onChange",
-        resolver: zodResolver(formSchema),
+        resolver: zodResolver(formSchema) as any,
     });
 
     const { formState: { errors } } = form;
@@ -89,9 +96,9 @@ export const EditLookupDialog = ({
         if (!open) return;
         form.reset({
             code:          record.code,
-            name:          record.name,
             description:   record.description   ?? "",
-            display_order: record.display_order  ?? "",
+            display_order: record.display_order as any ?? "",
+            name:          record.name,
             prefix:        record.prefix         ?? "",
         });
         setCodeTaken(null);

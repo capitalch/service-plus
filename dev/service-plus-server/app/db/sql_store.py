@@ -1001,6 +1001,243 @@ class SqlStore:
         ORDER BY p.name, b.name, m.model_name
     """
 
+    # ── Parts (spare_part_master) ─────────────────────────────────────────────
+
+    CHECK_PART_CODE_EXISTS = """
+        with
+            "p_brand_id"  as (values(%(brand_id)s::bigint)),
+            "p_part_code" as (values(%(part_code)s::text))
+        SELECT EXISTS(
+            SELECT 1 FROM spare_part_master
+            WHERE brand_id              = (table "p_brand_id")
+              AND UPPER(part_code)      = UPPER((table "p_part_code"))
+        ) AS exists
+    """
+
+    CHECK_PART_CODE_EXISTS_EXCLUDE_ID = """
+        with
+            "p_brand_id"  as (values(%(brand_id)s::bigint)),
+            "p_part_code" as (values(%(part_code)s::text)),
+            "p_id"        as (values(%(id)s::bigint))
+        SELECT EXISTS(
+            SELECT 1 FROM spare_part_master
+            WHERE brand_id              = (table "p_brand_id")
+              AND UPPER(part_code)      = UPPER((table "p_part_code"))
+              AND id                   <> (table "p_id")
+        ) AS exists
+    """
+
+    CHECK_PART_IN_USE = """
+        with "p_id" as (values(%(id)s::bigint))
+        -- with "p_id" as (values(1::bigint)) -- Test line
+        SELECT EXISTS (
+            SELECT 1 FROM job_part_used         WHERE part_id = (table "p_id")
+            UNION ALL
+            SELECT 1 FROM purchase_invoice_line WHERE part_id = (table "p_id")
+            UNION ALL
+            SELECT 1 FROM sales_invoice_line    WHERE part_id = (table "p_id")
+            UNION ALL
+            SELECT 1 FROM stock_adjustment_line WHERE part_id = (table "p_id")
+            UNION ALL
+            SELECT 1 FROM stock_transaction     WHERE part_id = (table "p_id")
+        ) AS in_use
+    """
+
+    GET_ALL_PARTS = """
+        with "dummy" as (values(1::int))
+        -- with "dummy" as (values(1::int)) -- Test line
+        SELECT
+            p.id, p.brand_id, p.part_code, p.part_name,
+            p.part_description, p.category, p.model, p.uom,
+            p.cost_price, p.mrp, p.hsn_code, p.gst_rate, p.is_active,
+            b.name AS brand_name
+        FROM spare_part_master p
+        JOIN brand b ON b.id = p.brand_id
+        ORDER BY b.name, p.part_code
+    """
+
+    GET_PARTS_USAGE_STATS_BY_BRAND = """
+        with "p_brand_id" as (values(%(brand_id)s::bigint))
+        -- with "p_brand_id" as (values(1::bigint)) -- Test line
+        SELECT
+            COUNT(*)                                                          AS total,
+            COUNT(*) FILTER (WHERE EXISTS (
+                SELECT 1 FROM job_part_used         WHERE part_id = p.id
+                UNION ALL
+                SELECT 1 FROM purchase_invoice_line WHERE part_id = p.id
+                UNION ALL
+                SELECT 1 FROM sales_invoice_line    WHERE part_id = p.id
+                UNION ALL
+                SELECT 1 FROM stock_adjustment_line WHERE part_id = p.id
+                UNION ALL
+                SELECT 1 FROM stock_transaction     WHERE part_id = p.id
+            ))                                                                AS in_use_count,
+            COUNT(*) FILTER (WHERE NOT EXISTS (
+                SELECT 1 FROM job_part_used         WHERE part_id = p.id
+                UNION ALL
+                SELECT 1 FROM purchase_invoice_line WHERE part_id = p.id
+                UNION ALL
+                SELECT 1 FROM sales_invoice_line    WHERE part_id = p.id
+                UNION ALL
+                SELECT 1 FROM stock_adjustment_line WHERE part_id = p.id
+                UNION ALL
+                SELECT 1 FROM stock_transaction     WHERE part_id = p.id
+            ))                                                                AS deletable_count
+        FROM spare_part_master p
+        WHERE p.brand_id = (table "p_brand_id")
+    """
+
+    DELETE_UNUSED_PARTS_BY_BRAND = """
+        with "p_brand_id" as (values(%(brand_id)s::bigint))
+        -- with "p_brand_id" as (values(1::bigint)) -- Test line
+        DELETE FROM spare_part_master
+        WHERE brand_id = (table "p_brand_id")
+          AND NOT EXISTS (
+              SELECT 1 FROM job_part_used         WHERE part_id = spare_part_master.id
+              UNION ALL
+              SELECT 1 FROM purchase_invoice_line WHERE part_id = spare_part_master.id
+              UNION ALL
+              SELECT 1 FROM sales_invoice_line    WHERE part_id = spare_part_master.id
+              UNION ALL
+              SELECT 1 FROM stock_adjustment_line WHERE part_id = spare_part_master.id
+              UNION ALL
+              SELECT 1 FROM stock_transaction     WHERE part_id = spare_part_master.id
+          )
+        RETURNING id
+    """
+
+    # ── Part Location Master ──────────────────────────────────────────────────
+
+    CHECK_PART_LOCATION_EXISTS = """
+        with
+            "p_branch_id" as (values(%(branch_id)s::bigint)),
+            "p_location"  as (values(%(location)s::text))
+        -- with
+        --     "p_branch_id" as (values(1::bigint)),          -- Test line
+        --     "p_location"  as (values('Shelf A'::text))     -- Test line
+        SELECT EXISTS(
+            SELECT 1 FROM spare_part_location_master
+            WHERE branch_id             = (table "p_branch_id")
+              AND LOWER(location)       = LOWER((table "p_location"))
+        ) AS exists
+    """
+
+    CHECK_PART_LOCATION_EXISTS_EXCLUDE_ID = """
+        with
+            "p_branch_id" as (values(%(branch_id)s::bigint)),
+            "p_location"  as (values(%(location)s::text)),
+            "p_id"        as (values(%(id)s::bigint))
+        -- with
+        --     "p_branch_id" as (values(1::bigint)),          -- Test line
+        --     "p_location"  as (values('Shelf A'::text)),    -- Test line
+        --     "p_id"        as (values(1::bigint))           -- Test line
+        SELECT EXISTS(
+            SELECT 1 FROM spare_part_location_master
+            WHERE branch_id             = (table "p_branch_id")
+              AND LOWER(location)       = LOWER((table "p_location"))
+              AND id                   <> (table "p_id")
+        ) AS exists
+    """
+
+    CHECK_PART_LOCATION_IN_USE = """
+        with "p_id" as (values(%(id)s::bigint))
+        -- with "p_id" as (values(1::bigint)) -- Test line
+        SELECT false AS in_use
+    """
+
+    GET_ALL_PART_LOCATIONS = """
+        with "dummy" as (values(1::int))
+        -- with "dummy" as (values(1::int)) -- Test line
+        SELECT
+            pl.id, pl.branch_id, pl.location, pl.is_active,
+            b.name AS branch_name
+        FROM spare_part_location_master pl
+        JOIN branch b ON b.id = pl.branch_id
+        ORDER BY b.name, pl.location
+    """
+
+    GET_EXISTING_PART_CODES = """
+        with "p_brand_id" as (values(%(brand_id)s::bigint))
+        -- with "p_brand_id" as (values(1::bigint)) -- Test line
+        SELECT UPPER(part_code) AS part_code
+        FROM spare_part_master
+        WHERE brand_id = (table "p_brand_id")
+    """
+
+    GET_PARTS_BY_BRAND_COUNT = """
+        with
+            "p_brand_id" as (values(%(brand_id)s::bigint)),
+            "p_search"   as (values(%(search)s::text))
+        -- with "p_brand_id" as (values(1::bigint)), "p_search" as (values(''::text)) -- Test line
+        SELECT COUNT(*) AS total
+        FROM spare_part_master p
+        WHERE p.brand_id = (table "p_brand_id")
+          AND ((table "p_search") = ''
+           OR LOWER(p.part_code)  LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(p.part_name)  LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(COALESCE(p.part_description, '')) LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(COALESCE(p.model, ''))            LIKE '%%' || LOWER((table "p_search")) || '%%')
+    """
+
+    GET_PARTS_BY_BRAND_PAGED = """
+        with
+            "p_brand_id" as (values(%(brand_id)s::bigint)),
+            "p_search"   as (values(%(search)s::text)),
+            "p_limit"    as (values(%(limit)s::int)),
+            "p_offset"   as (values(%(offset)s::int))
+        -- with "p_brand_id" as (values(1::bigint)), "p_search" as (values(''::text)), "p_limit" as (values(50::int)), "p_offset" as (values(0::int)) -- Test line
+        SELECT
+            p.id, p.brand_id, p.part_code, p.part_name,
+            p.part_description, p.model, p.uom,
+            p.cost_price, p.mrp, p.hsn_code, p.gst_rate, p.is_active
+        FROM spare_part_master p
+        WHERE p.brand_id = (table "p_brand_id")
+          AND ((table "p_search") = ''
+           OR LOWER(p.part_code)  LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(p.part_name)  LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(COALESCE(p.part_description, '')) LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(COALESCE(p.model, ''))            LIKE '%%' || LOWER((table "p_search")) || '%%')
+        ORDER BY p.part_code
+        LIMIT  (table "p_limit")
+        OFFSET (table "p_offset")
+    """
+
+    GET_PARTS_COUNT = """
+        with "p_search" as (values(%(search)s::text))
+        -- with "p_search" as (values(''::text)) -- Test line
+        SELECT COUNT(*) AS total
+        FROM spare_part_master p
+        JOIN brand b ON b.id = p.brand_id
+        WHERE (table "p_search") = ''
+           OR LOWER(p.part_code)  LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(p.part_name)  LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(COALESCE(p.category, '')) LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(b.name)       LIKE '%%' || LOWER((table "p_search")) || '%%'
+    """
+
+    GET_PARTS_PAGED = """
+        with
+            "p_search" as (values(%(search)s::text)),
+            "p_limit"  as (values(%(limit)s::int)),
+            "p_offset" as (values(%(offset)s::int))
+        -- with "p_search" as (values(''::text)), "p_limit" as (values(50::int)), "p_offset" as (values(0::int)) -- Test line
+        SELECT
+            p.id, p.brand_id, p.part_code, p.part_name,
+            p.part_description, p.category, p.model, p.uom,
+            p.cost_price, p.mrp, p.hsn_code, p.gst_rate, p.is_active,
+            b.name AS brand_name
+        FROM spare_part_master p
+        JOIN brand b ON b.id = p.brand_id
+        WHERE (table "p_search") = ''
+           OR LOWER(p.part_code)  LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(p.part_name)  LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(COALESCE(p.category, '')) LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(b.name)       LIKE '%%' || LOWER((table "p_search")) || '%%'
+        ORDER BY b.name, p.part_code
+        LIMIT  (table "p_limit")
+        OFFSET (table "p_offset")
+    """
+
     # ── Products ──────────────────────────────────────────────────────────────
 
     CHECK_PRODUCT_IN_USE = """
@@ -1282,9 +1519,213 @@ class SqlStore:
             sp.cost_price,
             COALESCE(SUM(CASE WHEN st.dr_cr = 'D' THEN st.qty ELSE -st.qty END), 0) AS current_stock
         FROM spare_part_master sp
-        LEFT JOIN stock_transaction st ON st.part_id = sp.id AND st.branch_id = (table "p_branch_id")
+        JOIN stock_transaction st ON st.part_id = sp.id AND st.branch_id = (table "p_branch_id")
         GROUP BY sp.id, sp.part_code, sp.part_name, sp.category, sp.uom, sp.cost_price
         ORDER BY sp.part_name
+    """
+
+    # ── Consumption (Parts Usage) ─────────────────────────────────────────────
+
+    GET_PARTS_CONSUMPTION_COUNT = """
+        with
+            "p_branch_id" as (values(%(branch_id)s::bigint)),
+            "p_from_date" as (values(%(from_date)s::date)),
+            "p_to_date"   as (values(%(to_date)s::date)),
+            "p_search"    as (values(%(search)s::text))
+        -- with
+        --     "p_branch_id" as (values(1::bigint)),        -- Test line
+        --     "p_from_date" as (values('2024-01-01'::date)), -- Test line
+        --     "p_to_date"   as (values('2024-12-31'::date)), -- Test line
+        --     "p_search"    as (values(''::text))           -- Test line
+        SELECT COUNT(*) AS total
+        FROM job_part_used jpu
+        JOIN job             j  ON j.id  = jpu.job_id
+        JOIN spare_part_master sp ON sp.id = jpu.part_id
+        WHERE j.branch_id = (table "p_branch_id")
+          AND j.job_date BETWEEN (table "p_from_date") AND (table "p_to_date")
+          AND ((table "p_search") = ''
+           OR LOWER(j.job_no)     LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(sp.part_code) LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(sp.part_name) LIKE '%%' || LOWER((table "p_search")) || '%%')
+    """
+
+    GET_PARTS_CONSUMPTION = """
+        with
+            "p_branch_id" as (values(%(branch_id)s::bigint)),
+            "p_from_date" as (values(%(from_date)s::date)),
+            "p_to_date"   as (values(%(to_date)s::date)),
+            "p_search"    as (values(%(search)s::text)),
+            "p_limit"     as (values(%(limit)s::int)),
+            "p_offset"    as (values(%(offset)s::int))
+        -- with
+        --     "p_branch_id" as (values(1::bigint)),          -- Test line
+        --     "p_from_date" as (values('2024-01-01'::date)),  -- Test line
+        --     "p_to_date"   as (values('2024-12-31'::date)),  -- Test line
+        --     "p_search"    as (values(''::text)),            -- Test line
+        --     "p_limit"     as (values(50::int)),             -- Test line
+        --     "p_offset"    as (values(0::int))              -- Test line
+        SELECT
+            j.job_no,
+            j.job_date,
+            sp.part_code,
+            sp.part_name,
+            sp.uom,
+            jpu.quantity,
+            b.name AS branch_name
+        FROM job_part_used jpu
+        JOIN job             j  ON j.id  = jpu.job_id
+        JOIN spare_part_master sp ON sp.id = jpu.part_id
+        JOIN branch          b  ON b.id  = j.branch_id
+        WHERE j.branch_id = (table "p_branch_id")
+          AND j.job_date BETWEEN (table "p_from_date") AND (table "p_to_date")
+          AND ((table "p_search") = ''
+           OR LOWER(j.job_no)     LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(sp.part_code) LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(sp.part_name) LIKE '%%' || LOWER((table "p_search")) || '%%')
+        ORDER BY j.job_date DESC, j.job_no, sp.part_code
+        LIMIT  (table "p_limit")
+        OFFSET (table "p_offset")
+    """
+
+    # ── Purchase Entry ────────────────────────────────────────────────────────
+
+    GET_STOCK_TRANSACTION_TYPES = """
+        with "dummy" as (values(1::int))
+        -- with "dummy" as (values(1::int)) -- Test line
+        SELECT id, code, name, dr_cr
+        FROM stock_transaction_type
+        ORDER BY id
+    """
+
+    GET_PURCHASE_INVOICES_COUNT = """
+        with
+            "p_branch_id" as (values(%(branch_id)s::bigint)),
+            "p_from_date" as (values(%(from_date)s::date)),
+            "p_to_date"   as (values(%(to_date)s::date)),
+            "p_search"    as (values(%(search)s::text))
+        -- with
+        --     "p_branch_id" as (values(1::bigint)),           -- Test line
+        --     "p_from_date" as (values('2024-01-01'::date)),   -- Test line
+        --     "p_to_date"   as (values('2024-12-31'::date)),   -- Test line
+        --     "p_search"    as (values(''::text))              -- Test line
+        SELECT COUNT(*) AS total
+        FROM purchase_invoice pi
+        JOIN supplier s ON s.id = pi.supplier_id
+        WHERE pi.branch_id = (table "p_branch_id")
+          AND pi.invoice_date BETWEEN (table "p_from_date") AND (table "p_to_date")
+          AND ((table "p_search") = ''
+           OR LOWER(pi.invoice_no)  LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(s.name)         LIKE '%%' || LOWER((table "p_search")) || '%%')
+    """
+
+    GET_PURCHASE_INVOICES_PAGED = """
+        with
+            "p_branch_id" as (values(%(branch_id)s::bigint)),
+            "p_from_date" as (values(%(from_date)s::date)),
+            "p_to_date"   as (values(%(to_date)s::date)),
+            "p_search"    as (values(%(search)s::text)),
+            "p_limit"     as (values(%(limit)s::int)),
+            "p_offset"    as (values(%(offset)s::int))
+        -- with
+        --     "p_branch_id" as (values(1::bigint)),           -- Test line
+        --     "p_from_date" as (values('2024-01-01'::date)),   -- Test line
+        --     "p_to_date"   as (values('2024-12-31'::date)),   -- Test line
+        --     "p_search"    as (values(''::text)),             -- Test line
+        --     "p_limit"     as (values(50::int)),              -- Test line
+        --     "p_offset"    as (values(0::int))               -- Test line
+        SELECT
+            pi.id,
+            pi.branch_id,
+            pi.supplier_id,
+            s.name        AS supplier_name,
+            pi.invoice_no,
+            pi.invoice_date,
+            pi.taxable_amount,
+            pi.total_tax,
+            pi.total_amount,
+            pi.remarks
+        FROM purchase_invoice pi
+        JOIN supplier s ON s.id = pi.supplier_id
+        WHERE pi.branch_id = (table "p_branch_id")
+          AND pi.invoice_date BETWEEN (table "p_from_date") AND (table "p_to_date")
+          AND ((table "p_search") = ''
+           OR LOWER(pi.invoice_no)  LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(s.name)         LIKE '%%' || LOWER((table "p_search")) || '%%')
+        ORDER BY pi.invoice_date DESC, pi.id DESC
+        LIMIT  (table "p_limit")
+        OFFSET (table "p_offset")
+    """
+
+    GET_PURCHASE_INVOICE_DETAIL = """
+        with "p_id" as (values(%(id)s::bigint))
+        -- with "p_id" as (values(1::bigint)) -- Test line
+        SELECT
+            pi.id,
+            pi.branch_id,
+            pi.supplier_id,
+            s.name              AS supplier_name,
+            pi.invoice_no,
+            pi.invoice_date,
+            pi.supplier_state_code,
+            pi.taxable_amount,
+            pi.cgst_amount,
+            pi.sgst_amount,
+            pi.igst_amount,
+            pi.total_tax,
+            pi.total_amount,
+            pi.remarks,
+            json_agg(
+                json_build_object(
+                    'id',             pil.id,
+                    'part_id',        pil.part_id,
+                    'part_code',      sp.part_code,
+                    'part_name',      sp.part_name,
+                    'hsn_code',       pil.hsn_code,
+                    'quantity',       pil.quantity,
+                    'unit_price',     pil.unit_price,
+                    'taxable_amount', pil.taxable_amount,
+                    'cgst_rate',      pil.cgst_rate,
+                    'cgst_amount',    pil.cgst_amount,
+                    'sgst_rate',      pil.sgst_rate,
+                    'sgst_amount',    pil.sgst_amount,
+                    'igst_rate',      pil.igst_rate,
+                    'igst_amount',    pil.igst_amount,
+                    'total_amount',   pil.total_amount
+                ) ORDER BY pil.id
+            ) AS lines
+        FROM purchase_invoice pi
+        JOIN supplier              s   ON s.id   = pi.supplier_id
+        JOIN purchase_invoice_line pil ON pil.purchase_invoice_id = pi.id
+        JOIN spare_part_master     sp  ON sp.id  = pil.part_id
+        WHERE pi.id = (table "p_id")
+        GROUP BY pi.id, s.name
+    """
+
+    CHECK_SUPPLIER_INVOICE_EXISTS = """
+        with
+            "p_supplier_id" as (values(%(supplier_id)s::bigint)),
+            "p_invoice_no"  as (values(%(invoice_no)s::text))
+        -- with
+        --     "p_supplier_id" as (values(1::bigint)), -- Test line
+        --     "p_invoice_no"  as (values('INV-001'::text)) -- Test line
+        SELECT EXISTS (
+            SELECT 1 FROM purchase_invoice
+            WHERE supplier_id = (table "p_supplier_id")
+              AND UPPER(invoice_no) = UPPER((table "p_invoice_no"))
+        ) AS exists
+    """
+
+    DELETE_PURCHASE_INVOICE = """
+        with
+            "p_id" as (values(%(id)s::bigint)),
+            deleted_txns AS (
+                DELETE FROM stock_transaction
+                WHERE purchase_line_id IN (
+                    SELECT id FROM purchase_invoice_line
+                    WHERE purchase_invoice_id = (table "p_id")
+                )
+            )
+        DELETE FROM purchase_invoice WHERE id = (table "p_id")
     """
 
     # ── Technicians ───────────────────────────────────────────────────────────

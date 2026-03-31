@@ -83,22 +83,22 @@ export const AddCustomerDialog = ({
 
     const form = useForm<AddCustomerFormType>({
         defaultValues: {
-            customer_type_id: 0,
-            full_name:        "",
-            mobile:           "",
-            alternate_mobile: "",
-            email:            "",
-            gstin:            "",
             address_line1:    "",
             address_line2:    "",
-            landmark:         "",
-            state_id:         0,
+            alternate_mobile: "",
             city:             "",
+            customer_type_id: 0,
+            email:            "",
+            full_name:        "",
+            gstin:            "",
+            landmark:         "",
+            mobile:           "",
             postal_code:      "",
             remarks:          "",
+            state_id:         0,
         },
         mode:     "onChange",
-        resolver: zodResolver(addCustomerSchema),
+        resolver: zodResolver(addCustomerSchema) as any,
     });
 
     const { formState: { errors } } = form;

@@ -83,9 +83,21 @@ export const AddPartDialog = ({
     const schema_ = useAppSelector(selectSchema);
 
     const form = useForm<FormType>({
-        defaultValues: { part_code: "", part_name: "", uom: "NOS" } as unknown as FormType,
+        defaultValues: {
+            brand_id:         "" as any,
+            category:         "",
+            cost_price:       "" as any,
+            gst_rate:         "" as any,
+            hsn_code:         "",
+            model:            "",
+            mrp:              "" as any,
+            part_code:        "",
+            part_description: "",
+            part_name:        "",
+            uom:              "NOS",
+        },
         mode:          "onChange",
-        resolver:      zodResolver(schema),
+        resolver:      zodResolver(schema) as any,
     });
 
     const { formState: { errors } } = form;

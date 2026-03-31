@@ -9,7 +9,6 @@ from urllib.parse import unquote
 from app.config import settings
 from app.core.audit_log import audit_logger
 from app.db.psycopg_driver import exec_sql
-from app.db.sql_app import SqlApp
 from app.db.sql_store import SqlStore
 from app.exceptions import AppMessages, ValidationException
 from app.logger import logger
@@ -346,7 +345,7 @@ async def resolve_generic_query_helper(db_name: str, schema: str = "public", val
     sql_id:   str  = params.get("sqlId", "")
     sql_args: dict = params.get("sqlArgs", {}) or {}
 
-    sql = getattr(SqlStore, sql_id, None) or getattr(SqlApp, sql_id, None)
+    sql = getattr(SqlStore, sql_id, None)
     if not sql:
         logger.error(f"Unknown sqlId in genericQuery: {sql_id!r}")
         raise ValidationException(

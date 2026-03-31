@@ -81,8 +81,15 @@ export const EditModelDialog = ({
     const schema_ = useAppSelector(selectSchema);
 
     const form = useForm<FormType>({
+        defaultValues: {
+            brand_id:    model.brand_id,
+            launch_year: model.launch_year as any ?? "",
+            model_name:  model.model_name,
+            product_id:  model.product_id,
+            remarks:     model.remarks ?? "",
+        },
         mode:     "onChange",
-        resolver: zodResolver(schema),
+        resolver: zodResolver(schema) as any,
     });
 
     const { formState: { errors } } = form;
@@ -94,10 +101,10 @@ export const EditModelDialog = ({
     useEffect(() => {
         if (!open) return;
         form.reset({
-            product_id:  model.product_id,
             brand_id:    model.brand_id,
+            launch_year: model.launch_year as any ?? "",
             model_name:  model.model_name,
-            launch_year: model.launch_year ?? ("" as unknown as number),
+            product_id:  model.product_id,
             remarks:     model.remarks ?? "",
         });
         setModelTaken(null);

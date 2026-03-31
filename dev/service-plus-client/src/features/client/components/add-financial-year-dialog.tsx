@@ -74,9 +74,9 @@ export const AddFinancialYearDialog = ({
     const schema = useAppSelector(selectSchema);
 
     const form = useForm<AddFyFormType>({
-        defaultValues: { end_date: "", id: "" as unknown as number, start_date: "" },
+        defaultValues: { end_date: "", id: "" as any, start_date: "" },
         mode:     "onChange",
-        resolver: zodResolver(addFySchema),
+        resolver: zodResolver(addFySchema) as any,
     });
 
     const { formState: { errors }, setValue, clearErrors, setError } = form;
@@ -172,8 +172,7 @@ export const AddFinancialYearDialog = ({
                     schema,
                     value: graphQlUtils.buildGenericUpdateValue({
                         tableName:  "financial_year",
-                        isIdInsert: true,
-                        xData:      { id: data.id, start_date: data.start_date, end_date: data.end_date },
+                        xData:      { end_date: data.end_date, id: data.id, isIdInsert: true, start_date: data.start_date },
                     }),
                 },
             });

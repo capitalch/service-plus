@@ -21,7 +21,8 @@ cd c:\projects\trace-plus
 - Best is create a project from shadcn home page. This gives you a cli script. Run it and project is auto created
 ## Tools
 	- For themes use tweakcn
-	- Use v0 as an AI tool
+## To trncate spare_part_master and reset identity
+TRUNCATE spare_part_master RESTART IDENTITY CASCADE; 
 
 ## add sonner
 pnpm dlx shadcn@latest add sonner

@@ -41,11 +41,10 @@ import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectSchema } from "@/store/context-slice";
-import { AddVendorDialog } from "@/features/client/components/add-vendor-dialog";
-import { DeleteVendorDialog } from "@/features/client/components/delete-vendor-dialog";
-import { EditVendorDialog } from "@/features/client/components/edit-vendor-dialog";
-import type { VendorType } from "@/features/client/types/vendor";
-import type { StateOption } from "@/features/client/types/customer";
+import { AddPartLocationDialog } from "@/features/client/components/add-part-location-dialog";
+import { DeletePartLocationDialog } from "@/features/client/components/delete-part-location-dialog";
+import { EditPartLocationDialog } from "@/features/client/components/edit-part-location-dialog";
+import type { BranchOption, PartLocationType } from "@/features/client/types/part-location";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -67,48 +66,48 @@ const thSortClass = `${thClass} cursor-pointer select-none hover:text-[var(--cl-
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export const VendorSection = () => {
+export const PartLocationSection = () => {
     const dbName = useAppSelector(selectDbName);
     const schema = useAppSelector(selectSchema);
 
-    const [addOpen,       setAddOpen]       = useState(false);
-    const [deleteVendor,  setDeleteVendor]  = useState<VendorType | null>(null);
-    const [editVendor,    setEditVendor]    = useState<VendorType | null>(null);
-    const [loading,       setLoading]       = useState(false);
-    const [search,        setSearch]        = useState("");
-    const [sortCol,       setSortCol]       = useState<string | null>(null);
-    const [sortDir,       setSortDir]       = useState<"asc" | "desc">("asc");
-    const [states,        setStates]        = useState<StateOption[]>([]);
-    const [vendors,       setVendors]       = useState<VendorType[]>([]);
+    const [addOpen,         setAddOpen]         = useState(false);
+    const [branches,        setBranches]        = useState<BranchOption[]>([]);
+    const [deleteLocation,  setDeleteLocation]  = useState<PartLocationType | null>(null);
+    const [editLocation,    setEditLocation]    = useState<PartLocationType | null>(null);
+    const [loading,         setLoading]         = useState(false);
+    const [locations,       setLocations]       = useState<PartLocationType[]>([]);
+    const [search,          setSearch]          = useState("");
+    const [sortCol,         setSortCol]         = useState<string | null>(null);
+    const [sortDir,         setSortDir]         = useState<"asc" | "desc">("asc");
 
     const loadData = useCallback(async () => {
         if (!dbName || !schema) return;
         setLoading(true);
         try {
-            const [vendorsRes, statesRes] = await Promise.all([
-                apolloClient.query<GenericQueryDataType<VendorType>>({
+            const [locationsRes, branchesRes] = await Promise.all([
+                apolloClient.query<GenericQueryDataType<PartLocationType>>({
                     fetchPolicy: "network-only",
                     query: GRAPHQL_MAP.genericQuery,
                     variables: {
                         db_name: dbName,
                         schema,
-                        value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_ALL_VENDORS }),
+                        value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_ALL_PART_LOCATIONS }),
                     },
                 }),
-                apolloClient.query<GenericQueryDataType<StateOption>>({
+                apolloClient.query<GenericQueryDataType<BranchOption>>({
                     fetchPolicy: "network-only",
                     query: GRAPHQL_MAP.genericQuery,
                     variables: {
                         db_name: dbName,
                         schema,
-                        value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_ALL_STATES }),
+                        value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_BU_BRANCHES }),
                     },
                 }),
             ]);
-            setVendors(vendorsRes.data?.genericQuery ?? []);
-            setStates(statesRes.data?.genericQuery ?? []);
+            setLocations(locationsRes.data?.genericQuery ?? []);
+            setBranches(branchesRes.data?.genericQuery ?? []);
         } catch {
-            toast.error(MESSAGES.ERROR_VENDOR_LOAD_FAILED);
+            toast.error(MESSAGES.ERROR_PART_LOCATION_LOAD_FAILED);
         } finally {
             setLoading(false);
         }
@@ -118,7 +117,7 @@ export const VendorSection = () => {
         loadData();
     }, [loadData]);
 
-    async function handleToggleActive(vendor: VendorType) {
+    async function handleToggleActive(loc: PartLocationType) {
         if (!dbName || !schema) return;
         try {
             await apolloClient.mutate({
@@ -127,14 +126,14 @@ export const VendorSection = () => {
                     db_name: dbName,
                     schema,
                     value: graphQlUtils.buildGenericUpdateValue({
-                        tableName: "supplier",
-                        xData: { id: vendor.id, is_active: !vendor.is_active },
+                        tableName: "spare_part_location_master",
+                        xData: { id: loc.id, is_active: !loc.is_active },
                     }),
                 },
             });
             await loadData();
         } catch {
-            toast.error(MESSAGES.ERROR_VENDOR_UPDATE_FAILED);
+            toast.error(MESSAGES.ERROR_PART_LOCATION_UPDATE_FAILED);
         }
     }
 
@@ -150,16 +149,13 @@ export const VendorSection = () => {
             : <ArrowDownIcon className="ml-1 inline h-3 w-3" />;
     }
 
-    const displayVendors = useMemo(() => {
-        let rows = vendors;
+    const displayLocations = useMemo(() => {
+        let rows = locations;
         if (search.trim()) {
             const q = search.toLowerCase();
             rows = rows.filter(r =>
-                r.name.toLowerCase().includes(q) ||
-                (r.phone?.toLowerCase().includes(q) ?? false) ||
-                (r.email?.toLowerCase().includes(q) ?? false) ||
-                (r.state_name?.toLowerCase().includes(q) ?? false) ||
-                (r.city?.toLowerCase().includes(q) ?? false)
+                r.location.toLowerCase().includes(q) ||
+                (r.branch_name?.toLowerCase().includes(q) ?? false)
             );
         }
         if (sortCol) {
@@ -173,7 +169,7 @@ export const VendorSection = () => {
             });
         }
         return rows;
-    }, [vendors, search, sortCol, sortDir]);
+    }, [locations, search, sortCol, sortDir]);
 
     if (!schema) {
         return (
@@ -199,9 +195,9 @@ export const VendorSection = () => {
                 {/* Page header */}
                 <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
-                        <h1 className="text-xl font-bold text-[var(--cl-text)]">Vendor / Supplier</h1>
+                        <h1 className="text-xl font-bold text-[var(--cl-text)]">Part Locations</h1>
                         <p className="mt-1 text-sm text-[var(--cl-text-muted)]">
-                            Manage vendors / suppliers for this business unit.
+                            Manage spare part storage locations for this business unit.
                         </p>
                     </div>
                     <div className="flex items-center gap-2">
@@ -221,7 +217,7 @@ export const VendorSection = () => {
                             onClick={() => setAddOpen(true)}
                         >
                             <PlusIcon className="mr-1.5 h-3.5 w-3.5" />
-                            Add Vendor
+                            Add Location
                         </Button>
                     </div>
                 </div>
@@ -233,79 +229,71 @@ export const VendorSection = () => {
                         <Input
                             className="h-8 pl-8 text-sm"
                             disabled={loading}
-                            placeholder="Search vendors…"
+                            placeholder="Search locations or branches…"
                             value={search}
                             onChange={e => setSearch(e.target.value)}
                         />
                     </div>
-                    {!loading && vendors.length > 0 && (
+                    {!loading && locations.length > 0 && (
                         <p className="shrink-0 text-xs text-[var(--cl-text-muted)]">
-                            {displayVendors.length} of {vendors.length}
+                            {displayLocations.length} of {locations.length}
                         </p>
                     )}
                 </div>
 
                 {/* Table */}
-                {loading && vendors.length === 0 ? (
+                {loading && locations.length === 0 ? (
                     <div className="flex flex-col gap-2">
                         {Array.from({ length: 4 }).map((_, i) => (
                             <div key={i} className="h-12 animate-pulse rounded-lg bg-[var(--cl-surface-2)]" />
                         ))}
                     </div>
-                ) : vendors.length === 0 ? (
+                ) : locations.length === 0 ? (
                     <div className="rounded-xl border border-[var(--cl-border)] bg-[var(--cl-surface-2)] px-6 py-12 text-center text-sm text-[var(--cl-text-muted)]">
-                        No vendors found. Click &quot;Add Vendor&quot; to create one.
+                        No part locations found. Click &quot;Add Location&quot; to create one.
                     </div>
                 ) : (
-                    <div
-                        className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-[var(--cl-border)] bg-[var(--cl-surface-2)] shadow-sm"
-                    >
+                    <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-[var(--cl-border)] bg-[var(--cl-surface-2)] shadow-sm">
                         <div className="overflow-x-auto overflow-y-auto">
                             <Table>
                                 <TableHeader>
                                     <TableRow className="sticky top-0 z-10 bg-[var(--cl-surface-3)] hover:bg-[var(--cl-surface-3)]">
                                         <TableHead className={`w-8 text-center ${thClass}`}>#</TableHead>
-                                        <TableHead className={thSortClass} onClick={() => handleSort("name")}>Name<SortIcon col="name" /></TableHead>
-                                        <TableHead className={thClass}>Phone</TableHead>
-                                        <TableHead className={thClass}>Email</TableHead>
-                                        <TableHead className={thSortClass} onClick={() => handleSort("state_name")}>State<SortIcon col="state_name" /></TableHead>
-                                        <TableHead className={thSortClass} onClick={() => handleSort("city")}>City<SortIcon col="city" /></TableHead>
+                                        <TableHead className={thSortClass} onClick={() => handleSort("location")}>Location<SortIcon col="location" /></TableHead>
+                                        <TableHead className={thSortClass} onClick={() => handleSort("branch_name")}>Branch<SortIcon col="branch_name" /></TableHead>
                                         <TableHead className={thClass}>Status</TableHead>
                                         <TableHead className={thClass}>Actions</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {displayVendors.length === 0 ? (
+                                    {displayLocations.length === 0 ? (
                                         <tr>
                                             <td colSpan={99} className="px-6 py-10 text-center text-sm text-[var(--cl-text-muted)]">
                                                 No results match &ldquo;{search}&rdquo;.
                                             </td>
                                         </tr>
                                     ) : (
-                                        displayVendors.map((vendor, idx) => (
+                                        displayLocations.map((loc, idx) => (
                                             <motion.tr
                                                 animate="visible"
                                                 className="border-b border-[var(--cl-border)] transition-colors last:border-b-0 hover:bg-[var(--cl-surface-3)]"
                                                 custom={idx}
                                                 initial="hidden"
-                                                key={vendor.id}
+                                                key={loc.id}
                                                 variants={rowVariants}
                                             >
                                                 <TableCell className="text-center text-xs text-[var(--cl-text-muted)]">{idx + 1}</TableCell>
-                                                <TableCell className="font-medium text-[var(--cl-text)]">{vendor.name}</TableCell>
-                                                <TableCell className="text-sm text-[var(--cl-text-muted)]">{vendor.phone ?? "—"}</TableCell>
-                                                <TableCell className="text-sm text-[var(--cl-text-muted)]">{vendor.email ?? "—"}</TableCell>
-                                                <TableCell className="text-sm text-[var(--cl-text-muted)]">{vendor.state_name ?? "—"}</TableCell>
-                                                <TableCell className="text-sm text-[var(--cl-text-muted)]">{vendor.city ?? "—"}</TableCell>
+                                                <TableCell className="font-medium text-[var(--cl-text)]">{loc.location}</TableCell>
+                                                <TableCell className="text-sm text-[var(--cl-text-muted)]">{loc.branch_name ?? "—"}</TableCell>
                                                 <TableCell>
                                                     <Badge
-                                                        className={vendor.is_active
+                                                        className={loc.is_active
                                                             ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-50"
                                                             : "border-red-200 bg-red-100 text-red-500 hover:bg-red-100"}
                                                         variant="outline"
                                                     >
-                                                        <span className={`mr-1 h-1.5 w-1.5 rounded-full ${vendor.is_active ? "bg-emerald-500" : "bg-red-400"}`} />
-                                                        {vendor.is_active ? "Active" : "Inactive"}
+                                                        <span className={`mr-1 h-1.5 w-1.5 rounded-full ${loc.is_active ? "bg-emerald-500" : "bg-red-400"}`} />
+                                                        {loc.is_active ? "Active" : "Inactive"}
                                                     </Badge>
                                                 </TableCell>
                                                 <TableCell>
@@ -323,16 +311,16 @@ export const VendorSection = () => {
                                                         <DropdownMenuContent align="end" className="w-44">
                                                             <DropdownMenuItem
                                                                 className="cursor-pointer text-sky-600 focus:text-sky-600"
-                                                                onClick={() => setEditVendor(vendor)}
+                                                                onClick={() => setEditLocation(loc)}
                                                             >
                                                                 <PencilIcon className="mr-1.5 h-3.5 w-3.5" />
                                                                 Edit
                                                             </DropdownMenuItem>
                                                             <DropdownMenuSeparator />
-                                                            {vendor.is_active ? (
+                                                            {loc.is_active ? (
                                                                 <DropdownMenuItem
                                                                     className="cursor-pointer text-amber-600 focus:text-amber-600"
-                                                                    onClick={() => handleToggleActive(vendor)}
+                                                                    onClick={() => handleToggleActive(loc)}
                                                                 >
                                                                     <ToggleLeftIcon className="mr-1.5 h-3.5 w-3.5" />
                                                                     Deactivate
@@ -340,7 +328,7 @@ export const VendorSection = () => {
                                                             ) : (
                                                                 <DropdownMenuItem
                                                                     className="cursor-pointer text-emerald-600 focus:text-emerald-600"
-                                                                    onClick={() => handleToggleActive(vendor)}
+                                                                    onClick={() => handleToggleActive(loc)}
                                                                 >
                                                                     <ToggleRightIcon className="mr-1.5 h-3.5 w-3.5" />
                                                                     Activate
@@ -349,7 +337,7 @@ export const VendorSection = () => {
                                                             <DropdownMenuSeparator />
                                                             <DropdownMenuItem
                                                                 className="cursor-pointer text-red-600 focus:text-red-600"
-                                                                onClick={() => setDeleteVendor(vendor)}
+                                                                onClick={() => setDeleteLocation(loc)}
                                                             >
                                                                 <Trash2Icon className="mr-1.5 h-3.5 w-3.5" />
                                                                 Delete
@@ -368,26 +356,26 @@ export const VendorSection = () => {
             </motion.div>
 
             {/* ── Dialogs ──────────────────────────────────────────────────────── */}
-            <AddVendorDialog
+            <AddPartLocationDialog
+                branches={branches}
                 open={addOpen}
-                states={states}
                 onOpenChange={setAddOpen}
                 onSuccess={loadData}
             />
-            {editVendor && (
-                <EditVendorDialog
-                    open={!!editVendor}
-                    states={states}
-                    vendor={editVendor}
-                    onOpenChange={(o) => { if (!o) setEditVendor(null); }}
+            {editLocation && (
+                <EditPartLocationDialog
+                    branches={branches}
+                    location={editLocation}
+                    open={!!editLocation}
+                    onOpenChange={(o) => { if (!o) setEditLocation(null); }}
                     onSuccess={loadData}
                 />
             )}
-            {deleteVendor && (
-                <DeleteVendorDialog
-                    open={!!deleteVendor}
-                    vendor={deleteVendor}
-                    onOpenChange={(o) => { if (!o) setDeleteVendor(null); }}
+            {deleteLocation && (
+                <DeletePartLocationDialog
+                    location={deleteLocation}
+                    open={!!deleteLocation}
+                    onOpenChange={(o) => { if (!o) setDeleteLocation(null); }}
                     onSuccess={loadData}
                 />
             )}

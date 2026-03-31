@@ -14,10 +14,13 @@ from app.graphql.resolvers.mutation_helper import (
     resolve_create_service_db_helper,
     resolve_delete_bu_schema_helper,
     resolve_delete_client_helper,
+    resolve_delete_unused_parts_by_brand_helper,
     resolve_drop_database_helper,
     resolve_feed_bu_seed_data_helper,
     resolve_generic_update_helper,
+    resolve_generic_update_script_helper,
     resolve_mail_admin_credentials_helper,
+    resolve_import_spare_parts_helper,
     resolve_mail_business_user_credentials_helper,
     resolve_set_user_bu_role_helper,
 )
@@ -159,6 +162,45 @@ async def resolve_generic_update(_, info, db_name="", schema="public", value="")
         raise
     except Exception as e:
         logger.error(f"Error creating customer: {str(e)}")
+        raise GraphQLException(
+            message=AppMessages.OPERATION_FAILED, extensions={"details": str(e)}
+        )
+
+
+@mutation.field("genericUpdateScript")
+async def resolve_generic_update_script(_, info, db_name="", schema="public", value="") -> Any:
+    try:
+        return await resolve_generic_update_script_helper(db_name, schema, value)
+    except ValidationException:
+        raise
+    except Exception as e:
+        logger.error(f"Error executing script: {str(e)}")
+        raise GraphQLException(
+            message=AppMessages.OPERATION_FAILED, extensions={"details": str(e)}
+        )
+
+
+@mutation.field("deleteUnusedPartsByBrand")
+async def resolve_delete_unused_parts_by_brand(_, info, db_name: str = "", schema: str = "", value: str = "") -> Any:
+    try:
+        return await resolve_delete_unused_parts_by_brand_helper(db_name, schema, value)
+    except ValidationException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting unused parts by brand: {str(e)}")
+        raise GraphQLException(
+            message=AppMessages.OPERATION_FAILED, extensions={"details": str(e)}
+        )
+
+
+@mutation.field("importSpareParts")
+async def resolve_import_spare_parts(_, info, db_name="", schema="public", value="") -> Any:
+    try:
+        return await resolve_import_spare_parts_helper(db_name, schema, value)
+    except ValidationException:
+        raise
+    except Exception as e:
+        logger.error(f"Error importing spare parts: {str(e)}")
         raise GraphQLException(
             message=AppMessages.OPERATION_FAILED, extensions={"details": str(e)}
         )

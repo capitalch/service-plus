@@ -112,7 +112,7 @@ export const AddBranchDialog = ({
             state_id:      0,
         },
         mode:     "onChange",
-        resolver: zodResolver(addBranchSchema),
+        resolver: zodResolver(addBranchSchema) as any,
     });
 
     const { formState: { errors } } = form;

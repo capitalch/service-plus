@@ -79,9 +79,15 @@ export const AddModelDialog = ({
     const schema_ = useAppSelector(selectSchema);
 
     const form = useForm<FormType>({
-        defaultValues: { product_id: "", brand_id: "", model_name: "", launch_year: "", remarks: "" } as unknown as FormType,
+        defaultValues: {
+            brand_id:    "" as any,
+            launch_year: "" as any,
+            model_name:  "",
+            product_id:  "" as any,
+            remarks:     "",
+        },
         mode:          "onChange",
-        resolver:      zodResolver(schema),
+        resolver:      zodResolver(schema) as any,
     });
 
     const { formState: { errors } } = form;

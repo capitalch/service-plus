@@ -87,20 +87,20 @@ export const AddVendorDialog = ({
 
     const form = useForm<AddVendorFormType>({
         defaultValues: {
-            name:          "",
-            phone:         "",
-            email:         "",
-            gstin:         "",
-            pan:           "",
             address_line1: "",
             address_line2: "",
             city:          "",
-            state_id:      0,
+            email:          "",
+            gstin:         "",
+            name:          "",
+            pan:           "",
+            phone:         "",
             pincode:       "",
             remarks:       "",
+            state_id:      0,
         },
         mode:     "onChange",
-        resolver: zodResolver(addVendorSchema),
+        resolver: zodResolver(addVendorSchema) as any,
     });
 
     const { formState: { errors } } = form;

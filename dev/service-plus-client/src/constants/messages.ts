@@ -163,6 +163,18 @@ export const MESSAGES = {
   SUCCESS_TECHNICIAN_DELETED:        'Technician deleted successfully.',
   SUCCESS_TECHNICIAN_UPDATED:        'Technician updated successfully.',
 
+  // Part Location CRUD
+  ERROR_PART_LOCATION_CREATE_FAILED:      'Failed to create part location. Please try again.',
+  ERROR_PART_LOCATION_DELETE_FAILED:      'Failed to delete part location. Please try again.',
+  ERROR_PART_LOCATION_DELETE_IN_USE:      'This location cannot be deleted as it is referenced by existing records.',
+  ERROR_PART_LOCATION_EXISTS:             'This location already exists for this branch.',
+  ERROR_PART_LOCATION_EXISTS_EDIT:        'This location is already used by another record in this branch.',
+  ERROR_PART_LOCATION_LOAD_FAILED:        'Failed to load part locations. Please try again.',
+  ERROR_PART_LOCATION_UPDATE_FAILED:      'Failed to update part location. Please try again.',
+  SUCCESS_PART_LOCATION_CREATED:          'Part location created successfully.',
+  SUCCESS_PART_LOCATION_DELETED:          'Part location deleted successfully.',
+  SUCCESS_PART_LOCATION_UPDATED:          'Part location updated successfully.',
+
   // Customer CRUD
   ERROR_CUSTOMER_CREATE_FAILED:      'Failed to create customer. Please try again.',
   ERROR_CUSTOMER_DELETE_FAILED:      'Failed to delete customer. Please try again.',
@@ -283,6 +295,18 @@ export const MESSAGES = {
 
   // Inventory
   ERROR_STOCK_OVERVIEW_LOAD_FAILED:    'Failed to load stock overview. Please try again.',
+  ERROR_CONSUMPTION_LOAD_FAILED:       'Failed to load consumption data. Please try again.',
+  // Purchase Entry
+  ERROR_PURCHASE_LOAD_FAILED:          'Failed to load purchase invoices. Please try again.',
+  ERROR_PURCHASE_CREATE_FAILED:        'Failed to create purchase invoice. Please try again.',
+  ERROR_PURCHASE_DELETE_FAILED:        'Failed to delete purchase invoice. Please try again.',
+  ERROR_PURCHASE_SUPPLIER_REQUIRED:    'Please select a supplier.',
+  ERROR_PURCHASE_INVOICE_NO_REQUIRED:  'Invoice number is required.',
+  ERROR_PURCHASE_DATE_REQUIRED:        'Invoice date is required.',
+  ERROR_PURCHASE_LINES_REQUIRED:       'At least one line item is required.',
+  ERROR_PURCHASE_INVOICE_EXISTS:       'This invoice number already exists for the selected supplier.',
+  SUCCESS_PURCHASE_CREATED:            'Purchase invoice created successfully.',
+  SUCCESS_PURCHASE_DELETED:            'Purchase invoice deleted successfully.',
 
   // Parts Import
   ERROR_IMPORT_BRAND_REQUIRED:       'Please select a brand before uploading.',

@@ -8,6 +8,7 @@ import { FinancialYearSection } from "@/features/client/components/financial-yea
 import { LookupSection } from "@/features/client/components/lookup-section";
 import { ModelSection } from "@/features/client/components/model-section";
 import { PartsSection } from "@/features/client/components/parts-section";
+import { PartLocationSection } from "@/features/client/components/part-location-section";
 import { ProductSection } from "@/features/client/components/product-section";
 import { StateSection } from "@/features/client/components/state-section";
 import { TechnicianSection } from "@/features/client/components/technician-section";
@@ -59,10 +60,11 @@ function MastersContent() {
     if (selected === "Job Type")              return <LookupSection config={JOB_TYPE_CONFIG} />;
     if (selected === "Model")                 return <ModelSection />;
     if (selected === "Parts")                 return <PartsSection />;
+    if (selected === "Part Location")         return <PartLocationSection />;
     if (selected === "Product")               return <ProductSection />;
     if (selected === "State / Province")      return <StateSection />;
     if (selected === "Technician")            return <TechnicianSection />;
-    if (selected === "Vendor")                return <VendorSection />;
+    if (selected === "Vendor / Supplier")     return <VendorSection />;
 
     return <ComingSoon label={selected || "Masters"} />;
 }

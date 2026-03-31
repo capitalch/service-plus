@@ -89,6 +89,21 @@ export const GRAPHQL_MAP = {
             genericUpdate(db_name: $db_name, schema: $schema, value: $value)
         }
     `,
+    genericUpdateScript: gql`
+        mutation GenericUpdateScript($db_name: String!, $schema: String, $value: String!) {
+            genericUpdateScript(db_name: $db_name, schema: $schema, value: $value)
+        }
+    `,
+    deleteUnusedPartsByBrand: gql`
+        mutation DeleteUnusedPartsByBrand($db_name: String!, $schema: String, $value: String!) {
+            deleteUnusedPartsByBrand(db_name: $db_name, schema: $schema, value: $value)
+        }
+    `,
+    importSpareParts: gql`
+        mutation ImportSpareParts($db_name: String!, $schema: String, $value: String!) {
+            importSpareParts(db_name: $db_name, schema: $schema, value: $value)
+        }
+    `,
     mailAdminCredentials: gql`
         mutation MailAdminCredentials($db_name: String!, $schema: String, $value: String!) {
             mailAdminCredentials(db_name: $db_name, schema: $schema, value: $value)

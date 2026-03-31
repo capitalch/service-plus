@@ -95,8 +95,19 @@ export const EditBranchDialog = ({
     const schema = useAppSelector(selectSchema);
 
     const form = useForm<EditBranchFormType>({
+        defaultValues: {
+            address_line1: branch.address_line1,
+            address_line2: branch.address_line2 ?? "",
+            city:          branch.city ?? "",
+            email:          branch.email ?? "",
+            gstin:         branch.gstin ?? "",
+            name:          branch.name,
+            phone:         branch.phone ?? "",
+            pincode:       branch.pincode,
+            state_id:      branch.state_id,
+        },
         mode:     "onChange",
-        resolver: zodResolver(editBranchSchema),
+        resolver: zodResolver(editBranchSchema) as any,
     });
 
     const { formState: { errors } } = form;

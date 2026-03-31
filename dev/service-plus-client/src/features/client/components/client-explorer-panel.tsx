@@ -110,14 +110,14 @@ function InventoryExplorer() {
         <div className="space-y-4">
             <div className="space-y-1">
                 <TreeItem icon={Package}       label="Stock Overview" />
-                <TreeItem icon={RotateCcw}     label="Consumption (Parts Usage)" />
                 <TreeItem icon={ShoppingCart}  label="Purchase Entry" />
                 <TreeItem icon={Tag}           label="Sales Entry" />
                 <TreeItem icon={RefreshCcw}    label="Stock Adjustment" />
-                <TreeItem icon={Truck}         label="Stock Transfer" />
+                <TreeItem icon={Truck}         label="Branch Transfer" />
                 <TreeItem icon={ClipboardList} label="Loan / Issue & Return" />
                 <TreeItem icon={Package}       label="Opening Stock" />
                 <TreeItem icon={Globe}         label="Part Finder" />
+                <TreeItem icon={MapPin}        label="Set Part Location" />
             </div>
         </div>
     );
@@ -134,6 +134,7 @@ function JobsExplorer() {
                 <TreeItem icon={Truck}         label="Deliver Job" />
                 <TreeItem icon={RotateCcw}     label="Opening Jobs" />
                 <TreeItem icon={DollarSign}    label="Receipts" />
+                <TreeItem icon={Package}       label="Part Used (Job)" />
             </div>
         </div>
     );
@@ -150,7 +151,7 @@ function MastersExplorer() {
             </CollapsibleGroup>
             <CollapsibleGroup label="Entities">
                 <TreeItem icon={User}    label="Customer" />
-                <TreeItem icon={Truck}   label="Vendor" />
+                <TreeItem icon={Truck}   label="Vendor / Supplier" />
                 <TreeItem icon={UserCog} label="Technician" />
             </CollapsibleGroup>
             <CollapsibleGroup label="Service Config" defaultOpen={false}>

@@ -84,8 +84,23 @@ export const EditCustomerDialog = ({
     const schema = useAppSelector(selectSchema);
 
     const form = useForm<EditCustomerFormType>({
+        defaultValues: {
+            address_line1:    customer.address_line1,
+            address_line2:    customer.address_line2 ?? "",
+            alternate_mobile: customer.alternate_mobile ?? "",
+            city:             customer.city ?? "",
+            customer_type_id: customer.customer_type_id,
+            email:            customer.email ?? "",
+            full_name:        customer.full_name ?? "",
+            gstin:            customer.gstin ?? "",
+            landmark:         customer.landmark ?? "",
+            mobile:           customer.mobile,
+            postal_code:      customer.postal_code ?? "",
+            remarks:          customer.remarks ?? "",
+            state_id:         customer.state_id,
+        },
         mode:     "onChange",
-        resolver: zodResolver(editCustomerSchema),
+        resolver: zodResolver(editCustomerSchema) as any,
     });
 
     const { formState: { errors } } = form;

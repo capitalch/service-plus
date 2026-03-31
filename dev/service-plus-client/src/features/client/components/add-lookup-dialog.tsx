@@ -74,9 +74,15 @@ export const AddLookupDialog = ({
     type FormType = z.infer<typeof formSchema>;
 
     const form = useForm<FormType>({
-        defaultValues: { code: "", name: "", description: "", display_order: "", prefix: "" },
+        defaultValues: {
+            code:          "",
+            description:   "",
+            display_order: "" as any,
+            name:          "",
+            prefix:        "",
+        },
         mode:          "onChange",
-        resolver:      zodResolver(formSchema),
+        resolver:      zodResolver(formSchema) as any,
     });
 
     const { formState: { errors } } = form;

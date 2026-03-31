@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { ArrowRightIcon, RefreshCwIcon } from "lucide-react";
-import { Link } from "react-router-dom";
+import { RefreshCwIcon } from "lucide-react";
 import { useAppDispatch } from "@/store/hooks";
 import { useQuery } from "@apollo/client/react";
 import { toast } from "sonner";

@@ -198,7 +198,6 @@ export const AuditLogsPage = () => {
     // Stats data
     const [stats, setStats]           = useState<AuditStatsType | null>(null);
     const [statsLoading, setStatsLoading] = useState<boolean>(true);
-    const [statsError, setStatsError]     = useState<boolean>(false);
 
     // Log entries data
     const [logPage, setLogPage]           = useState<AuditLogPageType | null>(null);
@@ -216,7 +215,6 @@ export const AuditLogsPage = () => {
     useEffect(() => {
         async function loadStats() {
             setStatsLoading(true);
-            setStatsError(false);
             try {
                 const result = await apolloClient.query<{ auditLogStats: AuditStatsType }>({
                     fetchPolicy: "network-only",
@@ -225,7 +223,6 @@ export const AuditLogsPage = () => {
                 });
                 setStats(result.data?.auditLogStats ?? null);
             } catch {
-                setStatsError(true);
                 toast.error(MESSAGES.ERROR_AUDIT_STATS_FAILED);
             } finally {
                 setStatsLoading(false);
@@ -381,7 +378,7 @@ export const AuditLogsPage = () => {
                                         <YAxis allowDecimals={false} tick={{ fontSize: 10 }} width={28} />
                                         <Tooltip
                                             contentStyle={{ fontSize: 12 }}
-                                            formatter={(v: number) => [v, "Events"]}
+                                            formatter={(v: any) => [v, "Events"]}
                                         />
                                         <Area
                                             dataKey="count"
@@ -420,7 +417,7 @@ export const AuditLogsPage = () => {
                                         />
                                         <Tooltip
                                             contentStyle={{ fontSize: 12 }}
-                                            formatter={(v: number) => [v, "Count"]}
+                                            formatter={(v: any) => [v, "Count"]}
                                         />
                                         <Bar dataKey="count" fill="#6366f1" radius={[0, 3, 3, 0]} />
                                     </BarChart>

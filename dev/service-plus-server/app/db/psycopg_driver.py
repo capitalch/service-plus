@@ -373,6 +373,69 @@ async def process_data(
     return record_id
 
 
+async def bulk_insert_records(
+    db_name: str | None,
+    schema: str,
+    table_name: str,
+    records: list[dict],
+) -> int:
+    """
+    Fast bulk insert using multi-row INSERT statements.
+
+    Automatically splits records into sub-batches to stay within psycopg's
+    2000-placeholder limit per query.
+
+    Args:
+        db_name:    Service database name; pass None to use the client DB.
+        schema:     PostgreSQL schema to set for the session.
+        table_name: Target table name.
+        records:    List of dicts, each representing one row. All dicts must have identical keys.
+
+    Returns:
+        Number of rows inserted.
+    """
+    if not records:
+        return 0
+
+    schema_to_set = schema or "public"
+
+    # Collect the union of all keys so every row has the same columns.
+    # Preserves insertion order; missing fields default to None.
+    field_names = list(dict.fromkeys(k for r in records for k in r.keys()))
+    normalized = [{f: r.get(f) for f in field_names} for r in records]
+
+    num_fields = len(field_names)
+
+    # psycopg allows at most 2000 placeholders per statement
+    MAX_PLACEHOLDERS = 2000
+    batch_size = max(1, MAX_PLACEHOLDERS // num_fields)
+
+    col_sql = pgsql.SQL(", ").join(pgsql.Identifier(f) for f in field_names)
+    row_ph = pgsql.SQL("({})").format(
+        pgsql.SQL(", ").join(pgsql.Placeholder() for _ in field_names)
+    )
+
+    connection = (
+        get_service_db_connection(db_name) if db_name else get_client_db_connection()
+    )
+    async with connection as conn:
+        async with conn.cursor() as cur:
+            await cur.execute(
+                pgsql.SQL("SET search_path TO {}").format(pgsql.Identifier(schema_to_set))
+            )
+            for i in range(0, len(normalized), batch_size):
+                batch = normalized[i : i + batch_size]
+                sql = pgsql.SQL("INSERT INTO {} ({}) VALUES {}").format(
+                    pgsql.Identifier(table_name),
+                    col_sql,
+                    pgsql.SQL(", ").join(row_ph for _ in batch),
+                )
+                values = tuple(v for r in batch for v in r.values())
+                await cur.execute(sql, values)
+
+    return len(records)
+
+
 async def process_deleted_ids(sql_object: dict, cur: psycopg.AsyncCursor) -> None:
     deleted_id_list = sql_object.get("deletedIds")
     if not deleted_id_list:

@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import { read, utils } from "xlsx";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -126,8 +126,6 @@ export const ImportPartDialog = ({
     open,
     schema,
 }: ImportPartDialogPropsType) => {
-    const fileInputRef = useRef<HTMLInputElement>(null);
-
     const [brandId, setBrandId] = useState<number | null>(null);
     const [columnMapping, setColumnMapping] = useState<Record<string, string>>({});
     const [columns, setColumns] = useState<string[]>([]);
@@ -143,6 +141,9 @@ export const ImportPartDialog = ({
     const [totalRows, setTotalRows] = useState(0);
 
     const [parsedParts, setParsedParts] = useState<ParsedPart[]>([]);
+    const [validationProgress, setValidationProgress] = useState(0);
+    const [importProgress, setImportProgress] = useState(0);
+    const [progressLabel, setProgressLabel] = useState("");
 
     function goTo(next: number) {
         setDirection(next > step ? 1 : -1);
@@ -169,6 +170,9 @@ export const ImportPartDialog = ({
         setStep(1);
         setTotalRows(0);
         setParsedParts([]);
+        setValidationProgress(0);
+        setImportProgress(0);
+        setProgressLabel("");
     }
 
     const handleFileDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
@@ -237,13 +241,14 @@ export const ImportPartDialog = ({
             setPreviewRows(dataRows);
             setTotalRows(dataRows.length);
 
-            // Auto mapping
+            // Auto mapping: sys_field → file_col
             const autoMap: Record<string, string> = {};
-            for (const col of cols) {
-                const match = TARGET_FIELDS.find(
-                    (t) => t.value !== "ignore" && t.value === col.toLowerCase().replace(/ /g, "_"),
+            for (const t of TARGET_FIELDS) {
+                if (t.value === "ignore") continue;
+                const matched = cols.find(
+                    (col) => col.toLowerCase().replace(/ /g, "_") === t.value,
                 );
-                autoMap[col] = match ? match.value : "ignore";
+                autoMap[t.value] = matched ?? "";
             }
             setColumnMapping(autoMap);
             goTo(2);
@@ -257,6 +262,8 @@ export const ImportPartDialog = ({
 
     const runValidation = async () => {
         setIsLoading(true);
+        setValidationProgress(0);
+        setProgressLabel("");
         try {
             // Fetch existing part codes for this brand ID using apolloClient directly
             const res = await apolloClient.query<{ genericQuery: any[] }>({
@@ -276,81 +283,95 @@ export const ImportPartDialog = ({
             const existingCodes = new Set(existingCodesItems.map((item) => item.part_code?.toUpperCase()));
 
             const parts: ParsedPart[] = [];
+            const seenCodes = new Set<string>(); // O(1) intra-file duplicate check
             let rIdx = 1;
 
-            for (const row of previewRows) {
-                const record: Record<string, any> = {};
-                const errs: string[] = [];
+            const CHUNK = 100;
+            const total = previewRows.length;
 
-                columns.forEach((col, idx) => {
-                    const target = columnMapping[col];
-                    if (target && target !== "ignore") {
-                        record[target] = row[idx];
-                    }
-                });
+            for (let i = 0; i < total; i += CHUNK) {
+                const slice = previewRows.slice(i, i + CHUNK);
 
-                let isValid = true;
-                const pCode = record["part_code"];
-                const pName = record["part_name"];
+                for (const row of slice) {
+                    const record: Record<string, any> = {};
+                    const errs: string[] = [];
 
-                if (!pCode) {
-                    isValid = false;
-                    errs.push("Part Code is required");
-                }
-                if (!pName) {
-                    isValid = false;
-                    errs.push("Part Name is required");
-                }
-
-                // Check duplicates against DB
-                if (pCode && existingCodes.has(String(pCode).toUpperCase())) {
-                    isValid = false;
-                    errs.push(`Part Code '${pCode}' already exists in this brand`);
-                }
-
-                // Numeric validation
-                for (const field of Object.keys(record)) {
-                    if (NUMERIC_FIELDS.has(field) && record[field]) {
-                        const parsed = parseFloat(record[field]);
-                        if (isNaN(parsed)) {
-                            isValid = false;
-                            errs.push(`'${field}' must be a numeric value`);
-                        } else {
-                            record[field] = parsed; // Store the number
+                    for (const [sysField, fileCol] of Object.entries(columnMapping)) {
+                        if (fileCol) {
+                            const idx = columns.indexOf(fileCol);
+                            if (idx !== -1) record[sysField] = row[idx];
                         }
                     }
-                }
 
-                // Prevent intra-file duplicates
-                if (pCode) {
-                    const intraDup = parts.find(
-                        (p) => String(p.part_code).toUpperCase() === String(pCode).toUpperCase(),
-                    );
-                    if (intraDup) {
+                    let isValid = true;
+                    const pCode = record["part_code"];
+                    const pName = record["part_name"];
+
+                    if (!pCode) {
                         isValid = false;
-                        errs.push(`Duplicate Part Code '${pCode}' found inside file (row ${intraDup.rowNumber})`);
+                        errs.push("Part Code is required");
                     }
+                    if (!pName) {
+                        isValid = false;
+                        errs.push("Part Name is required");
+                    }
+
+                    // Check duplicates against DB
+                    if (pCode && existingCodes.has(String(pCode).toUpperCase())) {
+                        isValid = false;
+                        errs.push(`Part Code '${pCode}' already exists in this brand`);
+                    }
+
+                    // Numeric validation
+                    for (const field of Object.keys(record)) {
+                        if (NUMERIC_FIELDS.has(field) && record[field]) {
+                            const parsed = parseFloat(record[field]);
+                            if (isNaN(parsed)) {
+                                isValid = false;
+                                errs.push(`'${field}' must be a numeric value`);
+                            } else {
+                                record[field] = parsed;
+                            }
+                        }
+                    }
+
+                    // Prevent intra-file duplicates (O(1) Set lookup)
+                    if (pCode) {
+                        const upper = String(pCode).toUpperCase();
+                        if (seenCodes.has(upper)) {
+                            isValid = false;
+                            errs.push(`Duplicate Part Code '${pCode}' found inside file`);
+                        } else {
+                            seenCodes.add(upper);
+                        }
+                    }
+
+                    parts.push({
+                        rowNumber: rIdx,
+                        rawData: record,
+                        part_code: pCode || "",
+                        part_name: pName || "",
+                        brand_id: brandId,
+                        category: record["category"],
+                        part_description: record["part_description"],
+                        cost_price: record["cost_price"],
+                        mrp: record["mrp"],
+                        gst_rate: record["gst_rate"],
+                        hsn_code: record["hsn_code"],
+                        model: record["model"],
+                        uom: record["uom"],
+                        isValid,
+                        errors: errs,
+                    });
+
+                    rIdx++;
                 }
 
-                parts.push({
-                    rowNumber: rIdx,
-                    rawData: record,
-                    part_code: pCode || "",
-                    part_name: pName || "",
-                    brand_id: brandId,
-                    category: record["category"],
-                    part_description: record["part_description"],
-                    cost_price: record["cost_price"],
-                    mrp: record["mrp"],
-                    gst_rate: record["gst_rate"],
-                    hsn_code: record["hsn_code"],
-                    model: record["model"],
-                    uom: record["uom"],
-                    isValid,
-                    errors: errs,
-                });
-
-                rIdx++;
+                const done = Math.min(i + CHUNK, total);
+                setValidationProgress(Math.round((done / total) * 100));
+                setProgressLabel(`Validating row ${done} of ${total}…`);
+                // Yield to the browser event loop so the progress bar re-renders
+                await new Promise<void>((resolve) => setTimeout(resolve, 0));
             }
 
             setParsedParts(parts);
@@ -365,11 +386,12 @@ export const ImportPartDialog = ({
 
     const doImport = async () => {
         setIsLoading(true);
+        setImportProgress(0);
+        setProgressLabel("");
         try {
             const validParts = parsedParts.filter((p) => p.isValid);
 
             if (validParts.length > 0) {
-                // Batch insert using genericUpdate where xData is a list
                 const xDataList = validParts.map((p) => {
                     const rec = {
                         brand_id: brandId,
@@ -387,17 +409,23 @@ export const ImportPartDialog = ({
                     return rec;
                 });
 
-                await apolloClient.mutate({
-                    mutation: GRAPHQL_MAP.genericUpdate,
-                    variables: {
-                        db_name,
-                        schema,
-                        value: graphQlUtils.buildGenericUpdateValue({
-                            tableName: "spare_part_master",
-                            xData: xDataList,
-                        }),
-                    },
-                });
+                const CHUNK = 500;
+                const total = xDataList.length;
+
+                for (let i = 0; i < total; i += CHUNK) {
+                    const chunk = xDataList.slice(i, i + CHUNK);
+                    await apolloClient.mutate({
+                        mutation: GRAPHQL_MAP.importSpareParts,
+                        variables: {
+                            db_name,
+                            schema,
+                            value: encodeURIComponent(JSON.stringify(chunk)),
+                        },
+                    });
+                    const done = Math.min(i + CHUNK, total);
+                    setImportProgress(Math.round((done / total) * 100));
+                    setProgressLabel(`Importing ${done} of ${total} rows…`);
+                }
             }
 
             setImportResult({
@@ -418,18 +446,19 @@ export const ImportPartDialog = ({
     };
 
     const mappingValid = (): boolean => {
-        const mapped = new Set(Object.values(columnMapping));
-        return mapped.has("part_code") && mapped.has("part_name");
+        return !!columnMapping["part_code"] && !!columnMapping["part_name"];
     };
 
     const mappedPreviewRows = (): { headers: string[]; rows: string[][] } => {
         const headers: string[] = [];
         const colIndices: number[] = [];
 
-        for (const [col, target] of Object.entries(columnMapping)) {
-            if (target !== "ignore") {
-                headers.push(target.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()));
-                colIndices.push(columns.indexOf(col));
+        for (const t of TARGET_FIELDS) {
+            if (t.value === "ignore") continue;
+            const fileCol = columnMapping[t.value];
+            if (fileCol) {
+                headers.push(t.label.replace(" *", ""));
+                colIndices.push(columns.indexOf(fileCol));
             }
         }
 
@@ -463,13 +492,12 @@ export const ImportPartDialog = ({
                             </Select>
                         </div>
                         <div
-                            className={`flex cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed p-10 transition-colors
+                            className={`relative flex cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed p-10 transition-colors
                                 ${
                                     dragOver
                                         ? "border-teal-400 bg-teal-50"
                                         : "border-[var(--cl-border)] bg-[var(--cl-surface-2)] hover:border-teal-300 hover:bg-[var(--cl-surface-3)]"
                                 }`}
-                            onClick={() => fileInputRef.current?.click()}
                             onDragLeave={() => setDragOver(false)}
                             onDragOver={(e) => {
                                 e.preventDefault();
@@ -477,6 +505,17 @@ export const ImportPartDialog = ({
                             }}
                             onDrop={handleFileDrop}
                         >
+                            <input
+                                accept=".csv,.xlsx,.xls"
+                                className="absolute inset-0 z-50 h-[calc(100%+20px)] w-[calc(100%+20px)] cursor-pointer opacity-0"
+                                style={{ margin: "-10px" }}
+                                type="file"
+                                onChange={(e) => {
+                                    handleFileSelect(e);
+                                    // Resetting value allows selecting the same file sequentially if needed
+                                    if (e.target) e.target.value = "";
+                                }}
+                            />
                             <UploadCloudIcon
                                 className={`h-10 w-10 ${
                                     dragOver ? "text-teal-500" : "text-[var(--cl-text-muted)]"
@@ -491,19 +530,12 @@ export const ImportPartDialog = ({
                                 </p>
                             </div>
                             {selectedFile && (
-                                <div className="flex items-center gap-1.5 rounded-md border border-teal-200 bg-teal-50 px-3 py-1.5 text-xs text-teal-700">
+                                <div className="z-10 flex items-center gap-1.5 rounded-md border border-teal-200 bg-teal-50 px-3 py-1.5 text-xs text-teal-700">
                                     <FileSpreadsheetIcon className="h-3.5 w-3.5" />
                                     {selectedFile.name}
                                 </div>
                             )}
                         </div>
-                        <input
-                            ref={fileInputRef}
-                            accept=".csv,.xlsx,.xls"
-                            className="hidden"
-                            type="file"
-                            onChange={handleFileSelect}
-                        />
                     </div>
                 );
 
@@ -511,45 +543,51 @@ export const ImportPartDialog = ({
                 return (
                     <div className="flex flex-col gap-3">
                         <p className="text-xs text-[var(--cl-text-muted)]">
-                            Map each file column to a spare part field.{" "}
-                            <span className="font-medium text-[var(--cl-text)]">Part Code</span> and{" "}
-                            <span className="font-medium text-[var(--cl-text)]">Part Name</span> are required.
+                            Map system fields to your import file's columns. Fields marked{" "}
+                            <span className="font-medium text-red-500">*</span> are required.
                         </p>
                         <div className="h-64 overflow-y-auto rounded-xl border border-[var(--cl-border)]">
                             <Table>
                                 <TableHeader>
                                     <TableRow className="sticky top-0 z-10 bg-[var(--cl-surface-3)] hover:bg-[var(--cl-surface-3)]">
                                         <TableHead className="text-xs font-semibold uppercase tracking-wide text-[var(--cl-text-muted)]">
-                                            File Column
+                                            System Field
                                         </TableHead>
                                         <TableHead className="text-xs font-semibold uppercase tracking-wide text-[var(--cl-text-muted)]">
-                                            Maps To
+                                            Import File Column
                                         </TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {columns.map((col) => (
+                                    {TARGET_FIELDS.filter((t) => t.value !== "ignore").map((t) => (
                                         <TableRow
-                                            key={col}
+                                            key={t.value}
                                             className="border-b border-[var(--cl-border)] last:border-b-0"
                                         >
-                                            <TableCell className="py-2 text-sm font-mono text-[var(--cl-text)]">
-                                                {col}
+                                            <TableCell className="py-2 text-sm text-[var(--cl-text)]">
+                                                {t.label.replace(" *", "")}
+                                                {(t.value === "part_code" || t.value === "part_name") && (
+                                                    <span className="ml-0.5 text-red-500">*</span>
+                                                )}
                                             </TableCell>
                                             <TableCell className="py-1.5">
                                                 <Select
-                                                    value={columnMapping[col] ?? "ignore"}
+                                                    value={columnMapping[t.value] || "__none__"}
                                                     onValueChange={(v: string) =>
-                                                        setColumnMapping((prev) => ({ ...prev, [col]: v }))
+                                                        setColumnMapping((prev) => ({
+                                                            ...prev,
+                                                            [t.value]: v === "__none__" ? "" : v,
+                                                        }))
                                                     }
                                                 >
                                                     <SelectTrigger className="h-7 text-xs">
                                                         <SelectValue />
                                                     </SelectTrigger>
                                                     <SelectContent>
-                                                        {TARGET_FIELDS.map((t) => (
-                                                            <SelectItem key={t.value} value={t.value}>
-                                                                {t.label}
+                                                        <SelectItem value="__none__">— Not mapped —</SelectItem>
+                                                        {columns.map((col) => (
+                                                            <SelectItem key={col} value={col}>
+                                                                {col}
                                                             </SelectItem>
                                                         ))}
                                                     </SelectContent>
@@ -609,6 +647,20 @@ export const ImportPartDialog = ({
                                 </TableBody>
                             </Table>
                         </div>
+                        {isLoading && (
+                            <div className="flex flex-col gap-1.5">
+                                <div className="flex items-center justify-between text-xs text-[var(--cl-text-muted)]">
+                                    <span>{progressLabel || "Validating…"}</span>
+                                    <span className="font-medium text-teal-600">{validationProgress}%</span>
+                                </div>
+                                <div className="h-1.5 overflow-hidden rounded-full bg-[var(--cl-surface-3)]">
+                                    <div
+                                        className="h-full bg-teal-500 transition-all duration-200"
+                                        style={{ width: `${validationProgress}%` }}
+                                    />
+                                </div>
+                            </div>
+                        )}
                     </div>
                 );
             }
@@ -616,11 +668,21 @@ export const ImportPartDialog = ({
             case 4: {
                 if (isLoading) {
                     return (
-                        <div className="flex flex-col items-center justify-center gap-4 py-12">
-                            <Loader2Icon className="h-10 w-10 animate-spin text-teal-600" />
-                            <p className="text-sm font-medium text-[var(--cl-text)]">
-                                Validating/Importing data… please wait.
-                            </p>
+                        <div className="flex flex-col justify-center gap-4 py-10">
+                            <div className="flex flex-col gap-2">
+                                <div className="flex items-center justify-between text-sm">
+                                    <span className="text-[var(--cl-text)]">
+                                        {progressLabel || "Importing…"}
+                                    </span>
+                                    <span className="font-semibold text-teal-600">{importProgress}%</span>
+                                </div>
+                                <div className="h-2 overflow-hidden rounded-full bg-[var(--cl-surface-3)]">
+                                    <div
+                                        className="h-full bg-teal-500 transition-all duration-300"
+                                        style={{ width: `${importProgress}%` }}
+                                    />
+                                </div>
+                            </div>
                         </div>
                     );
                 }
@@ -830,6 +892,11 @@ export const ImportPartDialog = ({
                         <Button variant="outline" onClick={() => goTo(3)}>
                             Back
                         </Button>
+                        {parsedParts.filter((p) => p.isValid).length === 0 && (
+                            <Button variant="outline" onClick={handleClose}>
+                                Close
+                            </Button>
+                        )}
                         <Button
                             className="bg-teal-600 text-white hover:bg-teal-700"
                             disabled={isLoading || parsedParts.filter((p) => p.isValid).length === 0}
@@ -870,7 +937,12 @@ export const ImportPartDialog = ({
                 if (!o) handleClose();
             }}
         >
-            <DialogContent aria-describedby={undefined} className="max-w-xl">
+            <DialogContent
+                aria-describedby={undefined}
+                className="max-w-xl"
+                onInteractOutside={(e) => e.preventDefault()}
+                onFocusOutside={(e) => e.preventDefault()}
+            >
                 <DialogHeader>
                     <DialogTitle>Import Spare Parts</DialogTitle>
                 </DialogHeader>

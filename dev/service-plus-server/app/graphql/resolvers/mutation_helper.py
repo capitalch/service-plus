@@ -2,6 +2,7 @@ import json
 import re
 import secrets
 from datetime import datetime
+from typing import Any
 from urllib.parse import unquote
 
 from psycopg import sql as pgsql
@@ -10,7 +11,13 @@ from app.core.audit_log import AuditAction, audit_logger
 from app.core.email import send_email
 from app.core.security import create_reset_token, hash_password
 from app.config import settings
-from app.db.psycopg_driver import exec_sql, exec_sql_dml, exec_sql_object, get_service_db_connection
+from app.db.psycopg_driver import (
+    bulk_insert_records,
+    exec_sql,
+    exec_sql_dml,
+    exec_sql_object,
+    get_service_db_connection,
+)
 from app.db.sql_store import SqlStore
 from app.db.sql_bu import SqlBu
 from app.exceptions import AppMessages, ValidationException
@@ -62,7 +69,7 @@ async def resolve_create_admin_user_helper(db_name: str, schema: str, value: str
     # Store a random unusable hash — admin cannot log in until they set a password
     password_hash = hash_password(secrets.token_urlsafe(32))
 
-    logger.info(f"Creating admin user '{username}' in database '{db_name}'")
+    logger.info("Creating admin user '%s' in database '%s'", username, db_name)
 
     sql_object = {
         "tableName": "user",
@@ -764,6 +771,116 @@ async def resolve_generic_update_helper(db_name: str, schema: str = "public", va
 
     logger.info(f"Database entry updated successfully in: {db_name_arg or 'client_db'}")
     return record_id
+
+
+async def resolve_generic_update_script_helper(db_name: str, schema: str = "public", value: str = "") -> Any:
+    """
+    Execute a pre-defined SQL script from SqlStore with optional named parameters.
+
+    Args:
+        db_name: Target service database name. Empty string routes to the client DB.
+        schema:  Database schema to execute against (default: "public").
+        value:   URL-encoded JSON string with keys:
+                   sql_id  (str, required) — attribute name on SqlStore
+                   sql_args (dict, optional) — named parameters for the SQL
+
+    Returns:
+        List of rows if the SQL has a RETURNING clause, otherwise row count (int).
+
+    Raises:
+        ValidationException: If value is missing, not valid JSON, sql_id is absent,
+                             or sql_id does not exist in SqlStore.
+    """
+    payload = _decode_value(value, "genericUpdateScript")
+
+    sql_id = payload.get("sql_id")
+    if not sql_id:
+        raise ValidationException(
+            message=AppMessages.REQUIRED_FIELD_MISSING,
+            extensions={"field": "sql_id"},
+        )
+
+    sql = getattr(SqlStore, sql_id, None)
+    if sql is None:
+        raise ValidationException(
+            message=AppMessages.INVALID_INPUT,
+            extensions={"detail": f"sql_id '{sql_id}' not found in SqlStore"},
+        )
+
+    sql_args = payload.get("sql_args") or {}
+    db_name_arg = db_name if db_name else None
+
+    logger.info(f"Executing script '{sql_id}' on: {db_name_arg or 'client_db'}")
+    result = await exec_sql(db_name_arg, schema or "public", sql, sql_args)
+    logger.info(f"Script '{sql_id}' executed successfully")
+    return result
+
+
+async def resolve_delete_unused_parts_by_brand_helper(db_name: str, schema: str, value: str) -> dict:
+    """
+    Delete all spare parts for a brand that are not referenced in any
+    dependent table (job_part_used, purchase_invoice_line, sales_invoice_line,
+    stock_adjustment_line, stock_transaction).
+
+    Value payload (URL-encoded JSON): { brand_id: int }
+    Returns: { deleted_count: int }
+    """
+    payload = _decode_value(value, "deleteUnusedPartsByBrand")
+
+    brand_id = payload.get("brand_id")
+    if not brand_id:
+        raise ValidationException(
+            message=AppMessages.REQUIRED_FIELD_MISSING,
+            extensions={"field": "brand_id"},
+        )
+
+    schema_ = schema or "public"
+    logger.info(f"Deleting unused parts for brand_id={brand_id} in db={db_name}")
+
+    rows = await exec_sql(
+        db_name=db_name,
+        schema=schema_,
+        sql=SqlStore.DELETE_UNUSED_PARTS_BY_BRAND,
+        sql_args={"brand_id": brand_id},
+    )
+
+    deleted_count = len(rows) if rows else 0
+    logger.info(f"Deleted {deleted_count} unused parts for brand_id={brand_id}")
+    return {"deleted_count": deleted_count}
+
+
+async def resolve_import_spare_parts_helper(db_name: str, schema: str = "public", value: str = "") -> dict:
+    """
+    Fast bulk import of spare parts using a single multi-row INSERT.
+
+    Args:
+        db_name: Target service database name.
+        schema:  Database schema (default: "public").
+        value:   URL-encoded JSON array of part record dicts.
+
+    Returns:
+        {"success_count": int}
+    """
+    payload = _decode_value(value, "importSpareParts")
+
+    if not isinstance(payload, list):
+        raise ValidationException(
+            message=AppMessages.INVALID_INPUT,
+            extensions={"detail": "Expected a list of part records"},
+        )
+
+    db_name_arg = db_name if db_name else None
+    logger.info(f"Bulk importing {len(payload)} spare parts into: {db_name_arg or 'client_db'}")
+
+    count = await bulk_insert_records(
+        db_name=db_name_arg,
+        schema=schema or "public",
+        table_name="spare_part_master",
+        records=payload,
+    )
+
+    logger.info(f"Bulk import complete: {count} rows inserted")
+    return {"success_count": count}
 
 
 async def resolve_mail_admin_credentials_helper(db_name: str, schema: str, value: str) -> dict:

@@ -89,8 +89,21 @@ export const EditVendorDialog = ({
     const schema = useAppSelector(selectSchema);
 
     const form = useForm<EditVendorFormType>({
+        defaultValues: {
+            address_line1: vendor.address_line1 ?? "",
+            address_line2: vendor.address_line2 ?? "",
+            city:          vendor.city ?? "",
+            email:          vendor.email ?? "",
+            gstin:         vendor.gstin ?? "",
+            name:          vendor.name,
+            pan:           vendor.pan ?? "",
+            phone:         vendor.phone ?? "",
+            pincode:       vendor.pincode ?? "",
+            remarks:       vendor.remarks ?? "",
+            state_id:      vendor.state_id,
+        },
         mode:     "onChange",
-        resolver: zodResolver(editVendorSchema),
+        resolver: zodResolver(editVendorSchema) as any,
     });
 
     const { formState: { errors } } = form;

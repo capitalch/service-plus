@@ -87,7 +87,7 @@ export const AddStateDialog = ({
             name:               "",
         },
         mode:     "onChange",
-        resolver: zodResolver(addStateSchema),
+        resolver: zodResolver(addStateSchema) as any,
     });
 
     const { formState: { errors } } = form;

@@ -89,14 +89,14 @@ export const AddTechnicianDialog = ({
         defaultValues: {
             branch_id:      0,
             code:           "",
+            email:          "",
+            leaving_date:   "",
             name:           "",
             phone:          "",
-            email:          "",
             specialization: "",
-            leaving_date:   "",
         },
         mode:     "onChange",
-        resolver: zodResolver(addTechnicianSchema),
+        resolver: zodResolver(addTechnicianSchema) as any,
     });
 
     const { formState: { errors } } = form;

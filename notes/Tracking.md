@@ -24,8 +24,9 @@
 	- At server:					3 days: 28-06-2026
 	- QA bug fix:					7 days: 15-07-2026
 	- Feature enhancement:			15 days:30-07-2026
-- Customer portal:					15 days:15-08-2026
-- Mobile App:						35 days:30-09-2026
+- Mapping with Trace+				7 days: 07-08-2026
+- Customer portal:					15 days:21-08-2026
+- Mobile App:						35 days:15-10-2026
 	
 ## Service plus software development started on 15-01-2026
 # Plans

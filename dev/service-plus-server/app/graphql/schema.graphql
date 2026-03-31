@@ -20,6 +20,9 @@ type Mutation {
     deleteClient(db_name: String!, schema: String, value: String!): Generic
     dropDatabase(db_name: String!, schema: String, value: String!): Generic
     genericUpdate(db_name: String!, schema: String, value: String!): Generic
+    genericUpdateScript(db_name: String!, schema: String, value: String!): Generic
+    deleteUnusedPartsByBrand(db_name: String!, schema: String, value: String!): Generic
+    importSpareParts(db_name: String!, schema: String, value: String!): Generic
     mailAdminCredentials(db_name: String!, schema: String, value: String!): Generic
     mailBusinessUserCredentials(db_name: String!, schema: String, value: String!): Generic
     setUserBuRole(db_name: String!, schema: String, value: String!): Generic

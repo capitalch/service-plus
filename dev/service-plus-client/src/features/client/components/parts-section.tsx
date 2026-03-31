@@ -50,6 +50,7 @@ import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectSchema } from "@/store/context-slice";
 import { AddPartDialog } from "@/features/client/components/add-part-dialog";
+import { DeleteBrandPartsWizardDialog } from "@/features/client/components/delete-brand-parts-wizard-dialog";
 import { DeletePartDialog } from "@/features/client/components/delete-part-dialog";
 import { EditPartDialog } from "@/features/client/components/edit-part-dialog";
 import { ImportPartDialog } from "@/features/client/components/import-part-dialog";
@@ -90,6 +91,7 @@ export const PartsSection = () => {
 
     // Parts
     const [addOpen,      setAddOpen]      = useState(false);
+    const [cleanUpOpen,  setCleanUpOpen]  = useState(false);
     const [deletePart,   setDeletePart]   = useState<PartType | null>(null);
     const [editPart,     setEditPart]     = useState<PartType | null>(null);
     const [importOpen,   setImportOpen]   = useState(false);
@@ -300,6 +302,17 @@ export const PartsSection = () => {
                         >
                             <UploadIcon className="h-3.5 w-3.5" />
                             Import
+                        </Button>
+                        <Button
+                            className="gap-1.5 border border-red-200 bg-red-50 text-red-600 shadow-sm hover:bg-red-100"
+                            disabled={!selectedBrand || partsLoading}
+                            size="sm"
+                            title="Delete unused parts for this brand"
+                            variant="outline"
+                            onClick={() => setCleanUpOpen(true)}
+                        >
+                            <Trash2Icon className="h-3.5 w-3.5" />
+                            Clean Up
                         </Button>
                         <Button
                             className="bg-teal-600 text-white hover:bg-teal-700"
@@ -563,6 +576,14 @@ export const PartsSection = () => {
                     part={deletePart}
                     onOpenChange={(o) => { if (!o) setDeletePart(null); }}
                     onSuccess={() => loadParts(selectedBrand, page, searchQ)}
+                />
+            )}
+            {selectedBrand && (
+                <DeleteBrandPartsWizardDialog
+                    brand={selectedBrand}
+                    open={cleanUpOpen}
+                    onClose={() => setCleanUpOpen(false)}
+                    onDeleted={() => { setCleanUpOpen(false); setPage(1); loadParts(selectedBrand, 1, searchQ); }}
                 />
             )}
         </>

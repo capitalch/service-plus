@@ -1,99 +1,39 @@
-# Plan: Import of Spare Parts Master from Excel/CSV
-
-## Overview
-Add a multi-step import wizard to the Parts Master section. This enables users to upload an Excel/CSV file, map its columns to the `spare_part_master` database fields, preview the mappings, validate the data to identify any invalid rows (which can be safely skipped), import the valid rows using `genericUpdate`, and view the result summary. 
-
-Per the project guidelines, all SQL queries related to "client mode" (including parts master) will be added to `sql_app.py`.
-
----
+# Plan for Fixing Upload Step UI Issues in Parts Import
 
 ## Workflow
 
-```
-User clicks "Import" (in PartsSection toolbar)
-        │
-        ▼
-Step 1: Upload Excel/CSV file
-  ─ Client renders a file drop-zone
-  ─ File is parsed client-side using SheetJS (xlsx)
-  ─ Extracted: raw headers + array-of-rows
-        │
-        ▼
-Step 2: Column Mapping
-  ─ User maps each source column → target field of spare_part_master
-  ─ Required target fields: brand_id (or brand_name), part_code, part_name, uom
-  ─ Auto-detect common exact matches for column names
-        │
-        ▼
-Step 3: Preview
-  ─ Show first N rows (e.g. 20) as a table with mapped field names
-  ─ Basic client-side checks highlighted (e.g. missing required fields, invalid numbers)
-        │
-        ▼
-Step 4: Validation (New step before Import)
-  ─ The app does a pre-flight validation check against the database:
-    1. Resolve text `brand_name` to actual `brand_id` using the current brand list.
-    2. Check `part_code` duplicates using `CHECK_PART_CODE_EXISTS` generically in bulk.
-  ─ Provide a summary of how many rows are Valid, Skippable (Duplicates/Missing fields), and Errors.
-  ─ User can view the exact invalid data in a datatable. By proceeding, they accept that only the explicit "Valid" rows will be imported, bypassing the invalid/duplicate ones.
-        │
-        ▼
-Step 5: Import Data
-  ─ For each valid row, call genericUpdate mutation with INSERT on spare_part_master
-  ─ Run in batches (e.g. 50 at a time) with a progress bar
-  ─ Collect success/fail feedback for individual rows
-        │
-        ▼
-Step 6: Show Result
-  ─ Show summary: X imported successfully
-  ─ Option to Close or Download error/skip report as CSV
-  ─ On close, reload the parent parts list
-```
+The core problem is caused by the upload drop area being configured as an HTML `<label>` element containing an `<input type="file">` combined with `tabIndex={0}`.
 
----
+1.  **Focus and Double Click Issue:** By default, HTML `<label>` elements have complex native focus and click-through behaviours when wrapping an input. Giving a label `tabIndex={0}` causes the browser to intercept the first click simply to set focus on the label. A second click is then required to trigger the nested file input.
+2.  **Brand Selection Unselecting:** When a user clicks a `<label>` element, some browsers attempt to recursively find and focus associated form controls. If the `brandId` Select component is placed near it, the native FocusEvent inside a customized UI component (like Radix UI Select used here) can trigger `onBlur` or unexpected focus transfer events, which may inadvertently clear or reset the Select state.
+
+We will resolve this by completely detaching the drop area from the generic `<label>` HTML structure and converting it into a purely custom `<div role="button">` with explicitly controlled click forwarding via React `useRef`.
 
 ## Execution Steps
 
-### Step 1 — Install SheetJS (xlsx) library
-**File:** `service-plus-client/package.json`
-- Run `pnpm add xlsx` in `service-plus-client/` to enable client-side parsing of Excel/CSV without uploading the file to the server.
+### Step 1: Initialize File Input Reference
+- Inside `ImportPartDialog` (`service-plus-client/src/features/client/components/import-part-dialog.tsx`), introduce a new `useRef` to store the reference to the hidden file input element.
+- `const fileInputRef = useRef<HTMLInputElement>(null);`
 
-### Step 2 — Verify/Create SQL Constants in `sql_app.py`
-**File:** `service-plus-server/app/db/sql_app.py`
-- Move or define the `CHECK_PART_CODE_EXISTS` query in `sql_app.py` if not already present, ensuring adherence to the guideline that client mode sql scripts reside here.
-- It should look like:
-```python
-    CHECK_PART_CODE_EXISTS = """
-        SELECT EXISTS (
-            SELECT 1 FROM {schema}.spare_part_master
-            WHERE brand_id = %(brand_id)s
-              AND part_code = %(part_code)s
-        ) AS exists
-    """
-```
+### Step 2: Refactor the Drop Area Container
+- Change the `tabIndex={0}` drop area container in "Step 1" view from `<label>` to `<div role="button">`.
+- This eliminates native label focus/click bugs where the browser swallows the first activation.
 
-### Step 3 — Add SQL_MAP entry (client)
-**File:** `service-plus-client/src/constants/sql-map.ts`
-- Ensure `CHECK_PART_CODE_EXISTS` is properly mapped:
-```ts
-    CHECK_PART_CODE_EXISTS: "CHECK_PART_CODE_EXISTS",
-```
+### Step 3: Implement Programmatic Click Forwarding
+- Add an `onClick` event handler to the new `<div>` returning: `onClick={() => fileInputRef.current?.click()}`.
+- To maintain accessibility since we converted it to a button, add an `onKeyDown` handler:
+  ```typescript
+  onKeyDown={(e) => {
+      if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          fileInputRef.current?.click();
+      }
+  }}
+  ```
 
-### Step 4 — Define Import Types
-**File:** `service-plus-client/src/features/client/types/import-parts.ts` [NEW]
-- Define `MappedField`, `ParsedPart` (with validation status fields like `isValid` and `errors`), and `ImportResult`.
+### Step 4: Attach Reference to Input
+- On the `<input type="file">` inside the drop area, attach the newly created `ref={fileInputRef}`.
+- Retain the existing `onChange={handleFileSelect}` so the file processing functionality works normally once triggered programmatically.
 
-### Step 5 — Create the Import Components
-**File:** `service-plus-client/src/features/client/components/import-parts-dialog.tsx` [NEW]
-- Create the 6-step multi-step wizard UI using `Dialog` component.
-- **Validation Step**: Build the specific UI for Step 4 that iterates over rows, queries `CHECK_PART_CODE_EXISTS` via `apolloClient` per brand/part, and groups rows by "Valid" vs "Invalid/Duplicate".
-
-### Step 6 — Modify the Parts Section UI
-**File:** `service-plus-client/src/features/client/components/parts-section.tsx` [MODIFY]
-- Add an `UploadIcon` action button to the toolbar for "Import".
-- Manage state to open the `<ImportPartsDialog>`.
-- Pass down loaded `brands` to `ImportPartsDialog` so it can resolve brand names natively on the client.
-
-### Step 7 — Final Testing
-- Use a sample `.csv` / `.xlsx` to trigger the wizard.
-- Specifically test the new Step 4 (Validation) to ensure it successfully detects an existing part code and accurately presents the user with the skip/ignore flow before Step 5 begins.
+### Step 5: Verify Implementation
+- Ensure there are no lingering pseudo-label errors. The component will now cleanly accept dragged files and instantly prompt the file dialogue on a single click without side-effecting onto other states like the Brand selection.

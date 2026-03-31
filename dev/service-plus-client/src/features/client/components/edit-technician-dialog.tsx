@@ -88,8 +88,17 @@ export const EditTechnicianDialog = ({
     const schema = useAppSelector(selectSchema);
 
     const form = useForm<EditTechnicianFormType>({
+        defaultValues: {
+            branch_id:      technician.branch_id,
+            code:           technician.code,
+            email:          technician.email ?? "",
+            leaving_date:   technician.leaving_date ?? "",
+            name:           technician.name,
+            phone:          technician.phone ?? "",
+            specialization: technician.specialization ?? "",
+        },
         mode:     "onChange",
-        resolver: zodResolver(editTechnicianSchema),
+        resolver: zodResolver(editTechnicianSchema) as any,
     });
 
     const { formState: { errors } } = form;
