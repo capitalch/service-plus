@@ -41,9 +41,9 @@ import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectSchema } from "@/store/context-slice";
-import { AddBranchDialog } from "@/features/client/components/add-branch-dialog";
-import { DeleteBranchDialog } from "@/features/client/components/delete-branch-dialog";
-import { EditBranchDialog } from "@/features/client/components/edit-branch-dialog";
+import { AddBranchDialog } from "./add-branch-dialog";
+import { DeleteBranchDialog } from "./delete-branch-dialog";
+import { EditBranchDialog } from "./edit-branch-dialog";
 import type { BranchType } from "@/features/client/types/branch";
 
 // ─── Types ────────────────────────────────────────────────────────────────────

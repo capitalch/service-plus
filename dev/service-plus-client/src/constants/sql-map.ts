@@ -106,6 +106,7 @@ export const SQL_MAP = {
     GET_PARTS_PAGED:                      "GET_PARTS_PAGED",
     CHECK_PART_CODE_EXISTS:               "CHECK_PART_CODE_EXISTS",
     CHECK_PART_CODE_EXISTS_EXCLUDE_ID:    "CHECK_PART_CODE_EXISTS_EXCLUDE_ID",
+    GET_PART_BY_CODE:                  "GET_PART_BY_CODE",
     CHECK_PART_IN_USE:                    "CHECK_PART_IN_USE",
     GET_PARTS_USAGE_STATS_BY_BRAND:       "GET_PARTS_USAGE_STATS_BY_BRAND",
     // Part Location (spare_part_location_master)
@@ -113,6 +114,10 @@ export const SQL_MAP = {
     CHECK_PART_LOCATION_EXISTS:                    "CHECK_PART_LOCATION_EXISTS",
     CHECK_PART_LOCATION_EXISTS_EXCLUDE_ID:         "CHECK_PART_LOCATION_EXISTS_EXCLUDE_ID",
     CHECK_PART_LOCATION_IN_USE:                    "CHECK_PART_LOCATION_IN_USE",
+    // App Settings (Configurations)
+    GET_APP_SETTINGS:                              "GET_APP_SETTINGS",
+    CHECK_APP_SETTING_KEY_EXISTS:                  "CHECK_APP_SETTING_KEY_EXISTS",
+    CHECK_APP_SETTING_KEY_EXISTS_EXCLUDE_ID:       "CHECK_APP_SETTING_KEY_EXISTS_EXCLUDE_ID",
     // Company Info (Configurations)
     GET_COMPANY_INFO:                     "GET_COMPANY_INFO",
     CHECK_COMPANY_INFO_EXISTS:            "CHECK_COMPANY_INFO_EXISTS",

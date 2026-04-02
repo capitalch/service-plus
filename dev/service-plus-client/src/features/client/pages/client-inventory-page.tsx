@@ -1,5 +1,5 @@
 import { ClientLayout, useClientSelection } from "../components/client-layout";
-import { PurchaseEntrySection } from "../components/purchase-entry-section";
+import { PurchaseEntrySection } from "../components/inventory/purchase-entry/purchase-entry-section";
 import { StockOverviewSection } from "../components/stock-overview-section";
 
 // ─── Coming Soon placeholder ──────────────────────────────────────────────────

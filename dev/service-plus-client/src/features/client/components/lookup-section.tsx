@@ -39,9 +39,9 @@ import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectCurrentUser, selectDbName } from "@/features/auth/store/auth-slice";
 import { selectSchema } from "@/store/context-slice";
-import { AddLookupDialog } from "@/features/client/components/add-lookup-dialog";
-import { DeleteLookupDialog } from "@/features/client/components/delete-lookup-dialog";
-import { EditLookupDialog } from "@/features/client/components/edit-lookup-dialog";
+import { AddLookupDialog } from "./add-lookup-dialog";
+import { DeleteLookupDialog } from "./delete-lookup-dialog";
+import { EditLookupDialog } from "./edit-lookup-dialog";
 import type { LookupConfig, LookupRecord } from "@/features/client/types/lookup";
 
 // ─── Types ────────────────────────────────────────────────────────────────────

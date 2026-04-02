@@ -1231,11 +1231,24 @@ class SqlStore:
         WHERE (table "p_search") = ''
            OR LOWER(p.part_code)  LIKE '%%' || LOWER((table "p_search")) || '%%'
            OR LOWER(p.part_name)  LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(COALESCE(p.part_description, '')) LIKE '%%' || LOWER((table "p_search")) || '%%'
            OR LOWER(COALESCE(p.category, '')) LIKE '%%' || LOWER((table "p_search")) || '%%'
            OR LOWER(b.name)       LIKE '%%' || LOWER((table "p_search")) || '%%'
         ORDER BY b.name, p.part_code
         LIMIT  (table "p_limit")
         OFFSET (table "p_offset")
+    """
+    
+    GET_PART_BY_CODE = """
+        SELECT
+            p.id, p.brand_id, p.part_code, p.part_name,
+            p.part_description, p.category, p.model, p.uom,
+            p.cost_price, p.mrp, p.hsn_code, p.gst_rate, p.is_active,
+            b.name AS brand_name
+        FROM spare_part_master p
+        JOIN brand b ON b.id = p.brand_id
+        WHERE LOWER(p.part_code) = LOWER(%(code)s)
+          AND (%(brand_id)s IS NULL OR p.brand_id = %(brand_id)s::bigint)
     """
 
     # ── Products ──────────────────────────────────────────────────────────────
@@ -1492,7 +1505,7 @@ class SqlStore:
     GET_ALL_STATES = """
         with "dummy" as (values(1::int))
         -- with "dummy" as (values(1::int)) -- Test line
-        SELECT id, code, name
+        SELECT id, code, name, gst_state_code
         FROM state
         WHERE is_active = true
         ORDER BY name
@@ -1897,4 +1910,38 @@ class SqlStore:
         FROM supplier v
         LEFT JOIN state s ON s.id = v.state_id
         ORDER BY v.name
+    """
+
+    # ── App Settings ──────────────────────────────────────────────────────────
+
+    GET_APP_SETTINGS = """
+        with "dummy" as (values(1::int))
+        -- with "dummy" as (values(1::int)) -- Test line
+        SELECT id, setting_key, setting_value, description, is_editable,
+               created_at, updated_at
+        FROM app_setting
+        ORDER BY setting_key
+    """
+
+    CHECK_APP_SETTING_KEY_EXISTS = """
+        with "p_key" as (values(%(setting_key)s::text))
+        -- with "p_key" as (values('default_gst_rate'::text)) -- Test line
+        SELECT EXISTS(
+            SELECT 1 FROM app_setting
+            WHERE LOWER(setting_key) = LOWER((table "p_key"))
+        ) AS exists
+    """
+
+    CHECK_APP_SETTING_KEY_EXISTS_EXCLUDE_ID = """
+        with
+            "p_key" as (values(%(setting_key)s::text)),
+            "p_id"  as (values(%(id)s::smallint))
+        -- with
+        --     "p_key" as (values('default_gst_rate'::text)), -- Test line
+        --     "p_id"  as (values(1::smallint))               -- Test line
+        SELECT EXISTS(
+            SELECT 1 FROM app_setting
+            WHERE LOWER(setting_key) = LOWER((table "p_key"))
+              AND id <> (table "p_id")
+        ) AS exists
     """

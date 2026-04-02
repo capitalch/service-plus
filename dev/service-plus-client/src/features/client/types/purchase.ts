@@ -45,12 +45,14 @@ export type PurchaseInvoiceType = {
 export type PurchaseLineFormItem = {
     _key:       string;
     part_id:    number | null;
+    brand_id:   number | null;
     part_code:  string;
     part_name:  string;
     uom:        string;
     hsn_code:   string;
     quantity:   number;
     unit_price: number;
+    gst_rate:   number;
     cgst_rate:  number;
     sgst_rate:  number;
     igst_rate:  number;

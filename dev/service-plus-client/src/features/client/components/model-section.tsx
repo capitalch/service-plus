@@ -40,9 +40,9 @@ import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectSchema } from "@/store/context-slice";
-import { AddModelDialog } from "@/features/client/components/add-model-dialog";
-import { DeleteModelDialog } from "@/features/client/components/delete-model-dialog";
-import { EditModelDialog } from "@/features/client/components/edit-model-dialog";
+import { AddModelDialog } from "./add-model-dialog";
+import { DeleteModelDialog } from "./delete-model-dialog";
+import { EditModelDialog } from "./edit-model-dialog";
 import type { ModelType, BrandOption, ProductOption } from "@/features/client/types/model";
 
 // ─── Types ────────────────────────────────────────────────────────────────────

@@ -49,11 +49,11 @@ import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectSchema } from "@/store/context-slice";
-import { AddPartDialog } from "@/features/client/components/add-part-dialog";
-import { DeleteBrandPartsWizardDialog } from "@/features/client/components/delete-brand-parts-wizard-dialog";
-import { DeletePartDialog } from "@/features/client/components/delete-part-dialog";
-import { EditPartDialog } from "@/features/client/components/edit-part-dialog";
-import { ImportPartDialog } from "@/features/client/components/import-part-dialog";
+import { AddPartDialog } from "./add-part-dialog";
+import { DeleteBrandPartsWizardDialog } from "./delete-brand-parts-wizard-dialog";
+import { DeletePartDialog } from "./delete-part-dialog";
+import { EditPartDialog } from "./edit-part-dialog";
+import { ImportPartDialog } from "./import-part-dialog";
 import type { BrandOption } from "@/features/client/types/model";
 import type { PartType } from "@/features/client/types/part";
 

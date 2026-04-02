@@ -1,8 +1,16 @@
 # To Do
+- DB
+	- Purchase_invoice
+		- brand_id
+		- taxable_amount -> aggregate_amount
+	- Purchase_invoice_line
+		- remove cgst_rate, sgst_rate, igst_rate
+		- add gst_rate
+
 ## Login
 - Forgot password
 - Remember me
-# modify seed data and table columns
+						# modify seed data and table columns
 							add is_system column to:
 								- customer_type
 								- document_type

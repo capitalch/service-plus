@@ -41,9 +41,9 @@ import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectSchema } from "@/store/context-slice";
-import { AddStateDialog } from "@/features/client/components/add-state-dialog";
-import { DeleteStateDialog } from "@/features/client/components/delete-state-dialog";
-import { EditStateDialog } from "@/features/client/components/edit-state-dialog";
+import { AddStateDialog } from "./add-state-dialog";
+import { DeleteStateDialog } from "./delete-state-dialog";
+import { EditStateDialog } from "./edit-state-dialog";
 import type { StateType } from "@/features/client/types/state";
 
 // ─── Types ────────────────────────────────────────────────────────────────────

@@ -41,9 +41,9 @@ import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectSchema } from "@/store/context-slice";
-import { AddPartLocationDialog } from "@/features/client/components/add-part-location-dialog";
-import { DeletePartLocationDialog } from "@/features/client/components/delete-part-location-dialog";
-import { EditPartLocationDialog } from "@/features/client/components/edit-part-location-dialog";
+import { AddPartLocationDialog } from "./add-part-location-dialog";
+import { DeletePartLocationDialog } from "./delete-part-location-dialog";
+import { EditPartLocationDialog } from "./edit-part-location-dialog";
 import type { BranchOption, PartLocationType } from "@/features/client/types/part-location";
 
 // ─── Types ────────────────────────────────────────────────────────────────────

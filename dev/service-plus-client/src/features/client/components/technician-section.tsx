@@ -41,9 +41,9 @@ import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectSchema } from "@/store/context-slice";
-import { AddTechnicianDialog } from "@/features/client/components/add-technician-dialog";
-import { DeleteTechnicianDialog } from "@/features/client/components/delete-technician-dialog";
-import { EditTechnicianDialog } from "@/features/client/components/edit-technician-dialog";
+import { AddTechnicianDialog } from "./add-technician-dialog";
+import { DeleteTechnicianDialog } from "./delete-technician-dialog";
+import { EditTechnicianDialog } from "./edit-technician-dialog";
 import type { BranchOption, TechnicianType } from "@/features/client/types/technician";
 
 // ─── Types ────────────────────────────────────────────────────────────────────

@@ -24,6 +24,7 @@ type ContextStateType = {
     availableBus:      BuContextType[];
     currentBranch:     BranchContextType | null;
     currentBu:         BuContextType | null;
+    isGstRegistered:   boolean;
 };
 
 // ─── Initial State ────────────────────────────────────────────────────────────
@@ -33,6 +34,7 @@ const initialState: ContextStateType = {
     availableBus:      [],
     currentBranch:     null,
     currentBu:         null,
+    isGstRegistered:   false,
 };
 
 // ─── Slice ────────────────────────────────────────────────────────────────────
@@ -58,6 +60,9 @@ export const contextSlice = createSlice({
         setCurrentBu: (state, action: PayloadAction<BuContextType | null>) => {
             state.currentBu = action.payload;
         },
+        setIsGstRegistered: (state, action: PayloadAction<boolean>) => {
+            state.isGstRegistered = action.payload;
+        },
     },
 });
 
@@ -69,6 +74,7 @@ export const {
     setAvailableBus,
     setCurrentBranch,
     setCurrentBu,
+    setIsGstRegistered,
 } = contextSlice.actions;
 
 // ─── Selectors ────────────────────────────────────────────────────────────────
@@ -79,6 +85,7 @@ export const selectAvailableBranches = (state: ContextRootState) => state.contex
 export const selectAvailableBus      = (state: ContextRootState) => state.context.availableBus;
 export const selectCurrentBranch     = (state: ContextRootState) => state.context.currentBranch;
 export const selectCurrentBu         = (state: ContextRootState) => state.context.currentBu;
+export const selectIsGstRegistered   = (state: ContextRootState) => state.context.isGstRegistered;
 export const selectSchema            = (state: ContextRootState): string | null =>
     state.context.currentBu?.code?.toLowerCase() ?? null;
 

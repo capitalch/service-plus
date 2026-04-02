@@ -41,9 +41,9 @@ import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectSchema } from "@/store/context-slice";
-import { AddCustomerDialog } from "@/features/client/components/add-customer-dialog";
-import { DeleteCustomerDialog } from "@/features/client/components/delete-customer-dialog";
-import { EditCustomerDialog } from "@/features/client/components/edit-customer-dialog";
+import { AddCustomerDialog } from "./add-customer-dialog";
+import { DeleteCustomerDialog } from "./delete-customer-dialog";
+import { EditCustomerDialog } from "./edit-customer-dialog";
 import type { CustomerType, CustomerTypeOption, StateOption } from "@/features/client/types/customer";
 
 // ─── Types ────────────────────────────────────────────────────────────────────

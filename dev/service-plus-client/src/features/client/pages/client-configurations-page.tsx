@@ -1,6 +1,7 @@
 import { ClientLayout, useClientSelection } from "../components/client-layout";
-import { CompanyProfileSection } from "../components/company-profile-section";
-import { DocumentSequenceSection } from "../components/document-sequence-section";
+import { AppSettingsSection } from "../components/configurations/app-settings/app-settings-section";
+import { CompanyProfileSection } from "../components/configurations/company-profile/company-profile-section";
+import { DocumentSequenceSection } from "../components/configurations/document-sequence/document-sequence-section";
 
 // ─── Coming Soon placeholder ──────────────────────────────────────────────────
 
@@ -21,14 +22,17 @@ function ComingSoon({ label }: { label: string }) {
 
 function ConfigurationsContent() {
     const { selected } = useClientSelection();
+    const s = selected?.trim() || "";
 
-    switch (selected) {
+    switch (s) {
         case "Company Profile":
             return <CompanyProfileSection />;
+        case "App Settings":
+            return <AppSettingsSection />;
         case "Numbering / Auto Series":
             return <DocumentSequenceSection />;
         default:
-            return <ComingSoon label={selected || "Configurations"} />;
+            return <ComingSoon label={s || "Configurations"} />;
     }
 }
 

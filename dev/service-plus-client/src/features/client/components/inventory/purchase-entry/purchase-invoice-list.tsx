@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Eye, FileText, Loader2, Plus, RefreshCw, Search, Trash2 } from "lucide-react";
+import { Eye, FileText, Loader2, RefreshCw, Search, Trash2, Pencil, Printer } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 
@@ -12,13 +12,6 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { MESSAGES } from "@/constants/messages";
 import { SQL_MAP } from "@/constants/sql-map";
@@ -28,16 +21,19 @@ import { formatCurrency } from "@/lib/utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectSchema } from "@/store/context-slice";
-import type { VendorType } from "@/features/client/types/vendor";
-import type { PurchaseInvoiceType, StockTransactionTypeRow } from "@/features/client/types/purchase";
-import { AddPurchaseInvoiceDialog } from "./add-purchase-invoice-dialog";
+import type { PurchaseInvoiceType } from "@/features/client/types/purchase";
 import { ViewPurchaseInvoiceDialog } from "./view-purchase-invoice-dialog";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type BranchType = { id: number; name: string; code: string };
-
 type GenericQueryData<T> = { genericQuery: T[] | null };
+
+type Props = {
+    branchId: number | null;
+    onEdit: (invoice: PurchaseInvoiceType) => void;
+    onPrint: (invoice: PurchaseInvoiceType) => void;
+    centerHeader?: React.ReactNode;
+};
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -62,17 +58,18 @@ const tdClass = "p-3 text-sm text-[var(--cl-text)] border-b border-[var(--cl-bor
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export const PurchaseEntrySection = () => {
+export const PurchaseInvoiceList = ({
+    branchId,
+    onEdit,
+    onPrint,
+    centerHeader
+}: Props) => {
     const dbName = useAppSelector(selectDbName);
     const schema = useAppSelector(selectSchema);
 
     const { from: defaultFrom, to: defaultTo } = currentMonthRange();
 
     // Filter state
-    const [branches,       setBranches]       = useState<BranchType[]>([]);
-    const [vendors,        setVendors]        = useState<VendorType[]>([]);
-    const [txnTypes,       setTxnTypes]       = useState<StockTransactionTypeRow[]>([]);
-    const [selectedBranch, setSelectedBranch] = useState("");
     const [fromDate,       setFromDate]       = useState(defaultFrom);
     const [toDate,         setToDate]         = useState(defaultTo);
     const [search,         setSearch]         = useState("");
@@ -85,60 +82,13 @@ export const PurchaseEntrySection = () => {
     const [loading,  setLoading]  = useState(false);
 
     // Dialog state
-    const [addOpen,      setAddOpen]      = useState(false);
     const [viewInvoice,  setViewInvoice]  = useState<PurchaseInvoiceType | null>(null);
     const [deleteId,     setDeleteId]     = useState<number | null>(null);
     const [deleting,     setDeleting]     = useState(false);
 
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    // 1. Load branches, vendors, txnTypes on mount
-    useEffect(() => {
-        if (!dbName || !schema) return;
-        const fetchMeta = async () => {
-            try {
-                const [branchRes, vendorRes, txnRes] = await Promise.all([
-                    apolloClient.query<GenericQueryData<BranchType>>({
-                        fetchPolicy: "network-only",
-                        query: GRAPHQL_MAP.genericQuery,
-                        variables: {
-                            db_name: dbName,
-                            schema,
-                            value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_ALL_BRANCHES }),
-                        },
-                    }),
-                    apolloClient.query<GenericQueryData<VendorType>>({
-                        fetchPolicy: "network-only",
-                        query: GRAPHQL_MAP.genericQuery,
-                        variables: {
-                            db_name: dbName,
-                            schema,
-                            value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_ALL_VENDORS }),
-                        },
-                    }),
-                    apolloClient.query<GenericQueryData<StockTransactionTypeRow>>({
-                        fetchPolicy: "network-only",
-                        query: GRAPHQL_MAP.genericQuery,
-                        variables: {
-                            db_name: dbName,
-                            schema,
-                            value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_STOCK_TRANSACTION_TYPES }),
-                        },
-                    }),
-                ]);
-                const fetchedBranches = branchRes.data?.genericQuery ?? [];
-                setBranches(fetchedBranches);
-                setVendors(vendorRes.data?.genericQuery ?? []);
-                setTxnTypes(txnRes.data?.genericQuery ?? []);
-                if (fetchedBranches.length > 0) setSelectedBranch(String(fetchedBranches[0].id));
-            } catch {
-                toast.error(MESSAGES.ERROR_PURCHASE_LOAD_FAILED);
-            }
-        };
-        void fetchMeta();
-    }, [dbName, schema]);
-
-    // 2. Load invoices (paged)
+    // Load invoices (paged)
     const loadData = useCallback(async (
         branchId: number, from: string, to: string, q: string, pg: number,
     ) => {
@@ -183,9 +133,9 @@ export const PurchaseEntrySection = () => {
 
     // Re-fetch when filters or page change
     useEffect(() => {
-        if (!selectedBranch) return;
-        void loadData(Number(selectedBranch), fromDate, toDate, searchQ, page);
-    }, [selectedBranch, fromDate, toDate, searchQ, page, loadData]);
+        if (!branchId) return;
+        void loadData(branchId, fromDate, toDate, searchQ, page);
+    }, [branchId, fromDate, toDate, searchQ, page, loadData]);
 
     // Debounce search input
     const handleSearchChange = (value: string) => {
@@ -202,9 +152,9 @@ export const PurchaseEntrySection = () => {
         setPage(1);
     };
 
-    // 3. Delete
+    // Delete
     const handleDelete = async () => {
-        if (!deleteId || !dbName || !schema) return;
+        if (!deleteId || !dbName || !schema || !branchId) return;
         setDeleting(true);
         try {
             await apolloClient.mutate({
@@ -217,7 +167,7 @@ export const PurchaseEntrySection = () => {
             });
             toast.success(MESSAGES.SUCCESS_PURCHASE_DELETED);
             setDeleteId(null);
-            void loadData(Number(selectedBranch), fromDate, toDate, searchQ, page);
+            void loadData(branchId, fromDate, toDate, searchQ, page);
         } catch {
             toast.error(MESSAGES.ERROR_PURCHASE_DELETE_FAILED);
         } finally {
@@ -231,56 +181,45 @@ export const PurchaseEntrySection = () => {
 
     return (
         <motion.div
-            animate={{ opacity: 1 }}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
             className="flex min-h-0 flex-1 flex-col gap-4"
-            initial={{ opacity: 0 }}
-            transition={{ duration: 0.25 }}
         >
-            {/* Header */}
-            <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="flex items-center gap-3">
+            {/* Header / Stats */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="shrink-0 flex items-center gap-3">
                     <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-[var(--cl-accent)]/10">
                         <FileText className="h-5 w-5 text-[var(--cl-accent)]" />
                     </div>
                     <div>
-                        <h1 className="text-xl font-bold text-[var(--cl-text)]">Purchase Entry</h1>
-                        <p className="mt-1 text-sm text-[var(--cl-text-muted)]">
+                        <h2 className="text-xl font-bold text-[var(--cl-text)]">Recent Invoices</h2>
+                        <p className="mt-0.5 text-sm text-[var(--cl-text-muted)]">
                             {loading ? "Loading…" : `${total} invoice${total !== 1 ? "s" : ""} found`}
                         </p>
                     </div>
                 </div>
 
-                <div className="flex items-center gap-2">
-                    <div className="w-52">
-                        <Select
-                            disabled={branches.length === 0 || loading}
-                            value={selectedBranch}
-                            onValueChange={handleFilterChange(setSelectedBranch)}
-                        >
-                            <SelectTrigger className="h-9 bg-[var(--cl-surface)]">
-                                <SelectValue placeholder="Select a branch" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {branches.map(b => (
-                                    <SelectItem key={b.id} value={String(b.id)}>{b.name}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                {centerHeader && (
+                    <div className="flex justify-start md:justify-center flex-1">
+                        {centerHeader}
                     </div>
+                )}
+
+                <div className="shrink-0 flex items-center gap-2">
                     <Button
-                        className="h-9"
-                        disabled={loading || !selectedBranch}
-                        size="sm"
-                        onClick={() => setAddOpen(true)}
+                        className="bg-[var(--cl-accent)] hover:bg-[var(--cl-accent)]/90 text-white shadow-sm"
+                        disabled={loading || !branchId}
+                        onClick={() => { if(branchId) void loadData(branchId, fromDate, toDate, searchQ, page); }}
                     >
-                        <Plus className="mr-1.5 h-3.5 w-3.5" />
-                        New Invoice
+                        <RefreshCw className="mr-2 h-4 w-4" />
+                        Refresh
                     </Button>
                 </div>
             </div>
 
             {/* Toolbar */}
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2 p-1">
                 <Input
                     className="h-9 w-36 border-[var(--cl-border)] bg-[var(--cl-surface)]"
                     disabled={loading}
@@ -305,28 +244,27 @@ export const PurchaseEntrySection = () => {
                         onChange={e => handleSearchChange(e.target.value)}
                     />
                 </div>
-                <Button
-                    className="h-9"
-                    disabled={loading || !selectedBranch}
-                    size="sm"
-                    variant="outline"
-                    onClick={() => void loadData(Number(selectedBranch), fromDate, toDate, searchQ, page)}
-                >
-                    <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
-                    Refresh
-                </Button>
             </div>
 
             {/* Data Grid */}
             <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-[var(--cl-border)] bg-[var(--cl-surface)] shadow-sm">
-                <div className="flex-1 overflow-x-auto overflow-y-auto">
+                <div className="flex-1 overflow-x-auto overflow-y-auto w-full">
                     {loading ? (
                         <div className="flex h-32 items-center justify-center">
                             <Loader2 className="h-6 w-6 animate-spin text-[var(--cl-accent)]" />
                         </div>
+                    ) : !branchId ? (
+                        <div className="flex h-40 flex-col items-center justify-center text-sm text-[var(--cl-text-muted)] p-8 text-center">
+                            <div className="bg-[var(--cl-accent)]/5 p-4 rounded-full mb-4">
+                                <FileText className="h-10 w-10 text-[var(--cl-accent)] opacity-40" />
+                            </div>
+                            <h3 className="text-base font-semibold text-[var(--cl-text)] mb-1">No Branch Selected</h3>
+                            <p className="max-w-[280px]">Please select a branch from the global header to view and manage purchase invoices.</p>
+                        </div>
                     ) : invoices.length === 0 ? (
-                        <div className="flex h-32 items-center justify-center text-sm text-[var(--cl-text-muted)]">
-                            No purchase invoices found for the selected filters.
+                        <div className="flex h-32 flex-col items-center justify-center text-sm text-[var(--cl-text-muted)]">
+                            <FileText className="mb-2 h-8 w-8 opacity-20" />
+                            <p>No purchase invoices found for the selected filters.</p>
                         </div>
                     ) : (
                         <table className="min-w-full border-collapse">
@@ -344,7 +282,7 @@ export const PurchaseEntrySection = () => {
                             </thead>
                             <tbody className="divide-y divide-[var(--cl-border)] bg-[var(--cl-surface)]">
                                 {invoices.map((inv, idx) => (
-                                    <tr key={inv.id} className="transition-colors hover:bg-[var(--cl-surface-2)]/50">
+                                    <tr key={inv.id} className="transition-colors hover:bg-[var(--cl-surface-2)]/50 group">
                                         <td className={`${tdClass} text-[var(--cl-text-muted)]`} style={{ width: "5%" }}>
                                             {(page - 1) * PAGE_SIZE + idx + 1}
                                         </td>
@@ -367,22 +305,42 @@ export const PurchaseEntrySection = () => {
                                             {formatCurrency(inv.total_amount)}
                                         </td>
                                         <td className={tdClass} style={{ width: "11%" }}>
-                                            <div className="flex gap-1">
+                                            <div className="flex gap-1.5 opacity-60 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
                                                 <Button
-                                                    className="h-7 px-2"
+                                                    className="h-7 w-7 p-0"
                                                     size="sm"
-                                                    variant="outline"
+                                                    variant="ghost"
+                                                    title="View"
                                                     onClick={() => setViewInvoice(inv)}
                                                 >
-                                                    <Eye className="h-3.5 w-3.5" />
+                                                    <Eye className="h-4 w-4 text-blue-500" />
                                                 </Button>
                                                 <Button
-                                                    className="h-7 px-2 text-red-500 hover:text-red-600"
+                                                    className="h-7 w-7 p-0"
                                                     size="sm"
-                                                    variant="outline"
+                                                    variant="ghost"
+                                                    title="Edit"
+                                                    onClick={() => onEdit(inv)}
+                                                >
+                                                    <Pencil className="h-4 w-4 text-[var(--cl-text-muted)]" />
+                                                </Button>
+                                                <Button
+                                                    className="h-7 w-7 p-0"
+                                                    size="sm"
+                                                    variant="ghost"
+                                                    title="Print Preview"
+                                                    onClick={() => onPrint(inv)}
+                                                >
+                                                    <Printer className="h-4 w-4 text-[var(--cl-text-muted)]" />
+                                                </Button>
+                                                <Button
+                                                    className="h-7 w-7 p-0 hover:bg-red-50"
+                                                    size="sm"
+                                                    variant="ghost"
+                                                    title="Delete"
                                                     onClick={() => setDeleteId(inv.id)}
                                                 >
-                                                    <Trash2 className="h-3.5 w-3.5" />
+                                                    <Trash2 className="h-4 w-4 text-red-500" />
                                                 </Button>
                                             </div>
                                         </td>
@@ -395,15 +353,16 @@ export const PurchaseEntrySection = () => {
 
                 {/* Pagination */}
                 {totalPages > 1 && (
-                    <div className="flex items-center justify-between border-t border-[var(--cl-border)] px-4 py-2">
+                    <div className="flex items-center justify-between border-t border-[var(--cl-border)] bg-[var(--cl-surface-2)]/30 px-4 py-2">
                         <span className="text-xs text-[var(--cl-text-muted)]">
-                            Page {page} of {totalPages} · {total} records
+                            Page <span className="font-semibold text-[var(--cl-text)]">{page}</span> of {totalPages}
                         </span>
                         <div className="flex gap-1">
                             <Button
                                 disabled={page <= 1 || loading}
                                 size="sm"
                                 variant="outline"
+                                className="h-7 px-3 text-xs"
                                 onClick={() => setPage(p => p - 1)}
                             >
                                 Prev
@@ -412,6 +371,7 @@ export const PurchaseEntrySection = () => {
                                 disabled={page >= totalPages || loading}
                                 size="sm"
                                 variant="outline"
+                                className="h-7 px-3 text-xs"
                                 onClick={() => setPage(p => p + 1)}
                             >
                                 Next
@@ -420,21 +380,6 @@ export const PurchaseEntrySection = () => {
                     </div>
                 )}
             </div>
-
-            {/* Add Dialog */}
-            <AddPurchaseInvoiceDialog
-                branches={branches}
-                open={addOpen}
-                selectedBranchId={selectedBranch ? Number(selectedBranch) : null}
-                txnTypes={txnTypes}
-                vendors={vendors}
-                onOpenChange={setAddOpen}
-                onSuccess={() => {
-                    setAddOpen(false);
-                    setPage(1);
-                    void loadData(Number(selectedBranch), fromDate, toDate, searchQ, 1);
-                }}
-            />
 
             {/* View Dialog */}
             <ViewPurchaseInvoiceDialog
@@ -456,7 +401,7 @@ export const PurchaseEntrySection = () => {
                         This will permanently delete the invoice and all associated stock transactions.
                         This action cannot be undone.
                     </p>
-                    <DialogFooter>
+                    <DialogFooter className="mt-4">
                         <Button
                             disabled={deleting}
                             variant="outline"

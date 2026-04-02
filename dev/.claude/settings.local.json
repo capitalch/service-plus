@@ -18,7 +18,19 @@
       "Bash(c:/projects/service-plus/env/Scripts/python.exe -c \"from app.routers.parts_import import router; print\\(''Router OK''\\)\")",
       "Bash(c:/projects/service-plus/env/Scripts/python.exe -m pip install python-multipart --quiet)",
       "Bash(c:/projects/service-plus/env/Scripts/python.exe -c \"from app.main import app; print\\('App OK'\\)\" 2>&1)",
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "Bash(BASE=\"service-plus-client/src/features/client/components\")",
+      "Bash(git mv:*)",
+      "Bash(git add:*)",
+      "Bash(npx vite:*)",
+      "Bash(FILE=\"service-plus-client/src/features/client/pages/client-configurations-page.tsx\")",
+      "Bash(sed -i 's|\"\"../components/layout/client-layout\"\"|\"\"../components/client-layout\"\"|' 's|\"\"../components/configurations/app-settings/app-settings-section\"\"|\"\"../components/app-settings-section\"\"|' 's|\"\"../components/configurations/company-profile/company-profile-section\"\"|\"\"../components/company-profile-section\"\"|' 's|\"\"../components/configurations/document-sequence/document-sequence-section\"\"|\"\"../components/document-sequence-section\"\"|' $FILE)",
+      "Bash(FILE=\"/home/sushant/projects/service-plus/dev/service-plus-client/src/features/client/pages/client-configurations-page.tsx\")",
+      "Bash(sed -i 's|\"\"../components/layout/client-layout\"\"|\"\"../components/client-layout\"\"|g' \"$FILE\")",
+      "Bash(sed -i 's|\"\"../components/configurations/app-settings/app-settings-section\"\"|\"\"../components/app-settings-section\"\"|g' \"$FILE\")",
+      "Bash(sed -i 's|\"\"../components/configurations/company-profile/company-profile-section\"\"|\"\"../components/company-profile-section\"\"|g' \"$FILE\")",
+      "Bash(sed -i 's|\"\"../components/configurations/document-sequence/document-sequence-section\"\"|\"\"../components/document-sequence-section\"\"|g' \"$FILE\")",
+      "Bash(git fsck:*)"
     ]
   }
 }

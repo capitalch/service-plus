@@ -14,13 +14,11 @@ class SqlBu:
         CREATE TABLE app_setting (
             id smallint NOT NULL,
             setting_key text NOT NULL,
-            setting_type text NOT NULL,
             setting_value jsonb NOT NULL,
             description text,
             is_editable boolean DEFAULT true NOT NULL,
             created_at timestamp with time zone DEFAULT now() NOT NULL,
-            updated_at timestamp with time zone DEFAULT now() NOT NULL,
-            CONSTRAINT app_setting_type_check CHECK ((setting_type = ANY (ARRAY['TEXT'::text, 'INTEGER'::text, 'BOOLEAN'::text, 'JSON'::text])))
+            updated_at timestamp with time zone DEFAULT now() NOT NULL
         );
 
         CREATE TABLE branch (
@@ -405,6 +403,7 @@ class SqlBu:
             igst_amount numeric(14,2) DEFAULT 0 NOT NULL,
             total_tax numeric(14,2) NOT NULL,
             total_amount numeric(14,2) NOT NULL,
+            total_physical numeric(14,2) DEFAULT 0 NOT NULL,
             branch_id bigint NOT NULL,
             remarks text,
             created_at timestamp with time zone DEFAULT now() NOT NULL,
@@ -965,5 +964,10 @@ class SqlBu:
             (2053, '2053-04-01', '2054-03-31'),
             (2054, '2054-04-01', '2055-03-31'),
             (2055, '2055-04-01', '2056-03-31')
+        ON CONFLICT (id) DO NOTHING;
+
+        INSERT INTO app_setting (id, setting_key, setting_value, description, is_editable) VALUES
+            (1, 'default_gst_rate',             '18',   'Default GST rate (%) applied to invoices', true),
+            (2, 'to_show_parts_in_job_invoice',  'true', 'Show parts line items in job invoice',     true)
         ON CONFLICT (id) DO NOTHING;
     """

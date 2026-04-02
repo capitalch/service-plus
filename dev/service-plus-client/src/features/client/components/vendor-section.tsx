@@ -41,9 +41,9 @@ import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectSchema } from "@/store/context-slice";
-import { AddVendorDialog } from "@/features/client/components/add-vendor-dialog";
-import { DeleteVendorDialog } from "@/features/client/components/delete-vendor-dialog";
-import { EditVendorDialog } from "@/features/client/components/edit-vendor-dialog";
+import { AddVendorDialog } from "./add-vendor-dialog";
+import { DeleteVendorDialog } from "./delete-vendor-dialog";
+import { EditVendorDialog } from "./edit-vendor-dialog";
 import type { VendorType } from "@/features/client/types/vendor";
 import type { StateOption } from "@/features/client/types/customer";
 

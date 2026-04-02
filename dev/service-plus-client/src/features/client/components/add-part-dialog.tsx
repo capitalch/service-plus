@@ -35,10 +35,13 @@ import type { BrandOption } from "@/features/client/types/model";
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type AddPartDialogPropsType = {
-    brands:       BrandOption[];
+    brands?:      BrandOption[];
     onOpenChange: (open: boolean) => void;
     onSuccess:    () => void;
-    open:         boolean;
+    open:           boolean;
+    prefillCode?:    string;
+    defaultBrandId?: number | null;
+    brandName?:      string;
 };
 
 type CheckQueryDataType = {
@@ -74,6 +77,9 @@ export const AddPartDialog = ({
     onOpenChange,
     onSuccess,
     open,
+    prefillCode,
+    defaultBrandId,
+    brandName,
 }: AddPartDialogPropsType) => {
     const [checkingCode, setCheckingCode] = useState(false);
     const [codeTaken,    setCodeTaken]    = useState<boolean | null>(null);
@@ -111,8 +117,12 @@ export const AddPartDialog = ({
             setCodeTaken(null);
             setSubmitting(false);
             form.reset({ part_code: "", part_name: "", uom: "NOS" } as unknown as FormType);
+        } else {
+            // Populate pre-fills if provided
+            if (prefillCode) form.setValue("part_code", prefillCode.toUpperCase());
+            if (defaultBrandId) form.setValue("brand_id", defaultBrandId);
         }
-    }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [open, prefillCode, defaultBrandId]); // eslint-disable-line react-hooks/exhaustive-deps
 
     useEffect(() => {
         const bid = Number(brandIdValue);
@@ -192,24 +202,30 @@ export const AddPartDialog = ({
 
                 <form className="flex flex-col gap-4 pt-1" onSubmit={form.handleSubmit(onSubmit)}>
                     <div className="grid grid-cols-2 gap-4">
-                        {/* Brand */}
                         <div className="flex flex-col gap-1.5">
                             <Label htmlFor="ap_brand">
                                 Brand <span className="text-red-500">*</span>
                             </Label>
-                            <Select onValueChange={(v) => {
-                                form.setValue("brand_id", Number(v), { shouldValidate: true });
-                                setCodeTaken(null);
-                            }}>
-                                <SelectTrigger id="ap_brand">
-                                    <SelectValue placeholder="Select brand" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {brands.map((b) => (
-                                        <SelectItem key={b.id} value={String(b.id)}>{b.name}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                            {defaultBrandId && brandName ? (
+                                <Input disabled className="bg-slate-50 font-medium" value={brandName} />
+                            ) : (
+                                <Select 
+                                    onValueChange={(v) => {
+                                        form.setValue("brand_id", Number(v), { shouldValidate: true });
+                                        setCodeTaken(null);
+                                    }}
+                                    value={brandIdValue ? String(brandIdValue) : undefined}
+                                >
+                                    <SelectTrigger id="ap_brand">
+                                        <SelectValue placeholder="Select brand" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {(brands || []).map((b) => (
+                                            <SelectItem key={b.id} value={String(b.id)}>{b.name}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            )}
                             <FieldError message={errors.brand_id?.message} />
                         </div>
 
