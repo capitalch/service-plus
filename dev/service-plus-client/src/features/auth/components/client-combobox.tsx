@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { useClickOutside } from '@/hooks/use-click-outside';
 import { Check, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
@@ -18,7 +19,7 @@ export const ClientCombobox = ({ disabled, error, onValueChange, value }: Client
   const [inputValue, setInputValue] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const [prevValue, setPrevValue] = useState(value);
-  const blurTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
 
   // Sync inputValue when value is cleared externally (update during render, not in effect)
@@ -32,12 +33,9 @@ export const ClientCombobox = ({ disabled, error, onValueChange, value }: Client
     setHighlightedIndex(-1);
   };
 
-  const handleBlur = () => {
-    blurTimerRef.current = setTimeout(closeDropdown, 150);
-  };
+  useClickOutside(containerRef, isOpen, closeDropdown);
 
   const handleFocus = () => {
-    if (blurTimerRef.current) clearTimeout(blurTimerRef.current);
     setIsOpen(true);
   };
 
@@ -76,7 +74,6 @@ export const ClientCombobox = ({ disabled, error, onValueChange, value }: Client
   };
 
   const selectClient = (id: string, name: string) => {
-    if (blurTimerRef.current) clearTimeout(blurTimerRef.current);
     setInputValue(name);
     setCriteria(name);
     onValueChange(String(id));
@@ -90,7 +87,7 @@ export const ClientCombobox = ({ disabled, error, onValueChange, value }: Client
   const dropdownVisible = isOpen && (showHint || showLoader || showEmpty || showResults);
 
   return (
-    <div className="relative space-y-1.5">
+    <div className="relative space-y-1.5" ref={containerRef}>
       {/* Input row */}
       <div className="relative">
         <Input
@@ -100,7 +97,6 @@ export const ClientCombobox = ({ disabled, error, onValueChange, value }: Client
           autoComplete="off"
           className="pr-8 text-sm"
           disabled={disabled}
-          onBlur={handleBlur}
           onChange={handleInputChange}
           onFocus={handleFocus}
           onKeyDown={handleKeyDown}

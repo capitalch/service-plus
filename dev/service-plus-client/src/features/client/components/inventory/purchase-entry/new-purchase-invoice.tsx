@@ -1,5 +1,5 @@
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
-import { Loader2, Plus, Search, X, PlusCircle, XCircle, CheckCircle2 } from "lucide-react";
+import { Loader2, Plus, Search, PlusCircle, X, XCircle, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 
@@ -21,6 +21,7 @@ import type { VendorType } from "@/features/client/types/vendor";
 import type { PurchaseLineFormItem, StockTransactionTypeRow } from "@/features/client/types/purchase";
 import type { StateRow } from "./purchase-entry-section";
  
+import { SearchableCombobox } from "@/components/ui/searchable-combobox";
 import { AddPartDialog } from "../../add-part-dialog";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -102,122 +103,6 @@ function formatNumber(num: number): string {
 const thClass = "sticky top-0 z-20 text-[11px] font-bold uppercase tracking-wider text-[var(--cl-text-muted)] py-1.5 px-2 text-left border-b border-[var(--cl-border)] bg-[var(--cl-surface-2)] backdrop-blur-sm shadow-[0_1px_0_var(--cl-border)]";
 const tdClass = "p-0.5 border-b border-[var(--cl-border)]";
 const inputCls = "h-7 border-[var(--cl-border)] bg-[var(--cl-surface)] text-sm px-2";
-
-// ─── Internal Components ──────────────────────────────────────────────────────
-
-interface ModernComboboxProps<T> {
-    label:          React.ReactNode;
-    placeholder:    string;
-    selectedValue:  string;
-    onSelect:       (item: T | null) => void;
-    items:          T[];
-    renderItem:     (item: T) => React.ReactNode;
-    getFilterKey:   (item: T) => string;
-    getDisplayValue: (item: T) => string;
-    className?:     string;
-    maxLength?:     number;
-    getIdentifier?: (item: T) => string;
-    isError?:       boolean;
-}
-
-function ModernCombobox<T>({ 
-    label, placeholder, selectedValue, onSelect, items, renderItem, getFilterKey, getDisplayValue, className, maxLength, getIdentifier, isError
-}: ModernComboboxProps<T>) {
-    const [open, setOpen] = useState(false);
-    const [search, setSearch] = useState("");
-    const containerRef = useRef<HTMLDivElement>(null);
-    
-    // When selectedValue changes from outside (e.g. auto-fill), update the search text
-    useEffect(() => {
-        if (selectedValue) {
-            const found = items.find(i => {
-                const idVal = getIdentifier ? getIdentifier(i) : getFilterKey(i).split(" ")[0];
-                const display = getDisplayValue(i).split(" ")[0];
-                return idVal === selectedValue || display === selectedValue;
-            });
-            if (found) setSearch(getDisplayValue(found));
-            else setSearch(selectedValue);
-        } else {
-            setSearch("");
-        }
-    }, [selectedValue, items, getDisplayValue, getFilterKey, getIdentifier]);
-
-    const filtered = useMemo(() => {
-        if (!search) return items;
-        const s = search.toLowerCase();
-        return items.filter(item => getFilterKey(item).toLowerCase().includes(s));
-    }, [items, search, getFilterKey]);
-
-    useEffect(() => {
-        const handleClickOutside = (e: MouseEvent) => {
-            if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-                setOpen(false);
-                // On close, if search doesn't match selected, reset search to what was selected
-                const found = items.find(i => getDisplayValue(i) === search);
-                if (!found && selectedValue) {
-                    const original = items.find(i => getFilterKey(i).split(" ")[0] === selectedValue);
-                    if (original) setSearch(getDisplayValue(original));
-                }
-            }
-        };
-        document.addEventListener("mousedown", handleClickOutside);
-        return () => document.removeEventListener("mousedown", handleClickOutside);
-    }, [search, selectedValue, items, getDisplayValue, getFilterKey]);
-
-    return (
-        <div className={`space-y-2 relative ${className} ${open ? "z-[110]" : "z-auto"}`} ref={containerRef}>
-            <Label className="text-xs font-semibold text-[var(--cl-text-muted)] uppercase tracking-wider">{label}</Label>
-            <div className="relative group">
-                <Input
-                    className={`bg-[var(--cl-surface-2)] pr-8 h-9 transition-all focus:ring-2 focus:ring-[var(--cl-accent)]/20 ${isError ? "border-red-500 focus:border-red-500 ring-red-500/10" : "border-transparent"}`}
-                    placeholder={placeholder}
-                    value={search}
-                    onChange={e => {
-                        setSearch(e.target.value);
-                        setOpen(true);
-                        if (!e.target.value) onSelect(null);
-                    }}
-                    onFocus={() => setOpen(true)}
-                    maxLength={maxLength}
-                />
-                <div className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--cl-text-muted)] opacity-50 group-hover:opacity-100 transition-opacity">
-                    {search ? <X className="h-4 w-4 cursor-pointer hover:text-red-500" onClick={() => { setSearch(""); onSelect(null); }} /> : <Plus className="h-3 w-3 rotate-45" />}
-                </div>
-
-                {open && (
-                    <motion.div
-                        initial={{ opacity: 0, y: -4, scale: 0.98 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        className="absolute left-0 right-0 top-full z-[100] mt-1.5 max-h-[220px] overflow-y-auto rounded-xl border border-[var(--cl-border)] bg-[var(--cl-surface)] p-1.5 shadow-2xl backdrop-blur-md ring-1 ring-black/5"
-                    >
-                        {filtered.length === 0 ? (
-                            <div className="px-3 py-4 text-center text-xs text-[var(--cl-text-muted)] italic text-pretty">
-                                No items found for "{search}"
-                            </div>
-                        ) : (
-                            <div className="space-y-0.5">
-                                {filtered.map((item, idx) => (
-                                    <button
-                                        key={idx}
-                                        type="button"
-                                        className="flex w-full cursor-pointer items-center rounded-lg px-3 py-2 text-left text-sm transition-all hover:bg-[var(--cl-accent)]/10 hover:text-[var(--cl-accent)] focus:bg-[var(--cl-accent)]/10 focus:outline-none"
-                                        onClick={() => {
-                                            onSelect(item);
-                                            setSearch(getDisplayValue(item));
-                                            setOpen(false);
-                                        }}
-                                    >
-                                        {renderItem(item)}
-                                    </button>
-                                ))}
-                            </div>
-                        )}
-                    </motion.div>
-                )}
-            </div>
-        </div>
-    );
-}
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -695,7 +580,7 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
             <Card className="border-[var(--cl-border)] bg-[var(--cl-surface)] shadow-sm !overflow-visible">
                 <CardContent className="pt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-x-2 gap-y-2 !overflow-visible">
                     {/* Vendor */}
-                    <ModernCombobox
+                    <SearchableCombobox
                         className="lg:col-span-3"
                         isError={!vendorId}
                         label={<span>Supplier <span className="text-red-500 ml-0.5">*</span></span>}
@@ -744,7 +629,7 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
                         />
                     </div>
 
-                    <ModernCombobox
+                    <SearchableCombobox
                         className="lg:col-span-2"
                         isError={!supplierStateCode}
                         label={<span>State <span className="text-red-500 ml-0.5">*</span></span>}

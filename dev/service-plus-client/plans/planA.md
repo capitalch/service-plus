@@ -1,52 +1,29 @@
-# Plan: Fix Runtime and Build Errors — Client App
+# Plan for Global Click-Outside Dropdown Resolution
 
 ## Workflow
-1. Identify and resolve missing dependencies (`xlsx`).
-2. Fix type mismatches in form dialogs (`EditTechnicianDialog`, `EditVendorDialog`).
-3. Resolve `recharts` type compatibility issues in `AuditLogsPage`.
-4. Clean up unused variables and imports in Super Admin pages.
-5. Verify the fix with a successful production build.
+1. Create a reusable `useClickOutside` hook in `src/hooks`.
+2. Update the `ModernCombobox` component in `NewPurchaseInvoice.tsx` to handle clicks outside the container properly using this hook.
+3. Update the `ClientCombobox` in `features/auth` to replace its current timer-based blur logic with the new hook for a more robust "click-away" experience.
+4. Verify all dropdowns close correctly when clicking elsewhere on the screen.
 
----
+## Execution Steps
 
-## Step 1 — Dependencies: Install `xlsx` and other missing modules
-- Run `pnpm install` to ensure all dependencies in `package.json` (like `xlsx`) are present in `node_modules`.
-- The build failed with `Cannot find module 'xlsx'`, which indicates a sync issue between `package.json` and `node_modules`.
+**Step 1: Create the Hook**
+- Create `src/hooks/use-click-outside.ts`.
+- Implement logic to detect clicks outside a given `ref` and execute a callback.
 
----
+**Step 2: Update ModernCombobox**
+- In `src/features/client/components/inventory/purchase-entry/new-purchase-invoice.tsx`:
+  - Import `useClickOutside`.
+  - Replace the manual `useEffect` with the hook in `ModernCombobox`.
+  - Test it for "Supplier" and "State" fields.
 
-## Step 2 — Frontend: `src/features/client/components/edit-technician-dialog.tsx`
-- **Problem**: `Type 'unknown' is not assignable to type 'number'` in `zodResolver` and `onSubmit`.
-- **Fix**: 
-    - Ensure `EditTechnicianFormType` is explicitly passed to `useForm`.
-    - Use `z.infer<typeof editTechnicianSchema>` but ensure the schema output matches the technician type exactly.
-    - Check if `z.coerce.number()` is causing the `unknown` inference in some versions of `@hookform/resolvers/zod`.
-    - Explicitly type the `onSubmit` data if needed.
+**Step 3: Update ClientCombobox**
+- In `src/features/auth/components/client-combobox.tsx`:
+  - Import `useClickOutside`.
+  - Add a ref to the container.
+  - Apply the hook to close the dropdown.
+  - Remove original `handleBlur` dependencies if possible.
 
----
-
-## Step 3 — Frontend: `src/features/client/components/edit-vendor-dialog.tsx`
-- **Problem**: Similar type mismatch with `state_id`.
-- **Fix**: Apply the same type alignment used for the Technician dialog.
-
----
-
-## Step 4 — Frontend: `src/features/super-admin/pages/audit-logs-page.tsx`
-- **Problem 1**: `statsError` is declared but never read.
-- **Problem 2**: Recharts `Tooltip` `formatter` type mismatch (expects `ValueType | undefined`).
-- **Fix**:
-    - Remove the unused `statsError` state or use it to show an error UI for stats specifically.
-    - Update the `formatter` function signature to handle `undefined` or cast the value explicitly to satisfy the Recharts `Formatter` type: `(v: any) => [v, "Events"]`.
-
----
-
-## Step 5 — Frontend: `src/features/super-admin/pages/super-admin-dashboard-page.tsx`
-- **Problem**: Unused imports `ArrowRightIcon`, `RefreshCwIcon`, and `Link`.
-- **Fix**: Remove the unused imports.
-
----
-
-## Step 6 — Verification
-- Run `pnpm run build`.
-- Confirm "Found 0 errors".
-- Verify that the app starts correctly with `pnpm run dev`.
+**Step 4: Manual Verification**
+- Conduct tests in the browser for all three dropdowns to ensure they close on outside click as expected.
