@@ -12,6 +12,7 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
     Select,
     SelectContent,
@@ -281,15 +282,18 @@ export const PurchaseEntrySection = () => {
                 </div>
 
                 {/* Center: Stable Controls (Brand + Mode Toggle) - Centered in Col 2 */}
-                <div className="flex items-center justify-center gap-3">
+                <div className="flex items-center justify-center gap-4">
                     {/* Brand Select - Compact */}
-                    <div className="hidden sm:block">
+                    <div className="hidden sm:flex items-center gap-2">
+                        <Label className="text-[10px] font-bold uppercase tracking-wider text-[var(--cl-text-muted)] whitespace-nowrap">
+                            Brand <span className="text-red-500">*</span>
+                        </Label>
                         <Select
                             disabled={brands.length === 0 || loading}
                             value={selectedBrand}
                             onValueChange={setSelectedBrand}
                         >
-                            <SelectTrigger className="h-8 w-[140px] bg-[var(--cl-surface-2)] text-xs">
+                            <SelectTrigger className={`h-8 w-[140px] bg-[var(--cl-surface-2)] text-xs ${mode === 'new' && !selectedBrand ? 'border-red-500/50' : ''}`}>
                                 <SelectValue placeholder="Brand" />
                             </SelectTrigger>
                             <SelectContent>
@@ -455,7 +459,7 @@ export const PurchaseEntrySection = () => {
                                                     {inv.supplier_name}
                                                 </td>
                                                 <td className={`${tdClass} text-right`} style={{ width: "12%" }}>
-                                                    {formatCurrency(inv.taxable_amount)}
+                                                    {formatCurrency(inv.aggregate_amount)}
                                                 </td>
                                                 <td className={`${tdClass} text-right`} style={{ width: "10%" }}>
                                                     {formatCurrency(inv.total_tax)}

@@ -911,7 +911,7 @@ export interface PurchaseInvoiceLine {
   hsn_code: string;
   quantity: number;
   unit_price: number;
-  taxable_amount: number;
+  aggregate_amount: number;
   gst_rate: number;
   cgst_amount: number;
   sgst_amount: number;
@@ -927,7 +927,7 @@ export interface PurchaseInvoiceLineInput {
   hsn_code: string;
   quantity: number;
   unit_price: number;
-  taxable_amount: number;
+  aggregate_amount: number;
   gst_rate?: number;
   cgst_amount?: number;
   sgst_amount?: number;
@@ -938,8 +938,8 @@ export interface PurchaseInvoiceLineInput {
 }
 const purchase_invoice_line = {
   tableName: 'purchase_invoice_line',
-  columns: ['id', 'purchase_invoice_id', 'part_id', 'hsn_code', 'quantity', 'unit_price', 'taxable_amount', 'gst_rate', 'cgst_amount', 'sgst_amount', 'igst_amount', 'total_amount', 'created_at', 'updated_at'],
-  requiredForInsert: ['id', 'purchase_invoice_id', 'part_id', 'hsn_code', 'quantity', 'unit_price', 'taxable_amount', 'total_amount'],
+  columns: ['id', 'purchase_invoice_id', 'part_id', 'hsn_code', 'quantity', 'unit_price', 'aggregate_amount', 'gst_rate', 'cgst_amount', 'sgst_amount', 'igst_amount', 'total_amount', 'created_at', 'updated_at'],
+  requiredForInsert: ['id', 'purchase_invoice_id', 'part_id', 'hsn_code', 'quantity', 'unit_price', 'aggregate_amount', 'total_amount'],
   primaryKey: 'id',
   foreignKeys: {
     purchase_invoice_id: { table: 'purchase_invoice', column: 'id', $type: null as unknown as PurchaseInvoice },

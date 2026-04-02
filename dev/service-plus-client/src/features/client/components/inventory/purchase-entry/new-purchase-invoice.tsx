@@ -599,7 +599,7 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
                 invoice_no:          invoiceNo.trim(),
                 invoice_date:        invoiceDate,
                 supplier_state_code: supplierStateCode,
-                taxable_amount:      totals.taxable,
+                aggregate_amount:    totals.taxable,
                 cgst_amount:         totals.cgst,
                 sgst_amount:         totals.sgst,
                 igst_amount:         totals.igst,
@@ -617,7 +617,7 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
                             hsn_code:       line.hsn_code,
                             quantity:       line.quantity,
                             unit_price:     line.unit_price,
-                            taxable_amount: c.taxable,
+                            aggregate_amount: c.taxable,
                             cgst_rate:      line.cgst_rate,
                             cgst_amount:    c.cgstAmt,
                             sgst_rate:      line.sgst_rate,
@@ -807,8 +807,18 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
                                         <td className={tdClass}>
                                             <div className="flex flex-col gap-0.5 px-1.5 py-1">
                                                 <div className="relative group/part">
+                                                    <div className="absolute left-1.5 top-1/2 -translate-y-1/2 z-10">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => openPartPick(idx)}
+                                                            className="rounded-md p-1 bg-[var(--cl-accent)] text-white hover:bg-[var(--cl-accent)]/10 text-[var(--cl-accent)] shadow-sm transition-all focus:ring-2 focus:ring-[var(--cl-accent)]/20 cursor-pointer"
+                                                            title="Browse all parts"
+                                                        >
+                                                            <Search className="h-4 w-4" />
+                                                        </button>
+                                                    </div>
                                                     <Input
-                                                        className={`${inputCls} font-mono w-full pr-14 border-transparent hover:border-[var(--cl-border)] focus:border-[var(--cl-accent)] focus:bg-[var(--cl-surface)] transition-all ${line.part_id ? "bg-[var(--cl-accent)]/5 border-[var(--cl-accent)]/20 text-[var(--cl-accent)] font-bold" : "border-red-500 focus:border-red-500 ring-red-500/10 bg-transparent"}`}
+                                                        className={`${inputCls} font-mono w-full pl-10 pr-16 border-transparent hover:border-[var(--cl-border)] focus:border-[var(--cl-accent)] focus:bg-[var(--cl-surface)] transition-all ${line.part_id ? "bg-[var(--cl-accent)]/5 border-[var(--cl-accent)]/20 text-[var(--cl-accent)] font-bold" : "border-red-500 focus:border-red-500 ring-red-500/10 bg-transparent"}`}
                                                         placeholder="Part Code"
                                                         value={line.part_code}
                                                         onChange={e => {
@@ -827,15 +837,19 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
                                                             if (line.part_code.trim()) void handleTypedPartSearch(idx, line.part_code, line.brand_id || selectedBrandId);
                                                         }}
                                                     />
-                                                    <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => openPartPick(idx)}
-                                                            className="rounded-md p-1 bg-[var(--cl-accent)] text-white hover:bg-[var(--cl-accent)]/10 text-[var(--cl-accent)] shadow-sm transition-all focus:ring-2 focus:ring-[var(--cl-accent)]/20 cursor-pointer"
-                                                            title="Browse all parts"
-                                                        >
-                                                            <Search className="h-3.5 w-3.5" />
-                                                        </button>
+                                                    <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-0.5">
+                                                        {line.part_code && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    updateLine(idx, { part_code: "", part_id: null, part_name: "" });
+                                                                }}
+                                                                className="rounded-md p-1 hover:bg-red-500/10 text-red-500 transition-all cursor-pointer"
+                                                                title="Clear search"
+                                                            >
+                                                                <X className="h-4 w-4" />
+                                                            </button>
+                                                        )}
                                                         <button
                                                             type="button"
                                                             onClick={() => {
@@ -846,7 +860,7 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
                                                             className="rounded-md p-1 bg-emerald-600 text-white hover:bg-emerald-600/10 hover:text-emerald-600 shadow-sm transition-all focus:ring-2 focus:ring-emerald-600/20 cursor-pointer"
                                                             title="Add as new part"
                                                         >
-                                                            <Plus className="h-3.5 w-3.5" />
+                                                            <Plus className="h-4 w-4" />
                                                         </button>
                                                     </div>
                                                 </div>
@@ -934,23 +948,23 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
 
                                         {/* Actions */}
                                         <td className={`${tdClass} text-center`}>
-                                            <div className="flex items-center justify-center gap-1.5 px-2">
+                                            <div className="flex items-center justify-center gap-0.5 px-2">
                                                 <button
                                                     type="button"
-                                                    className="cursor-pointer text-[var(--cl-accent)] hover:bg-[var(--cl-accent)]/10 hover:scale-110 active:scale-95 transition-all p-2 rounded-full"
+                                                    className="cursor-pointer text-[var(--cl-accent)] hover:bg-[var(--cl-accent)]/10 hover:scale-110 active:scale-95 transition-all p-1 rounded-full"
                                                     onClick={() => insertLine(idx)}
                                                     title="Add row below"
                                                 >
-                                                    <PlusCircle className="h-6 w-6" strokeWidth={2.5} />
+                                                    <PlusCircle className="h-7 w-7" strokeWidth={2.5} />
                                                 </button>
                                                 <button
                                                     type="button"
-                                                    className="cursor-pointer text-red-500 hover:text-red-600 hover:bg-red-500/10 hover:scale-110 active:scale-95 transition-all p-2 rounded-full disabled:opacity-20 disabled:cursor-not-allowed disabled:scale-100 disabled:bg-transparent"
+                                                    className="cursor-pointer text-red-500 hover:text-red-600 hover:bg-red-500/10 hover:scale-110 active:scale-95 transition-all p-1 rounded-full disabled:opacity-20 disabled:cursor-not-allowed disabled:scale-100 disabled:bg-transparent"
                                                     disabled={lines.length === 1}
                                                     onClick={() => removeLine(idx)}
                                                     title="Remove line"
                                                 >
-                                                    <XCircle className="h-6 w-6" strokeWidth={2.5} />
+                                                    <XCircle className="h-7 w-7" strokeWidth={2.5} />
                                                 </button>
                                             </div>
                                         </td>
@@ -1093,15 +1107,25 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
                         <DialogTitle>Search Part</DialogTitle>
                     </DialogHeader>
 
-                    <div className="relative">
+                    <div className="relative group">
                         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--cl-text-muted)]" />
                         <Input
                             autoFocus
-                            className="h-9 border-[var(--cl-border)] bg-[var(--cl-surface)] pl-9"
+                            className="h-9 border-[var(--cl-border)] bg-[var(--cl-surface)] pl-9 pr-9"
                             placeholder="Search by part code or name…"
                             value={partQuery}
                             onChange={e => setPartQuery(e.target.value)}
                         />
+                        {partQuery && (
+                            <button
+                                type="button"
+                                onClick={() => { setPartQuery(""); setPartResults([]); }}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--cl-text-muted)] hover:text-red-500 transition-colors cursor-pointer"
+                                title="Clear search"
+                            >
+                                <X className="h-4 w-4" />
+                            </button>
+                        )}
                     </div>
 
                     <div className="max-h-72 overflow-y-auto rounded-lg border border-[var(--cl-border)] mt-2">

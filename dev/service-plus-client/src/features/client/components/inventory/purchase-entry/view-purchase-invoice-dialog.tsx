@@ -66,7 +66,7 @@ export const ViewPurchaseInvoiceDialog = ({ invoice, open, onOpenChange }: Props
     }, [open, invoice, dbName, schema]);
 
     const lines = detail?.lines ?? [];
-    const totalTaxable = lines.reduce((s, l) => s + Number(l.taxable_amount), 0);
+    const totalTaxable = lines.reduce((s, l) => s + Number(l.aggregate_amount), 0);
     const totalCgst    = lines.reduce((s, l) => s + Number(l.cgst_amount), 0);
     const totalSgst    = lines.reduce((s, l) => s + Number(l.sgst_amount), 0);
     const totalIgst    = lines.reduce((s, l) => s + Number(l.igst_amount), 0);
@@ -91,7 +91,7 @@ export const ViewPurchaseInvoiceDialog = ({ invoice, open, onOpenChange }: Props
                             <Field label="Invoice Date"    value={detail.invoice_date} />
                             <Field label="Supplier"        value={detail.supplier_name} />
                             <Field label="State Code"      value={detail.supplier_state_code} />
-                            <Field label="Taxable Amount"  value={formatCurrency(detail.taxable_amount)} />
+                            <Field label="Taxable Amount"  value={formatCurrency(detail.aggregate_amount)} />
                             <Field label="Total Tax"       value={formatCurrency(detail.total_tax)} />
                             <Field label="Total Amount"    value={formatCurrency(detail.total_amount)} className="font-semibold text-[var(--cl-accent)]" />
                             {detail.remarks && <Field label="Remarks" value={detail.remarks} className="col-span-2" />}
@@ -124,7 +124,7 @@ export const ViewPurchaseInvoiceDialog = ({ invoice, open, onOpenChange }: Props
                                             <td className={`${tdClass} font-mono text-xs`}>{line.hsn_code}</td>
                                             <td className={`${tdClass} text-right`}>{Number(line.quantity).toFixed(2)}</td>
                                             <td className={`${tdClass} text-right`}>{formatCurrency(line.unit_price)}</td>
-                                            <td className={`${tdClass} text-right`}>{formatCurrency(line.taxable_amount)}</td>
+                                            <td className={`${tdClass} text-right`}>{formatCurrency(line.aggregate_amount)}</td>
                                             <td className={`${tdClass} text-right text-xs`}>{formatCurrency(line.cgst_amount)}<span className="text-[var(--cl-text-muted)]"> ({line.cgst_rate}%)</span></td>
                                             <td className={`${tdClass} text-right text-xs`}>{formatCurrency(line.sgst_amount)}<span className="text-[var(--cl-text-muted)]"> ({line.sgst_rate}%)</span></td>
                                             <td className={`${tdClass} text-right text-xs`}>{formatCurrency(line.igst_amount)}<span className="text-[var(--cl-text-muted)]"> ({line.igst_rate}%)</span></td>

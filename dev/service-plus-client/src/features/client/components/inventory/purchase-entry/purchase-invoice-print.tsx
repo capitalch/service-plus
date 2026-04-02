@@ -63,7 +63,7 @@ export const PurchaseInvoicePrintLayout = ({ invoice, open, onOpenChange }: Prop
     };
 
     const lines = detail?.lines ?? [];
-    const totalTaxable = lines.reduce((s, l) => s + Number(l.taxable_amount), 0);
+    const totalTaxable = lines.reduce((s, l) => s + Number(l.aggregate_amount), 0);
     const totalCgst    = lines.reduce((s, l) => s + Number(l.cgst_amount), 0);
     const totalSgst    = lines.reduce((s, l) => s + Number(l.sgst_amount), 0);
     const totalIgst    = lines.reduce((s, l) => s + Number(l.igst_amount), 0);
@@ -157,7 +157,7 @@ export const PurchaseInvoicePrintLayout = ({ invoice, open, onOpenChange }: Prop
                                             </td>
                                             <td className="py-3 align-top text-right text-gray-700">{Number(line.quantity).toFixed(2)}</td>
                                             <td className="py-3 align-top text-right text-gray-700">{formatCurrency(line.unit_price)}</td>
-                                            <td className="py-3 align-top text-right text-gray-700">{formatCurrency(line.taxable_amount)}</td>
+                                            <td className="py-3 align-top text-right text-gray-700">{formatCurrency(line.aggregate_amount)}</td>
                                             <td className="py-3 align-top text-right text-xs text-gray-500">
                                                 <div>CGST: {formatCurrency(line.cgst_amount)}</div>
                                                 <div>SGST: {formatCurrency(line.sgst_amount)}</div>

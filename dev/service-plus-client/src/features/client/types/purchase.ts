@@ -14,7 +14,7 @@ export type PurchaseLineType = {
     hsn_code:            string;
     quantity:            number;
     unit_price:          number;
-    taxable_amount:      number;
+    aggregate_amount:    number;
     cgst_rate:           number;
     cgst_amount:         number;
     sgst_rate:           number;
@@ -32,7 +32,7 @@ export type PurchaseInvoiceType = {
     invoice_no:          string;
     invoice_date:        string;
     supplier_state_code: string;
-    taxable_amount:      number;
+    aggregate_amount:    number;
     cgst_amount:         number;
     sgst_amount:         number;
     igst_amount:         number;

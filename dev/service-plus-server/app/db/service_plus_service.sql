@@ -2,10 +2,8 @@
 -- PostgreSQL database dump
 --
 
-\restrict 8ygfs00lcNPgeegM9x5UYUB9HWHQpgehMhOtU5h6dee5HQi27iKHsh0XudZK5Dl
-
 -- Dumped from database version 14.6
--- Dumped by pg_dump version 17.9 (Ubuntu 17.9-0ubuntu0.25.10.1)
+-- Dumped by pg_dump version 17.5
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -741,7 +739,7 @@ CREATE TABLE demo1.purchase_invoice_line (
     hsn_code text NOT NULL,
     quantity numeric(12,2) NOT NULL,
     unit_price numeric(12,2) NOT NULL,
-    taxable_amount numeric(12,2) NOT NULL,
+    aggregate_amount numeric(12,2) NOT NULL,
     gst_rate numeric(5,2) DEFAULT 0 NOT NULL,
     cgst_amount numeric(12,2) DEFAULT 0 NOT NULL,
     sgst_amount numeric(12,2) DEFAULT 0 NOT NULL,
@@ -2308,6 +2306,4 @@ ALTER TABLE ONLY demo1.technician
 --
 -- PostgreSQL database dump complete
 --
-
-\unrestrict 8ygfs00lcNPgeegM9x5UYUB9HWHQpgehMhOtU5h6dee5HQi27iKHsh0XudZK5Dl
 

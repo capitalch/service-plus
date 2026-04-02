@@ -27,6 +27,7 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
     Select,
     SelectContent,
@@ -255,24 +256,29 @@ export const PartsSection = () => {
                 transition={{ duration: 0.25 }}
             >
                 {/* Toolbar row */}
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="flex flex-wrap items-center gap-3">
                     {/* Brand dropdown */}
-                    <Select
-                        disabled={brandsLoading || brands.length === 0}
-                        value={selectedBrand ? String(selectedBrand.id) : ""}
-                        onValueChange={handleBrandChange}
-                    >
-                        <SelectTrigger className="h-9 w-52 text-sm">
-                            <SelectValue placeholder={brandsLoading ? "Loading…" : "Select brand"} />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {brands.map(b => (
-                                <SelectItem key={b.id} value={String(b.id)}>
-                                    {b.name}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
+                    <div className="flex items-center gap-1.5">
+                        <Label className="text-xs font-semibold text-[var(--cl-text-muted)] whitespace-nowrap">
+                            Brand <span className="text-red-500">*</span>
+                        </Label>
+                        <Select
+                            disabled={brandsLoading || brands.length === 0}
+                            value={selectedBrand ? String(selectedBrand.id) : ""}
+                            onValueChange={handleBrandChange}
+                        >
+                            <SelectTrigger className="h-9 w-52 text-sm">
+                                <SelectValue placeholder={brandsLoading ? "Loading…" : "Select brand"} />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {brands.map(b => (
+                                    <SelectItem key={b.id} value={String(b.id)}>
+                                        {b.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
 
                     {/* Part count */}
                     {selectedBrand && !partsLoading && (

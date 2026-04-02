@@ -296,7 +296,7 @@ export const PurchaseInvoiceList = ({
                                             {inv.supplier_name}
                                         </td>
                                         <td className={`${tdClass} text-right`} style={{ width: "12%" }}>
-                                            {formatCurrency(inv.taxable_amount)}
+                                            {formatCurrency(inv.aggregate_amount)}
                                         </td>
                                         <td className={`${tdClass} text-right`} style={{ width: "10%" }}>
                                             {formatCurrency(inv.total_tax)}
