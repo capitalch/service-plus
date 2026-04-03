@@ -551,7 +551,6 @@ export const PartsSection = () => {
 
             {selectedBrand && (
                 <AddPartDialog
-                    brands={brands}
                     open={addOpen}
                     onOpenChange={setAddOpen}
                     onSuccess={() => loadParts(selectedBrand, page, searchQ)}
@@ -571,7 +570,6 @@ export const PartsSection = () => {
             )}
             {editPart && selectedBrand && (
                 <EditPartDialog
-                    brands={brands}
                     open={!!editPart}
                     part={editPart}
                     defaultBrandId={selectedBrand.id}

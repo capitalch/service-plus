@@ -22,6 +22,7 @@ export type BuContextType = {
 type ContextStateType = {
     availableBranches: BranchContextType[];
     availableBus:      BuContextType[];
+    companyName:       string | null;
     currentBranch:     BranchContextType | null;
     currentBu:         BuContextType | null;
     isGstRegistered:   boolean;
@@ -32,6 +33,7 @@ type ContextStateType = {
 const initialState: ContextStateType = {
     availableBranches: [],
     availableBus:      [],
+    companyName:       null,
     currentBranch:     null,
     currentBu:         null,
     isGstRegistered:   false,
@@ -53,6 +55,10 @@ export const contextSlice = createSlice({
             state.availableBus = action.payload;
         },
 
+        setCompanyName: (state, action: PayloadAction<string | null>) => {
+            state.companyName = action.payload;
+        },
+
         setCurrentBranch: (state, action: PayloadAction<BranchContextType | null>) => {
             state.currentBranch = action.payload;
         },
@@ -60,6 +66,7 @@ export const contextSlice = createSlice({
         setCurrentBu: (state, action: PayloadAction<BuContextType | null>) => {
             state.currentBu = action.payload;
         },
+
         setIsGstRegistered: (state, action: PayloadAction<boolean>) => {
             state.isGstRegistered = action.payload;
         },
@@ -72,6 +79,7 @@ export const {
     clearContext,
     setAvailableBranches,
     setAvailableBus,
+    setCompanyName,
     setCurrentBranch,
     setCurrentBu,
     setIsGstRegistered,
@@ -83,6 +91,7 @@ type ContextRootState = { context: ContextStateType };
 
 export const selectAvailableBranches = (state: ContextRootState) => state.context.availableBranches;
 export const selectAvailableBus      = (state: ContextRootState) => state.context.availableBus;
+export const selectCompanyName       = (state: ContextRootState) => state.context.companyName;
 export const selectCurrentBranch     = (state: ContextRootState) => state.context.currentBranch;
 export const selectCurrentBu         = (state: ContextRootState) => state.context.currentBu;
 export const selectIsGstRegistered   = (state: ContextRootState) => state.context.isGstRegistered;

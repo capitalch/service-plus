@@ -1,7 +1,21 @@
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import type { ReactNode } from "react";
+import { Building2 } from "lucide-react";
 import { useLocation } from "react-router-dom";
 
+import { GRAPHQL_MAP } from "@/constants/graphql-map";
+import { SQL_MAP } from "@/constants/sql-map";
+import { selectDbName } from "@/features/auth/store/auth-slice";
+import { apolloClient } from "@/lib/apollo-client";
+import { graphQlUtils } from "@/lib/graphql-utils";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import {
+    selectCompanyName,
+    selectIsGstRegistered,
+    selectSchema,
+    setCompanyName,
+    setIsGstRegistered,
+} from "@/store/context-slice";
 import { ClientActivityBar } from "./client-activity-bar";
 import { ClientExplorerPanel } from "./client-explorer-panel";
 import { ClientStatusBar } from "./client-status-bar";
@@ -72,6 +86,11 @@ type ClientLayoutProps = { children: ReactNode };
 export const ClientLayout = ({ children }: ClientLayoutProps) => {
     const { pathname }                      = useLocation();
     const activeSection                     = sectionFromPath(pathname);
+    const dispatch                          = useAppDispatch();
+    const dbName                            = useAppSelector(selectDbName);
+    const schema                            = useAppSelector(selectSchema);
+    const companyName                       = useAppSelector(selectCompanyName);
+    const isGstRegistered                    = useAppSelector(selectIsGstRegistered);
     const [selected, setSelected]           = useState(() => SECTION_DEFAULTS[activeSection]);
     const [selectedGroup, setSelectedGroup] = useState(() => SECTION_DEFAULT_GROUPS[activeSection]);
     const [explorerOpen, setExplorerOpen]   = useState(() => window.innerWidth >= 1024);
@@ -99,6 +118,25 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
         window.addEventListener('resize', handler);
         return () => window.removeEventListener('resize', handler);
     }, []);
+
+    useEffect(() => {
+        if (!dbName || !schema) return;
+        void apolloClient.query<{ genericQuery: { company_name: string; gstin: string | null }[] }>({
+            fetchPolicy: 'network-only',
+            query:       GRAPHQL_MAP.genericQuery,
+            variables:   {
+                db_name: dbName,
+                schema,
+                value:   graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_COMPANY_INFO }),
+            },
+        }).then(res => {
+            const rows = res.data?.genericQuery ?? [];
+            if (rows.length > 0) {
+                dispatch(setCompanyName(rows[0].company_name));
+                dispatch(setIsGstRegistered(!!rows[0].gstin));
+            }
+        }).catch(() => {/* silently ignore */});
+    }, [dbName, schema]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const toggleTheme    = useCallback(() => setIsDark(d => !d), []);
     const toggleExplorer = useCallback(() => setExplorerOpen(o => !o), []);
@@ -138,10 +176,21 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
                 )}
 
                 <main className={`absolute bottom-6 right-0 top-9.5 flex flex-col p-4 pt-3 sm:p-6 sm:pt-4 transition-[left] duration-200 ${mainLeft}`}>
-                    <div className="mb-3 sm:mb-4">
-                        <p className="text-xs font-semibold text-[var(--cl-accent-text)]">
+                    <div className="mb-3 flex items-center justify-between sm:mb-4 gap-4">
+                        <p className="text-xs font-bold text-[var(--cl-accent-text)] tracking-wider">
                             {displayTitle}
                         </p>
+                        {companyName && (
+                            <div className="flex items-center gap-2.5">
+                                <Building2 className="h-4 w-4 text-[var(--cl-accent)]" />
+                                <span className="text-sm font-bold text-[var(--cl-text)] tracking-tight uppercase">
+                                    {companyName}
+                                </span>
+                                {isGstRegistered && (
+                                    <span className="ml-1 text-[10px] font-bold text-emerald-500 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20 leading-none">GST</span>
+                                )}
+                            </div>
+                        )}
                     </div>
                     {children}
                 </main>

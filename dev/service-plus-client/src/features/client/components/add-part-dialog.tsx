@@ -49,7 +49,7 @@ const schema = z.object({
     uom:              z.string().min(1, "UOM is required").max(20),
     cost_price:       z.coerce.number().nonnegative().optional().or(z.literal("")).transform(v => v === "" ? undefined : Number(v)),
     mrp:              z.coerce.number().nonnegative().optional().or(z.literal("")).transform(v => v === "" ? undefined : Number(v)),
-    hsn_code:         z.string().optional().refine(v => !v || (/^\d+$/.test(v) && [2,4,6,8].includes(v.length)), { message: "HSN must be 2, 4, 6, or 8 digits" }),
+    hsn_code:         z.string().optional().refine(v => !v || (/^\d+$/.test(v) && [4,6,8].includes(v.length)), { message: "HSN must be 4, 6, or 8 digits" }),
     gst_rate:         z.coerce.number().min(0).lt(60, "GST rate must be less than 60%").optional().or(z.literal("")).transform(v => v === "" ? undefined : Number(v)),
 }).superRefine((data, ctx) => {
     if (data.mrp != null && data.cost_price != null && data.mrp <= data.cost_price) {
@@ -341,6 +341,7 @@ export const AddPartDialog = ({
                                 placeholder="e.g. 8517"
                                 onFocus={e => e.target.select()}
                             />
+                            <FieldError message={errors.hsn_code?.message} />
                         </div>
 
                         {/* GST Rate */}

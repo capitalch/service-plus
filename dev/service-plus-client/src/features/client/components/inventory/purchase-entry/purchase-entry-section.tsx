@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Eye, FileText, Loader2, PlusCircle, RefreshCw, Search, Trash2 } from "lucide-react";
+import { CheckCircle2, Eye, FileText, Loader2, PlusCircle, RefreshCw, Search, Trash2, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 
@@ -28,7 +28,7 @@ import { encodeObj, graphQlUtils } from "@/lib/graphql-utils";
 import { formatCurrency } from "@/lib/utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
-import { selectCurrentBranch, selectSchema } from "@/store/context-slice";
+import { selectCurrentBranch, selectIsGstRegistered, selectSchema } from "@/store/context-slice";
 import type { VendorType } from "@/features/client/types/vendor";
 import type { PurchaseInvoiceType, StockTransactionTypeRow } from "@/features/client/types/purchase";
 import { ViewPurchaseInvoiceDialog } from "./view-purchase-invoice-dialog";
@@ -72,6 +72,7 @@ export const PurchaseEntrySection = () => {
     const schema = useAppSelector(selectSchema);
     const globalBranch = useAppSelector(selectCurrentBranch);
     const branchId = globalBranch?.id ?? null;
+    const isGstRegistered = useAppSelector(selectIsGstRegistered);
 
     const { from: defaultFrom, to: defaultTo } = currentMonthRange();
 
@@ -275,6 +276,24 @@ export const PurchaseEntrySection = () => {
                             {mode === 'new' && <span className="ml-2 text-sm font-medium text-[var(--cl-text-muted)] whitespace-nowrap">— New</span>}
                             {mode === 'view' && <span className="ml-2 text-sm font-medium text-[var(--cl-text-muted)] whitespace-nowrap">— View</span>}
                         </h1>
+                        {mode === 'new' && (
+                            <div className={`flex items-center gap-1 px-1.5 py-1 rounded-sm border shadow-sm animate-in fade-in zoom-in duration-500 delay-150 ml-4 ${
+                                isGstRegistered 
+                                    ? 'bg-emerald-500/10 border-emerald-500/20' 
+                                    : 'bg-red-500/10 border-red-500/20'
+                            }`}>
+                                {isGstRegistered ? (
+                                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                                ) : (
+                                    <XCircle className="h-3.5 w-3.5 text-red-600" />
+                                )}
+                                <span className={`text-[10.5px] font-bold uppercase tracking-tighter ${
+                                    isGstRegistered ? 'text-emerald-700' : 'text-red-700'
+                                }`}>
+                                    GST {isGstRegistered ? 'Enabled' : 'Disabled'}
+                                </span>
+                            </div>
+                        )}
                         {mode === 'view' && (
                             <span className="text-xs text-[var(--cl-text-muted)] whitespace-nowrap">
                                 {loading ? "Loading…" : `(${total})`}

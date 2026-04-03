@@ -1,25 +1,30 @@
-# Plan: Vertical Space Optimization for Line Items
+# Plan: Enhance Company Name Prominence in Client Layout
 
-## Step 1: Research and Tighter Style Definition
-- Adjust `thClass` and `tdClass` for even more compact padding.
-- `thClass`: `p-2` -> `py-1.5 px-2` 
-- `tdClass`: `p-1` -> `p-0.5`
-
-## Step 2: Refactor Card Header
-- Remove `CardHeader` from the Line Items Card.
-- Create a slim header bar within the card or as a first row with the Title.
-- This saves the `p-6` or `p-4` padding of the header container.
-
-## Step 3: Relocate "Add Row" Action
-- Move the "Add Row" button from the header to the table footer.
-- Implement it as a full-width, semi-transparent row button at the bottom of the table.
-- This keeps the action contextually closer to where lines are added.
-
-## Step 4: Summary Card Tighter Design
-- Reduce padding in the final calculations card (`py-3` -> `py-2`).
+This plan outlines the steps to make the company name more prominent at the top of the application, alongside the breadcrumbs, as requested.
 
 ## Workflow
-1. Modify `NewPurchaseInvoice.tsx` style constants.
-2. Update the JSX for the Line Items Card.
-3. Reposition the "Add Row" logic.
-4. Verify functionality and layout.
+1.  **Analyze**: Verify current placement of company name in `ClientLayout`.
+2.  **Refine UI**: Design a more prominent, badge-style display for the company name using existing design tokens.
+3.  **Implement**: Update `client-layout.tsx` to use the new UI components and include GST registration status visualization.
+4.  **Verify**: Ensure the layout remains responsive and aesthetically pleasing.
+
+## Execution Steps
+
+### Step 1: Update Selectors in ClientLayout
+- Import `selectIsGstRegistered` and `Building2` icon in `client-layout.tsx`.
+- Add `isGstRegistered` to the component state using the selector.
+
+### Step 2: Redesign Company Name Section
+- Modify the `main` header section in `client-layout.tsx` (around line 180).
+- Replace the simple text paragraph with a "Premium Badge" layout:
+    - Container: Flex row, rounded-full, surface background, subtle border, shadow.
+    - Icon: `Building2` with accent color.
+    - Text: Bold, uppercase, primary text color.
+    - GST Badge: Conditional badge showing "GST" in emerald color if `isGstRegistered` is true.
+
+### Step 3: CSS/Token Alignment
+- Ensure all colors and spacing use the established `var(--cl-*)` tokens for consistent dark/light mode support.
+
+### Step 4: Verification
+- Check alignment with the breadcrumb (`displayTitle`).
+- Verify that it fits well on smaller screens (the `justify-between` should handle it, but may need `hidden sm:flex` if it's too wide for mobile).

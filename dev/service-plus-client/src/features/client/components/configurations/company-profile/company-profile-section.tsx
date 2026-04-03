@@ -179,9 +179,10 @@ export const CompanyProfileSection = () => {
                 gstin:         data.gstin          || null,
             };
 
-            // If record exists, include id → triggers UPDATE; otherwise INSERT
-            if (existingId !== null) {
-                xData.id = existingId;
+            // company_info always has a single row with id=1
+            xData.id = existingId ?? 1;
+            if (existingId === null) {
+                xData.isIdInsert = true;
             }
 
             await apolloClient.mutate({
@@ -196,20 +197,8 @@ export const CompanyProfileSection = () => {
                 },
             });
 
-            // After INSERT, refetch to get the generated id
-            if (existingId === null) {
-                const refetch = await apolloClient.query<GenericQueryData<CompanyInfoRow>>({
-                    fetchPolicy: "network-only",
-                    query: GRAPHQL_MAP.genericQuery,
-                    variables: {
-                        db_name: dbName,
-                        schema,
-                        value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_COMPANY_INFO }),
-                    },
-                });
-                const rows = refetch.data?.genericQuery ?? [];
-                if (rows.length > 0) setExistingId(rows[0].id);
-            }
+            // id is always 1 for company_info (single row)
+            if (existingId === null) setExistingId(1);
 
             toast.success(MESSAGES.SUCCESS_COMPANY_PROFILE_SAVED);
         } catch {
