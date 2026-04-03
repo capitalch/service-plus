@@ -75,7 +75,7 @@ export function SearchableCombobox<T>({
       className={`space-y-2 relative ${className ?? ""} ${open ? "z-[110]" : "z-auto"}`}
       ref={containerRef}
     >
-      <Label className="text-xs font-semibold text-[var(--cl-text-muted)] uppercase tracking-wider">
+      <Label className="text-xs font-semibold text-[var(--cl-text-muted)] uppercase tracking-wider" onClick={() => { if (open) setOpen(false); }}>
         {label}
       </Label>
 

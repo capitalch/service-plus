@@ -123,7 +123,7 @@ export const PartsSection = () => {
             });
             const list = res.data?.genericQuery ?? [];
             setBrands(list);
-            if (list.length > 0) setSelectedBrand(list[0]);
+            if (list.length === 1) setSelectedBrand(list[0]);
         } catch {
             toast.error("Failed to load brands. Please try again.");
         } finally {
@@ -555,6 +555,8 @@ export const PartsSection = () => {
                     open={addOpen}
                     onOpenChange={setAddOpen}
                     onSuccess={() => loadParts(selectedBrand, page, searchQ)}
+                    defaultBrandId={selectedBrand.id}
+                    brandName={selectedBrand.name}
                 />
             )}
             {dbName && schema_ && selectedBrand && (
@@ -572,6 +574,8 @@ export const PartsSection = () => {
                     brands={brands}
                     open={!!editPart}
                     part={editPart}
+                    defaultBrandId={selectedBrand.id}
+                    brandName={selectedBrand.name}
                     onOpenChange={(o) => { if (!o) setEditPart(null); }}
                     onSuccess={() => loadParts(selectedBrand, page, searchQ)}
                 />

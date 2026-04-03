@@ -153,7 +153,9 @@ export const PurchaseEntrySection = () => {
                 setVendors(vendorRes.data?.genericQuery ?? []);
                 setTxnTypes(txnRes.data?.genericQuery ?? []);
                 setStates(stateRes.data?.genericQuery ?? []);
-                setBrands(brandRes.data?.genericQuery ?? []);
+                const brandList = brandRes.data?.genericQuery ?? [];
+                setBrands(brandList);
+                if (brandList.length === 1) setSelectedBrand(String(brandList[0].id));
             } catch {
                 toast.error(MESSAGES.ERROR_PURCHASE_LOAD_FAILED);
             }

@@ -10,18 +10,11 @@ import {
     Dialog,
     DialogContent,
     DialogFooter,
-    DialogHeader,
+    // DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { SQL_MAP } from "@/constants/sql-map";
 import { useDebounce } from "@/hooks/use-debounce";
@@ -30,17 +23,17 @@ import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectSchema } from "@/store/context-slice";
-import type { BrandOption } from "@/features/client/types/model";
 import type { PartType } from "@/features/client/types/part";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type EditPartDialogPropsType = {
-    brands:       BrandOption[];
-    onOpenChange: (open: boolean) => void;
-    onSuccess:    () => void;
-    open:         boolean;
-    part:         PartType;
+    onOpenChange:  (open: boolean) => void;
+    onSuccess:     () => void;
+    open:          boolean;
+    part:          PartType;
+    defaultBrandId: number;
+    brandName:      string;
 };
 
 type CheckQueryDataType = {
@@ -57,8 +50,12 @@ const schema = z.object({
     uom:              z.string().min(1, "UOM is required").max(20),
     cost_price:       z.coerce.number().nonnegative().optional().or(z.literal("")).transform(v => v === "" ? undefined : Number(v)),
     mrp:              z.coerce.number().nonnegative().optional().or(z.literal("")).transform(v => v === "" ? undefined : Number(v)),
-    hsn_code:         z.string().optional(),
-    gst_rate:         z.coerce.number().min(0).max(100).optional().or(z.literal("")).transform(v => v === "" ? undefined : Number(v)),
+    hsn_code:         z.string().optional().refine(v => !v || (/^\d+$/.test(v) && [2,4,6,8].includes(v.length)), { message: "HSN must be 2, 4, 6, or 8 digits" }),
+    gst_rate:         z.coerce.number().min(0).lt(60, "GST rate must be less than 60%").optional().or(z.literal("")).transform(v => v === "" ? undefined : Number(v)),
+}).superRefine((data, ctx) => {
+    if (data.mrp != null && data.cost_price != null && data.mrp <= data.cost_price) {
+        ctx.addIssue({ code: "custom", message: "MRP must be greater than cost price", path: ["mrp"] });
+    }
 });
 
 type FormType = z.infer<typeof schema>;
@@ -72,11 +69,12 @@ function FieldError({ message }: { message?: string }) {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export const EditPartDialog = ({
-    brands,
     onOpenChange,
     onSuccess,
     open,
     part,
+    defaultBrandId,
+    brandName,
 }: EditPartDialogPropsType) => {
     const [checkingCode, setCheckingCode] = useState(false);
     const [codeTaken,    setCodeTaken]    = useState<boolean | null>(null);
@@ -89,11 +87,11 @@ export const EditPartDialog = ({
         defaultValues: {
             brand_id:         part.brand_id,
             category:         part.category ?? "",
-            cost_price:       part.cost_price as any ?? "",
-            gst_rate:         part.gst_rate as any ?? "",
+            cost_price:       part.cost_price != null ? (Number(part.cost_price).toFixed(2) as any) : "",
+            gst_rate:         part.gst_rate != null ? (Number(part.gst_rate).toFixed(2) as any) : "",
             hsn_code:         part.hsn_code ?? "",
             model:            part.model ?? "",
-            mrp:              part.mrp as any ?? "",
+            mrp:              part.mrp != null ? (Number(part.mrp).toFixed(2) as any) : "",
             part_code:        part.part_code,
             part_description: part.part_description ?? "",
             part_name:        part.part_name,
@@ -110,14 +108,19 @@ export const EditPartDialog = ({
 
     useEffect(() => {
         if (!open) return;
+        if (!defaultBrandId) {
+            toast.warning("Please select a brand before editing a part.");
+            onOpenChange(false);
+            return;
+        }
         form.reset({
             brand_id:         part.brand_id,
             category:         part.category ?? "",
-            cost_price:       part.cost_price as any ?? "",
-            gst_rate:         part.gst_rate as any ?? "",
+            cost_price:       part.cost_price != null ? (Number(part.cost_price).toFixed(2) as any) : "",
+            gst_rate:         part.gst_rate != null ? (Number(part.gst_rate).toFixed(2) as any) : "",
             hsn_code:         part.hsn_code ?? "",
             model:            part.model ?? "",
-            mrp:              part.mrp as any ?? "",
+            mrp:              part.mrp != null ? (Number(part.mrp).toFixed(2) as any) : "",
             part_code:        part.part_code,
             part_description: part.part_description ?? "",
             part_name:        part.part_name,
@@ -198,60 +201,47 @@ export const EditPartDialog = ({
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent aria-describedby={undefined} className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
-                <DialogHeader>
-                    <DialogTitle className="text-base font-semibold text-foreground">
-                        Edit Part
+                {/* Header row: title + brand */}
+                <div className="flex items-center justify-between gap-4 pr-8 pb-3 border-b border-border">
+                    <DialogTitle className="text-base font-semibold text-foreground shrink-0">
+                        {defaultBrandId ? `Update Part: ${part.part_code}` : "Edit Part"}
                     </DialogTitle>
-                </DialogHeader>
+                    <div className="flex items-center gap-2">
+                        <Label htmlFor="ep2_brand" className="shrink-0 text-xs text-muted-foreground">
+                            Brand <span className="text-red-500">*</span>
+                        </Label>
+                        <Input
+                            id="ep2_brand"
+                            value={brandName}
+                            disabled
+                            className="h-8 bg-slate-200 font-semibold text-slate-800 text-sm w-44"
+                        />
+                        <FieldError message={errors.brand_id?.message} />
+                    </div>
+                </div>
 
                 <form className="flex flex-col gap-4 pt-1" onSubmit={form.handleSubmit(onSubmit)}>
-                    <div className="grid grid-cols-2 gap-4">
-                        {/* Brand */}
-                        <div className="flex flex-col gap-1.5">
-                            <Label htmlFor="ep2_brand">
-                                Brand <span className="text-red-500">*</span>
-                            </Label>
-                            <Select
-                                defaultValue={String(part.brand_id)}
-                                onValueChange={(v) => {
-                                    form.setValue("brand_id", Number(v), { shouldValidate: true });
-                                    setCodeTaken(null);
-                                }}
-                            >
-                                <SelectTrigger id="ep2_brand">
-                                    <SelectValue placeholder="Select brand" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {brands.map((b) => (
-                                        <SelectItem key={b.id} value={String(b.id)}>{b.name}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                            <FieldError message={errors.brand_id?.message} />
+                    {/* Part Code */}
+                    <div className="flex flex-col gap-1.5">
+                        <Label htmlFor="ep2_code">
+                            Part Code <span className="text-red-500">*</span>
+                        </Label>
+                        <div className="relative">
+                            <Input
+                                autoComplete="off"
+                                className="pr-8 font-mono uppercase"
+                                id="ep2_code"
+                                placeholder="Unique part code"
+                                {...form.register("part_code")}
+                            />
+                            {checkingCode && (
+                                <Loader2 className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-slate-400" />
+                            )}
+                            {!checkingCode && codeTaken === false && !errors.part_code && (
+                                <Check className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-500" />
+                            )}
                         </div>
-
-                        {/* Part Code */}
-                        <div className="flex flex-col gap-1.5">
-                            <Label htmlFor="ep2_code">
-                                Part Code <span className="text-red-500">*</span>
-                            </Label>
-                            <div className="relative">
-                                <Input
-                                    autoComplete="off"
-                                    className="pr-8 font-mono uppercase"
-                                    id="ep2_code"
-                                    placeholder="Unique part code"
-                                    {...form.register("part_code")}
-                                />
-                                {checkingCode && (
-                                    <Loader2 className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-slate-400" />
-                                )}
-                                {!checkingCode && codeTaken === false && !errors.part_code && (
-                                    <Check className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-500" />
-                                )}
-                            </div>
-                            <FieldError message={errors.part_code?.message} />
-                        </div>
+                        <FieldError message={errors.part_code?.message} />
                     </div>
 
                     {/* Part Name */}
@@ -322,12 +312,14 @@ export const EditPartDialog = ({
                         <div className="flex flex-col gap-1.5">
                             <Label htmlFor="ep2_cost">Cost Price</Label>
                             <Input
-                                id="ep2_cost"
-                                min={0}
-                                placeholder="0.00"
-                                step="0.01"
-                                type="number"
                                 {...form.register("cost_price")}
+                                className="text-right"
+                                id="ep2_cost"
+                                inputMode="decimal"
+                                placeholder="0.00"
+                                type="text"
+                                onFocus={e => e.target.select()}
+                                onBlur={e => { const v = parseFloat(e.target.value); if (!isNaN(v)) e.target.value = v.toFixed(2); }}
                             />
                             <FieldError message={errors.cost_price?.message} />
                         </div>
@@ -336,12 +328,14 @@ export const EditPartDialog = ({
                         <div className="flex flex-col gap-1.5">
                             <Label htmlFor="ep2_mrp">MRP</Label>
                             <Input
-                                id="ep2_mrp"
-                                min={0}
-                                placeholder="0.00"
-                                step="0.01"
-                                type="number"
                                 {...form.register("mrp")}
+                                className="text-right"
+                                id="ep2_mrp"
+                                inputMode="decimal"
+                                placeholder="0.00"
+                                type="text"
+                                onFocus={e => e.target.select()}
+                                onBlur={e => { const v = parseFloat(e.target.value); if (!isNaN(v)) e.target.value = v.toFixed(2); }}
                             />
                             <FieldError message={errors.mrp?.message} />
                         </div>
@@ -352,11 +346,13 @@ export const EditPartDialog = ({
                         <div className="flex flex-col gap-1.5">
                             <Label htmlFor="ep2_hsn">HSN Code</Label>
                             <Input
+                                {...form.register("hsn_code")}
                                 autoComplete="off"
                                 className="font-mono"
                                 id="ep2_hsn"
+                                inputMode="numeric"
                                 placeholder="e.g. 8517"
-                                {...form.register("hsn_code")}
+                                onFocus={e => e.target.select()}
                             />
                         </div>
 
@@ -364,13 +360,14 @@ export const EditPartDialog = ({
                         <div className="flex flex-col gap-1.5">
                             <Label htmlFor="ep2_gst">GST Rate (%)</Label>
                             <Input
-                                id="ep2_gst"
-                                max={100}
-                                min={0}
-                                placeholder="e.g. 18"
-                                step="0.01"
-                                type="number"
                                 {...form.register("gst_rate")}
+                                className="text-right"
+                                id="ep2_gst"
+                                inputMode="decimal"
+                                placeholder="0.00"
+                                type="text"
+                                onFocus={e => e.target.select()}
+                                onBlur={e => { const v = parseFloat(e.target.value); if (!isNaN(v)) e.target.value = v.toFixed(2); }}
                             />
                             <FieldError message={errors.gst_rate?.message} />
                         </div>

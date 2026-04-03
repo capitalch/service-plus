@@ -1240,6 +1240,9 @@ class SqlStore:
     """
     
     GET_PART_BY_CODE = """
+        with
+            "p_code"     as (values(%(code)s::text)),
+            "p_brand_id" as (values(%(brand_id)s::bigint))
         SELECT
             p.id, p.brand_id, p.part_code, p.part_name,
             p.part_description, p.category, p.model, p.uom,
@@ -1247,8 +1250,49 @@ class SqlStore:
             b.name AS brand_name
         FROM spare_part_master p
         JOIN brand b ON b.id = p.brand_id
-        WHERE LOWER(p.part_code) = LOWER(%(code)s)
-          AND (%(brand_id)s IS NULL OR p.brand_id = %(brand_id)s::bigint)
+        WHERE LOWER(p.part_code) = LOWER((table "p_code"))
+          AND ((table "p_brand_id") IS NULL OR p.brand_id = (table "p_brand_id"))
+    """
+
+    GET_PARTS_BY_CODE_PREFIX = """
+        with
+            "p_search" as (values(%(search)s::text)),
+            "p_limit"  as (values(%(limit)s::int)),
+            "p_offset" as (values(%(offset)s::int))
+        SELECT
+            p.id, p.brand_id, p.part_code, p.part_name,
+            p.part_description, p.category, p.model, p.uom,
+            p.cost_price, p.mrp, p.hsn_code, p.gst_rate, p.is_active,
+            b.name AS brand_name
+        FROM spare_part_master p
+        JOIN brand b ON b.id = p.brand_id
+        WHERE (table "p_search") = ''
+           OR LOWER(p.part_code) LIKE LOWER((table "p_search")) || '%%'
+        ORDER BY b.name, p.part_code
+        LIMIT  (table "p_limit")
+        OFFSET (table "p_offset")
+    """
+
+    GET_PARTS_BY_KEYWORD = """
+        with
+            "p_search" as (values(%(search)s::text)),
+            "p_limit"  as (values(%(limit)s::int)),
+            "p_offset" as (values(%(offset)s::int))
+        SELECT
+            p.id, p.brand_id, p.part_code, p.part_name,
+            p.part_description, p.category, p.model, p.uom,
+            p.cost_price, p.mrp, p.hsn_code, p.gst_rate, p.is_active,
+            b.name AS brand_name
+        FROM spare_part_master p
+        JOIN brand b ON b.id = p.brand_id
+        WHERE (table "p_search") = ''
+           OR LOWER(p.part_name)                        LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(COALESCE(p.part_description, ''))   LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(COALESCE(p.model, ''))              LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(COALESCE(p.category, ''))           LIKE '%%' || LOWER((table "p_search")) || '%%'
+        ORDER BY b.name, p.part_code
+        LIMIT  (table "p_limit")
+        OFFSET (table "p_offset")
     """
 
     # ── Products ──────────────────────────────────────────────────────────────
