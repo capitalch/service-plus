@@ -159,6 +159,8 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
 
     const dupDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const partDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const partInputRefs = useRef<(HTMLInputElement | null)[]>([]);
+    const hsnInputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
     // Auto-fill supplier state code on vendor change
     useEffect(() => {
@@ -240,7 +242,7 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
     }, [partCodeQuery, partKeywordQuery, partSearchMode, partPickOpen, dbName, schema]);
 
     // Typed search for part code (on blur or enter)
-    const handleTypedPartSearch = async (idx: number, code: string, brandId?: number | null) => {
+    const handleTypedPartSearch = async (idx: number, code: string, brandId?: number | null, focusQtyOnSuccess = false) => {
         if (!code.trim() || !dbName || !schema) return;
 
         try {
@@ -261,6 +263,9 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
             if (results.length === 1) {
                 // Exactly one part found → auto-select
                 handlePartSelectForIdx(idx, results[0]);
+                if (focusQtyOnSuccess) {
+                    setTimeout(() => hsnInputRefs.current[idx]?.focus(), 50);
+                }
             } else if (results.length > 1) {
                 // Multiple parts → open pick dialog pre-filled on Option 1
                 if (partPickOpen) return;
@@ -270,15 +275,22 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
                 setPartSearchMode("code");
                 setPartResults(results);
                 setPartPickOpen(true);
+                // Validation "fails" to be unique -> return focus
+                partInputRefs.current[idx]?.focus();
+                partInputRefs.current[idx]?.select();
             } else {
                 // No part found → open AddPartDialog
                 if (partPickOpen) return;
                 setAddPartLineIdx(idx);
                 setPrefillPartCode(code.trim());
                 setAddPartOpen(true);
+                // Validation fails -> return focus
+                partInputRefs.current[idx]?.focus();
+                partInputRefs.current[idx]?.select();
             }
         } catch {
-            // silent
+            partInputRefs.current[idx]?.focus();
+            partInputRefs.current[idx]?.select();
         }
     };
 
@@ -735,7 +747,7 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
                                         <th className={`${thClass} text-right`} style={{ width: "7%" }}>SGST</th>
                                         <th className={`${thClass} text-right`} style={{ width: "7%" }}>IGST</th>
                                         <th className={`${thClass} text-right`} style={{ width: "10%" }}>Total</th>
-                                        <th className={`${thClass} text-center`} style={{ width: "9%" }}>Actions</th>
+                                        <th className={`${thClass} text-left`} style={{ width: "9%" }}>Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody className="bg-[var(--cl-surface)]">
@@ -752,6 +764,7 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
                                                             <button
                                                                 type="button"
                                                                 tabIndex={-1}
+                                                                onMouseDown={e => e.preventDefault()}
                                                                 onClick={() => openPartPick(idx, line.part_code || undefined)}
                                                                 className="absolute left-1.5 top-1/2 -translate-y-1/2 rounded-md p-1 bg-[var(--cl-accent)] text-white hover:bg-[var(--cl-accent)]/10 hover:text-[var(--cl-accent)] shadow-sm transition-all focus:ring-2 focus:ring-[var(--cl-accent)]/20 cursor-pointer z-10"
                                                                 title="Browse all parts"
@@ -759,6 +772,7 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
                                                                 <Search className="h-3.5 w-3.5" />
                                                             </button>
                                                             <Input
+                                                                ref={el => { partInputRefs.current[idx] = el; }}
                                                                 className={`${inputCls} font-mono w-full pl-9 pr-14 border-transparent hover:border-[var(--cl-border)] focus:border-[var(--cl-accent)] focus:bg-[var(--cl-surface)] transition-all ${line.part_id ? "bg-[var(--cl-accent)]/5 border-[var(--cl-accent)]/20 text-[var(--cl-accent)] font-bold" : "border-red-500 focus:border-red-500 ring-red-500/10 bg-transparent"}`}
                                                                 placeholder="Part Code"
                                                                 value={line.part_code}
@@ -773,6 +787,10 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
                                                                 }}
                                                                 onKeyDown={e => {
                                                                     if (e.key === 'Enter') void handleTypedPartSearch(idx, line.part_code, line.brand_id || selectedBrandId);
+                                                                    if (e.key === 'Tab') {
+                                                                        e.preventDefault();
+                                                                        void handleTypedPartSearch(idx, line.part_code, line.brand_id || selectedBrandId, true);
+                                                                    }
                                                                 }}
                                                                 onBlur={() => {
                                                                     if (line.part_code.trim()) void handleTypedPartSearch(idx, line.part_code, line.brand_id || selectedBrandId);
@@ -831,6 +849,7 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
                                                 {/* HSN */}
                                                 <td className={tdClass}>
                                                     <Input
+                                                        ref={el => { hsnInputRefs.current[idx] = el; }}
                                                         className={`${inputCls} bg-transparent border-transparent hover:border-[var(--cl-border)] focus:bg-[var(--cl-surface)] ${(line.unit_price > 0 || line.gst_rate > 0) && !line.hsn_code.trim() ? "border-red-500 focus:border-red-500 ring-red-500/10 shadow-[0_0_0_1px_rgba(239,68,68,0.2)]" : ""}`}
                                                         placeholder="HSN"
                                                         value={line.hsn_code}
@@ -903,8 +922,8 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
                                                 </td>
 
                                                 {/* Actions */}
-                                                <td className={`${tdClass} text-center`}>
-                                                    <div className="flex items-center justify-center gap-0.5 px-2">
+                                                <td className={`${tdClass} text-left`}>
+                                                    <div className="flex items-center justify-start gap-0.5 px-2">
                                                         <button
                                                             type="button"
                                                             className="cursor-pointer text-[var(--cl-accent)] hover:bg-[var(--cl-accent)]/10 hover:scale-110 active:scale-95 transition-all p-1.5 rounded-full"
@@ -1055,7 +1074,15 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
                     <Dialog
                         open={partPickOpen}
                         onOpenChange={open => {
-                            if (!open) { setPartPickOpen(false); setPartCodeQuery(""); setPartKeywordQuery(""); setPartResults([]); setPartSearchMode("code"); }
+                            if (!open) {
+                                setPartPickOpen(false); setPartCodeQuery(""); setPartKeywordQuery(""); setPartResults([]); setPartSearchMode("code");
+                                if (partPickLine !== -1) {
+                                    setTimeout(() => {
+                                        partInputRefs.current[partPickLine]?.focus();
+                                        partInputRefs.current[partPickLine]?.select();
+                                    }, 50);
+                                }
+                            }
                         }}
                     >
                         <DialogContent className="sm:max-w-lg bg-white text-black border-[var(--cl-border)] shadow-2xl opacity-100">
@@ -1170,7 +1197,15 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
 
             <PartDialog
                 mode="add"
-                onOpenChange={setAddPartOpen}
+                onOpenChange={open => {
+                    setAddPartOpen(open);
+                    if (!open && addPartLineIdx !== null) {
+                        setTimeout(() => {
+                            partInputRefs.current[addPartLineIdx]?.focus();
+                            partInputRefs.current[addPartLineIdx]?.select();
+                        }, 50);
+                    }
+                }}
                 onSuccess={() => {
                     if (addPartLineIdx !== null) {
                         void handleTypedPartSearch(addPartLineIdx, prefillPartCode, selectedBrandId);
@@ -1193,7 +1228,14 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
                         if (!o) {
                             setEditPartOpen(false);
                             setEditPartData(null);
+                            const lastIdx = editPartLineIdx;
                             setEditPartLineIdx(null);
+                            if (lastIdx !== null) {
+                                setTimeout(() => {
+                                    partInputRefs.current[lastIdx]?.focus();
+                                    partInputRefs.current[lastIdx]?.select();
+                                }, 50);
+                            }
                         }
                     }}
                     onSuccess={() => {

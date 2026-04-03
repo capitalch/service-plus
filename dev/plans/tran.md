@@ -1,6 +1,6 @@
 # Modify purchase
-- Can edit_part_dialog and add_part_dialog be merged to single component with a good name
-- can ModernCombobox in new_purchase_invoice be posted to components/ui as a generic component which is reusable in other places or any generic select / dropdown from shadcn be used instead
+- When focus is in part code and user clicks search button, it should only open a dialog to search and select a part. It should not allow part-dialog to open. 
+- when focus is in part code and user presses enter key, or tab key or click on any other control in the line, part validation should happen. If part is not found it should open part-dialog.
 
 
     
