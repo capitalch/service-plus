@@ -54,4 +54,8 @@
     | Delete child rows by id list (deletedIds) | ✅ |
     | Full transaction (all-or-nothing) | ✅ |
     | isIdInsert flag to force INSERT with explicit id | ✅ |
-
+# directions
+- At client side, In client mode, all the components are in components folder. 
+- Based on main menu at the top create folders for each menu item and create a page for each menu item in the pages folder.
+- For each submenu item in sidebar create corresponding folder in the main menu folder. Maintain the hierarchy of menus in the folder structure.
+- Try to reuse components as much as possible. Keep the shared components in the shared folder.

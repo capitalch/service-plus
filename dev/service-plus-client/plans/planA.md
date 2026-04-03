@@ -1,46 +1,21 @@
-# Plan: Dynamic GST Status Indicator
+# Implementation Plan - Enhance Line Action Icons
 
-This plan outlines the steps to make the "GST" indicator dynamic based on the `isGstRegistered` global state from the `context` slice.
+The objective is to make the action icons (Add and Remove row) in the Purchase Entry line items more prominent and visually compact.
 
 ## Workflow
-1.  **Import** the `selectIsGstRegistered` selector and `XCircle` / `CheckCircle2` icons in `PurchaseEntrySection.tsx`.
-2.  **Retrieve** the current GST status using `useAppSelector(selectIsGstRegistered)`.
-3.  **Update** the rendering logic for the GST indicator to toggle between "Enabled" (Green) and "Disabled" (Red) states based on this value.
-4.  **Confirm** that the icons and colors change correctly to reflect the global setting.
+1. Identify the action button container and icons in `new-purchase-invoice.tsx`.
+2. Increase the icon size slightly and adjust their stroke weight for better prominence.
+3. Reduce the gap between the buttons.
+4. Verify the updated visual style.
 
-## Steps
+## Execution Steps
 
-### Step 1: Update Imports in PurchaseEntrySection.tsx
-- **File**: `src/features/client/components/inventory/purchase-entry/purchase-entry-section.tsx`
-- **Add**: `XCircle` to `lucide-react` imports.
-- **Add**: `selectIsGstRegistered` to `context-slice` imports.
-
-### Step 2: Retrieve GST State
-- Add `const isGstRegistered = useAppSelector(selectIsGstRegistered);` within the `PurchaseEntrySection` component.
-
-### Step 3: Update Rendering Logic
-- Replace the static GST badge with a conditional one:
-  ```tsx
-  {mode === 'new' && (
-      <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded-sm border shadow-sm animate-in fade-in zoom-in duration-500 delay-150 ${
-          isGstRegistered 
-              ? 'bg-emerald-500/10 border-emerald-500/20' 
-              : 'bg-red-500/10 border-red-500/20'
-      }`}>
-          {isGstRegistered ? (
-              <CheckCircle2 className="h-3 w-3 text-emerald-600" />
-          ) : (
-              <XCircle className="h-3 w-3 text-red-600" />
-          )}
-          <span className={`text-[9px] font-bold uppercase tracking-tighter ${
-              isGstRegistered ? 'text-emerald-700' : 'text-red-700'
-          }`}>
-              GST {isGstRegistered ? 'Enabled' : 'Disabled'}
-          </span>
-      </div>
-  )}
-  ```
-
-### Step 4: Verification
-- Verify that when `isGstRegistered` is false, the indicator turns red and says "GST Disabled" with a cross icon.
-- Verify that when true, it remains green with "GST Enabled" and a checkmark.
+### Step 1: Update Icons and Layout
+- **File**: `src/features/client/components/inventory/purchase-entry/new-purchase-invoice.tsx`
+- **Location**: Actions column cells (around line 1022).
+- **Change Details**:
+    - Reduce the container gap from `gap-1.5` to `gap-0.5`.
+    - Increase icon size for `PlusCircle` and `XCircle` from `h-6 w-6` to `h-[26px] w-[26px]`.
+    - Adjust the button padding if needed to maintain an overall balanced layout.
+    - Ensure the hover/active transitions remain smooth.
+    - Potential tweak to colors or stroke weight for extra prominence.

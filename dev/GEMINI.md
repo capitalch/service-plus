@@ -19,6 +19,11 @@
 8. AU can create a new BU in the 'bu' table in 'security' schema of the service_plus_service database. AU is asked for creation of a new BU when there is none.
 9. When AU creates a new bu in the bu table of the security schema of 'service_plus_service' database, a new schema with the code column value of the bu table is created in the here service_plus_service database. This schema will have all the tables required for the BU. The details of the schema is in 'demo1' schema of 'service_plus_service' database. The 'demo1' schema is a template for the new schema with the code of bu as schema name. The tables in the new schema will be created by copying the tables from the 'demo1' schema.
 - All sql scripts should be in sql_store.py
+# directions
+- At client side, In client mode, all the components are in components folder. 
+- Based on main menu at the top create folders for each menu item and create a page for each menu item in the pages folder.
+- For each submenu item in sidebar create corresponding folder in the main menu folder. Maintain the hierarchy of menus in the folder structure.
+- Try to reuse components as much as possible. Keep the shared components in the shared folder.
 # Guidelines
 - When any text command is given to gemini and last word is plan then do the plan only for the given command. Write your plan in the planA.md file in the plans folder (in windows it is C:\projects\service-plus\dev\plans) of the project. 
 - Overwrite planA.md if required.

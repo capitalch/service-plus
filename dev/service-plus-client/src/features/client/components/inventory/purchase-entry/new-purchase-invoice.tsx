@@ -1,12 +1,13 @@
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
-import { Loader2, Plus, Search, X, PlusCircle, XCircle, CheckCircle2 } from "lucide-react";
+import { Loader2, Plus, Search, X, PlusCircle, XCircle, CheckCircle2, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 
 import { Card, CardContent } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SearchableCombobox } from "@/components/ui/searchable-combobox";
 
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { MESSAGES } from "@/constants/messages";
@@ -20,8 +21,7 @@ import type { VendorType } from "@/features/client/types/vendor";
 import type { PurchaseLineFormItem, StockTransactionTypeRow } from "@/features/client/types/purchase";
 import type { StateRow } from "./purchase-entry-section";
 
-import { AddPartDialog } from "../../add-part-dialog";
-import { EditPartDialog } from "../../edit-part-dialog";
+import { PartDialog } from "../../part-dialog";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -108,122 +108,6 @@ const thClass = "sticky top-0 z-20 text-[11px] font-bold uppercase tracking-wide
 const tdClass = "p-0.5 border-b border-[var(--cl-border)]";
 const inputCls = "h-7 border-[var(--cl-border)] bg-[var(--cl-surface)] text-sm px-2";
 
-// ─── Internal Components ──────────────────────────────────────────────────────
-
-interface ModernComboboxProps<T> {
-    label: React.ReactNode;
-    placeholder: string;
-    selectedValue: string;
-    onSelect: (item: T | null) => void;
-    items: T[];
-    renderItem: (item: T) => React.ReactNode;
-    getFilterKey: (item: T) => string;
-    getDisplayValue: (item: T) => string;
-    className?: string;
-    maxLength?: number;
-    getIdentifier?: (item: T) => string;
-    isError?: boolean;
-}
-
-function ModernCombobox<T>({
-    label, placeholder, selectedValue, onSelect, items, renderItem, getFilterKey, getDisplayValue, className, maxLength, getIdentifier, isError
-}: ModernComboboxProps<T>) {
-    const [open, setOpen] = useState(false);
-    const [search, setSearch] = useState("");
-    const containerRef = useRef<HTMLDivElement>(null);
-
-    // When selectedValue changes from outside (e.g. auto-fill), update the search text
-    useEffect(() => {
-        if (selectedValue) {
-            const found = items.find(i => {
-                const idVal = getIdentifier ? getIdentifier(i) : getFilterKey(i).split(" ")[0];
-                const display = getDisplayValue(i).split(" ")[0];
-                return idVal === selectedValue || display === selectedValue;
-            });
-            if (found) setSearch(getDisplayValue(found));
-            else setSearch(selectedValue);
-        } else {
-            setSearch("");
-        }
-    }, [selectedValue, items, getDisplayValue, getFilterKey, getIdentifier]);
-
-    const filtered = useMemo(() => {
-        if (!search) return items;
-        const s = search.toLowerCase();
-        return items.filter(item => getFilterKey(item).toLowerCase().includes(s));
-    }, [items, search, getFilterKey]);
-
-    useEffect(() => {
-        const handleClickOutside = (e: MouseEvent) => {
-            if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-                setOpen(false);
-                // On close, if search doesn't match selected, reset search to what was selected
-                const found = items.find(i => getDisplayValue(i) === search);
-                if (!found && selectedValue) {
-                    const original = items.find(i => getFilterKey(i).split(" ")[0] === selectedValue);
-                    if (original) setSearch(getDisplayValue(original));
-                }
-            }
-        };
-        document.addEventListener("mousedown", handleClickOutside);
-        return () => document.removeEventListener("mousedown", handleClickOutside);
-    }, [search, selectedValue, items, getDisplayValue, getFilterKey]);
-
-    return (
-        <div className={`space-y-2 relative ${className} ${open ? "z-[110]" : "z-auto"}`} ref={containerRef}>
-            <Label className="text-xs font-semibold text-[var(--cl-text-muted)] uppercase tracking-wider">{label}</Label>
-            <div className="relative group">
-                <Input
-                    className={`bg-[var(--cl-surface-2)] pr-8 h-9 transition-all focus:ring-2 focus:ring-[var(--cl-accent)]/20 ${isError ? "border-red-500 focus:border-red-500 ring-red-500/10" : "border-transparent"}`}
-                    placeholder={placeholder}
-                    value={search}
-                    onChange={e => {
-                        setSearch(e.target.value);
-                        setOpen(true);
-                        if (!e.target.value) onSelect(null);
-                    }}
-                    onFocus={() => setOpen(true)}
-                    maxLength={maxLength}
-                />
-                <div className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--cl-text-muted)] opacity-50 group-hover:opacity-100 transition-opacity">
-                    {search ? <X className="h-4 w-4 cursor-pointer hover:text-red-500" onClick={() => { setSearch(""); onSelect(null); }} /> : <Plus className="h-3 w-3 rotate-45" />}
-                </div>
-
-                {open && (
-                    <motion.div
-                        initial={{ opacity: 0, y: -4, scale: 0.98 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        className="absolute left-0 right-0 top-full z-[100] mt-1.5 max-h-[220px] overflow-y-auto rounded-xl border border-[var(--cl-border)] bg-[var(--cl-surface)] p-1.5 shadow-2xl backdrop-blur-md ring-1 ring-black/5"
-                    >
-                        {filtered.length === 0 ? (
-                            <div className="px-3 py-4 text-center text-xs text-[var(--cl-text-muted)] italic text-pretty">
-                                No items found for "{search}"
-                            </div>
-                        ) : (
-                            <div className="space-y-0.5">
-                                {filtered.map((item, idx) => (
-                                    <button
-                                        key={idx}
-                                        type="button"
-                                        className="flex w-full cursor-pointer items-center rounded-lg px-3 py-2 text-left text-sm transition-all hover:bg-[var(--cl-accent)]/10 hover:text-[var(--cl-accent)] focus:bg-[var(--cl-accent)]/10 focus:outline-none"
-                                        onClick={() => {
-                                            onSelect(item);
-                                            setSearch(getDisplayValue(item));
-                                            setOpen(false);
-                                        }}
-                                    >
-                                        {renderItem(item)}
-                                    </button>
-                                ))}
-                            </div>
-                        )}
-                    </motion.div>
-                )}
-            </div>
-        </div>
-    );
-}
-
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
@@ -257,11 +141,13 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
     const [checkingDuplicate, setCheckingDuplicate] = useState(false);
 
     // Part search dialog
-    const [partPickOpen, setPartPickOpen] = useState(false);
-    const [partPickLine, setPartPickLine] = useState(-1);
-    const [partQuery, setPartQuery] = useState("");
-    const [partResults, setPartResults] = useState<PartRow[]>([]);
-    const [partLoading, setPartLoading] = useState(false);
+    const [partPickOpen,     setPartPickOpen]     = useState(false);
+    const [partPickLine,     setPartPickLine]     = useState(-1);
+    const [partCodeQuery,    setPartCodeQuery]    = useState("");
+    const [partKeywordQuery, setPartKeywordQuery] = useState("");
+    const [partSearchMode,   setPartSearchMode]   = useState<"code" | "keyword">("code");
+    const [partResults,      setPartResults]      = useState<PartRow[]>([]);
+    const [partLoading,      setPartLoading]      = useState(false);
 
     // Submit
     const [submitting, setSubmitting] = useState(false);
@@ -317,17 +203,21 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
         }, 600);
     }, [invoiceNo, vendorId, dbName, schema]);
 
-    // Part search (debounced 400ms)
+    // Part search (debounced 1200ms) — runs for whichever input is active
     useEffect(() => {
-        if (!dbName || !schema) return;
+        if (!dbName || !schema || !partPickOpen) return;
         if (partDebounceRef.current) clearTimeout(partDebounceRef.current);
-        if (!partQuery.trim()) {
+        const activeQuery = partSearchMode === "code" ? partCodeQuery : partKeywordQuery;
+        if (!activeQuery.trim()) {
             setPartResults([]);
             return;
         }
         partDebounceRef.current = setTimeout(async () => {
             setPartLoading(true);
             try {
+                const sqlId = partSearchMode === "code"
+                    ? SQL_MAP.GET_PARTS_BY_CODE_PREFIX
+                    : SQL_MAP.GET_PARTS_BY_KEYWORD;
                 const res = await apolloClient.query<GenericQueryData<PartRow>>({
                     fetchPolicy: "network-only",
                     query: GRAPHQL_MAP.genericQuery,
@@ -335,8 +225,8 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
                         db_name: dbName,
                         schema,
                         value: graphQlUtils.buildGenericQueryValue({
-                            sqlId: SQL_MAP.GET_PARTS_PAGED,
-                            sqlArgs: { search: partQuery.trim(), limit: 20, offset: 0 },
+                            sqlId,
+                            sqlArgs: { search: activeQuery.trim(), limit: 20, offset: 0 },
                         }),
                     },
                 });
@@ -346,8 +236,8 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
             } finally {
                 setPartLoading(false);
             }
-        }, 400);
-    }, [partQuery, dbName, schema]);
+        }, 1200);
+    }, [partCodeQuery, partKeywordQuery, partSearchMode, partPickOpen, dbName, schema]);
 
     // Typed search for part code (on blur or enter)
     const handleTypedPartSearch = async (idx: number, code: string, brandId?: number | null) => {
@@ -372,13 +262,17 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
                 // Exactly one part found → auto-select
                 handlePartSelectForIdx(idx, results[0]);
             } else if (results.length > 1) {
-                // Multiple parts → open pick dialog with pre-filled search
+                // Multiple parts → open pick dialog pre-filled on Option 1
+                if (partPickOpen) return;
                 setPartPickLine(idx);
-                setPartQuery(code.trim());
+                setPartCodeQuery(code.trim());
+                setPartKeywordQuery("");
+                setPartSearchMode("code");
                 setPartResults(results);
                 setPartPickOpen(true);
             } else {
                 // No part found → open AddPartDialog
+                if (partPickOpen) return;
                 setAddPartLineIdx(idx);
                 setPrefillPartCode(code.trim());
                 setAddPartOpen(true);
@@ -401,8 +295,40 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
             gst_rate: Number(part.gst_rate ?? 0),
         });
         setPartPickOpen(false);
-        setPartQuery("");
+        setPartCodeQuery("");
+        setPartKeywordQuery("");
         setPartResults([]);
+    };
+
+    // Fetch and open EditPartDialog for an existing part in a line
+    const handleEditPart = async (idx: number, partCode: string, brandId: number | null) => {
+        if (!partCode.trim() || !dbName || !schema) return;
+
+        try {
+            const res = await apolloClient.query<GenericQueryData<PartRow>>({
+                fetchPolicy: "network-only",
+                query: GRAPHQL_MAP.genericQuery,
+                variables: {
+                    db_name: dbName,
+                    schema,
+                    value: graphQlUtils.buildGenericQueryValue({
+                        sqlId: SQL_MAP.GET_PART_BY_CODE,
+                        sqlArgs: { code: partCode.trim(), brand_id: brandId ?? null },
+                    }),
+                },
+            });
+
+            const results = res.data?.genericQuery ?? [];
+            if (results.length === 1) {
+                setEditPartData(results[0]);
+                setEditPartLineIdx(idx);
+                setEditPartOpen(true);
+            } else {
+                toast.error("Could not retrieve part details. Please try searching again.");
+            }
+        } catch {
+            toast.error("An error occurred while fetching part details.");
+        }
     };
 
     // Original handlePartSelect for the generic pick dialog
@@ -410,10 +336,16 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
         handlePartSelectForIdx(partPickLine, part);
     };
 
-    const openPartPick = (idx: number) => {
+    const openPartPick = (idx: number, prefillCode?: string) => {
+        if (!selectedBrandId) {
+            toast.warning("Please select a brand before searching parts.");
+            return;
+        }
         setPartPickLine(idx);
-        setPartQuery("");
         setPartResults([]);
+        setPartCodeQuery(prefillCode?.trim() ?? "");
+        setPartKeywordQuery("");
+        setPartSearchMode("code");
         setPartPickOpen(true);
     };
 
@@ -705,7 +637,7 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
                     <Card className="border-[var(--cl-border)] bg-[var(--cl-surface)] shadow-sm !overflow-visible">
                         <CardContent className="pt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-x-2 gap-y-2 !overflow-visible">
                             {/* Vendor */}
-                            <ModernCombobox
+                            <SearchableCombobox
                                 className="lg:col-span-3"
                                 isError={!vendorId}
                                 label={<span>Supplier <span className="text-red-500 ml-0.5">*</span></span>}
@@ -754,7 +686,7 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
                                 />
                             </div>
 
-                            <ModernCombobox
+                            <SearchableCombobox
                                 className="lg:col-span-2"
                                 isError={!supplierStateCode}
                                 label={<span>State <span className="text-red-500 ml-0.5">*</span></span>}
@@ -799,9 +731,9 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
                                         <th className={`${thClass} text-right`} style={{ width: "8%" }}>Price</th>
                                         <th className={`${thClass} text-right`} style={{ width: "10%" }}>Aggregate</th>
                                         <th className={`${thClass} text-right`} style={{ width: "7%" }}>GST(%)</th>
-                                        <th className={`${thClass} text-right text-xs`} style={{ width: "7%" }}>CGST</th>
-                                        <th className={`${thClass} text-right text-xs`} style={{ width: "7%" }}>SGST</th>
-                                        <th className={`${thClass} text-right text-xs`} style={{ width: "7%" }}>IGST</th>
+                                        <th className={`${thClass} text-right`} style={{ width: "7%" }}>CGST</th>
+                                        <th className={`${thClass} text-right`} style={{ width: "7%" }}>SGST</th>
+                                        <th className={`${thClass} text-right`} style={{ width: "7%" }}>IGST</th>
                                         <th className={`${thClass} text-right`} style={{ width: "10%" }}>Total</th>
                                         <th className={`${thClass} text-center`} style={{ width: "9%" }}>Actions</th>
                                     </tr>
@@ -819,8 +751,9 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
                                                         <div className="relative group/part">
                                                             <button
                                                                 type="button"
-                                                                onClick={() => openPartPick(idx)}
-                                                                className="absolute left-1.5 top-1/2 -translate-y-1/2 rounded-md p-1 bg-[var(--cl-accent)] text-white hover:bg-[var(--cl-accent)]/10 text-[var(--cl-accent)] shadow-sm transition-all focus:ring-2 focus:ring-[var(--cl-accent)]/20 cursor-pointer z-10"
+                                                                tabIndex={-1}
+                                                                onClick={() => openPartPick(idx, line.part_code || undefined)}
+                                                                className="absolute left-1.5 top-1/2 -translate-y-1/2 rounded-md p-1 bg-[var(--cl-accent)] text-white hover:bg-[var(--cl-accent)]/10 hover:text-[var(--cl-accent)] shadow-sm transition-all focus:ring-2 focus:ring-[var(--cl-accent)]/20 cursor-pointer z-10"
                                                                 title="Browse all parts"
                                                             >
                                                                 <Search className="h-3.5 w-3.5" />
@@ -849,6 +782,7 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
                                                                 {line.part_code && (
                                                                     <button
                                                                         type="button"
+                                                                        tabIndex={-1}
                                                                         onClick={() => {
                                                                             updateLine(idx, { part_code: "", part_id: null, part_name: "" });
                                                                         }}
@@ -858,18 +792,32 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
                                                                         <X className="h-3.5 w-3.5" />
                                                                     </button>
                                                                 )}
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => {
-                                                                        setAddPartLineIdx(idx);
-                                                                        setPrefillPartCode(line.part_code.trim());
-                                                                        setAddPartOpen(true);
-                                                                    }}
-                                                                    className="rounded-md p-1 bg-emerald-600 text-white hover:bg-emerald-600/10 hover:text-emerald-600 shadow-sm transition-all focus:ring-2 focus:ring-emerald-600/20 cursor-pointer"
-                                                                    title="Add as new part"
-                                                                >
-                                                                    <Plus className="h-3.5 w-3.5" />
-                                                                </button>
+                                                                {line.part_id ? (
+                                                                    <button
+                                                                        type="button"
+                                                                        tabIndex={-1}
+                                                                        onClick={() => void handleEditPart(idx, line.part_code, line.brand_id || selectedBrandId)}
+                                                                        className="rounded-md p-1 bg-amber-500 text-white hover:bg-amber-500/10 hover:text-amber-600 shadow-sm transition-all focus:ring-2 focus:ring-amber-500/20 cursor-pointer"
+                                                                        title="Edit part details"
+                                                                    >
+                                                                        <Pencil className="h-3.5 w-3.5" />
+                                                                    </button>
+                                                                ) : (
+                                                                    <button
+                                                                        type="button"
+                                                                        tabIndex={-1}
+                                                                        onClick={() => {
+                                                                            if (partPickOpen) return;
+                                                                            setAddPartLineIdx(idx);
+                                                                            setPrefillPartCode(line.part_code.trim());
+                                                                            setAddPartOpen(true);
+                                                                        }}
+                                                                        className="rounded-md p-1 bg-emerald-600 text-white hover:bg-emerald-600/10 hover:text-emerald-600 shadow-sm transition-all focus:ring-2 focus:ring-emerald-600/20 cursor-pointer"
+                                                                        title="Add as new part"
+                                                                    >
+                                                                        <Plus className="h-3.5 w-3.5" />
+                                                                    </button>
+                                                                )}
                                                             </div>
                                                         </div>
                                                         {line.part_id && line.part_name && (
@@ -935,17 +883,17 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
                                                 </td>
 
                                                 {/* CGST Amt (read-only) */}
-                                                <td className={`${tdClass} p-2 text-right text-[11px] text-[var(--cl-text-muted)] opacity-80 tabular-nums`}>
+                                                <td className={`${tdClass} p-2 text-right text-sm text-[var(--cl-text-muted)] tabular-nums`}>
                                                     {isIgst ? "—" : formatNumber(c.cgstAmt)}
                                                 </td>
 
                                                 {/* SGST Amt (read-only) */}
-                                                <td className={`${tdClass} p-2 text-right text-[11px] text-[var(--cl-text-muted)] opacity-80 tabular-nums`}>
+                                                <td className={`${tdClass} p-2 text-right text-sm text-[var(--cl-text-muted)] tabular-nums`}>
                                                     {isIgst ? "—" : formatNumber(c.sgstAmt)}
                                                 </td>
 
                                                 {/* IGST Amt (read-only) */}
-                                                <td className={`${tdClass} p-2 text-right text-[11px] text-[var(--cl-text-muted)] opacity-80 tabular-nums`}>
+                                                <td className={`${tdClass} p-2 text-right text-sm text-[var(--cl-text-muted)] tabular-nums`}>
                                                     {isIgst ? formatNumber(c.igstAmt) : "—"}
                                                 </td>
 
@@ -956,23 +904,23 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
 
                                                 {/* Actions */}
                                                 <td className={`${tdClass} text-center`}>
-                                                    <div className="flex items-center justify-center gap-1.5 px-2">
+                                                    <div className="flex items-center justify-center gap-0.5 px-2">
                                                         <button
                                                             type="button"
-                                                            className="cursor-pointer text-[var(--cl-accent)] hover:bg-[var(--cl-accent)]/10 hover:scale-110 active:scale-95 transition-all p-2 rounded-full"
+                                                            className="cursor-pointer text-[var(--cl-accent)] hover:bg-[var(--cl-accent)]/10 hover:scale-110 active:scale-95 transition-all p-1.5 rounded-full"
                                                             onClick={() => insertLine(idx)}
                                                             title="Add row below"
                                                         >
-                                                            <PlusCircle className="h-6 w-6" strokeWidth={2.5} />
+                                                            <PlusCircle className="h-7 w-7" strokeWidth={2.5} />
                                                         </button>
                                                         <button
                                                             type="button"
-                                                            className="cursor-pointer text-red-500 hover:text-red-600 hover:bg-red-500/10 hover:scale-110 active:scale-95 transition-all p-2 rounded-full disabled:opacity-20 disabled:cursor-not-allowed disabled:scale-100 disabled:bg-transparent"
+                                                            className="cursor-pointer text-red-500 hover:text-red-600 hover:bg-red-500/10 hover:scale-110 active:scale-95 transition-all p-1.5 rounded-full disabled:opacity-20 disabled:cursor-not-allowed disabled:scale-100 disabled:bg-transparent"
                                                             disabled={lines.length === 1}
                                                             onClick={() => removeLine(idx)}
                                                             title="Remove line"
                                                         >
-                                                            <XCircle className="h-6 w-6" strokeWidth={2.5} />
+                                                            <XCircle className="h-7 w-7" strokeWidth={2.5} />
                                                         </button>
                                                     </div>
                                                 </td>
@@ -987,13 +935,13 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
                                             {formatNumber(totals.quantity)}
                                         </td>
                                         <td colSpan={3}></td>
-                                        <td className="py-2 px-2 text-right text-[11px] text-[var(--cl-text-muted)] opacity-80 tabular-nums">
+                                        <td className="py-2 px-2 text-right text-sm text-[var(--cl-text-muted)] tabular-nums">
                                             {isIgst ? "—" : formatNumber(totals.cgst)}
                                         </td>
-                                        <td className="py-2 px-2 text-right text-[11px] text-[var(--cl-text-muted)] opacity-80 tabular-nums">
+                                        <td className="py-2 px-2 text-right text-sm text-[var(--cl-text-muted)] tabular-nums">
                                             {isIgst ? "—" : formatNumber(totals.sgst)}
                                         </td>
-                                        <td className="py-2 px-2 text-right text-[11px] text-[var(--cl-text-muted)] opacity-80 tabular-nums">
+                                        <td className="py-2 px-2 text-right text-sm text-[var(--cl-text-muted)] tabular-nums">
                                             {isIgst ? formatNumber(totals.igst) : "—"}
                                         </td>
                                         <td className="py-2 px-2 text-right text-sm text-[var(--cl-accent)] font-bold tabular-nums">
@@ -1107,71 +1055,110 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
                     <Dialog
                         open={partPickOpen}
                         onOpenChange={open => {
-                            if (!open) { setPartPickOpen(false); setPartQuery(""); setPartResults([]); }
+                            if (!open) { setPartPickOpen(false); setPartCodeQuery(""); setPartKeywordQuery(""); setPartResults([]); setPartSearchMode("code"); }
                         }}
                     >
                         <DialogContent className="sm:max-w-lg bg-white text-black border-[var(--cl-border)] shadow-2xl opacity-100">
-                            <DialogHeader>
-                                <DialogTitle>Search Part</DialogTitle>
-                            </DialogHeader>
-
-                            <div className="relative group">
-                                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--cl-text-muted)]" />
-                                <Input
-                                    autoFocus
-                                    className="h-9 border-[var(--cl-border)] bg-[var(--cl-surface)] pl-9 pr-9"
-                                    placeholder="Search by part code or name…"
-                                    value={partQuery}
-                                    onChange={e => setPartQuery(e.target.value)}
-                                />
-                                {partQuery && (
-                                    <button
-                                        type="button"
-                                        onClick={() => { setPartQuery(""); setPartResults([]); }}
-                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--cl-text-muted)] hover:text-red-500 transition-colors cursor-pointer"
-                                        title="Clear search"
-                                    >
-                                        <X className="h-4 w-4" />
-                                    </button>
-                                )}
+                            {/* Header — plain div avoids Radix focus-trap interference */}
+                            <div className="pr-6 pb-3 border-b border-slate-200">
+                                <DialogTitle className="text-base font-semibold text-slate-900">Search Part</DialogTitle>
                             </div>
 
-                            <div className="max-h-72 overflow-y-auto rounded-lg border border-[var(--cl-border)] mt-2">
+                            {/* Option 1 — Part code starts with */}
+                            <div className={`flex flex-col gap-1.5 rounded-lg border p-3 transition-colors ${partSearchMode === "code" ? "border-slate-400 bg-slate-50" : "border-slate-200 bg-white"}`}>
+                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest select-none">
+                                    Option 1 · Part code starts with
+                                </label>
+                                <div className="relative">
+                                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                                    <Input
+                                        autoFocus
+                                        className="h-9 border-slate-200 bg-white text-slate-800 pl-9 pr-9 font-mono"
+                                        placeholder="Type a part code prefix…"
+                                        value={partCodeQuery}
+                                        onChange={e => setPartCodeQuery(e.target.value)}
+                                        onFocus={() => { if (partSearchMode !== "code") { setPartSearchMode("code"); setPartResults([]); } }}
+                                    />
+                                    {partCodeQuery && (
+                                        <button type="button" onClick={() => { setPartCodeQuery(""); setPartResults([]); }}
+                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-500 transition-colors cursor-pointer">
+                                            <X className="h-4 w-4" />
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Option 2 — Keyword in name / description / model / category */}
+                            <div className={`flex flex-col gap-1.5 rounded-lg border p-3 transition-colors ${partSearchMode === "keyword" ? "border-slate-400 bg-slate-50" : "border-slate-200 bg-white"}`}>
+                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest select-none">
+                                    Option 2 · Name / Description / Model / Category
+                                </label>
+                                <div className="relative">
+                                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                                    <Input
+                                        className="h-9 border-slate-200 bg-white text-slate-800 pl-9 pr-9"
+                                        placeholder="Type a keyword…"
+                                        value={partKeywordQuery}
+                                        onChange={e => setPartKeywordQuery(e.target.value)}
+                                        onFocus={() => { if (partSearchMode !== "keyword") { setPartSearchMode("keyword"); setPartResults([]); } }}
+                                    />
+                                    {partKeywordQuery && (
+                                        <button type="button" onClick={() => { setPartKeywordQuery(""); setPartResults([]); }}
+                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-500 transition-colors cursor-pointer">
+                                            <X className="h-4 w-4" />
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Results count */}
+                            {!partLoading && partResults.length > 0 && (
+                                <p className="text-xs text-slate-500 text-right pr-1">
+                                    {partResults.length} record{partResults.length !== 1 ? "s" : ""} found
+                                </p>
+                            )}
+
+                            <div className="max-h-60 overflow-y-auto rounded-lg border border-slate-200">
                                 {partLoading ? (
                                     <div className="flex h-16 items-center justify-center">
                                         <Loader2 className="h-5 w-5 animate-spin text-[var(--cl-accent)]" />
                                     </div>
                                 ) : partResults.length === 0 ? (
-                                    <div className="flex h-16 items-center justify-center text-sm text-[var(--cl-text-muted)]">
-                                        {partQuery.trim() ? "No parts found." : "Type to search parts."}
+                                    <div className="flex h-16 items-center justify-center text-sm text-slate-400">
+                                        {(partSearchMode === "code" ? partCodeQuery : partKeywordQuery).trim()
+                                            ? "No parts found."
+                                            : partSearchMode === "code"
+                                                ? "Type a part code prefix to search."
+                                                : "Type a keyword to search by name / description / model / category."}
                                     </div>
                                 ) : (
                                     partResults.map(part => (
                                         <button
                                             key={part.id}
-                                            className="cursor-pointer flex w-full items-start gap-3 border-b border-[var(--cl-border)] px-3 py-2.5 text-left last:border-0 hover:bg-[var(--cl-surface-2)] transition-colors"
+                                            className="cursor-pointer flex w-full items-start gap-3 border-b border-slate-100 px-3 py-2.5 text-left last:border-0 hover:bg-slate-50 transition-colors"
                                             type="button"
                                             onClick={() => handlePartSelect(part)}
                                         >
                                             <div className="min-w-0 flex-1">
-                                                <p className="font-mono text-sm font-medium text-[var(--cl-text)]">
+                                                <p className="font-mono text-sm font-medium text-slate-900">
                                                     {part.part_code}
-                                                    <span className="ml-2 font-sans font-normal text-[var(--cl-text-muted)] truncate">
-                                                        {part.part_name}
-                                                    </span>
+                                                    <span className="ml-2 font-sans font-normal text-slate-600">{part.part_name}</span>
                                                 </p>
-                                                <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                                                    <span className="bg-[var(--cl-surface)] border border-[var(--cl-border)] px-1.5 py-0.5 rounded text-[10px] text-[var(--cl-text-muted)] shadow-sm">UOM: {part.uom}</span>
-                                                    {part.hsn_code ? <span className="bg-[var(--cl-surface)] border border-[var(--cl-border)] px-1.5 py-0.5 rounded text-[10px] text-[var(--cl-text-muted)] shadow-sm">HSN: {part.hsn_code}</span> : null}
-                                                    {part.gst_rate != null ? <span className="bg-[var(--cl-surface)] border border-[var(--cl-border)] px-1.5 py-0.5 rounded text-[10px] text-[var(--cl-text-muted)] shadow-sm">GST: {part.gst_rate}%</span> : null}
-                                                    {part.model && <span className="bg-[var(--cl-surface)] border border-[var(--cl-border)] px-1.5 py-0.5 rounded text-[10px] text-[var(--cl-text-muted)] shadow-sm">Mod: {part.model}</span>}
-                                                </div>
+                                                {part.part_description && (
+                                                    <p className="mt-0.5 text-xs text-slate-500 truncate">{part.part_description}</p>
+                                                )}
+                                                {(part.category || part.model) && (
+                                                    <p className="mt-0.5 text-xs text-slate-400 truncate">
+                                                        {[part.category, part.model].filter(Boolean).join(" · ")}
+                                                    </p>
+                                                )}
+                                                <p className="mt-1 text-xs inline-flex flex-wrap items-center gap-1.5">
+                                                    {part.hsn_code ? <span className="bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded">HSN: {part.hsn_code}</span> : null}
+                                                    {part.gst_rate != null ? <span className="bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded">GST: {part.gst_rate}%</span> : null}
+                                                    {part.cost_price != null ? <span className="bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded text-blue-700">Cost: {formatNumber(part.cost_price)}</span> : null}
+                                                    {part.mrp != null ? <span className="bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded text-amber-700">MRP: {formatNumber(part.mrp)}</span> : null}
+                                                </p>
                                             </div>
-                                            {part.cost_price != null && (
-                                                <span className="shrink-0 text-sm font-semibold text-[var(--cl-text)] pt-1">
-                                                    {formatNumber(part.cost_price)}
-                                                </span>
-                                            )}
                                         </button>
                                     ))
                                 )}
@@ -1181,7 +1168,8 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
                 </>
             )}
 
-            <AddPartDialog
+            <PartDialog
+                mode="add"
                 onOpenChange={setAddPartOpen}
                 onSuccess={() => {
                     if (addPartLineIdx !== null) {
@@ -1195,7 +1183,8 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
             />
 
             {editPartData && (
-                <EditPartDialog
+                <PartDialog
+                    mode="edit"
                     open={editPartOpen}
                     part={editPartData}
                     defaultBrandId={selectedBrandId ?? 0}

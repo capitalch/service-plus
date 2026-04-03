@@ -50,10 +50,9 @@ import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectSchema } from "@/store/context-slice";
-import { AddPartDialog } from "./add-part-dialog";
+import { PartDialog } from "./part-dialog";
 import { DeleteBrandPartsWizardDialog } from "./delete-brand-parts-wizard-dialog";
 import { DeletePartDialog } from "./delete-part-dialog";
-import { EditPartDialog } from "./edit-part-dialog";
 import { ImportPartDialog } from "./import-part-dialog";
 import type { BrandOption } from "@/features/client/types/model";
 import type { PartType } from "@/features/client/types/part";
@@ -550,7 +549,8 @@ export const PartsSection = () => {
             </motion.div>
 
             {selectedBrand && (
-                <AddPartDialog
+                <PartDialog
+                    mode="add"
                     open={addOpen}
                     onOpenChange={setAddOpen}
                     onSuccess={() => loadParts(selectedBrand, page, searchQ)}
@@ -569,7 +569,8 @@ export const PartsSection = () => {
                 />
             )}
             {editPart && selectedBrand && (
-                <EditPartDialog
+                <PartDialog
+                    mode="edit"
                     open={!!editPart}
                     part={editPart}
                     defaultBrandId={selectedBrand.id}

@@ -1,9 +1,7 @@
-# When application loads
-- Load company profile
-- show company name in same line as breadcrumb on right side
-- if gstin no is not empty that means company is registered under GST
-- if gstin no is empty that means company is not registered under GST
-- set the isGstRegistered flag in context
+# Modify purchase
+- Can edit_part_dialog and add_part_dialog be merged to single component with a good name
+- can ModernCombobox in new_purchase_invoice be posted to components/ui as a generic component which is reusable in other places or any generic select / dropdown from shadcn be used instead
+
 
     
     

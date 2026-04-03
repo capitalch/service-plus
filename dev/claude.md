@@ -2,6 +2,11 @@
 - When any command is given to claude and last word is plan  or Plan, then strictly do the plan only for the given command, don't do any code changes. Write your plan in the plan.md file in the plans folder (in windows this folder is C:\projects\service-plus\dev\plans, in linux this folder is /home/sushant/projects/service-plus/dev/plans) of the project.
 - Make sure that you write plan.md in correct plans folder only. 
 - Overwrite plan.md if it exists.
+# directions
+- At client side, In client mode, all the components are in components folder. 
+- Based on main menu at the top create folders for each menu item and create a page for each menu item in the pages folder.
+- For each submenu item in sidebar create corresponding folder in the main menu folder. Maintain the hierarchy of menus in the folder structure.
+- Try to reuse components as much as possible. Keep the shared components in the shared folder.
 # Information and guidelines
 - This is a SAAS project for Electronic gadgets repair management in a workshop with a customer interface.
 - Server is built using fastapi, Python, and PostgreSQL

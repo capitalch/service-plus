@@ -10,7 +10,6 @@ import {
     Dialog,
     DialogContent,
     DialogFooter,
-    // DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -27,14 +26,18 @@ import type { PartType } from "@/features/client/types/part";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type EditPartDialogPropsType = {
-    onOpenChange:  (open: boolean) => void;
-    onSuccess:     () => void;
-    open:          boolean;
-    part:          PartType;
+type BaseProps = {
+    onOpenChange:   (open: boolean) => void;
+    onSuccess:      () => void;
+    open:           boolean;
     defaultBrandId: number;
     brandName:      string;
 };
+
+export type PartDialogProps = BaseProps & (
+    | { mode: "add"; prefillCode?: string }
+    | { mode: "edit"; part: PartType }
+);
 
 type CheckQueryDataType = {
     genericQuery: { exists: boolean }[] | null;
@@ -53,7 +56,9 @@ const schema = z.object({
     hsn_code:         z.string().optional().refine(v => !v || (/^\d+$/.test(v) && [4,6,8].includes(v.length)), { message: "HSN must be 4, 6, or 8 digits" }),
     gst_rate:         z.coerce.number().min(0).lt(60, "GST rate must be less than 60%").optional().or(z.literal("")).transform(v => v === "" ? undefined : Number(v)),
 }).superRefine((data, ctx) => {
-    if (data.mrp != null && data.cost_price != null && data.mrp <= data.cost_price) {
+    const mrp  = data.mrp ?? 0;
+    const cost = data.cost_price ?? 0;
+    if (mrp <= cost && (mrp !== 0 || cost !== 0)) {
         ctx.addIssue({ code: "custom", message: "MRP must be greater than cost price", path: ["mrp"] });
     }
 });
@@ -66,16 +71,45 @@ function FieldError({ message }: { message?: string }) {
     return message ? <p className="text-xs text-red-500">{message}</p> : null;
 }
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function partDefaultValues(part: PartType): FormType {
+    return {
+        brand_id:         part.brand_id,
+        category:         part.category ?? "",
+        cost_price:       part.cost_price != null ? (Number(part.cost_price).toFixed(2) as any) : "",
+        gst_rate:         part.gst_rate  != null ? (Number(part.gst_rate).toFixed(2)  as any) : "",
+        hsn_code:         part.hsn_code  ?? "",
+        model:            part.model     ?? "",
+        mrp:              part.mrp       != null ? (Number(part.mrp).toFixed(2)       as any) : "",
+        part_code:        part.part_code,
+        part_description: part.part_description ?? "",
+        part_name:        part.part_name,
+        uom:              part.uom,
+    };
+}
+
+const addDefaultValues: FormType = {
+    brand_id:         "" as any,
+    category:         "",
+    cost_price:       "" as any,
+    gst_rate:         "" as any,
+    hsn_code:         "",
+    model:            "",
+    mrp:              "" as any,
+    part_code:        "",
+    part_description: "",
+    part_name:        "",
+    uom:              "NOS",
+};
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export const EditPartDialog = ({
-    onOpenChange,
-    onSuccess,
-    open,
-    part,
-    defaultBrandId,
-    brandName,
-}: EditPartDialogPropsType) => {
+export const PartDialog = (props: PartDialogProps) => {
+    const { onOpenChange, onSuccess, open, defaultBrandId, brandName } = props;
+    const isEdit = props.mode === "edit";
+    const part   = isEdit ? props.part : null;
+
     const [checkingCode, setCheckingCode] = useState(false);
     const [codeTaken,    setCodeTaken]    = useState<boolean | null>(null);
     const [submitting,   setSubmitting]   = useState(false);
@@ -84,21 +118,9 @@ export const EditPartDialog = ({
     const schema_ = useAppSelector(selectSchema);
 
     const form = useForm<FormType>({
-        defaultValues: {
-            brand_id:         part.brand_id,
-            category:         part.category ?? "",
-            cost_price:       part.cost_price != null ? (Number(part.cost_price).toFixed(2) as any) : "",
-            gst_rate:         part.gst_rate != null ? (Number(part.gst_rate).toFixed(2) as any) : "",
-            hsn_code:         part.hsn_code ?? "",
-            model:            part.model ?? "",
-            mrp:              part.mrp != null ? (Number(part.mrp).toFixed(2) as any) : "",
-            part_code:        part.part_code,
-            part_description: part.part_description ?? "",
-            part_name:        part.part_name,
-            uom:              part.uom,
-        },
-        mode:     "onChange",
-        resolver: zodResolver(schema) as any,
+        defaultValues: isEdit ? partDefaultValues(part!) : addDefaultValues,
+        mode:          "onChange",
+        resolver:      zodResolver(schema) as any,
     });
 
     const { formState: { errors } } = form;
@@ -106,34 +128,46 @@ export const EditPartDialog = ({
     const brandIdValue  = useWatch({ control: form.control, name: "brand_id" });
     const debouncedCode = useDebounce(partCodeValue, 1200);
 
+    // ── Reset / populate on open ───────────────────────────────────────────────
     useEffect(() => {
-        if (!open) return;
+        if (!open) {
+            if (!isEdit) {
+                setCheckingCode(false);
+                setCodeTaken(null);
+                setSubmitting(false);
+                form.reset({ part_code: "", part_name: "", uom: "NOS" } as unknown as FormType);
+            }
+            return;
+        }
+
         if (!defaultBrandId) {
-            toast.warning("Please select a brand before editing a part.");
+            toast.warning(`Please select a brand before ${isEdit ? "editing" : "adding"} a part.`);
             onOpenChange(false);
             return;
         }
-        form.reset({
-            brand_id:         part.brand_id,
-            category:         part.category ?? "",
-            cost_price:       part.cost_price != null ? (Number(part.cost_price).toFixed(2) as any) : "",
-            gst_rate:         part.gst_rate != null ? (Number(part.gst_rate).toFixed(2) as any) : "",
-            hsn_code:         part.hsn_code ?? "",
-            model:            part.model ?? "",
-            mrp:              part.mrp != null ? (Number(part.mrp).toFixed(2) as any) : "",
-            part_code:        part.part_code,
-            part_description: part.part_description ?? "",
-            part_name:        part.part_name,
-            uom:              part.uom,
-        });
-        setCodeTaken(null);
+
+        if (isEdit) {
+            form.reset(partDefaultValues(part!));
+            setCodeTaken(null);
+        } else {
+            const prefillCode = props.mode === "add" ? props.prefillCode : undefined;
+            if (prefillCode) form.setValue("part_code", prefillCode.toUpperCase());
+            form.setValue("brand_id", defaultBrandId);
+        }
     }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
+    // ── Part code uniqueness check ─────────────────────────────────────────────
     useEffect(() => {
         const bid = Number(brandIdValue);
         if (!debouncedCode || !bid || !dbName || !schema_) { setCodeTaken(null); return; }
         if (form.getFieldState("part_code").invalid) { setCodeTaken(null); return; }
-        if (bid === part.brand_id && debouncedCode.toUpperCase() === part.part_code) { setCodeTaken(false); return; }
+
+        // Edit mode: skip check if code is unchanged for the same part
+        if (isEdit && part && bid === part.brand_id && debouncedCode.toUpperCase() === part.part_code) {
+            setCodeTaken(false);
+            return;
+        }
+
         setCheckingCode(true);
         apolloClient
             .query<CheckQueryDataType>({
@@ -143,8 +177,12 @@ export const EditPartDialog = ({
                     db_name: dbName,
                     schema:  schema_,
                     value: graphQlUtils.buildGenericQueryValue({
-                        sqlArgs: { brand_id: bid, part_code: debouncedCode.toUpperCase(), id: part.id },
-                        sqlId:   SQL_MAP.CHECK_PART_CODE_EXISTS_EXCLUDE_ID,
+                        sqlArgs: isEdit
+                            ? { brand_id: bid, part_code: debouncedCode.toUpperCase(), id: part!.id }
+                            : { brand_id: bid, part_code: debouncedCode.toUpperCase() },
+                        sqlId: isEdit
+                            ? SQL_MAP.CHECK_PART_CODE_EXISTS_EXCLUDE_ID
+                            : SQL_MAP.CHECK_PART_CODE_EXISTS,
                     }),
                 },
             })
@@ -158,6 +196,7 @@ export const EditPartDialog = ({
             .finally(() => setCheckingCode(false));
     }, [debouncedCode, brandIdValue]); // eslint-disable-line react-hooks/exhaustive-deps
 
+    // ── Submit ────────────────────────────────────────────────────────────────
     async function onSubmit(data: FormType) {
         if (!dbName || !schema_) return;
         setSubmitting(true);
@@ -170,7 +209,7 @@ export const EditPartDialog = ({
                     value: graphQlUtils.buildGenericUpdateValue({
                         tableName: "spare_part_master",
                         xData: {
-                            id:               part.id,
+                            ...(isEdit && { id: part!.id }),
                             brand_id:         data.brand_id,
                             part_code:        data.part_code,
                             part_name:        data.part_name,
@@ -186,11 +225,11 @@ export const EditPartDialog = ({
                     }),
                 },
             });
-            toast.success("Part updated successfully.");
+            toast.success(isEdit ? "Part updated successfully." : "Part created successfully.");
             onSuccess();
             onOpenChange(false);
         } catch {
-            toast.error("Failed to update part. Please try again.");
+            toast.error(isEdit ? "Failed to update part. Please try again." : "Failed to create part. Please try again.");
         } finally {
             setSubmitting(false);
         }
@@ -198,24 +237,23 @@ export const EditPartDialog = ({
 
     const submitDisabled = checkingCode || codeTaken === true || Object.keys(errors).length > 0 || submitting;
 
+    const title = isEdit
+        ? (defaultBrandId ? `Update Part: ${part!.part_code}` : "Edit Part")
+        : "Add Part";
+
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent aria-describedby={undefined} className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
                 {/* Header row: title + brand */}
                 <div className="flex items-center justify-between gap-4 pr-8 pb-3 border-b border-border">
                     <DialogTitle className="text-base font-semibold text-foreground shrink-0">
-                        {defaultBrandId ? `Update Part: ${part.part_code}` : "Edit Part"}
+                        {title}
                     </DialogTitle>
                     <div className="flex items-center gap-2">
-                        <Label htmlFor="ep2_brand" className="shrink-0 text-xs text-muted-foreground">
+                        <Label className="shrink-0 text-xs text-muted-foreground">
                             Brand <span className="text-red-500">*</span>
                         </Label>
-                        <Input
-                            id="ep2_brand"
-                            value={brandName}
-                            disabled
-                            className="h-8 bg-slate-200 font-semibold text-slate-800 text-sm w-44"
-                        />
+                        <Input disabled className="h-8 bg-slate-200 font-semibold text-slate-800 text-sm w-44" value={brandName} />
                         <FieldError message={errors.brand_id?.message} />
                     </div>
                 </div>
@@ -223,14 +261,14 @@ export const EditPartDialog = ({
                 <form className="flex flex-col gap-4 pt-1" onSubmit={form.handleSubmit(onSubmit)}>
                     {/* Part Code */}
                     <div className="flex flex-col gap-1.5">
-                        <Label htmlFor="ep2_code">
+                        <Label htmlFor="pd_code">
                             Part Code <span className="text-red-500">*</span>
                         </Label>
                         <div className="relative">
                             <Input
                                 autoComplete="off"
                                 className="pr-8 font-mono uppercase"
-                                id="ep2_code"
+                                id="pd_code"
                                 placeholder="Unique part code"
                                 {...form.register("part_code")}
                             />
@@ -246,12 +284,12 @@ export const EditPartDialog = ({
 
                     {/* Part Name */}
                     <div className="flex flex-col gap-1.5">
-                        <Label htmlFor="ep2_pname">
+                        <Label htmlFor="pd_pname">
                             Part Name <span className="text-red-500">*</span>
                         </Label>
                         <Input
                             autoComplete="off"
-                            id="ep2_pname"
+                            id="pd_pname"
                             placeholder="Full part name"
                             {...form.register("part_name")}
                         />
@@ -260,10 +298,10 @@ export const EditPartDialog = ({
 
                     {/* Description */}
                     <div className="flex flex-col gap-1.5">
-                        <Label htmlFor="ep2_desc">Description</Label>
+                        <Label htmlFor="pd_desc">Description</Label>
                         <Input
                             autoComplete="off"
-                            id="ep2_desc"
+                            id="pd_desc"
                             placeholder="Optional description"
                             {...form.register("part_description")}
                         />
@@ -272,10 +310,10 @@ export const EditPartDialog = ({
                     <div className="grid grid-cols-3 gap-4">
                         {/* Category */}
                         <div className="flex flex-col gap-1.5">
-                            <Label htmlFor="ep2_cat">Category</Label>
+                            <Label htmlFor="pd_cat">Category</Label>
                             <Input
                                 autoComplete="off"
-                                id="ep2_cat"
+                                id="pd_cat"
                                 placeholder="e.g. Display, Battery"
                                 {...form.register("category")}
                             />
@@ -283,10 +321,10 @@ export const EditPartDialog = ({
 
                         {/* Model */}
                         <div className="flex flex-col gap-1.5">
-                            <Label htmlFor="ep2_model">Compatible Model</Label>
+                            <Label htmlFor="pd_model">Compatible Model</Label>
                             <Input
                                 autoComplete="off"
-                                id="ep2_model"
+                                id="pd_model"
                                 placeholder="e.g. Galaxy S24"
                                 {...form.register("model")}
                             />
@@ -294,12 +332,12 @@ export const EditPartDialog = ({
 
                         {/* UOM */}
                         <div className="flex flex-col gap-1.5">
-                            <Label htmlFor="ep2_uom">
+                            <Label htmlFor="pd_uom">
                                 UOM <span className="text-red-500">*</span>
                             </Label>
                             <Input
                                 autoComplete="off"
-                                id="ep2_uom"
+                                id="pd_uom"
                                 placeholder="e.g. NOS, MTR"
                                 {...form.register("uom")}
                             />
@@ -310,11 +348,11 @@ export const EditPartDialog = ({
                     <div className="grid grid-cols-2 gap-4">
                         {/* Cost Price */}
                         <div className="flex flex-col gap-1.5">
-                            <Label htmlFor="ep2_cost">Cost Price</Label>
+                            <Label htmlFor="pd_cost">Cost Price</Label>
                             <Input
                                 {...form.register("cost_price")}
                                 className="text-right"
-                                id="ep2_cost"
+                                id="pd_cost"
                                 inputMode="decimal"
                                 placeholder="0.00"
                                 type="text"
@@ -326,11 +364,11 @@ export const EditPartDialog = ({
 
                         {/* MRP */}
                         <div className="flex flex-col gap-1.5">
-                            <Label htmlFor="ep2_mrp">MRP</Label>
+                            <Label htmlFor="pd_mrp">MRP</Label>
                             <Input
                                 {...form.register("mrp")}
                                 className="text-right"
-                                id="ep2_mrp"
+                                id="pd_mrp"
                                 inputMode="decimal"
                                 placeholder="0.00"
                                 type="text"
@@ -344,12 +382,12 @@ export const EditPartDialog = ({
                     <div className="grid grid-cols-2 gap-4">
                         {/* HSN Code */}
                         <div className="flex flex-col gap-1.5">
-                            <Label htmlFor="ep2_hsn">HSN Code</Label>
+                            <Label htmlFor="pd_hsn">HSN Code</Label>
                             <Input
                                 {...form.register("hsn_code")}
                                 autoComplete="off"
                                 className="font-mono"
-                                id="ep2_hsn"
+                                id="pd_hsn"
                                 inputMode="numeric"
                                 placeholder="e.g. 8517"
                                 onFocus={e => e.target.select()}
@@ -359,11 +397,11 @@ export const EditPartDialog = ({
 
                         {/* GST Rate */}
                         <div className="flex flex-col gap-1.5">
-                            <Label htmlFor="ep2_gst">GST Rate (%)</Label>
+                            <Label htmlFor="pd_gst">GST Rate (%)</Label>
                             <Input
                                 {...form.register("gst_rate")}
                                 className="text-right"
-                                id="ep2_gst"
+                                id="pd_gst"
                                 inputMode="decimal"
                                 placeholder="0.00"
                                 type="text"
@@ -384,7 +422,7 @@ export const EditPartDialog = ({
                             type="submit"
                         >
                             {submitting ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : null}
-                            Save Changes
+                            {isEdit ? "Save Changes" : "Add"}
                         </Button>
                     </DialogFooter>
                 </form>
