@@ -15,7 +15,8 @@
       "Bash(echo \"Exit code: $?\")",
       "Bash(npx vite:*)",
       "Bash(pnpm run:*)",
-      "Bash(pnpm build:*)"
+      "Bash(pnpm build:*)",
+      "Bash(ls -d /home/sushant/projects/service-plus/dev/service-plus-client/src/*/)"
     ]
   }
 }
