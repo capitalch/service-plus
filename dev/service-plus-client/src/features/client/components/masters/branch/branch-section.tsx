@@ -41,83 +41,70 @@ import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectSchema } from "@/store/context-slice";
-import { AddPartLocationDialog } from "./add-part-location-dialog";
-import { DeletePartLocationDialog } from "./delete-part-location-dialog";
-import { EditPartLocationDialog } from "./edit-part-location-dialog";
-import type { BranchOption, PartLocationType } from "@/features/client/types/part-location";
+import { AddBranchDialog } from "./add-branch-dialog";
+import { DeleteBranchDialog } from "./delete-branch-dialog";
+import { EditBranchDialog } from "./edit-branch-dialog";
+import type { BranchType } from "./branch";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type GenericQueryDataType<T> = { genericQuery: T[] | null };
+type GenericQueryDataType = { genericQuery: BranchType[] | null };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const rowVariants = {
-    hidden:  { opacity: 0, y: 6 },
+    hidden: { opacity: 0, y: 6 },
     visible: (i: number) => ({
-        opacity:    1,
+        opacity: 1,
         transition: { delay: i * 0.04, duration: 0.22, ease: "easeOut" as const },
-        y:          0,
+        y: 0,
     }),
 };
 
-const thClass     = "text-xs font-semibold uppercase tracking-wide text-[var(--cl-text-muted)]";
+const thClass = "text-xs font-semibold uppercase tracking-wide text-[var(--cl-text-muted)]";
 const thSortClass = `${thClass} cursor-pointer select-none hover:text-[var(--cl-text)]`;
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export const PartLocationSection = () => {
+export const BranchSection = () => {
     const dbName = useAppSelector(selectDbName);
     const schema = useAppSelector(selectSchema);
 
-    const [addOpen,         setAddOpen]         = useState(false);
-    const [branches,        setBranches]        = useState<BranchOption[]>([]);
-    const [deleteLocation,  setDeleteLocation]  = useState<PartLocationType | null>(null);
-    const [editLocation,    setEditLocation]    = useState<PartLocationType | null>(null);
-    const [loading,         setLoading]         = useState(false);
-    const [locations,       setLocations]       = useState<PartLocationType[]>([]);
-    const [search,          setSearch]          = useState("");
-    const [sortCol,         setSortCol]         = useState<string | null>(null);
-    const [sortDir,         setSortDir]         = useState<"asc" | "desc">("asc");
+    const [addOpen, setAddOpen] = useState(false);
+    const [branches, setBranches] = useState<BranchType[]>([]);
+    const [deleteBranch, setDeleteBranch] = useState<BranchType | null>(null);
+    const [editBranch, setEditBranch] = useState<BranchType | null>(null);
+    const [loading, setLoading] = useState(false);
+    const [search, setSearch] = useState("");
+    const [sortCol, setSortCol] = useState<string | null>(null);
+    const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
-    const loadData = useCallback(async () => {
+    const loadBranches = useCallback(async () => {
         if (!dbName || !schema) return;
         setLoading(true);
         try {
-            const [locationsRes, branchesRes] = await Promise.all([
-                apolloClient.query<GenericQueryDataType<PartLocationType>>({
-                    fetchPolicy: "network-only",
-                    query: GRAPHQL_MAP.genericQuery,
-                    variables: {
-                        db_name: dbName,
-                        schema,
-                        value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_ALL_PART_LOCATIONS }),
-                    },
-                }),
-                apolloClient.query<GenericQueryDataType<BranchOption>>({
-                    fetchPolicy: "network-only",
-                    query: GRAPHQL_MAP.genericQuery,
-                    variables: {
-                        db_name: dbName,
-                        schema,
-                        value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_BU_BRANCHES }),
-                    },
-                }),
-            ]);
-            setLocations(locationsRes.data?.genericQuery ?? []);
-            setBranches(branchesRes.data?.genericQuery ?? []);
+            const result = await apolloClient.query<GenericQueryDataType>({
+                fetchPolicy: "network-only",
+                query: GRAPHQL_MAP.genericQuery,
+                variables: {
+                    db_name: dbName,
+                    schema,
+                    value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_ALL_BRANCHES }),
+                },
+            });
+            setBranches(result.data?.genericQuery ?? []);
         } catch {
-            toast.error(MESSAGES.ERROR_PART_LOCATION_LOAD_FAILED);
+            toast.error(MESSAGES.ERROR_BRANCH_LOAD_FAILED);
         } finally {
             setLoading(false);
         }
     }, [dbName, schema]);
 
     useEffect(() => {
-        loadData();
-    }, [loadData]);
+        loadBranches();
+    }, [loadBranches]);
 
-    async function handleToggleActive(loc: PartLocationType) {
+    async function handleToggleActive(branch: BranchType) {
         if (!dbName || !schema) return;
         try {
             await apolloClient.mutate({
@@ -126,14 +113,14 @@ export const PartLocationSection = () => {
                     db_name: dbName,
                     schema,
                     value: graphQlUtils.buildGenericUpdateValue({
-                        tableName: "spare_part_location_master",
-                        xData: { id: loc.id, is_active: !loc.is_active },
+                        tableName: "branch",
+                        xData: { id: branch.id, is_active: !branch.is_active },
                     }),
                 },
             });
-            await loadData();
+            await loadBranches();
         } catch {
-            toast.error(MESSAGES.ERROR_PART_LOCATION_UPDATE_FAILED);
+            toast.error(MESSAGES.ERROR_BRANCH_UPDATE_FAILED);
         }
     }
 
@@ -145,17 +132,20 @@ export const PartLocationSection = () => {
     function SortIcon({ col }: { col: string }) {
         if (sortCol !== col) return <ArrowUpDownIcon className="ml-1 inline h-3 w-3 opacity-40" />;
         return sortDir === "asc"
-            ? <ArrowUpIcon   className="ml-1 inline h-3 w-3" />
+            ? <ArrowUpIcon className="ml-1 inline h-3 w-3" />
             : <ArrowDownIcon className="ml-1 inline h-3 w-3" />;
     }
 
-    const displayLocations = useMemo(() => {
-        let rows = locations;
+    const displayBranches = useMemo(() => {
+        let rows = branches;
         if (search.trim()) {
             const q = search.toLowerCase();
             rows = rows.filter(r =>
-                r.location.toLowerCase().includes(q) ||
-                (r.branch_name?.toLowerCase().includes(q) ?? false)
+                r.code.toLowerCase().includes(q) ||
+                r.name.toLowerCase().includes(q) ||
+                (r.state_name?.toLowerCase().includes(q) ?? false) ||
+                (r.city?.toLowerCase().includes(q) ?? false) ||
+                (r.phone?.toLowerCase().includes(q) ?? false)
             );
         }
         if (sortCol) {
@@ -169,7 +159,7 @@ export const PartLocationSection = () => {
             });
         }
         return rows;
-    }, [locations, search, sortCol, sortDir]);
+    }, [branches, search, sortCol, sortDir]);
 
     if (!schema) {
         return (
@@ -195,9 +185,9 @@ export const PartLocationSection = () => {
                 {/* Page header */}
                 <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
-                        <h1 className="text-xl font-bold text-[var(--cl-text)]">Part Locations</h1>
+                        <h1 className="text-xl font-bold text-[var(--cl-text)]">Branches</h1>
                         <p className="mt-1 text-sm text-[var(--cl-text-muted)]">
-                            Manage spare part storage locations for this business unit.
+                            Manage branches for this business unit.
                         </p>
                     </div>
                     <div className="flex items-center gap-2">
@@ -206,7 +196,7 @@ export const PartLocationSection = () => {
                             disabled={loading}
                             size="sm"
                             variant="outline"
-                            onClick={loadData}
+                            onClick={loadBranches}
                         >
                             <RefreshCwIcon className="h-3.5 w-3.5" />
                             Refresh
@@ -217,7 +207,7 @@ export const PartLocationSection = () => {
                             onClick={() => setAddOpen(true)}
                         >
                             <PlusIcon className="mr-1.5 h-3.5 w-3.5" />
-                            Add Location
+                            Add Branch
                         </Button>
                     </div>
                 </div>
@@ -229,71 +219,89 @@ export const PartLocationSection = () => {
                         <Input
                             className="h-8 pl-8 text-sm"
                             disabled={loading}
-                            placeholder="Search locations or branches…"
+                            placeholder="Search branches…"
                             value={search}
                             onChange={e => setSearch(e.target.value)}
                         />
                     </div>
-                    {!loading && locations.length > 0 && (
+                    {!loading && branches.length > 0 && (
                         <p className="shrink-0 text-xs text-[var(--cl-text-muted)]">
-                            {displayLocations.length} of {locations.length}
+                            {displayBranches.length} of {branches.length}
                         </p>
                     )}
                 </div>
 
                 {/* Table */}
-                {loading && locations.length === 0 ? (
+                {loading && branches.length === 0 ? (
                     <div className="flex flex-col gap-2">
                         {Array.from({ length: 4 }).map((_, i) => (
                             <div key={i} className="h-12 animate-pulse rounded-lg bg-[var(--cl-surface-2)]" />
                         ))}
                     </div>
-                ) : locations.length === 0 ? (
+                ) : branches.length === 0 ? (
                     <div className="rounded-xl border border-[var(--cl-border)] bg-[var(--cl-surface-2)] px-6 py-12 text-center text-sm text-[var(--cl-text-muted)]">
-                        No part locations found. Click &quot;Add Location&quot; to create one.
+                        No branches found. Click &quot;Add Branch&quot; to create one.
                     </div>
                 ) : (
-                    <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-[var(--cl-border)] bg-[var(--cl-surface-2)] shadow-sm">
+                    <div
+                        className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-[var(--cl-border)] bg-[var(--cl-surface-2)] shadow-sm"
+                    >
                         <div className="overflow-x-auto overflow-y-auto">
                             <Table>
                                 <TableHeader>
                                     <TableRow className="sticky top-0 z-10 bg-[var(--cl-surface-3)] hover:bg-[var(--cl-surface-3)]">
                                         <TableHead className={`w-8 text-center ${thClass}`}>#</TableHead>
-                                        <TableHead className={thSortClass} onClick={() => handleSort("location")}>Location<SortIcon col="location" /></TableHead>
-                                        <TableHead className={thSortClass} onClick={() => handleSort("branch_name")}>Branch<SortIcon col="branch_name" /></TableHead>
+                                        <TableHead className={thSortClass} onClick={() => handleSort("code")}>Code<SortIcon col="code" /></TableHead>
+                                        <TableHead className={thSortClass} onClick={() => handleSort("name")}>Name<SortIcon col="name" /></TableHead>
+                                        <TableHead className={thSortClass} onClick={() => handleSort("state_name")}>State<SortIcon col="state_name" /></TableHead>
+                                        <TableHead className={thSortClass} onClick={() => handleSort("city")}>City<SortIcon col="city" /></TableHead>
+                                        <TableHead className={thClass}>Phone</TableHead>
+                                        <TableHead className={thClass}>Head Office</TableHead>
                                         <TableHead className={thClass}>Status</TableHead>
                                         <TableHead className={thClass}>Actions</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {displayLocations.length === 0 ? (
+                                    {displayBranches.length === 0 ? (
                                         <tr>
                                             <td colSpan={99} className="px-6 py-10 text-center text-sm text-[var(--cl-text-muted)]">
                                                 No results match &ldquo;{search}&rdquo;.
                                             </td>
                                         </tr>
                                     ) : (
-                                        displayLocations.map((loc, idx) => (
+                                        displayBranches.map((branch, idx) => (
                                             <motion.tr
                                                 animate="visible"
                                                 className="border-b border-[var(--cl-border)] transition-colors last:border-b-0 hover:bg-[var(--cl-surface-3)]"
                                                 custom={idx}
                                                 initial="hidden"
-                                                key={loc.id}
+                                                key={branch.id}
                                                 variants={rowVariants}
                                             >
                                                 <TableCell className="text-center text-xs text-[var(--cl-text-muted)]">{idx + 1}</TableCell>
-                                                <TableCell className="font-medium text-[var(--cl-text)]">{loc.location}</TableCell>
-                                                <TableCell className="text-sm text-[var(--cl-text-muted)]">{loc.branch_name ?? "—"}</TableCell>
+                                                <TableCell>
+                                                    <span className="font-mono text-xs font-semibold text-[var(--cl-text)]">{branch.code}</span>
+                                                </TableCell>
+                                                <TableCell className="font-medium text-[var(--cl-text)]">{branch.name}</TableCell>
+                                                <TableCell className="text-sm text-[var(--cl-text-muted)]">{branch.state_name ?? "—"}</TableCell>
+                                                <TableCell className="text-sm text-[var(--cl-text-muted)]">{branch.city ?? "—"}</TableCell>
+                                                <TableCell className="text-sm text-[var(--cl-text-muted)]">{branch.phone ?? "—"}</TableCell>
+                                                <TableCell>
+                                                    {branch.is_head_office ? (
+                                                        <Badge className="border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-50" variant="outline">Yes</Badge>
+                                                    ) : (
+                                                        <span className="text-xs text-[var(--cl-text-muted)]">—</span>
+                                                    )}
+                                                </TableCell>
                                                 <TableCell>
                                                     <Badge
-                                                        className={loc.is_active
+                                                        className={branch.is_active
                                                             ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-50"
                                                             : "border-red-200 bg-red-100 text-red-500 hover:bg-red-100"}
                                                         variant="outline"
                                                     >
-                                                        <span className={`mr-1 h-1.5 w-1.5 rounded-full ${loc.is_active ? "bg-emerald-500" : "bg-red-400"}`} />
-                                                        {loc.is_active ? "Active" : "Inactive"}
+                                                        <span className={`mr-1 h-1.5 w-1.5 rounded-full ${branch.is_active ? "bg-emerald-500" : "bg-red-400"}`} />
+                                                        {branch.is_active ? "Active" : "Inactive"}
                                                     </Badge>
                                                 </TableCell>
                                                 <TableCell>
@@ -311,16 +319,16 @@ export const PartLocationSection = () => {
                                                         <DropdownMenuContent align="end" className="w-44">
                                                             <DropdownMenuItem
                                                                 className="cursor-pointer text-sky-600 focus:text-sky-600"
-                                                                onClick={() => setEditLocation(loc)}
+                                                                onClick={() => setEditBranch(branch)}
                                                             >
                                                                 <PencilIcon className="mr-1.5 h-3.5 w-3.5" />
                                                                 Edit
                                                             </DropdownMenuItem>
                                                             <DropdownMenuSeparator />
-                                                            {loc.is_active ? (
+                                                            {branch.is_active ? (
                                                                 <DropdownMenuItem
                                                                     className="cursor-pointer text-amber-600 focus:text-amber-600"
-                                                                    onClick={() => handleToggleActive(loc)}
+                                                                    onClick={() => handleToggleActive(branch)}
                                                                 >
                                                                     <ToggleLeftIcon className="mr-1.5 h-3.5 w-3.5" />
                                                                     Deactivate
@@ -328,7 +336,7 @@ export const PartLocationSection = () => {
                                                             ) : (
                                                                 <DropdownMenuItem
                                                                     className="cursor-pointer text-emerald-600 focus:text-emerald-600"
-                                                                    onClick={() => handleToggleActive(loc)}
+                                                                    onClick={() => handleToggleActive(branch)}
                                                                 >
                                                                     <ToggleRightIcon className="mr-1.5 h-3.5 w-3.5" />
                                                                     Activate
@@ -337,7 +345,7 @@ export const PartLocationSection = () => {
                                                             <DropdownMenuSeparator />
                                                             <DropdownMenuItem
                                                                 className="cursor-pointer text-red-600 focus:text-red-600"
-                                                                onClick={() => setDeleteLocation(loc)}
+                                                                onClick={() => setDeleteBranch(branch)}
                                                             >
                                                                 <Trash2Icon className="mr-1.5 h-3.5 w-3.5" />
                                                                 Delete
@@ -356,27 +364,25 @@ export const PartLocationSection = () => {
             </motion.div>
 
             {/* ── Dialogs ──────────────────────────────────────────────────────── */}
-            <AddPartLocationDialog
-                branches={branches}
+            <AddBranchDialog
                 open={addOpen}
                 onOpenChange={setAddOpen}
-                onSuccess={loadData}
+                onSuccess={loadBranches}
             />
-            {editLocation && (
-                <EditPartLocationDialog
-                    branches={branches}
-                    location={editLocation}
-                    open={!!editLocation}
-                    onOpenChange={(o) => { if (!o) setEditLocation(null); }}
-                    onSuccess={loadData}
+            {editBranch && (
+                <EditBranchDialog
+                    branch={editBranch}
+                    open={!!editBranch}
+                    onOpenChange={(o) => { if (!o) setEditBranch(null); }}
+                    onSuccess={loadBranches}
                 />
             )}
-            {deleteLocation && (
-                <DeletePartLocationDialog
-                    location={deleteLocation}
-                    open={!!deleteLocation}
-                    onOpenChange={(o) => { if (!o) setDeleteLocation(null); }}
-                    onSuccess={loadData}
+            {deleteBranch && (
+                <DeleteBranchDialog
+                    branch={deleteBranch}
+                    open={!!deleteBranch}
+                    onOpenChange={(o) => { if (!o) setDeleteBranch(null); }}
+                    onSuccess={loadBranches}
                 />
             )}
         </>

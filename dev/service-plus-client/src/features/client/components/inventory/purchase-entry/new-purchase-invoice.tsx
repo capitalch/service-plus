@@ -1,11 +1,9 @@
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
-import { Loader2, Plus, Search, X, PlusCircle, XCircle, CheckCircle2, Pencil, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight } from "lucide-react";
+import { Loader2, Plus, PlusCircle, XCircle, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SearchableCombobox } from "@/components/ui/searchable-combobox";
@@ -22,31 +20,11 @@ import type { VendorType } from "@/features/client/types/vendor";
 import type { PurchaseLineFormItem, StockTransactionTypeRow } from "@/features/client/types/purchase";
 import type { StateRow } from "./purchase-entry-section";
 
-import { PartDialog } from "../../part-dialog";
+import { PartCodeInput } from "../part-code-input";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type PartRow = {
-    id:               number;
-    brand_id:         number;
-    part_code:        string;
-    part_name:        string;
-    part_description: string | null;
-    category:         string | null;
-    model:            string | null;
-    uom:              string;
-    cost_price:       number | null;
-    mrp:              number | null;
-    hsn_code:         string | null;
-    gst_rate:         number | null;
-    is_active:        boolean;
-    brand_name:       string;
-};
-
 type GenericQueryData<T> = { genericQuery: T[] | null };
-type CountRowType = { total: number };
-
-const PART_PICK_PAGE_SIZE = 50;
 
 type Props = {
     branchId: number | null;
@@ -92,11 +70,11 @@ function emptyLine(brandId: number | null = null): PurchaseLineFormItem {
 }
 
 function calcLine(l: PurchaseLineFormItem) {
-    const taxable = l.quantity * l.unit_price;
-    const cgstAmt = taxable * l.cgst_rate / 100;
-    const sgstAmt = taxable * l.sgst_rate / 100;
-    const igstAmt = taxable * l.igst_rate / 100;
-    return { taxable, cgstAmt, sgstAmt, igstAmt, total: taxable + cgstAmt + sgstAmt + igstAmt };
+    const aggregate = l.quantity * l.unit_price;
+    const cgstAmt = aggregate * l.cgst_rate / 100;
+    const sgstAmt = aggregate * l.sgst_rate / 100;
+    const igstAmt = aggregate * l.igst_rate / 100;
+    return { aggregate, cgstAmt, sgstAmt, igstAmt, total: aggregate + cgstAmt + sgstAmt + igstAmt };
 }
 
 function formatNumber(num: number): string {
@@ -132,10 +110,6 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
     const [physicalSgst, setPhysicalSgst] = useState<number>(0);
     const [physicalIgst, setPhysicalIgst] = useState<number>(0);
 
-    // Inline Part Creation
-    const [addPartOpen, setAddPartOpen] = useState(false);
-    const [addPartLineIdx, setAddPartLineIdx] = useState<number | null>(null);
-    const [prefillPartCode, setPrefillPartCode] = useState("");
 
     // Line items
     const [lines, setLines] = useState<PurchaseLineFormItem[]>([emptyLine(selectedBrandId)]);
@@ -144,27 +118,10 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
     const [invoiceExists, setInvoiceExists] = useState(false);
     const [checkingDuplicate, setCheckingDuplicate] = useState(false);
 
-    // Part search dialog
-    const [partPickOpen,     setPartPickOpen]     = useState(false);
-    const [partPickLine,     setPartPickLine]     = useState(-1);
-    const [partCodeQuery,    setPartCodeQuery]    = useState("");
-    const [partKeywordQuery, setPartKeywordQuery] = useState("");
-    const [partSearchMode,   setPartSearchMode]   = useState<"code" | "keyword">("code");
-    const [partResults,      setPartResults]      = useState<PartRow[]>([]);
-    const [partLoading,      setPartLoading]      = useState(false);
-    const [partPage,         setPartPage]         = useState(1);
-    const [partTotal,        setPartTotal]        = useState(0);
-
     // Submit
     const [submitting, setSubmitting] = useState(false);
 
-    // Edit Part Dialog
-    const [editPartOpen, setEditPartOpen] = useState(false);
-    const [editPartData, setEditPartData] = useState<PartRow | null>(null);
-    const [editPartLineIdx, setEditPartLineIdx] = useState<number | null>(null);
-
     const dupDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const partDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const partInputRefs = useRef<(HTMLInputElement | null)[]>([]);
     const hsnInputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
@@ -211,180 +168,6 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
         }, 600);
     }, [invoiceNo, vendorId, dbName, schema]);
 
-    // Part search (debounced 1200ms) — runs for whichever input is active
-    useEffect(() => {
-        if (!dbName || !schema || !partPickOpen) return;
-        if (partDebounceRef.current) clearTimeout(partDebounceRef.current);
-        const activeQuery = partSearchMode === "code" ? partCodeQuery : partKeywordQuery;
-        if (!activeQuery.trim()) {
-            setPartResults([]);
-            setPartTotal(0);
-            return;
-        }
-        partDebounceRef.current = setTimeout(async () => {
-            setPartLoading(true);
-            try {
-                const sqlId      = partSearchMode === "code" ? SQL_MAP.GET_PARTS_BY_CODE_PREFIX       : SQL_MAP.GET_PARTS_BY_KEYWORD;
-                const sqlCountId = partSearchMode === "code" ? SQL_MAP.GET_PARTS_BY_CODE_PREFIX_COUNT : SQL_MAP.GET_PARTS_BY_KEYWORD_COUNT;
-                const offset     = (partPage - 1) * PART_PICK_PAGE_SIZE;
-                const [dataRes, countRes] = await Promise.all([
-                    apolloClient.query<GenericQueryData<PartRow>>({
-                        fetchPolicy: "network-only",
-                        query: GRAPHQL_MAP.genericQuery,
-                        variables: {
-                            db_name: dbName,
-                            schema,
-                            value: graphQlUtils.buildGenericQueryValue({
-                                sqlId,
-                                sqlArgs: { search: activeQuery.trim(), limit: PART_PICK_PAGE_SIZE, offset },
-                            }),
-                        },
-                    }),
-                    apolloClient.query<GenericQueryData<CountRowType>>({
-                        fetchPolicy: "network-only",
-                        query: GRAPHQL_MAP.genericQuery,
-                        variables: {
-                            db_name: dbName,
-                            schema,
-                            value: graphQlUtils.buildGenericQueryValue({
-                                sqlId: sqlCountId,
-                                sqlArgs: { search: activeQuery.trim() },
-                            }),
-                        },
-                    }),
-                ]);
-                setPartResults(dataRes.data?.genericQuery ?? []);
-                setPartTotal(countRes.data?.genericQuery?.[0]?.total ?? 0);
-            } catch {
-                // silent
-            } finally {
-                setPartLoading(false);
-            }
-        }, 1200);
-    }, [partCodeQuery, partKeywordQuery, partSearchMode, partPickOpen, partPage, dbName, schema]);
-
-    // Typed search for part code (on blur or enter)
-    const handleTypedPartSearch = async (idx: number, code: string, brandId?: number | null, focusQtyOnSuccess = false) => {
-        if (!code.trim() || !dbName || !schema) return;
-
-        try {
-            const res = await apolloClient.query<GenericQueryData<PartRow>>({
-                fetchPolicy: "network-only",
-                query: GRAPHQL_MAP.genericQuery,
-                variables: {
-                    db_name: dbName,
-                    schema,
-                    value: graphQlUtils.buildGenericQueryValue({
-                        sqlId: SQL_MAP.GET_PART_BY_CODE,
-                        sqlArgs: { code: code.trim(), brand_id: brandId ?? null },
-                    }),
-                },
-            });
-
-            const results = res.data?.genericQuery ?? [];
-            if (results.length === 1) {
-                // Exactly one part found → auto-select
-                handlePartSelectForIdx(idx, results[0]);
-                if (focusQtyOnSuccess) {
-                    setTimeout(() => hsnInputRefs.current[idx]?.focus(), 50);
-                }
-            } else if (results.length > 1) {
-                // Multiple parts → open pick dialog pre-filled on Option 1
-                if (partPickOpen) return;
-                setPartPickLine(idx);
-                setPartCodeQuery(code.trim());
-                setPartKeywordQuery("");
-                setPartSearchMode("code");
-                setPartResults(results);
-                setPartTotal(results.length);
-                setPartPage(1);
-                setPartPickOpen(true);
-                // Validation "fails" to be unique -> return focus
-                partInputRefs.current[idx]?.focus();
-                partInputRefs.current[idx]?.select();
-            } else {
-                // No part found → open AddPartDialog
-                if (partPickOpen) return;
-                setAddPartLineIdx(idx);
-                setPrefillPartCode(code.trim());
-                setAddPartOpen(true);
-                // Validation fails -> return focus
-                partInputRefs.current[idx]?.focus();
-                partInputRefs.current[idx]?.select();
-            }
-        } catch {
-            partInputRefs.current[idx]?.focus();
-            partInputRefs.current[idx]?.select();
-        }
-    };
-
-    // Refactored handlePartSelect to accept an index (for auto-population)
-    const handlePartSelectForIdx = (idx: number, part: PartRow) => {
-        updateLine(idx, {
-            part_id: part.id,
-            brand_id: part.brand_id,
-            part_code: part.part_code,
-            part_name: part.part_name,
-            uom: part.uom,
-            hsn_code: part.hsn_code ?? "",
-            unit_price: Number(part.cost_price ?? 0),
-            gst_rate: Number(part.gst_rate ?? 0),
-        });
-        setPartPickOpen(false);
-        setPartCodeQuery("");
-        setPartKeywordQuery("");
-        setPartResults([]);
-    };
-
-    // Fetch and open EditPartDialog for an existing part in a line
-    const handleEditPart = async (idx: number, partCode: string, brandId: number | null) => {
-        if (!partCode.trim() || !dbName || !schema) return;
-
-        try {
-            const res = await apolloClient.query<GenericQueryData<PartRow>>({
-                fetchPolicy: "network-only",
-                query: GRAPHQL_MAP.genericQuery,
-                variables: {
-                    db_name: dbName,
-                    schema,
-                    value: graphQlUtils.buildGenericQueryValue({
-                        sqlId: SQL_MAP.GET_PART_BY_CODE,
-                        sqlArgs: { code: partCode.trim(), brand_id: brandId ?? null },
-                    }),
-                },
-            });
-
-            const results = res.data?.genericQuery ?? [];
-            if (results.length === 1) {
-                setEditPartData(results[0]);
-                setEditPartLineIdx(idx);
-                setEditPartOpen(true);
-            } else {
-                toast.error("Could not retrieve part details. Please try searching again.");
-            }
-        } catch {
-            toast.error("An error occurred while fetching part details.");
-        }
-    };
-
-    // Original handlePartSelect for the generic pick dialog
-    const handlePartSelect = (part: PartRow) => {
-        handlePartSelectForIdx(partPickLine, part);
-    };
-
-    const openPartPick = (idx: number, prefillCode?: string) => {
-        if (!selectedBrandId) {
-            toast.warning("Please select a brand before searching parts.");
-            return;
-        }
-        setPartPickLine(idx);
-        setPartResults([]);
-        setPartCodeQuery(prefillCode?.trim() ?? "");
-        setPartKeywordQuery("");
-        setPartSearchMode("code");
-        setPartPickOpen(true);
-    };
-
     // Line mutations
     const updateLine = (idx: number, patch: Partial<PurchaseLineFormItem>) => {
         setLines(prev => prev.map((l, i) => {
@@ -430,16 +213,16 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
 
     // Totals
     const totals = useMemo(() => {
-        let quantity = 0, taxable = 0, cgst = 0, sgst = 0, igst = 0;
+        let quantity = 0, aggregate = 0, cgst = 0, sgst = 0, igst = 0;
         for (const l of lines) {
             const c = calcLine(l);
             quantity += l.quantity;
-            taxable += c.taxable;
+            aggregate += c.aggregate;
             cgst += c.cgstAmt;
             sgst += c.sgstAmt;
             igst += c.igstAmt;
         }
-        return { quantity, taxable, cgst, sgst, igst, total_tax: cgst + sgst + igst, total: taxable + cgst + sgst + igst };
+        return { quantity, aggregate, cgst, sgst, igst, total_tax: cgst + sgst + igst, total: aggregate + cgst + sgst + igst };
     }, [lines]);
 
     const physicalValidation = useMemo(() => {
@@ -555,7 +338,7 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
             if (isGstApplicable && !l.hsn_code.trim()) return true;
             return false;
         })) {
-            toast.error("Please fill all mandatory line fields (Part, Qty, and HSN for taxable items).");
+            toast.error(MESSAGES.ERROR_PURCHASE_LINE_FIELDS_REQUIRED);
             return;
         }
         if (invoiceExists) {
@@ -577,13 +360,13 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
                 invoice_no: invoiceNo.trim(),
                 invoice_date: invoiceDate,
                 supplier_state_code: supplierStateCode,
-                aggregate_amount: totals.taxable,
+                aggregate_amount: totals.aggregate,
                 cgst_amount: totals.cgst,
                 sgst_amount: totals.sgst,
                 igst_amount: totals.igst,
                 total_tax: totals.total_tax,
                 total_amount: totals.total,
-                total_physical: physicalTotal,
+                brand_id: selectedBrandId,
                 remarks: remarks.trim() || null,
                 xDetails: {
                     tableName: "purchase_invoice_line",
@@ -595,12 +378,10 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
                             hsn_code: line.hsn_code,
                             quantity: line.quantity,
                             unit_price: line.unit_price,
-                            aggregate_amount: c.taxable,
-                            cgst_rate: line.cgst_rate,
+                            aggregate_amount: c.aggregate,
+                            gst_rate: line.gst_rate,
                             cgst_amount: c.cgstAmt,
-                            sgst_rate: line.sgst_rate,
                             sgst_amount: c.sgstAmt,
-                            igst_rate: line.igst_rate,
                             igst_amount: c.igstAmt,
                             total_amount: c.total,
                             xDetails: {
@@ -783,91 +564,32 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
 
                                                 {/* Part */}
                                                 <td className={tdClass}>
-                                                    <div className="flex flex-col gap-0.5 px-1.5 py-1">
-                                                        <div className="relative group/part">
-                                                            <button
-                                                                type="button"
-                                                                tabIndex={-1}
-                                                                onMouseDown={e => e.preventDefault()}
-                                                                onClick={() => openPartPick(idx, line.part_code || undefined)}
-                                                                className="absolute left-1.5 top-1/2 -translate-y-1/2 rounded-md p-1 bg-[var(--cl-accent)] text-white hover:bg-[var(--cl-accent)]/10 hover:text-[var(--cl-accent)] shadow-sm transition-all focus:ring-2 focus:ring-[var(--cl-accent)]/20 cursor-pointer z-10"
-                                                                title="Browse all parts"
-                                                            >
-                                                                <Search className="h-3.5 w-3.5" />
-                                                            </button>
-                                                            <Input
-                                                                ref={el => { partInputRefs.current[idx] = el; }}
-                                                                className={`${inputCls} font-mono w-full pl-9 pr-14 border-transparent hover:border-[var(--cl-border)] focus:border-[var(--cl-accent)] focus:bg-[var(--cl-surface)] transition-all ${line.part_id ? "bg-[var(--cl-accent)]/5 border-[var(--cl-accent)]/20 text-[var(--cl-accent)] font-bold" : "border-red-500 focus:border-red-500 ring-red-500/10 bg-transparent"}`}
-                                                                placeholder="Part Code"
-                                                                value={line.part_code}
-                                                                onChange={e => {
-                                                                    const val = e.target.value;
-                                                                    const patch: Partial<PurchaseLineFormItem> = { part_code: val };
-                                                                    if (!val.trim()) {
-                                                                        patch.part_id = null;
-                                                                        patch.part_name = "";
-                                                                    }
-                                                                    updateLine(idx, patch);
-                                                                }}
-                                                                onKeyDown={e => {
-                                                                    if (e.key === 'Enter') void handleTypedPartSearch(idx, line.part_code, line.brand_id || selectedBrandId);
-                                                                    if (e.key === 'Tab') {
-                                                                        e.preventDefault();
-                                                                        void handleTypedPartSearch(idx, line.part_code, line.brand_id || selectedBrandId, true);
-                                                                    }
-                                                                }}
-                                                                onBlur={() => {
-                                                                    if (line.part_code.trim()) void handleTypedPartSearch(idx, line.part_code, line.brand_id || selectedBrandId);
-                                                                }}
-                                                            />
-                                                            <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
-                                                                {line.part_code && (
-                                                                    <button
-                                                                        type="button"
-                                                                        tabIndex={-1}
-                                                                        onClick={() => {
-                                                                            updateLine(idx, { part_code: "", part_id: null, part_name: "" });
-                                                                        }}
-                                                                        className="rounded-md p-1 hover:bg-red-500/10 text-red-500 transition-all cursor-pointer"
-                                                                        title="Clear search"
-                                                                    >
-                                                                        <X className="h-3.5 w-3.5" />
-                                                                    </button>
-                                                                )}
-                                                                {line.part_id ? (
-                                                                    <button
-                                                                        type="button"
-                                                                        tabIndex={-1}
-                                                                        onClick={() => void handleEditPart(idx, line.part_code, line.brand_id || selectedBrandId)}
-                                                                        className="rounded-md p-1 bg-amber-500 text-white hover:bg-amber-500/10 hover:text-amber-600 shadow-sm transition-all focus:ring-2 focus:ring-amber-500/20 cursor-pointer"
-                                                                        title="Edit part details"
-                                                                    >
-                                                                        <Pencil className="h-3.5 w-3.5" />
-                                                                    </button>
-                                                                ) : (
-                                                                    <button
-                                                                        type="button"
-                                                                        tabIndex={-1}
-                                                                        onClick={() => {
-                                                                            if (partPickOpen) return;
-                                                                            setAddPartLineIdx(idx);
-                                                                            setPrefillPartCode(line.part_code.trim());
-                                                                            setAddPartOpen(true);
-                                                                        }}
-                                                                        className="rounded-md p-1 bg-emerald-600 text-white hover:bg-emerald-600/10 hover:text-emerald-600 shadow-sm transition-all focus:ring-2 focus:ring-emerald-600/20 cursor-pointer"
-                                                                        title="Add as new part"
-                                                                    >
-                                                                        <Plus className="h-3.5 w-3.5" />
-                                                                    </button>
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                        {line.part_id && line.part_name && (
-                                                            <div className="flex items-center px-1 overflow-hidden h-3 animate-in fade-in slide-in-from-top-1 duration-200">
-                                                                <span className="truncate text-[10px] font-bold text-[var(--cl-accent)]/70 tracking-tight" title={line.part_name}>{line.part_name}</span>
-                                                            </div>
-                                                        )}
-                                                    </div>
+                                                    <PartCodeInput
+                                                        ref={el => { partInputRefs.current[idx] = el; }}
+                                                        partCode={line.part_code}
+                                                        partId={line.part_id}
+                                                        partName={line.part_name}
+                                                        brandId={line.brand_id}
+                                                        selectedBrandId={selectedBrandId}
+                                                        brandName={brandName}
+                                                        onChange={code => {
+                                                            const patch: Partial<PurchaseLineFormItem> = { part_code: code };
+                                                            if (!code.trim()) { patch.part_id = null; patch.part_name = ""; }
+                                                            updateLine(idx, patch);
+                                                        }}
+                                                        onClear={() => updateLine(idx, { part_code: "", part_id: null, part_name: "" })}
+                                                        onSelect={part => updateLine(idx, {
+                                                            part_id: part.id,
+                                                            brand_id: part.brand_id,
+                                                            part_code: part.part_code,
+                                                            part_name: part.part_name,
+                                                            uom: part.uom,
+                                                            hsn_code: part.hsn_code ?? "",
+                                                            unit_price: Number(part.cost_price ?? 0),
+                                                            gst_rate: Number(part.gst_rate ?? 0),
+                                                        })}
+                                                        onTabToNext={() => hsnInputRefs.current[idx]?.focus()}
+                                                    />
                                                 </td>
 
                                                 {/* HSN */}
@@ -909,7 +631,7 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
 
                                                 {/* Aggregate (read-only) */}
                                                 <td className={`${tdClass} p-2 text-right text-sm text-[var(--cl-text)]`}>
-                                                    {formatNumber(c.taxable)}
+                                                    {formatNumber(c.aggregate)}
                                                 </td>
 
                                                 {/* GST(%) */}
@@ -1094,219 +816,7 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
                     </Card>
 
 
-                    {/* Part Pick Dialog */}
-                    <Dialog
-                        open={partPickOpen}
-                        onOpenChange={open => {
-                            if (!open) {
-                                setPartPickOpen(false); setPartCodeQuery(""); setPartKeywordQuery(""); setPartResults([]); setPartSearchMode("code"); setPartPage(1); setPartTotal(0);
-                                if (partPickLine !== -1) {
-                                setTimeout(() => {
-                                    partInputRefs.current[partPickLine]?.focus();
-                                    partInputRefs.current[partPickLine]?.select();
-                                }, 120);
-                            }
-                        }
-                    }}
-                >
-                    <DialogContent onCloseAutoFocus={(e) => e.preventDefault()} className="sm:max-w-lg bg-white text-black border-[var(--cl-border)] shadow-2xl opacity-100">
-                            {/* Header — plain div avoids Radix focus-trap interference */}
-                            <div className="pr-6 pb-3 border-b border-slate-200">
-                                <DialogTitle className="text-base font-semibold text-slate-900">Search Part</DialogTitle>
-                            </div>
-
-                            {/* Option 1 — Part code starts with */}
-                            <div className={`flex flex-col gap-1.5 rounded-lg border p-3 transition-colors ${partSearchMode === "code" ? "border-slate-400 bg-slate-50" : "border-slate-200 bg-white"}`}>
-                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest select-none">
-                                    Option 1 · Part code starts with
-                                </label>
-                                <div className="relative">
-                                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                                    <Input
-                                        autoFocus
-                                        className="h-9 border-slate-200 bg-white text-slate-800 pl-9 pr-9 font-mono"
-                                        placeholder="Type a part code prefix…"
-                                        value={partCodeQuery}
-                                        onChange={e => { setPartCodeQuery(e.target.value); setPartPage(1); }}
-                                        onFocus={() => { if (partSearchMode !== "code") { setPartSearchMode("code"); setPartResults([]); setPartPage(1); setPartTotal(0); } }}
-                                    />
-                                    {partCodeQuery && (
-                                        <button type="button" onClick={() => { setPartCodeQuery(""); setPartResults([]); }}
-                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-500 transition-colors cursor-pointer">
-                                            <X className="h-4 w-4" />
-                                        </button>
-                                    )}
-                                </div>
-                            </div>
-
-                            {/* Option 2 — Keyword in name / description / model / category */}
-                            <div className={`flex flex-col gap-1.5 rounded-lg border p-3 transition-colors ${partSearchMode === "keyword" ? "border-slate-400 bg-slate-50" : "border-slate-200 bg-white"}`}>
-                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest select-none">
-                                    Option 2 · Name / Description / Model / Category
-                                </label>
-                                <div className="relative">
-                                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                                    <Input
-                                        className="h-9 border-slate-200 bg-white text-slate-800 pl-9 pr-9"
-                                        placeholder="Type a keyword…"
-                                        value={partKeywordQuery}
-                                        onChange={e => { setPartKeywordQuery(e.target.value); setPartPage(1); }}
-                                        onFocus={() => { if (partSearchMode !== "keyword") { setPartSearchMode("keyword"); setPartResults([]); setPartPage(1); setPartTotal(0); } }}
-                                    />
-                                    {partKeywordQuery && (
-                                        <button type="button" onClick={() => { setPartKeywordQuery(""); setPartResults([]); }}
-                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-500 transition-colors cursor-pointer">
-                                            <X className="h-4 w-4" />
-                                        </button>
-                                    )}
-                                </div>
-                            </div>
-
-                            {/* Results count */}
-                            {!partLoading && partTotal > 0 && (
-                                <p className="text-xs text-slate-500 text-right pr-1">
-                                    {partTotal} record{partTotal !== 1 ? "s" : ""} found
-                                    {Math.ceil(partTotal / PART_PICK_PAGE_SIZE) > 1 && ` · Page ${partPage} of ${Math.ceil(partTotal / PART_PICK_PAGE_SIZE)}`}
-                                </p>
-                            )}
-
-                            <div className="max-h-60 overflow-y-auto rounded-lg border border-slate-200">
-                                {partLoading ? (
-                                    <div className="flex h-16 items-center justify-center">
-                                        <Loader2 className="h-5 w-5 animate-spin text-[var(--cl-accent)]" />
-                                    </div>
-                                ) : partResults.length === 0 ? (
-                                    <div className="flex h-16 items-center justify-center text-sm text-slate-400">
-                                        {(partSearchMode === "code" ? partCodeQuery : partKeywordQuery).trim()
-                                            ? "No parts found."
-                                            : partSearchMode === "code"
-                                                ? "Type a part code prefix to search."
-                                                : "Type a keyword to search by name / description / model / category."}
-                                    </div>
-                                ) : (
-                                    partResults.map(part => (
-                                        <button
-                                            key={part.id}
-                                            className="cursor-pointer flex w-full items-start gap-3 border-b border-slate-100 px-3 py-2.5 text-left last:border-0 hover:bg-slate-50 transition-colors"
-                                            type="button"
-                                            onClick={() => handlePartSelect(part)}
-                                        >
-                                            <div className="min-w-0 flex-1">
-                                                <p className="font-mono text-sm font-medium text-slate-900">
-                                                    {part.part_code}
-                                                    <span className="ml-2 font-sans font-normal text-slate-600">{part.part_name}</span>
-                                                </p>
-                                                {part.part_description && (
-                                                    <p className="mt-0.5 text-xs text-slate-500 truncate">{part.part_description}</p>
-                                                )}
-                                                {(part.category || part.model) && (
-                                                    <p className="mt-0.5 text-xs text-slate-400 truncate">
-                                                        {[part.category, part.model].filter(Boolean).join(" · ")}
-                                                    </p>
-                                                )}
-                                                <p className="mt-1 text-xs inline-flex flex-wrap items-center gap-1.5">
-                                                    {part.hsn_code ? <span className="bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded">HSN: {part.hsn_code}</span> : null}
-                                                    {part.gst_rate != null ? <span className="bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded">GST: {part.gst_rate}%</span> : null}
-                                                    {part.cost_price != null ? <span className="bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded text-blue-700">Cost: {formatNumber(part.cost_price)}</span> : null}
-                                                    {part.mrp != null ? <span className="bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded text-amber-700">MRP: {formatNumber(part.mrp)}</span> : null}
-                                                </p>
-                                            </div>
-                                        </button>
-                                    ))
-                                )}
-                            </div>
-
-                            {/* Pagination controls */}
-                            {(() => {
-                                const totalPages = Math.ceil(partTotal / PART_PICK_PAGE_SIZE);
-                                if (totalPages <= 1) return null;
-                                return (
-                                    <div className="flex items-center justify-between border-t border-slate-200 pt-2">
-                                        <p className="text-xs text-slate-400">Page {partPage} of {totalPages}</p>
-                                        <div className="flex items-center gap-1">
-                                            <Button type="button" variant="ghost" size="icon" className="h-7 w-7"
-                                                disabled={partPage <= 1 || partLoading} onClick={() => setPartPage(1)}>
-                                                <ChevronsLeft className="h-4 w-4" />
-                                            </Button>
-                                            <Button type="button" variant="ghost" size="icon" className="h-7 w-7"
-                                                disabled={partPage <= 1 || partLoading} onClick={() => setPartPage(p => p - 1)}>
-                                                <ChevronLeft className="h-4 w-4" />
-                                            </Button>
-                                            <Button type="button" variant="ghost" size="icon" className="h-7 w-7"
-                                                disabled={partPage >= totalPages || partLoading} onClick={() => setPartPage(p => p + 1)}>
-                                                <ChevronRight className="h-4 w-4" />
-                                            </Button>
-                                            <Button type="button" variant="ghost" size="icon" className="h-7 w-7"
-                                                disabled={partPage >= totalPages || partLoading} onClick={() => setPartPage(totalPages)}>
-                                                <ChevronsRight className="h-4 w-4" />
-                                            </Button>
-                                        </div>
-                                    </div>
-                                );
-                            })()}
-                        </DialogContent>
-                    </Dialog>
                 </>
-            )}
-
-            <PartDialog
-                mode="add"
-                onOpenChange={open => {
-                    if (!open) {
-                        const lastIdx = addPartLineIdx;
-                        setAddPartOpen(false);
-                        setAddPartLineIdx(null); // Clear after capture
-                        if (lastIdx !== null) {
-                            setTimeout(() => {
-                                partInputRefs.current[lastIdx]?.focus();
-                                partInputRefs.current[lastIdx]?.select();
-                            }, 120);
-                        }
-                    } else {
-                        setAddPartOpen(true);
-                    }
-                }}
-                onSuccess={() => {
-                    if (addPartLineIdx !== null) {
-                        void handleTypedPartSearch(addPartLineIdx, prefillPartCode, selectedBrandId);
-                    }
-                }}
-                open={addPartOpen}
-                prefillCode={prefillPartCode}
-                defaultBrandId={selectedBrandId ?? 0}
-                brandName={brandName ?? ""}
-            />
-
-            {editPartData && (
-                <PartDialog
-                    mode="edit"
-                    open={editPartOpen}
-                    part={editPartData}
-                    defaultBrandId={selectedBrandId ?? 0}
-                    brandName={brandName ?? ""}
-                    onOpenChange={(o) => {
-                        if (!o) {
-                            const lastIdx = editPartLineIdx;
-                            setEditPartOpen(false);
-                            setEditPartData(null);
-                            setEditPartLineIdx(null);
-                            if (lastIdx !== null) {
-                                setTimeout(() => {
-                                    partInputRefs.current[lastIdx]?.focus();
-                                    partInputRefs.current[lastIdx]?.select();
-                                }, 120);
-                            }
-                        } else {
-                            setEditPartOpen(true);
-                        }
-                    }}
-                    onSuccess={() => {
-                        if (editPartLineIdx !== null && editPartData) {
-                            void handleTypedPartSearch(editPartLineIdx, editPartData.part_code, editPartData.brand_id);
-                        }
-                        setEditPartOpen(false);
-                    }}
-                />
             )}
         </motion.div>
     );

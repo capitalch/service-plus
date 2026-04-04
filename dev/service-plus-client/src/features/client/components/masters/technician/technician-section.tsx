@@ -34,16 +34,17 @@ import {
     TableRow,
 } from "@/components/ui/table";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
+import { MESSAGES } from "@/constants/messages";
 import { SQL_MAP } from "@/constants/sql-map";
 import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectSchema } from "@/store/context-slice";
-import { AddModelDialog } from "./add-model-dialog";
-import { DeleteModelDialog } from "./delete-model-dialog";
-import { EditModelDialog } from "./edit-model-dialog";
-import type { ModelType, BrandOption, ProductOption } from "@/features/client/types/model";
+import { AddTechnicianDialog } from "./add-technician-dialog";
+import { DeleteTechnicianDialog } from "./delete-technician-dialog";
+import { EditTechnicianDialog } from "./edit-technician-dialog";
+import type { BranchOption, TechnicianType } from "@/features/client/types/technician";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -52,96 +53,87 @@ type GenericQueryDataType<T> = { genericQuery: T[] | null };
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const rowVariants = {
-    hidden:  { opacity: 0, y: 6 },
+    hidden: { opacity: 0, y: 6 },
     visible: (i: number) => ({
-        opacity:    1,
+        opacity: 1,
         transition: { delay: i * 0.04, duration: 0.22, ease: "easeOut" as const },
-        y:          0,
+        y: 0,
     }),
 };
 
-const thClass     = "text-xs font-semibold uppercase tracking-wide text-[var(--cl-text-muted)]";
+const thClass = "text-xs font-semibold uppercase tracking-wide text-[var(--cl-text-muted)]";
 const thSortClass = `${thClass} cursor-pointer select-none hover:text-[var(--cl-text)]`;
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export const ModelSection = () => {
-    const dbName  = useAppSelector(selectDbName);
-    const schema_ = useAppSelector(selectSchema);
+export const TechnicianSection = () => {
+    const dbName = useAppSelector(selectDbName);
+    const schema = useAppSelector(selectSchema);
 
-    const [addOpen,      setAddOpen]      = useState(false);
-    const [brands,       setBrands]       = useState<BrandOption[]>([]);
-    const [deleteModel,  setDeleteModel]  = useState<ModelType | null>(null);
-    const [editModel,    setEditModel]    = useState<ModelType | null>(null);
-    const [loading,      setLoading]      = useState(false);
-    const [models,       setModels]       = useState<ModelType[]>([]);
-    const [products,     setProducts]     = useState<ProductOption[]>([]);
-    const [search,       setSearch]       = useState("");
-    const [sortCol,      setSortCol]      = useState<string | null>(null);
-    const [sortDir,      setSortDir]      = useState<"asc" | "desc">("asc");
+    const [addOpen, setAddOpen] = useState(false);
+    const [branches, setBranches] = useState<BranchOption[]>([]);
+    const [deleteTechnician, setDeleteTechnician] = useState<TechnicianType | null>(null);
+    const [editTechnician, setEditTechnician] = useState<TechnicianType | null>(null);
+    const [loading, setLoading] = useState(false);
+    const [search, setSearch] = useState("");
+    const [sortCol, setSortCol] = useState<string | null>(null);
+    const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+    const [technicians, setTechnicians] = useState<TechnicianType[]>([]);
 
     const loadData = useCallback(async () => {
-        if (!dbName || !schema_) return;
+        if (!dbName || !schema) return;
         setLoading(true);
         try {
-            const [modelsRes, brandsRes, productsRes] = await Promise.all([
-                apolloClient.query<GenericQueryDataType<ModelType>>({
+            const [techniciansRes, branchesRes] = await Promise.all([
+                apolloClient.query<GenericQueryDataType<TechnicianType>>({
                     fetchPolicy: "network-only",
                     query: GRAPHQL_MAP.genericQuery,
                     variables: {
                         db_name: dbName,
-                        schema:  schema_,
-                        value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_ALL_MODELS }),
+                        schema,
+                        value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_ALL_TECHNICIANS }),
                     },
                 }),
-                apolloClient.query<GenericQueryDataType<BrandOption>>({
+                apolloClient.query<GenericQueryDataType<BranchOption>>({
                     fetchPolicy: "network-only",
                     query: GRAPHQL_MAP.genericQuery,
                     variables: {
                         db_name: dbName,
-                        schema:  schema_,
-                        value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_ALL_BRANDS }),
-                    },
-                }),
-                apolloClient.query<GenericQueryDataType<ProductOption>>({
-                    fetchPolicy: "network-only",
-                    query: GRAPHQL_MAP.genericQuery,
-                    variables: {
-                        db_name: dbName,
-                        schema:  schema_,
-                        value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_ALL_PRODUCTS }),
+                        schema,
+                        value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_BU_BRANCHES }),
                     },
                 }),
             ]);
-            setModels(modelsRes.data?.genericQuery ?? []);
-            setBrands(brandsRes.data?.genericQuery ?? []);
-            setProducts(productsRes.data?.genericQuery ?? []);
+            setTechnicians(techniciansRes.data?.genericQuery ?? []);
+            setBranches(branchesRes.data?.genericQuery ?? []);
         } catch {
-            toast.error("Failed to load models. Please try again.");
+            toast.error(MESSAGES.ERROR_TECHNICIAN_LOAD_FAILED);
         } finally {
             setLoading(false);
         }
-    }, [dbName, schema_]);
+    }, [dbName, schema]);
 
-    useEffect(() => { loadData(); }, [loadData]);
+    useEffect(() => {
+        loadData();
+    }, [loadData]);
 
-    async function handleToggleActive(model: ModelType) {
-        if (!dbName || !schema_) return;
+    async function handleToggleActive(technician: TechnicianType) {
+        if (!dbName || !schema) return;
         try {
             await apolloClient.mutate({
                 mutation: GRAPHQL_MAP.genericUpdate,
                 variables: {
                     db_name: dbName,
-                    schema:  schema_,
+                    schema,
                     value: graphQlUtils.buildGenericUpdateValue({
-                        tableName: "product_brand_model",
-                        xData: { id: model.id, is_active: !model.is_active },
+                        tableName: "technician",
+                        xData: { id: technician.id, is_active: !technician.is_active },
                     }),
                 },
             });
             await loadData();
         } catch {
-            toast.error("Failed to update model. Please try again.");
+            toast.error(MESSAGES.ERROR_TECHNICIAN_UPDATE_FAILED);
         }
     }
 
@@ -153,18 +145,20 @@ export const ModelSection = () => {
     function SortIcon({ col }: { col: string }) {
         if (sortCol !== col) return <ArrowUpDownIcon className="ml-1 inline h-3 w-3 opacity-40" />;
         return sortDir === "asc"
-            ? <ArrowUpIcon   className="ml-1 inline h-3 w-3" />
+            ? <ArrowUpIcon className="ml-1 inline h-3 w-3" />
             : <ArrowDownIcon className="ml-1 inline h-3 w-3" />;
     }
 
-    const displayModels = useMemo(() => {
-        let rows = models;
+    const displayTechnicians = useMemo(() => {
+        let rows = technicians;
         if (search.trim()) {
             const q = search.toLowerCase();
             rows = rows.filter(r =>
-                (r.product_name?.toLowerCase().includes(q) ?? false) ||
-                (r.brand_name?.toLowerCase().includes(q) ?? false) ||
-                r.model_name.toLowerCase().includes(q)
+                r.code.toLowerCase().includes(q) ||
+                r.name.toLowerCase().includes(q) ||
+                (r.branch_name?.toLowerCase().includes(q) ?? false) ||
+                (r.phone?.toLowerCase().includes(q) ?? false) ||
+                (r.specialization?.toLowerCase().includes(q) ?? false)
             );
         }
         if (sortCol) {
@@ -178,9 +172,9 @@ export const ModelSection = () => {
             });
         }
         return rows;
-    }, [models, search, sortCol, sortDir]);
+    }, [technicians, search, sortCol, sortDir]);
 
-    if (!schema_) {
+    if (!schema) {
         return (
             <div className="flex items-center justify-center rounded-lg border border-[var(--cl-border)] bg-[var(--cl-surface-2)] p-20">
                 <div className="text-center">
@@ -201,11 +195,12 @@ export const ModelSection = () => {
                 initial={{ opacity: 0 }}
                 transition={{ duration: 0.25 }}
             >
+                {/* Page header */}
                 <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
-                        <h1 className="text-xl font-bold text-[var(--cl-text)]">Models</h1>
+                        <h1 className="text-xl font-bold text-[var(--cl-text)]">Technicians</h1>
                         <p className="mt-1 text-sm text-[var(--cl-text-muted)]">
-                            Manage product-brand-model combinations.
+                            Manage technicians for this business unit.
                         </p>
                     </div>
                     <div className="flex items-center gap-2">
@@ -225,7 +220,7 @@ export const ModelSection = () => {
                             onClick={() => setAddOpen(true)}
                         >
                             <PlusIcon className="mr-1.5 h-3.5 w-3.5" />
-                            Add Model
+                            Add Technician
                         </Button>
                     </div>
                 </div>
@@ -237,27 +232,28 @@ export const ModelSection = () => {
                         <Input
                             className="h-8 pl-8 text-sm"
                             disabled={loading}
-                            placeholder="Search models…"
+                            placeholder="Search technicians…"
                             value={search}
                             onChange={e => setSearch(e.target.value)}
                         />
                     </div>
-                    {!loading && models.length > 0 && (
+                    {!loading && technicians.length > 0 && (
                         <p className="shrink-0 text-xs text-[var(--cl-text-muted)]">
-                            {displayModels.length} of {models.length}
+                            {displayTechnicians.length} of {technicians.length}
                         </p>
                     )}
                 </div>
 
-                {loading && models.length === 0 ? (
+                {/* Table */}
+                {loading && technicians.length === 0 ? (
                     <div className="flex flex-col gap-2">
                         {Array.from({ length: 4 }).map((_, i) => (
                             <div key={i} className="h-12 animate-pulse rounded-lg bg-[var(--cl-surface-2)]" />
                         ))}
                     </div>
-                ) : models.length === 0 ? (
+                ) : technicians.length === 0 ? (
                     <div className="rounded-xl border border-[var(--cl-border)] bg-[var(--cl-surface-2)] px-6 py-12 text-center text-sm text-[var(--cl-text-muted)]">
-                        No models found. Click &quot;Add Model&quot; to create one.
+                        No technicians found. Click &quot;Add Technician&quot; to create one.
                     </div>
                 ) : (
                     <div
@@ -268,45 +264,49 @@ export const ModelSection = () => {
                                 <TableHeader>
                                     <TableRow className="sticky top-0 z-10 bg-[var(--cl-surface-3)] hover:bg-[var(--cl-surface-3)]">
                                         <TableHead className={`w-8 text-center ${thClass}`}>#</TableHead>
-                                        <TableHead className={thSortClass} onClick={() => handleSort("product_name")}>Product<SortIcon col="product_name" /></TableHead>
-                                        <TableHead className={thSortClass} onClick={() => handleSort("brand_name")}>Brand<SortIcon col="brand_name" /></TableHead>
-                                        <TableHead className={thSortClass} onClick={() => handleSort("model_name")}>Model Name<SortIcon col="model_name" /></TableHead>
-                                        <TableHead className={thSortClass} onClick={() => handleSort("launch_year")}>Year<SortIcon col="launch_year" /></TableHead>
+                                        <TableHead className={thSortClass} onClick={() => handleSort("code")}>Code<SortIcon col="code" /></TableHead>
+                                        <TableHead className={thSortClass} onClick={() => handleSort("name")}>Name<SortIcon col="name" /></TableHead>
+                                        <TableHead className={thSortClass} onClick={() => handleSort("branch_name")}>Branch<SortIcon col="branch_name" /></TableHead>
+                                        <TableHead className={thClass}>Phone</TableHead>
+                                        <TableHead className={thSortClass} onClick={() => handleSort("specialization")}>Specialization<SortIcon col="specialization" /></TableHead>
                                         <TableHead className={thClass}>Status</TableHead>
                                         <TableHead className={thClass}>Actions</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {displayModels.length === 0 ? (
+                                    {displayTechnicians.length === 0 ? (
                                         <tr>
                                             <td colSpan={99} className="px-6 py-10 text-center text-sm text-[var(--cl-text-muted)]">
                                                 No results match &ldquo;{search}&rdquo;.
                                             </td>
                                         </tr>
                                     ) : (
-                                        displayModels.map((model, idx) => (
+                                        displayTechnicians.map((technician, idx) => (
                                             <motion.tr
                                                 animate="visible"
                                                 className="border-b border-[var(--cl-border)] transition-colors last:border-b-0 hover:bg-[var(--cl-surface-3)]"
                                                 custom={idx}
                                                 initial="hidden"
-                                                key={model.id}
+                                                key={technician.id}
                                                 variants={rowVariants}
                                             >
                                                 <TableCell className="text-center text-xs text-[var(--cl-text-muted)]">{idx + 1}</TableCell>
-                                                <TableCell className="font-mono text-sm font-medium text-[var(--cl-text)]">{model.product_name ?? "—"}</TableCell>
-                                                <TableCell className="font-mono text-sm text-[var(--cl-text-muted)]">{model.brand_name ?? "—"}</TableCell>
-                                                <TableCell className="font-medium text-[var(--cl-text)]">{model.model_name}</TableCell>
-                                                <TableCell className="text-sm text-[var(--cl-text-muted)]">{model.launch_year ?? "—"}</TableCell>
+                                                <TableCell>
+                                                    <span className="font-mono text-xs font-semibold text-[var(--cl-text)]">{technician.code}</span>
+                                                </TableCell>
+                                                <TableCell className="font-medium text-[var(--cl-text)]">{technician.name}</TableCell>
+                                                <TableCell className="text-sm text-[var(--cl-text-muted)]">{technician.branch_name ?? "—"}</TableCell>
+                                                <TableCell className="text-sm text-[var(--cl-text-muted)]">{technician.phone ?? "—"}</TableCell>
+                                                <TableCell className="text-sm text-[var(--cl-text-muted)]">{technician.specialization ?? "—"}</TableCell>
                                                 <TableCell>
                                                     <Badge
-                                                        className={model.is_active
+                                                        className={technician.is_active
                                                             ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-50"
                                                             : "border-red-200 bg-red-100 text-red-500 hover:bg-red-100"}
                                                         variant="outline"
                                                     >
-                                                        <span className={`mr-1 h-1.5 w-1.5 rounded-full ${model.is_active ? "bg-emerald-500" : "bg-red-400"}`} />
-                                                        {model.is_active ? "Active" : "Inactive"}
+                                                        <span className={`mr-1 h-1.5 w-1.5 rounded-full ${technician.is_active ? "bg-emerald-500" : "bg-red-400"}`} />
+                                                        {technician.is_active ? "Active" : "Inactive"}
                                                     </Badge>
                                                 </TableCell>
                                                 <TableCell>
@@ -324,16 +324,16 @@ export const ModelSection = () => {
                                                         <DropdownMenuContent align="end" className="w-44">
                                                             <DropdownMenuItem
                                                                 className="cursor-pointer text-sky-600 focus:text-sky-600"
-                                                                onClick={() => setEditModel(model)}
+                                                                onClick={() => setEditTechnician(technician)}
                                                             >
                                                                 <PencilIcon className="mr-1.5 h-3.5 w-3.5" />
                                                                 Edit
                                                             </DropdownMenuItem>
                                                             <DropdownMenuSeparator />
-                                                            {model.is_active ? (
+                                                            {technician.is_active ? (
                                                                 <DropdownMenuItem
                                                                     className="cursor-pointer text-amber-600 focus:text-amber-600"
-                                                                    onClick={() => handleToggleActive(model)}
+                                                                    onClick={() => handleToggleActive(technician)}
                                                                 >
                                                                     <ToggleLeftIcon className="mr-1.5 h-3.5 w-3.5" />
                                                                     Deactivate
@@ -341,7 +341,7 @@ export const ModelSection = () => {
                                                             ) : (
                                                                 <DropdownMenuItem
                                                                     className="cursor-pointer text-emerald-600 focus:text-emerald-600"
-                                                                    onClick={() => handleToggleActive(model)}
+                                                                    onClick={() => handleToggleActive(technician)}
                                                                 >
                                                                     <ToggleRightIcon className="mr-1.5 h-3.5 w-3.5" />
                                                                     Activate
@@ -350,7 +350,7 @@ export const ModelSection = () => {
                                                             <DropdownMenuSeparator />
                                                             <DropdownMenuItem
                                                                 className="cursor-pointer text-red-600 focus:text-red-600"
-                                                                onClick={() => setDeleteModel(model)}
+                                                                onClick={() => setDeleteTechnician(technician)}
                                                             >
                                                                 <Trash2Icon className="mr-1.5 h-3.5 w-3.5" />
                                                                 Delete
@@ -368,28 +368,27 @@ export const ModelSection = () => {
                 )}
             </motion.div>
 
-            <AddModelDialog
-                brands={brands}
+            {/* ── Dialogs ──────────────────────────────────────────────────────── */}
+            <AddTechnicianDialog
+                branches={branches}
                 open={addOpen}
-                products={products}
                 onOpenChange={setAddOpen}
                 onSuccess={loadData}
             />
-            {editModel && (
-                <EditModelDialog
-                    brands={brands}
-                    model={editModel}
-                    open={!!editModel}
-                    products={products}
-                    onOpenChange={(o) => { if (!o) setEditModel(null); }}
+            {editTechnician && (
+                <EditTechnicianDialog
+                    branches={branches}
+                    open={!!editTechnician}
+                    technician={editTechnician}
+                    onOpenChange={(o) => { if (!o) setEditTechnician(null); }}
                     onSuccess={loadData}
                 />
             )}
-            {deleteModel && (
-                <DeleteModelDialog
-                    model={deleteModel}
-                    open={!!deleteModel}
-                    onOpenChange={(o) => { if (!o) setDeleteModel(null); }}
+            {deleteTechnician && (
+                <DeleteTechnicianDialog
+                    open={!!deleteTechnician}
+                    technician={deleteTechnician}
+                    onOpenChange={(o) => { if (!o) setDeleteTechnician(null); }}
                     onSuccess={loadData}
                 />
             )}

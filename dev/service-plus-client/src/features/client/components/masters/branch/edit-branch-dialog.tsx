@@ -31,15 +31,15 @@ import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectSchema } from "@/store/context-slice";
-import type { BranchType } from "@/features/client/types/branch";
+import type { BranchType } from "./branch";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type EditBranchDialogPropsType = {
-    branch:       BranchType;
+    branch: BranchType;
     onOpenChange: (open: boolean) => void;
-    onSuccess:    () => void;
-    open:         boolean;
+    onSuccess: () => void;
+    open: boolean;
 };
 
 type EditBranchFormType = z.infer<typeof editBranchSchema>;
@@ -50,7 +50,7 @@ type CheckQueryDataType = {
 
 type StateType = {
     code: string;
-    id:   number;
+    id: number;
     name: string;
 };
 
@@ -61,15 +61,15 @@ type StatesQueryDataType = {
 // ─── Schema ───────────────────────────────────────────────────────────────────
 
 const editBranchSchema = z.object({
-    address_line1:  z.string().min(3, "Address is required"),
-    address_line2:  z.string().optional(),
-    city:           z.string().optional(),
-    email:          z.string().email("Invalid email").or(z.literal("")).optional(),
-    gstin:          z.string().regex(/^[0-9A-Z]{15}$/, "Invalid GSTIN (15 characters)").or(z.literal("")).optional(),
-    name:           z.string().min(2, "Name must be at least 2 characters"),
-    phone:          z.string().optional(),
-    pincode:        z.string().min(4, "Pincode is required"),
-    state_id:       z.coerce.number().positive("State is required"),
+    address_line1: z.string().min(3, "Address is required"),
+    address_line2: z.string().optional(),
+    city: z.string().optional(),
+    email: z.string().email("Invalid email").or(z.literal("")).optional(),
+    gstin: z.string().regex(/^[0-9A-Z]{15}$/, "Invalid GSTIN (15 characters)").or(z.literal("")).optional(),
+    name: z.string().min(2, "Name must be at least 2 characters"),
+    phone: z.string().optional(),
+    pincode: z.string().min(4, "Pincode is required"),
+    state_id: z.coerce.number().positive("State is required"),
 });
 
 // ─── Field error ──────────────────────────────────────────────────────────────
@@ -87,9 +87,9 @@ export const EditBranchDialog = ({
     open,
 }: EditBranchDialogPropsType) => {
     const [checkingName, setCheckingName] = useState(false);
-    const [nameTaken,    setNameTaken]    = useState<boolean | null>(null);
-    const [states,       setStates]       = useState<StateType[]>([]);
-    const [submitting,   setSubmitting]   = useState(false);
+    const [nameTaken, setNameTaken] = useState<boolean | null>(null);
+    const [states, setStates] = useState<StateType[]>([]);
+    const [submitting, setSubmitting] = useState(false);
 
     const dbName = useAppSelector(selectDbName);
     const schema = useAppSelector(selectSchema);
@@ -98,35 +98,35 @@ export const EditBranchDialog = ({
         defaultValues: {
             address_line1: branch.address_line1,
             address_line2: branch.address_line2 ?? "",
-            city:          branch.city ?? "",
-            email:          branch.email ?? "",
-            gstin:         branch.gstin ?? "",
-            name:          branch.name,
-            phone:         branch.phone ?? "",
-            pincode:       branch.pincode,
-            state_id:      branch.state_id,
+            city: branch.city ?? "",
+            email: branch.email ?? "",
+            gstin: branch.gstin ?? "",
+            name: branch.name,
+            phone: branch.phone ?? "",
+            pincode: branch.pincode,
+            state_id: branch.state_id,
         },
-        mode:     "onChange",
+        mode: "onChange",
         resolver: zodResolver(editBranchSchema) as any,
     });
 
     const { formState: { errors } } = form;
-    const nameValue     = useWatch({ control: form.control, name: "name" });
+    const nameValue = useWatch({ control: form.control, name: "name" });
     const debouncedName = useDebounce(nameValue, 1200);
 
     // Pre-fill form and fetch states on open
     useEffect(() => {
         if (!open) return;
         form.reset({
-            address_line1:  branch.address_line1,
-            address_line2:  branch.address_line2 ?? "",
-            city:           branch.city ?? "",
-            email:          branch.email ?? "",
-            gstin:          branch.gstin ?? "",
-            name:           branch.name,
-            phone:          branch.phone ?? "",
-            pincode:        branch.pincode,
-            state_id:       branch.state_id,
+            address_line1: branch.address_line1,
+            address_line2: branch.address_line2 ?? "",
+            city: branch.city ?? "",
+            email: branch.email ?? "",
+            gstin: branch.gstin ?? "",
+            name: branch.name,
+            phone: branch.phone ?? "",
+            pincode: branch.pincode,
+            state_id: branch.state_id,
         });
         setNameTaken(null);
         if (!dbName || !schema) return;
@@ -159,7 +159,7 @@ export const EditBranchDialog = ({
                     schema,
                     value: graphQlUtils.buildGenericQueryValue({
                         sqlArgs: { id: branch.id, name: debouncedName },
-                        sqlId:   SQL_MAP.CHECK_BRANCH_NAME_EXISTS_EXCLUDE_ID,
+                        sqlId: SQL_MAP.CHECK_BRANCH_NAME_EXISTS_EXCLUDE_ID,
                     }),
                 },
             })
@@ -185,16 +185,16 @@ export const EditBranchDialog = ({
                     value: graphQlUtils.buildGenericUpdateValue({
                         tableName: "branch",
                         xData: {
-                            address_line1:  data.address_line1,
-                            address_line2:  data.address_line2 || null,
-                            city:           data.city || null,
-                            email:          data.email || null,
-                            gstin:          data.gstin || null,
-                            id:             branch.id,
-                            name:           data.name,
-                            phone:          data.phone || null,
-                            pincode:        data.pincode,
-                            state_id:       data.state_id,
+                            address_line1: data.address_line1,
+                            address_line2: data.address_line2 || null,
+                            city: data.city || null,
+                            email: data.email || null,
+                            gstin: data.gstin || null,
+                            id: branch.id,
+                            name: data.name,
+                            phone: data.phone || null,
+                            pincode: data.pincode,
+                            state_id: data.state_id,
                         },
                     }),
                 },

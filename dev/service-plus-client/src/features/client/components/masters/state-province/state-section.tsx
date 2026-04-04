@@ -34,90 +34,93 @@ import {
     TableRow,
 } from "@/components/ui/table";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
+import { MESSAGES } from "@/constants/messages";
 import { SQL_MAP } from "@/constants/sql-map";
 import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectSchema } from "@/store/context-slice";
-import { AddProductDialog } from "./add-product-dialog";
-import { DeleteProductDialog } from "./delete-product-dialog";
-import { EditProductDialog } from "./edit-product-dialog";
-import type { ProductType } from "@/features/client/types/product";
+import { AddStateDialog } from "./add-state-dialog";
+import { DeleteStateDialog } from "./delete-state-dialog";
+import { EditStateDialog } from "./edit-state-dialog";
+import type { StateType } from "@/features/client/types/state";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type GenericQueryDataType<T> = { genericQuery: T[] | null };
+type GenericQueryDataType = { genericQuery: StateType[] | null };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const rowVariants = {
-    hidden:  { opacity: 0, y: 6 },
+    hidden: { opacity: 0, y: 6 },
     visible: (i: number) => ({
-        opacity:    1,
+        opacity: 1,
         transition: { delay: i * 0.04, duration: 0.22, ease: "easeOut" as const },
-        y:          0,
+        y: 0,
     }),
 };
 
-const thClass     = "text-xs font-semibold uppercase tracking-wide text-[var(--cl-text-muted)]";
+const thClass = "text-xs font-semibold uppercase tracking-wide text-[var(--cl-text-muted)]";
 const thSortClass = `${thClass} cursor-pointer select-none hover:text-[var(--cl-text)]`;
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export const ProductSection = () => {
-    const dbName  = useAppSelector(selectDbName);
-    const schema_ = useAppSelector(selectSchema);
+export const StateSection = () => {
+    const dbName = useAppSelector(selectDbName);
+    const schema = useAppSelector(selectSchema);
 
-    const [addOpen,        setAddOpen]        = useState(false);
-    const [deleteProduct,  setDeleteProduct]  = useState<ProductType | null>(null);
-    const [editProduct,    setEditProduct]    = useState<ProductType | null>(null);
-    const [loading,        setLoading]        = useState(false);
-    const [products,       setProducts]       = useState<ProductType[]>([]);
-    const [search,         setSearch]         = useState("");
-    const [sortCol,        setSortCol]        = useState<string | null>(null);
-    const [sortDir,        setSortDir]        = useState<"asc" | "desc">("asc");
+    const [addOpen, setAddOpen] = useState(false);
+    const [deleteState, setDeleteState] = useState<StateType | null>(null);
+    const [editState, setEditState] = useState<StateType | null>(null);
+    const [loading, setLoading] = useState(false);
+    const [search, setSearch] = useState("");
+    const [sortCol, setSortCol] = useState<string | null>(null);
+    const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+    const [states, setStates] = useState<StateType[]>([]);
 
-    const loadData = useCallback(async () => {
-        if (!dbName || !schema_) return;
+    const loadStates = useCallback(async () => {
+        if (!dbName || !schema) return;
         setLoading(true);
         try {
-            const res = await apolloClient.query<GenericQueryDataType<ProductType>>({
+            const result = await apolloClient.query<GenericQueryDataType>({
                 fetchPolicy: "network-only",
                 query: GRAPHQL_MAP.genericQuery,
                 variables: {
                     db_name: dbName,
-                    schema:  schema_,
-                    value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_ALL_PRODUCTS }),
+                    schema,
+                    value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_ALL_STATES_FULL }),
                 },
             });
-            setProducts(res.data?.genericQuery ?? []);
+            setStates(result.data?.genericQuery ?? []);
         } catch {
-            toast.error("Failed to load products. Please try again.");
+            toast.error(MESSAGES.ERROR_STATE_LOAD_FAILED);
         } finally {
             setLoading(false);
         }
-    }, [dbName, schema_]);
+    }, [dbName, schema]);
 
-    useEffect(() => { loadData(); }, [loadData]);
+    useEffect(() => {
+        loadStates();
+    }, [loadStates]);
 
-    async function handleToggleActive(product: ProductType) {
-        if (!dbName || !schema_) return;
+    async function handleToggleActive(st: StateType) {
+        if (!dbName || !schema) return;
         try {
             await apolloClient.mutate({
                 mutation: GRAPHQL_MAP.genericUpdate,
                 variables: {
                     db_name: dbName,
-                    schema:  schema_,
+                    schema,
                     value: graphQlUtils.buildGenericUpdateValue({
-                        tableName: "product",
-                        xData: { id: product.id, is_active: !product.is_active },
+                        tableName: "state",
+                        xData: { id: st.id, is_active: !st.is_active },
                     }),
                 },
             });
-            await loadData();
+            await loadStates();
         } catch {
-            toast.error("Failed to update product. Please try again.");
+            toast.error(MESSAGES.ERROR_STATE_UPDATE_FAILED);
         }
     }
 
@@ -129,15 +132,20 @@ export const ProductSection = () => {
     function SortIcon({ col }: { col: string }) {
         if (sortCol !== col) return <ArrowUpDownIcon className="ml-1 inline h-3 w-3 opacity-40" />;
         return sortDir === "asc"
-            ? <ArrowUpIcon   className="ml-1 inline h-3 w-3" />
+            ? <ArrowUpIcon className="ml-1 inline h-3 w-3" />
             : <ArrowDownIcon className="ml-1 inline h-3 w-3" />;
     }
 
-    const displayProducts = useMemo(() => {
-        let rows = products;
+    const displayStates = useMemo(() => {
+        let rows = states;
         if (search.trim()) {
             const q = search.toLowerCase();
-            rows = rows.filter(r => r.name.toLowerCase().includes(q));
+            rows = rows.filter(r =>
+                r.code.toLowerCase().includes(q) ||
+                r.name.toLowerCase().includes(q) ||
+                r.country_code.toLowerCase().includes(q) ||
+                (r.gst_state_code?.toLowerCase().includes(q) ?? false)
+            );
         }
         if (sortCol) {
             rows = [...rows].sort((a, b) => {
@@ -150,9 +158,9 @@ export const ProductSection = () => {
             });
         }
         return rows;
-    }, [products, search, sortCol, sortDir]);
+    }, [states, search, sortCol, sortDir]);
 
-    if (!schema_) {
+    if (!schema) {
         return (
             <div className="flex items-center justify-center rounded-lg border border-[var(--cl-border)] bg-[var(--cl-surface-2)] p-20">
                 <div className="text-center">
@@ -173,11 +181,12 @@ export const ProductSection = () => {
                 initial={{ opacity: 0 }}
                 transition={{ duration: 0.25 }}
             >
+                {/* Page header */}
                 <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
-                        <h1 className="text-xl font-bold text-[var(--cl-text)]">Products</h1>
+                        <h1 className="text-xl font-bold text-[var(--cl-text)]">States / Provinces</h1>
                         <p className="mt-1 text-sm text-[var(--cl-text-muted)]">
-                            Manage product categories (e.g. Mobile, Laptop, TV).
+                            Manage states and provinces for this business unit.
                         </p>
                     </div>
                     <div className="flex items-center gap-2">
@@ -186,7 +195,7 @@ export const ProductSection = () => {
                             disabled={loading}
                             size="sm"
                             variant="outline"
-                            onClick={loadData}
+                            onClick={loadStates}
                         >
                             <RefreshCwIcon className="h-3.5 w-3.5" />
                             Refresh
@@ -197,7 +206,7 @@ export const ProductSection = () => {
                             onClick={() => setAddOpen(true)}
                         >
                             <PlusIcon className="mr-1.5 h-3.5 w-3.5" />
-                            Add Product
+                            Add State
                         </Button>
                     </div>
                 </div>
@@ -209,27 +218,28 @@ export const ProductSection = () => {
                         <Input
                             className="h-8 pl-8 text-sm"
                             disabled={loading}
-                            placeholder="Search products…"
+                            placeholder="Search states…"
                             value={search}
                             onChange={e => setSearch(e.target.value)}
                         />
                     </div>
-                    {!loading && products.length > 0 && (
+                    {!loading && states.length > 0 && (
                         <p className="shrink-0 text-xs text-[var(--cl-text-muted)]">
-                            {displayProducts.length} of {products.length}
+                            {displayStates.length} of {states.length}
                         </p>
                     )}
                 </div>
 
-                {loading && products.length === 0 ? (
+                {/* Table */}
+                {loading && states.length === 0 ? (
                     <div className="flex flex-col gap-2">
                         {Array.from({ length: 4 }).map((_, i) => (
                             <div key={i} className="h-12 animate-pulse rounded-lg bg-[var(--cl-surface-2)]" />
                         ))}
                     </div>
-                ) : products.length === 0 ? (
+                ) : states.length === 0 ? (
                     <div className="rounded-xl border border-[var(--cl-border)] bg-[var(--cl-surface-2)] px-6 py-12 text-center text-sm text-[var(--cl-text-muted)]">
-                        No products found. Click &quot;Add Product&quot; to create one.
+                        No states found. Click &quot;Add State&quot; to create one.
                     </div>
                 ) : (
                     <div
@@ -240,39 +250,55 @@ export const ProductSection = () => {
                                 <TableHeader>
                                     <TableRow className="sticky top-0 z-10 bg-[var(--cl-surface-3)] hover:bg-[var(--cl-surface-3)]">
                                         <TableHead className={`w-8 text-center ${thClass}`}>#</TableHead>
+                                        <TableHead className={thSortClass} onClick={() => handleSort("code")}>Code<SortIcon col="code" /></TableHead>
                                         <TableHead className={thSortClass} onClick={() => handleSort("name")}>Name<SortIcon col="name" /></TableHead>
+                                        <TableHead className={thSortClass} onClick={() => handleSort("country_code")}>Country<SortIcon col="country_code" /></TableHead>
+                                        <TableHead className={thSortClass} onClick={() => handleSort("gst_state_code")}>GST Code<SortIcon col="gst_state_code" /></TableHead>
+                                        <TableHead className={thClass}>Union Territory</TableHead>
                                         <TableHead className={thClass}>Status</TableHead>
                                         <TableHead className={thClass}>Actions</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {displayProducts.length === 0 ? (
+                                    {displayStates.length === 0 ? (
                                         <tr>
                                             <td colSpan={99} className="px-6 py-10 text-center text-sm text-[var(--cl-text-muted)]">
                                                 No results match &ldquo;{search}&rdquo;.
                                             </td>
                                         </tr>
                                     ) : (
-                                        displayProducts.map((product, idx) => (
+                                        displayStates.map((st, idx) => (
                                             <motion.tr
                                                 animate="visible"
                                                 className="border-b border-[var(--cl-border)] transition-colors last:border-b-0 hover:bg-[var(--cl-surface-3)]"
                                                 custom={idx}
                                                 initial="hidden"
-                                                key={product.id}
+                                                key={st.id}
                                                 variants={rowVariants}
                                             >
                                                 <TableCell className="text-center text-xs text-[var(--cl-text-muted)]">{idx + 1}</TableCell>
-                                                <TableCell className="font-mono font-medium text-[var(--cl-text)]">{product.name}</TableCell>
+                                                <TableCell>
+                                                    <span className="font-mono text-xs font-semibold text-[var(--cl-text)]">{st.code}</span>
+                                                </TableCell>
+                                                <TableCell className="font-medium text-[var(--cl-text)]">{st.name}</TableCell>
+                                                <TableCell className="text-sm text-[var(--cl-text-muted)]">{st.country_code}</TableCell>
+                                                <TableCell className="text-sm text-[var(--cl-text-muted)]">{st.gst_state_code ?? "—"}</TableCell>
+                                                <TableCell>
+                                                    {st.is_union_territory ? (
+                                                        <Badge className="border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-50" variant="outline">Yes</Badge>
+                                                    ) : (
+                                                        <span className="text-xs text-[var(--cl-text-muted)]">—</span>
+                                                    )}
+                                                </TableCell>
                                                 <TableCell>
                                                     <Badge
-                                                        className={product.is_active
+                                                        className={st.is_active
                                                             ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-50"
                                                             : "border-red-200 bg-red-100 text-red-500 hover:bg-red-100"}
                                                         variant="outline"
                                                     >
-                                                        <span className={`mr-1 h-1.5 w-1.5 rounded-full ${product.is_active ? "bg-emerald-500" : "bg-red-400"}`} />
-                                                        {product.is_active ? "Active" : "Inactive"}
+                                                        <span className={`mr-1 h-1.5 w-1.5 rounded-full ${st.is_active ? "bg-emerald-500" : "bg-red-400"}`} />
+                                                        {st.is_active ? "Active" : "Inactive"}
                                                     </Badge>
                                                 </TableCell>
                                                 <TableCell>
@@ -290,16 +316,16 @@ export const ProductSection = () => {
                                                         <DropdownMenuContent align="end" className="w-44">
                                                             <DropdownMenuItem
                                                                 className="cursor-pointer text-sky-600 focus:text-sky-600"
-                                                                onClick={() => setEditProduct(product)}
+                                                                onClick={() => setEditState(st)}
                                                             >
                                                                 <PencilIcon className="mr-1.5 h-3.5 w-3.5" />
                                                                 Edit
                                                             </DropdownMenuItem>
                                                             <DropdownMenuSeparator />
-                                                            {product.is_active ? (
+                                                            {st.is_active ? (
                                                                 <DropdownMenuItem
                                                                     className="cursor-pointer text-amber-600 focus:text-amber-600"
-                                                                    onClick={() => handleToggleActive(product)}
+                                                                    onClick={() => handleToggleActive(st)}
                                                                 >
                                                                     <ToggleLeftIcon className="mr-1.5 h-3.5 w-3.5" />
                                                                     Deactivate
@@ -307,7 +333,7 @@ export const ProductSection = () => {
                                                             ) : (
                                                                 <DropdownMenuItem
                                                                     className="cursor-pointer text-emerald-600 focus:text-emerald-600"
-                                                                    onClick={() => handleToggleActive(product)}
+                                                                    onClick={() => handleToggleActive(st)}
                                                                 >
                                                                     <ToggleRightIcon className="mr-1.5 h-3.5 w-3.5" />
                                                                     Activate
@@ -316,7 +342,7 @@ export const ProductSection = () => {
                                                             <DropdownMenuSeparator />
                                                             <DropdownMenuItem
                                                                 className="cursor-pointer text-red-600 focus:text-red-600"
-                                                                onClick={() => setDeleteProduct(product)}
+                                                                onClick={() => setDeleteState(st)}
                                                             >
                                                                 <Trash2Icon className="mr-1.5 h-3.5 w-3.5" />
                                                                 Delete
@@ -334,25 +360,26 @@ export const ProductSection = () => {
                 )}
             </motion.div>
 
-            <AddProductDialog
+            {/* ── Dialogs ──────────────────────────────────────────────────────── */}
+            <AddStateDialog
                 open={addOpen}
                 onOpenChange={setAddOpen}
-                onSuccess={loadData}
+                onSuccess={loadStates}
             />
-            {editProduct && (
-                <EditProductDialog
-                    open={!!editProduct}
-                    product={editProduct}
-                    onOpenChange={(o) => { if (!o) setEditProduct(null); }}
-                    onSuccess={loadData}
+            {editState && (
+                <EditStateDialog
+                    state={editState}
+                    open={!!editState}
+                    onOpenChange={(o) => { if (!o) setEditState(null); }}
+                    onSuccess={loadStates}
                 />
             )}
-            {deleteProduct && (
-                <DeleteProductDialog
-                    open={!!deleteProduct}
-                    product={deleteProduct}
-                    onOpenChange={(o) => { if (!o) setDeleteProduct(null); }}
-                    onSuccess={loadData}
+            {deleteState && (
+                <DeleteStateDialog
+                    state={deleteState}
+                    open={!!deleteState}
+                    onOpenChange={(o) => { if (!o) setDeleteState(null); }}
+                    onSuccess={loadStates}
                 />
             )}
         </>

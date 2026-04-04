@@ -66,7 +66,7 @@ export const ViewPurchaseInvoiceDialog = ({ invoice, open, onOpenChange }: Props
     }, [open, invoice, dbName, schema]);
 
     const lines = detail?.lines ?? [];
-    const totalTaxable = lines.reduce((s, l) => s + Number(l.aggregate_amount), 0);
+    const totalAggregate = lines.reduce((s, l) => s + Number(l.aggregate_amount), 0);
     const totalCgst    = lines.reduce((s, l) => s + Number(l.cgst_amount), 0);
     const totalSgst    = lines.reduce((s, l) => s + Number(l.sgst_amount), 0);
     const totalIgst    = lines.reduce((s, l) => s + Number(l.igst_amount), 0);
@@ -91,7 +91,7 @@ export const ViewPurchaseInvoiceDialog = ({ invoice, open, onOpenChange }: Props
                             <Field label="Invoice Date"    value={detail.invoice_date} />
                             <Field label="Supplier"        value={detail.supplier_name} />
                             <Field label="State Code"      value={detail.supplier_state_code} />
-                            <Field label="Taxable Amount"  value={formatCurrency(detail.aggregate_amount)} />
+                            <Field label="Aggregate Amount"  value={formatCurrency(detail.aggregate_amount)} />
                             <Field label="Total Tax"       value={formatCurrency(detail.total_tax)} />
                             <Field label="Total Amount"    value={formatCurrency(detail.total_amount)} className="font-semibold text-[var(--cl-accent)]" />
                             {detail.remarks && <Field label="Remarks" value={detail.remarks} className="col-span-2" />}
@@ -108,7 +108,7 @@ export const ViewPurchaseInvoiceDialog = ({ invoice, open, onOpenChange }: Props
                                         <th className={thClass}>HSN</th>
                                         <th className={`${thClass} text-right`}>Qty</th>
                                         <th className={`${thClass} text-right`}>Unit Price</th>
-                                        <th className={`${thClass} text-right`}>Taxable</th>
+                                        <th className={`${thClass} text-right`}>Aggregate</th>
                                         <th className={`${thClass} text-right`}>CGST</th>
                                         <th className={`${thClass} text-right`}>SGST</th>
                                         <th className={`${thClass} text-right`}>IGST</th>
@@ -135,7 +135,7 @@ export const ViewPurchaseInvoiceDialog = ({ invoice, open, onOpenChange }: Props
                                 <tfoot>
                                     <tr className="bg-[var(--cl-surface-2)]/50 font-semibold">
                                         <td colSpan={6} className="p-2 text-right text-xs uppercase tracking-wide text-[var(--cl-text-muted)]">Totals</td>
-                                        <td className="p-2 text-right text-sm">{formatCurrency(totalTaxable)}</td>
+                                        <td className="p-2 text-right text-sm">{formatCurrency(totalAggregate)}</td>
                                         <td className="p-2 text-right text-sm">{formatCurrency(totalCgst)}</td>
                                         <td className="p-2 text-right text-sm">{formatCurrency(totalSgst)}</td>
                                         <td className="p-2 text-right text-sm">{formatCurrency(totalIgst)}</td>

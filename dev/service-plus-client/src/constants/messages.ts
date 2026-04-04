@@ -305,6 +305,7 @@ export const MESSAGES = {
   ERROR_PURCHASE_DATE_REQUIRED:        'Invoice date is required.',
   ERROR_PURCHASE_LINES_REQUIRED:       'At least one line item is required.',
   ERROR_PURCHASE_INVOICE_EXISTS:       'This invoice number already exists for the selected supplier.',
+  ERROR_PURCHASE_LINE_FIELDS_REQUIRED: 'Please fill all mandatory line fields (Part, Qty, and HSN for taxable items).',
   SUCCESS_PURCHASE_CREATED:            'Purchase invoice created successfully.',
   SUCCESS_PURCHASE_DELETED:            'Purchase invoice deleted successfully.',
 

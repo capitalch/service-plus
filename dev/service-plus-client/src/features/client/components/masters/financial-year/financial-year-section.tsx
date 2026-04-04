@@ -58,15 +58,15 @@ function formatDate(iso: string): string {
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const rowVariants = {
-    hidden:  { opacity: 0, y: 6 },
+    hidden: { opacity: 0, y: 6 },
     visible: (i: number) => ({
-        opacity:    1,
+        opacity: 1,
         transition: { delay: i * 0.04, duration: 0.22, ease: "easeOut" as const },
-        y:          0,
+        y: 0,
     }),
 };
 
-const thClass     = "text-xs font-semibold uppercase tracking-wide text-[var(--cl-text-muted)]";
+const thClass = "text-xs font-semibold uppercase tracking-wide text-[var(--cl-text-muted)]";
 const thSortClass = `${thClass} cursor-pointer select-none hover:text-[var(--cl-text)]`;
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -75,14 +75,14 @@ export const FinancialYearSection = () => {
     const dbName = useAppSelector(selectDbName);
     const schema = useAppSelector(selectSchema);
 
-    const [addOpen,    setAddOpen]    = useState(false);
-    const [deleteFy,   setDeleteFy]   = useState<FinancialYearType | null>(null);
-    const [editFy,     setEditFy]     = useState<FinancialYearType | null>(null);
-    const [fys,        setFys]        = useState<FinancialYearType[]>([]);
-    const [loading,    setLoading]    = useState(false);
-    const [search,     setSearch]     = useState("");
-    const [sortCol,    setSortCol]    = useState<string | null>(null);
-    const [sortDir,    setSortDir]    = useState<"asc" | "desc">("asc");
+    const [addOpen, setAddOpen] = useState(false);
+    const [deleteFy, setDeleteFy] = useState<FinancialYearType | null>(null);
+    const [editFy, setEditFy] = useState<FinancialYearType | null>(null);
+    const [fys, setFys] = useState<FinancialYearType[]>([]);
+    const [loading, setLoading] = useState(false);
+    const [search, setSearch] = useState("");
+    const [sortCol, setSortCol] = useState<string | null>(null);
+    const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
     const loadFys = useCallback(async () => {
         if (!dbName || !schema) return;
@@ -117,7 +117,7 @@ export const FinancialYearSection = () => {
     function SortIcon({ col }: { col: string }) {
         if (sortCol !== col) return <ArrowUpDownIcon className="ml-1 inline h-3 w-3 opacity-40" />;
         return sortDir === "asc"
-            ? <ArrowUpIcon   className="ml-1 inline h-3 w-3" />
+            ? <ArrowUpIcon className="ml-1 inline h-3 w-3" />
             : <ArrowDownIcon className="ml-1 inline h-3 w-3" />;
     }
 

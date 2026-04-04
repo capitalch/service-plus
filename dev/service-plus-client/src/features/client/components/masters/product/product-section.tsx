@@ -34,93 +34,90 @@ import {
     TableRow,
 } from "@/components/ui/table";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
-import { MESSAGES } from "@/constants/messages";
 import { SQL_MAP } from "@/constants/sql-map";
 import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectSchema } from "@/store/context-slice";
-import { AddBranchDialog } from "./add-branch-dialog";
-import { DeleteBranchDialog } from "./delete-branch-dialog";
-import { EditBranchDialog } from "./edit-branch-dialog";
-import type { BranchType } from "@/features/client/types/branch";
+import { AddProductDialog } from "./add-product-dialog";
+import { DeleteProductDialog } from "./delete-product-dialog";
+import { EditProductDialog } from "./edit-product-dialog";
+import type { ProductType } from "@/features/client/types/product";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type GenericQueryDataType = { genericQuery: BranchType[] | null };
+type GenericQueryDataType<T> = { genericQuery: T[] | null };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const rowVariants = {
-    hidden:  { opacity: 0, y: 6 },
+    hidden: { opacity: 0, y: 6 },
     visible: (i: number) => ({
-        opacity:    1,
+        opacity: 1,
         transition: { delay: i * 0.04, duration: 0.22, ease: "easeOut" as const },
-        y:          0,
+        y: 0,
     }),
 };
 
-const thClass     = "text-xs font-semibold uppercase tracking-wide text-[var(--cl-text-muted)]";
+const thClass = "text-xs font-semibold uppercase tracking-wide text-[var(--cl-text-muted)]";
 const thSortClass = `${thClass} cursor-pointer select-none hover:text-[var(--cl-text)]`;
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export const BranchSection = () => {
+export const ProductSection = () => {
     const dbName = useAppSelector(selectDbName);
-    const schema = useAppSelector(selectSchema);
+    const schema_ = useAppSelector(selectSchema);
 
-    const [addOpen,      setAddOpen]      = useState(false);
-    const [branches,     setBranches]     = useState<BranchType[]>([]);
-    const [deleteBranch, setDeleteBranch] = useState<BranchType | null>(null);
-    const [editBranch,   setEditBranch]   = useState<BranchType | null>(null);
-    const [loading,      setLoading]      = useState(false);
-    const [search,       setSearch]       = useState("");
-    const [sortCol,      setSortCol]      = useState<string | null>(null);
-    const [sortDir,      setSortDir]      = useState<"asc" | "desc">("asc");
+    const [addOpen, setAddOpen] = useState(false);
+    const [deleteProduct, setDeleteProduct] = useState<ProductType | null>(null);
+    const [editProduct, setEditProduct] = useState<ProductType | null>(null);
+    const [loading, setLoading] = useState(false);
+    const [products, setProducts] = useState<ProductType[]>([]);
+    const [search, setSearch] = useState("");
+    const [sortCol, setSortCol] = useState<string | null>(null);
+    const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
-    const loadBranches = useCallback(async () => {
-        if (!dbName || !schema) return;
+    const loadData = useCallback(async () => {
+        if (!dbName || !schema_) return;
         setLoading(true);
         try {
-            const result = await apolloClient.query<GenericQueryDataType>({
+            const res = await apolloClient.query<GenericQueryDataType<ProductType>>({
                 fetchPolicy: "network-only",
                 query: GRAPHQL_MAP.genericQuery,
                 variables: {
                     db_name: dbName,
-                    schema,
-                    value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_ALL_BRANCHES }),
+                    schema: schema_,
+                    value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_ALL_PRODUCTS }),
                 },
             });
-            setBranches(result.data?.genericQuery ?? []);
+            setProducts(res.data?.genericQuery ?? []);
         } catch {
-            toast.error(MESSAGES.ERROR_BRANCH_LOAD_FAILED);
+            toast.error("Failed to load products. Please try again.");
         } finally {
             setLoading(false);
         }
-    }, [dbName, schema]);
+    }, [dbName, schema_]);
 
-    useEffect(() => {
-        loadBranches();
-    }, [loadBranches]);
+    useEffect(() => { loadData(); }, [loadData]);
 
-    async function handleToggleActive(branch: BranchType) {
-        if (!dbName || !schema) return;
+    async function handleToggleActive(product: ProductType) {
+        if (!dbName || !schema_) return;
         try {
             await apolloClient.mutate({
                 mutation: GRAPHQL_MAP.genericUpdate,
                 variables: {
                     db_name: dbName,
-                    schema,
+                    schema: schema_,
                     value: graphQlUtils.buildGenericUpdateValue({
-                        tableName: "branch",
-                        xData: { id: branch.id, is_active: !branch.is_active },
+                        tableName: "product",
+                        xData: { id: product.id, is_active: !product.is_active },
                     }),
                 },
             });
-            await loadBranches();
+            await loadData();
         } catch {
-            toast.error(MESSAGES.ERROR_BRANCH_UPDATE_FAILED);
+            toast.error("Failed to update product. Please try again.");
         }
     }
 
@@ -132,21 +129,15 @@ export const BranchSection = () => {
     function SortIcon({ col }: { col: string }) {
         if (sortCol !== col) return <ArrowUpDownIcon className="ml-1 inline h-3 w-3 opacity-40" />;
         return sortDir === "asc"
-            ? <ArrowUpIcon   className="ml-1 inline h-3 w-3" />
+            ? <ArrowUpIcon className="ml-1 inline h-3 w-3" />
             : <ArrowDownIcon className="ml-1 inline h-3 w-3" />;
     }
 
-    const displayBranches = useMemo(() => {
-        let rows = branches;
+    const displayProducts = useMemo(() => {
+        let rows = products;
         if (search.trim()) {
             const q = search.toLowerCase();
-            rows = rows.filter(r =>
-                r.code.toLowerCase().includes(q) ||
-                r.name.toLowerCase().includes(q) ||
-                (r.state_name?.toLowerCase().includes(q) ?? false) ||
-                (r.city?.toLowerCase().includes(q) ?? false) ||
-                (r.phone?.toLowerCase().includes(q) ?? false)
-            );
+            rows = rows.filter(r => r.name.toLowerCase().includes(q));
         }
         if (sortCol) {
             rows = [...rows].sort((a, b) => {
@@ -159,9 +150,9 @@ export const BranchSection = () => {
             });
         }
         return rows;
-    }, [branches, search, sortCol, sortDir]);
+    }, [products, search, sortCol, sortDir]);
 
-    if (!schema) {
+    if (!schema_) {
         return (
             <div className="flex items-center justify-center rounded-lg border border-[var(--cl-border)] bg-[var(--cl-surface-2)] p-20">
                 <div className="text-center">
@@ -182,12 +173,11 @@ export const BranchSection = () => {
                 initial={{ opacity: 0 }}
                 transition={{ duration: 0.25 }}
             >
-                {/* Page header */}
                 <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
-                        <h1 className="text-xl font-bold text-[var(--cl-text)]">Branches</h1>
+                        <h1 className="text-xl font-bold text-[var(--cl-text)]">Products</h1>
                         <p className="mt-1 text-sm text-[var(--cl-text-muted)]">
-                            Manage branches for this business unit.
+                            Manage product categories (e.g. Mobile, Laptop, TV).
                         </p>
                     </div>
                     <div className="flex items-center gap-2">
@@ -196,7 +186,7 @@ export const BranchSection = () => {
                             disabled={loading}
                             size="sm"
                             variant="outline"
-                            onClick={loadBranches}
+                            onClick={loadData}
                         >
                             <RefreshCwIcon className="h-3.5 w-3.5" />
                             Refresh
@@ -207,7 +197,7 @@ export const BranchSection = () => {
                             onClick={() => setAddOpen(true)}
                         >
                             <PlusIcon className="mr-1.5 h-3.5 w-3.5" />
-                            Add Branch
+                            Add Product
                         </Button>
                     </div>
                 </div>
@@ -219,28 +209,27 @@ export const BranchSection = () => {
                         <Input
                             className="h-8 pl-8 text-sm"
                             disabled={loading}
-                            placeholder="Search branches…"
+                            placeholder="Search products…"
                             value={search}
                             onChange={e => setSearch(e.target.value)}
                         />
                     </div>
-                    {!loading && branches.length > 0 && (
+                    {!loading && products.length > 0 && (
                         <p className="shrink-0 text-xs text-[var(--cl-text-muted)]">
-                            {displayBranches.length} of {branches.length}
+                            {displayProducts.length} of {products.length}
                         </p>
                     )}
                 </div>
 
-                {/* Table */}
-                {loading && branches.length === 0 ? (
+                {loading && products.length === 0 ? (
                     <div className="flex flex-col gap-2">
                         {Array.from({ length: 4 }).map((_, i) => (
                             <div key={i} className="h-12 animate-pulse rounded-lg bg-[var(--cl-surface-2)]" />
                         ))}
                     </div>
-                ) : branches.length === 0 ? (
+                ) : products.length === 0 ? (
                     <div className="rounded-xl border border-[var(--cl-border)] bg-[var(--cl-surface-2)] px-6 py-12 text-center text-sm text-[var(--cl-text-muted)]">
-                        No branches found. Click &quot;Add Branch&quot; to create one.
+                        No products found. Click &quot;Add Product&quot; to create one.
                     </div>
                 ) : (
                     <div
@@ -251,57 +240,39 @@ export const BranchSection = () => {
                                 <TableHeader>
                                     <TableRow className="sticky top-0 z-10 bg-[var(--cl-surface-3)] hover:bg-[var(--cl-surface-3)]">
                                         <TableHead className={`w-8 text-center ${thClass}`}>#</TableHead>
-                                        <TableHead className={thSortClass} onClick={() => handleSort("code")}>Code<SortIcon col="code" /></TableHead>
                                         <TableHead className={thSortClass} onClick={() => handleSort("name")}>Name<SortIcon col="name" /></TableHead>
-                                        <TableHead className={thSortClass} onClick={() => handleSort("state_name")}>State<SortIcon col="state_name" /></TableHead>
-                                        <TableHead className={thSortClass} onClick={() => handleSort("city")}>City<SortIcon col="city" /></TableHead>
-                                        <TableHead className={thClass}>Phone</TableHead>
-                                        <TableHead className={thClass}>Head Office</TableHead>
                                         <TableHead className={thClass}>Status</TableHead>
                                         <TableHead className={thClass}>Actions</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {displayBranches.length === 0 ? (
+                                    {displayProducts.length === 0 ? (
                                         <tr>
                                             <td colSpan={99} className="px-6 py-10 text-center text-sm text-[var(--cl-text-muted)]">
                                                 No results match &ldquo;{search}&rdquo;.
                                             </td>
                                         </tr>
                                     ) : (
-                                        displayBranches.map((branch, idx) => (
+                                        displayProducts.map((product, idx) => (
                                             <motion.tr
                                                 animate="visible"
                                                 className="border-b border-[var(--cl-border)] transition-colors last:border-b-0 hover:bg-[var(--cl-surface-3)]"
                                                 custom={idx}
                                                 initial="hidden"
-                                                key={branch.id}
+                                                key={product.id}
                                                 variants={rowVariants}
                                             >
                                                 <TableCell className="text-center text-xs text-[var(--cl-text-muted)]">{idx + 1}</TableCell>
-                                                <TableCell>
-                                                    <span className="font-mono text-xs font-semibold text-[var(--cl-text)]">{branch.code}</span>
-                                                </TableCell>
-                                                <TableCell className="font-medium text-[var(--cl-text)]">{branch.name}</TableCell>
-                                                <TableCell className="text-sm text-[var(--cl-text-muted)]">{branch.state_name ?? "—"}</TableCell>
-                                                <TableCell className="text-sm text-[var(--cl-text-muted)]">{branch.city ?? "—"}</TableCell>
-                                                <TableCell className="text-sm text-[var(--cl-text-muted)]">{branch.phone ?? "—"}</TableCell>
-                                                <TableCell>
-                                                    {branch.is_head_office ? (
-                                                        <Badge className="border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-50" variant="outline">Yes</Badge>
-                                                    ) : (
-                                                        <span className="text-xs text-[var(--cl-text-muted)]">—</span>
-                                                    )}
-                                                </TableCell>
+                                                <TableCell className="font-mono font-medium text-[var(--cl-text)]">{product.name}</TableCell>
                                                 <TableCell>
                                                     <Badge
-                                                        className={branch.is_active
+                                                        className={product.is_active
                                                             ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-50"
                                                             : "border-red-200 bg-red-100 text-red-500 hover:bg-red-100"}
                                                         variant="outline"
                                                     >
-                                                        <span className={`mr-1 h-1.5 w-1.5 rounded-full ${branch.is_active ? "bg-emerald-500" : "bg-red-400"}`} />
-                                                        {branch.is_active ? "Active" : "Inactive"}
+                                                        <span className={`mr-1 h-1.5 w-1.5 rounded-full ${product.is_active ? "bg-emerald-500" : "bg-red-400"}`} />
+                                                        {product.is_active ? "Active" : "Inactive"}
                                                     </Badge>
                                                 </TableCell>
                                                 <TableCell>
@@ -319,16 +290,16 @@ export const BranchSection = () => {
                                                         <DropdownMenuContent align="end" className="w-44">
                                                             <DropdownMenuItem
                                                                 className="cursor-pointer text-sky-600 focus:text-sky-600"
-                                                                onClick={() => setEditBranch(branch)}
+                                                                onClick={() => setEditProduct(product)}
                                                             >
                                                                 <PencilIcon className="mr-1.5 h-3.5 w-3.5" />
                                                                 Edit
                                                             </DropdownMenuItem>
                                                             <DropdownMenuSeparator />
-                                                            {branch.is_active ? (
+                                                            {product.is_active ? (
                                                                 <DropdownMenuItem
                                                                     className="cursor-pointer text-amber-600 focus:text-amber-600"
-                                                                    onClick={() => handleToggleActive(branch)}
+                                                                    onClick={() => handleToggleActive(product)}
                                                                 >
                                                                     <ToggleLeftIcon className="mr-1.5 h-3.5 w-3.5" />
                                                                     Deactivate
@@ -336,7 +307,7 @@ export const BranchSection = () => {
                                                             ) : (
                                                                 <DropdownMenuItem
                                                                     className="cursor-pointer text-emerald-600 focus:text-emerald-600"
-                                                                    onClick={() => handleToggleActive(branch)}
+                                                                    onClick={() => handleToggleActive(product)}
                                                                 >
                                                                     <ToggleRightIcon className="mr-1.5 h-3.5 w-3.5" />
                                                                     Activate
@@ -345,7 +316,7 @@ export const BranchSection = () => {
                                                             <DropdownMenuSeparator />
                                                             <DropdownMenuItem
                                                                 className="cursor-pointer text-red-600 focus:text-red-600"
-                                                                onClick={() => setDeleteBranch(branch)}
+                                                                onClick={() => setDeleteProduct(product)}
                                                             >
                                                                 <Trash2Icon className="mr-1.5 h-3.5 w-3.5" />
                                                                 Delete
@@ -363,26 +334,25 @@ export const BranchSection = () => {
                 )}
             </motion.div>
 
-            {/* ── Dialogs ──────────────────────────────────────────────────────── */}
-            <AddBranchDialog
+            <AddProductDialog
                 open={addOpen}
                 onOpenChange={setAddOpen}
-                onSuccess={loadBranches}
+                onSuccess={loadData}
             />
-            {editBranch && (
-                <EditBranchDialog
-                    branch={editBranch}
-                    open={!!editBranch}
-                    onOpenChange={(o) => { if (!o) setEditBranch(null); }}
-                    onSuccess={loadBranches}
+            {editProduct && (
+                <EditProductDialog
+                    open={!!editProduct}
+                    product={editProduct}
+                    onOpenChange={(o) => { if (!o) setEditProduct(null); }}
+                    onSuccess={loadData}
                 />
             )}
-            {deleteBranch && (
-                <DeleteBranchDialog
-                    branch={deleteBranch}
-                    open={!!deleteBranch}
-                    onOpenChange={(o) => { if (!o) setDeleteBranch(null); }}
-                    onSuccess={loadBranches}
+            {deleteProduct && (
+                <DeleteProductDialog
+                    open={!!deleteProduct}
+                    product={deleteProduct}
+                    onOpenChange={(o) => { if (!o) setDeleteProduct(null); }}
+                    onSuccess={loadData}
                 />
             )}
         </>

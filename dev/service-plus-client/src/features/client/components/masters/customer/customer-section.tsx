@@ -41,10 +41,10 @@ import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectSchema } from "@/store/context-slice";
-import { AddTechnicianDialog } from "./add-technician-dialog";
-import { DeleteTechnicianDialog } from "./delete-technician-dialog";
-import { EditTechnicianDialog } from "./edit-technician-dialog";
-import type { BranchOption, TechnicianType } from "@/features/client/types/technician";
+import { AddCustomerDialog } from "./add-customer-dialog";
+import { DeleteCustomerDialog } from "./delete-customer-dialog";
+import { EditCustomerDialog } from "./edit-customer-dialog";
+import type { CustomerType, CustomerTypeOption, StateOption } from "@/features/client/types/customer";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -66,48 +66,59 @@ const thSortClass = `${thClass} cursor-pointer select-none hover:text-[var(--cl-
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export const TechnicianSection = () => {
+export const CustomerSection = () => {
     const dbName = useAppSelector(selectDbName);
     const schema = useAppSelector(selectSchema);
 
-    const [addOpen,            setAddOpen]            = useState(false);
-    const [branches,           setBranches]           = useState<BranchOption[]>([]);
-    const [deleteTechnician,   setDeleteTechnician]   = useState<TechnicianType | null>(null);
-    const [editTechnician,     setEditTechnician]     = useState<TechnicianType | null>(null);
-    const [loading,            setLoading]            = useState(false);
-    const [search,             setSearch]             = useState("");
-    const [sortCol,            setSortCol]            = useState<string | null>(null);
-    const [sortDir,            setSortDir]            = useState<"asc" | "desc">("asc");
-    const [technicians,        setTechnicians]        = useState<TechnicianType[]>([]);
+    const [addOpen,         setAddOpen]         = useState(false);
+    const [customers,       setCustomers]       = useState<CustomerType[]>([]);
+    const [customerTypes,   setCustomerTypes]   = useState<CustomerTypeOption[]>([]);
+    const [deleteCustomer,  setDeleteCustomer]  = useState<CustomerType | null>(null);
+    const [editCustomer,    setEditCustomer]    = useState<CustomerType | null>(null);
+    const [loading,         setLoading]         = useState(false);
+    const [search,          setSearch]          = useState("");
+    const [sortCol,         setSortCol]         = useState<string | null>(null);
+    const [sortDir,         setSortDir]         = useState<"asc" | "desc">("asc");
+    const [states,          setStates]          = useState<StateOption[]>([]);
 
     const loadData = useCallback(async () => {
         if (!dbName || !schema) return;
         setLoading(true);
         try {
-            const [techniciansRes, branchesRes] = await Promise.all([
-                apolloClient.query<GenericQueryDataType<TechnicianType>>({
+            const [customersRes, typesRes, statesRes] = await Promise.all([
+                apolloClient.query<GenericQueryDataType<CustomerType>>({
                     fetchPolicy: "network-only",
                     query: GRAPHQL_MAP.genericQuery,
                     variables: {
                         db_name: dbName,
                         schema,
-                        value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_ALL_TECHNICIANS }),
+                        value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_ALL_CUSTOMERS }),
                     },
                 }),
-                apolloClient.query<GenericQueryDataType<BranchOption>>({
+                apolloClient.query<GenericQueryDataType<CustomerTypeOption>>({
                     fetchPolicy: "network-only",
                     query: GRAPHQL_MAP.genericQuery,
                     variables: {
                         db_name: dbName,
                         schema,
-                        value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_BU_BRANCHES }),
+                        value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_ALL_CUSTOMER_TYPES }),
+                    },
+                }),
+                apolloClient.query<GenericQueryDataType<StateOption>>({
+                    fetchPolicy: "network-only",
+                    query: GRAPHQL_MAP.genericQuery,
+                    variables: {
+                        db_name: dbName,
+                        schema,
+                        value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_ALL_STATES }),
                     },
                 }),
             ]);
-            setTechnicians(techniciansRes.data?.genericQuery ?? []);
-            setBranches(branchesRes.data?.genericQuery ?? []);
+            setCustomers(customersRes.data?.genericQuery ?? []);
+            setCustomerTypes(typesRes.data?.genericQuery ?? []);
+            setStates(statesRes.data?.genericQuery ?? []);
         } catch {
-            toast.error(MESSAGES.ERROR_TECHNICIAN_LOAD_FAILED);
+            toast.error(MESSAGES.ERROR_CUSTOMER_LOAD_FAILED);
         } finally {
             setLoading(false);
         }
@@ -117,7 +128,7 @@ export const TechnicianSection = () => {
         loadData();
     }, [loadData]);
 
-    async function handleToggleActive(technician: TechnicianType) {
+    async function handleToggleActive(customer: CustomerType) {
         if (!dbName || !schema) return;
         try {
             await apolloClient.mutate({
@@ -126,14 +137,14 @@ export const TechnicianSection = () => {
                     db_name: dbName,
                     schema,
                     value: graphQlUtils.buildGenericUpdateValue({
-                        tableName: "technician",
-                        xData: { id: technician.id, is_active: !technician.is_active },
+                        tableName: "customer_contact",
+                        xData: { id: customer.id, is_active: !customer.is_active },
                     }),
                 },
             });
             await loadData();
         } catch {
-            toast.error(MESSAGES.ERROR_TECHNICIAN_UPDATE_FAILED);
+            toast.error(MESSAGES.ERROR_CUSTOMER_UPDATE_FAILED);
         }
     }
 
@@ -149,16 +160,16 @@ export const TechnicianSection = () => {
             : <ArrowDownIcon className="ml-1 inline h-3 w-3" />;
     }
 
-    const displayTechnicians = useMemo(() => {
-        let rows = technicians;
+    const displayCustomers = useMemo(() => {
+        let rows = customers;
         if (search.trim()) {
             const q = search.toLowerCase();
             rows = rows.filter(r =>
-                r.code.toLowerCase().includes(q) ||
-                r.name.toLowerCase().includes(q) ||
-                (r.branch_name?.toLowerCase().includes(q) ?? false) ||
-                (r.phone?.toLowerCase().includes(q) ?? false) ||
-                (r.specialization?.toLowerCase().includes(q) ?? false)
+                (r.full_name?.toLowerCase().includes(q) ?? false) ||
+                r.mobile.toLowerCase().includes(q) ||
+                (r.customer_type_name?.toLowerCase().includes(q) ?? false) ||
+                (r.state_name?.toLowerCase().includes(q) ?? false) ||
+                (r.city?.toLowerCase().includes(q) ?? false)
             );
         }
         if (sortCol) {
@@ -172,7 +183,7 @@ export const TechnicianSection = () => {
             });
         }
         return rows;
-    }, [technicians, search, sortCol, sortDir]);
+    }, [customers, search, sortCol, sortDir]);
 
     if (!schema) {
         return (
@@ -198,9 +209,9 @@ export const TechnicianSection = () => {
                 {/* Page header */}
                 <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
-                        <h1 className="text-xl font-bold text-[var(--cl-text)]">Technicians</h1>
+                        <h1 className="text-xl font-bold text-[var(--cl-text)]">Customers</h1>
                         <p className="mt-1 text-sm text-[var(--cl-text-muted)]">
-                            Manage technicians for this business unit.
+                            Manage customers for this business unit.
                         </p>
                     </div>
                     <div className="flex items-center gap-2">
@@ -220,7 +231,7 @@ export const TechnicianSection = () => {
                             onClick={() => setAddOpen(true)}
                         >
                             <PlusIcon className="mr-1.5 h-3.5 w-3.5" />
-                            Add Technician
+                            Add Customer
                         </Button>
                     </div>
                 </div>
@@ -232,28 +243,28 @@ export const TechnicianSection = () => {
                         <Input
                             className="h-8 pl-8 text-sm"
                             disabled={loading}
-                            placeholder="Search technicians…"
+                            placeholder="Search customers…"
                             value={search}
                             onChange={e => setSearch(e.target.value)}
                         />
                     </div>
-                    {!loading && technicians.length > 0 && (
+                    {!loading && customers.length > 0 && (
                         <p className="shrink-0 text-xs text-[var(--cl-text-muted)]">
-                            {displayTechnicians.length} of {technicians.length}
+                            {displayCustomers.length} of {customers.length}
                         </p>
                     )}
                 </div>
 
                 {/* Table */}
-                {loading && technicians.length === 0 ? (
+                {loading && customers.length === 0 ? (
                     <div className="flex flex-col gap-2">
                         {Array.from({ length: 4 }).map((_, i) => (
                             <div key={i} className="h-12 animate-pulse rounded-lg bg-[var(--cl-surface-2)]" />
                         ))}
                     </div>
-                ) : technicians.length === 0 ? (
+                ) : customers.length === 0 ? (
                     <div className="rounded-xl border border-[var(--cl-border)] bg-[var(--cl-surface-2)] px-6 py-12 text-center text-sm text-[var(--cl-text-muted)]">
-                        No technicians found. Click &quot;Add Technician&quot; to create one.
+                        No customers found. Click &quot;Add Customer&quot; to create one.
                     </div>
                 ) : (
                     <div
@@ -264,49 +275,49 @@ export const TechnicianSection = () => {
                                 <TableHeader>
                                     <TableRow className="sticky top-0 z-10 bg-[var(--cl-surface-3)] hover:bg-[var(--cl-surface-3)]">
                                         <TableHead className={`w-8 text-center ${thClass}`}>#</TableHead>
-                                        <TableHead className={thSortClass} onClick={() => handleSort("code")}>Code<SortIcon col="code" /></TableHead>
-                                        <TableHead className={thSortClass} onClick={() => handleSort("name")}>Name<SortIcon col="name" /></TableHead>
-                                        <TableHead className={thSortClass} onClick={() => handleSort("branch_name")}>Branch<SortIcon col="branch_name" /></TableHead>
-                                        <TableHead className={thClass}>Phone</TableHead>
-                                        <TableHead className={thSortClass} onClick={() => handleSort("specialization")}>Specialization<SortIcon col="specialization" /></TableHead>
+                                        <TableHead className={thSortClass} onClick={() => handleSort("full_name")}>Name<SortIcon col="full_name" /></TableHead>
+                                        <TableHead className={thSortClass} onClick={() => handleSort("mobile")}>Mobile<SortIcon col="mobile" /></TableHead>
+                                        <TableHead className={thSortClass} onClick={() => handleSort("customer_type_name")}>Type<SortIcon col="customer_type_name" /></TableHead>
+                                        <TableHead className={thSortClass} onClick={() => handleSort("state_name")}>State<SortIcon col="state_name" /></TableHead>
+                                        <TableHead className={thSortClass} onClick={() => handleSort("city")}>City<SortIcon col="city" /></TableHead>
                                         <TableHead className={thClass}>Status</TableHead>
                                         <TableHead className={thClass}>Actions</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {displayTechnicians.length === 0 ? (
+                                    {displayCustomers.length === 0 ? (
                                         <tr>
                                             <td colSpan={99} className="px-6 py-10 text-center text-sm text-[var(--cl-text-muted)]">
                                                 No results match &ldquo;{search}&rdquo;.
                                             </td>
                                         </tr>
                                     ) : (
-                                        displayTechnicians.map((technician, idx) => (
+                                        displayCustomers.map((customer, idx) => (
                                             <motion.tr
                                                 animate="visible"
                                                 className="border-b border-[var(--cl-border)] transition-colors last:border-b-0 hover:bg-[var(--cl-surface-3)]"
                                                 custom={idx}
                                                 initial="hidden"
-                                                key={technician.id}
+                                                key={customer.id}
                                                 variants={rowVariants}
                                             >
                                                 <TableCell className="text-center text-xs text-[var(--cl-text-muted)]">{idx + 1}</TableCell>
-                                                <TableCell>
-                                                    <span className="font-mono text-xs font-semibold text-[var(--cl-text)]">{technician.code}</span>
+                                                <TableCell className="font-medium text-[var(--cl-text)]">
+                                                    {customer.full_name ?? <span className="text-[var(--cl-text-muted)]">—</span>}
                                                 </TableCell>
-                                                <TableCell className="font-medium text-[var(--cl-text)]">{technician.name}</TableCell>
-                                                <TableCell className="text-sm text-[var(--cl-text-muted)]">{technician.branch_name ?? "—"}</TableCell>
-                                                <TableCell className="text-sm text-[var(--cl-text-muted)]">{technician.phone ?? "—"}</TableCell>
-                                                <TableCell className="text-sm text-[var(--cl-text-muted)]">{technician.specialization ?? "—"}</TableCell>
+                                                <TableCell className="font-mono text-sm text-[var(--cl-text)]">{customer.mobile}</TableCell>
+                                                <TableCell className="text-sm text-[var(--cl-text-muted)]">{customer.customer_type_name ?? "—"}</TableCell>
+                                                <TableCell className="text-sm text-[var(--cl-text-muted)]">{customer.state_name ?? "—"}</TableCell>
+                                                <TableCell className="text-sm text-[var(--cl-text-muted)]">{customer.city ?? "—"}</TableCell>
                                                 <TableCell>
                                                     <Badge
-                                                        className={technician.is_active
+                                                        className={customer.is_active
                                                             ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-50"
                                                             : "border-red-200 bg-red-100 text-red-500 hover:bg-red-100"}
                                                         variant="outline"
                                                     >
-                                                        <span className={`mr-1 h-1.5 w-1.5 rounded-full ${technician.is_active ? "bg-emerald-500" : "bg-red-400"}`} />
-                                                        {technician.is_active ? "Active" : "Inactive"}
+                                                        <span className={`mr-1 h-1.5 w-1.5 rounded-full ${customer.is_active ? "bg-emerald-500" : "bg-red-400"}`} />
+                                                        {customer.is_active ? "Active" : "Inactive"}
                                                     </Badge>
                                                 </TableCell>
                                                 <TableCell>
@@ -324,16 +335,16 @@ export const TechnicianSection = () => {
                                                         <DropdownMenuContent align="end" className="w-44">
                                                             <DropdownMenuItem
                                                                 className="cursor-pointer text-sky-600 focus:text-sky-600"
-                                                                onClick={() => setEditTechnician(technician)}
+                                                                onClick={() => setEditCustomer(customer)}
                                                             >
                                                                 <PencilIcon className="mr-1.5 h-3.5 w-3.5" />
                                                                 Edit
                                                             </DropdownMenuItem>
                                                             <DropdownMenuSeparator />
-                                                            {technician.is_active ? (
+                                                            {customer.is_active ? (
                                                                 <DropdownMenuItem
                                                                     className="cursor-pointer text-amber-600 focus:text-amber-600"
-                                                                    onClick={() => handleToggleActive(technician)}
+                                                                    onClick={() => handleToggleActive(customer)}
                                                                 >
                                                                     <ToggleLeftIcon className="mr-1.5 h-3.5 w-3.5" />
                                                                     Deactivate
@@ -341,7 +352,7 @@ export const TechnicianSection = () => {
                                                             ) : (
                                                                 <DropdownMenuItem
                                                                     className="cursor-pointer text-emerald-600 focus:text-emerald-600"
-                                                                    onClick={() => handleToggleActive(technician)}
+                                                                    onClick={() => handleToggleActive(customer)}
                                                                 >
                                                                     <ToggleRightIcon className="mr-1.5 h-3.5 w-3.5" />
                                                                     Activate
@@ -350,7 +361,7 @@ export const TechnicianSection = () => {
                                                             <DropdownMenuSeparator />
                                                             <DropdownMenuItem
                                                                 className="cursor-pointer text-red-600 focus:text-red-600"
-                                                                onClick={() => setDeleteTechnician(technician)}
+                                                                onClick={() => setDeleteCustomer(customer)}
                                                             >
                                                                 <Trash2Icon className="mr-1.5 h-3.5 w-3.5" />
                                                                 Delete
@@ -369,26 +380,28 @@ export const TechnicianSection = () => {
             </motion.div>
 
             {/* ── Dialogs ──────────────────────────────────────────────────────── */}
-            <AddTechnicianDialog
-                branches={branches}
+            <AddCustomerDialog
+                customerTypes={customerTypes}
                 open={addOpen}
+                states={states}
                 onOpenChange={setAddOpen}
                 onSuccess={loadData}
             />
-            {editTechnician && (
-                <EditTechnicianDialog
-                    branches={branches}
-                    open={!!editTechnician}
-                    technician={editTechnician}
-                    onOpenChange={(o) => { if (!o) setEditTechnician(null); }}
+            {editCustomer && (
+                <EditCustomerDialog
+                    customer={editCustomer}
+                    customerTypes={customerTypes}
+                    open={!!editCustomer}
+                    states={states}
+                    onOpenChange={(o: boolean) => { if (!o) setEditCustomer(null); }}
                     onSuccess={loadData}
                 />
             )}
-            {deleteTechnician && (
-                <DeleteTechnicianDialog
-                    open={!!deleteTechnician}
-                    technician={deleteTechnician}
-                    onOpenChange={(o) => { if (!o) setDeleteTechnician(null); }}
+            {deleteCustomer && (
+                <DeleteCustomerDialog
+                    customer={deleteCustomer}
+                    open={!!deleteCustomer}
+                    onOpenChange={(o: boolean) => { if (!o) setDeleteCustomer(null); }}
                     onSuccess={loadData}
                 />
             )}

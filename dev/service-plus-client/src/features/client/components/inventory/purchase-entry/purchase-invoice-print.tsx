@@ -63,7 +63,7 @@ export const PurchaseInvoicePrintLayout = ({ invoice, open, onOpenChange }: Prop
     };
 
     const lines = detail?.lines ?? [];
-    const totalTaxable = lines.reduce((s, l) => s + Number(l.aggregate_amount), 0);
+    const totalAggregate = lines.reduce((s, l) => s + Number(l.aggregate_amount), 0);
     const totalCgst    = lines.reduce((s, l) => s + Number(l.cgst_amount), 0);
     const totalSgst    = lines.reduce((s, l) => s + Number(l.sgst_amount), 0);
     const totalIgst    = lines.reduce((s, l) => s + Number(l.igst_amount), 0);
@@ -80,7 +80,7 @@ export const PurchaseInvoicePrintLayout = ({ invoice, open, onOpenChange }: Prop
             */}
             <DialogContent 
                 className="max-w-4xl h-[90vh] flex flex-col p-0 gap-0 !bg-white text-black sm:rounded-md overflow-hidden print:bg-white print:text-black print:shadow-none print:w-full print:max-w-full print:h-auto print:absolute print:inset-0 print:border-none print:rounded-none m-0! print:p-0"
-                hideCloseButton
+                showCloseButton={false}
             >
                 {/* Title for screen readers, hidden visually */}
                 <div className="sr-only">
@@ -142,8 +142,10 @@ export const PurchaseInvoicePrintLayout = ({ invoice, open, onOpenChange }: Prop
                                         <th className="py-2 text-left font-bold">Item & Description</th>
                                         <th className="py-2 text-right font-bold w-20">Qty</th>
                                         <th className="py-2 text-right font-bold w-24">Rate</th>
-                                        <th className="py-2 text-right font-bold w-28">Taxable</th>
-                                        <th className="py-2 text-right font-bold w-24">Tax</th>
+                                        <th className="py-2 text-right font-bold w-28">Aggregate</th>
+                                        <th className="py-2 text-right font-bold w-20">CGST</th>
+                                        <th className="py-2 text-right font-bold w-20">SGST</th>
+                                        <th className="py-2 text-right font-bold w-20">IGST</th>
                                         <th className="py-2 text-right font-bold w-28">Amount</th>
                                     </tr>
                                 </thead>
@@ -158,11 +160,9 @@ export const PurchaseInvoicePrintLayout = ({ invoice, open, onOpenChange }: Prop
                                             <td className="py-3 align-top text-right text-gray-700">{Number(line.quantity).toFixed(2)}</td>
                                             <td className="py-3 align-top text-right text-gray-700">{formatCurrency(line.unit_price)}</td>
                                             <td className="py-3 align-top text-right text-gray-700">{formatCurrency(line.aggregate_amount)}</td>
-                                            <td className="py-3 align-top text-right text-xs text-gray-500">
-                                                <div>CGST: {formatCurrency(line.cgst_amount)}</div>
-                                                <div>SGST: {formatCurrency(line.sgst_amount)}</div>
-                                                {Number(line.igst_amount) > 0 && <div>IGST: {formatCurrency(line.igst_amount)}</div>}
-                                            </td>
+                                            <td className="py-3 align-top text-right text-xs text-gray-500">{formatCurrency(line.cgst_amount)}</td>
+                                            <td className="py-3 align-top text-right text-xs text-gray-500">{formatCurrency(line.sgst_amount)}</td>
+                                            <td className="py-3 align-top text-right text-xs text-gray-500">{formatCurrency(line.igst_amount)}</td>
                                             <td className="py-3 align-top text-right font-semibold text-gray-900">{formatCurrency(line.total_amount)}</td>
                                         </tr>
                                     ))}
@@ -183,8 +183,8 @@ export const PurchaseInvoicePrintLayout = ({ invoice, open, onOpenChange }: Prop
                                     <table className="w-full text-sm">
                                         <tbody>
                                             <tr>
-                                                <td className="py-1.5 text-gray-600">Taxable Amount</td>
-                                                <td className="py-1.5 text-right font-medium text-gray-900">{formatCurrency(totalTaxable)}</td>
+                                                <td className="py-1.5 text-gray-600">Aggregate Amount</td>
+                                                <td className="py-1.5 text-right font-medium text-gray-900">{formatCurrency(totalAggregate)}</td>
                                             </tr>
                                             <tr>
                                                 <td className="py-1.5 text-gray-600">Total CGST</td>

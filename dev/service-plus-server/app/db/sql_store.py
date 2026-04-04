@@ -1717,6 +1717,9 @@ class SqlStore:
             pi.invoice_no,
             pi.invoice_date,
             pi.aggregate_amount,
+            pi.cgst_amount,
+            pi.sgst_amount,
+            pi.igst_amount,
             pi.total_tax,
             pi.total_amount,
             pi.remarks

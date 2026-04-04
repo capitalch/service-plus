@@ -14,21 +14,22 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
+import { MESSAGES } from "@/constants/messages";
 import { SQL_MAP } from "@/constants/sql-map";
 import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectSchema } from "@/store/context-slice";
-import type { PartType } from "@/features/client/types/part";
+import type { BranchType } from "./branch";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type DeletePartDialogPropsType = {
+type DeleteBranchDialogPropsType = {
+    branch: BranchType;
     onOpenChange: (open: boolean) => void;
-    onSuccess:    () => void;
-    open:         boolean;
-    part:         PartType;
+    onSuccess: () => void;
+    open: boolean;
 };
 
 type InUseQueryDataType = {
@@ -37,29 +38,29 @@ type InUseQueryDataType = {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export const DeletePartDialog = ({
+export const DeleteBranchDialog = ({
+    branch,
     onOpenChange,
     onSuccess,
     open,
-    part,
-}: DeletePartDialogPropsType) => {
+}: DeleteBranchDialogPropsType) => {
     const [checkingInUse, setCheckingInUse] = useState(false);
-    const [confirmValue,  setConfirmValue]  = useState("");
-    const [inUse,         setInUse]         = useState<boolean | null>(null);
-    const [submitting,    setSubmitting]    = useState(false);
+    const [confirmName, setConfirmName] = useState("");
+    const [inUse, setInUse] = useState<boolean | null>(null);
+    const [submitting, setSubmitting] = useState(false);
 
-    const dbName  = useAppSelector(selectDbName);
-    const schema_ = useAppSelector(selectSchema);
+    const dbName = useAppSelector(selectDbName);
+    const schema = useAppSelector(selectSchema);
 
+    // On open: reset state, check in-use (unless head office)
     useEffect(() => {
         if (!open) {
             setCheckingInUse(false);
-            setConfirmValue("");
+            setConfirmName("");
             setInUse(null);
-            setSubmitting(false);
             return;
         }
-        if (!dbName || !schema_) return;
+        if (branch.is_head_office || !dbName || !schema) return;
         setCheckingInUse(true);
         apolloClient
             .query<InUseQueryDataType>({
@@ -67,10 +68,10 @@ export const DeletePartDialog = ({
                 query: GRAPHQL_MAP.genericQuery,
                 variables: {
                     db_name: dbName,
-                    schema:  schema_,
+                    schema,
                     value: graphQlUtils.buildGenericQueryValue({
-                        sqlArgs: { id: part.id },
-                        sqlId:   SQL_MAP.CHECK_PART_IN_USE,
+                        sqlArgs: { id: branch.id },
+                        sqlId: SQL_MAP.CHECK_BRANCH_IN_USE,
                     }),
                 },
             })
@@ -79,29 +80,35 @@ export const DeletePartDialog = ({
             .finally(() => setCheckingInUse(false));
     }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    const deleteEnabled = inUse === false && !checkingInUse && confirmValue.toLowerCase() === part.part_code.toLowerCase();
+    const isBlocked = branch.is_head_office || inUse === true;
+    const blockMessage = branch.is_head_office
+        ? MESSAGES.ERROR_BRANCH_DELETE_HEAD_OFFICE
+        : inUse === true
+            ? MESSAGES.ERROR_BRANCH_DELETE_IN_USE
+            : null;
+    const deleteEnabled = !isBlocked && !checkingInUse && confirmName.toLowerCase() === branch.name.toLowerCase();
 
     async function handleDelete() {
-        if (!dbName || !schema_) return;
+        if (!dbName || !schema) return;
         setSubmitting(true);
         try {
             await apolloClient.mutate({
                 mutation: GRAPHQL_MAP.genericUpdate,
                 variables: {
                     db_name: dbName,
-                    schema:  schema_,
+                    schema,
                     value: graphQlUtils.buildGenericUpdateValue({
-                        deletedIds: [part.id],
-                        tableName:  "spare_part_master",
-                        xData:      {},
+                        deletedIds: [branch.id],
+                        tableName: "branch",
+                        xData: {},
                     }),
                 },
             });
-            toast.success("Part deleted successfully.");
+            toast.success(MESSAGES.SUCCESS_BRANCH_DELETED);
             onSuccess();
             onOpenChange(false);
         } catch {
-            toast.error("Failed to delete part. Please try again.");
+            toast.error(MESSAGES.ERROR_BRANCH_DELETE_FAILED);
         } finally {
             setSubmitting(false);
         }
@@ -111,39 +118,38 @@ export const DeletePartDialog = ({
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-md">
                 <DialogHeader>
-                    <DialogTitle>Delete Part</DialogTitle>
+                    <DialogTitle>Delete Branch</DialogTitle>
                     <DialogDescription>
                         Permanently delete{" "}
-                        <span className="font-semibold text-slate-800">{part.part_name}</span>?
+                        <span className="font-semibold text-slate-800">{branch.name}</span>?
                     </DialogDescription>
                 </DialogHeader>
 
                 <div className="flex flex-col gap-4">
                     <p className="text-sm text-slate-600">This action cannot be undone.</p>
 
-                    {inUse === true && (
+                    {/* Blocked warning */}
+                    {(branch.is_head_office || inUse === true) && blockMessage && (
                         <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5">
                             <AlertTriangleIcon className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
-                            <p className="text-sm text-amber-800">
-                                This part cannot be deleted as it is referenced by existing jobs, invoices, or stock records.
-                            </p>
+                            <p className="text-sm text-amber-800">{blockMessage}</p>
                         </div>
                     )}
 
-                    {inUse !== true && (
+                    {/* Confirm input — shown only when not blocked */}
+                    {!branch.is_head_office && inUse !== true && (
                         <div className="flex flex-col gap-1.5">
-                            <Label htmlFor="confirm_part_code">
+                            <Label htmlFor="confirm_branch_name">
                                 Type{" "}
-                                <span className="font-semibold font-mono text-slate-800">{part.part_code}</span>{" "}
+                                <span className="font-semibold text-slate-800">{branch.name}</span>{" "}
                                 to confirm
                             </Label>
                             <Input
                                 autoComplete="off"
-                                className="font-mono uppercase"
-                                id="confirm_part_code"
-                                placeholder={part.part_code}
-                                value={confirmValue}
-                                onChange={(e) => setConfirmValue(e.target.value)}
+                                id="confirm_branch_name"
+                                placeholder={branch.name}
+                                value={confirmName}
+                                onChange={(e) => setConfirmName(e.target.value)}
                             />
                         </div>
                     )}

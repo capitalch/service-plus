@@ -54,15 +54,15 @@ type GenericQueryDataType<T> = { genericQuery: T[] | null };
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const rowVariants = {
-    hidden:  { opacity: 0, y: 6 },
+    hidden: { opacity: 0, y: 6 },
     visible: (i: number) => ({
-        opacity:    1,
+        opacity: 1,
         transition: { delay: i * 0.04, duration: 0.22, ease: "easeOut" as const },
-        y:          0,
+        y: 0,
     }),
 };
 
-const thClass     = "text-xs font-semibold uppercase tracking-wide text-[var(--cl-text-muted)]";
+const thClass = "text-xs font-semibold uppercase tracking-wide text-[var(--cl-text-muted)]";
 const thSortClass = `${thClass} cursor-pointer select-none hover:text-[var(--cl-text)]`;
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -71,15 +71,15 @@ export const VendorSection = () => {
     const dbName = useAppSelector(selectDbName);
     const schema = useAppSelector(selectSchema);
 
-    const [addOpen,       setAddOpen]       = useState(false);
-    const [deleteVendor,  setDeleteVendor]  = useState<VendorType | null>(null);
-    const [editVendor,    setEditVendor]    = useState<VendorType | null>(null);
-    const [loading,       setLoading]       = useState(false);
-    const [search,        setSearch]        = useState("");
-    const [sortCol,       setSortCol]       = useState<string | null>(null);
-    const [sortDir,       setSortDir]       = useState<"asc" | "desc">("asc");
-    const [states,        setStates]        = useState<StateOption[]>([]);
-    const [vendors,       setVendors]       = useState<VendorType[]>([]);
+    const [addOpen, setAddOpen] = useState(false);
+    const [deleteVendor, setDeleteVendor] = useState<VendorType | null>(null);
+    const [editVendor, setEditVendor] = useState<VendorType | null>(null);
+    const [loading, setLoading] = useState(false);
+    const [search, setSearch] = useState("");
+    const [sortCol, setSortCol] = useState<string | null>(null);
+    const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+    const [states, setStates] = useState<StateOption[]>([]);
+    const [vendors, setVendors] = useState<VendorType[]>([]);
 
     const loadData = useCallback(async () => {
         if (!dbName || !schema) return;
@@ -146,7 +146,7 @@ export const VendorSection = () => {
     function SortIcon({ col }: { col: string }) {
         if (sortCol !== col) return <ArrowUpDownIcon className="ml-1 inline h-3 w-3 opacity-40" />;
         return sortDir === "asc"
-            ? <ArrowUpIcon   className="ml-1 inline h-3 w-3" />
+            ? <ArrowUpIcon className="ml-1 inline h-3 w-3" />
             : <ArrowDownIcon className="ml-1 inline h-3 w-3" />;
     }
 

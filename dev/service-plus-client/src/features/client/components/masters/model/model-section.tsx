@@ -34,17 +34,16 @@ import {
     TableRow,
 } from "@/components/ui/table";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
-import { MESSAGES } from "@/constants/messages";
 import { SQL_MAP } from "@/constants/sql-map";
 import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectSchema } from "@/store/context-slice";
-import { AddCustomerDialog } from "./add-customer-dialog";
-import { DeleteCustomerDialog } from "./delete-customer-dialog";
-import { EditCustomerDialog } from "./edit-customer-dialog";
-import type { CustomerType, CustomerTypeOption, StateOption } from "@/features/client/types/customer";
+import { AddModelDialog } from "./add-model-dialog";
+import { DeleteModelDialog } from "./delete-model-dialog";
+import { EditModelDialog } from "./edit-model-dialog";
+import type { ModelType, BrandOption, ProductOption } from "@/features/client/types/model";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -53,98 +52,96 @@ type GenericQueryDataType<T> = { genericQuery: T[] | null };
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const rowVariants = {
-    hidden:  { opacity: 0, y: 6 },
+    hidden: { opacity: 0, y: 6 },
     visible: (i: number) => ({
-        opacity:    1,
+        opacity: 1,
         transition: { delay: i * 0.04, duration: 0.22, ease: "easeOut" as const },
-        y:          0,
+        y: 0,
     }),
 };
 
-const thClass     = "text-xs font-semibold uppercase tracking-wide text-[var(--cl-text-muted)]";
+const thClass = "text-xs font-semibold uppercase tracking-wide text-[var(--cl-text-muted)]";
 const thSortClass = `${thClass} cursor-pointer select-none hover:text-[var(--cl-text)]`;
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export const CustomerSection = () => {
+export const ModelSection = () => {
     const dbName = useAppSelector(selectDbName);
-    const schema = useAppSelector(selectSchema);
+    const schema_ = useAppSelector(selectSchema);
 
-    const [addOpen,         setAddOpen]         = useState(false);
-    const [customers,       setCustomers]       = useState<CustomerType[]>([]);
-    const [customerTypes,   setCustomerTypes]   = useState<CustomerTypeOption[]>([]);
-    const [deleteCustomer,  setDeleteCustomer]  = useState<CustomerType | null>(null);
-    const [editCustomer,    setEditCustomer]    = useState<CustomerType | null>(null);
-    const [loading,         setLoading]         = useState(false);
-    const [search,          setSearch]          = useState("");
-    const [sortCol,         setSortCol]         = useState<string | null>(null);
-    const [sortDir,         setSortDir]         = useState<"asc" | "desc">("asc");
-    const [states,          setStates]          = useState<StateOption[]>([]);
+    const [addOpen, setAddOpen] = useState(false);
+    const [brands, setBrands] = useState<BrandOption[]>([]);
+    const [deleteModel, setDeleteModel] = useState<ModelType | null>(null);
+    const [editModel, setEditModel] = useState<ModelType | null>(null);
+    const [loading, setLoading] = useState(false);
+    const [models, setModels] = useState<ModelType[]>([]);
+    const [products, setProducts] = useState<ProductOption[]>([]);
+    const [search, setSearch] = useState("");
+    const [sortCol, setSortCol] = useState<string | null>(null);
+    const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
     const loadData = useCallback(async () => {
-        if (!dbName || !schema) return;
+        if (!dbName || !schema_) return;
         setLoading(true);
         try {
-            const [customersRes, typesRes, statesRes] = await Promise.all([
-                apolloClient.query<GenericQueryDataType<CustomerType>>({
+            const [modelsRes, brandsRes, productsRes] = await Promise.all([
+                apolloClient.query<GenericQueryDataType<ModelType>>({
                     fetchPolicy: "network-only",
                     query: GRAPHQL_MAP.genericQuery,
                     variables: {
                         db_name: dbName,
-                        schema,
-                        value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_ALL_CUSTOMERS }),
+                        schema: schema_,
+                        value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_ALL_MODELS }),
                     },
                 }),
-                apolloClient.query<GenericQueryDataType<CustomerTypeOption>>({
+                apolloClient.query<GenericQueryDataType<BrandOption>>({
                     fetchPolicy: "network-only",
                     query: GRAPHQL_MAP.genericQuery,
                     variables: {
                         db_name: dbName,
-                        schema,
-                        value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_ALL_CUSTOMER_TYPES }),
+                        schema: schema_,
+                        value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_ALL_BRANDS }),
                     },
                 }),
-                apolloClient.query<GenericQueryDataType<StateOption>>({
+                apolloClient.query<GenericQueryDataType<ProductOption>>({
                     fetchPolicy: "network-only",
                     query: GRAPHQL_MAP.genericQuery,
                     variables: {
                         db_name: dbName,
-                        schema,
-                        value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_ALL_STATES }),
+                        schema: schema_,
+                        value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_ALL_PRODUCTS }),
                     },
                 }),
             ]);
-            setCustomers(customersRes.data?.genericQuery ?? []);
-            setCustomerTypes(typesRes.data?.genericQuery ?? []);
-            setStates(statesRes.data?.genericQuery ?? []);
+            setModels(modelsRes.data?.genericQuery ?? []);
+            setBrands(brandsRes.data?.genericQuery ?? []);
+            setProducts(productsRes.data?.genericQuery ?? []);
         } catch {
-            toast.error(MESSAGES.ERROR_CUSTOMER_LOAD_FAILED);
+            toast.error("Failed to load models. Please try again.");
         } finally {
             setLoading(false);
         }
-    }, [dbName, schema]);
+    }, [dbName, schema_]);
 
-    useEffect(() => {
-        loadData();
-    }, [loadData]);
+    useEffect(() => { loadData(); }, [loadData]);
 
-    async function handleToggleActive(customer: CustomerType) {
-        if (!dbName || !schema) return;
+    async function handleToggleActive(model: ModelType) {
+        if (!dbName || !schema_) return;
         try {
             await apolloClient.mutate({
                 mutation: GRAPHQL_MAP.genericUpdate,
                 variables: {
                     db_name: dbName,
-                    schema,
+                    schema: schema_,
                     value: graphQlUtils.buildGenericUpdateValue({
-                        tableName: "customer_contact",
-                        xData: { id: customer.id, is_active: !customer.is_active },
+                        tableName: "product_brand_model",
+                        xData: { id: model.id, is_active: !model.is_active },
                     }),
                 },
             });
             await loadData();
         } catch {
-            toast.error(MESSAGES.ERROR_CUSTOMER_UPDATE_FAILED);
+            toast.error("Failed to update model. Please try again.");
         }
     }
 
@@ -156,20 +153,18 @@ export const CustomerSection = () => {
     function SortIcon({ col }: { col: string }) {
         if (sortCol !== col) return <ArrowUpDownIcon className="ml-1 inline h-3 w-3 opacity-40" />;
         return sortDir === "asc"
-            ? <ArrowUpIcon   className="ml-1 inline h-3 w-3" />
+            ? <ArrowUpIcon className="ml-1 inline h-3 w-3" />
             : <ArrowDownIcon className="ml-1 inline h-3 w-3" />;
     }
 
-    const displayCustomers = useMemo(() => {
-        let rows = customers;
+    const displayModels = useMemo(() => {
+        let rows = models;
         if (search.trim()) {
             const q = search.toLowerCase();
             rows = rows.filter(r =>
-                (r.full_name?.toLowerCase().includes(q) ?? false) ||
-                r.mobile.toLowerCase().includes(q) ||
-                (r.customer_type_name?.toLowerCase().includes(q) ?? false) ||
-                (r.state_name?.toLowerCase().includes(q) ?? false) ||
-                (r.city?.toLowerCase().includes(q) ?? false)
+                (r.product_name?.toLowerCase().includes(q) ?? false) ||
+                (r.brand_name?.toLowerCase().includes(q) ?? false) ||
+                r.model_name.toLowerCase().includes(q)
             );
         }
         if (sortCol) {
@@ -183,9 +178,9 @@ export const CustomerSection = () => {
             });
         }
         return rows;
-    }, [customers, search, sortCol, sortDir]);
+    }, [models, search, sortCol, sortDir]);
 
-    if (!schema) {
+    if (!schema_) {
         return (
             <div className="flex items-center justify-center rounded-lg border border-[var(--cl-border)] bg-[var(--cl-surface-2)] p-20">
                 <div className="text-center">
@@ -206,12 +201,11 @@ export const CustomerSection = () => {
                 initial={{ opacity: 0 }}
                 transition={{ duration: 0.25 }}
             >
-                {/* Page header */}
                 <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
-                        <h1 className="text-xl font-bold text-[var(--cl-text)]">Customers</h1>
+                        <h1 className="text-xl font-bold text-[var(--cl-text)]">Models</h1>
                         <p className="mt-1 text-sm text-[var(--cl-text-muted)]">
-                            Manage customers for this business unit.
+                            Manage product-brand-model combinations.
                         </p>
                     </div>
                     <div className="flex items-center gap-2">
@@ -231,7 +225,7 @@ export const CustomerSection = () => {
                             onClick={() => setAddOpen(true)}
                         >
                             <PlusIcon className="mr-1.5 h-3.5 w-3.5" />
-                            Add Customer
+                            Add Model
                         </Button>
                     </div>
                 </div>
@@ -243,28 +237,27 @@ export const CustomerSection = () => {
                         <Input
                             className="h-8 pl-8 text-sm"
                             disabled={loading}
-                            placeholder="Search customers…"
+                            placeholder="Search models…"
                             value={search}
                             onChange={e => setSearch(e.target.value)}
                         />
                     </div>
-                    {!loading && customers.length > 0 && (
+                    {!loading && models.length > 0 && (
                         <p className="shrink-0 text-xs text-[var(--cl-text-muted)]">
-                            {displayCustomers.length} of {customers.length}
+                            {displayModels.length} of {models.length}
                         </p>
                     )}
                 </div>
 
-                {/* Table */}
-                {loading && customers.length === 0 ? (
+                {loading && models.length === 0 ? (
                     <div className="flex flex-col gap-2">
                         {Array.from({ length: 4 }).map((_, i) => (
                             <div key={i} className="h-12 animate-pulse rounded-lg bg-[var(--cl-surface-2)]" />
                         ))}
                     </div>
-                ) : customers.length === 0 ? (
+                ) : models.length === 0 ? (
                     <div className="rounded-xl border border-[var(--cl-border)] bg-[var(--cl-surface-2)] px-6 py-12 text-center text-sm text-[var(--cl-text-muted)]">
-                        No customers found. Click &quot;Add Customer&quot; to create one.
+                        No models found. Click &quot;Add Model&quot; to create one.
                     </div>
                 ) : (
                     <div
@@ -275,49 +268,45 @@ export const CustomerSection = () => {
                                 <TableHeader>
                                     <TableRow className="sticky top-0 z-10 bg-[var(--cl-surface-3)] hover:bg-[var(--cl-surface-3)]">
                                         <TableHead className={`w-8 text-center ${thClass}`}>#</TableHead>
-                                        <TableHead className={thSortClass} onClick={() => handleSort("full_name")}>Name<SortIcon col="full_name" /></TableHead>
-                                        <TableHead className={thSortClass} onClick={() => handleSort("mobile")}>Mobile<SortIcon col="mobile" /></TableHead>
-                                        <TableHead className={thSortClass} onClick={() => handleSort("customer_type_name")}>Type<SortIcon col="customer_type_name" /></TableHead>
-                                        <TableHead className={thSortClass} onClick={() => handleSort("state_name")}>State<SortIcon col="state_name" /></TableHead>
-                                        <TableHead className={thSortClass} onClick={() => handleSort("city")}>City<SortIcon col="city" /></TableHead>
+                                        <TableHead className={thSortClass} onClick={() => handleSort("product_name")}>Product<SortIcon col="product_name" /></TableHead>
+                                        <TableHead className={thSortClass} onClick={() => handleSort("brand_name")}>Brand<SortIcon col="brand_name" /></TableHead>
+                                        <TableHead className={thSortClass} onClick={() => handleSort("model_name")}>Model Name<SortIcon col="model_name" /></TableHead>
+                                        <TableHead className={thSortClass} onClick={() => handleSort("launch_year")}>Year<SortIcon col="launch_year" /></TableHead>
                                         <TableHead className={thClass}>Status</TableHead>
                                         <TableHead className={thClass}>Actions</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {displayCustomers.length === 0 ? (
+                                    {displayModels.length === 0 ? (
                                         <tr>
                                             <td colSpan={99} className="px-6 py-10 text-center text-sm text-[var(--cl-text-muted)]">
                                                 No results match &ldquo;{search}&rdquo;.
                                             </td>
                                         </tr>
                                     ) : (
-                                        displayCustomers.map((customer, idx) => (
+                                        displayModels.map((model, idx) => (
                                             <motion.tr
                                                 animate="visible"
                                                 className="border-b border-[var(--cl-border)] transition-colors last:border-b-0 hover:bg-[var(--cl-surface-3)]"
                                                 custom={idx}
                                                 initial="hidden"
-                                                key={customer.id}
+                                                key={model.id}
                                                 variants={rowVariants}
                                             >
                                                 <TableCell className="text-center text-xs text-[var(--cl-text-muted)]">{idx + 1}</TableCell>
-                                                <TableCell className="font-medium text-[var(--cl-text)]">
-                                                    {customer.full_name ?? <span className="text-[var(--cl-text-muted)]">—</span>}
-                                                </TableCell>
-                                                <TableCell className="font-mono text-sm text-[var(--cl-text)]">{customer.mobile}</TableCell>
-                                                <TableCell className="text-sm text-[var(--cl-text-muted)]">{customer.customer_type_name ?? "—"}</TableCell>
-                                                <TableCell className="text-sm text-[var(--cl-text-muted)]">{customer.state_name ?? "—"}</TableCell>
-                                                <TableCell className="text-sm text-[var(--cl-text-muted)]">{customer.city ?? "—"}</TableCell>
+                                                <TableCell className="font-mono text-sm font-medium text-[var(--cl-text)]">{model.product_name ?? "—"}</TableCell>
+                                                <TableCell className="font-mono text-sm text-[var(--cl-text-muted)]">{model.brand_name ?? "—"}</TableCell>
+                                                <TableCell className="font-medium text-[var(--cl-text)]">{model.model_name}</TableCell>
+                                                <TableCell className="text-sm text-[var(--cl-text-muted)]">{model.launch_year ?? "—"}</TableCell>
                                                 <TableCell>
                                                     <Badge
-                                                        className={customer.is_active
+                                                        className={model.is_active
                                                             ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-50"
                                                             : "border-red-200 bg-red-100 text-red-500 hover:bg-red-100"}
                                                         variant="outline"
                                                     >
-                                                        <span className={`mr-1 h-1.5 w-1.5 rounded-full ${customer.is_active ? "bg-emerald-500" : "bg-red-400"}`} />
-                                                        {customer.is_active ? "Active" : "Inactive"}
+                                                        <span className={`mr-1 h-1.5 w-1.5 rounded-full ${model.is_active ? "bg-emerald-500" : "bg-red-400"}`} />
+                                                        {model.is_active ? "Active" : "Inactive"}
                                                     </Badge>
                                                 </TableCell>
                                                 <TableCell>
@@ -335,16 +324,16 @@ export const CustomerSection = () => {
                                                         <DropdownMenuContent align="end" className="w-44">
                                                             <DropdownMenuItem
                                                                 className="cursor-pointer text-sky-600 focus:text-sky-600"
-                                                                onClick={() => setEditCustomer(customer)}
+                                                                onClick={() => setEditModel(model)}
                                                             >
                                                                 <PencilIcon className="mr-1.5 h-3.5 w-3.5" />
                                                                 Edit
                                                             </DropdownMenuItem>
                                                             <DropdownMenuSeparator />
-                                                            {customer.is_active ? (
+                                                            {model.is_active ? (
                                                                 <DropdownMenuItem
                                                                     className="cursor-pointer text-amber-600 focus:text-amber-600"
-                                                                    onClick={() => handleToggleActive(customer)}
+                                                                    onClick={() => handleToggleActive(model)}
                                                                 >
                                                                     <ToggleLeftIcon className="mr-1.5 h-3.5 w-3.5" />
                                                                     Deactivate
@@ -352,7 +341,7 @@ export const CustomerSection = () => {
                                                             ) : (
                                                                 <DropdownMenuItem
                                                                     className="cursor-pointer text-emerald-600 focus:text-emerald-600"
-                                                                    onClick={() => handleToggleActive(customer)}
+                                                                    onClick={() => handleToggleActive(model)}
                                                                 >
                                                                     <ToggleRightIcon className="mr-1.5 h-3.5 w-3.5" />
                                                                     Activate
@@ -361,7 +350,7 @@ export const CustomerSection = () => {
                                                             <DropdownMenuSeparator />
                                                             <DropdownMenuItem
                                                                 className="cursor-pointer text-red-600 focus:text-red-600"
-                                                                onClick={() => setDeleteCustomer(customer)}
+                                                                onClick={() => setDeleteModel(model)}
                                                             >
                                                                 <Trash2Icon className="mr-1.5 h-3.5 w-3.5" />
                                                                 Delete
@@ -379,29 +368,28 @@ export const CustomerSection = () => {
                 )}
             </motion.div>
 
-            {/* ── Dialogs ──────────────────────────────────────────────────────── */}
-            <AddCustomerDialog
-                customerTypes={customerTypes}
+            <AddModelDialog
+                brands={brands}
                 open={addOpen}
-                states={states}
+                products={products}
                 onOpenChange={setAddOpen}
                 onSuccess={loadData}
             />
-            {editCustomer && (
-                <EditCustomerDialog
-                    customer={editCustomer}
-                    customerTypes={customerTypes}
-                    open={!!editCustomer}
-                    states={states}
-                    onOpenChange={(o) => { if (!o) setEditCustomer(null); }}
+            {editModel && (
+                <EditModelDialog
+                    brands={brands}
+                    model={editModel}
+                    open={!!editModel}
+                    products={products}
+                    onOpenChange={(o) => { if (!o) setEditModel(null); }}
                     onSuccess={loadData}
                 />
             )}
-            {deleteCustomer && (
-                <DeleteCustomerDialog
-                    customer={deleteCustomer}
-                    open={!!deleteCustomer}
-                    onOpenChange={(o) => { if (!o) setDeleteCustomer(null); }}
+            {deleteModel && (
+                <DeleteModelDialog
+                    model={deleteModel}
+                    open={!!deleteModel}
+                    onOpenChange={(o) => { if (!o) setDeleteModel(null); }}
                     onSuccess={loadData}
                 />
             )}

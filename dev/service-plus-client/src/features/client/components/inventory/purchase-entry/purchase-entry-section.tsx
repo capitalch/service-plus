@@ -325,19 +325,27 @@ export const PurchaseEntrySection = () => {
                         </Select>
                     </div>
 
-                    {/* Mode Toggle Group - Ultra Compact */}
-                    <div className="flex items-center rounded-md border border-[var(--cl-border)] bg-[var(--cl-surface-2)] p-0.5">
+                    {/* Mode Toggle Group - Enhanced Prominence */}
+                    <div className="flex items-center rounded-lg border border-[var(--cl-border)] bg-[var(--cl-surface-2)] p-1 shadow-inner">
                         <Button
-                            className={`h-7 gap-1 px-2.5 text-xs ${mode === 'new' ? 'bg-[var(--cl-surface)] font-semibold text-emerald-600 shadow-sm' : 'text-[var(--cl-text-muted)] hover:text-[var(--cl-text)]'}`}
+                            className={`h-9 gap-1.5 px-4 text-sm transition-all duration-200 ${
+                                mode === 'new' 
+                                ? 'bg-emerald-600/10 text-emerald-600 font-bold border border-emerald-600/20 shadow-sm' 
+                                : 'text-[var(--cl-text-muted)] hover:text-[var(--cl-text)] hover:bg-[var(--cl-surface)]'
+                            }`}
                             size="sm"
                             variant="ghost"
                             onClick={() => setMode('new')}
                         >
-                            <PlusCircle className="h-3.5 w-3.5" />
+                            <PlusCircle className={`h-4 w-4 ${mode === 'new' ? 'stroke-[2.5px]' : ''}`} />
                             New
                         </Button>
                         <Button
-                            className={`h-7 gap-1 px-2.5 text-xs ${mode === 'view' ? 'bg-[var(--cl-surface)] font-semibold text-sky-600 shadow-sm' : 'text-[var(--cl-text-muted)] hover:text-[var(--cl-text)]'}`}
+                            className={`h-9 gap-1.5 px-4 text-sm transition-all duration-200 ${
+                                mode === 'view' 
+                                ? 'bg-sky-600/10 text-sky-600 font-bold border border-sky-600/20 shadow-sm' 
+                                : 'text-[var(--cl-text-muted)] hover:text-[var(--cl-text)] hover:bg-[var(--cl-surface)]'
+                            }`}
                             size="sm"
                             variant="ghost"
                             onClick={() => {
@@ -345,7 +353,7 @@ export const PurchaseEntrySection = () => {
                                 if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, page);
                             }}
                         >
-                            <Eye className="h-3.5 w-3.5" />
+                            <Eye className={`h-4 w-4 ${mode === 'view' ? 'stroke-[2.5px]' : ''}`} />
                             View
                         </Button>
                     </div>
@@ -458,8 +466,10 @@ export const PurchaseEntrySection = () => {
                                             <th className={thClass}>Date</th>
                                             <th className={thClass}>Invoice No</th>
                                             <th className={thClass}>Supplier</th>
-                                            <th className={`${thClass} text-right`}>Taxable</th>
-                                            <th className={`${thClass} text-right`}>Tax</th>
+                                            <th className={`${thClass} text-right`}>Aggregate</th>
+                                            <th className={`${thClass} text-right`}>CGST</th>
+                                            <th className={`${thClass} text-right`}>SGST</th>
+                                            <th className={`${thClass} text-right`}>IGST</th>
                                             <th className={`${thClass} text-right`}>Total</th>
                                             <th className={thClass}>Actions</th>
                                         </tr>
@@ -479,11 +489,17 @@ export const PurchaseEntrySection = () => {
                                                 <td className={tdClass} style={{ width: "25%" }}>
                                                     {inv.supplier_name}
                                                 </td>
-                                                <td className={`${tdClass} text-right`} style={{ width: "12%" }}>
+                                                <td className={`${tdClass} text-right`} style={{ width: "10%" }}>
                                                     {formatCurrency(inv.aggregate_amount)}
                                                 </td>
-                                                <td className={`${tdClass} text-right`} style={{ width: "10%" }}>
-                                                    {formatCurrency(inv.total_tax)}
+                                                <td className={`${tdClass} text-right`} style={{ width: "8%" }}>
+                                                    {formatCurrency(inv.cgst_amount)}
+                                                </td>
+                                                <td className={`${tdClass} text-right`} style={{ width: "8%" }}>
+                                                    {formatCurrency(inv.sgst_amount)}
+                                                </td>
+                                                <td className={`${tdClass} text-right`} style={{ width: "8%" }}>
+                                                    {formatCurrency(inv.igst_amount)}
                                                 </td>
                                                 <td className={`${tdClass} text-right font-medium text-[var(--cl-accent)]`} style={{ width: "12%" }}>
                                                     {formatCurrency(inv.total_amount)}

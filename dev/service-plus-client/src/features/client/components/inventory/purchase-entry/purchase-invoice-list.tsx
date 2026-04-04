@@ -274,8 +274,10 @@ export const PurchaseInvoiceList = ({
                                     <th className={thClass}>Date</th>
                                     <th className={thClass}>Invoice No</th>
                                     <th className={thClass}>Supplier</th>
-                                    <th className={`${thClass} text-right`}>Taxable</th>
-                                    <th className={`${thClass} text-right`}>Tax</th>
+                                    <th className={`${thClass} text-right`}>Aggregate</th>
+                                    <th className={`${thClass} text-right`}>CGST</th>
+                                    <th className={`${thClass} text-right`}>SGST</th>
+                                    <th className={`${thClass} text-right`}>IGST</th>
                                     <th className={`${thClass} text-right`}>Total</th>
                                     <th className={thClass}>Actions</th>
                                 </tr>
@@ -295,11 +297,17 @@ export const PurchaseInvoiceList = ({
                                         <td className={tdClass} style={{ width: "25%" }}>
                                             {inv.supplier_name}
                                         </td>
-                                        <td className={`${tdClass} text-right`} style={{ width: "12%" }}>
+                                        <td className={`${tdClass} text-right`} style={{ width: "10%" }}>
                                             {formatCurrency(inv.aggregate_amount)}
                                         </td>
-                                        <td className={`${tdClass} text-right`} style={{ width: "10%" }}>
-                                            {formatCurrency(inv.total_tax)}
+                                        <td className={`${tdClass} text-right`} style={{ width: "8%" }}>
+                                            {formatCurrency(inv.cgst_amount)}
+                                        </td>
+                                        <td className={`${tdClass} text-right`} style={{ width: "8%" }}>
+                                            {formatCurrency(inv.sgst_amount)}
+                                        </td>
+                                        <td className={`${tdClass} text-right`} style={{ width: "8%" }}>
+                                            {formatCurrency(inv.igst_amount)}
                                         </td>
                                         <td className={`${tdClass} text-right font-medium text-[var(--cl-accent)]`} style={{ width: "12%" }}>
                                             {formatCurrency(inv.total_amount)}
