@@ -1,8 +1,9 @@
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
-import { Loader2, Plus, Search, X, PlusCircle, XCircle, CheckCircle2, Pencil } from "lucide-react";
+import { Loader2, Plus, Search, X, PlusCircle, XCircle, CheckCircle2, Pencil, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -43,6 +44,9 @@ type PartRow = {
 };
 
 type GenericQueryData<T> = { genericQuery: T[] | null };
+type CountRowType = { total: number };
+
+const PART_PICK_PAGE_SIZE = 50;
 
 type Props = {
     branchId: number | null;
@@ -148,6 +152,8 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
     const [partSearchMode,   setPartSearchMode]   = useState<"code" | "keyword">("code");
     const [partResults,      setPartResults]      = useState<PartRow[]>([]);
     const [partLoading,      setPartLoading]      = useState(false);
+    const [partPage,         setPartPage]         = useState(1);
+    const [partTotal,        setPartTotal]        = useState(0);
 
     // Submit
     const [submitting, setSubmitting] = useState(false);
@@ -212,34 +218,50 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
         const activeQuery = partSearchMode === "code" ? partCodeQuery : partKeywordQuery;
         if (!activeQuery.trim()) {
             setPartResults([]);
+            setPartTotal(0);
             return;
         }
         partDebounceRef.current = setTimeout(async () => {
             setPartLoading(true);
             try {
-                const sqlId = partSearchMode === "code"
-                    ? SQL_MAP.GET_PARTS_BY_CODE_PREFIX
-                    : SQL_MAP.GET_PARTS_BY_KEYWORD;
-                const res = await apolloClient.query<GenericQueryData<PartRow>>({
-                    fetchPolicy: "network-only",
-                    query: GRAPHQL_MAP.genericQuery,
-                    variables: {
-                        db_name: dbName,
-                        schema,
-                        value: graphQlUtils.buildGenericQueryValue({
-                            sqlId,
-                            sqlArgs: { search: activeQuery.trim(), limit: 20, offset: 0 },
-                        }),
-                    },
-                });
-                setPartResults(res.data?.genericQuery ?? []);
+                const sqlId      = partSearchMode === "code" ? SQL_MAP.GET_PARTS_BY_CODE_PREFIX       : SQL_MAP.GET_PARTS_BY_KEYWORD;
+                const sqlCountId = partSearchMode === "code" ? SQL_MAP.GET_PARTS_BY_CODE_PREFIX_COUNT : SQL_MAP.GET_PARTS_BY_KEYWORD_COUNT;
+                const offset     = (partPage - 1) * PART_PICK_PAGE_SIZE;
+                const [dataRes, countRes] = await Promise.all([
+                    apolloClient.query<GenericQueryData<PartRow>>({
+                        fetchPolicy: "network-only",
+                        query: GRAPHQL_MAP.genericQuery,
+                        variables: {
+                            db_name: dbName,
+                            schema,
+                            value: graphQlUtils.buildGenericQueryValue({
+                                sqlId,
+                                sqlArgs: { search: activeQuery.trim(), limit: PART_PICK_PAGE_SIZE, offset },
+                            }),
+                        },
+                    }),
+                    apolloClient.query<GenericQueryData<CountRowType>>({
+                        fetchPolicy: "network-only",
+                        query: GRAPHQL_MAP.genericQuery,
+                        variables: {
+                            db_name: dbName,
+                            schema,
+                            value: graphQlUtils.buildGenericQueryValue({
+                                sqlId: sqlCountId,
+                                sqlArgs: { search: activeQuery.trim() },
+                            }),
+                        },
+                    }),
+                ]);
+                setPartResults(dataRes.data?.genericQuery ?? []);
+                setPartTotal(countRes.data?.genericQuery?.[0]?.total ?? 0);
             } catch {
                 // silent
             } finally {
                 setPartLoading(false);
             }
         }, 1200);
-    }, [partCodeQuery, partKeywordQuery, partSearchMode, partPickOpen, dbName, schema]);
+    }, [partCodeQuery, partKeywordQuery, partSearchMode, partPickOpen, partPage, dbName, schema]);
 
     // Typed search for part code (on blur or enter)
     const handleTypedPartSearch = async (idx: number, code: string, brandId?: number | null, focusQtyOnSuccess = false) => {
@@ -274,6 +296,8 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
                 setPartKeywordQuery("");
                 setPartSearchMode("code");
                 setPartResults(results);
+                setPartTotal(results.length);
+                setPartPage(1);
                 setPartPickOpen(true);
                 // Validation "fails" to be unique -> return focus
                 partInputRefs.current[idx]?.focus();
@@ -1075,17 +1099,17 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
                         open={partPickOpen}
                         onOpenChange={open => {
                             if (!open) {
-                                setPartPickOpen(false); setPartCodeQuery(""); setPartKeywordQuery(""); setPartResults([]); setPartSearchMode("code");
+                                setPartPickOpen(false); setPartCodeQuery(""); setPartKeywordQuery(""); setPartResults([]); setPartSearchMode("code"); setPartPage(1); setPartTotal(0);
                                 if (partPickLine !== -1) {
-                                    setTimeout(() => {
-                                        partInputRefs.current[partPickLine]?.focus();
-                                        partInputRefs.current[partPickLine]?.select();
-                                    }, 50);
-                                }
+                                setTimeout(() => {
+                                    partInputRefs.current[partPickLine]?.focus();
+                                    partInputRefs.current[partPickLine]?.select();
+                                }, 120);
                             }
-                        }}
-                    >
-                        <DialogContent className="sm:max-w-lg bg-white text-black border-[var(--cl-border)] shadow-2xl opacity-100">
+                        }
+                    }}
+                >
+                    <DialogContent onCloseAutoFocus={(e) => e.preventDefault()} className="sm:max-w-lg bg-white text-black border-[var(--cl-border)] shadow-2xl opacity-100">
                             {/* Header — plain div avoids Radix focus-trap interference */}
                             <div className="pr-6 pb-3 border-b border-slate-200">
                                 <DialogTitle className="text-base font-semibold text-slate-900">Search Part</DialogTitle>
@@ -1103,8 +1127,8 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
                                         className="h-9 border-slate-200 bg-white text-slate-800 pl-9 pr-9 font-mono"
                                         placeholder="Type a part code prefix…"
                                         value={partCodeQuery}
-                                        onChange={e => setPartCodeQuery(e.target.value)}
-                                        onFocus={() => { if (partSearchMode !== "code") { setPartSearchMode("code"); setPartResults([]); } }}
+                                        onChange={e => { setPartCodeQuery(e.target.value); setPartPage(1); }}
+                                        onFocus={() => { if (partSearchMode !== "code") { setPartSearchMode("code"); setPartResults([]); setPartPage(1); setPartTotal(0); } }}
                                     />
                                     {partCodeQuery && (
                                         <button type="button" onClick={() => { setPartCodeQuery(""); setPartResults([]); }}
@@ -1126,8 +1150,8 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
                                         className="h-9 border-slate-200 bg-white text-slate-800 pl-9 pr-9"
                                         placeholder="Type a keyword…"
                                         value={partKeywordQuery}
-                                        onChange={e => setPartKeywordQuery(e.target.value)}
-                                        onFocus={() => { if (partSearchMode !== "keyword") { setPartSearchMode("keyword"); setPartResults([]); } }}
+                                        onChange={e => { setPartKeywordQuery(e.target.value); setPartPage(1); }}
+                                        onFocus={() => { if (partSearchMode !== "keyword") { setPartSearchMode("keyword"); setPartResults([]); setPartPage(1); setPartTotal(0); } }}
                                     />
                                     {partKeywordQuery && (
                                         <button type="button" onClick={() => { setPartKeywordQuery(""); setPartResults([]); }}
@@ -1139,9 +1163,10 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
                             </div>
 
                             {/* Results count */}
-                            {!partLoading && partResults.length > 0 && (
+                            {!partLoading && partTotal > 0 && (
                                 <p className="text-xs text-slate-500 text-right pr-1">
-                                    {partResults.length} record{partResults.length !== 1 ? "s" : ""} found
+                                    {partTotal} record{partTotal !== 1 ? "s" : ""} found
+                                    {Math.ceil(partTotal / PART_PICK_PAGE_SIZE) > 1 && ` · Page ${partPage} of ${Math.ceil(partTotal / PART_PICK_PAGE_SIZE)}`}
                                 </p>
                             )}
 
@@ -1190,6 +1215,35 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
                                     ))
                                 )}
                             </div>
+
+                            {/* Pagination controls */}
+                            {(() => {
+                                const totalPages = Math.ceil(partTotal / PART_PICK_PAGE_SIZE);
+                                if (totalPages <= 1) return null;
+                                return (
+                                    <div className="flex items-center justify-between border-t border-slate-200 pt-2">
+                                        <p className="text-xs text-slate-400">Page {partPage} of {totalPages}</p>
+                                        <div className="flex items-center gap-1">
+                                            <Button type="button" variant="ghost" size="icon" className="h-7 w-7"
+                                                disabled={partPage <= 1 || partLoading} onClick={() => setPartPage(1)}>
+                                                <ChevronsLeft className="h-4 w-4" />
+                                            </Button>
+                                            <Button type="button" variant="ghost" size="icon" className="h-7 w-7"
+                                                disabled={partPage <= 1 || partLoading} onClick={() => setPartPage(p => p - 1)}>
+                                                <ChevronLeft className="h-4 w-4" />
+                                            </Button>
+                                            <Button type="button" variant="ghost" size="icon" className="h-7 w-7"
+                                                disabled={partPage >= totalPages || partLoading} onClick={() => setPartPage(p => p + 1)}>
+                                                <ChevronRight className="h-4 w-4" />
+                                            </Button>
+                                            <Button type="button" variant="ghost" size="icon" className="h-7 w-7"
+                                                disabled={partPage >= totalPages || partLoading} onClick={() => setPartPage(totalPages)}>
+                                                <ChevronsRight className="h-4 w-4" />
+                                            </Button>
+                                        </div>
+                                    </div>
+                                );
+                            })()}
                         </DialogContent>
                     </Dialog>
                 </>
@@ -1198,12 +1252,18 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
             <PartDialog
                 mode="add"
                 onOpenChange={open => {
-                    setAddPartOpen(open);
-                    if (!open && addPartLineIdx !== null) {
-                        setTimeout(() => {
-                            partInputRefs.current[addPartLineIdx]?.focus();
-                            partInputRefs.current[addPartLineIdx]?.select();
-                        }, 50);
+                    if (!open) {
+                        const lastIdx = addPartLineIdx;
+                        setAddPartOpen(false);
+                        setAddPartLineIdx(null); // Clear after capture
+                        if (lastIdx !== null) {
+                            setTimeout(() => {
+                                partInputRefs.current[lastIdx]?.focus();
+                                partInputRefs.current[lastIdx]?.select();
+                            }, 120);
+                        }
+                    } else {
+                        setAddPartOpen(true);
                     }
                 }}
                 onSuccess={() => {
@@ -1226,16 +1286,18 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
                     brandName={brandName ?? ""}
                     onOpenChange={(o) => {
                         if (!o) {
+                            const lastIdx = editPartLineIdx;
                             setEditPartOpen(false);
                             setEditPartData(null);
-                            const lastIdx = editPartLineIdx;
                             setEditPartLineIdx(null);
                             if (lastIdx !== null) {
                                 setTimeout(() => {
                                     partInputRefs.current[lastIdx]?.focus();
                                     partInputRefs.current[lastIdx]?.select();
-                                }, 50);
+                                }, 120);
                             }
+                        } else {
+                            setEditPartOpen(true);
                         }
                     }}
                     onSuccess={() => {
@@ -1243,8 +1305,6 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
                             void handleTypedPartSearch(editPartLineIdx, editPartData.part_code, editPartData.brand_id);
                         }
                         setEditPartOpen(false);
-                        setEditPartData(null);
-                        setEditPartLineIdx(null);
                     }}
                 />
             )}

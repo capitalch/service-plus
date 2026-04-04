@@ -1295,6 +1295,25 @@ class SqlStore:
         OFFSET (table "p_offset")
     """
 
+    GET_PARTS_BY_CODE_PREFIX_COUNT = """
+        with "p_search" as (values(%(search)s::text))
+        SELECT COUNT(*) AS total
+        FROM spare_part_master p
+        WHERE (table "p_search") = ''
+           OR LOWER(p.part_code) LIKE LOWER((table "p_search")) || '%%'
+    """
+
+    GET_PARTS_BY_KEYWORD_COUNT = """
+        with "p_search" as (values(%(search)s::text))
+        SELECT COUNT(*) AS total
+        FROM spare_part_master p
+        WHERE (table "p_search") = ''
+           OR LOWER(p.part_name)                        LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(COALESCE(p.part_description, ''))   LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(COALESCE(p.model, ''))              LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(COALESCE(p.category, ''))           LIKE '%%' || LOWER((table "p_search")) || '%%'
+    """
+
     # ── Products ──────────────────────────────────────────────────────────────
 
     CHECK_PRODUCT_IN_USE = """

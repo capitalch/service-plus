@@ -1,31 +1,34 @@
-# Implementation Plan - Restrict Focus on Invalid Part Code
+# Analysis & Implementation Plan - Increase Search Result Limit
 
-The objective is to ensure that if a user tabs away from a Part Code field that fails validation (no part found), the focus is immediately returned to that same Part Code field. This ensures data integrity by preventing the user from proceeding with an invalid part.
+The Part Search dialog currently hardcodes a result limit of 20, which can feel restrictive when there are many matching parts. This plan proposes increasing the default limit for better visibility.
+
+## Analysis
+The limitation is caused by the `limit: 20` parameter being explicitly passed in the `sqlArgs` within the `NewPurchaseInvoice` component's search logic.
+
+```typescript
+// File: src/features/client/components/inventory/purchase-entry/new-purchase-invoice.tsx
+// Around line 231
+sqlArgs: { search: activeQuery.trim(), limit: 20, offset: 0 },
+```
 
 ## Workflow
-1. Use `useRef` to maintain a collection of Part Code input elements.
-2. Update the `Input` component in the Part column to register its ref.
-3. Modify `handleTypedPartSearch` to store the focus back to the specific input field if no unique part is found or if the search fails.
-4. Ensure this works seamlessly with the `AddPartDialog` (if the dialog opens, focus will naturally go there, but if no auto-selection occurs, the field should remain focused).
+1.  **Identify Search Calls**: Update all occurrences of `limit: 20` in the part search logic to a more reasonable default (e.g., 50 or 100).
+2.  **Ensure Persistence**: Check if similar limits are applied in other search contexts within the same component.
+3.  **Update UI Feedback**: Verify that the "records found" counter correctly reflects the new subset size.
 
 ## Execution Steps
 
-### Step 1: Initialize Refs
+### Step 1: Update Default Search Limit
 - **File**: `src/features/client/components/inventory/purchase-entry/new-purchase-invoice.tsx`
-- **Location**: Near other refs (around line 276).
-- **Change**: `const partInputRefs = useRef<React.RefObject<HTMLInputElement>[]>([]);`
-    Wait, better to use an object map or just an array.
-    `const partInputRefs = useRef<(HTMLInputElement | null)[]>([]);`
+- **Location**: `useEffect` for Part Search (around line 231).
+- **Change**: Increase `limit: 20` to `limit: 50` (or higher if preferred).
+  
+### Step 2: Handle Typed Search Consistency (Optional)
+- **File**: `src/features/client/components/inventory/purchase-entry/new-purchase-invoice.tsx`
+- **Location**: `handleTypedPartSearch` (around line 245).
+- **Analysis**: Currently, `handleTypedPartSearch` uses `GET_PART_BY_CODE` which typically returns a single match. If multiple matches are found, it opens the Pick Dialog. We should ensure the Pick Dialog itself shows the expanded set of results when opened through this path.
 
-### Step 2: Register Input Ref
-- **File**: `src/features/client/components/inventory/purchase-entry/new-purchase-invoice.tsx`
-- **Location**: Part Code `Input` component (around line 877).
-- **Change**: Add `ref={el => partInputRefs.current[idx] = el}`.
-
-### Step 3: Refocus on Failure
-- **File**: `src/features/client/components/inventory/purchase-entry/new-purchase-invoice.tsx`
-- **Location**: `handleTypedPartSearch` function (around line 359).
-- **Logic**:
-    - In the `else` block (no part found) and the `results.length > 1` block (ambiguous), and in the `catch` block:
-    - Call `partInputRefs.current[idx]?.focus()`.
-    - Also `partInputRefs.current[idx]?.select()` to make it easy to re-type.
+## Verification
+- Use the search dialog with a generic keyword (e.g., "Display").
+- Ensure it now shows up to 50 results instead of cutting off at exactly 20.
+- Verify the "X records found" text updates to match the results length.

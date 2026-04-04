@@ -58,7 +58,7 @@ const schema = z.object({
 }).superRefine((data, ctx) => {
     const mrp  = data.mrp ?? 0;
     const cost = data.cost_price ?? 0;
-    if (mrp <= cost && (mrp !== 0 || cost !== 0)) {
+    if (mrp > 0 && mrp <= cost) {
         ctx.addIssue({ code: "custom", message: "MRP must be greater than cost price", path: ["mrp"] });
     }
 });
@@ -243,7 +243,11 @@ export const PartDialog = (props: PartDialogProps) => {
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent aria-describedby={undefined} className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogContent
+                onCloseAutoFocus={(e) => e.preventDefault()}
+                aria-describedby={undefined}
+                className="sm:max-w-2xl max-h-[90vh] overflow-y-auto"
+            >
                 {/* Header row: title + brand */}
                 <div className="flex items-center justify-between gap-4 pr-8 pb-3 border-b border-border">
                     <DialogTitle className="text-base font-semibold text-foreground shrink-0">
