@@ -1219,7 +1219,6 @@ export interface StockAdjustmentLine {
   part_id: number;
   dr_cr: string;
   qty: number;
-  unit_cost: number | null;
   remarks: string | null;
   created_at: Date;
   updated_at: Date;
@@ -1230,14 +1229,13 @@ export interface StockAdjustmentLineInput {
   part_id: number;
   dr_cr: string;
   qty: number;
-  unit_cost?: number | null;
   remarks?: string | null;
   created_at?: Date;
   updated_at?: Date;
 }
 const stock_adjustment_line = {
   tableName: 'stock_adjustment_line',
-  columns: ['id', 'stock_adjustment_id', 'part_id', 'dr_cr', 'qty', 'unit_cost', 'remarks', 'created_at', 'updated_at'],
+  columns: ['id', 'stock_adjustment_id', 'part_id', 'dr_cr', 'qty', 'remarks', 'created_at', 'updated_at'],
   requiredForInsert: ['id', 'stock_adjustment_id', 'part_id', 'dr_cr', 'qty'],
   primaryKey: 'id',
   foreignKeys: {

@@ -66,7 +66,7 @@ export function PhysicalInvoiceModal({
             open={isOpen}
             onOpenChange={open => { if (!open && !submitting) onClose(); }}
         >
-            <DialogContent className="max-w-lg !bg-white !text-zinc-900 border-zinc-200">
+            <DialogContent aria-describedby={undefined} className="max-w-lg !bg-white !text-zinc-900 border-zinc-200">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2 text-base">
                         <ShieldAlert className="h-5 w-5 text-amber-500 shrink-0" />
@@ -191,7 +191,7 @@ export function PhysicalInvoiceModal({
                             )}
                             
                             <tr className={`font-semibold ${hasValidated ? (physicalValidation.total.isValid ? "bg-green-500/5" : "bg-red-500/5") : ""}`}>
-                                <td className="py-1 px-3 text-xs font-semibold text-[var(--cl-text)]">Total Amount</td>
+                                <td className="py-1 px-3 text-xs font-semibold text-[var(--cl-text)]">Invoice amount</td>
                                 <td className="py-1 px-2">
                                     <Input
                                         type="number" step="0.01" placeholder="0.00"

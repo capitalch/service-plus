@@ -35,6 +35,7 @@ import { formatCurrency } from "@/lib/utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectCurrentBranch, selectIsGstRegistered, selectSchema } from "@/store/context-slice";
+import type { BranchType } from "@/features/client/components/masters/branch/branch";
 import type { VendorType } from "@/features/client/types/vendor";
 import type { PurchaseInvoiceType, StockTransactionTypeRow } from "@/features/client/types/purchase";
 import { ViewPurchaseInvoiceDialog } from "./view-purchase-invoice-dialog";
@@ -84,6 +85,7 @@ export const PurchaseEntrySection = () => {
     const { from: defaultFrom, to: defaultTo } = currentMonthRange();
 
     // Filter state
+    const [branches,       setBranches]       = useState<BranchType[]>([]);
     const [vendors,        setVendors]        = useState<VendorType[]>([]);
     const [txnTypes,       setTxnTypes]       = useState<StockTransactionTypeRow[]>([]);
     const [fromDate,       setFromDate]       = useState(defaultFrom);
@@ -124,7 +126,16 @@ export const PurchaseEntrySection = () => {
         if (!dbName || !schema) return;
         const fetchMeta = async () => {
             try {
-                const [vendorRes, txnRes, stateRes, brandRes] = await Promise.all([
+                const [branchRes, vendorRes, txnRes, stateRes, brandRes] = await Promise.all([
+                    apolloClient.query<GenericQueryData<BranchType>>({
+                        fetchPolicy: "network-only",
+                        query: GRAPHQL_MAP.genericQuery,
+                        variables: {
+                            db_name: dbName,
+                            schema,
+                            value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_ALL_BRANCHES }),
+                        },
+                    }),
                     apolloClient.query<GenericQueryData<VendorType>>({
                         fetchPolicy: "network-only",
                         query: GRAPHQL_MAP.genericQuery,
@@ -162,6 +173,7 @@ export const PurchaseEntrySection = () => {
                         },
                     }),
                 ]);
+                setBranches(branchRes.data?.genericQuery ?? []);
                 setVendors(vendorRes.data?.genericQuery ?? []);
                 setTxnTypes(txnRes.data?.genericQuery ?? []);
                 setStates(stateRes.data?.genericQuery ?? []);
@@ -614,9 +626,11 @@ export const PurchaseEntrySection = () => {
 
                     {/* PDF Preview Dialog */}
                     <PurchaseInvoicePdfPreviewDialog
+                        branch={pdfPreviewInvoice ? (branches.find(b => b.id === pdfPreviewInvoice.branch_id) ?? null) : null}
                         invoice={pdfPreviewInvoice}
                         open={pdfPreviewInvoice !== null}
                         onOpenChange={open => { if (!open) setPdfPreviewInvoice(null); }}
+                        vendor={pdfPreviewInvoice ? (vendors.find(v => v.id === pdfPreviewInvoice.supplier_id) ?? null) : null}
                     />
 
                     {/* Delete Confirm Dialog */}
@@ -624,7 +638,7 @@ export const PurchaseEntrySection = () => {
                         open={deleteId !== null}
                         onOpenChange={open => { if (!open && !deleting) setDeleteId(null); }}
                     >
-                        <DialogContent className="sm:max-w-sm !bg-[var(--cl-surface)] text-[var(--cl-text)]">
+                        <DialogContent aria-describedby={undefined} className="sm:max-w-sm !bg-[var(--cl-surface)] text-[var(--cl-text)]">
                             <DialogHeader>
                                 <DialogTitle>Delete Purchase Invoice</DialogTitle>
                             </DialogHeader>

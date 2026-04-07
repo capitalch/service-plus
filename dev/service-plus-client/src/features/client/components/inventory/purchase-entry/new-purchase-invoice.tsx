@@ -798,7 +798,7 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
                                 </tbody>
                                 <tfoot className="bg-[var(--cl-surface-2)]/20 font-bold">
                                     <tr className="border-t-2 border-[var(--cl-border)]">
-                                        <td className="py-2 px-4 text-xs uppercase tracking-wider text-[var(--cl-text-muted)]" colSpan={3}>Calculated Sum</td>
+                                        <td className="py-2 px-4 text-xs uppercase tracking-wider text-[var(--cl-text-muted)]" colSpan={3}>computed Amount</td>
                                         <td className="py-2 px-2 text-right text-sm text-[var(--cl-text)] font-semibold tabular-nums">
                                             {formatNumber(totals.quantity)}
                                         </td>

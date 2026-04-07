@@ -1,46 +1,44 @@
-# Implementation Plan - PDF Preview & Printing for Purchase Invoices (jsPDF + autoTable)
+# Implementation Plan - Reorganize Purchase Invoice PDF
 
-## Objective
-Enable a high-quality PDF preview and download/printing capability for Purchase Invoices using **`jsPDF`** and its **`jspdf-autotable`** plugin.
+Reorganize `purchase-invoice-pdf-gen.ts` to improve the invoice layout, readability, and overall professional appearance.
 
-## Workflow section
-- **Decision on PDF Technology**: We will use **`jsPDF`** for document generation and **`jspdf-autotable`** for rendering line items in a structured, multi-page format. 
-- **Architecture**: A new utility function `generatePurchaseInvoicePdf` will be created to construct the PDF document (Header with company/supplier info, Table with line items, Footer with totals).
-- **Integration**: We will replace the "Coming Soon" toast with a `PurchaseInvoicePdfPreviewDialog` that generates the PDF and renders it in a live preview frame.
+## Workflow
+1.  Define a new layout structure for the PDF (Header, Party Details, Meta Info, Table, Totals, Footer).
+2.  Refactor the code into logical sections/helper functions within the generator to improve maintainability.
+3.  Implement visual enhancements: better typography, spacing, and clear section dividers.
+4.  Standardize labels (e.g., using "Billed From" and "Billed To").
 
----
+## Step 1: Structural Refactoring
+- Break down the massive `generatePurchaseInvoicePdf` function into smaller, logical blocks of code or local helper functions.
+- Sections to isolate: `drawHeader`, `drawPartySection`, `drawInvoiceMeta`, `drawFooter`.
 
-## Steps of Execution
+## Step 2: Header and Meta Information
+- Centered **TAX INVOICE** title with increased vertical rhythm.
+- Group Invoice Number, Date, and State Code into a clean metadata block, possibly right-aligned or in a specific grid.
+- Ensure company/branch name is prominent.
 
-### Step 1: Install `jsPDF` and `jspdf-autotable`
-Add the required libraries to the project.
-```bash
-pnpm add jspdf jspdf-autotable
-```
+## Step 3: Party Details (Billed From / Billed To)
+- Clear two-column layout for **Billed From** (Supplier) and **Billed To** (Branch).
+- Include Address, Phone, and GSTIN in a standardized vertical list for both parties.
+- Use subtle vertical lines or boxes to separate these areas.
 
-### Step 2: Create PDF Generation Utility
-Develop a new utility in `src/features/client/components/inventory/purchase-entry/purchase-invoice-pdf-gen.ts`:
-- Accepts the `invoice` and `lines` data.
-- Configures `jsPDF` for A4 layout.
-- Uses `doc.autoTable()` to render line items with specific column widths and headers (Part Code, Name, HSN, Qty, Unit Price, Tax breakdown, Total).
-- Implements custom drawing for the header and footer (Company name, Supplier info, Total words, Signatory block).
+## Step 4: Line Items Table
+- Enhance `jspdf-autotable` configuration:
+    - Darker header background with white text for a premium look.
+    - Precise column widths for Part Code, Name, HSN, Tax columns.
+    - Right-align numeric values (Qty, Price, Tax, Total).
+    - Add a "Sub-total" or "Total" row at the bottom of the table itself.
 
-### Step 3: Create `PurchaseInvoicePdfPreviewDialog`
-Create a new dialog component `src/features/client/components/inventory/purchase-entry/purchase-invoice-pdf-preview-dialog.tsx`:
-- Triggers the utility to generate a PDF `Blob` or `DataURI`.
-- Uses an `<iframe>` or `<object>` to display the PDF inside a large modal for live preview.
-- Provides a "Download" and "Print" action.
+## Step 5: Totals and Summary Section
+- Create a distinct footer totals area:
+    - **Aggregate Amount**
+    - **Tax Amount (Total)**
+    - **computed Amount**
+    - **Difference / Round-off** (only if non-zero, or styled as adjustment)
+    - **Invoice amount** (Grand Total) - highlight with bold/larger font.
+- Add a text-based "Total Amount in Words" if feasible (optional polish).
 
-### Step 4: Integrate with `PurchaseEntrySection`
-Update the `DropdownMenu` in `purchase-entry-section.tsx`:
-- Add a new state variable `pdfPreviewInvoice` to track which invoice is being previewed as PDF.
-- Update the "Show PDF" menu item to open the new `PurchaseInvoicePdfPreviewDialog`.
-
-### Step 5: Integrate with `ViewPurchaseInvoiceDialog`
-Update the existing view dialog:
-- Update the "Show PDF" button to trigger the same `PurchaseInvoicePdfPreviewDialog` (passing the current `detail` row).
-
-### Step 6: Testing & Polish
-- Ensure correct rendering of GST columns and multi-page tables.
-- Verify Indian Rupee (₹) symbol rendering (might require embedding a custom font).
-- Review overall layout quality and alignment.
+## Step 6: Footer and Remarks
+- Ensure Remarks are clearly separated from the totals.
+- Standardized signatory area with enough space for a physical stamp/sign.
+- "Computer generated" disclaimer at the very bottom.

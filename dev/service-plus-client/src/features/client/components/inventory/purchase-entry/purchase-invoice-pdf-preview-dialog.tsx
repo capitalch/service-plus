@@ -16,19 +16,23 @@ import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectCompanyName, selectCurrentBranch, selectSchema } from "@/store/context-slice";
+import type { BranchType } from "@/features/client/components/masters/branch/branch";
 import type { PurchaseInvoiceType, PurchaseLineType } from "@/features/client/types/purchase";
+import type { VendorType } from "@/features/client/types/vendor";
 import { generatePurchaseInvoicePdf } from "./purchase-invoice-pdf-gen";
 
 type Props = {
+    branch:       BranchType | null;
     invoice:      PurchaseInvoiceType | null;
     open:         boolean;
     onOpenChange: (open: boolean) => void;
+    vendor:       VendorType | null;
 };
 
 type GenericQueryData<T> = { genericQuery: T[] | null };
 type DetailRow = PurchaseInvoiceType & { lines: PurchaseLineType[] };
 
-export const PurchaseInvoicePdfPreviewDialog = ({ invoice: propInvoice, open, onOpenChange }: Props) => {
+export const PurchaseInvoicePdfPreviewDialog = ({ branch, invoice: propInvoice, onOpenChange, open, vendor }: Props) => {
     const dbName        = useAppSelector(selectDbName);
     const schema        = useAppSelector(selectSchema);
     const companyName   = useAppSelector(selectCompanyName) || "Service Plus";
@@ -82,7 +86,7 @@ export const PurchaseInvoicePdfPreviewDialog = ({ invoice: propInvoice, open, on
                 // 2. Generate PDF (tiny delay for modal entry)
                 await new Promise(r => setTimeout(r, 150));
                 
-                const doc     = generatePurchaseInvoicePdf(currentDetail, currentDetail.lines || [], companyName, branchName);
+                const doc     = generatePurchaseInvoicePdf(currentDetail, currentDetail.lines || [], companyName, branchName, vendor, branch);
                 const pdfBlob = doc.output("blob");
                 const blobUrl = URL.createObjectURL(pdfBlob);
                 
@@ -100,19 +104,22 @@ export const PurchaseInvoicePdfPreviewDialog = ({ invoice: propInvoice, open, on
         return () => {
             if (pdfUrl) URL.revokeObjectURL(pdfUrl);
         };
-    }, [open, propInvoice, dbName, schema, companyName, branchName]);
+    }, [open, propInvoice, dbName, schema, companyName, branchName, vendor, branch]);
 
     const handleDownload = () => {
         const target = detail || propInvoice;
         if (!target) return;
         const lines = (target as any).lines || [];
         const filename = `purchase_invoice_${target.invoice_no || 'doc'}.pdf`;
-        generatePurchaseInvoicePdf(target as DetailRow, lines, companyName, branchName, filename);
+        generatePurchaseInvoicePdf(target as DetailRow, lines, companyName, branchName, vendor, branch, filename);
     };
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-6xl h-[95vh] flex flex-col p-0 overflow-hidden border-none !bg-zinc-900/10 backdrop-blur-sm">
+            <DialogContent
+                aria-describedby={undefined}
+                className="sm:max-w-6xl h-[95vh] flex flex-col p-0 overflow-hidden border-none !bg-zinc-900/10 backdrop-blur-sm"
+            >
                 <DialogHeader className="bg-white border-b border-zinc-200 p-4 shrink-0 flex flex-row items-center justify-between">
                     <DialogTitle className="text-lg font-bold text-zinc-900">
                         Invoice Preview — {propInvoice?.invoice_no}
@@ -144,7 +151,6 @@ export const PurchaseInvoicePdfPreviewDialog = ({ invoice: propInvoice, open, on
                             className="h-8 w-8 hover:bg-zinc-100 rounded-full"
                             onClick={() => onOpenChange(false)}
                         >
-                            <XCircle className="h-5 w-5 text-zinc-400 hover:text-red-500" />
                         </Button>
                     </div>
                 </DialogHeader>

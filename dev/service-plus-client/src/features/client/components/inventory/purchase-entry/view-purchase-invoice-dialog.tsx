@@ -68,15 +68,21 @@ export const ViewPurchaseInvoiceDialog = ({ invoice, open, onOpenChange, onShowP
     }, [open, invoice, dbName, schema]);
 
     const lines = detail?.lines ?? [];
+    const computedTotal  = lines.reduce((s, l) => s + Number(l.total_amount), 0);
+    const physicalTotal  = detail ? Number(detail.total_amount) : 0;
+    const diffAmount     = physicalTotal - computedTotal;
     const totalAggregate = lines.reduce((s, l) => s + Number(l.aggregate_amount), 0);
-    const totalCgst    = lines.reduce((s, l) => s + Number(l.cgst_amount), 0);
-    const totalSgst    = lines.reduce((s, l) => s + Number(l.sgst_amount), 0);
-    const totalIgst    = lines.reduce((s, l) => s + Number(l.igst_amount), 0);
-    const grandTotal   = lines.reduce((s, l) => s + Number(l.total_amount), 0);
+    const totalCgst      = lines.reduce((s, l) => s + Number(l.cgst_amount), 0);
+    const totalSgst      = lines.reduce((s, l) => s + Number(l.sgst_amount), 0);
+    const totalIgst      = lines.reduce((s, l) => s + Number(l.igst_amount), 0);
+    const totalTax       = totalCgst + totalSgst + totalIgst;
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-5xl max-h-[90vh] overflow-y-auto !bg-white text-zinc-950 border-none shadow-2xl">
+            <DialogContent
+                aria-describedby={undefined}
+                className="sm:max-w-5xl max-h-[90vh] overflow-y-auto !bg-white text-zinc-950 border-none shadow-2xl"
+            >
                 <DialogHeader className="flex flex-row items-center justify-between border-b border-zinc-100 pb-4 mb-2">
                     <DialogTitle className="text-xl font-bold text-zinc-800">
                         Purchase Invoice — {invoice?.invoice_no}
@@ -154,32 +160,40 @@ export const ViewPurchaseInvoiceDialog = ({ invoice, open, onOpenChange, onShowP
                                         <td className="p-2 text-right text-sm text-zinc-900 font-bold">{formatCurrency(totalCgst)}</td>
                                         <td className="p-2 text-right text-sm text-zinc-900 font-bold">{formatCurrency(totalSgst)}</td>
                                         <td className="p-2 text-right text-sm text-zinc-900 font-bold">{formatCurrency(totalIgst)}</td>
-                                        <td className="p-2 text-right text-sm text-[var(--cl-accent)] font-extrabold">{formatCurrency(grandTotal)}</td>
+                                        <td className="p-2 text-right text-sm text-[var(--cl-accent)] font-extrabold">{formatCurrency(computedTotal)}</td>
                                     </tr>
                                 </tfoot>
                             </table>
                         </div>
 
-                        {/* Summary Footer info */}
-                        <div className="flex flex-col sm:flex-row justify-end items-start sm:items-center gap-6 rounded-xl border border-zinc-200 bg-zinc-50/30 p-6 shadow-sm">
-                            <Field 
-                                label="Aggregate Amount"  
-                                value={formatCurrency(detail.aggregate_amount)} 
+                        {/* Summary Footer */}
+                        <div className="flex flex-col sm:flex-row justify-end items-start sm:items-center gap-6 rounded-xl border border-zinc-200 bg-zinc-50/30 p-5 shadow-sm">
+                            <Field
                                 className="text-right"
+                                label="computed Amount"
+                                value={formatCurrency(computedTotal)}
                             />
-                            <div className="h-8 w-px bg-zinc-200 hidden sm:block" />
-                            <Field 
-                                label="Total Tax"       
-                                value={formatCurrency(detail.total_tax)} 
+                            <div className="hidden h-8 w-px bg-zinc-200 sm:block" />
+                            <Field
                                 className="text-right"
+                                label="Tax Amount"
+                                value={formatCurrency(totalTax)}
                             />
-                            <div className="h-8 w-px bg-zinc-200 hidden sm:block" />
-                            <Field 
-                                label="Total Amount"    
-                                value={formatCurrency(detail.total_amount)} 
-                                className="text-right !text-lg"
+                            <div className="hidden h-8 w-px bg-zinc-200 sm:block" />
+                            <div className="text-right">
+                                <p className="mb-0.5 text-[10px] font-extrabold uppercase tracking-widest text-zinc-400">Difference</p>
+                                <p className={`font-semibold ${Math.abs(diffAmount) < 0.01 ? "text-emerald-600" : "text-amber-600"}`}>
+                                    {diffAmount > 0 ? "+" : ""}{formatCurrency(diffAmount)}
+                                </p>
+                            </div>
+                            <div className="hidden h-8 w-px bg-zinc-200 sm:block" />
+                            <Field
+                                className="text-right"
+                                label="Invoice amount"
+                                value={formatCurrency(physicalTotal)}
                             />
                         </div>
+
                     </div>
                 ) : null}
             </DialogContent>
