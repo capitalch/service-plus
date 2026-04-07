@@ -1,32 +1,46 @@
-# Plan: Make New and View Tab Buttons More Prominent
+# Implementation Plan - PDF Preview & Printing for Purchase Invoices (jsPDF + autoTable)
 
 ## Objective
-Improve the visibility and prominence of the "New" and "View" mode toggle buttons in the Purchase Entry module to enhance user navigation.
+Enable a high-quality PDF preview and download/printing capability for Purchase Invoices using **`jsPDF`** and its **`jspdf-autotable`** plugin.
 
-## Workflow
-1. Identify the mode toggle component in `PurchaseEntrySection`.
-2. Update the styling of the `Button` components and their container.
-3. Increase size, font weight, and refine active states for better visual hierarchy.
-
-## Steps
-
-### Step 1 — Modify `PurchaseEntrySection` (Mode Toggle Styling)
-- Target file: `src/features/client/components/inventory/purchase-entry/purchase-entry-section.tsx`
-- Increase container padding and border style.
-- Update `New` button:
-    - Change height from `h-7` to `h-9`.
-    - Change text from `text-xs` to `text-sm`.
-    - Enhance active state: use a more distinctive emerald background or border.
-- Update `View` button:
-    - Change height from `h-7` to `h-9`.
-    - Change text from `text-xs` to `text-sm`.
-    - Enhance active state: use a more distinctive sky background or border.
-- Adjust icons size if necessary.
+## Workflow section
+- **Decision on PDF Technology**: We will use **`jsPDF`** for document generation and **`jspdf-autotable`** for rendering line items in a structured, multi-page format. 
+- **Architecture**: A new utility function `generatePurchaseInvoicePdf` will be created to construct the PDF document (Header with company/supplier info, Table with line items, Footer with totals).
+- **Integration**: We will replace the "Coming Soon" toast with a `PurchaseInvoicePdfPreviewDialog` that generates the PDF and renders it in a live preview frame.
 
 ---
 
-## Technical Details
-- Change Container: `p-0.5` → `p-1`
-- Change Buttons: `h-7` → `h-9`, `text-xs` → `text-sm`
-- Active State "New": `bg-[var(--cl-surface)] font-semibold text-emerald-600 shadow-sm` → `bg-emerald-600/10 text-emerald-600 font-bold border-emerald-200/50 shadow-sm`
-- Active State "View": `bg-[var(--cl-surface)] font-semibold text-sky-600 shadow-sm` → `bg-sky-600/10 text-sky-600 font-bold border-sky-200/50 shadow-sm`
+## Steps of Execution
+
+### Step 1: Install `jsPDF` and `jspdf-autotable`
+Add the required libraries to the project.
+```bash
+pnpm add jspdf jspdf-autotable
+```
+
+### Step 2: Create PDF Generation Utility
+Develop a new utility in `src/features/client/components/inventory/purchase-entry/purchase-invoice-pdf-gen.ts`:
+- Accepts the `invoice` and `lines` data.
+- Configures `jsPDF` for A4 layout.
+- Uses `doc.autoTable()` to render line items with specific column widths and headers (Part Code, Name, HSN, Qty, Unit Price, Tax breakdown, Total).
+- Implements custom drawing for the header and footer (Company name, Supplier info, Total words, Signatory block).
+
+### Step 3: Create `PurchaseInvoicePdfPreviewDialog`
+Create a new dialog component `src/features/client/components/inventory/purchase-entry/purchase-invoice-pdf-preview-dialog.tsx`:
+- Triggers the utility to generate a PDF `Blob` or `DataURI`.
+- Uses an `<iframe>` or `<object>` to display the PDF inside a large modal for live preview.
+- Provides a "Download" and "Print" action.
+
+### Step 4: Integrate with `PurchaseEntrySection`
+Update the `DropdownMenu` in `purchase-entry-section.tsx`:
+- Add a new state variable `pdfPreviewInvoice` to track which invoice is being previewed as PDF.
+- Update the "Show PDF" menu item to open the new `PurchaseInvoicePdfPreviewDialog`.
+
+### Step 5: Integrate with `ViewPurchaseInvoiceDialog`
+Update the existing view dialog:
+- Update the "Show PDF" button to trigger the same `PurchaseInvoicePdfPreviewDialog` (passing the current `detail` row).
+
+### Step 6: Testing & Polish
+- Ensure correct rendering of GST columns and multi-page tables.
+- Verify Indian Rupee (₹) symbol rendering (might require embedding a custom font).
+- Review overall layout quality and alignment.

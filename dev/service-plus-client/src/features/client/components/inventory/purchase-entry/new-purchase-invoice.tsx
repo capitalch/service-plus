@@ -1,5 +1,6 @@
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
-import { Loader2, Plus, PlusCircle, XCircle, CheckCircle2 } from "lucide-react";
+import { Loader2, Plus } from "lucide-react";
+import { LineAddDeleteActions } from "../line-add-delete-actions";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 
@@ -21,6 +22,7 @@ import type { PurchaseLineFormItem, StockTransactionTypeRow } from "@/features/c
 import type { StateRow } from "./purchase-entry-section";
 
 import { PartCodeInput } from "../part-code-input";
+import { PhysicalInvoiceModal } from "./physical-invoice-modal";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -36,6 +38,7 @@ type Props = {
     isIgst: boolean;
     selectedBrandId: number | null;
     brandName?: string;
+    editInvoice?: import("@/features/client/types/purchase").PurchaseInvoiceType | null;
 };
 
 export type NewPurchaseInvoiceHandle = {
@@ -86,14 +89,14 @@ function formatNumber(num: number): string {
 
 // ─── CSS ──────────────────────────────────────────────────────────────────────
 
-const thClass = "sticky top-0 z-20 text-[11px] font-bold uppercase tracking-wider text-[var(--cl-text-muted)] py-1.5 px-2 text-left border-b border-[var(--cl-border)] bg-[var(--cl-surface-2)] backdrop-blur-sm shadow-[0_1px_0_var(--cl-border)]";
+const thClass = "sticky top-0 z-20 text-xs font-extrabold uppercase tracking-widest text-[var(--cl-text)] py-2 px-2 text-left border-b border-[var(--cl-border)] bg-zinc-200/60 dark:bg-zinc-800/60 backdrop-blur-sm shadow-[0_1px_0_var(--cl-border)]";
 const tdClass = "p-0.5 border-b border-[var(--cl-border)]";
 const inputCls = "h-7 border-[var(--cl-border)] bg-[var(--cl-surface)] text-sm px-2";
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
-    branchId, txnTypes, vendors, states, onSuccess, onStatusChange, isIgst, selectedBrandId, brandName
+    branchId, txnTypes, vendors, states, onSuccess, onStatusChange, isIgst, selectedBrandId, brandName, editInvoice
 }, ref) => {
     const dbName = useAppSelector(selectDbName);
     const schema = useAppSelector(selectSchema);
@@ -114,12 +117,18 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
     // Line items
     const [lines, setLines] = useState<PurchaseLineFormItem[]>([emptyLine(selectedBrandId)]);
 
+    // Edit mode: original line IDs to delete on update
+    const [originalLineIds, setOriginalLineIds] = useState<number[]>([]);
+
     // Duplicate check
     const [invoiceExists, setInvoiceExists] = useState(false);
     const [checkingDuplicate, setCheckingDuplicate] = useState(false);
 
     // Submit
     const [submitting, setSubmitting] = useState(false);
+
+    // Physical invoice check modal
+    const [showPhysicalCheckModal, setShowPhysicalCheckModal] = useState(false);
 
     const dupDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const partInputRefs = useRef<(HTMLInputElement | null)[]>([]);
@@ -137,9 +146,68 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
         }
     }, [vendorId, vendors]);
 
+    // Populate form when editInvoice changes
+    useEffect(() => {
+        if (!editInvoice) {
+            handleReset();
+            setOriginalLineIds([]);
+            return;
+        }
+        if (!dbName || !schema) return;
+        apolloClient.query<GenericQueryData<import("@/features/client/types/purchase").PurchaseInvoiceType & { lines: import("@/features/client/types/purchase").PurchaseLineType[] }>>({
+            fetchPolicy: "network-only",
+            query: GRAPHQL_MAP.genericQuery,
+            variables: {
+                db_name: dbName,
+                schema,
+                value: graphQlUtils.buildGenericQueryValue({
+                    sqlId: SQL_MAP.GET_PURCHASE_INVOICE_DETAIL,
+                    sqlArgs: { id: editInvoice.id },
+                }),
+            },
+        }).then(res => {
+            const detail = res.data?.genericQuery?.[0];
+            if (!detail) return;
+            setVendorId(detail.supplier_id);
+            setInvoiceNo(detail.invoice_no);
+            setInvoiceDate(detail.invoice_date);
+            setSupplierStateCode(detail.supplier_state_code);
+            setRemarks(detail.remarks ?? "");
+            setPhysicalTotal(0);
+            setPhysicalQty(0);
+            setPhysicalCgst(0);
+            setPhysicalSgst(0);
+            setPhysicalIgst(0);
+            setInvoiceExists(false);
+            const loadedLines = (detail.lines ?? []).map(l => ({
+                _key: crypto.randomUUID(),
+                part_id: l.part_id,
+                brand_id: selectedBrandId,
+                part_code: l.part_code,
+                part_name: l.part_name,
+                uom: "",
+                hsn_code: l.hsn_code,
+                quantity: Number(l.quantity),
+                unit_price: Number(l.unit_price),
+                gst_rate:  Number(l.gst_rate),
+                cgst_rate: l.igst_amount > 0 ? 0 : Number(l.gst_rate) / 2,
+                sgst_rate: l.igst_amount > 0 ? 0 : Number(l.gst_rate) / 2,
+                igst_rate: l.igst_amount > 0 ? Number(l.gst_rate) : 0,
+            }));
+            setLines(loadedLines);
+            setOriginalLineIds((detail.lines ?? []).map(l => l.id));
+        }).catch(() => toast.error(MESSAGES.ERROR_PURCHASE_LOAD_FAILED));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [editInvoice, dbName, schema]);
+
     // Duplicate invoice check (debounced 600ms)
     useEffect(() => {
         if (!invoiceNo.trim() || !vendorId || !dbName || !schema) {
+            setInvoiceExists(false);
+            return;
+        }
+        // In edit mode: skip check if supplier + invoice_no are unchanged
+        if (editInvoice && vendorId === editInvoice.supplier_id && invoiceNo.trim() === editInvoice.invoice_no) {
             setInvoiceExists(false);
             return;
         }
@@ -154,8 +222,12 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
                         db_name: dbName,
                         schema,
                         value: graphQlUtils.buildGenericQueryValue({
-                            sqlId: SQL_MAP.CHECK_SUPPLIER_INVOICE_EXISTS,
-                            sqlArgs: { supplier_id: vendorId, invoice_no: invoiceNo.trim() },
+                            sqlId: editInvoice
+                                ? SQL_MAP.CHECK_SUPPLIER_INVOICE_EXISTS_EXCLUDE_ID
+                                : SQL_MAP.CHECK_SUPPLIER_INVOICE_EXISTS,
+                            sqlArgs: editInvoice
+                                ? { supplier_id: vendorId, invoice_no: invoiceNo.trim(), id: editInvoice.id }
+                                : { supplier_id: vendorId, invoice_no: invoiceNo.trim() },
                         }),
                     },
                 });
@@ -166,7 +238,7 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
                 setCheckingDuplicate(false);
             }
         }, 600);
-    }, [invoiceNo, vendorId, dbName, schema]);
+    }, [invoiceNo, vendorId, dbName, schema, editInvoice]);
 
     // Line mutations
     const updateLine = (idx: number, patch: Partial<PurchaseLineFormItem>) => {
@@ -235,7 +307,7 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
 
         const taxPct = 0.02; // 0.02%
         const taxMin = 0.20; // 0.20 paisa/rupee
-        const totalPct = 0.1; // 0.1%
+        const totalPct = 0.2; // 0.2%
 
         const cgstRes = isIgst ? { isValid: true, diff: 0 } : check(physicalCgst, totals.cgst, taxPct, taxMin);
         const sgstRes = isIgst ? { isValid: true, diff: 0 } : check(physicalSgst, totals.sgst, taxPct, taxMin);
@@ -289,13 +361,8 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
 
         if (!allLinesValid) return false;
 
-        // 3. Optional: Ensure physical totals match if specified?
-        // Let's include physicalValidation if the user has entered some totals
-        // Actually, let's keep it strict if physical totals are part of their mandate
-        if (!physicalValidation.allValid) return false;
-
         return true;
-    }, [selectedBrandId, vendorId, invoiceNo, invoiceDate, supplierStateCode, invoiceExists, checkingDuplicate, lines, physicalValidation.allValid]);
+    }, [selectedBrandId, vendorId, invoiceNo, invoiceDate, supplierStateCode, invoiceExists, checkingDuplicate, lines]);
 
     // Reset
     const handleReset = () => {
@@ -311,9 +378,10 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
         setPhysicalIgst(0);
         setLines([emptyLine(selectedBrandId)]);
         setInvoiceExists(false);
+        setShowPhysicalCheckModal(false);
     };
 
-    // Submit
+    // handleSubmit: validate guards then open physical check modal
     const handleSubmit = async () => {
         if (!branchId) {
             toast.error("Branch is not selected globally.");
@@ -345,74 +413,121 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
             toast.error(MESSAGES.ERROR_PURCHASE_INVOICE_EXISTS);
             return;
         }
+        // Reset physical fields so user cannot copy pre-filled values, then show modal
+        setPhysicalQty(0);
+        setPhysicalCgst(0);
+        setPhysicalSgst(0);
+        setPhysicalIgst(0);
+        setPhysicalTotal(0);
+        setShowPhysicalCheckModal(true);
+    };
+
+    // handleConfirmedSubmit: actual DB save called from modal after physical check passes
+    const handleConfirmedSubmit = async () => {
+        if (!physicalValidation.allValid) {
+            toast.error(MESSAGES.ERROR_PURCHASE_PHYSICAL_CHECK_FAILED);
+            return;
+        }
 
         const purchaseTypeId = txnTypes.find(t => t.code === "PURCHASE")?.id;
         if (!purchaseTypeId) {
             toast.error(MESSAGES.ERROR_PURCHASE_CREATE_FAILED);
             return;
         }
+        // Inline re-check to satisfy TS narrowing (branchId already checked in handleSubmit)
+        if (!branchId || !dbName || !schema || !vendorId || !invoiceNo.trim() || !invoiceDate) {
+            toast.error(MESSAGES.ERROR_PURCHASE_CREATE_FAILED);
+            return;
+        }
 
-        const payload = graphQlUtils.buildGenericUpdateValue({
-            tableName: "purchase_invoice",
-            xData: {
-                branch_id: branchId,
-                supplier_id: vendorId,
-                invoice_no: invoiceNo.trim(),
-                invoice_date: invoiceDate,
-                supplier_state_code: supplierStateCode,
-                aggregate_amount: totals.aggregate,
-                cgst_amount: totals.cgst,
-                sgst_amount: totals.sgst,
-                igst_amount: totals.igst,
-                total_tax: totals.total_tax,
-                total_amount: totals.total,
-                brand_id: selectedBrandId,
-                remarks: remarks.trim() || null,
+        const linePayload = lines.map(line => {
+            const c = calcLine(line);
+            return {
+                part_id: line.part_id,
+                hsn_code: line.hsn_code,
+                quantity: line.quantity,
+                unit_price: line.unit_price,
+                aggregate_amount: c.aggregate,
+                gst_rate: line.gst_rate,
+                cgst_amount: c.cgstAmt,
+                sgst_amount: c.sgstAmt,
+                igst_amount: c.igstAmt,
+                total_amount: c.total,
                 xDetails: {
-                    tableName: "purchase_invoice_line",
-                    fkeyName: "purchase_invoice_id",
-                    xData: lines.map(line => {
-                        const c = calcLine(line);
-                        return {
-                            part_id: line.part_id,
-                            hsn_code: line.hsn_code,
-                            quantity: line.quantity,
-                            unit_price: line.unit_price,
-                            aggregate_amount: c.aggregate,
-                            gst_rate: line.gst_rate,
-                            cgst_amount: c.cgstAmt,
-                            sgst_amount: c.sgstAmt,
-                            igst_amount: c.igstAmt,
-                            total_amount: c.total,
-                            xDetails: {
-                                tableName: "stock_transaction",
-                                fkeyName: "purchase_line_id",
-                                xData: [{
-                                    branch_id: branchId,
-                                    part_id: line.part_id,
-                                    qty: line.quantity,
-                                    unit_cost: line.unit_price,
-                                    dr_cr: "D",
-                                    transaction_date: invoiceDate,
-                                    stock_transaction_type_id: purchaseTypeId,
-                                }],
-                            },
-                        };
-                    }),
+                    tableName: "stock_transaction",
+                    fkeyName: "purchase_line_id",
+                    xData: [{
+                        branch_id: branchId,
+                        part_id: line.part_id,
+                        qty: line.quantity,
+                        unit_cost: line.unit_price,
+                        dr_cr: "D",
+                        transaction_date: invoiceDate,
+                        stock_transaction_type_id: purchaseTypeId,
+                    }],
                 },
-            },
+            };
         });
+
+        const headerFields = {
+            supplier_id: vendorId,
+            invoice_no: invoiceNo.trim(),
+            invoice_date: invoiceDate,
+            supplier_state_code: supplierStateCode,
+            aggregate_amount: totals.aggregate,
+            cgst_amount: physicalCgst || 0,
+            sgst_amount: physicalSgst || 0,
+            igst_amount: physicalIgst || 0,
+            total_tax: isIgst ? (physicalIgst || 0) : ((physicalCgst || 0) + (physicalSgst || 0)),
+            total_amount: physicalTotal || 0,
+            brand_id: selectedBrandId,
+            remarks: remarks.trim() || null,
+        };
 
         setSubmitting(true);
         try {
-            await apolloClient.mutate({
-                mutation: GRAPHQL_MAP.genericUpdate,
-                variables: { db_name: dbName, schema, value: payload },
-            });
-            toast.success(MESSAGES.SUCCESS_PURCHASE_CREATED);
+            if (editInvoice) {
+                const payload = graphQlUtils.buildGenericUpdateValue({
+                    tableName: "purchase_invoice",
+                    xData: {
+                        id: editInvoice!.id,
+                        ...headerFields,
+                        xDetails: {
+                            tableName: "purchase_invoice_line",
+                            fkeyName: "purchase_invoice_id",
+                            deletedIds: originalLineIds,
+                            xData: linePayload,
+                        },
+                    },
+                });
+                await apolloClient.mutate({
+                    mutation: GRAPHQL_MAP.genericUpdate,
+                    variables: { db_name: dbName, schema, value: payload },
+                });
+                toast.success(MESSAGES.SUCCESS_PURCHASE_UPDATED);
+            } else {
+                const payload = graphQlUtils.buildGenericUpdateValue({
+                    tableName: "purchase_invoice",
+                    xData: {
+                        branch_id: branchId,
+                        ...headerFields,
+                        xDetails: {
+                            tableName: "purchase_invoice_line",
+                            fkeyName: "purchase_invoice_id",
+                            xData: linePayload,
+                        },
+                    },
+                });
+                await apolloClient.mutate({
+                    mutation: GRAPHQL_MAP.genericUpdate,
+                    variables: { db_name: dbName, schema, value: payload },
+                });
+                toast.success(MESSAGES.SUCCESS_PURCHASE_CREATED);
+            }
+            setShowPhysicalCheckModal(false);
             onSuccess();
         } catch {
-            toast.error(MESSAGES.ERROR_PURCHASE_CREATE_FAILED);
+            toast.error(editInvoice ? MESSAGES.ERROR_PURCHASE_UPDATE_FAILED : MESSAGES.ERROR_PURCHASE_CREATE_FAILED);
         } finally {
             setSubmitting(false);
         }
@@ -475,7 +590,7 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
 
                             {/* Invoice No */}
                             <div className="space-y-2 lg:col-span-2">
-                                <Label className="text-xs font-semibold text-[var(--cl-text-muted)] uppercase tracking-wider">Invoice No <span className="text-red-500 ml-0.5">*</span></Label>
+                                <Label className="text-xs font-extrabold text-[var(--cl-text)] uppercase tracking-widest">Invoice No <span className="text-red-500 ml-0.5">*</span></Label>
                                 <div className="relative">
                                     <Input
                                         className={`bg-[var(--cl-surface-2)] pr-8 ${(!invoiceNo.trim() || invoiceExists) ? "border-red-500 focus:border-red-500 ring-red-500/10" : ""}`}
@@ -494,7 +609,7 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
 
                             {/* Invoice Date */}
                             <div className="space-y-2 lg:col-span-2">
-                                <Label className="text-xs font-semibold text-[var(--cl-text-muted)] uppercase tracking-wider">Inv Date <span className="text-red-500 ml-0.5">*</span></Label>
+                                <Label className="text-xs font-extrabold text-[var(--cl-text)] uppercase tracking-widest">Inv Date <span className="text-red-500 ml-0.5">*</span></Label>
                                 <Input
                                     className={`bg-[var(--cl-surface-2)] ${!invoiceDate ? "border-red-500 focus:border-red-500 ring-red-500/10" : ""}`}
                                     type="date"
@@ -525,7 +640,7 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
 
                             {/* Remarks */}
                             <div className="space-y-2 sm:col-span-2 lg:col-span-3">
-                                <Label className="text-xs font-semibold text-[var(--cl-text-muted)] uppercase tracking-wider">Remarks</Label>
+                                <Label className="text-xs font-extrabold text-[var(--cl-text)] uppercase tracking-widest">Remarks</Label>
                                 <Input
                                     className="bg-[var(--cl-surface-2)]"
                                     placeholder="Optional..."
@@ -670,23 +785,11 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
                                                 {/* Actions */}
                                                 <td className={`${tdClass} text-left`}>
                                                     <div className="flex items-center justify-start gap-0.5 px-2">
-                                                        <button
-                                                            type="button"
-                                                            className="cursor-pointer text-[var(--cl-accent)] hover:bg-[var(--cl-accent)]/10 hover:scale-110 active:scale-95 transition-all p-1.5 rounded-full"
-                                                            onClick={() => insertLine(idx)}
-                                                            title="Add row below"
-                                                        >
-                                                            <PlusCircle className="h-7 w-7" strokeWidth={2.5} />
-                                                        </button>
-                                                        <button
-                                                            type="button"
-                                                            className="cursor-pointer text-red-500 hover:text-red-600 hover:bg-red-500/10 hover:scale-110 active:scale-95 transition-all p-1.5 rounded-full disabled:opacity-20 disabled:cursor-not-allowed disabled:scale-100 disabled:bg-transparent"
-                                                            disabled={lines.length === 1}
-                                                            onClick={() => removeLine(idx)}
-                                                            title="Remove line"
-                                                        >
-                                                            <XCircle className="h-7 w-7" strokeWidth={2.5} />
-                                                        </button>
+                                                        <LineAddDeleteActions
+                                                            onAdd={() => insertLine(idx)}
+                                                            onDelete={() => removeLine(idx)}
+                                                            disableDelete={lines.length === 1}
+                                                        />
                                                     </div>
                                                 </td>
                                             </tr>
@@ -695,7 +798,7 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
                                 </tbody>
                                 <tfoot className="bg-[var(--cl-surface-2)]/20 font-bold">
                                     <tr className="border-t-2 border-[var(--cl-border)]">
-                                        <td className="py-2 px-4 text-xs uppercase tracking-wider text-[var(--cl-text-muted)]" colSpan={3}>Totals</td>
+                                        <td className="py-2 px-4 text-xs uppercase tracking-wider text-[var(--cl-text-muted)]" colSpan={3}>Calculated Sum</td>
                                         <td className="py-2 px-2 text-right text-sm text-[var(--cl-text)] font-semibold tabular-nums">
                                             {formatNumber(totals.quantity)}
                                         </td>
@@ -714,97 +817,28 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
                                         </td>
                                         <td className="w-28"></td>
                                     </tr>
-                                    <tr className="bg-[var(--cl-accent)]/10 border-y border-[var(--cl-accent)]/20 transition-all">
-                                        <td colSpan={3} className="py-3 px-4 text-right align-middle">
-                                            <div className="flex items-center justify-end gap-2">
-                                                {physicalValidation.allValid ? (
-                                                    <CheckCircle2 className="h-4 w-4 text-green-500 transition-all scale-110" />
-                                                ) : (
-                                                    <XCircle className="h-4 w-4 text-red-400 opacity-60 transition-all translate-x-[-1px]" />
-                                                )}
-                                                <span className={`text-[11px] font-bold uppercase tracking-widest transition-colors ${physicalValidation.allValid ? "text-green-600" : "text-red-500"}`}>
-                                                    Physical Invoice Check
-                                                </span>
-                                            </div>
-                                        </td>
-                                        <td className="p-0 border-x border-dashed border-[var(--cl-border)] transition-all">
-                                            <Input
-                                                type="number"
-                                                step="0.01"
-                                                value={physicalQty}
-                                                onChange={(e) => setPhysicalQty(Number(e.target.value))}
-                                                className={`h-11 w-full text-right px-2 rounded-none border-none tabular-nums transition-all focus:bg-[var(--cl-accent)]/5 focus:ring-0 ${!physicalValidation.qty.isValid ? "bg-red-500/10 text-red-600 font-bold" : "bg-transparent text-[var(--cl-text)]"}`}
-                                                placeholder="0"
-                                                onFocus={e => {
-                                                    const target = e.target;
-                                                    setTimeout(() => (target as HTMLInputElement).select(), 0);
-                                                }}
-                                            />
-                                        </td>
-                                        <td colSpan={3} className="text-right py-3 px-2 align-middle">
-                                            <span className="text-[9px] font-bold uppercase tracking-widest text-[var(--cl-text-muted)] opacity-40">Entry Column Match</span>
-                                        </td>
-                                        <td className="p-0 border-x border-dashed border-[var(--cl-border)] transition-all">
-                                            <Input
-                                                type="number"
-                                                step="0.01"
-                                                value={physicalCgst}
-                                                onChange={(e) => setPhysicalCgst(Number(e.target.value))}
-                                                className={`h-11 w-full text-right px-2 rounded-none border-none tabular-nums transition-all focus:bg-[var(--cl-accent)]/5 focus:ring-0 ${!physicalValidation.cgst.isValid ? "bg-red-500/10 text-red-600 font-bold" : "bg-transparent text-[var(--cl-text)]"}`}
-                                                disabled={isIgst}
-                                                placeholder="0.00"
-                                                onFocus={e => {
-                                                    const target = e.target;
-                                                    setTimeout(() => (target as HTMLInputElement).select(), 0);
-                                                }}
-                                            />
-                                        </td>
-                                        <td className="p-0 border-r border-dashed border-[var(--cl-border)] transition-all">
-                                            <Input
-                                                type="number"
-                                                step="0.01"
-                                                value={physicalSgst}
-                                                onChange={(e) => setPhysicalSgst(Number(e.target.value))}
-                                                className={`h-11 w-full text-right px-2 rounded-none border-none tabular-nums transition-all focus:bg-[var(--cl-accent)]/5 focus:ring-0 ${!physicalValidation.sgst.isValid ? "bg-red-500/10 text-red-600 font-bold" : "bg-transparent text-[var(--cl-text)]"}`}
-                                                disabled={isIgst}
-                                                placeholder="0.00"
-                                                onFocus={e => {
-                                                    const target = e.target;
-                                                    setTimeout(() => (target as HTMLInputElement).select(), 0);
-                                                }}
-                                            />
-                                        </td>
-                                        <td className="p-0 border-r border-dashed border-[var(--cl-border)] transition-all">
-                                            <Input
-                                                type="number"
-                                                step="0.01"
-                                                value={physicalIgst}
-                                                onChange={(e) => setPhysicalIgst(Number(e.target.value))}
-                                                className={`h-11 w-full text-right px-2 rounded-none border-none tabular-nums transition-all focus:bg-[var(--cl-accent)]/5 focus:ring-0 ${!physicalValidation.igst.isValid ? "bg-red-500/10 text-red-600 font-bold" : "bg-transparent text-[var(--cl-text)]"}`}
-                                                disabled={!isIgst}
-                                                placeholder="0.00"
-                                                onFocus={e => {
-                                                    const target = e.target;
-                                                    setTimeout(() => (target as HTMLInputElement).select(), 0);
-                                                }}
-                                            />
-                                        </td>
-                                        <td className="p-0 border-r border-dashed border-[var(--cl-border)] transition-all">
-                                            <Input
-                                                type="number"
-                                                step="0.01"
-                                                value={physicalTotal}
-                                                onChange={(e) => setPhysicalTotal(Number(e.target.value))}
-                                                className={`h-11 w-full text-right px-2 rounded-none border-none tabular-nums font-bold transition-all focus:bg-[var(--cl-accent)]/5 focus:ring-0 ${!physicalValidation.total.isValid ? "bg-red-500/10 text-red-600" : "bg-transparent text-[var(--cl-accent)]"}`}
-                                                placeholder="0.00"
-                                                onFocus={e => {
-                                                    const target = e.target;
-                                                    setTimeout(() => (target as HTMLInputElement).select(), 0);
-                                                }}
-                                            />
-                                        </td>
-                                        <td className="w-28 border-t border-dashed border-[var(--cl-border)]"></td>
-                                    </tr>
+                                    {editInvoice && (
+                                        <tr className="border-t border-[var(--cl-border)] bg-amber-500/5 text-amber-900 border-b">
+                                            <td className="py-2 px-4 text-xs uppercase tracking-wider text-amber-700" colSpan={3}>Saved Invoice Values</td>
+                                            <td className="py-2 px-2 text-right text-sm font-semibold tabular-nums text-amber-700/50">
+                                                —
+                                            </td>
+                                            <td colSpan={3}></td>
+                                            <td className="py-2 px-2 text-right text-sm tabular-nums">
+                                                {isIgst ? "—" : formatNumber(editInvoice.cgst_amount)}
+                                            </td>
+                                            <td className="py-2 px-2 text-right text-sm tabular-nums">
+                                                {isIgst ? "—" : formatNumber(editInvoice.sgst_amount)}
+                                            </td>
+                                            <td className="py-2 px-2 text-right text-sm tabular-nums">
+                                                {isIgst ? formatNumber(editInvoice.igst_amount) : "—"}
+                                            </td>
+                                            <td className="py-2 px-2 text-right text-sm font-bold tabular-nums">
+                                                {formatNumber(editInvoice.total_amount)}
+                                            </td>
+                                            <td className="w-28"></td>
+                                        </tr>
+                                    )}
                                 </tfoot>
                             </table>
                         </div>
@@ -815,6 +849,25 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
                         )}
                     </Card>
 
+                    {/* ── Physical Invoice Verification Modal ── */}
+                    <PhysicalInvoiceModal
+                        isOpen={showPhysicalCheckModal}
+                        onClose={() => setShowPhysicalCheckModal(false)}
+                        onSubmit={handleConfirmedSubmit}
+                        submitting={submitting}
+                        isIgst={isIgst}
+                        physicalValidation={physicalValidation}
+                        physicalQty={physicalQty}
+                        setPhysicalQty={setPhysicalQty}
+                        physicalCgst={physicalCgst}
+                        setPhysicalCgst={setPhysicalCgst}
+                        physicalSgst={physicalSgst}
+                        setPhysicalSgst={setPhysicalSgst}
+                        physicalIgst={physicalIgst}
+                        setPhysicalIgst={setPhysicalIgst}
+                        physicalTotal={physicalTotal}
+                        setPhysicalTotal={setPhysicalTotal}
+                    />
 
                 </>
             )}

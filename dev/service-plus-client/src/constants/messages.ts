@@ -307,7 +307,10 @@ export const MESSAGES = {
   ERROR_PURCHASE_INVOICE_EXISTS:       'This invoice number already exists for the selected supplier.',
   ERROR_PURCHASE_LINE_FIELDS_REQUIRED: 'Please fill all mandatory line fields (Part, Qty, and HSN for taxable items).',
   SUCCESS_PURCHASE_CREATED:            'Purchase invoice created successfully.',
+  SUCCESS_PURCHASE_UPDATED:            'Purchase invoice updated successfully.',
   SUCCESS_PURCHASE_DELETED:            'Purchase invoice deleted successfully.',
+  ERROR_PURCHASE_PHYSICAL_CHECK_FAILED: 'Physical invoice values do not match. Please correct the mismatches before saving.',
+  ERROR_PURCHASE_UPDATE_FAILED:        'Failed to update purchase invoice. Please try again.',
 
   // Parts Import
   ERROR_IMPORT_BRAND_REQUIRED:       'Please select a brand before uploading.',

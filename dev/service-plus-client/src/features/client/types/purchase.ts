@@ -15,11 +15,9 @@ export type PurchaseLineType = {
     quantity:            number;
     unit_price:          number;
     aggregate_amount:    number;
-    cgst_rate:           number;
+    gst_rate:            number;
     cgst_amount:         number;
-    sgst_rate:           number;
     sgst_amount:         number;
-    igst_rate:           number;
     igst_amount:         number;
     total_amount:        number;
 };

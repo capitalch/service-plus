@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { FileDown, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
+import { Button } from "@/components/ui/button";
 import {
     Dialog,
     DialogContent,
@@ -25,6 +26,7 @@ type Props = {
     invoice:      PurchaseInvoiceType | null;
     open:         boolean;
     onOpenChange: (open: boolean) => void;
+    onShowPdf?:   (invoice: PurchaseInvoiceType) => void;
 };
 
 type GenericQueryData<T> = { genericQuery: T[] | null };
@@ -33,12 +35,12 @@ type DetailRow = PurchaseInvoiceType & { lines: PurchaseLineType[] };
 
 // ─── CSS ──────────────────────────────────────────────────────────────────────
 
-const thClass = "text-xs font-semibold uppercase tracking-wide text-[var(--cl-text-muted)] p-2 text-left border-b border-[var(--cl-border)] bg-[var(--cl-surface-2)]/50";
-const tdClass = "p-2 text-sm text-[var(--cl-text)] border-b border-[var(--cl-border)]";
+const thClass = "text-xs font-extrabold uppercase tracking-widest text-zinc-500 p-2 text-left border-b border-zinc-200 bg-zinc-100/80";
+const tdClass = "p-2 text-sm text-zinc-700 border-b border-zinc-100";
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export const ViewPurchaseInvoiceDialog = ({ invoice, open, onOpenChange }: Props) => {
+export const ViewPurchaseInvoiceDialog = ({ invoice, open, onOpenChange, onShowPdf }: Props) => {
     const dbName = useAppSelector(selectDbName);
     const schema = useAppSelector(selectSchema);
 
@@ -74,9 +76,25 @@ export const ViewPurchaseInvoiceDialog = ({ invoice, open, onOpenChange }: Props
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-5xl max-h-[90vh] overflow-y-auto !bg-[var(--cl-surface)] text-[var(--cl-text)]">
-                <DialogHeader>
-                    <DialogTitle>Purchase Invoice — {invoice?.invoice_no}</DialogTitle>
+            <DialogContent className="sm:max-w-5xl max-h-[90vh] overflow-y-auto !bg-white text-zinc-950 border-none shadow-2xl">
+                <DialogHeader className="flex flex-row items-center justify-between border-b border-zinc-100 pb-4 mb-2">
+                    <DialogTitle className="text-xl font-bold text-zinc-800">
+                        Purchase Invoice — {invoice?.invoice_no}
+                    </DialogTitle>
+                    <div className="flex items-center gap-2 pr-8">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 gap-2 border-zinc-200 text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 font-bold uppercase tracking-widest text-[10px]"
+                            onClick={() => {
+                                if (detail && onShowPdf) onShowPdf(detail);
+                            }}
+                        >
+                            <FileDown className="h-3.5 w-3.5" />
+                            Show PDF
+                        </Button>
+
+                    </div>
                 </DialogHeader>
 
                 {loading ? (
@@ -86,19 +104,16 @@ export const ViewPurchaseInvoiceDialog = ({ invoice, open, onOpenChange }: Props
                 ) : detail ? (
                     <div className="space-y-4">
                         {/* Header info */}
-                        <div className="grid grid-cols-2 gap-x-6 gap-y-2 rounded-lg border border-[var(--cl-border)] bg-[var(--cl-surface-2)] p-4 text-sm sm:grid-cols-3">
+                        <div className="grid grid-cols-2 gap-x-6 gap-y-3 rounded-xl border border-zinc-200 bg-zinc-50/50 p-5 text-sm sm:grid-cols-4 shadow-sm">
                             <Field label="Invoice No"      value={detail.invoice_no} />
                             <Field label="Invoice Date"    value={detail.invoice_date} />
-                            <Field label="Supplier"        value={detail.supplier_name} />
+                            <Field label="Supplier"        className="sm:col-span-1" value={detail.supplier_name} />
                             <Field label="State Code"      value={detail.supplier_state_code} />
-                            <Field label="Aggregate Amount"  value={formatCurrency(detail.aggregate_amount)} />
-                            <Field label="Total Tax"       value={formatCurrency(detail.total_tax)} />
-                            <Field label="Total Amount"    value={formatCurrency(detail.total_amount)} className="font-semibold text-[var(--cl-accent)]" />
-                            {detail.remarks && <Field label="Remarks" value={detail.remarks} className="col-span-2" />}
+                            {detail.remarks && <Field label="Remarks" value={detail.remarks} className="col-span-2 sm:col-span-4 border-t border-zinc-100 pt-2 mt-1" />}
                         </div>
 
                         {/* Lines table */}
-                        <div className="overflow-x-auto rounded-lg border border-[var(--cl-border)]">
+                        <div className="overflow-x-auto rounded-lg border border-zinc-200">
                             <table className="min-w-full border-collapse text-sm">
                                 <thead>
                                     <tr>
@@ -115,9 +130,9 @@ export const ViewPurchaseInvoiceDialog = ({ invoice, open, onOpenChange }: Props
                                         <th className={`${thClass} text-right`}>Total</th>
                                     </tr>
                                 </thead>
-                                <tbody className="bg-[var(--cl-surface)]">
+                                <tbody className="bg-white">
                                     {lines.map((line, idx) => (
-                                        <tr key={line.id} className="hover:bg-[var(--cl-surface-2)]/50">
+                                        <tr key={line.id} className="hover:bg-zinc-50/80 transition-colors">
                                             <td className={`${tdClass} text-[var(--cl-text-muted)]`}>{idx + 1}</td>
                                             <td className={`${tdClass} font-mono`}>{line.part_code}</td>
                                             <td className={tdClass}>{line.part_name}</td>
@@ -125,24 +140,45 @@ export const ViewPurchaseInvoiceDialog = ({ invoice, open, onOpenChange }: Props
                                             <td className={`${tdClass} text-right`}>{Number(line.quantity).toFixed(2)}</td>
                                             <td className={`${tdClass} text-right`}>{formatCurrency(line.unit_price)}</td>
                                             <td className={`${tdClass} text-right`}>{formatCurrency(line.aggregate_amount)}</td>
-                                            <td className={`${tdClass} text-right text-xs`}>{formatCurrency(line.cgst_amount)}<span className="text-[var(--cl-text-muted)]"> ({line.cgst_rate}%)</span></td>
-                                            <td className={`${tdClass} text-right text-xs`}>{formatCurrency(line.sgst_amount)}<span className="text-[var(--cl-text-muted)]"> ({line.sgst_rate}%)</span></td>
-                                            <td className={`${tdClass} text-right text-xs`}>{formatCurrency(line.igst_amount)}<span className="text-[var(--cl-text-muted)]"> ({line.igst_rate}%)</span></td>
+                                            <td className={`${tdClass} text-right text-xs`}>{formatCurrency(line.cgst_amount)}</td>
+                                            <td className={`${tdClass} text-right text-xs`}>{formatCurrency(line.sgst_amount)}</td>
+                                            <td className={`${tdClass} text-right text-xs`}>{formatCurrency(line.igst_amount)}</td>
                                             <td className={`${tdClass} text-right font-medium`}>{formatCurrency(line.total_amount)}</td>
                                         </tr>
                                     ))}
                                 </tbody>
                                 <tfoot>
-                                    <tr className="bg-[var(--cl-surface-2)]/50 font-semibold">
-                                        <td colSpan={6} className="p-2 text-right text-xs uppercase tracking-wide text-[var(--cl-text-muted)]">Totals</td>
-                                        <td className="p-2 text-right text-sm">{formatCurrency(totalAggregate)}</td>
-                                        <td className="p-2 text-right text-sm">{formatCurrency(totalCgst)}</td>
-                                        <td className="p-2 text-right text-sm">{formatCurrency(totalSgst)}</td>
-                                        <td className="p-2 text-right text-sm">{formatCurrency(totalIgst)}</td>
-                                        <td className="p-2 text-right text-sm text-[var(--cl-accent)]">{formatCurrency(grandTotal)}</td>
+                                    <tr className="bg-zinc-100/50 font-bold border-t-2 border-zinc-200">
+                                        <td colSpan={6} className="p-2 text-right text-xs uppercase tracking-widest text-zinc-500">Totals</td>
+                                        <td className="p-2 text-right text-sm text-zinc-900 font-bold">{formatCurrency(totalAggregate)}</td>
+                                        <td className="p-2 text-right text-sm text-zinc-900 font-bold">{formatCurrency(totalCgst)}</td>
+                                        <td className="p-2 text-right text-sm text-zinc-900 font-bold">{formatCurrency(totalSgst)}</td>
+                                        <td className="p-2 text-right text-sm text-zinc-900 font-bold">{formatCurrency(totalIgst)}</td>
+                                        <td className="p-2 text-right text-sm text-[var(--cl-accent)] font-extrabold">{formatCurrency(grandTotal)}</td>
                                     </tr>
                                 </tfoot>
                             </table>
+                        </div>
+
+                        {/* Summary Footer info */}
+                        <div className="flex flex-col sm:flex-row justify-end items-start sm:items-center gap-6 rounded-xl border border-zinc-200 bg-zinc-50/30 p-6 shadow-sm">
+                            <Field 
+                                label="Aggregate Amount"  
+                                value={formatCurrency(detail.aggregate_amount)} 
+                                className="text-right"
+                            />
+                            <div className="h-8 w-px bg-zinc-200 hidden sm:block" />
+                            <Field 
+                                label="Total Tax"       
+                                value={formatCurrency(detail.total_tax)} 
+                                className="text-right"
+                            />
+                            <div className="h-8 w-px bg-zinc-200 hidden sm:block" />
+                            <Field 
+                                label="Total Amount"    
+                                value={formatCurrency(detail.total_amount)} 
+                                className="text-right !text-lg"
+                            />
                         </div>
                     </div>
                 ) : null}
@@ -154,8 +190,8 @@ export const ViewPurchaseInvoiceDialog = ({ invoice, open, onOpenChange }: Props
 function Field({ label, value, className }: { label: string; value: string | number; className?: string }) {
     return (
         <div className={className}>
-            <p className="text-xs text-[var(--cl-text-muted)]">{label}</p>
-            <p className="font-medium">{value}</p>
+            <p className="text-[10px] font-extrabold text-zinc-400 uppercase tracking-widest mb-0.5">{label}</p>
+            <p className="font-semibold text-zinc-800">{value}</p>
         </div>
     );
 }

@@ -16,7 +16,8 @@
       "Bash(npx vite:*)",
       "Bash(pnpm run:*)",
       "Bash(pnpm build:*)",
-      "Bash(ls -d /home/sushant/projects/service-plus/dev/service-plus-client/src/*/)"
+      "Bash(ls -d /home/sushant/projects/service-plus/dev/service-plus-client/src/*/)",
+      "Bash(ls:*)"
     ]
   }
 }

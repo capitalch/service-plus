@@ -1755,21 +1755,19 @@ class SqlStore:
             pi.remarks,
             json_agg(
                 json_build_object(
-                    'id',             pil.id,
-                    'part_id',        pil.part_id,
-                    'part_code',      sp.part_code,
-                    'part_name',      sp.part_name,
-                    'hsn_code',       pil.hsn_code,
-                    'quantity',       pil.quantity,
-                    'unit_price',     pil.unit_price,
+                    'id',               pil.id,
+                    'part_id',          pil.part_id,
+                    'part_code',        sp.part_code,
+                    'part_name',        sp.part_name,
+                    'hsn_code',         pil.hsn_code,
+                    'quantity',         pil.quantity,
+                    'unit_price',       pil.unit_price,
                     'aggregate_amount', pil.aggregate_amount,
-                    'cgst_rate',      pil.cgst_rate,
-                    'cgst_amount',    pil.cgst_amount,
-                    'sgst_rate',      pil.sgst_rate,
-                    'sgst_amount',    pil.sgst_amount,
-                    'igst_rate',      pil.igst_rate,
-                    'igst_amount',    pil.igst_amount,
-                    'total_amount',   pil.total_amount
+                    'gst_rate',         pil.gst_rate,
+                    'cgst_amount',      pil.cgst_amount,
+                    'sgst_amount',      pil.sgst_amount,
+                    'igst_amount',      pil.igst_amount,
+                    'total_amount',     pil.total_amount
                 ) ORDER BY pil.id
             ) AS lines
         FROM purchase_invoice pi
@@ -1791,6 +1789,19 @@ class SqlStore:
             SELECT 1 FROM purchase_invoice
             WHERE supplier_id = (table "p_supplier_id")
               AND UPPER(invoice_no) = UPPER((table "p_invoice_no"))
+        ) AS exists
+    """
+
+    CHECK_SUPPLIER_INVOICE_EXISTS_EXCLUDE_ID = """
+        with
+            "p_supplier_id" as (values(%(supplier_id)s::bigint)),
+            "p_invoice_no"  as (values(%(invoice_no)s::text)),
+            "p_id"          as (values(%(id)s::bigint))
+        SELECT EXISTS (
+            SELECT 1 FROM purchase_invoice
+            WHERE supplier_id = (table "p_supplier_id")
+              AND UPPER(invoice_no) = UPPER((table "p_invoice_no"))
+              AND id <> (table "p_id")
         ) AS exists
     """
 

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { CheckCircle2, Eye, FileText, Loader2, PlusCircle, RefreshCw, Search, Trash2, XCircle } from "lucide-react";
+import { CheckCircle2, Eye, FileDown, FileText, Loader2, MoreHorizontal, Pencil, PlusCircle, RefreshCw, Search, Trash2, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 
@@ -13,6 +13,12 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
     Select,
     SelectContent,
@@ -32,6 +38,7 @@ import { selectCurrentBranch, selectIsGstRegistered, selectSchema } from "@/stor
 import type { VendorType } from "@/features/client/types/vendor";
 import type { PurchaseInvoiceType, StockTransactionTypeRow } from "@/features/client/types/purchase";
 import { ViewPurchaseInvoiceDialog } from "./view-purchase-invoice-dialog";
+import { PurchaseInvoicePdfPreviewDialog } from "./purchase-invoice-pdf-preview-dialog";
 import { NewPurchaseInvoice, type NewPurchaseInvoiceHandle } from "./new-purchase-invoice";
 import type { BrandOption } from "@/features/client/types/model";
 import { Save } from "lucide-react";
@@ -97,9 +104,13 @@ export const PurchaseEntrySection = () => {
     const [loading,  setLoading]  = useState(false);
 
     // Dialog state
-    const [viewInvoice,  setViewInvoice]  = useState<PurchaseInvoiceType | null>(null);
-    const [deleteId,     setDeleteId]     = useState<number | null>(null);
+    const [viewInvoice,       setViewInvoice]       = useState<PurchaseInvoiceType | null>(null);
+    const [pdfPreviewInvoice, setPdfPreviewInvoice] = useState<PurchaseInvoiceType | null>(null);
+    const [deleteId,          setDeleteId]          = useState<number | null>(null);
     const [deleting,     setDeleting]     = useState(false);
+
+    // Edit state
+    const [editInvoice,  setEditInvoice]  = useState<PurchaseInvoiceType | null>(null);
 
     // Form coordination
     const newPurchaseRef = useRef<NewPurchaseInvoiceHandle>(null);
@@ -273,7 +284,8 @@ export const PurchaseEntrySection = () => {
                     <div className="flex items-baseline gap-2 overflow-hidden">
                         <h1 className="text-lg font-bold text-[var(--cl-text)] truncate">
                             Purchase Entry
-                            {mode === 'new' && <span className="ml-2 text-sm font-medium text-[var(--cl-text-muted)] whitespace-nowrap">— New</span>}
+                            {mode === 'new' && !editInvoice && <span className="ml-2 text-sm font-medium text-[var(--cl-text-muted)] whitespace-nowrap">— New</span>}
+                            {mode === 'new' &&  editInvoice && <span className="ml-2 text-sm font-medium text-amber-500 whitespace-nowrap">— Edit</span>}
                             {mode === 'view' && <span className="ml-2 text-sm font-medium text-[var(--cl-text-muted)] whitespace-nowrap">— View</span>}
                         </h1>
                         {mode === 'new' && (
@@ -306,8 +318,8 @@ export const PurchaseEntrySection = () => {
                 <div className="flex items-center justify-center gap-4">
                     {/* Brand Select - Compact */}
                     <div className="hidden sm:flex items-center gap-2">
-                        <Label className="text-[10px] font-bold uppercase tracking-wider text-[var(--cl-text-muted)] whitespace-nowrap">
-                            Brand <span className="text-red-500">*</span>
+                        <Label className="text-xs font-extrabold text-[var(--cl-text)] uppercase tracking-widest whitespace-nowrap">
+                            Brand <span className="text-red-500 ml-0.5">*</span>
                         </Label>
                         <Select
                             disabled={brands.length === 0 || loading}
@@ -329,16 +341,21 @@ export const PurchaseEntrySection = () => {
                     <div className="flex items-center rounded-lg border border-[var(--cl-border)] bg-[var(--cl-surface-2)] p-1 shadow-inner">
                         <Button
                             className={`h-9 gap-1.5 px-4 text-sm transition-all duration-200 ${
-                                mode === 'new' 
-                                ? 'bg-emerald-600/10 text-emerald-600 font-bold border border-emerald-600/20 shadow-sm' 
+                                mode === 'new' && editInvoice
+                                ? 'bg-amber-600/10 text-amber-600 font-bold border border-amber-600/20 shadow-sm'
+                                : mode === 'new'
+                                ? 'bg-emerald-600/10 text-emerald-600 font-bold border border-emerald-600/20 shadow-sm'
                                 : 'text-[var(--cl-text-muted)] hover:text-[var(--cl-text)] hover:bg-[var(--cl-surface)]'
                             }`}
                             size="sm"
                             variant="ghost"
-                            onClick={() => setMode('new')}
+                            onClick={() => { setEditInvoice(null); setMode('new'); }}
                         >
-                            <PlusCircle className={`h-4 w-4 ${mode === 'new' ? 'stroke-[2.5px]' : ''}`} />
-                            New
+                            {mode === 'new' && editInvoice
+                                ? <Pencil className="h-4 w-4 stroke-[2.5px]" />
+                                : <PlusCircle className={`h-4 w-4 ${mode === 'new' ? 'stroke-[2.5px]' : ''}`} />
+                            }
+                            {mode === 'new' && editInvoice ? 'Edit' : 'New'}
                         </Button>
                         <Button
                             className={`h-9 gap-1.5 px-4 text-sm transition-all duration-200 ${
@@ -364,7 +381,7 @@ export const PurchaseEntrySection = () => {
                     {mode === 'new' && (
                         <div className="flex items-center gap-2 border-l border-[var(--cl-border)] pl-3">
                             <Button
-                                className="h-8 gap-1.5 px-3 text-xs"
+                                className="h-8 gap-1.5 px-3 text-xs font-extrabold uppercase tracking-widest text-[var(--cl-text)]"
                                 variant="ghost"
                                 onClick={() => newPurchaseRef.current?.reset()}
                                 disabled={submitting}
@@ -373,7 +390,7 @@ export const PurchaseEntrySection = () => {
                                 Reset
                             </Button>
                             <Button
-                                className="h-8 gap-1.5 px-4 text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm font-semibold transition-all disabled:opacity-30 disabled:bg-slate-300 disabled:text-slate-600 disabled:shadow-none disabled:cursor-not-allowed"
+                                className="h-8 gap-1.5 px-4 text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm font-extrabold uppercase tracking-widest transition-all disabled:opacity-30 disabled:bg-slate-300 disabled:text-slate-600 disabled:shadow-none disabled:cursor-not-allowed"
                                 onClick={() => newPurchaseRef.current?.submit()}
                                 disabled={!newFormValid || submitting}
                             >
@@ -393,6 +410,7 @@ export const PurchaseEntrySection = () => {
                     txnTypes={txnTypes}
                     vendors={vendors}
                     onSuccess={() => {
+                        setEditInvoice(null);
                         setMode('view');
                         if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, 1);
                     }}
@@ -403,6 +421,7 @@ export const PurchaseEntrySection = () => {
                     isIgst={false}
                     selectedBrandId={selectedBrand ? Number(selectedBrand) : null}
                     brandName={brands.find(b => String(b.id) === selectedBrand)?.name}
+                    editInvoice={editInvoice}
                 />
             ) : (
                 <>
@@ -505,23 +524,49 @@ export const PurchaseEntrySection = () => {
                                                     {formatCurrency(inv.total_amount)}
                                                 </td>
                                                 <td className={tdClass} style={{ width: "11%" }}>
-                                                    <div className="flex gap-1">
-                                                        <Button
-                                                            className="h-7 px-2"
-                                                            size="sm"
-                                                            variant="outline"
-                                                            onClick={() => setViewInvoice(inv)}
-                                                        >
-                                                            <Eye className="h-3.5 w-3.5" />
-                                                        </Button>
-                                                        <Button
-                                                            className="h-7 px-2 text-red-500 hover:text-red-600"
-                                                            size="sm"
-                                                            variant="outline"
-                                                            onClick={() => setDeleteId(inv.id)}
-                                                        >
-                                                            <Trash2 className="h-3.5 w-3.5" />
-                                                        </Button>
+                                                    <div className="flex items-center justify-center">
+                                                        <DropdownMenu>
+                                                            <DropdownMenuTrigger asChild>
+                                                                <Button
+                                                                    className="h-8 w-8 p-0 hover:bg-[var(--cl-surface-2)]"
+                                                                    variant="ghost"
+                                                                >
+                                                                    <MoreHorizontal className="h-4 w-4" />
+                                                                    <span className="sr-only">Open menu</span>
+                                                                </Button>
+                                                            </DropdownMenuTrigger>
+                                                            <DropdownMenuContent align="end" className="w-[160px] bg-[var(--cl-surface)] border-[var(--cl-border)]">
+                                                                <DropdownMenuItem
+                                                                    className="flex items-center gap-2 cursor-pointer focus:bg-[var(--cl-accent)]/10 focus:text-[var(--cl-accent)]"
+                                                                    onClick={() => setViewInvoice(inv)}
+                                                                >
+                                                                    <Eye className="h-4 w-4" />
+                                                                    <span>View Details</span>
+                                                                </DropdownMenuItem>
+                                                                <DropdownMenuItem
+                                                                    className="flex items-center gap-2 cursor-pointer focus:bg-zinc-100"
+                                                                    onClick={() => setPdfPreviewInvoice(inv)}
+                                                                >
+                                                                    <FileDown className="h-4 w-4" />
+                                                                    <span>Show PDF</span>
+                                                                </DropdownMenuItem>
+
+                                                                <DropdownMenuItem
+                                                                    className="flex items-center gap-2 cursor-pointer text-amber-500 focus:bg-amber-500/10 focus:text-amber-600"
+                                                                    onClick={() => { setEditInvoice(inv); setMode('new'); }}
+                                                                >
+                                                                    <Pencil className="h-4 w-4" />
+                                                                    <span>Edit Invoice</span>
+                                                                </DropdownMenuItem>
+                                                                <DropdownMenuItem
+                                                                    className="flex items-center gap-2 cursor-pointer text-red-500 focus:bg-red-500/10 focus:text-red-600 font-semibold"
+                                                                    onClick={() => setDeleteId(inv.id)}
+                                                                >
+                                                                    <Trash2 className="h-4 w-4" />
+                                                                    <span>Delete Invoice</span>
+                                                                </DropdownMenuItem>
+                                                            </DropdownMenuContent>
+                                                        </DropdownMenu>
                                                     </div>
                                                 </td>
                                             </tr>
@@ -564,6 +609,14 @@ export const PurchaseEntrySection = () => {
                         invoice={viewInvoice}
                         open={viewInvoice !== null}
                         onOpenChange={open => { if (!open) setViewInvoice(null); }}
+                        onShowPdf={inv => setPdfPreviewInvoice(inv)}
+                    />
+
+                    {/* PDF Preview Dialog */}
+                    <PurchaseInvoicePdfPreviewDialog
+                        invoice={pdfPreviewInvoice}
+                        open={pdfPreviewInvoice !== null}
+                        onOpenChange={open => { if (!open) setPdfPreviewInvoice(null); }}
                     />
 
                     {/* Delete Confirm Dialog */}

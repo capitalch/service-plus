@@ -40,6 +40,14 @@
 		- Aug 2026
 
 # Tracking
+- 27-04-2026
+	- completed
+		- masters
+		- Configurations
+			- Company profile, App settings, Numbering
+		- Inventory
+			- Purchase
+		- Bookworm linux distro for cloudjiffy
 - 22-03-2026
 	- Admin and super admin features along with all databases implemented
 	- Starte working on UI design of main service software
