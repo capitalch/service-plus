@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { CheckCircle2, Eye, FileDown, FileSpreadsheet, FileText, Loader2, MoreHorizontal, Pencil, PlusCircle, RefreshCw, Search, Trash2, XCircle } from "lucide-react";
+import { CheckCircle2, Eye, FileDown, FileSpreadsheet, FileText, Loader2, MoreHorizontal, Pencil, PlusCircle, RefreshCw, RotateCcw, Search, Trash2, XCircle } from "lucide-react";
 import { utils, writeFile } from "xlsx";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -113,6 +113,7 @@ export const PurchaseEntrySection = () => {
     // Edit state
     const [editInvoice,  setEditInvoice]  = useState<PurchaseInvoiceType | null>(null);
     const [isIgst,       setIsIgst]       = useState(false);
+    const [isReturn,     setIsReturn]     = useState(false);
 
     // Form coordination
     const newPurchaseRef = useRef<NewPurchaseInvoiceHandle>(null);
@@ -525,7 +526,7 @@ export const PurchaseEntrySection = () => {
                                     : 'bg-transparent text-[var(--cl-text-muted)] hover:text-white hover:bg-emerald-600 hover:scale-105 font-semibold'
                                 }`}
                                 size="sm"
-                                onClick={() => { setEditInvoice(null); setMode('new'); }}
+                                onClick={() => { setEditInvoice(null); setIsReturn(false); setMode('new'); }}
                             >
                                 {mode === 'new' && editInvoice
                                     ? <Pencil className="h-4 w-4" />
@@ -550,8 +551,8 @@ export const PurchaseEntrySection = () => {
                             </Button>
                         </div>
 
-                        {/* IGST Mode */}
-                        <div className="flex justify-end">
+                        {/* IGST + Return toggles */}
+                        <div className="flex items-center gap-1.5">
                             <label className={`flex items-center gap-1.5 cursor-pointer select-none px-3 py-1.5 rounded-lg border-2 font-black text-[12px] uppercase tracking-[0.1em] transition-all shadow-sm ${
                                 mode !== 'new'
                                     ? 'invisible pointer-events-none'
@@ -567,6 +568,21 @@ export const PurchaseEntrySection = () => {
                                 />
                                 IGST
                             </label>
+                            <button
+                                type="button"
+                                disabled={!!editInvoice}
+                                onClick={() => setIsReturn(r => !r)}
+                                className={`flex items-center gap-1.5 cursor-pointer select-none px-3 py-1.5 rounded-lg border-2 font-black text-[12px] uppercase tracking-[0.1em] transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed ${
+                                    mode !== 'new'
+                                        ? 'invisible pointer-events-none'
+                                        : isReturn
+                                        ? 'bg-red-500 text-white border-red-700 shadow-red-500/20'
+                                        : 'bg-[var(--cl-surface-2)] border-[var(--cl-border)] text-[var(--cl-text-muted)]'
+                                }`}
+                            >
+                                <RotateCcw className="h-3 w-3" />
+                                Return
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -616,6 +632,8 @@ export const PurchaseEntrySection = () => {
                         setSubmitting(status.isSubmitting);
                     }}
                     isIgst={isIgst}
+                    isReturn={isReturn}
+                    onIsReturnChange={setIsReturn}
                     selectedBrandId={selectedBrand ? Number(selectedBrand) : null}
                     brandName={brands.find(b => String(b.id) === selectedBrand)?.name}
                     editInvoice={editInvoice}

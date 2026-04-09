@@ -1,138 +1,156 @@
-# Plan: Implement Loan Entry Module
+# Visual Improvement Plan — Purchase Entry Form (`new-purchase-invoice.tsx`)
 
-## Reference
-- Pattern: Stock Adjustment module (`stock-adjustment-section.tsx`, `new-stock-adjustment.tsx`)
-- Task source: `plans/tran.md`
+## Current Pain Points
+
+| Area | Issue |
+|------|-------|
+| Purchase Return toggle | Absolute-positioned badge (`-top-3 -left-1`) clips outside the card — fragile, awkward on all screen sizes |
+| Header grid | 12-col span with no visual grouping; fields feel unrelated; no `md` breakpoint |
+| Lines table | 13 columns on `min-w-[1000px]`; input and computed columns look identical; warranty is a plain raw checkbox |
+| Computed columns | Same visual weight as editable columns — user can't tell what is editable vs read-only |
+| Table footer | `tfoot` label "computed Amount" is inconsistent casing; colspan math is fragile; "Saved Invoice Values" row in edit mode is disconnected |
+| Responsive | Jumps from `sm` (2-col) straight to `lg` (12-col); no `md` treatment; horizontal scroll on ≥1000px tables |
+| Visual hierarchy | Form is flat — no section labels, no grouping cues, header card and lines card look like continuation of the same block |
 
 ---
 
-## What Already Exists (no changes needed)
+## Improvement Plan
 
-| Item | Location | Status |
-|------|----------|--------|
-| DB tables `stock_loan`, `stock_loan_line` | `service_plus_service.sql` | ✅ exists |
-| Transaction types `LOAN_IN` (id=9), `LOAN_OUT` (id=10) | `sql_bu.py` line 885–886 | ✅ seeded |
-| SQL queries `GET_STOCK_LOANS_COUNT`, `GET_STOCK_LOANS_PAGED`, `GET_STOCK_LOAN_DETAIL` | `sql_store.py` line 2101–2171 | ✅ exists |
-| `SQL_MAP` constants for loan | `src/constants/sql-map.ts` line 157–159 | ✅ exists |
-| Messages `SUCCESS_LOAN_*`, `ERROR_LOAN_*` | `src/constants/messages.ts` line 363–372 | ✅ exists |
-| Base types file `stock-loan.ts` | `src/features/client/types/stock-loan.ts` | ✅ exists (needs updates) |
-| Menu item "Loan Entry" in sidebar | Left menu bar | ✅ exists |
+### Fix 1 — Replace the "Purchase Return" FAB with an inline section banner
+
+**Current:** Tiny absolute-positioned label overlapping the card top-left edge.
+
+**Change:** Remove `absolute -top-3 -left-1` positioning entirely. Place the Return toggle as a **prominent banner row** immediately inside `CardContent`, spanning full width, only visible when `isReturn` is true (collapsed otherwise). In new mode, show it as a styled toggle button in the header bar (similar to the IGST toggle, same row as Brand/New/View).
+
+```
+[ Purchase Return ] toggle button — in section header bar, right side, beside IGST switch
+When active → card gets amber/red tinted top border (4px solid red-500) instead of background colour change on the whole card
+```
+
+---
+
+### Fix 2 — Header fields: grouping, spacing, and `md` breakpoint
+
+**Current:** One flat grid with 5 fields on `lg:grid-cols-12`.
+
+**Change:**
+- Switch from `lg:grid-cols-12` to two distinct rows using `grid` with clearer labels:
+  - **Row 1 (Invoice Identity):** Supplier `lg:col-span-4` | Invoice No `lg:col-span-2` | Inv Date `lg:col-span-2` | State `lg:col-span-2` | Remarks `lg:col-span-2`
+  - Add `md:grid-cols-6` as an intermediate breakpoint: Supplier(2) | Invoice No(2) | Date(1) | State(1) on row 1; Remarks full on row 2
+- Add a thin horizontal divider `border-t border-[var(--cl-border)]` between the header card and lines card with a section label:
+  ```
+  ─── Line Items ──────────────────────────
+  ```
+- Give `CardContent` slightly more vertical padding (`pt-5 pb-4`) so fields don't feel squeezed.
+- Show the duplicate-invoice error inline under the Invoice No field (already done) — keep as-is.
+
+---
+
+### Fix 3 — Lines table: separate editable vs computed columns visually
+
+**Current:** All 13 columns use identical cell padding and background — impossible to tell input from output at a glance.
+
+**Changes:**
+
+**a) Computed column shading**
+Apply `bg-[var(--cl-surface-2)]/40` to the `<td>` cells for Aggregate, CGST, SGST/IGST, and Total columns. Add a subtle left-border separator before the Aggregate column:
+```
+border-l border-[var(--cl-border)] bg-[var(--cl-surface-2)]/40
+```
+
+**b) Warranty column — replace raw checkbox with icon-toggle button**
+Replace the `<input type="checkbox">` with a styled icon button (shield icon from lucide):
+```
+Unchecked: ShieldOff icon — muted colour, border
+Checked:   ShieldCheck icon — accent/emerald colour, filled bg
+```
+Same pattern as the IN/OUT toggle in loan entry. This makes it immediately recognisable and touch-friendly.
+
+**c) Reduce table min-width**
+Change `min-w-[1000px]` → `min-w-[860px]`. Achieved by:
+- Merging Remarks column from `12%` → `8%` (truncated, with title tooltip)
+- Combining CGST + SGST into a single "Tax" column header when `!isIgst` (show both amounts stacked: `CGST / SGST` two-line cell) — saves one full column width
+- Shrinking `#` column from `3%` → `2%`
+
+**d) Column header rename**
+- `Warr` → shield icon only (no text) with `title="Under Warranty"`
+- `Aggregate` → `Subtotal`
+- `GST(%)` → `GST %`
+- `Actions` header → empty (already empty in some implementations — confirm and unify)
+
+---
+
+### Fix 4 — Replace `tfoot` totals with a sticky summary bar
+
+**Current:** `tfoot` rows with raw `colSpan` arithmetic — breaks when columns change (e.g., IGST vs CGST/SGST toggle).
+
+**Change:** Remove `tfoot` entirely. Add a **summary bar** as a separate `div` below the table card, styled like a footer panel:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  Lines: 4   Qty: 12   Subtotal: ₹4,200.00   Tax: ₹756.00   Total: ₹4,956.00  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+- Use `flex flex-wrap justify-end gap-x-6 gap-y-1` pill layout
+- Each stat: label (muted, tiny caps) + value (bold, tabular-nums)
+- Total amount: larger font, accent colour, `text-base font-black`
+- In edit mode: add a second row in the same bar showing "Saved Total: ₹X" in amber
+- This approach is fully responsive (wraps naturally on small screens), no colspan math
+
+---
+
+### Fix 5 — Responsive improvements
+
+**Current:** Two breakpoints only (`sm:grid-cols-2` and `lg:grid-cols-12`) with no `md`.
+
+**Changes:**
+- Header: add `md:grid-cols-8` as described in Fix 2
+- Lines table: on `sm` and below, show a simplified card-per-line view instead of the horizontal-scroll table (collapsible row expansion) — OR — add a notice `"Scroll right to see all columns"` with a faint right-shadow indicator on the table container
+- Summary bar (Fix 4): `flex-wrap` already handles this
+
+---
+
+### Fix 6 — Visual hierarchy and polish
+
+**a) Section labels**
+Add small uppercase section labels above each card:
+```
+INVOICE DETAILS          ← above header card
+LINE ITEMS               ← above lines card
+```
+Style: `text-[10px] font-black uppercase tracking-[0.15em] text-[var(--cl-text-muted)] px-1 mb-1`
+
+**b) Purchase Return state — card accent border instead of background flood**
+When `isReturn`:
+- Replace `bg-red-50 dark:bg-red-950/20` on both cards with a left accent border: `border-l-4 border-l-red-500`
+- Add a small pill badge in the header section label: `[ RETURN ]` in red
+- This is less visually noisy than flooding the whole card background
+
+**c) Read-only cell typography**
+Computed cells (Subtotal, Tax, Total per line): use `font-mono tabular-nums text-[var(--cl-text-muted)]` for computed middle values, and `font-mono tabular-nums font-semibold text-[var(--cl-text)]` for the line total. This creates a clear distinction: muted mono = calculated, regular = editable.
+
+**d) Row hover**
+Current: `hover:bg-[var(--cl-surface-2)]/30` — keep as-is, it works well.
+
+**e) Header card shadow**
+Change `shadow-sm` → `shadow-md` on the header card only, to give it visual precedence over the lines table below.
+
+---
+
+## Files to Change
+
+| File | Changes |
+|------|---------|
+| `new-purchase-invoice.tsx` | Fixes 1, 2, 3a–3d, 4, 6a–6e |
+| `purchase-entry-section.tsx` | Fix 1 (move Return toggle to section header bar) |
+
+No new files needed.
 
 ---
 
 ## Workflow
 
 ```
-Update Types → Create NewLoanEntry form → Create LoanEntrySection → Wire into page
+Fix 1 (Return toggle) → Fix 2 (header grid) → Fix 3 (lines table) → Fix 4 (summary bar) → Fix 5 (responsive) → Fix 6 (polish)
 ```
-
----
-
-## Steps
-
-### Step 1 — Update `src/features/client/types/stock-loan.ts`
-
-Align with the stock-adjustment type pattern:
-- Change `interface` → `type` (per CLAUDE.md)
-- Add `_key: string` to `LoanLineFormItem` (local UI key for React keying)
-- Add `brand_id`, `part_code`, `part_name` to `LoanLineFormItem` for display (mirrors `StockAdjustmentLineFormItem`)
-- Remove the `part?: SparePartMaster` field (replace with explicit `part_code`/`part_name` fields)
-- Add `StockLoanWithLines` composite type
-- Add `emptyLoanLine(brandId?: number | null): LoanLineFormItem` factory function (mirrors `emptyAdjustmentLine`)
-
-### Step 2 — Create `src/features/client/components/inventory/stock-loan/new-loan-entry.tsx`
-
-`forwardRef` component exposing `NewLoanEntryHandle` — follows `NewStockAdjustment` exactly.
-
-**Props:**
-```ts
-type Props = {
-    branchId: number | null;
-    brandName?: string;
-    editLoan?: StockLoanWithLines | null;
-    onStatusChange: (status: { isValid: boolean; isSubmitting: boolean }) => void;
-    onSuccess: () => void;
-    selectedBrandId: number | null;
-    txnTypes: StockTransactionTypeRow[];
-};
-```
-
-**Header fields (Card, lg:grid-cols-12):**
-- `loan_date` (date, required) — `lg:col-span-2`
-- `loan_to` (text, required, placeholder "Technician / Agency name") — `lg:col-span-4`
-- `ref_no` (text, optional) — `lg:col-span-3`
-- `remarks` (text, optional) — `lg:col-span-3`
-
-**Lines table columns:** `#` | `Part *` | `IN / OUT *` | `Qty *` | `Line Remarks` | `Actions`
-- IN/OUT toggle buttons same as adjustment (IN=D emerald, OUT=C red)
-- `PartCodeInput` + `LineAddDeleteActions` (same as stock-adjustment)
-- `stock_transaction_type_id`: `LOAN_IN` for D, `LOAN_OUT` for C
-
-**Submit payload structure (genericUpdate):**
-```
-stock_loan (header)
-  └─ stock_loan_line (xDetails, fkeyName: "stock_loan_id")
-       └─ stock_transaction (xDetails, fkeyName: "stock_loan_line_id")
-```
-
-**Validation:**
-- `isFormValid = !!branchId && !!loan_date && !!loan_to.trim() && lines.every(l => !!l.part_id && l.qty > 0 && (l.dr_cr === "D" || l.dr_cr === "C"))`
-- Show red border on `loan_to` input when empty (same style as adjustment reason field)
-
-**Edit flow:**
-- Fetch detail using `SQL_MAP.GET_STOCK_LOAN_DETAIL` with `{ id: editLoan.id }`
-- Populate header state and lines from `detail.lines`
-- Pass `deletedIds = originalLineIds` on update
-
-### Step 3 — Create `src/features/client/components/inventory/stock-loan/loan-entry-section.tsx`
-
-Section component following `StockAdjustmentSection` exactly.
-
-**State:**
-- `mode: "new" | "view"` — same toggle as adjustment
-- `brands`, `txnTypes` — loaded once on mount via `fetchMeta`
-- `selectedBrand: string` — brand select (required for new entry)
-- `loans: StockLoanType[]`, `total`, `page`, `loading`
-- `fromDate`, `toDate` — initialised with `currentFinancialYearRange()`
-- `search`, `searchQ` — debounced (600ms)
-- `deleteId`, `deleting` — delete confirm dialog
-- `editLoan: StockLoanType | null` — edit state
-- `newFormValid`, `submitting` — form coordination with `newLoanRef`
-
-**Header bar layout (3-col grid, same as adjustment):**
-- Left: `HandCoins` icon + "Loan Entry" title + mode label (New / Edit / View)
-- Centre: Brand select + New/View toggle buttons
-- Right: Reset + Save buttons (visible only in `new` mode)
-
-**View mode toolbar:** from/to date inputs + search input (placeholder "Loan To, Ref #…") + Refresh button
-
-**View mode data grid columns:** `#` | `Date` | `Loan To / Tech` | `Ref #` | `Remarks` | `Actions`
-- Actions: dropdown with Edit (amber) and Delete (red) items — same as adjustment
-
-**Delete dialog:** "This will permanently delete the loan entry and all associated stock transactions. This action cannot be undone."
-
-**Edit flow:**
-- `setEditLoan(row)` + `setMode("new")` — same pattern as adjustment
-- `NewLoanEntry` receives `editLoan` prop; fetches detail internally
-
-**Fetch data (`loadData`):** parallel `GET_STOCK_LOANS_PAGED` + `GET_STOCK_LOANS_COUNT` using `graphQlUtils.buildGenericQueryValue`
-
-**Delete mutation:** `genericUpdate` with `deletedIds: [deleteId]` on `stock_loan` table
-
-### Step 4 — Update `src/features/client/pages/client-inventory-page.tsx`
-
-- Import `LoanEntrySection` from `../components/inventory/stock-loan/loan-entry-section`
-- Add `case "Loan Entry": return <LoanEntrySection />;` in the switch (replacing the ComingSoon fallback)
-
----
-
-## File Change Summary
-
-| File | Action |
-|------|--------|
-| `src/features/client/types/stock-loan.ts` | Update — align with adjustment pattern |
-| `src/features/client/components/inventory/stock-loan/new-loan-entry.tsx` | Create |
-| `src/features/client/components/inventory/stock-loan/loan-entry-section.tsx` | Create |
-| `src/features/client/pages/client-inventory-page.tsx` | Update — wire loan case |
-
-No backend changes required (SQL, sql_store.py, and transaction types all exist).

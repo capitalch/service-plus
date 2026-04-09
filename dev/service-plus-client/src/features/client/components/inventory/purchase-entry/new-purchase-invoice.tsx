@@ -1,5 +1,5 @@
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
-import { Loader2, Plus } from "lucide-react";
+import { Loader2, Plus, ShieldCheck, ShieldOff } from "lucide-react";
 import { LineAddDeleteActions } from "../line-add-delete-actions";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
@@ -31,15 +31,17 @@ type GenericQueryData<T> = { genericQuery: T[] | null };
 
 type Props = {
     branchId: number | null;
-    txnTypes: StockTransactionTypeRow[];
-    vendors: VendorType[];
-    states: StateRow[];
-    onSuccess: () => void;
-    onStatusChange: (status: { isValid: boolean; isSubmitting: boolean }) => void;
-    isIgst: boolean;
-    selectedBrandId: number | null;
     brandName?: string;
     editInvoice?: import("@/features/client/types/purchase").PurchaseInvoiceType | null;
+    isIgst: boolean;
+    isReturn: boolean;
+    onIsReturnChange: (v: boolean) => void;
+    onStatusChange: (status: { isSubmitting: boolean; isValid: boolean }) => void;
+    onSuccess: () => void;
+    selectedBrandId: number | null;
+    states: StateRow[];
+    txnTypes: StockTransactionTypeRow[];
+    vendors: VendorType[];
 };
 
 export type NewPurchaseInvoiceHandle = {
@@ -102,7 +104,7 @@ const inputCls = "h-7 border-[var(--cl-border)] bg-[var(--cl-surface)] text-sm p
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
-    branchId, txnTypes, vendors, states, onSuccess, onStatusChange, isIgst, selectedBrandId, brandName, editInvoice
+    branchId, brandName, editInvoice, isIgst, isReturn, onIsReturnChange, onStatusChange, onSuccess, selectedBrandId, states, txnTypes, vendors,
 }, ref) => {
     const dbName         = useAppSelector(selectDbName);
     const schema         = useAppSelector(selectSchema);
@@ -115,7 +117,6 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
     const [invoiceDate, setInvoiceDate] = useState(today());
     const [supplierStateCode, setSupplierStateCode] = useState("");
     const [remarks, setRemarks] = useState("");
-    const [isReturn, setIsReturn] = useState(false);
     const [physicalTotal, setPhysicalTotal] = useState<number>(0);
     const [physicalQty, setPhysicalQty] = useState<number>(0);
     const [physicalCgst, setPhysicalCgst] = useState<number>(0);
@@ -185,7 +186,7 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
             setInvoiceDate(detail.invoice_date);
             setSupplierStateCode(detail.supplier_state_code);
             setRemarks(detail.remarks ?? "");
-            setIsReturn(Boolean(detail.is_return));
+            onIsReturnChange(Boolean(detail.is_return));
             setPhysicalTotal(0);
             setPhysicalQty(0);
             setPhysicalCgst(0);
@@ -389,7 +390,7 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
         setInvoiceDate(today());
         setSupplierStateCode("");
         setRemarks("");
-        setIsReturn(false);
+        onIsReturnChange(false);
         setPhysicalTotal(0);
         setPhysicalQty(0);
         setPhysicalCgst(0);
@@ -624,25 +625,16 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
             ) : (
                 <>
                     {/* Remainder of the form... */}
-                    <Card className={`relative border-[var(--cl-border)] shadow-sm !overflow-visible ${isReturn ? "bg-red-50 dark:bg-red-950/20" : "bg-[var(--cl-surface)]"}`}>
-                        {/* Purchase Return FAB — absolute top-left */}
-                        <label className="absolute -top-3 -left-1 z-10 flex items-center gap-1.5 cursor-pointer select-none rounded px-2 py-1 bg-red-100/80 dark:bg-red-950/60 border border-red-200 dark:border-red-800 shadow-sm">
-                            <input
-                                type="checkbox"
-                                checked={isReturn}
-                                onChange={e => setIsReturn(e.target.checked)}
-                                className="h-3.5 w-3.5 cursor-pointer accent-red-500"
-                                disabled={!!editInvoice}
-                            />
-                            <span className="text-[10px] font-bold uppercase tracking-widest text-red-700 dark:text-red-400">
-                                Purchase Return
-                            </span>
-                        </label>
+                    <p className="text-[10px] font-black uppercase tracking-[0.15em] text-[var(--cl-text-muted)] px-1 mb-1 flex items-center gap-2">
+                        Invoice Details
+                        {isReturn && <span className="px-1.5 py-0.5 rounded bg-red-500/10 text-red-600 border border-red-500/20">Return</span>}
+                    </p>
+                    <Card className={`border-[var(--cl-border)] shadow-md !overflow-visible bg-[var(--cl-surface)] ${isReturn ? "border-l-4 border-l-red-500" : ""}`}>
                         <CardContent className="pt-4 !overflow-visible">
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-x-2 gap-y-2">
+                            <div className="grid grid-cols-1 md:grid-cols-6 lg:grid-cols-12 gap-x-2 gap-y-2">
                             {/* Vendor */}
                             <SearchableCombobox
-                                className="lg:col-span-3"
+                                className="md:col-span-2 lg:col-span-4"
                                 isError={!vendorId}
                                 label={<span>Supplier <span className="text-red-500 ml-0.5">*</span></span>}
                                 placeholder="Search supplier..."
@@ -661,7 +653,7 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
                             />
 
                             {/* Invoice No */}
-                            <div className="space-y-2 lg:col-span-2">
+                            <div className="space-y-2 md:col-span-2 lg:col-span-2">
                                 <Label className="text-xs font-extrabold text-[var(--cl-text)] uppercase tracking-widest">Invoice No <span className="text-red-500 ml-0.5">*</span></Label>
                                 <div className="relative">
                                     <Input
@@ -680,7 +672,7 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
                             </div>
 
                             {/* Invoice Date */}
-                            <div className="space-y-2 lg:col-span-2">
+                            <div className="space-y-2 md:col-span-1 lg:col-span-2">
                                 <Label className="text-xs font-extrabold text-[var(--cl-text)] uppercase tracking-widest">Inv Date <span className="text-red-500 ml-0.5">*</span></Label>
                                 <Input
                                     className={`bg-[var(--cl-surface-2)] ${!invoiceDate ? "border-red-500 focus:border-red-500 ring-red-500/10" : ""}`}
@@ -691,7 +683,7 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
                             </div>
 
                             <SearchableCombobox
-                                className="lg:col-span-2"
+                                className="md:col-span-1 lg:col-span-2"
                                 isError={!supplierStateCode}
                                 label={<span>State <span className="text-red-500 ml-0.5">*</span></span>}
                                 placeholder="Select state..."
@@ -711,7 +703,7 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
                             />
 
                             {/* Remarks */}
-                            <div className="space-y-2 sm:col-span-2 lg:col-span-3">
+                            <div className="space-y-2 md:col-span-6 lg:col-span-2">
                                 <Label className="text-xs font-extrabold text-[var(--cl-text)] uppercase tracking-widest">Remarks</Label>
                                 <Input
                                     className="bg-[var(--cl-surface-2)]"
@@ -724,30 +716,31 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
                         </CardContent>
                     </Card>
                     {/* table */}
-                    <Card className={`border-[var(--cl-border)] shadow-sm flex flex-col min-h-0 relative ${isReturn ? "bg-red-50 dark:bg-red-950/20" : "bg-[var(--cl-surface)]"}`}>
+                    <p className="text-[10px] font-black uppercase tracking-[0.15em] text-[var(--cl-text-muted)] px-1 mb-1">Line Items</p>
+                    <Card className={`border-[var(--cl-border)] shadow-sm flex flex-col min-h-0 relative bg-[var(--cl-surface)] ${isReturn ? "border-l-4 border-l-red-500" : ""}`}>
                         <div className="overflow-x-auto w-full pb-4">
-                            <table className="min-w-[1000px] w-full border-collapse text-sm sticky-header">
+                            <table className="min-w-[860px] w-full border-collapse text-sm sticky-header">
                                 <thead>
                                     <tr className="bg-[var(--cl-surface-2)]/50">
-                                        <th className={thClass} style={{ width: "3%" }}>#</th>
+                                        <th className={thClass} style={{ width: "2%" }}>#</th>
                                         <th className={thClass} style={{ width: "20%" }}>Part <span className="text-red-500 ml-0.5">*</span></th>
-                                        <th className={thClass} style={{ width: "6%" }}>Warr</th>
-                                        <th className={thClass} style={{ width: "10%" }}>HSN</th>
-                                        <th className={`${thClass} text-right`} style={{ width: "8%" }}>Qty <span className="text-red-500 ml-0.5">*</span></th>
-                                        <th className={`${thClass} text-right`} style={{ width: "9%" }}>Price</th>
-                                        <th className={`${thClass} text-right`} style={{ width: "10%" }}>Aggregate</th>
-                                        <th className={`${thClass} text-right`} style={{ width: "8%" }}>GST(%)</th>
+                                        <th className={`${thClass} text-center`} style={{ width: "4%" }} title="Under Warranty"><ShieldOff className="h-3.5 w-3.5 mx-auto" /></th>
+                                        <th className={thClass} style={{ width: "8%" }}>HSN</th>
+                                        <th className={`${thClass} text-right`} style={{ width: "6%" }}>Qty <span className="text-red-500 ml-0.5">*</span></th>
+                                        <th className={`${thClass} text-right`} style={{ width: "8%" }}>Price</th>
+                                        <th className={`${thClass} text-right border-l border-[var(--cl-border)]`} style={{ width: "8%" }}>Subtotal</th>
+                                        <th className={`${thClass} text-right`} style={{ width: "6%" }}>GST %</th>
                                         {!isIgst ? (
                                             <>
-                                                <th className={`${thClass} text-right`} style={{ width: "8%" }}>CGST</th>
-                                                <th className={`${thClass} text-right`} style={{ width: "8%" }}>SGST</th>
+                                                <th className={`${thClass} text-right`} style={{ width: "7%" }}>CGST</th>
+                                                <th className={`${thClass} text-right`} style={{ width: "7%" }}>SGST</th>
                                             </>
                                         ) : (
-                                            <th className={`${thClass} text-right`} style={{ width: "16%" }}>IGST</th>
+                                            <th className={`${thClass} text-right`} style={{ width: "14%" }}>IGST</th>
                                         )}
-                                        <th className={`${thClass} text-right`} style={{ width: "8%" }}>Total</th>
-                                        <th className={thClass} style={{ width: "12%" }}>Remarks</th>
-                                        <th className={`${thClass} text-left`} style={{ width: "5%" }}>Actions</th>
+                                        <th className={`${thClass} text-right`} style={{ width: "7%" }}>Total</th>
+                                        <th className={thClass} style={{ width: "8%" }}>Remarks</th>
+                                        <th className={`${thClass} text-left`} style={{ width: "4%" }}></th>
                                     </tr>
                                 </thead>
                                 <tbody className="bg-[var(--cl-surface)]">
@@ -798,18 +791,26 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
 
                                                 {/* Warranty */}
                                                 <td className={`${tdClass} text-center`}>
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={line.under_warranty}
-                                                        onChange={e => {
-                                                            const checked = e.target.checked;
+                                                    <button
+                                                        type="button"
+                                                        title={line.under_warranty ? "Under Warranty — click to remove" : "Not under warranty — click to mark"}
+                                                        onClick={() => {
+                                                            const checked = !line.under_warranty;
                                                             updateLine(idx, {
                                                                 under_warranty: checked,
                                                                 ...(checked && { unit_price: 0 }),
                                                             });
                                                         }}
-                                                        className="h-4 w-4 cursor-pointer accent-[var(--cl-accent)]"
-                                                    />
+                                                        className={`mx-auto flex h-6 w-6 items-center justify-center rounded transition-all cursor-pointer ${
+                                                            line.under_warranty
+                                                                ? "bg-emerald-600 text-white shadow-sm"
+                                                                : "bg-[var(--cl-surface-2)] text-[var(--cl-text-muted)] hover:bg-emerald-600/20 hover:text-emerald-600"
+                                                        }`}
+                                                    >
+                                                        {line.under_warranty
+                                                            ? <ShieldCheck className="h-3.5 w-3.5" />
+                                                            : <ShieldOff className="h-3.5 w-3.5" />}
+                                                    </button>
                                                 </td>
 
                                                 {/* HSN */}
@@ -850,8 +851,8 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
                                                     />
                                                 </td>
 
-                                                {/* Aggregate (read-only) */}
-                                                <td className={`${tdClass} p-2 text-right text-sm text-[var(--cl-text)]`}>
+                                                {/* Subtotal (read-only) */}
+                                                <td className={`${tdClass} p-2 text-right font-mono tabular-nums text-sm text-[var(--cl-text-muted)] border-l border-[var(--cl-border)] bg-[var(--cl-surface-2)]/40`}>
                                                     {formatNumber(c.aggregate)}
                                                 </td>
 
@@ -871,22 +872,22 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
                                                 {!isIgst ? (
                                                     <>
                                                         {/* CGST Amt (read-only) */}
-                                                        <td className={`${tdClass} p-2 text-right text-sm text-[var(--cl-text-muted)] tabular-nums`}>
+                                                        <td className={`${tdClass} p-2 text-right font-mono tabular-nums text-sm text-[var(--cl-text-muted)] bg-[var(--cl-surface-2)]/40`}>
                                                             {formatNumber(c.cgstAmt)}
                                                         </td>
                                                         {/* SGST Amt (read-only) */}
-                                                        <td className={`${tdClass} p-2 text-right text-sm text-[var(--cl-text-muted)] tabular-nums`}>
+                                                        <td className={`${tdClass} p-2 text-right font-mono tabular-nums text-sm text-[var(--cl-text-muted)] bg-[var(--cl-surface-2)]/40`}>
                                                             {formatNumber(c.sgstAmt)}
                                                         </td>
                                                     </>
                                                 ) : (
-                                                    <td className={`${tdClass} p-2 text-right text-sm text-[var(--cl-text-muted)] tabular-nums`} title="IGST Amount">
+                                                    <td className={`${tdClass} p-2 text-right font-mono tabular-nums text-sm text-[var(--cl-text-muted)] bg-[var(--cl-surface-2)]/40`} title="IGST Amount">
                                                         {formatNumber(c.igstAmt)}
                                                     </td>
                                                 )}
 
                                                 {/* Total (read-only) */}
-                                                <td className={`${tdClass} p-2 text-right text-sm font-semibold text-[var(--cl-text)] tabular-nums`}>
+                                                <td className={`${tdClass} p-2 text-right font-mono tabular-nums text-sm font-semibold text-[var(--cl-text)] bg-[var(--cl-surface-2)]/40`}>
                                                     {formatNumber(c.total)}
                                                 </td>
 
@@ -914,60 +915,6 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
                                         );
                                     })}
                                 </tbody>
-                                <tfoot className="bg-[var(--cl-surface-2)]/20 font-bold">
-                                    <tr className="border-t-2 border-[var(--cl-border)]">
-                                        <td className="py-2 px-4 text-xs uppercase tracking-wider text-[var(--cl-text-muted)]" colSpan={3}>computed Amount</td>
-                                        <td className="py-2 px-2 text-right text-sm text-[var(--cl-text)] font-semibold tabular-nums">
-                                            {formatNumber(totals.quantity)}
-                                        </td>
-                                        <td colSpan={3}></td>
-                                        {!isIgst ? (
-                                            <>
-                                                <td className="py-2 px-2 text-right text-sm text-[var(--cl-text-muted)] tabular-nums">
-                                                    {formatNumber(totals.cgst)}
-                                                </td>
-                                                <td className="py-2 px-2 text-right text-sm text-[var(--cl-text-muted)] tabular-nums">
-                                                    {formatNumber(totals.sgst)}
-                                                </td>
-                                            </>
-                                        ) : (
-                                            <td className="py-2 px-2 text-right text-sm text-[var(--cl-text-muted)] tabular-nums">
-                                                {formatNumber(totals.igst)}
-                                            </td>
-                                        )}
-                                        <td className="py-2 px-2 text-right text-sm text-[var(--cl-accent)] font-bold tabular-nums">
-                                            {formatNumber(totals.total)}
-                                        </td>
-                                        <td className="w-28"></td>
-                                    </tr>
-                                    {editInvoice && (
-                                        <tr className="border-t border-[var(--cl-border)] bg-amber-500/5 text-amber-900 border-b">
-                                            <td className="py-2 px-4 text-xs uppercase tracking-wider text-amber-700" colSpan={3}>Saved Invoice Values</td>
-                                            <td className="py-2 px-2 text-right text-sm font-semibold tabular-nums text-amber-700/50">
-                                                —
-                                            </td>
-                                            <td colSpan={3}></td>
-                                            {!isIgst ? (
-                                                <>
-                                                    <td className="py-2 px-2 text-right text-sm tabular-nums">
-                                                        {formatNumber(editInvoice.cgst_amount)}
-                                                    </td>
-                                                    <td className="py-2 px-2 text-right text-sm tabular-nums">
-                                                        {formatNumber(editInvoice.sgst_amount)}
-                                                    </td>
-                                                </>
-                                            ) : (
-                                                <td className="py-2 px-2 text-right text-sm tabular-nums">
-                                                    {formatNumber(editInvoice.igst_amount)}
-                                                </td>
-                                            )}
-                                            <td className="py-2 px-2 text-right text-sm font-bold tabular-nums">
-                                                {formatNumber(editInvoice.total_amount)}
-                                            </td>
-                                            <td className="w-28"></td>
-                                        </tr>
-                                    )}
-                                </tfoot>
                             </table>
                         </div>
                         {lines.length === 0 && (
@@ -976,6 +923,36 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
                             </div>
                         )}
                     </Card>
+
+                    {/* ── Summary Bar ── */}
+                    <div className={`rounded-lg border px-4 py-2.5 flex flex-wrap items-center gap-x-6 gap-y-1 justify-end ${isReturn ? "border-red-500/30 bg-red-500/5" : "border-[var(--cl-border)] bg-[var(--cl-surface-2)]/40"}`}>
+                        <div className="flex items-center gap-1.5">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-[var(--cl-text-muted)]">Lines</span>
+                            <span className="font-mono font-semibold text-sm text-[var(--cl-text)]">{lines.length}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-[var(--cl-text-muted)]">Qty</span>
+                            <span className="font-mono font-semibold text-sm text-[var(--cl-text)]">{formatNumber(totals.quantity)}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-[var(--cl-text-muted)]">Subtotal</span>
+                            <span className="font-mono font-semibold text-sm text-[var(--cl-text)]">₹{formatNumber(totals.aggregate)}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-[var(--cl-text-muted)]">Tax</span>
+                            <span className="font-mono font-semibold text-sm text-[var(--cl-text-muted)]">₹{formatNumber(totals.total_tax)}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 border-l border-[var(--cl-border)] pl-4">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-[var(--cl-text-muted)]">Total</span>
+                            <span className="font-mono font-black text-base text-[var(--cl-accent)]">₹{formatNumber(totals.total)}</span>
+                        </div>
+                        {editInvoice && (
+                            <div className="flex items-center gap-1.5 border-l border-amber-500/30 pl-4">
+                                <span className="text-[10px] font-black uppercase tracking-widest text-amber-600">Saved</span>
+                                <span className="font-mono font-semibold text-sm text-amber-700">₹{formatNumber(editInvoice.total_amount)}</span>
+                            </div>
+                        )}
+                    </div>
 
                     {/* ── Master Data Diff Confirmation Modal ── */}
                     <MasterDataDiffModal
