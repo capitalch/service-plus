@@ -119,6 +119,11 @@ export const GRAPHQL_MAP = {
             setUserBuRole(db_name: $db_name, schema: $schema, value: $value)
         }
     `,
+    createSalesInvoice: gql`
+        mutation CreateSalesInvoice($db_name: String!, $schema: String, $value: String!) {
+            createSalesInvoice(db_name: $db_name, schema: $schema, value: $value)
+        }
+    `,
     superAdminClientsData: gql`
         query SuperAdminClientsData {
             superAdminClientsData

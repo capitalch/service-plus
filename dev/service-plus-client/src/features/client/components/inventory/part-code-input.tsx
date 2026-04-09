@@ -103,6 +103,7 @@ export const PartCodeInput = forwardRef<HTMLInputElement, PartCodeInputProps>(({
 
     const partDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const inputRef = useRef<HTMLInputElement | null>(null);
+    const skipBlurRef = useRef(false);
 
     // Part search (debounced 1200ms)
     useEffect(() => {
@@ -263,7 +264,7 @@ export const PartCodeInput = forwardRef<HTMLInputElement, PartCodeInputProps>(({
                     <button
                         type="button"
                         tabIndex={-1}
-                        onMouseDown={e => e.preventDefault()}
+                        onMouseDown={e => { e.preventDefault(); skipBlurRef.current = true; }}
                         onClick={openPartPick}
                         className="absolute left-1.5 top-1/2 -translate-y-1/2 rounded-md p-1 bg-[var(--cl-accent)] text-white hover:bg-[var(--cl-accent)]/10 hover:text-[var(--cl-accent)] shadow-sm transition-all focus:ring-2 focus:ring-[var(--cl-accent)]/20 cursor-pointer z-10"
                         title="Browse all parts"
@@ -288,6 +289,7 @@ export const PartCodeInput = forwardRef<HTMLInputElement, PartCodeInputProps>(({
                             }
                         }}
                         onBlur={() => {
+                            if (skipBlurRef.current) { skipBlurRef.current = false; return; }
                             if (partCode.trim()) void handleTypedPartSearch(partCode);
                         }}
                     />

@@ -20,6 +20,8 @@ export type PurchaseLineType = {
     sgst_amount:         number;
     igst_amount:         number;
     total_amount:        number;
+    under_warranty:      boolean;
+    remarks:             string | null;
 };
 
 export type PurchaseInvoiceType = {
@@ -37,21 +39,27 @@ export type PurchaseInvoiceType = {
     total_tax:           number;
     total_amount:        number;
     remarks:             string | null;
+    is_return:           boolean;
     lines?:              PurchaseLineType[];
 };
 
 export type PurchaseLineFormItem = {
-    _key:       string;
-    part_id:    number | null;
-    brand_id:   number | null;
-    part_code:  string;
-    part_name:  string;
-    uom:        string;
-    hsn_code:   string;
-    quantity:   number;
-    unit_price: number;
-    gst_rate:   number;
-    cgst_rate:  number;
-    sgst_rate:  number;
-    igst_rate:  number;
+    _key:             string;
+    part_id:          number | null;
+    brand_id:         number | null;
+    part_code:        string;
+    part_name:        string;
+    uom:              string;
+    hsn_code:         string;
+    quantity:         number;
+    unit_price:       number;
+    gst_rate:         number;
+    cgst_rate:        number;
+    sgst_rate:        number;
+    igst_rate:        number;
+    under_warranty:   boolean;
+    remarks:          string;
+    _orig_hsn_code:   string | null;
+    _orig_cost_price: number | null;
+    _orig_gst_rate:   number | null;
 };

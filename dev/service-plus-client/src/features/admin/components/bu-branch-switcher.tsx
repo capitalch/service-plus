@@ -115,8 +115,9 @@ export const BuBranchSwitcher = ({ variant = 'admin' }: BuBranchSwitcherPropsTyp
 
     useEffect(() => {
         if (availableBus.length > 0) return;
+        if (!user) return;
 
-        if (user?.userType === 'A') {
+        if (user.userType === 'A') {
             // Admin users have access to all BUs — fetch from DB
             if (!dbName) return;
             apolloClient.query<{ genericQuery: BuContextType[] | null }>({
@@ -141,13 +142,12 @@ export const BuBranchSwitcher = ({ variant = 'admin' }: BuBranchSwitcherPropsTyp
             return;
         }
 
-        if (!user?.availableBus?.length) return;
+        if (!user.availableBus?.length) return;
         const buses = user.availableBus;
         dispatch(setAvailableBus(buses));
         const resolved = buses.find(b => b.id === user.lastUsedBuId) ?? buses[0] ?? null;
         dispatch(setCurrentBu(resolved));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [user, dbName, availableBus.length, dispatch]);
 
     // ── On currentBu change: fetch branches ───────────────────────────────────
 

@@ -154,7 +154,7 @@ export const AddCustomerDialog = ({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent aria-describedby={undefined} className="flex max-h-[90vh] flex-col sm:max-w-2xl">
+            <DialogContent aria-describedby={undefined} className="flex max-h-[90vh] flex-col sm:max-w-2xl overflow-y-auto overflow-x-hidden">
                 <DialogHeader>
                     <DialogTitle className="text-base font-semibold text-foreground">
                         Add Customer
@@ -162,7 +162,7 @@ export const AddCustomerDialog = ({
                 </DialogHeader>
 
                 <form
-                    className="flex flex-col gap-4 overflow-y-auto px-1 pt-1"
+                    className="flex flex-col gap-4"
                     onSubmit={form.handleSubmit(onSubmit)}
                 >
                     <div className="grid grid-cols-2 gap-4">

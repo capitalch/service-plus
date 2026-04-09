@@ -18,3 +18,26 @@ export function formatCurrency(amount: number, currency: string = "INR", locale:
     currency: currency,
   }).format(amount);
 }
+
+/**
+ * Returns the current date range for the financial year (April 1st to March 31st).
+ */
+export function currentFinancialYearRange() {
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth(); // 0-indexed, 3 is April
+
+  let startYear, endYear;
+  if (currentMonth >= 3) {
+      startYear = currentYear;
+      endYear = currentYear + 1;
+  } else {
+      startYear = currentYear - 1;
+      endYear = currentYear;
+  }
+
+  return {
+      from: `${startYear}-04-01`,
+      to:   `${endYear}-03-31`,
+  };
+}

@@ -773,6 +773,53 @@ async def resolve_generic_update_helper(db_name: str, schema: str = "public", va
     return record_id
 
 
+async def resolve_create_sales_invoice_helper(db_name: str, schema: str = "public", value: str = "") -> Any:
+    """
+    Create a sales invoice and atomically increment the document sequence.
+
+    The `value` JSON must contain:
+      - The sql_object for the sales_invoice insert (with nested xDetails for lines and
+        stock_transactions), PLUS:
+      - doc_sequence_id   (int): ID of the document_sequence row to increment.
+      - doc_sequence_next (int): The new next_number value (current + 1).
+
+    Both doc_sequence_* keys are stripped before passing the sql_object to exec_sql_object.
+    """
+    if not value:
+        raise ValidationException(
+            message=AppMessages.INVALID_INPUT,
+            extensions={"detail": AppMessages.INVALID_JSON_OBJECT},
+        )
+    value_string = unquote(value)
+    try:
+        payload: dict = json.loads(value_string)
+    except json.JSONDecodeError as e:
+        logger.error(f"Invalid JSON in createSalesInvoice value: {e}")
+        raise ValidationException(
+            message=AppMessages.INVALID_INPUT,
+            extensions={"detail": AppMessages.INVALID_JSON_OBJECT},
+        )
+
+    doc_sequence_id   = payload.pop("doc_sequence_id", None)
+    doc_sequence_next = payload.pop("doc_sequence_next", None)
+
+    db_name_arg = db_name if db_name else None
+    schema_name = schema or "public"
+
+    record_id = await exec_sql_object(db_name_arg, schema_name, payload)
+    logger.info(f"Sales invoice created with id: {record_id}")
+
+    if doc_sequence_id is not None and doc_sequence_next is not None:
+        seq_object = {
+            "tableName": "document_sequence",
+            "xData": {"id": doc_sequence_id, "next_number": doc_sequence_next},
+        }
+        await exec_sql_object(db_name_arg, schema_name, seq_object)
+        logger.info(f"Document sequence {doc_sequence_id} incremented to {doc_sequence_next}")
+
+    return record_id
+
+
 async def resolve_generic_update_script_helper(db_name: str, schema: str = "public", value: str = "") -> Any:
     """
     Execute a pre-defined SQL script from SqlStore with optional named parameters.

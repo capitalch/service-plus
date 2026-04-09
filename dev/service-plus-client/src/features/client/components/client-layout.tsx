@@ -14,6 +14,7 @@ import {
     selectIsGstRegistered,
     selectSchema,
     setCompanyName,
+    setDefaultGstRate,
     setIsGstRegistered,
 } from "@/store/context-slice";
 import { ClientActivityBar } from "./client-activity-bar";
@@ -121,20 +122,30 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
 
     useEffect(() => {
         if (!dbName || !schema) return;
+
         void apolloClient.query<{ genericQuery: { company_name: string; gstin: string | null }[] }>({
             fetchPolicy: 'network-only',
             query:       GRAPHQL_MAP.genericQuery,
-            variables:   {
-                db_name: dbName,
-                schema,
-                value:   graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_COMPANY_INFO }),
-            },
+            variables:   { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_COMPANY_INFO }) },
         }).then(res => {
-            const rows = res.data?.genericQuery ?? [];
-            if (rows.length > 0) {
-                dispatch(setCompanyName(rows[0].company_name));
-                dispatch(setIsGstRegistered(!!rows[0].gstin));
+            const company = res.data?.genericQuery?.[0];
+            if (company) {
+                dispatch(setCompanyName(company.company_name));
+                dispatch(setIsGstRegistered(!!company.gstin));
             }
+        }).catch(() => {/* silently ignore */});
+
+        void apolloClient.query<{ genericQuery: { setting_key: string; setting_value: unknown }[] }>({
+            fetchPolicy: 'network-only',
+            query:       GRAPHQL_MAP.genericQuery,
+            variables:   { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_APP_SETTINGS }) },
+        }).then(res => {
+            const settings = res.data?.genericQuery ?? [];
+            const raw = settings.find(s => s.setting_key === 'default_gst_rate')?.setting_value;
+            // setting_value is stored as a JSON-encoded string (e.g. "18"), parse it first
+            let parsed: unknown = raw;
+            if (typeof raw === 'string') { try { parsed = JSON.parse(raw); } catch { /* keep raw */ } }
+            dispatch(setDefaultGstRate(Number(parsed ?? 0)));
         }).catch(() => {/* silently ignore */});
     }, [dbName, schema]); // eslint-disable-line react-hooks/exhaustive-deps
 

@@ -25,6 +25,7 @@ type ContextStateType = {
     companyName:       string | null;
     currentBranch:     BranchContextType | null;
     currentBu:         BuContextType | null;
+    defaultGstRate:    number;
     isGstRegistered:   boolean;
 };
 
@@ -36,6 +37,7 @@ const initialState: ContextStateType = {
     companyName:       null,
     currentBranch:     null,
     currentBu:         null,
+    defaultGstRate:    0,
     isGstRegistered:   false,
 };
 
@@ -67,6 +69,10 @@ export const contextSlice = createSlice({
             state.currentBu = action.payload;
         },
 
+        setDefaultGstRate: (state, action: PayloadAction<number>) => {
+            state.defaultGstRate = action.payload;
+        },
+
         setIsGstRegistered: (state, action: PayloadAction<boolean>) => {
             state.isGstRegistered = action.payload;
         },
@@ -82,6 +88,7 @@ export const {
     setCompanyName,
     setCurrentBranch,
     setCurrentBu,
+    setDefaultGstRate,
     setIsGstRegistered,
 } = contextSlice.actions;
 
@@ -94,6 +101,7 @@ export const selectAvailableBus      = (state: ContextRootState) => state.contex
 export const selectCompanyName       = (state: ContextRootState) => state.context.companyName;
 export const selectCurrentBranch     = (state: ContextRootState) => state.context.currentBranch;
 export const selectCurrentBu         = (state: ContextRootState) => state.context.currentBu;
+export const selectDefaultGstRate    = (state: ContextRootState) => state.context.defaultGstRate;
 export const selectIsGstRegistered   = (state: ContextRootState) => state.context.isGstRegistered;
 export const selectSchema            = (state: ContextRootState): string | null =>
     state.context.currentBu?.code?.toLowerCase() ?? null;

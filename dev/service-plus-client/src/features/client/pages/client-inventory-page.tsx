@@ -1,5 +1,9 @@
 import { ClientLayout, useClientSelection } from "../components/client-layout";
 import { PurchaseEntrySection } from "../components/inventory/purchase-entry/purchase-entry-section";
+import { SalesEntrySection } from "../components/inventory/sales-entry/sales-entry-section";
+import { StockAdjustmentSection } from "../components/inventory/stock-adjustment/stock-adjustment-section";
+import { BranchTransferSection } from "../components/inventory/branch-transfer/branch-transfer-section";
+import { LoanEntrySection } from "../components/inventory/stock-loan/loan-entry-section";
 import { StockOverviewSection } from "../components/stock-overview-section";
 
 // ─── Coming Soon placeholder ──────────────────────────────────────────────────
@@ -27,6 +31,14 @@ function InventoryContent() {
             return <StockOverviewSection />;
         case "Purchase Entry":
             return <PurchaseEntrySection />;
+        case "Sales Entry":
+            return <SalesEntrySection />;
+        case "Stock Adjustment":
+            return <StockAdjustmentSection />;
+        case "Branch Transfer":
+            return <BranchTransferSection />;
+        case "Loan Entry":
+            return <LoanEntrySection />;
         default:
             return <ComingSoon label={selected || "Inventory"} />;
     }

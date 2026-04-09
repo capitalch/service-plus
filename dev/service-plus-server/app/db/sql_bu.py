@@ -883,7 +883,11 @@ class SqlBu:
             (7,  'ADJUSTMENT_IN',   'Adjustment In',  'D', 'Increase',            true),
             (8,  'ADJUSTMENT_OUT',  'Adjustment Out', 'C', 'Decrease',            true),
             (9,  'LOAN_IN',         'Loan In',        'D', 'Received loan',       true),
-            (10, 'LOAN_OUT',        'Loan Out',       'C', 'Given loan',          true)
+            (10, 'LOAN_OUT',        'Loan Out',       'C', 'Given loan',          true),
+            (11, 'BRANCH_TRANSFER_IN',  'Branch Transfer In',   'D', 'Branch stock received',   true),
+            (12, 'BRANCH_TRANSFER_OUT', 'Branch Transfer Out',  'C', 'Branch stock sent',       true),
+            (13, 'WARRANTY_IN',             'Warranty In',              'D', 'Warranty In',            true),
+            (14, 'WARRANTY_OUT',            'Warranty Out',             'C', 'Warranty Out',           true)
         ON CONFLICT (id) DO NOTHING;
 
         INSERT INTO state (id, code, name, country_code, gst_state_code, is_union_territory) VALUES

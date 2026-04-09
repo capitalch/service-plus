@@ -257,7 +257,7 @@ export const PartDialog = (props: PartDialogProps) => {
                         <Label className="shrink-0 text-xs text-muted-foreground">
                             Brand <span className="text-red-500">*</span>
                         </Label>
-                        <Input disabled className="h-8 bg-slate-200 font-semibold text-slate-800 text-sm w-44" value={brandName} />
+                        <Input disabled className="h-8 bg-slate-200 dark:bg-slate-800 font-extrabold text-slate-950 dark:text-slate-100 text-sm w-44 border-slate-300 dark:border-slate-700" value={brandName} />
                         <FieldError message={errors.brand_id?.message} />
                     </div>
                 </div>

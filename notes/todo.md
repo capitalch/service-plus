@@ -1,11 +1,40 @@
 # To Do
-- DB
-	- Purchase_invoice
-		- brand_id
-		- taxable_amount -> aggregate_amount
-	- Purchase_invoice_line
-		- remove cgst_rate, sgst_rate, igst_rate
-		- add gst_rate
+- Inventory
+	- db
+								- stock_branch_transfer table
+								- stock_branch_transfer_line table
+		- stock_loan table
+		- stock_loan_line table
+		- corresponding entries in stock_transaction
+								- seed value add branch_in, branch_out for table stock_transaction_type
+		- Treatment for opening stock
+- sales
+	- Why DELETE_SALES_INVOICE is used? genericUpdate can do delete. On delete cascade is already enabled at database
+	- Create a separate mutation for sales, which uses exec_sql_object, using the sql object sent by client and then incrementing the document sequence, don't use xExtras. For edit ise genericUpdate.
+	
+	- taxable_amount to be changed to aggregate_amount in relevant places. Already made changed at database level
+	- In SalesLineFormItem why cgst_rate, sgst_rate and igst_rate are there. There should be cgst_amount, sgst_amount and igst_amount
+	- In Line table columns replace Aggregate for Taxable
+	- On part selection fill the relevant fields from master
+	- HSN required if gst is applicable
+	- set default_gst_rate if 0
+	- Need to take care of document_sequence to increment next_number by 1 in the same mutation at server. No need for separate mutation
+	
+- purchase
+								- download as excel
+								- Actions buttons overlap with background data. should be opaque
+								- Dark mode issues
+								- After new purchase invoice save don't go to view mode. stay in New mode with all data resetted for a new invoice entry
+								- If in edit mode and data saved, then go to view mode
+								- Provide a checkbox for IGST in the title line, and implement its functionality
+								- If gst rate does not come from spare part master and gst enabled then consider the default gst rate
+						- DB
+							- Purchase_invoice
+								- brand_id
+								- taxable_amount -> aggregate_amount
+							- Purchase_invoice_line
+								- remove cgst_rate, sgst_rate, igst_rate
+								- add gst_rate
 
 ## Login
 - Forgot password

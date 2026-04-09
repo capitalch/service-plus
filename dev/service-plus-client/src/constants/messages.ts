@@ -312,6 +312,31 @@ export const MESSAGES = {
   ERROR_PURCHASE_PHYSICAL_CHECK_FAILED: 'Physical invoice values do not match. Please correct the mismatches before saving.',
   ERROR_PURCHASE_UPDATE_FAILED:        'Failed to update purchase invoice. Please try again.',
 
+  // Sales Entry
+  ERROR_SALES_LOAD_FAILED:             'Failed to load sales invoices. Please try again.',
+  ERROR_SALES_CREATE_FAILED:           'Failed to create sales invoice. Please try again.',
+  ERROR_SALES_UPDATE_FAILED:           'Failed to update sales invoice. Please try again.',
+  ERROR_SALES_DELETE_FAILED:           'Failed to delete sales invoice. Please try again.',
+  ERROR_SALES_CUSTOMER_REQUIRED:       'Please select or enter a customer name.',
+  ERROR_SALES_INVOICE_DATE_REQUIRED:   'Invoice date is required.',
+  ERROR_SALES_LINES_REQUIRED:          'Please add at least one line item.',
+  ERROR_SALES_LINE_FIELDS_REQUIRED:    'Each line must have a part and quantity > 0.',
+  SUCCESS_SALES_CREATED:               'Sales invoice created successfully.',
+  SUCCESS_SALES_UPDATED:               'Sales invoice updated successfully.',
+  SUCCESS_SALES_DELETED:               'Sales invoice deleted successfully.',
+
+  // Stock Adjustment
+  ERROR_ADJUSTMENT_LOAD_FAILED:          'Failed to load stock adjustments. Please try again.',
+  ERROR_ADJUSTMENT_CREATE_FAILED:        'Failed to create stock adjustment. Please try again.',
+  ERROR_ADJUSTMENT_UPDATE_FAILED:        'Failed to update stock adjustment. Please try again.',
+  ERROR_ADJUSTMENT_DELETE_FAILED:        'Failed to delete stock adjustment. Please try again.',
+  ERROR_ADJUSTMENT_DATE_REQUIRED:        'Adjustment date is required.',
+  ERROR_ADJUSTMENT_REASON_REQUIRED:      'Adjustment reason is required.',
+  ERROR_ADJUSTMENT_LINE_FIELDS_REQUIRED: 'Each line needs a part and quantity > 0.',
+  SUCCESS_ADJUSTMENT_CREATED:            'Stock adjustment created successfully.',
+  SUCCESS_ADJUSTMENT_UPDATED:            'Stock adjustment updated successfully.',
+  SUCCESS_ADJUSTMENT_DELETED:            'Stock adjustment deleted successfully.',
+
   // Parts Import
   ERROR_IMPORT_BRAND_REQUIRED:       'Please select a brand before uploading.',
   ERROR_IMPORT_FAILED:               'Import failed. Please try again.',
@@ -321,6 +346,30 @@ export const MESSAGES = {
   ERROR_IMPORT_PARSE_ERROR:          'Failed to parse the file. Please check the file format.',
   ERROR_IMPORT_UPLOAD_ERROR:         'Failed to upload file. Please try again.',
   SUCCESS_IMPORT_COMPLETE:           'Import completed successfully.',
+
+  // Branch Transfer
+  ERROR_TRANSFER_LOAD_FAILED:          'Failed to load branch transfers. Please try again.',
+  ERROR_TRANSFER_CREATE_FAILED:        'Failed to create branch transfer. Please try again.',
+  ERROR_TRANSFER_UPDATE_FAILED:        'Failed to update branch transfer. Please try again.',
+  ERROR_TRANSFER_DELETE_FAILED:        'Failed to delete branch transfer. Please try again.',
+  ERROR_TRANSFER_DATE_REQUIRED:        'Transfer date is required.',
+  ERROR_TRANSFER_DESTINATION_REQUIRED: 'Destination branch is required.',
+  ERROR_TRANSFER_LINE_FIELDS_REQUIRED: 'Each line needs a part and quantity > 0.',
+  SUCCESS_TRANSFER_CREATED:            'Branch transfer created successfully.',
+  SUCCESS_TRANSFER_UPDATED:            'Branch transfer updated successfully.',
+  SUCCESS_TRANSFER_DELETED:            'Branch transfer deleted successfully.',
+
+  // Loan Entry
+  ERROR_LOAN_LOAD_FAILED:              'Failed to load loan entries. Please try again.',
+  ERROR_LOAN_CREATE_FAILED:            'Failed to create loan entry. Please try again.',
+  ERROR_LOAN_UPDATE_FAILED:            'Failed to update loan entry. Please try again.',
+  ERROR_LOAN_DELETE_FAILED:            'Failed to delete loan entry. Please try again.',
+  ERROR_LOAN_DATE_REQUIRED:            'Loan date is required.',
+  ERROR_LOAN_TO_REQUIRED:              'Recipient (Loan To) is required.',
+  ERROR_LOAN_LINE_FIELDS_REQUIRED:     'Each line needs a part and quantity > 0.',
+  SUCCESS_LOAN_CREATED:                'Loan entry created successfully.',
+  SUCCESS_LOAN_UPDATED:                'Loan entry updated successfully.',
+  SUCCESS_LOAN_DELETED:                'Loan entry deleted successfully.',
 } as const;
 
 // Type for message keys

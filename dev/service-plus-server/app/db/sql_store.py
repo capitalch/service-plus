@@ -1722,7 +1722,8 @@ class SqlStore:
             pi.igst_amount,
             pi.total_tax,
             pi.total_amount,
-            pi.remarks
+            pi.remarks,
+            pi.is_return
         FROM purchase_invoice pi
         JOIN supplier s ON s.id = pi.supplier_id
         WHERE pi.branch_id = (table "p_branch_id")
@@ -1753,6 +1754,7 @@ class SqlStore:
             pi.total_tax,
             pi.total_amount,
             pi.remarks,
+            pi.is_return,
             json_agg(
                 json_build_object(
                     'id',               pil.id,
@@ -1767,7 +1769,9 @@ class SqlStore:
                     'cgst_amount',      pil.cgst_amount,
                     'sgst_amount',      pil.sgst_amount,
                     'igst_amount',      pil.igst_amount,
-                    'total_amount',     pil.total_amount
+                    'total_amount',     pil.total_amount,
+                    'under_warranty',   pil.under_warranty,
+                    'remarks',          pil.remarks
                 ) ORDER BY pil.id
             ) AS lines
         FROM purchase_invoice pi
@@ -1816,6 +1820,354 @@ class SqlStore:
                 )
             )
         DELETE FROM purchase_invoice WHERE id = (table "p_id")
+    """
+
+    # ── Sales Entry ───────────────────────────────────────────────────────────
+
+    GET_CUSTOMERS_BY_KEYWORD = """
+        with
+            "p_search" as (values(%(search)s::text)),
+            "p_limit"  as (values(%(limit)s::int)),
+            "p_offset" as (values(%(offset)s::int))
+        SELECT
+            cc.id, cc.full_name, cc.mobile, cc.gstin,
+            cc.state_id, s.code AS state_code, s.name AS state_name,
+            ct.name AS customer_type_name
+        FROM customer_contact cc
+        JOIN customer_type ct ON ct.id = cc.customer_type_id
+        LEFT JOIN state s     ON s.id  = cc.state_id
+        WHERE cc.is_active = true
+          AND ((table "p_search") = ''
+           OR LOWER(COALESCE(cc.full_name, '')) LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR cc.mobile                         LIKE '%%' || (table "p_search")         || '%%')
+        ORDER BY cc.full_name NULLS LAST, cc.mobile
+        LIMIT  (table "p_limit")
+        OFFSET (table "p_offset")
+    """
+
+    GET_CUSTOMERS_BY_KEYWORD_COUNT = """
+        with
+            "p_search" as (values(%(search)s::text))
+        SELECT COUNT(*) AS total
+        FROM customer_contact cc
+        WHERE cc.is_active = true
+          AND ((table "p_search") = ''
+           OR LOWER(COALESCE(cc.full_name, '')) LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR cc.mobile                         LIKE '%%' || (table "p_search")         || '%%')
+    """
+
+    GET_SALES_INVOICES_COUNT = """
+        with
+            "p_branch_id" as (values(%(branch_id)s::bigint)),
+            "p_from_date" as (values(%(from_date)s::date)),
+            "p_to_date"   as (values(%(to_date)s::date)),
+            "p_search"    as (values(%(search)s::text))
+        SELECT COUNT(*) AS total
+        FROM sales_invoice si
+        WHERE si.branch_id = (table "p_branch_id")
+          AND si.invoice_date BETWEEN (table "p_from_date") AND (table "p_to_date")
+          AND ((table "p_search") = ''
+           OR LOWER(si.invoice_no)    LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(si.customer_name) LIKE '%%' || LOWER((table "p_search")) || '%%')
+    """
+
+    GET_SALES_INVOICES_PAGED = """
+        with
+            "p_branch_id" as (values(%(branch_id)s::bigint)),
+            "p_from_date" as (values(%(from_date)s::date)),
+            "p_to_date"   as (values(%(to_date)s::date)),
+            "p_search"    as (values(%(search)s::text)),
+            "p_limit"     as (values(%(limit)s::int)),
+            "p_offset"    as (values(%(offset)s::int))
+        SELECT
+            si.id,
+            si.branch_id,
+            si.customer_contact_id,
+            si.customer_name,
+            si.customer_gstin,
+            si.customer_state_code,
+            si.invoice_no,
+            si.invoice_date,
+            si.aggregate_amount,
+            si.cgst_amount,
+            si.sgst_amount,
+            si.igst_amount,
+            si.total_tax,
+            si.total_amount,
+            si.remarks,
+            si.is_return
+        FROM sales_invoice si
+        WHERE si.branch_id = (table "p_branch_id")
+          AND si.invoice_date BETWEEN (table "p_from_date") AND (table "p_to_date")
+          AND ((table "p_search") = ''
+           OR LOWER(si.invoice_no)    LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(si.customer_name) LIKE '%%' || LOWER((table "p_search")) || '%%')
+        ORDER BY si.invoice_date DESC, si.id DESC
+        LIMIT  (table "p_limit")
+        OFFSET (table "p_offset")
+    """
+
+    GET_SALES_INVOICE_DETAIL = """
+        with "p_id" as (values(%(id)s::bigint))
+        SELECT
+            si.id, si.branch_id, si.customer_contact_id, si.customer_name,
+            si.customer_gstin, si.customer_state_code,
+            si.invoice_no, si.invoice_date,
+            si.aggregate_amount, si.cgst_amount, si.sgst_amount, si.igst_amount,
+            si.total_tax, si.total_amount, si.remarks, si.is_return,
+            json_agg(
+                json_build_object(
+                    'id',               sil.id,
+                    'part_id',          sil.part_id,
+                    'part_code',        sp.part_code,
+                    'part_name',        sp.part_name,
+                    'item_description', sil.item_description,
+                    'hsn_code',         sil.hsn_code,
+                    'quantity',         sil.quantity,
+                    'unit_price',       sil.unit_price,
+                    'aggregate_amount', sil.aggregate_amount,
+                    'gst_rate',         sil.gst_rate,
+                    'cgst_amount',      sil.cgst_amount,
+                    'sgst_amount',      sil.sgst_amount,
+                    'igst_amount',      sil.igst_amount,
+                    'total_amount',     sil.total_amount,
+                    'remarks',          sil.remarks
+                ) ORDER BY sil.id
+            ) AS lines
+        FROM sales_invoice si
+        JOIN sales_invoice_line sil ON sil.sales_invoice_id = si.id
+        JOIN spare_part_master sp   ON sp.id = sil.part_id
+        WHERE si.id = (table "p_id")
+        GROUP BY si.id
+    """
+
+    # ── Stock Adjustment ──────────────────────────────────────────────────────
+
+    GET_STOCK_ADJUSTMENTS_COUNT = """
+        with
+            "p_branch_id" as (values(%(branch_id)s::bigint)),
+            "p_from_date" as (values(%(from_date)s::date)),
+            "p_to_date"   as (values(%(to_date)s::date)),
+            "p_search"    as (values(%(search)s::text))
+        SELECT COUNT(*) AS total
+        FROM stock_adjustment sa
+        WHERE sa.branch_id = (table "p_branch_id")
+          AND sa.adjustment_date BETWEEN (table "p_from_date") AND (table "p_to_date")
+          AND ((table "p_search") = ''
+           OR LOWER(sa.adjustment_reason) LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(COALESCE(sa.ref_no, '')) LIKE '%%' || LOWER((table "p_search")) || '%%')
+    """
+
+    GET_STOCK_ADJUSTMENTS_PAGED = """
+        with
+            "p_branch_id" as (values(%(branch_id)s::bigint)),
+            "p_from_date" as (values(%(from_date)s::date)),
+            "p_to_date"   as (values(%(to_date)s::date)),
+            "p_search"    as (values(%(search)s::text)),
+            "p_limit"     as (values(%(limit)s::int)),
+            "p_offset"    as (values(%(offset)s::int))
+        SELECT
+            sa.id,
+            sa.branch_id,
+            sa.adjustment_date,
+            sa.adjustment_reason,
+            sa.ref_no,
+            sa.remarks,
+            sa.created_by,
+            sa.created_at,
+            sa.updated_at
+        FROM stock_adjustment sa
+        WHERE sa.branch_id = (table "p_branch_id")
+          AND sa.adjustment_date BETWEEN (table "p_from_date") AND (table "p_to_date")
+          AND ((table "p_search") = ''
+           OR LOWER(sa.adjustment_reason) LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(COALESCE(sa.ref_no, '')) LIKE '%%' || LOWER((table "p_search")) || '%%')
+        ORDER BY sa.adjustment_date DESC, sa.id DESC
+        LIMIT  (table "p_limit")
+        OFFSET (table "p_offset")
+    """
+
+    GET_STOCK_ADJUSTMENT_DETAIL = """
+        with "p_id" as (values(%(id)s::bigint))
+        SELECT
+            sa.id,
+            sa.branch_id,
+            sa.adjustment_date,
+            sa.adjustment_reason,
+            sa.ref_no,
+            sa.remarks,
+            sa.created_by,
+            sa.created_at,
+            sa.updated_at,
+            json_agg(
+                json_build_object(
+                    'id',        sal.id,
+                    'part_id',   sal.part_id,
+                    'part_code', sp.part_code,
+                    'part_name', sp.part_name,
+                    'dr_cr',     sal.dr_cr,
+                    'qty',       sal.qty,
+                    'remarks',   sal.remarks
+                ) ORDER BY sal.id
+            ) AS lines
+        FROM stock_adjustment sa
+        JOIN stock_adjustment_line sal ON sal.stock_adjustment_id = sa.id
+        JOIN spare_part_master      sp  ON sp.id = sal.part_id
+        WHERE sa.id = (table "p_id")
+        GROUP BY sa.id
+    """
+
+    # ── Stock Branch Transfer ──────────────────────────────────────────────────
+
+    GET_STOCK_BRANCH_TRANSFERS_COUNT = """
+        with
+            "p_branch_id" as (values(%(branch_id)s::bigint)),
+            "p_from_date" as (values(%(from_date)s::date)),
+            "p_to_date"   as (values(%(to_date)s::date)),
+            "p_search"    as (values(%(search)s::text))
+        SELECT COUNT(*) AS total
+        FROM stock_branch_transfer sbt
+        WHERE (sbt.from_branch_id = (table "p_branch_id") OR sbt.to_branch_id = (table "p_branch_id"))
+          AND sbt.transfer_date BETWEEN (table "p_from_date") AND (table "p_to_date")
+          AND ((table "p_search") = ''
+           OR LOWER(COALESCE(sbt.ref_no, '')) LIKE '%%' || LOWER((table "p_search")) || '%%')
+    """
+
+    GET_STOCK_BRANCH_TRANSFERS_PAGED = """
+        with
+            "p_branch_id" as (values(%(branch_id)s::bigint)),
+            "p_from_date" as (values(%(from_date)s::date)),
+            "p_to_date"   as (values(%(to_date)s::date)),
+            "p_search"    as (values(%(search)s::text)),
+            "p_limit"     as (values(%(limit)s::int)),
+            "p_offset"    as (values(%(offset)s::int))
+        SELECT
+            sbt.id,
+            sbt.transfer_date,
+            sbt.from_branch_id,
+            sbt.to_branch_id,
+            sbt.ref_no,
+            sbt.remarks,
+            sbt.created_by,
+            sbt.created_at,
+            sbt.updated_at,
+            fb.name AS from_branch_name,
+            tb.name AS to_branch_name
+        FROM stock_branch_transfer sbt
+        JOIN branch fb ON fb.id = sbt.from_branch_id
+        JOIN branch tb ON tb.id = sbt.to_branch_id
+        WHERE (sbt.from_branch_id = (table "p_branch_id") OR sbt.to_branch_id = (table "p_branch_id"))
+          AND sbt.transfer_date BETWEEN (table "p_from_date") AND (table "p_to_date")
+          AND ((table "p_search") = ''
+           OR LOWER(COALESCE(sbt.ref_no, '')) LIKE '%%' || LOWER((table "p_search")) || '%%')
+        ORDER BY sbt.transfer_date DESC, sbt.id DESC
+        LIMIT  (table "p_limit")
+        OFFSET (table "p_offset")
+    """
+
+    GET_STOCK_BRANCH_TRANSFER_DETAIL = """
+        with "p_id" as (values(%(id)s::bigint))
+        SELECT
+            sbt.id,
+            sbt.transfer_date,
+            sbt.from_branch_id,
+            sbt.to_branch_id,
+            sbt.ref_no,
+            sbt.remarks,
+            sbt.created_by,
+            sbt.created_at,
+            sbt.updated_at,
+            fb.name AS from_branch_name,
+            tb.name AS to_branch_name,
+            json_agg(
+                json_build_object(
+                    'id',        sbtl.id,
+                    'part_id',   sbtl.part_id,
+                    'part_code', sp.part_code,
+                    'part_name', sp.part_name,
+                    'qty',       sbtl.qty,
+                    'remarks',   sbtl.remarks
+                ) ORDER BY sbtl.id
+            ) AS lines
+        FROM stock_branch_transfer sbt
+        JOIN branch fb ON fb.id = sbt.from_branch_id
+        JOIN branch tb ON tb.id = sbt.to_branch_id
+        JOIN stock_branch_transfer_line sbtl ON sbtl.stock_branch_transfer_id = sbt.id
+        JOIN spare_part_master      sp   ON sp.id = sbtl.part_id
+        WHERE sbt.id = (table "p_id")
+        GROUP BY sbt.id, fb.name, tb.name
+    """
+
+    GET_STOCK_LOANS_COUNT = """
+        with
+            "p_branch_id" as (values(%(branch_id)s::bigint)),
+            "p_from"      as (values(%(from_date)s::date)),
+            "p_to"        as (values(%(to_date)s::date)),
+            "p_search"    as (values(%(search)s::text))
+        SELECT count(*) as total
+        FROM stock_loan
+        WHERE branch_id = (table "p_branch_id")
+          AND loan_date >= (table "p_from")
+          AND loan_date <= (table "p_to")
+          AND (
+            (table "p_search") = '' OR
+            loan_to ILIKE '%%' || (table "p_search") || '%%' OR
+            ref_no  ILIKE '%%' || (table "p_search") || '%%'
+          )
+    """
+
+    GET_STOCK_LOANS_PAGED = """
+        with
+            "p_branch_id" as (values(%(branch_id)s::bigint)),
+            "p_from"      as (values(%(from_date)s::date)),
+            "p_to"        as (values(%(to_date)s::date)),
+            "p_search"    as (values(%(search)s::text)),
+            "p_limit"     as (values(%(limit)s::int)),
+            "p_offset"    as (values(%(offset)s::int))
+        SELECT
+            id, loan_date, branch_id, loan_to, ref_no, remarks,
+            created_at, updated_at
+        FROM stock_loan
+        WHERE branch_id = (table "p_branch_id")
+          AND loan_date >= (table "p_from")
+          AND loan_date <= (table "p_to")
+          AND (
+            (table "p_search") = '' OR
+            loan_to ILIKE '%%' || (table "p_search") || '%%' OR
+            ref_no  ILIKE '%%' || (table "p_search") || '%%'
+          )
+        ORDER BY loan_date DESC, id DESC
+        LIMIT (table "p_limit")
+        OFFSET (table "p_offset")
+    """
+
+    GET_STOCK_LOAN_DETAIL = """
+        with "p_id" as (values(%(id)s::bigint))
+        SELECT
+            sl.id,
+            sl.loan_date,
+            sl.branch_id,
+            sl.loan_to,
+            sl.ref_no,
+            sl.remarks,
+            sl.created_at,
+            sl.updated_at,
+            json_agg(
+                json_build_object(
+                    'id',        sll.id,
+                    'part_id',   sll.part_id,
+                    'part_code', sp.part_code,
+                    'part_name', sp.part_name,
+                    'dr_cr',     sll.dr_cr,
+                    'qty',       sll.qty,
+                    'remarks',   sll.remarks
+                ) ORDER BY sll.id
+            ) AS lines
+        FROM stock_loan sl
+        JOIN stock_loan_line sll ON sll.stock_loan_id = sl.id
+        JOIN spare_part_master sp ON sp.id = sll.part_id
+        WHERE sl.id = (table "p_id")
+        GROUP BY sl.id
     """
 
     # ── Technicians ───────────────────────────────────────────────────────────

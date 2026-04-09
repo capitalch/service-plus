@@ -1,248 +1,210 @@
-# Plan: Edit Purchase Invoice Feature
+# Sales Entry — Multi-Feature Plan
 
 ## Context
-The purchase entry section has a "New" tab (form) and a "View" tab (list). Currently the view list only has Eye (view dialog) and Trash (delete) actions. This plan adds an Edit button per row that switches to the "New" tab with its label changed to "Edit" and the form pre-populated with the selected invoice's data.
-
-**Update strategy**: Single `genericUpdate` call.
-- UPDATE `purchase_invoice` header (pass `id`).
-- `deletedIds`: all original line IDs → CASCADE deletes their `stock_transaction` rows automatically.
-- `xData`: all current lines without `id` (INSERT fresh) + nested `stock_transaction` xDetails.
-
-No raw SQL script needed. No `_stockTxnId` tracking needed. No pre-step.
+Applying 4 features to sales entry, mirroring purchase entry patterns:
+1. **Sales Return** — FAB checkbox, red cards, `SALE_RETURN` transaction type
+2. **Line Remarks** — optional text per line item
+3. **GST badge** — CheckCircle/XCircle in title bar (like purchase entry)
+4. **IGST checkbox** — manual override in header (like purchase entry)
 
 ---
 
-## Affected Files
-
-| File | Change |
-|------|--------|
-| `service-plus-server/app/db/sql_store.py` | Add `CHECK_SUPPLIER_INVOICE_EXISTS_EXCLUDE_ID` |
-| `src/constants/messages.ts` | Add `SUCCESS_PURCHASE_UPDATED`, `ERROR_PURCHASE_UPDATE_FAILED` |
-| `src/constants/sql-map.ts` | Add `CHECK_SUPPLIER_INVOICE_EXISTS_EXCLUDE_ID` |
-| `src/features/client/components/inventory/purchase-entry/new-purchase-invoice.tsx` | Accept `editInvoice` prop; populate state; track `originalLineIds`; single-call update submit |
-| `src/features/client/components/inventory/purchase-entry/purchase-entry-section.tsx` | Edit button; `editInvoice` state; label + tab button changes |
-
----
-
-## Implementation Steps
-
-### Step 1 — Add `CHECK_SUPPLIER_INVOICE_EXISTS_EXCLUDE_ID`
-**File:** `service-plus-server/app/db/sql_store.py`
-
-Add directly after `CHECK_SUPPLIER_INVOICE_EXISTS`:
+## DB Changes Required (do before applying)
 
 ```sql
-CHECK_SUPPLIER_INVOICE_EXISTS_EXCLUDE_ID = """
-    with
-        "p_supplier_id" as (values(%(supplier_id)s::bigint)),
-        "p_invoice_no"  as (values(%(invoice_no)s::text)),
-        "p_id"          as (values(%(id)s::bigint))
-    SELECT EXISTS (
-        SELECT 1 FROM purchase_invoice
-        WHERE supplier_id = (table "p_supplier_id")
-          AND UPPER(invoice_no) = UPPER((table "p_invoice_no"))
-          AND id <> (table "p_id")
-    ) AS exists
-"""
+-- 1. Sales return flag on invoice header
+ALTER TABLE <schema>.sales_invoice
+    ADD COLUMN IF NOT EXISTS is_return boolean NOT NULL DEFAULT false;
+
+-- 2. Remarks per line
+ALTER TABLE <schema>.sales_invoice_line
+    ADD COLUMN IF NOT EXISTS remarks text;
+
+-- 3. SALE_RETURN transaction type (reverses a sale → stock comes back in → dr_cr='D')
+INSERT INTO <schema>.stock_transaction_type (id, code, name, dr_cr, description, is_active, is_system)
+VALUES (15, 'SALE_RETURN', 'Sale Return', 'D', 'Stock returned by customer', true, true);
+-- Use next available id; confirm actual id in DB before applying
 ```
 
 ---
 
-### Step 2 — Add messages
-**File:** `src/constants/messages.ts`
+## Files to Modify
 
-```ts
-SUCCESS_PURCHASE_UPDATED:     'Purchase invoice updated successfully.',
-ERROR_PURCHASE_UPDATE_FAILED: 'Failed to update purchase invoice. Please try again.',
+| File | Change |
+|---|---|
+| `src/features/client/types/sales.ts` | Add `is_return` to `SalesInvoiceType`; add `remarks` to `SalesLineType` and `SalesLineFormItem` |
+| `app/db/sql_store.py` | Add `si.is_return` to paged query; add `si.is_return` + `'remarks', sil.remarks` to detail query |
+| `src/features/client/components/inventory/sales-entry/new-sales-invoice.tsx` | isReturn state+FAB+red cards; remarks field; executeSave SALE_RETURN logic |
+| `src/features/client/components/inventory/sales-entry/sales-entry-section.tsx` | Fix header to `grid grid-cols-3`; add IGST checkbox + GST badge; RTN badge in list |
+
+---
+
+## Step 1: Types — `src/features/client/types/sales.ts`
+
+```typescript
+// SalesInvoiceType — add:
+is_return:  boolean;
+
+// SalesLineType — add:
+remarks:    string | null;
+
+// SalesLineFormItem — add:
+remarks:    string;
 ```
 
 ---
 
-### Step 3 — Add SQL map key
-**File:** `src/constants/sql-map.ts`
+## Step 2: SQL — `app/db/sql_store.py`
 
-```ts
-CHECK_SUPPLIER_INVOICE_EXISTS_EXCLUDE_ID: "CHECK_SUPPLIER_INVOICE_EXISTS_EXCLUDE_ID",
+### `GET_SALES_INVOICES_PAGED`
+Add `si.is_return` to the SELECT column list (after `si.remarks`).
+
+### `GET_SALES_INVOICE_DETAIL`
+- Add `si.is_return,` to the header SELECT (after `si.remarks`)
+- Add to `json_build_object` (after `'total_amount'`):
+```python
+'remarks',      sil.remarks
 ```
 
 ---
 
-### Step 4 — `new-purchase-invoice.tsx`: edit mode support
+## Step 3: Form — `new-sales-invoice.tsx`
 
-**File:** `src/features/client/components/inventory/purchase-entry/new-purchase-invoice.tsx`
-
-**A) Props** — add `editInvoice?: PurchaseInvoiceType | null`.
-
-**B) Original line IDs** — add state to track IDs of lines that existed when the invoice was loaded:
+### 3a. New state
 ```typescript
-const [originalLineIds, setOriginalLineIds] = useState<number[]>([]);
+const [isReturn, setIsReturn] = useState(false);
 ```
 
-**C) Populate form** — `useEffect` on `editInvoice`:
-- Call `GET_PURCHASE_INVOICE_DETAIL(editInvoice.id)` to fetch full detail.
-- Set header state: `setVendorId`, `setInvoiceNo`, `setInvoiceDate`, `setSupplierStateCode`, `setRemarks`.
-- Store `setOriginalLineIds(detail.lines.map(l => l.id))`.
-- Map `PurchaseLineType[]` → `PurchaseLineFormItem[]`: derive `gst_rate = cgst_rate * 2` (or `igst_rate` if IGST).
-- Reset physical totals to zero.
-- If `editInvoice` is null → call `handleReset`, clear `originalLineIds`.
-
-**D) Duplicate check** — modify existing `useEffect`:
-- Same supplier + same invoice_no as `editInvoice` → skip (`setInvoiceExists(false)`).
-- Different invoice_no or supplier while editing → use `CHECK_SUPPLIER_INVOICE_EXISTS_EXCLUDE_ID` with `{ supplier_id, invoice_no, id: editInvoice.id }`.
-- Not editing → existing `CHECK_SUPPLIER_INVOICE_EXISTS` unchanged.
-
-**E) Submit in edit mode** — `if (editInvoice)` branch, single `genericUpdate` call:
-
+### 3b. Reset `isReturn` in reset handler
 ```typescript
-await apolloClient.mutate({
-    mutation: GRAPHQL_MAP.genericUpdate,
-    variables: {
-        db_name: dbName, schema,
-        value: graphQlUtils.buildGenericUpdateValue({
-            tableName: "purchase_invoice",
-            xData: {
-                id: editInvoice.id,
-                supplier_id: vendorId,
-                invoice_no: invoiceNo.trim(),
-                invoice_date: invoiceDate,
-                supplier_state_code: supplierStateCode,
-                aggregate_amount: totals.aggregate,
-                cgst_amount: totals.cgst,
-                sgst_amount: totals.sgst,
-                igst_amount: totals.igst,
-                total_tax: totals.total_tax,
-                total_amount: totals.total,
-                brand_id: selectedBrandId,
-                remarks: remarks.trim() || null,
-                xDetails: {
-                    tableName: "purchase_invoice_line",
-                    fkeyName: "purchase_invoice_id",
-                    deletedIds: originalLineIds,   // cascade deletes stock_transactions
-                    xData: lines.map(line => {
-                        const c = calcLine(line);
-                        return {
-                            part_id:          line.part_id,
-                            hsn_code:         line.hsn_code,
-                            quantity:         line.quantity,
-                            unit_price:       line.unit_price,
-                            aggregate_amount: c.aggregate,
-                            gst_rate:         line.gst_rate,
-                            cgst_amount:      c.cgstAmt,
-                            sgst_amount:      c.sgstAmt,
-                            igst_amount:      c.igstAmt,
-                            total_amount:     c.total,
-                            xDetails: {
-                                tableName: "stock_transaction",
-                                fkeyName:  "purchase_line_id",
-                                xData: [{
-                                    branch_id:                branchId,
-                                    part_id:                  line.part_id,
-                                    qty:                      line.quantity,
-                                    unit_cost:                line.unit_price,
-                                    dr_cr:                    "D",
-                                    transaction_date:         invoiceDate,
-                                    stock_transaction_type_id: purchaseTypeId,
-                                }],
-                            },
-                        };
-                    }),
-                },
-            },
-        }),
-    },
-});
-toast.success(MESSAGES.SUCCESS_PURCHASE_UPDATED);
-onSuccess();
+setIsReturn(false);
 ```
 
----
-
-### Step 5 — `purchase-entry-section.tsx`: wire Edit flow
-
-**File:** `src/features/client/components/inventory/purchase-entry/purchase-entry-section.tsx`
-
-**A) State**:
+### 3c. Restore in edit-mode effect
 ```typescript
-const [editInvoice, setEditInvoice] = useState<PurchaseInvoiceType | null>(null);
+setIsReturn(Boolean(detail.is_return));
 ```
 
-**B) Handler**:
-```typescript
-const handleEditInvoice = (inv: PurchaseInvoiceType) => {
-    setEditInvoice(inv);
-    setMode('new');
-};
-```
-
-**C) Edit button** — in Actions `<td>` between Eye and Trash2. Import `Pencil` from `lucide-react`:
+### 3d. FAB checkbox — absolute top-left of first Card (exact same pattern as purchase)
 ```tsx
-<Button
-    className="h-7 px-2 text-amber-500 hover:text-amber-600"
-    size="sm" variant="outline"
-    onClick={() => handleEditInvoice(inv)}
->
-    <Pencil className="h-3.5 w-3.5" />
-</Button>
+<Card className={`relative border-[var(--cl-border)] shadow-sm !overflow-visible ${isReturn ? "bg-red-50 dark:bg-red-950/20" : "bg-[var(--cl-surface)]"}`}>
+    <label className="absolute -top-3 -left-1 z-10 flex items-center gap-1.5 cursor-pointer select-none rounded px-2 py-1 bg-red-100/80 dark:bg-red-950/60 border border-red-200 dark:border-red-800 shadow-sm">
+        <input
+            type="checkbox"
+            checked={isReturn}
+            onChange={e => setIsReturn(e.target.checked)}
+            className="h-3.5 w-3.5 cursor-pointer accent-red-500"
+            disabled={!!editInvoice}
+        />
+        <span className="text-[10px] font-bold uppercase tracking-widest text-red-600 dark:text-red-400">
+            Sales Return
+        </span>
+    </label>
+    <CardContent className="pt-4 !overflow-visible">
+        ...existing grid...
+    </CardContent>
+</Card>
 ```
 
-**D) Header subtitle**:
+### 3e. Red background on second Card (line items)
 ```tsx
-{mode === 'new' && !editInvoice && <span ...>— New</span>}
-{mode === 'new' &&  editInvoice && <span ...>— Edit</span>}
-{mode === 'view'               && <span ...>— View</span>}
+<Card className={`... ${isReturn ? "bg-red-50 dark:bg-red-950/20" : "bg-[var(--cl-surface)]"}`}>
 ```
 
-**E) Mode toggle button**:
-- `mode === 'new' && editInvoice` → `<Pencil>` + "Edit", amber style (`bg-amber-600/10 text-amber-600 border-amber-600/20`).
-- `mode === 'new' && !editInvoice` → existing `<PlusCircle>` + "New", emerald.
-- Clicking the left toggle always does: `setEditInvoice(null); setMode('new');`
+### 3f. `remarks` — emptyLine, table, edit mapping, save payload
+- `emptyLine()`: add `remarks: ""`
+- Table header: add `<th>Remarks</th>` after Total (before Actions), shrink Total from `10%` → `8%`, Actions from `6%` → `5%`
+- Table row: add `<Input>` cell for remarks (same style as purchase)
+- Edit mapping: `remarks: l.remarks ?? ""`
+- Save payload: `remarks: line.remarks.trim() || null`
 
-**F) Pass prop and update `onSuccess`**:
-```tsx
-<NewPurchaseInvoice
-    ...
-    editInvoice={editInvoice}
-    onSuccess={() => {
-        setEditInvoice(null);
-        setMode('view');
-        if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, 1);
-    }}
-/>
+### 3g. `executeSave()` — return mode logic
+```typescript
+const salesTypeId  = txnTypes.find(t => t.code === "SALE")?.id;
+const returnTypeId = txnTypes.find(t => t.code === "SALE_RETURN")?.id;
+
+const txnTypeId = isReturn ? returnTypeId : salesTypeId;
+const drCr      = isReturn ? "D" : "C";
+
+// stock_transaction xData:
+stock_transaction_type_id: txnTypeId,
+dr_cr: drCr,
 ```
+
+Add `is_return: isReturn` to the `sales_invoice` header payload (xData of the mutation).
+
+Guard: if `isReturn && !returnTypeId` → toast error and abort.
 
 ---
 
-## Data Flow Summary
+## Step 4: Section — `sales-entry-section.tsx`
 
+### 4a. Fix header to `grid grid-cols-3` (same as fixed purchase entry)
+Replace the current `flex flex-col lg:grid lg:h-14 lg:grid-cols-3 ...` outer div with:
+```tsx
+<div className="grid grid-cols-3 items-center border-b border-[var(--cl-border)] bg-[var(--cl-surface)] px-4 min-h-[56px]">
 ```
-User clicks Pencil in View tab
-    → setEditInvoice(inv) + setMode('new')
-    → Tab: "New" → "Edit"; toggle: PlusCircle/emerald → Pencil/amber
-    → NewPurchaseInvoice.useEffect: fetch GET_PURCHASE_INVOICE_DETAIL(inv.id)
-    → populate header + lines; store originalLineIds
-    → user edits freely (add/remove/modify lines)
-    → Save → handleSubmit() edit branch:
-        genericUpdate({
-            purchase_invoice: { id, ...header,
-                xDetails: {
-                    purchase_invoice_line:
-                        deletedIds: [all originalLineIds]  ← CASCADE deletes stock_transactions
-                        xData: [all current lines (no id) + nested stock_transaction]
-                }
-            }
-        })
-    → toast SUCCESS_PURCHASE_UPDATED
-    → onSuccess() → setEditInvoice(null), setMode('view'), reload list
+And update the three inner sections:
+- Left: `flex items-center gap-3 overflow-hidden`
+- Center: `flex items-center justify-center` (drop border-y, lg: prefixes)
+- Right: `flex items-center justify-end` with `invisible pointer-events-none` when `mode !== 'new'`
+
+### 4b. GST badge in title (left section)
+Exactly as purchase entry — show when `mode === 'new'`:
+```tsx
+{mode === 'new' && (
+    <div className={`flex items-center gap-1 px-1.5 py-1 rounded-sm border shadow-sm animate-in fade-in zoom-in duration-500 delay-150 ml-4 ${
+        isGstRegistered ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-red-500/10 border-red-500/20'
+    }`}>
+        {isGstRegistered
+            ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+            : <XCircle className="h-3.5 w-3.5 text-red-600" />
+        }
+        <span className={`text-[10.5px] font-bold uppercase tracking-tighter ${isGstRegistered ? 'text-emerald-700' : 'text-red-700'}`}>
+            {isGstRegistered ? 'GST' : 'No-GST'}
+        </span>
+    </div>
+)}
+```
+Import `selectIsGstRegistered` from context-slice (already likely imported).
+
+### 4c. IGST checkbox in center controls
+Add IGST toggle label alongside brand and mode-toggle buttons (same as purchase entry center section):
+```tsx
+<label className={`flex items-center gap-1.5 cursor-pointer select-none px-3 py-1.5 rounded-lg border-2 font-black text-[12px] uppercase tracking-[0.1em] transition-all shadow-sm ${
+    mode !== 'new'
+        ? 'invisible pointer-events-none'
+        : isIgst
+        ? 'bg-blue-400 text-white border-blue-600 shadow-blue-500/20'
+        : 'bg-[var(--cl-surface-2)] border-[var(--cl-border)] text-[var(--cl-text-muted)]'
+}`}>
+    <input
+        type="checkbox"
+        className="h-3.5 w-3.5 accent-white cursor-pointer"
+        checked={isIgst}
+        onChange={e => setIsIgst(e.target.checked)}
+    />
+    IGST
+</label>
+```
+
+### 4d. RTN badge in invoice list (same as purchase)
+```tsx
+{inv.invoice_no}
+{inv.is_return && (
+    <span className="ml-1.5 text-[10px] font-bold text-red-600 bg-red-100 dark:bg-red-950/40 rounded px-1 py-0.5">
+        RTN
+    </span>
+)}
 ```
 
 ---
 
 ## Verification
 
-1. **New invoice** — `editInvoice` null; no regression.
-2. **Edit — modify lines** — existing lines deleted (cascade kills txns), new versions inserted fresh.
-3. **Edit — add line** — included in xData, inserted with stock_transaction.
-4. **Edit — remove line** — not in xData; its old ID is in `deletedIds`; cascade removes stock_transaction.
-5. **Duplicate check** — same invoice_no + supplier → not flagged; changed to existing → flagged.
-6. **Switch to New** — click toggle → `editInvoice` cleared, blank form.
-7. **Delete** — unaffected.
+1. Sales Return toggle → both cards go red; `is_return = true` saved to DB; `dr_cr = 'D'`, type = SALE_RETURN in stock_transaction
+2. Line remarks → input saves to `sales_invoice_line.remarks`; restored in edit mode
+3. GST badge shows in title bar when in New/Edit mode
+4. IGST checkbox in header → overrides state-based IGST; tax columns toggle correctly
+5. RTN badge shows on return invoices in list view
+6. Non-return sales → unaffected

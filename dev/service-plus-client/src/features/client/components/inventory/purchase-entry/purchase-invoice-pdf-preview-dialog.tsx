@@ -21,7 +21,7 @@ import type { PurchaseInvoiceType, PurchaseLineType } from "@/features/client/ty
 import type { VendorType } from "@/features/client/types/vendor";
 import { generatePurchaseInvoicePdf } from "./purchase-invoice-pdf-gen";
 
-type Props = {
+export type Props = {
     branch:       BranchType | null;
     invoice:      PurchaseInvoiceType | null;
     open:         boolean;

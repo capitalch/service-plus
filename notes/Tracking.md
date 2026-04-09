@@ -40,7 +40,11 @@
 		- Aug 2026
 
 # Tracking
-- 27-04-2026
+- 08-04-2026
+	- Started stock adjustments
+	- Started sales
+	- Started Branch transfer, loan
+- 07-04-2026
 	- completed
 		- masters
 		- Configurations

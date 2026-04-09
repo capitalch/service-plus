@@ -1,18 +1,3 @@
-import { useEffect, useState } from "react";
-import { toast } from "sonner";
-import { AlertTriangleIcon, Loader2Icon } from "lucide-react";
-
-import { Button } from "@/components/ui/button";
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { SQL_MAP } from "@/constants/sql-map";
 import { apolloClient } from "@/lib/apollo-client";
@@ -20,6 +5,7 @@ import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectSchema } from "@/store/context-slice";
+import { DeleteConfirmDialog } from "@/features/client/components/delete-confirm-dialog";
 import type { ProductType } from "@/features/client/types/product";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -43,128 +29,58 @@ export const DeleteProductDialog = ({
     open,
     product,
 }: DeleteProductDialogPropsType) => {
-    const [checkingInUse, setCheckingInUse] = useState(false);
-    const [confirmValue,  setConfirmValue]  = useState("");
-    const [inUse,         setInUse]         = useState<boolean | null>(null);
-    const [submitting,    setSubmitting]    = useState(false);
+    const dbName = useAppSelector(selectDbName);
+    const schema = useAppSelector(selectSchema);
 
-    const dbName  = useAppSelector(selectDbName);
-    const schema_ = useAppSelector(selectSchema);
-
-    useEffect(() => {
-        if (!open) {
-            setCheckingInUse(false);
-            setConfirmValue("");
-            setInUse(null);
-            setSubmitting(false);
-            return;
-        }
-        if (!dbName || !schema_) return;
-        setCheckingInUse(true);
-        apolloClient
-            .query<InUseQueryDataType>({
-                fetchPolicy: "network-only",
-                query: GRAPHQL_MAP.genericQuery,
-                variables: {
-                    db_name: dbName,
-                    schema:  schema_,
-                    value: graphQlUtils.buildGenericQueryValue({
-                        sqlArgs: { id: product.id },
-                        sqlId:   SQL_MAP.CHECK_PRODUCT_IN_USE,
-                    }),
-                },
-            })
-            .then((res) => setInUse(res.data?.genericQuery?.[0]?.in_use ?? false))
-            .catch(() => setInUse(null))
-            .finally(() => setCheckingInUse(false));
-    }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
-
-    const deleteEnabled = inUse === false && !checkingInUse && confirmValue.toUpperCase() === product.name;
+    async function checkInUse() {
+        if (!dbName || !schema) return null;
+        const res = await apolloClient.query<InUseQueryDataType>({
+            fetchPolicy: "network-only",
+            query: GRAPHQL_MAP.genericQuery,
+            variables: {
+                db_name: dbName,
+                schema,
+                value: graphQlUtils.buildGenericQueryValue({
+                    sqlArgs: { id: product.id },
+                    sqlId:   SQL_MAP.CHECK_PRODUCT_IN_USE,
+                }),
+            },
+        });
+        return res.data?.genericQuery?.[0]?.in_use ?? false;
+    }
 
     async function handleDelete() {
-        if (!dbName || !schema_) return;
-        setSubmitting(true);
-        try {
-            await apolloClient.mutate({
-                mutation: GRAPHQL_MAP.genericUpdate,
-                variables: {
-                    db_name: dbName,
-                    schema:  schema_,
-                    value: graphQlUtils.buildGenericUpdateValue({
-                        deletedIds: [product.id],
-                        tableName:  "product",
-                        xData:      {},
-                    }),
-                },
-            });
-            toast.success("Product deleted successfully.");
-            onSuccess();
-            onOpenChange(false);
-        } catch {
-            toast.error("Failed to delete product. Please try again.");
-        } finally {
-            setSubmitting(false);
-        }
+        await apolloClient.mutate({
+            mutation: GRAPHQL_MAP.genericUpdate,
+            variables: {
+                db_name: dbName,
+                schema,
+                value: graphQlUtils.buildGenericUpdateValue({
+                    deletedIds: [product.id],
+                    tableName:  "product",
+                    xData:      {},
+                }),
+            },
+        });
     }
 
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-md">
-                <DialogHeader>
-                    <DialogTitle>Delete Product</DialogTitle>
-                    <DialogDescription>
-                        Permanently delete{" "}
-                        <span className="font-semibold text-slate-800">{product.name}</span>?
-                    </DialogDescription>
-                </DialogHeader>
-
-                <div className="flex flex-col gap-4">
-                    <p className="text-sm text-slate-600">This action cannot be undone.</p>
-
-                    {inUse === true && (
-                        <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5">
-                            <AlertTriangleIcon className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
-                            <p className="text-sm text-amber-800">
-                                This product cannot be deleted as it is used by existing models.
-                            </p>
-                        </div>
-                    )}
-
-                    {inUse !== true && (
-                        <div className="flex flex-col gap-1.5">
-                            <Label htmlFor="confirm_product_name">
-                                Type{" "}
-                                <span className="font-semibold text-slate-800">{product.name}</span>{" "}
-                                to confirm
-                            </Label>
-                            <Input
-                                autoComplete="off"
-                                className="font-mono uppercase"
-                                id="confirm_product_name"
-                                placeholder={product.name}
-                                value={confirmValue}
-                                onChange={(e) => setConfirmValue(e.target.value)}
-                            />
-                        </div>
-                    )}
-                </div>
-
-                <DialogFooter>
-                    <Button disabled={submitting} variant="ghost" onClick={() => onOpenChange(false)}>
-                        Cancel
-                    </Button>
-                    <Button
-                        className="bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
-                        disabled={submitting || checkingInUse || !deleteEnabled}
-                        onClick={handleDelete}
-                    >
-                        {(submitting || checkingInUse) ? (
-                            <Loader2Icon className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                        ) : null}
-                        Delete
-                    </Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
+        <DeleteConfirmDialog
+            open={open}
+            onOpenChange={onOpenChange}
+            onSuccess={onSuccess}
+            title="Delete Product"
+            entityName={product.name}
+            confirmKey={product.name}
+            confirmInputClass="font-mono uppercase"
+            confirmMatch={(typed, key) => typed.toUpperCase() === key}
+            inUseMessage="This product cannot be deleted as it is used by existing models."
+            onCheckInUse={checkInUse}
+            onDelete={handleDelete}
+            toastMessages={{
+                success: "Product deleted successfully.",
+                error:   "Failed to delete product. Please try again.",
+            }}
+        />
     );
 };

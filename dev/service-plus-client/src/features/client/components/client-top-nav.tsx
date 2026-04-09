@@ -35,7 +35,7 @@ export const ClientTopNav = ({ activeSection }: Props) => {
 
     return (
         <header className="fixed left-0 right-0 top-0 z-50 flex h-12 items-center justify-between border-b border-[var(--cl-border)] bg-[var(--cl-bg)] px-3 sm:px-4">
-            <div className="flex items-center gap-2 sm:gap-4">
+            <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-4 overflow-hidden">
                 {/* Hamburger on mobile — toggles explorer (which shows section nav on mobile) */}
                 <button
                     onClick={toggleExplorer}
@@ -48,13 +48,13 @@ export const ClientTopNav = ({ activeSection }: Props) => {
                 {/* Panel toggle on md+ */}
                 <button
                     onClick={toggleExplorer}
-                    className="hidden rounded p-1.5 text-[var(--cl-text-muted)] transition-colors hover:bg-[var(--cl-hover)] hover:text-[var(--cl-text)] md:block"
+                    className="hidden shrink-0 rounded p-1.5 text-[var(--cl-text-muted)] transition-colors hover:bg-[var(--cl-hover)] hover:text-[var(--cl-text)] md:block"
                     title="Toggle explorer"
                 >
                     <PanelLeft className="h-4 w-4" />
                 </button>
 
-                <span className="text-lg font-black tracking-tighter text-[var(--cl-accent-text)]">Service+</span>
+                <span className="shrink-0 text-lg font-black tracking-tighter text-[var(--cl-accent-text)]">Service+</span>
 
                 <nav className="hidden h-full items-center gap-4 md:flex lg:gap-6 mt-1">
                     {NAV_ITEMS.map(({ label, section, to, end }) => (
@@ -72,22 +72,24 @@ export const ClientTopNav = ({ activeSection }: Props) => {
                         </NavLink>
                     ))}
                 </nav>
+            </div>
 
-                <div className="hidden items-center lg:flex">
-                    <div className="mx-2 h-5 w-px bg-[var(--cl-border)]" />
-                    <BuBranchSwitcher variant="client" />
-                </div>
+            <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+                {/* BU + Branch switcher — always visible, stable slot */}
+                <BuBranchSwitcher variant="client" />
+
+                <div className="mx-1 h-5 w-px bg-[var(--cl-border)]" />
 
                 <button
                     onClick={toggleTheme}
                     title={isDark ? 'Switch to White Mode' : 'Switch to Black Mode'}
-                    className="ml-1 rounded p-1.5 text-[var(--cl-text-muted)] transition-colors hover:bg-[var(--cl-hover)] hover:text-[var(--cl-text)] cursor-pointer"
+                    className="rounded p-1.5 text-[var(--cl-text-muted)] transition-colors hover:bg-[var(--cl-hover)] hover:text-[var(--cl-text)] cursor-pointer"
                 >
                     {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
                 </button>
-            </div>
 
-            <div className="flex items-center gap-2 sm:gap-4">
+                <div className="mx-1 h-5 w-px bg-[var(--cl-border)]" />
+
                 <div className="relative hidden sm:block">
                     <input
                         className="w-40 rounded-lg bg-[var(--cl-input-bg)] px-3 py-1.5 pr-8 text-xs text-[var(--cl-text-input)] outline-none placeholder:text-[var(--cl-text-muted)] focus:ring-1 focus:ring-[var(--cl-accent)] lg:w-64"
@@ -122,6 +124,7 @@ export const ClientTopNav = ({ activeSection }: Props) => {
                     </button>
                 </div>
             </div>
+
         </header>
     );
 };

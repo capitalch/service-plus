@@ -1,44 +1,43 @@
-# Implementation Plan - Reorganize Purchase Invoice PDF
+# Implementation Plan - Loan Entry Module
 
-Reorganize `purchase-invoice-pdf-gen.ts` to improve the invoice layout, readability, and overall professional appearance.
+Implement the Loan Entry inventory module for tracking part loans to technicians or external agencies. This module will follow the mode-based UI pattern (New/View) established by Stock Adjustment.
 
 ## Workflow
-1.  Define a new layout structure for the PDF (Header, Party Details, Meta Info, Table, Totals, Footer).
-2.  Refactor the code into logical sections/helper functions within the generator to improve maintainability.
-3.  Implement visual enhancements: better typography, spacing, and clear section dividers.
-4.  Standardize labels (e.g., using "Billed From" and "Billed To").
 
-## Step 1: Structural Refactoring
-- Break down the massive `generatePurchaseInvoicePdf` function into smaller, logical blocks of code or local helper functions.
-- Sections to isolate: `drawHeader`, `drawPartySection`, `drawInvoiceMeta`, `drawFooter`.
+1. **Backend SQL**: Define queries in `SqlStore` for counting, paging, and detail retrieval.
+2. **Client Types**: Define TypeScript interfaces for loan entities and form items.
+3. **Constants**: Register SQL keys in `SQL_MAP` and add loan-specific messages to `MESSAGES`.
+4. **UI Components**:
+    - Build `NewLoanEntry`: Form for recording loan_in (Debit) or loan_out (Credit).
+    - Build `LoanEntrySection`: Main container with view/new mode management, filtering, and paging.
+5. **Integration**: Register the section in `ClientInventoryPage` and ensure sidebar navigation is active.
 
-## Step 2: Header and Meta Information
-- Centered **TAX INVOICE** title with increased vertical rhythm.
-- Group Invoice Number, Date, and State Code into a clean metadata block, possibly right-aligned or in a specific grid.
-- Ensure company/branch name is prominent.
+## Execution Steps
 
-## Step 3: Party Details (Billed From / Billed To)
-- Clear two-column layout for **Billed From** (Supplier) and **Billed To** (Branch).
-- Include Address, Phone, and GSTIN in a standardized vertical list for both parties.
-- Use subtle vertical lines or boxes to separate these areas.
+### Step 1: Backend SQL Queries
+Add the following to `service-plus-server/app/db/sql_store.py`:
+- `GET_STOCK_LOANS_COUNT`: Count filtered loans.
+- `GET_STOCK_LOANS_PAGED`: Paged list of loans with summary fields.
+- `GET_STOCK_LOAN_DETAIL`: Single loan with all line items and part details.
 
-## Step 4: Line Items Table
-- Enhance `jspdf-autotable` configuration:
-    - Darker header background with white text for a premium look.
-    - Precise column widths for Part Code, Name, HSN, Tax columns.
-    - Right-align numeric values (Qty, Price, Tax, Total).
-    - Add a "Sub-total" or "Total" row at the bottom of the table itself.
+### Step 2: Client Types & Constants
+- Create `src/features/client/types/stock-loan.ts` with `StockLoanType`, `StockLoanLineType`, and `LoanLineFormItem`.
+- Update `src/constants/sql-map.ts` with:
+    - `GET_STOCK_LOANS_COUNT`
+    - `GET_STOCK_LOANS_PAGED`
+    - `GET_STOCK_LOAN_DETAIL`
+- Update `src/constants/messages.ts` with loan-related success/error strings.
 
-## Step 5: Totals and Summary Section
-- Create a distinct footer totals area:
-    - **Aggregate Amount**
-    - **Tax Amount (Total)**
-    - **computed Amount**
-    - **Difference / Round-off** (only if non-zero, or styled as adjustment)
-    - **Invoice amount** (Grand Total) - highlight with bold/larger font.
-- Add a text-based "Total Amount in Words" if feasible (optional polish).
+### Step 3: UI Implementation
+- **NewLoanEntry**:
+    - Header: Date, Loan To (Text), Ref No, Remarks.
+    - Lines: Part Selection, Type (In/Out), Qty, Line Remarks.
+    - Mutation: Use `genericUpdate` to create `stock_loan`, `stock_loan_line`, and associated `stock_transaction` entries (LOAN_IN/LOAN_OUT).
+- **LoanEntrySection**:
+    - Filter toolbar (Date range, Search by Loan To/Ref No).
+    - Grid view with pagination.
+    - Mode toggle (New/View).
 
-## Step 6: Footer and Remarks
-- Ensure Remarks are clearly separated from the totals.
-- Standardized signatory area with enough space for a physical stamp/sign.
-- "Computer generated" disclaimer at the very bottom.
+### Step 4: Routing & Navigation
+- Update `src/features/client/pages/client-inventory-page.tsx` to handle the "Loan Entry" case.
+- Verify "Loan Entry" exists in `ClientExplorerPanel` (already present).

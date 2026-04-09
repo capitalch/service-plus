@@ -115,7 +115,7 @@ function InventoryExplorer() {
                 <TreeItem icon={Tag}           label="Sales Entry" />
                 <TreeItem icon={RefreshCcw}    label="Stock Adjustment" />
                 <TreeItem icon={Truck}         label="Branch Transfer" />
-                <TreeItem icon={ClipboardList} label="Loan / Issue & Return" />
+                <TreeItem icon={ClipboardList} label="Loan Entry" />
                 <TreeItem icon={Package}       label="Opening Stock" />
                 <TreeItem icon={Globe}         label="Part Finder" />
                 <TreeItem icon={MapPin}        label="Set Part Location" />
