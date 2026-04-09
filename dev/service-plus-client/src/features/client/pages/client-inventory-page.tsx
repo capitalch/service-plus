@@ -3,7 +3,7 @@ import { PurchaseEntrySection } from "../components/inventory/purchase-entry/pur
 import { SalesEntrySection } from "../components/inventory/sales-entry/sales-entry-section";
 import { StockAdjustmentSection } from "../components/inventory/stock-adjustment/stock-adjustment-section";
 import { BranchTransferSection } from "../components/inventory/branch-transfer/branch-transfer-section";
-import { LoanEntrySection } from "../components/inventory/stock-loan/loan-entry-section";
+import { LoanEntrySection } from "../components/inventory/loan-entry/loan-entry-section";
 import { StockOverviewSection } from "../components/stock-overview-section";
 
 // ─── Coming Soon placeholder ──────────────────────────────────────────────────

@@ -1,35 +1,50 @@
-import type { SparePartMaster } from "@/types/db-schema-service";
-
 export type StockLoanType = {
+    branch_id: number;
+    created_at: string;
+    created_by?: number | null;
     id: number;
     loan_date: string;
-    branch_id: number;
     loan_to: string;
     ref_no?: string | null;
     remarks?: string | null;
-    created_by?: number | null;
-    created_at: string;
     updated_at: string;
-    lines?: StockLoanLineType[];
 };
 
 export type StockLoanLineType = {
-    id: number;
-    stock_loan_id: number;
-    part_id: number;
+    created_at: string;
     dr_cr: "D" | "C";
+    id: number;
+    part_code: string;
+    part_id: number;
+    part_name: string;
     qty: number;
     remarks?: string | null;
-    created_at: string;
+    stock_loan_id: number;
     updated_at: string;
-    part_code?: string;
-    part_name?: string;
+};
+
+export type StockLoanWithLines = StockLoanType & {
+    lines: StockLoanLineType[];
 };
 
 export type LoanLineFormItem = {
-    part_id: number;
+    _key: string;
+    brand_id: number | null;
+    dr_cr: "D" | "C" | "";
+    part_code: string;
+    part_id: number | null;
+    part_name: string;
     qty: number;
-    dr_cr: "D" | "C";
     remarks?: string;
-    part?: SparePartMaster; // For display
 };
+
+export const emptyLoanLine = (brandId?: number | null): LoanLineFormItem => ({
+    _key: crypto.randomUUID(),
+    brand_id: brandId ?? null,
+    dr_cr: "D",
+    part_code: "",
+    part_id: null,
+    part_name: "",
+    qty: 0,
+    remarks: "",
+});

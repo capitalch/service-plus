@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Loader2, Plus, Search, UserCheck, X } from "lucide-react";
 import { toast } from "sonner";
 
@@ -20,14 +20,14 @@ import type { CustomerSearchRow } from "@/features/client/types/sales";
 type GenericQueryData<T> = { genericQuery: T[] | null };
 
 export type CustomerInputProps = {
+    className?:     string;
     customerId:     number | null;
     customerName:   string;
+    customerTypes:  CustomerTypeOption[];
     onChange:       (name: string) => void;
     onClear:        () => void;
     onSelect:       (c: CustomerSearchRow) => void;
-    customerTypes:  CustomerTypeOption[];
     states:         StateOption[];
-    className?:     string;
 };
 
 const inputCls = "h-7 border-[var(--cl-border)] bg-[var(--cl-surface)] text-sm px-2";
@@ -35,14 +35,14 @@ const inputCls = "h-7 border-[var(--cl-border)] bg-[var(--cl-surface)] text-sm p
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function CustomerInput({
+    className,
     customerId,
     customerName,
+    customerTypes,
     onChange,
     onClear,
     onSelect,
-    customerTypes,
     states,
-    className,
 }: CustomerInputProps) {
     const dbName = useAppSelector(selectDbName);
     const schema = useAppSelector(selectSchema);
@@ -53,9 +53,34 @@ export function CustomerInput({
     const [addOpen, setAddOpen]           = useState(false);
 
     const debounceRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const skipBlurRef  = useRef(false);
-    const containerRef = useRef<HTMLDivElement | null>(null);
     const inputRef     = useRef<HTMLInputElement | null>(null);
+    const skipBlurRef  = useRef(false);
+
+    const doSearch = useCallback(async (q: string) => {
+        if (!dbName || !schema || !q.trim()) return;
+        setLoading(true);
+        try {
+            const res = await apolloClient.query<GenericQueryData<CustomerSearchRow>>({
+                fetchPolicy: "network-only",
+                query: GRAPHQL_MAP.genericQuery,
+                variables: {
+                    db_name: dbName,
+                    schema,
+                    value: graphQlUtils.buildGenericQueryValue({
+                        sqlArgs: { limit: 50, offset: 0, search: q.trim() },
+                        sqlId: SQL_MAP.GET_CUSTOMERS_BY_KEYWORD,
+                    }),
+                },
+            });
+            const rows = res.data?.genericQuery ?? [];
+            setResults(rows);
+            setDropdownOpen(rows.length > 0);
+        } catch {
+            // silent
+        } finally {
+            setLoading(false);
+        }
+    }, [dbName, schema]);
 
     // Debounced search
     useEffect(() => {
@@ -69,55 +94,35 @@ export function CustomerInput({
             return;
         }
 
-        debounceRef.current = setTimeout(async () => {
-            setLoading(true);
-            try {
-                const res = await apolloClient.query<GenericQueryData<CustomerSearchRow>>({
-                    fetchPolicy: "network-only",
-                    query: GRAPHQL_MAP.genericQuery,
-                    variables: {
-                        db_name: dbName,
-                        schema,
-                        value: graphQlUtils.buildGenericQueryValue({
-                            sqlId: SQL_MAP.GET_CUSTOMERS_BY_KEYWORD,
-                            sqlArgs: { search: q, limit: 50, offset: 0 },
-                        }),
-                    },
-                });
-                const rows = res.data?.genericQuery ?? [];
-                setResults(rows);
-                setDropdownOpen(rows.length > 0);
-            } catch {
-                // silent
-            } finally {
-                setLoading(false);
-            }
-        }, 1000);
-    }, [customerName, dbName, schema]);
+        debounceRef.current = setTimeout(() => doSearch(q), 1200);
 
-    const handleSelect = (row: CustomerSearchRow) => {
+        return () => {
+            if (debounceRef.current) clearTimeout(debounceRef.current);
+        };
+    }, [customerName, dbName, doSearch, schema]);
+
+    function handleAddSuccess() {
+        setAddOpen(false);
+        toast.success("Customer added. Search to select.");
+        // Re-run search directly so same query string still fires
+        if (customerName.trim()) doSearch(customerName.trim());
+    }
+
+    function handleSelect(row: CustomerSearchRow) {
         onSelect(row);
         setDropdownOpen(false);
         setResults([]);
-    };
-
-    const handleAddSuccess = () => {
-        setAddOpen(false);
-        if (customerName.trim()) {
-            // Re-trigger search after add
-            onChange(customerName);
-        }
-        toast.success("Customer added. Search to select.");
-    };
+    }
 
     return (
         <>
-            <div ref={containerRef} className={`relative flex flex-col gap-0.5 px-1.5 py-1${className ? ` ${className}` : ""}`}>
+            <div className={`relative flex flex-col gap-0.5 px-1.5 py-1${className ? ` ${className}` : ""}`}>
                 <div className="relative group/cust">
                     <button
                         type="button"
                         tabIndex={-1}
                         onMouseDown={e => { e.preventDefault(); skipBlurRef.current = true; }}
+                        onClick={() => inputRef.current?.focus()}
                         className="absolute left-1.5 top-1/2 -translate-y-1/2 rounded-md p-1 bg-[var(--cl-accent)] text-white hover:bg-[var(--cl-accent)]/10 hover:text-[var(--cl-accent)] shadow-sm transition-all z-10"
                         title="Search customers"
                     >
@@ -153,7 +158,7 @@ export function CustomerInput({
                             </button>
                         )}
                         {customerId ? (
-                            <UserCheck className="h-4 w-4 text-emerald-600" title="Customer selected" />
+                            <span title="Customer selected"><UserCheck className="h-4 w-4 text-emerald-600" /></span>
                         ) : (
                             <button
                                 type="button"
@@ -172,21 +177,21 @@ export function CustomerInput({
                 {/* Dropdown */}
                 {dropdownOpen && results.length > 0 && (
                     <div
-                        className="absolute left-0 right-0 top-full z-50 mt-1 max-h-56 overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg"
+                        className="absolute left-0 right-0 top-full z-50 mt-1 max-h-56 overflow-y-auto rounded-lg border border-[var(--cl-border)] bg-[var(--cl-surface)] shadow-lg"
                         onMouseDown={e => { e.preventDefault(); skipBlurRef.current = true; }}
                     >
                         {results.map(row => (
                             <button
                                 key={row.id}
                                 type="button"
-                                className="flex w-full flex-col gap-0.5 border-b border-slate-100 px-3 py-2 text-left last:border-0 hover:bg-slate-50 transition-colors cursor-pointer"
+                                className="flex w-full flex-col gap-0.5 border-b border-[var(--cl-border)] px-3 py-2 text-left last:border-0 hover:bg-zinc-500/10 transition-colors cursor-pointer"
                                 onClick={() => handleSelect(row)}
                             >
-                                <span className="text-sm font-medium text-slate-900">
-                                    {row.full_name ?? <span className="italic text-slate-400">No name</span>}
-                                    <span className="ml-2 font-mono text-xs text-slate-500">{row.mobile}</span>
+                                <span className="text-sm font-medium text-[var(--cl-text)]">
+                                    {row.full_name ?? <span className="italic text-[var(--cl-text-muted)]">No name</span>}
+                                    <span className="ml-2 font-mono text-xs text-[var(--cl-text-muted)]">{row.mobile}</span>
                                 </span>
-                                <span className="text-xs text-slate-400">
+                                <span className="text-xs text-[var(--cl-text-muted)]">
                                     {[row.customer_type_name, row.state_name].filter(Boolean).join(" · ")}
                                     {row.gstin && <span className="ml-2 font-mono">{row.gstin}</span>}
                                 </span>
@@ -197,11 +202,11 @@ export function CustomerInput({
             </div>
 
             <AddCustomerDialog
+                customerTypes={customerTypes}
                 open={addOpen}
+                states={states}
                 onOpenChange={o => setAddOpen(o)}
                 onSuccess={handleAddSuccess}
-                customerTypes={customerTypes}
-                states={states}
             />
         </>
     );
