@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
     CheckCircle2, Eye, FileDown, FileSpreadsheet, FileText, Loader2,
-    MoreHorizontal, Pencil, PlusCircle, RefreshCw, Save, Search, Trash2, XCircle,
+    MoreHorizontal, Pencil, PlusCircle, RefreshCw, RotateCcw, Save, Search, Trash2, XCircle,
 } from "lucide-react";
 import { utils, writeFile } from "xlsx";
 import jsPDF from "jspdf";
@@ -109,6 +109,7 @@ export const SalesEntrySection = () => {
     // Edit
     const [editInvoice, setEditInvoice] = useState<SalesInvoiceType | null>(null);
     const [isIgst,      setIsIgst]      = useState(false);
+    const [isReturn,    setIsReturn]    = useState(false);
 
     // Form
     const newSalesRef   = useRef<NewSalesInvoiceHandle>(null);
@@ -501,13 +502,13 @@ export const SalesEntrySection = () => {
                             <Button
                                 className={`h-9 gap-2 px-4 text-sm transition-transform duration-200 rounded-lg border-0 ${
                                     mode === "new" && editInvoice
-                                    ? "bg-amber-500 text-white font-bold shadow-lg scale-105 hover:brightness-110"
+                                    ? "bg-amber-500 text-white font-bold shadow-lg scale-105"
                                     : mode === "new"
                                     ? "bg-emerald-600 text-white font-bold shadow-lg scale-105 hover:brightness-110"
                                     : "bg-transparent text-[var(--cl-text-muted)] hover:text-white hover:bg-emerald-600 hover:scale-105 font-semibold"
                                 }`}
                                 size="sm"
-                                onClick={() => { setEditInvoice(null); setMode("new"); }}
+                                onClick={() => { setEditInvoice(null); setIsReturn(false); setMode("new"); }}
                             >
                                 {mode === "new" && editInvoice ? <Pencil className="h-4 w-4" /> : <PlusCircle className="h-4 w-4" />}
                                 {mode === "new" && editInvoice ? "Edit" : "New"}
@@ -520,6 +521,8 @@ export const SalesEntrySection = () => {
                                 }`}
                                 size="sm"
                                 onClick={() => {
+                                    setEditInvoice(null);
+                                    setIsReturn(false);
                                     setMode("view");
                                     if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, page);
                                 }}
@@ -548,8 +551,21 @@ export const SalesEntrySection = () => {
                     </div>
                 </div>
 
-                {/* Right: Save/Reset */}
-                <div className={`flex items-center justify-end ${mode !== "new" ? "invisible pointer-events-none" : ""}`}>
+                {/* Right: Return + Save/Reset */}
+                <div className={`flex items-center justify-end gap-2 ${mode !== "new" ? "invisible pointer-events-none" : ""}`}>
+                    <button
+                        type="button"
+                        disabled={!!editInvoice && !editInvoice.is_return}
+                        onClick={() => setIsReturn(r => !r)}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border-2 font-black text-[12px] uppercase tracking-[0.1em] transition-all shadow-sm disabled:opacity-40 disabled:cursor-not-allowed ${
+                            isReturn
+                                ? "bg-red-500 text-white border-red-700 shadow-red-500/20"
+                                : "bg-[var(--cl-surface-2)] border-[var(--cl-border)] text-[var(--cl-text-muted)]"
+                        }`}
+                    >
+                        <RotateCcw className="h-3 w-3" />
+                        Return
+                    </button>
                     <div className="flex items-center gap-2 border-l border-[var(--cl-border)] pl-3">
                         <Button
                             className="h-8 gap-1.5 px-3 text-xs font-extrabold uppercase tracking-widest text-[var(--cl-text)]"
@@ -609,6 +625,8 @@ export const SalesEntrySection = () => {
                     }}
                     isIgst={isIgst}
                     setIsIgst={setIsIgst}
+                    isReturn={isReturn}
+                    onIsReturnChange={setIsReturn}
                     selectedBrandId={selectedBrand ? Number(selectedBrand) : null}
                     brandName={brands.find(b => String(b.id) === selectedBrand)?.name}
                     editInvoice={editInvoice}

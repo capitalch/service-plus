@@ -520,12 +520,13 @@ export const PurchaseEntrySection = () => {
                             <Button
                                 className={`h-9 gap-2 px-4 text-sm transition-transform duration-200 rounded-lg border-0 ${
                                     mode === 'new' && editInvoice
-                                    ? 'bg-amber-500 text-white font-bold shadow-lg scale-105 hover:brightness-110'
+                                    ? 'bg-amber-500 text-white font-bold shadow-lg scale-105'
                                     : mode === 'new'
                                     ? 'bg-emerald-600 text-white font-bold shadow-lg scale-105 hover:brightness-110'
                                     : 'bg-transparent text-[var(--cl-text-muted)] hover:text-white hover:bg-emerald-600 hover:scale-105 font-semibold'
                                 }`}
                                 size="sm"
+                                disabled={!!editInvoice}
                                 onClick={() => { setEditInvoice(null); setIsReturn(false); setMode('new'); }}
                             >
                                 {mode === 'new' && editInvoice
@@ -551,45 +552,41 @@ export const PurchaseEntrySection = () => {
                             </Button>
                         </div>
 
-                        {/* IGST + Return toggles */}
-                        <div className="flex items-center gap-1.5">
-                            <label className={`flex items-center gap-1.5 cursor-pointer select-none px-3 py-1.5 rounded-lg border-2 font-black text-[12px] uppercase tracking-[0.1em] transition-all shadow-sm ${
-                                mode !== 'new'
-                                    ? 'invisible pointer-events-none'
-                                    : isIgst
-                                    ? 'bg-blue-400 text-white border-blue-600 shadow-blue-500/20'
-                                    : 'bg-[var(--cl-surface-2)] border-[var(--cl-border)] text-[var(--cl-text-muted)]'
-                            }`}>
-                                <input
-                                    type="checkbox"
-                                    className="h-3.5 w-3.5 accent-white cursor-pointer"
-                                    checked={isIgst}
-                                    onChange={e => setIsIgst(e.target.checked)}
-                                />
-                                IGST
-                            </label>
-                            <button
-                                type="button"
-                                disabled={!!editInvoice}
-                                onClick={() => setIsReturn(r => !r)}
-                                className={`flex items-center gap-1.5 cursor-pointer select-none px-3 py-1.5 rounded-lg border-2 font-black text-[12px] uppercase tracking-[0.1em] transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed ${
-                                    mode !== 'new'
-                                        ? 'invisible pointer-events-none'
-                                        : isReturn
-                                        ? 'bg-red-500 text-white border-red-700 shadow-red-500/20'
-                                        : 'bg-[var(--cl-surface-2)] border-[var(--cl-border)] text-[var(--cl-text-muted)]'
-                                }`}
-                            >
-                                <RotateCcw className="h-3 w-3" />
-                                Return
-                            </button>
-                        </div>
+                        {/* IGST toggle */}
+                        <label className={`flex items-center gap-1.5 cursor-pointer select-none px-3 py-1.5 rounded-lg border-2 font-black text-[12px] uppercase tracking-[0.1em] transition-all shadow-sm ${
+                            mode !== 'new'
+                                ? 'invisible pointer-events-none'
+                                : isIgst
+                                ? 'bg-blue-400 text-white border-blue-600 shadow-blue-500/20'
+                                : 'bg-[var(--cl-surface-2)] border-[var(--cl-border)] text-[var(--cl-text-muted)]'
+                        }`}>
+                            <input
+                                type="checkbox"
+                                className="h-3.5 w-3.5 accent-white cursor-pointer"
+                                checked={isIgst}
+                                onChange={e => setIsIgst(e.target.checked)}
+                            />
+                            IGST
+                        </label>
                     </div>
                 </div>
 
-                {/* Right: Actions — col 3, always occupies space so center block never shifts */}
-                <div className={`flex items-center justify-end ${mode !== 'new' ? 'invisible pointer-events-none' : ''}`}>
-                    <div className="flex items-center gap-2 border-l border-[var(--cl-border)] pl-3">
+                {/* Right: Return + Actions — col 3, always occupies space so center block never shifts */}
+                <div className={`flex items-center justify-end gap-2 ${mode !== 'new' ? 'invisible pointer-events-none' : ''}`}>
+                    <button
+                        type="button"
+                        disabled={!!editInvoice && !editInvoice.is_return}
+                        onClick={() => setIsReturn(r => !r)}
+                        className={`flex items-center gap-1.5 cursor-pointer select-none px-3 py-1.5 rounded-lg border-2 font-black text-[12px] uppercase tracking-[0.1em] transition-all shadow-sm disabled:opacity-40 disabled:cursor-not-allowed ${
+                            isReturn
+                                ? 'bg-red-500 text-white border-red-700 shadow-red-500/20'
+                                : 'bg-[var(--cl-surface-2)] border-[var(--cl-border)] text-[var(--cl-text-muted)]'
+                        }`}
+                    >
+                        <RotateCcw className="h-3 w-3" />
+                        Return
+                    </button>
+                    <div className="flex items-center gap-2 border-l border-[var(--cl-border)] pl-2">
                         <Button
                             className="h-8 gap-1.5 px-3 text-xs font-extrabold uppercase tracking-widest text-[var(--cl-text)]"
                             variant="ghost"
