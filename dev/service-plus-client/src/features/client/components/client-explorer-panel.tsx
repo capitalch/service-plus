@@ -263,6 +263,7 @@ export const ClientExplorerPanel = ({ activeSection }: Props) => {
                             key={to}
                             to={to}
                             end={end}
+                            onClick={toggleExplorer}
                             className={`rounded px-2 py-1.5 text-center text-[10px] font-semibold uppercase tracking-wide transition-colors ${
                                 activeSection === section
                                     ? 'bg-[var(--cl-accent)] text-white'

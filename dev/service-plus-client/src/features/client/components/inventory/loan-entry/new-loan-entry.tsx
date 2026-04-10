@@ -21,6 +21,7 @@ import type { LoanLineFormItem, StockLoanWithLines } from "@/features/client/typ
 import { emptyLoanLine } from "@/features/client/types/stock-loan";
 import { LineAddDeleteActions } from "../line-add-delete-actions";
 import { PartCodeInput } from "../part-code-input";
+import { cn } from "@/lib/utils";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -52,7 +53,7 @@ function today(): string {
 // ─── CSS ──────────────────────────────────────────────────────────────────────
 
 const COLS = "grid-cols-[2.5rem_minmax(0,2fr)_minmax(0,2fr)_6.5rem_5rem_minmax(0,2fr)_5.5rem]";
-const hdrCellCls = "text-[11px] font-extrabold uppercase tracking-widest text-[var(--cl-text)] py-3 px-2 flex items-center justify-center border-b border-r border-[var(--cl-border)] last:border-r-0 bg-zinc-200/50 dark:bg-zinc-800/50";
+const hdrCellCls = "text-[11px] font-extrabold uppercase tracking-widest text-[var(--cl-text)] py-3 px-2 flex items-center justify-left border-b border-r border-[var(--cl-border)] last:border-r-0 bg-zinc-200/50 dark:bg-zinc-800/50";
 const inputCls = "h-8 border-[var(--cl-border)] bg-[var(--cl-surface)] text-sm px-2";
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -289,12 +290,12 @@ export const NewLoanEntry = forwardRef<NewLoanEntryHandle, Props>(({
                         <CardContent className="pt-4 !overflow-visible">
                             <div className="grid grid-cols-1 md:grid-cols-6 lg:grid-cols-12 gap-x-2 gap-y-2">
                                 {/* Date */}
-                                <div className="space-y-2 md:col-span-2 lg:col-span-4 text-center">
+                                <div className="space-y-2 md:col-span-2 lg:col-span-4 text-left">
                                     <Label className="text-xs font-extrabold text-[var(--cl-text)] uppercase tracking-widest block">
                                         Loan Date <span className="text-red-500 ml-0.5">*</span>
                                     </Label>
                                     <Input
-                                        className={`bg-[var(--cl-surface-2)] text-center ${!loanDate ? "border-red-500 focus:border-red-500 ring-red-500/10" : ""}`}
+                                        className={`bg-[var(--cl-surface-2)] ${!loanDate ? "border-red-500 focus:border-red-500 ring-red-500/10" : ""}`}
                                         type="date"
                                         value={loanDate}
                                         onChange={e => setLoanDate(e.target.value)}
@@ -302,12 +303,12 @@ export const NewLoanEntry = forwardRef<NewLoanEntryHandle, Props>(({
                                 </div>
 
                                 {/* Ref No */}
-                                <div className="space-y-2 md:col-span-2 lg:col-span-4 text-center">
+                                <div className="space-y-2 md:col-span-2 lg:col-span-4 text-left">
                                     <Label className="text-xs font-extrabold text-[var(--cl-text)] uppercase tracking-widest block">
                                         Ref No
                                     </Label>
                                     <Input
-                                        className="bg-[var(--cl-surface-2)] text-center"
+                                        className="bg-[var(--cl-surface-2)]"
                                         placeholder="Optional reference"
                                         value={refNo}
                                         onChange={e => setRefNo(e.target.value)}
@@ -315,12 +316,12 @@ export const NewLoanEntry = forwardRef<NewLoanEntryHandle, Props>(({
                                 </div>
 
                                 {/* Remarks */}
-                                <div className="space-y-2 md:col-span-2 lg:col-span-4 text-center">
+                                <div className="space-y-2 md:col-span-2 lg:col-span-4 text-left">
                                     <Label className="text-xs font-extrabold text-[var(--cl-text)] uppercase tracking-widest block">
                                         Remarks
                                     </Label>
                                     <Input
-                                        className="bg-[var(--cl-surface-2)] text-center"
+                                        className="bg-[var(--cl-surface-2)]"
                                         placeholder="Optional..."
                                         value={remarks}
                                         onChange={e => setRemarks(e.target.value)}
@@ -340,11 +341,12 @@ export const NewLoanEntry = forwardRef<NewLoanEntryHandle, Props>(({
 
                                 {/* Header row */}
                                 <div className={`grid ${COLS} sticky top-0 z-20 backdrop-blur-md`}>
-                                    <div className={hdrCellCls}>#</div>
+                                    <div className={cn(hdrCellCls, 'justify-center')}>#</div>
                                     <div className={hdrCellCls}>Part <span className="text-red-500 ml-0.5">*</span></div>
                                     <div className={hdrCellCls}>Loan To <span className="text-red-500 ml-0.5">*</span></div>
-                                    <div className={hdrCellCls}>IN / OUT <span className="text-red-500 ml-0.5">*</span></div>
-                                    <div className={`${hdrCellCls} justify-end px-3`}>Qty <span className="text-red-500 ml-0.5">*</span></div>
+                                    <div className={cn(hdrCellCls, 'justify-center')}>IN / OUT <span className="text-red-500 ml-0.5">*</span></div>
+                                    {/* <div className={`${hdrCellCls} justify-end px-3`}>Qty <span className="text-red-500 ml-0.5">*</span></div> */}
+                                    <div className={cn(hdrCellCls, 'justify-end px-3')}>Qty <span className="text-red-500 ml-0.5">*</span></div>
                                     <div className={hdrCellCls}>Line Remarks</div>
                                     <div className={hdrCellCls} />
                                 </div>

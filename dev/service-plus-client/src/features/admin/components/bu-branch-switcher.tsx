@@ -207,7 +207,9 @@ export const BuBranchSwitcher = ({ variant = 'admin' }: BuBranchSwitcherPropsTyp
             <div className={`flex items-center gap-1.5 ${isClient ? '' : 'flex-col gap-0.5 items-start'}`}>
                 <span className={`flex shrink-0 items-center gap-1 font-medium ${s.labelSize} ${s.label}`}>
                     <BuildingIcon className={`h-3 w-3 shrink-0 ${s.icon}`} />
-                    {isClient ? 'BU' : 'Business Unit'}
+                    <span className={isClient ? 'hidden lg:inline' : 'inline'}>
+                        {isClient ? 'BU' : 'Business Unit'}
+                    </span>
                 </span>
                 {availableBus.length === 1 ? (
                     <span className={`flex h-7 items-center rounded-md border px-2.5 text-xs ${s.static}`}>
@@ -239,7 +241,9 @@ export const BuBranchSwitcher = ({ variant = 'admin' }: BuBranchSwitcherPropsTyp
                     <div className={`flex items-center gap-1.5 ${isClient ? '' : 'flex-col gap-0.5 items-start'}`}>
                         <span className={`flex shrink-0 items-center gap-1 font-medium ${s.labelSize} ${s.label}`}>
                             <GitBranchIcon className={`h-3 w-3 shrink-0 ${s.icon}`} />
-                            Branch
+                            <span className={isClient ? 'hidden lg:inline' : 'inline'}>
+                                Branch
+                            </span>
                         </span>
                         {availableBranches.length === 1 ? (
                             <span className={`flex h-7 items-center rounded-md border px-2.5 text-xs ${s.static}`}>
@@ -261,7 +265,7 @@ export const BuBranchSwitcher = ({ variant = 'admin' }: BuBranchSwitcherPropsTyp
                                     ))}
                                 </SelectContent>
                             </Select>
-                        )}
+                        ) }
                     </div>
                 </>
             )}

@@ -59,7 +59,7 @@ function today(): string {
 // ─── CSS ──────────────────────────────────────────────────────────────────────
 
 const COLS = "grid-cols-[2.5rem_minmax(0,1fr)_6.5rem_minmax(0,1fr)_5.5rem]";
-const hdrCellCls = "text-[11px] font-extrabold uppercase tracking-widest text-[var(--cl-text)] py-3 px-2 flex items-center justify-center border-b border-r border-[var(--cl-border)] last:border-r-0 bg-zinc-200/50 dark:bg-zinc-800/50";
+const hdrCellCls = "text-[11px] font-extrabold uppercase tracking-widest text-[var(--cl-text)] py-3 px-2 flex  border-b border-r border-[var(--cl-border)] last:border-r-0 bg-zinc-200/50 dark:bg-zinc-800/50";
 const inputCls = "h-8 border-[var(--cl-border)] bg-[var(--cl-surface)] text-sm px-2";
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -332,7 +332,7 @@ export const NewBranchTransfer = forwardRef<NewBranchTransferHandle, Props>(({
                         <CardContent className="pt-4 !overflow-visible">
                             <div className="grid grid-cols-1 md:grid-cols-6 lg:grid-cols-12 gap-x-2 gap-y-2">
                                 {/* Date */}
-                                <div className="space-y-2 md:col-span-1 lg:col-span-3 text-center">
+                                <div className="space-y-2 md:col-span-1 lg:col-span-3">
                                     <Label className="text-xs font-extrabold text-[var(--cl-text)] uppercase tracking-widest block">
                                         Date <span className="text-red-500 ml-0.5">*</span>
                                     </Label>
@@ -345,7 +345,7 @@ export const NewBranchTransfer = forwardRef<NewBranchTransferHandle, Props>(({
                                 </div>
 
                                 {/* Destination Branch */}
-                                <div className="space-y-2 md:col-span-3 lg:col-span-3 text-center">
+                                <div className="space-y-2 md:col-span-3 lg:col-span-3">
                                     <Label className="text-xs font-extrabold text-[var(--cl-text)] uppercase tracking-widest block">
                                         Destination Branch <span className="text-red-500 ml-0.5">*</span>
                                     </Label>
@@ -362,12 +362,12 @@ export const NewBranchTransfer = forwardRef<NewBranchTransferHandle, Props>(({
                                 </div>
 
                                 {/* Ref No */}
-                                <div className="space-y-2 md:col-span-2 lg:col-span-3 text-center">
+                                <div className="space-y-2 md:col-span-2 lg:col-span-3">
                                     <Label className="text-xs font-extrabold text-[var(--cl-text)] uppercase tracking-widest block">
                                         Ref No
                                     </Label>
                                     <Input
-                                        className="bg-[var(--cl-surface-2)] text-center"
+                                        className="bg-[var(--cl-surface-2)]"
                                         placeholder="Optional reference"
                                         value={refNo}
                                         onChange={e => setRefNo(e.target.value)}
@@ -375,12 +375,12 @@ export const NewBranchTransfer = forwardRef<NewBranchTransferHandle, Props>(({
                                 </div>
 
                                 {/* Remarks */}
-                                <div className="space-y-2 md:col-span-6 lg:col-span-3 text-center">
+                                <div className="space-y-2 md:col-span-6 lg:col-span-3">
                                     <Label className="text-xs font-extrabold text-[var(--cl-text)] uppercase tracking-widest block">
                                         Remarks
                                     </Label>
                                     <Input
-                                        className="bg-[var(--cl-surface-2)] text-center"
+                                        className="bg-[var(--cl-surface-2)]"
                                         placeholder="Optional ..."
                                         value={remarks}
                                         onChange={e => setRemarks(e.target.value)}

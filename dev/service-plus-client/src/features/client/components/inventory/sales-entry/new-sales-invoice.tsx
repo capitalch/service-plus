@@ -688,7 +688,7 @@ export const NewSalesInvoice = forwardRef<NewSalesInvoiceHandle, Props>(({
                                                 </td>
 
                                                 {/* Subtotal (read-only) */}
-                                                <td className={`${tdClass} p-2 text-right text-sm font-mono tabular-nums text-[var(--cl-text-muted)] border-l border-[var(--cl-border)] bg-[var(--cl-surface-2)]/40`}>
+                                                <td className={`${tdClass} px-2 text-right pt-1 font-mono tabular-nums text-[var(--cl-text-muted)] border-l border-[var(--cl-border)] bg-[var(--cl-surface-2)]/40`}>
                                                     {formatNumber(c.aggregate)}
                                                 </td>
 
@@ -708,22 +708,22 @@ export const NewSalesInvoice = forwardRef<NewSalesInvoiceHandle, Props>(({
                                                 {!isIgst ? (
                                                     <>
                                                         {/* CGST Amt */}
-                                                        <td className={`${tdClass} p-2 text-right text-sm font-mono tabular-nums text-[var(--cl-text-muted)] bg-[var(--cl-surface-2)]/40`}>
+                                                        <td className={`${tdClass} px-2 text-right pt-1 font-mono tabular-nums text-[var(--cl-text-muted)] bg-[var(--cl-surface-2)]/40`}>
                                                             {formatNumber(c.cgstAmt)}
                                                         </td>
                                                         {/* SGST Amt */}
-                                                        <td className={`${tdClass} p-2 text-right text-sm font-mono tabular-nums text-[var(--cl-text-muted)] bg-[var(--cl-surface-2)]/40`}>
+                                                        <td className={`${tdClass} px-2 text-right pt-1 font-mono tabular-nums text-[var(--cl-text-muted)] bg-[var(--cl-surface-2)]/40`}>
                                                             {formatNumber(c.sgstAmt)}
                                                         </td>
                                                     </>
                                                 ) : (
-                                                    <td className={`${tdClass} p-2 text-right text-sm font-mono tabular-nums text-[var(--cl-text-muted)] bg-[var(--cl-surface-2)]/40`} title="IGST Amount">
+                                                    <td className={`${tdClass} px-2 text-right pt-1 font-mono tabular-nums text-[var(--cl-text-muted)] bg-[var(--cl-surface-2)]/40`} title="IGST Amount">
                                                         {formatNumber(c.igstAmt)}
                                                     </td>
                                                 )}
 
                                                 {/* Total */}
-                                                <td className={`${tdClass} p-2 text-right text-sm font-mono font-semibold tabular-nums text-[var(--cl-text)] bg-[var(--cl-surface-2)]/40`}>
+                                                <td className={`${tdClass} px-2 text-right pt-1 font-mono font-semibold tabular-nums text-[var(--cl-text)] bg-[var(--cl-surface-2)]/40`}>
                                                     {formatNumber(c.total)}
                                                 </td>
 
