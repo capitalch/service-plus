@@ -282,11 +282,18 @@ export const NewStockAdjustment = forwardRef<NewStockAdjustmentHandle, Props>(({
                 </div>
             ) : (
                 <>
+                    {/* Section label */}
+                    <p className="text-[10px] font-black uppercase tracking-[0.15em] text-[var(--cl-text-muted)] px-1 mb-1 flex items-center gap-2">
+                        Adjustment Details
+                        {editAdjustment && <span className="px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 border border-amber-500/20">Edit</span>}
+                    </p>
+
                     {/* Header card */}
-                    <Card className="border-[var(--cl-border)] bg-[var(--cl-surface)] shadow-sm !overflow-visible">
-                        <CardContent className="pt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-x-2 gap-y-2 !overflow-visible">
+                    <Card className="border-[var(--cl-border)] bg-[var(--cl-surface)] shadow-md !overflow-visible">
+                        <CardContent className="pt-4 !overflow-visible">
+                            <div className="grid grid-cols-1 md:grid-cols-6 lg:grid-cols-12 gap-x-2 gap-y-2">
                             {/* Date */}
-                            <div className="space-y-2 lg:col-span-2">
+                            <div className="space-y-2 md:col-span-1 lg:col-span-2">
                                 <Label className="text-xs font-extrabold text-[var(--cl-text)] uppercase tracking-widest">
                                     Date <span className="text-red-500 ml-0.5">*</span>
                                 </Label>
@@ -299,7 +306,7 @@ export const NewStockAdjustment = forwardRef<NewStockAdjustmentHandle, Props>(({
                             </div>
 
                             {/* Reason */}
-                            <div className="space-y-2 lg:col-span-4">
+                            <div className="space-y-2 md:col-span-3 lg:col-span-4">
                                 <Label className="text-xs font-extrabold text-[var(--cl-text)] uppercase tracking-widest">
                                     Reason <span className="text-red-500 ml-0.5">*</span>
                                 </Label>
@@ -312,7 +319,7 @@ export const NewStockAdjustment = forwardRef<NewStockAdjustmentHandle, Props>(({
                             </div>
 
                             {/* Ref No */}
-                            <div className="space-y-2 lg:col-span-3">
+                            <div className="space-y-2 md:col-span-2 lg:col-span-3">
                                 <Label className="text-xs font-extrabold text-[var(--cl-text)] uppercase tracking-widest">
                                     Ref No
                                 </Label>
@@ -325,7 +332,7 @@ export const NewStockAdjustment = forwardRef<NewStockAdjustmentHandle, Props>(({
                             </div>
 
                             {/* Remarks */}
-                            <div className="space-y-2 sm:col-span-2 lg:col-span-3">
+                            <div className="space-y-2 md:col-span-6 lg:col-span-3">
                                 <Label className="text-xs font-extrabold text-[var(--cl-text)] uppercase tracking-widest">
                                     Remarks
                                 </Label>
@@ -336,8 +343,12 @@ export const NewStockAdjustment = forwardRef<NewStockAdjustmentHandle, Props>(({
                                     onChange={e => setRemarks(e.target.value)}
                                 />
                             </div>
+                            </div>{/* end grid */}
                         </CardContent>
                     </Card>
+
+                    {/* Section label */}
+                    <p className="text-[10px] font-black uppercase tracking-[0.15em] text-[var(--cl-text-muted)] px-1 mb-1">Line Items</p>
 
                     {/* Lines table */}
                     <Card className="border-[var(--cl-border)] bg-[var(--cl-surface)] shadow-sm flex flex-col min-h-0 relative">
@@ -350,7 +361,7 @@ export const NewStockAdjustment = forwardRef<NewStockAdjustmentHandle, Props>(({
                                         <th className={thClass} style={{ width: "12%" }}>IN / OUT <span className="text-red-500 ml-0.5">*</span></th>
                                         <th className={`${thClass} text-right`} style={{ width: "10%" }}>Qty <span className="text-red-500 ml-0.5">*</span></th>
                                         <th className={thClass} style={{ width: "35%" }}>Line Remarks</th>
-                                        <th className={`${thClass} text-left`} style={{ width: "15%" }}>Actions</th>
+                                        <th className={`${thClass} text-left`} style={{ width: "15%" }}></th>
                                     </tr>
                                 </thead>
                                 <tbody className="bg-[var(--cl-surface)]">
@@ -459,6 +470,33 @@ export const NewStockAdjustment = forwardRef<NewStockAdjustmentHandle, Props>(({
                             </div>
                         )}
                     </Card>
+
+                    {/* ── Summary Bar ── */}
+                    <div className="rounded-lg border border-[var(--cl-border)] bg-[var(--cl-surface-2)]/40 px-4 py-2.5 flex flex-wrap items-center gap-x-6 gap-y-1 justify-end">
+                        <div className="flex items-center gap-1.5">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-[var(--cl-text-muted)]">Lines</span>
+                            <span className="font-mono font-semibold text-sm text-[var(--cl-text)]">{lines.length}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600">IN</span>
+                            <span className="font-mono font-semibold text-sm text-[var(--cl-text)]">
+                                {lines.filter(l => l.dr_cr === "D").reduce((s, l) => s + l.qty, 0)}
+                            </span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-red-500">OUT</span>
+                            <span className="font-mono font-semibold text-sm text-[var(--cl-text)]">
+                                {lines.filter(l => l.dr_cr === "C").reduce((s, l) => s + l.qty, 0)}
+                            </span>
+                        </div>
+                        <div className="flex items-center gap-1.5 border-l border-[var(--cl-border)] pl-4">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-[var(--cl-text-muted)]">Net</span>
+                            <span className="font-mono font-black text-base text-[var(--cl-accent)]">
+                                {lines.filter(l => l.dr_cr === "D").reduce((s, l) => s + l.qty, 0) -
+                                 lines.filter(l => l.dr_cr === "C").reduce((s, l) => s + l.qty, 0)}
+                            </span>
+                        </div>
+                    </div>
                 </>
             )}
         </motion.div>

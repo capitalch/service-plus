@@ -430,7 +430,6 @@ export const LoanEntrySection = () => {
                                         <tr>
                                             <th className={thClass}>#</th>
                                             <th className={thClass}>Date</th>
-                                            <th className={thClass}>Loan To / Tech</th>
                                             <th className={thClass}>Ref #</th>
                                             <th className={thClass}>Remarks</th>
                                             <th className={`${thClass} sticky right-0 z-20 !bg-[var(--cl-surface-2)]`}>Actions</th>
@@ -442,13 +441,10 @@ export const LoanEntrySection = () => {
                                                 <td className={`${tdClass} text-[var(--cl-text-muted)]`} style={{ width: "5%" }}>
                                                     {(page - 1) * PAGE_SIZE + idx + 1}
                                                 </td>
-                                                <td className={tdClass} style={{ width: "12%" }}>
+                                                <td className={tdClass} style={{ width: "15%" }}>
                                                     {loan.loan_date}
                                                 </td>
-                                                <td className={tdClass} style={{ width: "30%" }}>
-                                                    {loan.loan_to}
-                                                </td>
-                                                <td className={`${tdClass} font-mono`} style={{ width: "15%" }}>
+                                                <td className={`${tdClass} font-mono`} style={{ width: "20%" }}>
                                                     {loan.ref_no ?? "—"}
                                                 </td>
                                                 <td className={`${tdClass} text-[var(--cl-text-muted)]`} style={{ width: "28%" }}>

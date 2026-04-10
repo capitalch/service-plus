@@ -922,6 +922,7 @@ export interface PurchaseInvoiceLine {
   created_at: Date;
   updated_at: Date;
   under_warranty: boolean;
+  remarks: string | null;
 }
 export interface PurchaseInvoiceLineInput {
   id: number;
@@ -939,10 +940,11 @@ export interface PurchaseInvoiceLineInput {
   created_at?: Date;
   updated_at?: Date;
   under_warranty?: boolean;
+  remarks?: string | null;
 }
 const purchase_invoice_line = {
   tableName: 'purchase_invoice_line',
-  columns: ['id', 'purchase_invoice_id', 'part_id', 'hsn_code', 'quantity', 'unit_price', 'aggregate_amount', 'gst_rate', 'cgst_amount', 'sgst_amount', 'igst_amount', 'total_amount', 'created_at', 'updated_at', 'under_warranty'],
+  columns: ['id', 'purchase_invoice_id', 'part_id', 'hsn_code', 'quantity', 'unit_price', 'aggregate_amount', 'gst_rate', 'cgst_amount', 'sgst_amount', 'igst_amount', 'total_amount', 'created_at', 'updated_at', 'under_warranty', 'remarks'],
   requiredForInsert: ['id', 'purchase_invoice_id', 'part_id', 'hsn_code', 'quantity', 'unit_price', 'aggregate_amount', 'total_amount'],
   primaryKey: 'id',
   foreignKeys: {
@@ -1025,6 +1027,7 @@ export interface SalesInvoiceLine {
   total_amount: number;
   created_at: Date;
   updated_at: Date;
+  remarks: string | null;
 }
 export interface SalesInvoiceLineInput {
   id: number;
@@ -1042,10 +1045,11 @@ export interface SalesInvoiceLineInput {
   total_amount: number;
   created_at?: Date;
   updated_at?: Date;
+  remarks?: string | null;
 }
 const sales_invoice_line = {
   tableName: 'sales_invoice_line',
-  columns: ['id', 'sales_invoice_id', 'part_id', 'item_description', 'hsn_code', 'quantity', 'unit_price', 'gst_rate', 'aggregate_amount', 'cgst_amount', 'sgst_amount', 'igst_amount', 'total_amount', 'created_at', 'updated_at'],
+  columns: ['id', 'sales_invoice_id', 'part_id', 'item_description', 'hsn_code', 'quantity', 'unit_price', 'gst_rate', 'aggregate_amount', 'cgst_amount', 'sgst_amount', 'igst_amount', 'total_amount', 'created_at', 'updated_at', 'remarks'],
   requiredForInsert: ['id', 'sales_invoice_id', 'part_id', 'item_description', 'hsn_code', 'quantity', 'unit_price', 'aggregate_amount', 'total_amount'],
   primaryKey: 'id',
   foreignKeys: {
@@ -1323,7 +1327,6 @@ export interface StockLoan {
   id: number;
   loan_date: Date;
   branch_id: number;
-  loan_to: string;
   ref_no: string | null;
   remarks: string | null;
   created_by: number | null;
@@ -1334,7 +1337,6 @@ export interface StockLoanInput {
   id: number;
   loan_date: Date;
   branch_id: number;
-  loan_to: string;
   ref_no?: string | null;
   remarks?: string | null;
   created_by?: number | null;
@@ -1343,8 +1345,8 @@ export interface StockLoanInput {
 }
 const stock_loan = {
   tableName: 'stock_loan',
-  columns: ['id', 'loan_date', 'branch_id', 'loan_to', 'ref_no', 'remarks', 'created_by', 'created_at', 'updated_at'],
-  requiredForInsert: ['id', 'loan_date', 'branch_id', 'loan_to'],
+  columns: ['id', 'loan_date', 'branch_id', 'ref_no', 'remarks', 'created_by', 'created_at', 'updated_at'],
+  requiredForInsert: ['id', 'loan_date', 'branch_id'],
   primaryKey: 'id',
   foreignKeys: { branch_id: { table: 'branch', column: 'id', $type: null as unknown as Branch }, },
   $type: null as unknown as StockLoan,
@@ -1361,6 +1363,7 @@ export interface StockLoanLine {
   remarks: string | null;
   created_at: Date;
   updated_at: Date;
+  loan_to: string;
 }
 export interface StockLoanLineInput {
   id: number;
@@ -1371,11 +1374,12 @@ export interface StockLoanLineInput {
   remarks?: string | null;
   created_at?: Date;
   updated_at?: Date;
+  loan_to: string;
 }
 const stock_loan_line = {
   tableName: 'stock_loan_line',
-  columns: ['id', 'stock_loan_id', 'part_id', 'dr_cr', 'qty', 'remarks', 'created_at', 'updated_at'],
-  requiredForInsert: ['id', 'stock_loan_id', 'part_id', 'dr_cr', 'qty'],
+  columns: ['id', 'stock_loan_id', 'part_id', 'dr_cr', 'qty', 'remarks', 'created_at', 'updated_at', 'loan_to'],
+  requiredForInsert: ['id', 'stock_loan_id', 'part_id', 'dr_cr', 'qty', 'loan_to'],
   primaryKey: 'id',
   foreignKeys: {
     stock_loan_id: { table: 'stock_loan', column: 'id', $type: null as unknown as StockLoan },

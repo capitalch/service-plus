@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict z5u3byh4AaYkMk6hiIh6ktiOrAG7YuSqMyurLGBD4sIwBLJTsZbH6Zw6a6ydsjb
+\restrict fTfGcmDEO2iQYkw0edd5CaWAB57t27bGU8jjGRFS0ux2fmVtdsa1pf6raYNqXG9
 
 -- Dumped from database version 14.6
 -- Dumped by pg_dump version 17.9 (Ubuntu 17.9-0ubuntu0.25.10.1)
@@ -1129,7 +1129,6 @@ CREATE TABLE demo1.stock_loan (
     id bigint NOT NULL,
     loan_date date NOT NULL,
     branch_id bigint NOT NULL,
-    loan_to text NOT NULL,
     ref_no text,
     remarks text,
     created_by bigint,
@@ -1167,6 +1166,7 @@ CREATE TABLE demo1.stock_loan_line (
     remarks text,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    loan_to text NOT NULL,
     CONSTRAINT stock_loan_line_dr_cr_check CHECK ((dr_cr = ANY (ARRAY['D'::bpchar, 'C'::bpchar]))),
     CONSTRAINT stock_loan_line_qty_check CHECK ((qty > (0)::numeric))
 );
@@ -2966,5 +2966,5 @@ ALTER TABLE ONLY security.user_bu_role
 -- PostgreSQL database dump complete
 --
 
-\unrestrict z5u3byh4AaYkMk6hiIh6ktiOrAG7YuSqMyurLGBD4sIwBLJTsZbH6Zw6a6ydsjb
+\unrestrict fTfGcmDEO2iQYkw0edd5CaWAB57t27bGU8jjGRFS0ux2fmVtdsa1pf6raYNqXG9
 

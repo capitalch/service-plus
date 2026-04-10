@@ -604,7 +604,7 @@ export const NewSalesInvoice = forwardRef<NewSalesInvoiceHandle, Props>(({
                                         )}
                                         <th className={`${thClass} text-right`} style={{ width: "8%" }}>Total</th>
                                         <th className={thClass} style={{ width: "12%" }}>Remarks</th>
-                                        <th className={`${thClass} text-left`}  style={{ width: "5%" }}>Actions</th>
+                                        <th className={`${thClass} text-left`}  style={{ width: "5%" }}></th>
                                     </tr>
                                 </thead>
                                 <tbody className="bg-[var(--cl-surface)]">

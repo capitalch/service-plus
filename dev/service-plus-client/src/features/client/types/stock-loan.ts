@@ -4,7 +4,6 @@ export type StockLoanType = {
     created_by?: number | null;
     id: number;
     loan_date: string;
-    loan_to: string;
     ref_no?: string | null;
     remarks?: string | null;
     updated_at: string;
@@ -14,6 +13,7 @@ export type StockLoanLineType = {
     created_at: string;
     dr_cr: "D" | "C";
     id: number;
+    loan_to: string;
     part_code: string;
     part_id: number;
     part_name: string;
@@ -31,6 +31,7 @@ export type LoanLineFormItem = {
     _key: string;
     brand_id: number | null;
     dr_cr: "D" | "C" | "";
+    loan_to: string;
     part_code: string;
     part_id: number | null;
     part_name: string;
@@ -42,6 +43,7 @@ export const emptyLoanLine = (brandId?: number | null): LoanLineFormItem => ({
     _key: crypto.randomUUID(),
     brand_id: brandId ?? null,
     dr_cr: "D",
+    loan_to: "",
     part_code: "",
     part_id: null,
     part_name: "",

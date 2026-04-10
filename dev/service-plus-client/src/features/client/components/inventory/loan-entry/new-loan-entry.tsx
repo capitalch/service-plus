@@ -51,9 +51,9 @@ function today(): string {
 
 // ─── CSS ──────────────────────────────────────────────────────────────────────
 
-const thClass = "sticky top-0 z-20 text-xs font-extrabold uppercase tracking-widest text-[var(--cl-text)] py-2 px-2 text-left border-b border-[var(--cl-border)] bg-zinc-200/60 dark:bg-zinc-800/60 backdrop-blur-sm shadow-[0_1px_0_var(--cl-border)]";
-const tdClass = "p-0.5 border-b border-[var(--cl-border)]";
-const inputCls = "h-7 border-[var(--cl-border)] bg-[var(--cl-surface)] text-sm px-2";
+const COLS = "grid-cols-[2.5rem_minmax(0,2fr)_minmax(0,2fr)_6.5rem_5rem_minmax(0,2fr)_5.5rem]";
+const hdrCellCls = "text-[11px] font-extrabold uppercase tracking-widest text-[var(--cl-text)] py-3 px-2 flex items-center justify-center border-b border-r border-[var(--cl-border)] last:border-r-0 bg-zinc-200/50 dark:bg-zinc-800/50";
+const inputCls = "h-8 border-[var(--cl-border)] bg-[var(--cl-surface)] text-sm px-2";
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -65,9 +65,8 @@ export const NewLoanEntry = forwardRef<NewLoanEntryHandle, Props>(({
 
     // Header fields
     const [loanDate, setLoanDate] = useState(today());
-    const [loanTo,   setLoanTo]   = useState("");
-    const [refNo,    setRefNo]    = useState("");
-    const [remarks,  setRemarks]  = useState("");
+    const [refNo, setRefNo] = useState("");
+    const [remarks, setRemarks] = useState("");
 
     // Lines
     const [lines, setLines] = useState<LoanLineFormItem[]>([emptyLoanLine(selectedBrandId)]);
@@ -79,7 +78,7 @@ export const NewLoanEntry = forwardRef<NewLoanEntryHandle, Props>(({
     const [submitting, setSubmitting] = useState(false);
 
     const partInputRefs = useRef<(HTMLInputElement | null)[]>([]);
-    const qtyInputRefs  = useRef<(HTMLInputElement | null)[]>([]);
+    const qtyInputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
     // Populate form on edit
     useEffect(() => {
@@ -97,30 +96,30 @@ export const NewLoanEntry = forwardRef<NewLoanEntryHandle, Props>(({
                 schema,
                 value: graphQlUtils.buildGenericQueryValue({
                     sqlArgs: { id: editLoan.id },
-                    sqlId:   SQL_MAP.GET_STOCK_LOAN_DETAIL,
+                    sqlId: SQL_MAP.GET_STOCK_LOAN_DETAIL,
                 }),
             },
         }).then(res => {
             const detail = res.data?.genericQuery?.[0];
             if (!detail) return;
             setLoanDate(detail.loan_date.slice(0, 10));
-            setLoanTo(detail.loan_to);
             setRefNo(detail.ref_no ?? "");
             setRemarks(detail.remarks ?? "");
             const loadedLines = (detail.lines ?? []).map(l => ({
-                _key:      crypto.randomUUID(),
-                brand_id:  selectedBrandId,
-                dr_cr:     l.dr_cr as "D" | "C",
+                _key: crypto.randomUUID(),
+                brand_id: selectedBrandId,
+                dr_cr: l.dr_cr as "D" | "C",
+                loan_to: l.loan_to ?? "",
                 part_code: l.part_code,
-                part_id:   l.part_id,
+                part_id: l.part_id,
                 part_name: l.part_name,
-                qty:       Number(l.qty),
-                remarks:   l.remarks ?? "",
+                qty: Number(l.qty),
+                remarks: l.remarks ?? "",
             }));
             setLines(loadedLines);
             setOriginalLineIds((detail.lines ?? []).map(l => l.id));
         }).catch(() => toast.error(MESSAGES.ERROR_LOAN_LOAD_FAILED));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [editLoan, dbName, schema]);
 
     // Line mutations
@@ -143,14 +142,12 @@ export const NewLoanEntry = forwardRef<NewLoanEntryHandle, Props>(({
     // Validation
     const isFormValid =
         !!loanDate &&
-        !!loanTo.trim() &&
         lines.length > 0 &&
-        lines.every(l => !!l.part_id && l.qty > 0 && (l.dr_cr === "D" || l.dr_cr === "C"));
+        lines.every(l => !!l.part_id && l.qty > 0 && !!l.loan_to.trim() && (l.dr_cr === "D" || l.dr_cr === "C"));
 
     // Reset
     const handleReset = () => {
         setLoanDate(today());
-        setLoanTo("");
         setRefNo("");
         setRemarks("");
         setLines([emptyLoanLine(selectedBrandId)]);
@@ -159,9 +156,8 @@ export const NewLoanEntry = forwardRef<NewLoanEntryHandle, Props>(({
 
     const handleSubmit = async () => {
         if (!branchId) { toast.error("Branch is not selected globally."); return; }
-        if (!loanDate)       { toast.error(MESSAGES.ERROR_LOAN_DATE_REQUIRED); return; }
-        if (!loanTo.trim())  { toast.error(MESSAGES.ERROR_LOAN_TO_REQUIRED); return; }
-        if (lines.some(l => !l.part_id || l.qty <= 0 || (l.dr_cr !== "D" && l.dr_cr !== "C"))) {
+        if (!loanDate) { toast.error(MESSAGES.ERROR_LOAN_DATE_REQUIRED); return; }
+        if (lines.some(l => !l.part_id || l.qty <= 0 || !l.loan_to.trim() || (l.dr_cr !== "D" && l.dr_cr !== "C"))) {
             toast.error(MESSAGES.ERROR_LOAN_LINE_FIELDS_REQUIRED);
             return;
         }
@@ -169,7 +165,7 @@ export const NewLoanEntry = forwardRef<NewLoanEntryHandle, Props>(({
     };
 
     const executeSave = async () => {
-        const loanInTypeId  = txnTypes.find(t => t.code === "LOAN_IN")?.id;
+        const loanInTypeId = txnTypes.find(t => t.code === "LOAN_IN")?.id;
         const loanOutTypeId = txnTypes.find(t => t.code === "LOAN_OUT")?.id;
         if (!branchId || !dbName || !schema) {
             toast.error(MESSAGES.ERROR_LOAN_CREATE_FAILED);
@@ -177,29 +173,29 @@ export const NewLoanEntry = forwardRef<NewLoanEntryHandle, Props>(({
         }
 
         const linePayload = lines.map(line => ({
-            dr_cr:   line.dr_cr,
+            dr_cr: line.dr_cr,
+            loan_to: line.loan_to.trim(),
             part_id: line.part_id,
-            qty:     line.qty,
+            qty: line.qty,
             remarks: line.remarks?.trim() || null,
             xDetails: [{
-                fkeyName:  "stock_loan_line_id",
+                fkeyName: "stock_loan_line_id",
                 tableName: "stock_transaction",
                 xData: [{
-                    branch_id:                 branchId,
-                    dr_cr:                     line.dr_cr,
-                    part_id:                   line.part_id,
-                    qty:                       line.qty,
+                    branch_id: branchId,
+                    dr_cr: line.dr_cr,
+                    part_id: line.part_id,
+                    qty: line.qty,
                     stock_transaction_type_id: line.dr_cr === "D" ? loanInTypeId : loanOutTypeId,
-                    transaction_date:          loanDate,
+                    transaction_date: loanDate,
                 }],
             }],
         }));
 
         const headerFields = {
             loan_date: loanDate,
-            loan_to:   loanTo.trim(),
-            ref_no:    refNo.trim() || null,
-            remarks:   remarks.trim() || null,
+            ref_no: refNo.trim() || null,
+            remarks: remarks.trim() || null,
         };
 
         setSubmitting(true);
@@ -212,14 +208,14 @@ export const NewLoanEntry = forwardRef<NewLoanEntryHandle, Props>(({
                         ...headerFields,
                         xDetails: {
                             deletedIds: originalLineIds,
-                            fkeyName:   "stock_loan_id",
-                            tableName:  "stock_loan_line",
-                            xData:      linePayload,
+                            fkeyName: "stock_loan_id",
+                            tableName: "stock_loan_line",
+                            xData: linePayload,
                         },
                     },
                 });
                 await apolloClient.mutate({
-                    mutation:  GRAPHQL_MAP.genericUpdate,
+                    mutation: GRAPHQL_MAP.genericUpdate,
                     variables: { db_name: dbName, schema, value: payload },
                 });
                 toast.success(MESSAGES.SUCCESS_LOAN_UPDATED);
@@ -230,14 +226,14 @@ export const NewLoanEntry = forwardRef<NewLoanEntryHandle, Props>(({
                         branch_id: branchId,
                         ...headerFields,
                         xDetails: {
-                            fkeyName:  "stock_loan_id",
+                            fkeyName: "stock_loan_id",
                             tableName: "stock_loan_line",
-                            xData:     linePayload,
+                            xData: linePayload,
                         },
                     },
                 });
                 await apolloClient.mutate({
-                    mutation:  GRAPHQL_MAP.genericUpdate,
+                    mutation: GRAPHQL_MAP.genericUpdate,
                     variables: { db_name: dbName, schema, value: payload },
                 });
                 toast.success(MESSAGES.SUCCESS_LOAN_CREATED);
@@ -258,9 +254,9 @@ export const NewLoanEntry = forwardRef<NewLoanEntryHandle, Props>(({
     // Expose actions to parent
     useImperativeHandle(ref, () => ({
         isSubmitting: submitting,
-        isValid:      isFormValid,
-        reset:        handleReset,
-        submit:       () => { void handleSubmit(); },
+        isValid: isFormValid,
+        reset: handleReset,
+        submit: () => { void handleSubmit(); },
     }), [handleSubmit, handleReset, submitting, isFormValid]); // eslint-disable-line react-hooks/exhaustive-deps
 
     return (
@@ -282,183 +278,222 @@ export const NewLoanEntry = forwardRef<NewLoanEntryHandle, Props>(({
                 </div>
             ) : (
                 <>
+                    {/* Section label */}
+                    <p className="text-[10px] font-black uppercase tracking-[0.15em] text-[var(--cl-text-muted)] px-1 mb-1 flex items-center justify-center gap-2">
+                        Loan Details
+                        {editLoan && <span className="px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 border border-amber-500/20">Edit</span>}
+                    </p>
+
                     {/* Header card */}
-                    <Card className="border-[var(--cl-border)] bg-[var(--cl-surface)] shadow-sm !overflow-visible">
-                        <CardContent className="pt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-x-2 gap-y-2 !overflow-visible">
-                            {/* Date */}
-                            <div className="space-y-2 lg:col-span-2">
-                                <Label className="text-xs font-extrabold text-[var(--cl-text)] uppercase tracking-widest">
-                                    Loan Date <span className="text-red-500 ml-0.5">*</span>
-                                </Label>
-                                <Input
-                                    className={`bg-[var(--cl-surface-2)] ${!loanDate ? "border-red-500 focus:border-red-500 ring-red-500/10" : ""}`}
-                                    type="date"
-                                    value={loanDate}
-                                    onChange={e => setLoanDate(e.target.value)}
-                                />
-                            </div>
+                    <Card className="border-[var(--cl-border)] bg-[var(--cl-surface)] shadow-md !overflow-visible">
+                        <CardContent className="pt-4 !overflow-visible">
+                            <div className="grid grid-cols-1 md:grid-cols-6 lg:grid-cols-12 gap-x-2 gap-y-2">
+                                {/* Date */}
+                                <div className="space-y-2 md:col-span-2 lg:col-span-4 text-center">
+                                    <Label className="text-xs font-extrabold text-[var(--cl-text)] uppercase tracking-widest block">
+                                        Loan Date <span className="text-red-500 ml-0.5">*</span>
+                                    </Label>
+                                    <Input
+                                        className={`bg-[var(--cl-surface-2)] text-center ${!loanDate ? "border-red-500 focus:border-red-500 ring-red-500/10" : ""}`}
+                                        type="date"
+                                        value={loanDate}
+                                        onChange={e => setLoanDate(e.target.value)}
+                                    />
+                                </div>
 
-                            {/* Loan To */}
-                            <div className="space-y-2 lg:col-span-4">
-                                <Label className="text-xs font-extrabold text-[var(--cl-text)] uppercase tracking-widest">
-                                    Loan To / Technician <span className="text-red-500 ml-0.5">*</span>
-                                </Label>
-                                <Input
-                                    className={`bg-[var(--cl-surface-2)] ${!loanTo.trim() ? "border-red-500 focus:border-red-500 ring-red-500/10" : ""}`}
-                                    placeholder="Technician / Agency name"
-                                    value={loanTo}
-                                    onChange={e => setLoanTo(e.target.value)}
-                                />
-                            </div>
+                                {/* Ref No */}
+                                <div className="space-y-2 md:col-span-2 lg:col-span-4 text-center">
+                                    <Label className="text-xs font-extrabold text-[var(--cl-text)] uppercase tracking-widest block">
+                                        Ref No
+                                    </Label>
+                                    <Input
+                                        className="bg-[var(--cl-surface-2)] text-center"
+                                        placeholder="Optional reference"
+                                        value={refNo}
+                                        onChange={e => setRefNo(e.target.value)}
+                                    />
+                                </div>
 
-                            {/* Ref No */}
-                            <div className="space-y-2 lg:col-span-3">
-                                <Label className="text-xs font-extrabold text-[var(--cl-text)] uppercase tracking-widest">
-                                    Ref No
-                                </Label>
-                                <Input
-                                    className="bg-[var(--cl-surface-2)]"
-                                    placeholder="Optional reference"
-                                    value={refNo}
-                                    onChange={e => setRefNo(e.target.value)}
-                                />
-                            </div>
-
-                            {/* Remarks */}
-                            <div className="space-y-2 sm:col-span-2 lg:col-span-3">
-                                <Label className="text-xs font-extrabold text-[var(--cl-text)] uppercase tracking-widest">
-                                    Remarks
-                                </Label>
-                                <Input
-                                    className="bg-[var(--cl-surface-2)]"
-                                    placeholder="Optional..."
-                                    value={remarks}
-                                    onChange={e => setRemarks(e.target.value)}
-                                />
-                            </div>
+                                {/* Remarks */}
+                                <div className="space-y-2 md:col-span-2 lg:col-span-4 text-center">
+                                    <Label className="text-xs font-extrabold text-[var(--cl-text)] uppercase tracking-widest block">
+                                        Remarks
+                                    </Label>
+                                    <Input
+                                        className="bg-[var(--cl-surface-2)] text-center"
+                                        placeholder="Optional..."
+                                        value={remarks}
+                                        onChange={e => setRemarks(e.target.value)}
+                                    />
+                                </div>
+                            </div>{/* end grid */}
                         </CardContent>
                     </Card>
 
-                    {/* Lines table */}
-                    <Card className="border-[var(--cl-border)] bg-[var(--cl-surface)] shadow-sm flex flex-col min-h-0 relative">
-                        <div className="overflow-x-auto w-full pb-4">
-                            <table className="min-w-[700px] w-full border-collapse text-sm sticky-header">
-                                <thead>
-                                    <tr className="bg-[var(--cl-surface-2)]/50">
-                                        <th className={thClass} style={{ width: "3%" }}>#</th>
-                                        <th className={thClass} style={{ width: "25%" }}>Part <span className="text-red-500 ml-0.5">*</span></th>
-                                        <th className={thClass} style={{ width: "12%" }}>IN / OUT <span className="text-red-500 ml-0.5">*</span></th>
-                                        <th className={`${thClass} text-right`} style={{ width: "10%" }}>Qty <span className="text-red-500 ml-0.5">*</span></th>
-                                        <th className={thClass} style={{ width: "35%" }}>Line Remarks</th>
-                                        <th className={`${thClass} text-left`} style={{ width: "15%" }}>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="bg-[var(--cl-surface)]">
-                                    {lines.map((line, idx) => (
-                                        <tr key={line._key} className="hover:bg-[var(--cl-surface-2)]/30 group transition-colors">
-                                            <td className={`${tdClass} pl-4 text-xs font-medium text-[var(--cl-text-muted)]`}>{idx + 1}</td>
+                    {/* Section label */}
+                    <p className="text-[10px] font-black uppercase tracking-[0.15em] text-[var(--cl-text-muted)] text-center mb-1">Line Items</p>
 
-                                            {/* Part */}
-                                            <td className={tdClass}>
-                                                <PartCodeInput
-                                                    ref={el => { partInputRefs.current[idx] = el; }}
-                                                    brandId={line.brand_id}
-                                                    brandName={brandName}
-                                                    partCode={line.part_code}
-                                                    partId={line.part_id}
-                                                    partName={line.part_name}
-                                                    selectedBrandId={selectedBrandId}
-                                                    onChange={code => {
-                                                        const patch: Partial<LoanLineFormItem> = { part_code: code };
-                                                        if (!code.trim()) { patch.part_id = null; patch.part_name = ""; }
-                                                        updateLine(idx, patch);
-                                                    }}
-                                                    onClear={() => updateLine(idx, { part_code: "", part_id: null, part_name: "" })}
-                                                    onSelect={part => {
-                                                        updateLine(idx, {
-                                                            brand_id:  part.brand_id,
-                                                            part_code: part.part_code,
-                                                            part_id:   part.id,
-                                                            part_name: part.part_name,
-                                                        });
-                                                    }}
-                                                    onTabToNext={() => qtyInputRefs.current[idx]?.focus()}
-                                                />
-                                            </td>
+                    {/* Lines grid */}
+                    <Card className="border-[var(--cl-border)] bg-[var(--cl-surface)] shadow-sm overflow-hidden">
+                        <div className="w-full text-sm overflow-x-auto custom-scrollbar">
+                            <div className="min-w-[800px]">
 
-                                            {/* IN / OUT */}
-                                            <td className={tdClass}>
-                                                <div className="flex gap-1 px-1.5 py-1">
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => updateLine(idx, { dr_cr: "D" })}
-                                                        className={`flex-1 rounded px-2 py-1 text-xs font-bold transition-all cursor-pointer ${
-                                                            line.dr_cr === "D"
-                                                                ? "bg-emerald-600 text-white shadow"
-                                                                : "bg-[var(--cl-surface-2)] text-[var(--cl-text-muted)] hover:bg-emerald-600/20"
-                                                        }`}
-                                                    >
-                                                        IN
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => updateLine(idx, { dr_cr: "C" })}
-                                                        className={`flex-1 rounded px-2 py-1 text-xs font-bold transition-all cursor-pointer ${
-                                                            line.dr_cr === "C"
-                                                                ? "bg-red-500 text-white shadow"
-                                                                : "bg-[var(--cl-surface-2)] text-[var(--cl-text-muted)] hover:bg-red-500/20"
-                                                        }`}
-                                                    >
-                                                        OUT
-                                                    </button>
-                                                </div>
-                                            </td>
+                                {/* Header row */}
+                                <div className={`grid ${COLS} sticky top-0 z-20 backdrop-blur-md`}>
+                                    <div className={hdrCellCls}>#</div>
+                                    <div className={hdrCellCls}>Part <span className="text-red-500 ml-0.5">*</span></div>
+                                    <div className={hdrCellCls}>Loan To <span className="text-red-500 ml-0.5">*</span></div>
+                                    <div className={hdrCellCls}>IN / OUT <span className="text-red-500 ml-0.5">*</span></div>
+                                    <div className={`${hdrCellCls} justify-end px-3`}>Qty <span className="text-red-500 ml-0.5">*</span></div>
+                                    <div className={hdrCellCls}>Line Remarks</div>
+                                    <div className={hdrCellCls} />
+                                </div>
 
-                                            {/* Qty */}
-                                            <td className={tdClass}>
-                                                <Input
-                                                    ref={el => { qtyInputRefs.current[idx] = el; }}
-                                                    className={`${inputCls} bg-transparent border-transparent hover:border-[var(--cl-border)] focus:bg-[var(--cl-surface)] text-right ${line.qty <= 0 ? "border-red-500 focus:border-red-500 ring-red-500/10 shadow-[0_0_0_1px_rgba(239,68,68,0.2)]" : ""}`}
-                                                    min={0}
-                                                    step="0.01"
-                                                    type="number"
-                                                    value={line.qty}
-                                                    onChange={e => updateLine(idx, { qty: Number(e.target.value) })}
-                                                    onFocus={e => e.target.select()}
-                                                />
-                                            </td>
+                                {/* Data rows */}
+                                {lines.map((line, idx) => (
+                                    <div
+                                        key={line._key}
+                                        className={`grid ${COLS} group transition-colors hover:bg-[var(--cl-surface-2)]/30 border-b border-[var(--cl-border)]`}
+                                    >
+                                        {/* # */}
+                                        <div className="flex items-center justify-center text-[10px] font-bold text-[var(--cl-text-muted)] border-r border-[var(--cl-border)]/30 bg-[var(--cl-surface-2)]/20">
+                                            {idx + 1}
+                                        </div>
 
-                                            {/* Line Remarks */}
-                                            <td className={tdClass}>
-                                                <Input
-                                                    className={`${inputCls} bg-transparent border-transparent hover:border-[var(--cl-border)] focus:bg-[var(--cl-surface)]`}
-                                                    placeholder="Optional..."
-                                                    value={line.remarks ?? ""}
-                                                    onChange={e => updateLine(idx, { remarks: e.target.value })}
-                                                />
-                                            </td>
+                                        {/* Part */}
+                                        <div className="p-1 border-r border-[var(--cl-border)]/30">
+                                            <PartCodeInput
+                                                ref={el => { partInputRefs.current[idx] = el; }}
+                                                brandId={line.brand_id}
+                                                brandName={brandName}
+                                                partCode={line.part_code}
+                                                partId={line.part_id}
+                                                partName={line.part_name}
+                                                selectedBrandId={selectedBrandId}
+                                                onChange={code => {
+                                                    const patch: Partial<LoanLineFormItem> = { part_code: code };
+                                                    if (!code.trim()) { patch.part_id = null; patch.part_name = ""; }
+                                                    updateLine(idx, patch);
+                                                }}
+                                                onClear={() => updateLine(idx, { part_code: "", part_id: null, part_name: "" })}
+                                                onSelect={part => {
+                                                    updateLine(idx, {
+                                                        brand_id:  part.brand_id,
+                                                        part_code: part.part_code,
+                                                        part_id:   part.id,
+                                                        part_name: part.part_name,
+                                                    });
+                                                }}
+                                                onTabToNext={() => qtyInputRefs.current[idx]?.focus()}
+                                            />
+                                        </div>
 
-                                            {/* Actions */}
-                                            <td className={`${tdClass} text-left`}>
-                                                <div className="flex items-center justify-start gap-0.5 px-2">
-                                                    <LineAddDeleteActions
-                                                        disableDelete={lines.length === 1}
-                                                        onAdd={() => insertLine(idx)}
-                                                        onDelete={() => removeLine(idx)}
-                                                    />
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                        {lines.length === 0 && (
-                            <div className="py-12 text-center text-[var(--cl-text-muted)] text-sm italic">
-                                No line items added yet. Click the "+" icon to insert a row.
+                                        {/* Loan To */}
+                                        <div className="p-1 border-r border-[var(--cl-border)]/30">
+                                            <Input
+                                                className={`${inputCls} bg-transparent border-transparent hover:border-[var(--cl-border)] focus:bg-[var(--cl-surface)] ${!line.loan_to.trim() ? "border-red-500 focus:border-red-500 ring-red-500/10" : ""}`}
+                                                placeholder="Technician / Agency"
+                                                value={line.loan_to}
+                                                onChange={e => updateLine(idx, { loan_to: e.target.value })}
+                                            />
+                                        </div>
+
+                                        {/* IN / OUT */}
+                                        <div className="flex items-center justify-center gap-1 px-2 py-1.5 border-r border-[var(--cl-border)]/30">
+                                            <button
+                                                type="button"
+                                                onClick={() => updateLine(idx, { dr_cr: "D" })}
+                                                className={`flex-1 rounded px-2 py-1 text-xs font-bold transition-all cursor-pointer ${
+                                                    line.dr_cr === "D"
+                                                        ? "bg-emerald-600 text-white shadow"
+                                                        : "bg-[var(--cl-surface-2)] text-[var(--cl-text-muted)] hover:bg-emerald-600/20"
+                                                }`}
+                                            >
+                                                IN
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => updateLine(idx, { dr_cr: "C" })}
+                                                className={`flex-1 rounded px-2 py-1 text-xs font-bold transition-all cursor-pointer ${
+                                                    line.dr_cr === "C"
+                                                        ? "bg-red-500 text-white shadow"
+                                                        : "bg-[var(--cl-surface-2)] text-[var(--cl-text-muted)] hover:bg-red-500/20"
+                                                }`}
+                                            >
+                                                OUT
+                                            </button>
+                                        </div>
+
+                                        {/* Qty */}
+                                        <div className="p-1 border-r border-[var(--cl-border)]/30">
+                                            <Input
+                                                ref={el => { qtyInputRefs.current[idx] = el; }}
+                                                className={`${inputCls} bg-transparent border-transparent hover:border-[var(--cl-border)] focus:bg-[var(--cl-surface)] text-right px-3 ${line.qty <= 0 ? "border-red-500 focus:border-red-500 ring-red-500/10 shadow-[0_0_0_1px_rgba(239,68,68,0.2)]" : ""}`}
+                                                min={0}
+                                                step="0.01"
+                                                type="number"
+                                                value={line.qty}
+                                                onChange={e => updateLine(idx, { qty: Number(e.target.value) })}
+                                                onFocus={e => e.target.select()}
+                                            />
+                                        </div>
+
+                                        {/* Line Remarks */}
+                                        <div className="p-1 border-r border-[var(--cl-border)]/30">
+                                            <Input
+                                                className={`${inputCls} bg-transparent border-transparent hover:border-[var(--cl-border)] focus:bg-[var(--cl-surface)]`}
+                                                placeholder="Optional..."
+                                                value={line.remarks ?? ""}
+                                                onChange={e => updateLine(idx, { remarks: e.target.value })}
+                                            />
+                                        </div>
+
+                                        {/* Actions */}
+                                        <div className="flex items-center justify-center gap-0.5 px-2 bg-[var(--cl-surface-2)]/5">
+                                            <LineAddDeleteActions
+                                                disableDelete={lines.length === 1}
+                                                onAdd={() => insertLine(idx)}
+                                                onDelete={() => removeLine(idx)}
+                                            />
+                                        </div>
+                                    </div>
+                                ))}
+
+                                {lines.length === 0 && (
+                                    <div className="py-12 text-center text-[var(--cl-text-muted)] text-sm italic">
+                                        No line items added yet. Click the "+" icon to insert a row.
+                                    </div>
+                                )}
                             </div>
-                        )}
+                        </div>
                     </Card>
+
+                    {/* ── Summary Bar ── */}
+                    <div className="rounded-lg border border-[var(--cl-border)] bg-[var(--cl-surface-2)]/40 px-4 py-2.5 flex flex-wrap items-center gap-x-6 gap-y-1 justify-end">
+                        <div className="flex items-center gap-1.5">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-[var(--cl-text-muted)]">Lines</span>
+                            <span className="font-mono font-semibold text-sm text-[var(--cl-text)]">{lines.length}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600">IN</span>
+                            <span className="font-mono font-semibold text-sm text-[var(--cl-text)]">
+                                {lines.filter(l => l.dr_cr === "D").reduce((s, l) => s + l.qty, 0)}
+                            </span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-red-500">OUT</span>
+                            <span className="font-mono font-semibold text-sm text-[var(--cl-text)]">
+                                {lines.filter(l => l.dr_cr === "C").reduce((s, l) => s + l.qty, 0)}
+                            </span>
+                        </div>
+                        <div className="flex items-center gap-1.5 border-l border-[var(--cl-border)] pl-4">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-[var(--cl-text-muted)]">Net</span>
+                            <span className="font-mono font-black text-base text-[var(--cl-accent)]">
+                                {lines.filter(l => l.dr_cr === "D").reduce((s, l) => s + l.qty, 0) -
+                                    lines.filter(l => l.dr_cr === "C").reduce((s, l) => s + l.qty, 0)}
+                            </span>
+                        </div>
+                    </div>
                 </>
             )}
         </motion.div>
