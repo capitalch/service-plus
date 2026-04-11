@@ -19,13 +19,11 @@ from app.schemas.auth_schema import (
 
 async def get_clients_helper(criteria: str = "") -> list[ClientResponse]:
     """Retrieve clients from the database, optionally filtered by name prefix."""
-    logger.debug(f"get_clients_helper called with criteria='{criteria}'")
     rows = await exec_sql(
         db_name=None,
         sql=SqlStore.GET_ALL_CLIENTS_ON_CRITERIA,
         sql_args={"criteria": criteria},
     )
-    logger.debug(f"get_clients_helper returned {len(rows)} clients")
     return [ClientResponse(**row) for row in rows]
 
 

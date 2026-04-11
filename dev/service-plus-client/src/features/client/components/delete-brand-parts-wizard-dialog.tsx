@@ -110,7 +110,8 @@ export const DeleteBrandPartsWizardDialog = ({
                     value:   encodeURIComponent(JSON.stringify({ brand_id: brand.id })),
                 },
             });
-            const count: number = result.data?.deleteUnusedPartsByBrand?.deleted_count ?? 0;
+            const data = result.data as { deleteUnusedPartsByBrand?: { deleted_count?: number } } | null;
+            const count: number = data?.deleteUnusedPartsByBrand?.deleted_count ?? 0;
             setDeletedCount(count);
             setStep("done");
         } catch {

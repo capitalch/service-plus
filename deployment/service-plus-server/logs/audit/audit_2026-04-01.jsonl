@@ -1,0 +1,2 @@
+{"action": "LOGIN", "actor": {"type": "admin_user", "username": "capitalch"}, "detail": null, "id": "f01a1a41-fade-4ccc-b9b4-ac98127e4dcf", "outcome": "success", "resource": {"id": null, "name": "service_plus_demo", "type": "session"}, "timestamp": "2026-04-01T05:54:42.491812+00:00"}
+{"action": "LOGIN", "actor": {"type": "admin_user", "username": "capitalch"}, "detail": null, "id": "72ba12a1-fab7-46b7-84b6-1fbcdd945103", "outcome": "success", "resource": {"id": null, "name": "service_plus_demo", "type": "session"}, "timestamp": "2026-04-01T19:50:47.848567+00:00"}

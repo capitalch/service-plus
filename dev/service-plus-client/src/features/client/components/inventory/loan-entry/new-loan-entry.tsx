@@ -280,9 +280,9 @@ export const NewLoanEntry = forwardRef<NewLoanEntryHandle, Props>(({
             ) : (
                 <>
                     {/* Section label */}
-                    <p className="text-[10px] font-black uppercase tracking-[0.15em] text-[var(--cl-text-muted)] px-1 mb-1 flex items-center justify-center gap-2">
+                    <p className="text-[10px] font-black uppercase tracking-[0.15em] text-[var(--cl-text-muted)] px-1 mb-1">
                         Loan Details
-                        {editLoan && <span className="px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 border border-amber-500/20">Edit</span>}
+                        {editLoan && <span className="px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 border border-amber-500/20 ml-2">Edit</span>}
                     </p>
 
                     {/* Header card */}
@@ -290,8 +290,8 @@ export const NewLoanEntry = forwardRef<NewLoanEntryHandle, Props>(({
                         <CardContent className="pt-4 !overflow-visible">
                             <div className="grid grid-cols-1 md:grid-cols-6 lg:grid-cols-12 gap-x-2 gap-y-2">
                                 {/* Date */}
-                                <div className="space-y-2 md:col-span-2 lg:col-span-4 text-left">
-                                    <Label className="text-xs font-extrabold text-[var(--cl-text)] uppercase tracking-widest block">
+                                <div className="space-y-2 md:col-span-2 lg:col-span-4">
+                                    <Label className="text-xs font-extrabold text-[var(--cl-text)] uppercase tracking-widest">
                                         Loan Date <span className="text-red-500 ml-0.5">*</span>
                                     </Label>
                                     <Input
@@ -303,8 +303,8 @@ export const NewLoanEntry = forwardRef<NewLoanEntryHandle, Props>(({
                                 </div>
 
                                 {/* Ref No */}
-                                <div className="space-y-2 md:col-span-2 lg:col-span-4 text-left">
-                                    <Label className="text-xs font-extrabold text-[var(--cl-text)] uppercase tracking-widest block">
+                                <div className="space-y-2 md:col-span-2 lg:col-span-4">
+                                    <Label className="text-xs font-extrabold text-[var(--cl-text)] uppercase tracking-widest">
                                         Ref No
                                     </Label>
                                     <Input
@@ -316,8 +316,8 @@ export const NewLoanEntry = forwardRef<NewLoanEntryHandle, Props>(({
                                 </div>
 
                                 {/* Remarks */}
-                                <div className="space-y-2 md:col-span-2 lg:col-span-4 text-left">
-                                    <Label className="text-xs font-extrabold text-[var(--cl-text)] uppercase tracking-widest block">
+                                <div className="space-y-2 md:col-span-2 lg:col-span-4">
+                                    <Label className="text-xs font-extrabold text-[var(--cl-text)] uppercase tracking-widest">
                                         Remarks
                                     </Label>
                                     <Input
@@ -332,7 +332,7 @@ export const NewLoanEntry = forwardRef<NewLoanEntryHandle, Props>(({
                     </Card>
 
                     {/* Section label */}
-                    <p className="text-[10px] font-black uppercase tracking-[0.15em] text-[var(--cl-text-muted)] text-center mb-1">Line Items</p>
+                    <p className="text-[10px] font-black uppercase tracking-[0.15em] text-[var(--cl-text-muted)] px-1 mb-1">Line Items</p>
 
                     {/* Lines grid */}
                     <Card className="border-[var(--cl-border)] bg-[var(--cl-surface)] shadow-sm overflow-hidden">

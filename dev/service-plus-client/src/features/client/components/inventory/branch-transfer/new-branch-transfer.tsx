@@ -322,9 +322,9 @@ export const NewBranchTransfer = forwardRef<NewBranchTransferHandle, Props>(({
             ) : (
                 <>
                     {/* Section label */}
-                    <p className="text-[10px] font-black uppercase tracking-[0.15em] text-[var(--cl-text-muted)] text-center mb-1 flex items-center justify-center gap-2">
+                    <p className="text-[10px] font-black uppercase tracking-[0.15em] text-[var(--cl-text-muted)] px-1 mb-1">
                         Transfer Details
-                        {editTransfer && <span className="px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 border border-amber-500/20">Edit</span>}
+                        {editTransfer && <span className="ml-2 px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 border border-amber-500/20">Edit</span>}
                     </p>
 
                     {/* Header card */}
@@ -333,11 +333,11 @@ export const NewBranchTransfer = forwardRef<NewBranchTransferHandle, Props>(({
                             <div className="grid grid-cols-1 md:grid-cols-6 lg:grid-cols-12 gap-x-2 gap-y-2">
                                 {/* Date */}
                                 <div className="space-y-2 md:col-span-1 lg:col-span-3">
-                                    <Label className="text-xs font-extrabold text-[var(--cl-text)] uppercase tracking-widest block">
+                                    <Label className="text-xs font-extrabold text-[var(--cl-text)] uppercase tracking-widest">
                                         Date <span className="text-red-500 ml-0.5">*</span>
                                     </Label>
                                     <Input
-                                        className={`bg-[var(--cl-surface-2)] text-center ${!transferDate ? "border-red-500 focus:border-red-500 ring-red-500/10" : ""}`}
+                                        className={`bg-[var(--cl-surface-2)] ${!transferDate ? "border-red-500 focus:border-red-500 ring-red-500/10" : ""}`}
                                         type="date"
                                         value={transferDate}
                                         onChange={e => setTransferDate(e.target.value)}
@@ -346,12 +346,12 @@ export const NewBranchTransfer = forwardRef<NewBranchTransferHandle, Props>(({
 
                                 {/* Destination Branch */}
                                 <div className="space-y-2 md:col-span-3 lg:col-span-3">
-                                    <Label className="text-xs font-extrabold text-[var(--cl-text)] uppercase tracking-widest block">
+                                    <Label className="text-xs font-extrabold text-[var(--cl-text)] uppercase tracking-widest">
                                         Destination Branch <span className="text-red-500 ml-0.5">*</span>
                                     </Label>
                                     <Select value={toBranchId} onValueChange={setToBranchId}>
                                         <SelectTrigger className={`bg-[var(--cl-surface-2)] ${!toBranchId ? "border-red-500" : ""}`}>
-                                            <SelectValue placeholder="Select branch" className="text-center" />
+                                            <SelectValue placeholder="Select branch" />
                                         </SelectTrigger>
                                         <SelectContent>
                                             {destinationBranches.map(b => (
@@ -363,7 +363,7 @@ export const NewBranchTransfer = forwardRef<NewBranchTransferHandle, Props>(({
 
                                 {/* Ref No */}
                                 <div className="space-y-2 md:col-span-2 lg:col-span-3">
-                                    <Label className="text-xs font-extrabold text-[var(--cl-text)] uppercase tracking-widest block">
+                                    <Label className="text-xs font-extrabold text-[var(--cl-text)] uppercase tracking-widest">
                                         Ref No
                                     </Label>
                                     <Input
@@ -376,7 +376,7 @@ export const NewBranchTransfer = forwardRef<NewBranchTransferHandle, Props>(({
 
                                 {/* Remarks */}
                                 <div className="space-y-2 md:col-span-6 lg:col-span-3">
-                                    <Label className="text-xs font-extrabold text-[var(--cl-text)] uppercase tracking-widest block">
+                                    <Label className="text-xs font-extrabold text-[var(--cl-text)] uppercase tracking-widest">
                                         Remarks
                                     </Label>
                                     <Input
@@ -391,7 +391,7 @@ export const NewBranchTransfer = forwardRef<NewBranchTransferHandle, Props>(({
                     </Card>
 
                     {/* Section label */}
-                    <p className="text-[10px] font-black uppercase tracking-[0.15em] text-[var(--cl-text-muted)] text-center mb-1">Line Items</p>
+                    <p className="text-[10px] font-black uppercase tracking-[0.15em] text-[var(--cl-text-muted)] px-1 mb-1">Line Items</p>
 
                     {/* Lines grid */}
                     <Card className="border-[var(--cl-border)] bg-[var(--cl-surface)] shadow-sm overflow-hidden">

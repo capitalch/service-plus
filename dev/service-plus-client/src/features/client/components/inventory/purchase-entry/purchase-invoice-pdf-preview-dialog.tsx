@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Loader2, Download, Printer, XCircle } from "lucide-react";
+import { Loader2, Download, Printer } from "lucide-react";
 import { toast } from "sonner";
 import {
     Dialog,

@@ -1,0 +1,36 @@
+type Query {
+    adminDashboardStats(db_name: String!): Generic
+    auditLogs(action: String, actor: String, from_date: String, outcome: String, page: Int, page_size: Int, search: String, to_date: String): Generic
+    auditLogStats(from_date: String, to_date: String): Generic
+    genericQuery(db_name: String!, schema: String, value: String!): Generic
+    superAdminClientsData: Generic
+    superAdminDashboardStats: Generic
+    systemSettings: Generic
+    usageHealth: Generic
+}
+
+type Mutation {
+    createAdminUser(db_name: String!, schema: String, value: String!): Generic
+    createBuSchemaAndFeedSeedData(db_name: String!, schema: String, value: String!): Generic
+    createBusinessUser(db_name: String!, schema: String, value: String!): Generic
+    createClient(db_name: String!, schema: String, value: String!): Generic
+    createServiceDb(db_name: String!, schema: String, value: String!): Generic
+    deleteBuSchema(db_name: String!, schema: String, value: String!): Generic
+    feedBuSeedData(db_name: String!, schema: String, value: String!): Generic
+    deleteClient(db_name: String!, schema: String, value: String!): Generic
+    dropDatabase(db_name: String!, schema: String, value: String!): Generic
+    genericUpdate(db_name: String!, schema: String, value: String!): Generic
+    genericUpdateScript(db_name: String!, schema: String, value: String!): Generic
+    deleteUnusedPartsByBrand(db_name: String!, schema: String, value: String!): Generic
+    importSpareParts(db_name: String!, schema: String, value: String!): Generic
+    mailAdminCredentials(db_name: String!, schema: String, value: String!): Generic
+    mailBusinessUserCredentials(db_name: String!, schema: String, value: String!): Generic
+    setUserBuRole(db_name: String!, schema: String, value: String!): Generic
+    createSalesInvoice(db_name: String!, schema: String, value: String!): Generic
+}
+
+type Subscription {
+    genericSubscription(db_name: String!):Generic
+}
+
+scalar Generic
