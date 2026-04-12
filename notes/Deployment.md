@@ -59,43 +59,11 @@ server {
     }
 }
 
-- old
-    server {
-    listen 80;
-    server_name _;
-
-    # Serve React static files
-    root /usr/share/nginx/html/dist;
-    index index.html;
-    
-    location / {
-        try_files $uri /index.html;
-    }
-    
-    # Reverse proxy to FastAPI (Uvicorn)
-    location /api/ {
-        proxy_pass http://127.0.0.1:8000/api/;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-    
-      location /graphql/ {
-        proxy_pass http://127.0.0.1:8000/graphql/;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-}
-
 # 6 check configuration file syntax
   sudo nginx -t
   
-# 7 install code and libraaries
+# 7 install code and libraries
 	pip install --upgrade pip
-          pip install pydantic fastapi uvicorn[standard] typing ariadne bcrypt pyjwt[crypto] psycopg[binary,pool] python-multipart fpdf xlsxwriter fastapi_mail pandas cryptography
 -   pip install aiofiles ariadne bcrypt fastapi openpyxl pandas python-multipart psycopg[binary] pydantic pydantic-settings PyJWT uvicorn[standard] websockets
 	- copy TraceServer folder as it is containing config.py to final folder in local machine
 	- npm run build for react trace-client app. Copy the dist folder to final folder in local machine

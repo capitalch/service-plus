@@ -1,6 +1,12 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 
+export function getApiBaseUrl(): string {
+  return import.meta.env.DEV
+    ? (import.meta.env.VITE_API_BASE_URL as string)
+    : window.location.origin;
+}
+
 /**
  * Utility function for merging Tailwind CSS classes with proper precedence
  * Used by shadcn components

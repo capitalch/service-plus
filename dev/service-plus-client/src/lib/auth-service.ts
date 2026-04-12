@@ -3,6 +3,7 @@
  */
 
 import axios, { AxiosError } from 'axios';
+import { getApiBaseUrl } from './utils';
 
 export type ApiError = {
     errors?: Record<string, string[]>;
@@ -84,7 +85,7 @@ export type UserInstanceType = {
 };
 
 const axiosInstance = axios.create({
-    baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000',
+    baseURL: getApiBaseUrl(),
     headers: { 'Content-Type': 'application/json' },
 });
 
@@ -152,4 +153,3 @@ export async function validateResetToken(token: string): Promise<ValidateResetTo
         throw extractApiError(err);
     }
 }
-

@@ -35,8 +35,8 @@ export const ClientTopNav = ({ activeSection }: Props) => {
 
     return (
         <header className="fixed left-0 right-0 top-0 z-50 flex h-12 items-center border-b border-[var(--cl-border)] bg-[var(--cl-bg)] px-3 sm:px-4">
-            {/* Left Section - Takes more space on md+ to fit menu */}
-            <div className="flex min-w-0 flex-[2] lg:flex-1 items-center gap-2 sm:gap-3 lg:gap-4 overflow-hidden">
+            {/* Left Section - grows to fill available space */}
+            <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3 lg:gap-4 overflow-hidden">
                 {/* Mobile Menu Toggle — opens the Explorer Panel which has section nav + sub-items */}
                 <button
                     onClick={toggleExplorer}
@@ -75,13 +75,12 @@ export const ClientTopNav = ({ activeSection }: Props) => {
                 </nav>
             </div>
 
-            {/* Middle Section: BU + Branch Switcher */}
-            <div className="flex shrink-0 items-center justify-center px-2 lg:px-4">
-                <BuBranchSwitcher variant="client" />
-            </div>
-
             {/* Right Section */}
-            <div className="flex flex-1 shrink-0 items-center justify-end gap-1 sm:gap-3">
+            <div className="flex shrink-0 items-center justify-end gap-1 sm:gap-3">
+                <div className="border-r border-[var(--cl-border)] pr-2 lg:pr-16">
+                    <BuBranchSwitcher variant="client" />
+                </div>
+
                 <button
                     onClick={toggleTheme}
                     title={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}

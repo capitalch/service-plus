@@ -13,8 +13,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { MESSAGES } from '@/constants/messages';
 import { ROUTES } from '@/router/routes';
-import { setNewPassword, validateResetToken } from '@/features/auth/services/auth-service';
-import type { ValidateResetTokenResponseType } from '@/features/auth/services/auth-service';
+import { setNewPassword, validateResetToken } from '@/lib/auth-service';
+import type { ValidateResetTokenResponseType } from '@/lib/auth-service';
 
 // ─── Schema ───────────────────────────────────────────────────────────────────
 

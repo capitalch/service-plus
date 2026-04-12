@@ -975,6 +975,7 @@ export interface SalesInvoice {
   remarks: string | null;
   created_at: Date;
   updated_at: Date;
+  is_return: boolean;
 }
 export interface SalesInvoiceInput {
   id: number;
@@ -995,10 +996,11 @@ export interface SalesInvoiceInput {
   remarks?: string | null;
   created_at?: Date;
   updated_at?: Date;
+  is_return?: boolean;
 }
 const sales_invoice = {
   tableName: 'sales_invoice',
-  columns: ['id', 'invoice_no', 'invoice_date', 'company_id', 'customer_contact_id', 'customer_name', 'customer_gstin', 'customer_state_code', 'aggregate_amount', 'cgst_amount', 'sgst_amount', 'igst_amount', 'total_tax', 'total_amount', 'branch_id', 'remarks', 'created_at', 'updated_at'],
+  columns: ['id', 'invoice_no', 'invoice_date', 'company_id', 'customer_contact_id', 'customer_name', 'customer_gstin', 'customer_state_code', 'aggregate_amount', 'cgst_amount', 'sgst_amount', 'igst_amount', 'total_tax', 'total_amount', 'branch_id', 'remarks', 'created_at', 'updated_at', 'is_return'],
   requiredForInsert: ['id', 'invoice_no', 'invoice_date', 'company_id', 'customer_name', 'customer_state_code', 'aggregate_amount', 'total_tax', 'total_amount', 'branch_id'],
   primaryKey: 'id',
   foreignKeys: {

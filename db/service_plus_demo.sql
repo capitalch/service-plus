@@ -2,10 +2,8 @@
 -- PostgreSQL database dump
 --
 
-\restrict fTfGcmDEO2iQYkw0edd5CaWAB57t27bGU8jjGRFS0ux2fmVtdsa1pf6raYNqXG9
-
 -- Dumped from database version 14.6
--- Dumped by pg_dump version 17.9 (Ubuntu 17.9-0ubuntu0.25.10.1)
+-- Dumped by pg_dump version 17.5
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -804,7 +802,8 @@ CREATE TABLE demo1.sales_invoice (
     branch_id bigint NOT NULL,
     remarks text,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    is_return boolean DEFAULT false NOT NULL
 );
 
 
@@ -2965,6 +2964,4 @@ ALTER TABLE ONLY security.user_bu_role
 --
 -- PostgreSQL database dump complete
 --
-
-\unrestrict fTfGcmDEO2iQYkw0edd5CaWAB57t27bGU8jjGRFS0ux2fmVtdsa1pf6raYNqXG9
 

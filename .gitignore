@@ -108,6 +108,7 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+**/.env*
 
 # Spyder project settings
 .spyderproject
@@ -143,3 +144,4 @@ keys/
 *.log
 node_modules
 .vscode/settings.json
+**/config.*

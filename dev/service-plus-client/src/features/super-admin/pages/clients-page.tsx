@@ -51,7 +51,7 @@ import {
 	TableRow,
 } from "@/components/ui/table";
 
-import { sendTestEmail } from "@/features/auth/services/auth-service";
+import { sendTestEmail } from "@/lib/auth-service";
 import { ActivateAdminDialog } from "../components/activate-admin-dialog";
 import { ActivateClientDialog } from "../components/activate-client-dialog";
 import { AddClientDialog } from "../components/add-client-dialog";

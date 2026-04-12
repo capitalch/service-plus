@@ -2,9 +2,15 @@ import { ApolloClient, ApolloLink, HttpLink, InMemoryCache } from '@apollo/clien
 import { GraphQLWsLink } from '@apollo/client/link/subscriptions';
 import { OperationTypeNode } from 'graphql';
 import { createClient } from 'graphql-ws';
+import { getApiBaseUrl } from './utils';
 
-const GQL_HTTP_URL = import.meta.env.VITE_GRAPHQL_URL || 'http://localhost:8000/graphql';
-const GQL_WS_URL = import.meta.env.VITE_GRAPHQL_WS_URL || 'ws://localhost:8000/graphql';
+function getGqlHttpUrl(): string {
+    return `${getApiBaseUrl()}/graphql/`;
+}
+
+function getGqlWsUrl(): string {
+    return getApiBaseUrl().replace(/^http/, 'ws') + '/graphql/';
+}
 
 function getAuthToken() {
     return localStorage.getItem('accessToken');
@@ -22,11 +28,11 @@ const authMiddleware = new ApolloLink((operation, forward) => {
     return forward(operation);
 });
 
-const httpLink = new HttpLink({ uri: GQL_HTTP_URL });
+const httpLink = new HttpLink({ uri: getGqlHttpUrl() });
 
 const wsLink = new GraphQLWsLink(
     createClient({
-        url: GQL_WS_URL,
+        url: getGqlWsUrl(),
         connectionParams: () => {
             const token = getAuthToken();
             return token ? { Authorization: `Bearer ${token}` } : {};

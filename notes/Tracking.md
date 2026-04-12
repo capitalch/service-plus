@@ -40,6 +40,8 @@
 		- Aug 2026
 
 # Tracking
+- 12-04-2026
+	- Completed deployment
 - 08-04-2026
 	- Started stock adjustments
 	- Started sales

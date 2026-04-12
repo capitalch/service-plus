@@ -8,8 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { forgotPasswordSchema, type ForgotPasswordFormData } from '../schemas/auth-schemas';
-import { forgotPasswordRequest } from '@/features/auth/services/auth-service';
-import type { ApiError } from '@/features/auth/services/auth-service';
+import { forgotPasswordRequest } from '@/lib/auth-service';
+import type { ApiError } from '@/lib/auth-service';
 import { MESSAGES } from '@/constants/messages';
 
 type ForgotPasswordFormProps = {

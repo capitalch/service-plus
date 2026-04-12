@@ -114,7 +114,7 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
     useEffect(() => {
         const handler = () => {
             if (window.innerWidth >= 1024) setExplorerOpen(true);
-            else if (window.innerWidth < 768) setExplorerOpen(false);
+            else if (window.innerWidth < 1024) setExplorerOpen(false);
         };
         window.addEventListener('resize', handler);
         return () => window.removeEventListener('resize', handler);

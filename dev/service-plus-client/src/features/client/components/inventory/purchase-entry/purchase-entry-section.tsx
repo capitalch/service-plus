@@ -451,9 +451,8 @@ export const PurchaseEntrySection = () => {
             transition={{ duration: 0.25 }}
         >
             {/* Header */}
-            {/* Responsive Header Row */}
-            <div className="grid grid-cols-3 items-center border-b border-[var(--cl-border)] bg-[var(--cl-surface)] px-4 min-h-[56px]">
-                {/* Left: Title */}
+            <div className="flex flex-wrap items-end gap-x-4 gap-y-3 border-b border-[var(--cl-border)] bg-[var(--cl-surface)] px-4 py-3">
+                {/* Title */}
                 <div className="flex items-center gap-3 overflow-hidden">
                     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-[var(--cl-accent)]/10 text-[var(--cl-accent)]">
                         <FileText className="h-4 w-4" />
@@ -491,120 +490,115 @@ export const PurchaseEntrySection = () => {
                     </div>
                 </div>
 
-                {/* Center: Controls — col 2, always centered */}
-                <div className="flex items-center justify-center">
-                    <div className="flex items-center justify-between gap-2 w-full max-w-[560px]">
-                        {/* Brand Select - Condensed */}
-                        <div className="flex items-center gap-1.5">
-                            <div className="flex items-center gap-1.5">
-                                <span className="hidden lg:inline text-[10px] font-black uppercase text-[var(--cl-text-muted)] opacity-70 tracking-tight">Brand</span>
-                                <Select
-                                    disabled={brands.length === 0 || loading}
-                                    value={selectedBrand}
-                                    onValueChange={setSelectedBrand}
-                                >
-                                    <SelectTrigger className={`h-9 w-[130px] bg-[var(--cl-surface-2)] text-xs font-bold border-2 transition-all ${mode === 'new' && !selectedBrand ? 'border-red-500' : 'border-[var(--cl-border)] focus:border-[var(--cl-accent)]'}`}>
-                                        <SelectValue placeholder="Brand" />
-                                    </SelectTrigger>
-                                    <SelectContent className="z-50">
-                                        {brands.map(b => (
-                                            <SelectItem key={b.id} value={String(b.id)} className="text-xs font-semibold">{b.name}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                        </div>
+                {/* Spacer */}
+                <div className="flex-1" />
 
-                        {/* Mode Toggle Group */}
-                        <div className="flex-shrink-0 flex gap-2 items-center rounded-xl border-2 border-[var(--cl-border)] bg-[var(--cl-surface-2)] p-1 shadow-md">
-                            <Button
-                                className={`h-9 gap-2 px-4 text-sm transition-transform duration-200 rounded-lg border-0 ${
-                                    mode === 'new' && editInvoice
-                                    ? 'bg-amber-500 text-white font-bold shadow-lg scale-105'
-                                    : mode === 'new'
-                                    ? 'bg-emerald-600 text-white font-bold shadow-lg scale-105 hover:brightness-110'
-                                    : 'bg-transparent text-[var(--cl-text-muted)] hover:text-white hover:bg-emerald-600 hover:scale-105 font-semibold'
-                                }`}
-                                size="sm"
-                                disabled={!!editInvoice}
-                                onClick={() => { setEditInvoice(null); setIsReturn(false); setMode('new'); }}
-                            >
-                                {mode === 'new' && editInvoice
-                                    ? <Pencil className="h-4 w-4" />
-                                    : <PlusCircle className="h-4 w-4" />
-                                }
-                                {mode === 'new' && editInvoice ? 'Edit' : 'New'}
-                            </Button>
-                            <Button
-                                className={`h-9 gap-2 px-4 text-sm transition-transform duration-200 rounded-lg border-0 ${
-                                    mode === 'view'
-                                    ? 'bg-sky-600 text-white font-bold shadow-lg scale-105 hover:brightness-110'
-                                    : 'bg-transparent text-[var(--cl-text-muted)] hover:text-white hover:bg-sky-600 hover:scale-105 font-semibold'
-                                }`}
-                                size="sm"
-                                onClick={() => {
-                                    setMode('view');
-                                    if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, page);
-                                }}
-                            >
-                                <Eye className="h-4 w-4" />
-                                View
-                            </Button>
-                        </div>
-
-                        {/* IGST toggle */}
-                        <label className={`flex items-center gap-1.5 cursor-pointer select-none px-3 py-1.5 rounded-lg border-2 font-black text-[12px] uppercase tracking-[0.1em] transition-all shadow-sm ${
-                            mode !== 'new'
-                                ? 'invisible pointer-events-none'
-                                : isIgst
-                                ? 'bg-blue-400 text-white border-blue-600 shadow-blue-500/20'
-                                : 'bg-[var(--cl-surface-2)] border-[var(--cl-border)] text-[var(--cl-text-muted)]'
-                        }`}>
-                            <input
-                                type="checkbox"
-                                className="h-3.5 w-3.5 accent-white cursor-pointer"
-                                checked={isIgst}
-                                onChange={e => setIsIgst(e.target.checked)}
-                            />
-                            IGST
-                        </label>
-                    </div>
+                {/* Mode Toggle */}
+                <div className="flex shrink-0 items-center gap-1 rounded-xl border-2 border-[var(--cl-border)] bg-[var(--cl-surface-2)] px-1 py-0.5 shadow-md">
+                    <Button
+                        className={`h-8 gap-2 px-4 text-sm transition-transform duration-200 rounded-lg border-0 ${
+                            mode === 'new' && editInvoice
+                            ? 'bg-amber-500 text-white font-bold shadow-lg scale-105'
+                            : mode === 'new'
+                            ? 'bg-emerald-600 text-white font-bold shadow-lg scale-105 hover:brightness-110'
+                            : 'bg-transparent text-[var(--cl-text-muted)] hover:text-white hover:bg-emerald-600 hover:scale-105 font-semibold'
+                        }`}
+                        size="sm"
+                        disabled={!!editInvoice}
+                        onClick={() => { setEditInvoice(null); setIsReturn(false); setMode('new'); }}
+                    >
+                        {mode === 'new' && editInvoice ? <Pencil className="h-4 w-4" /> : <PlusCircle className="h-4 w-4" />}
+                        {mode === 'new' && editInvoice ? 'Edit' : 'New'}
+                    </Button>
+                    <Button
+                        className={`h-8 gap-2 px-4 text-sm transition-transform duration-200 rounded-lg border-0 ${
+                            mode === 'view'
+                            ? 'bg-sky-600 text-white font-bold shadow-lg scale-105 hover:brightness-110'
+                            : 'bg-transparent text-[var(--cl-text-muted)] hover:text-white hover:bg-sky-600 hover:scale-105 font-semibold'
+                        }`}
+                        size="sm"
+                        onClick={() => {
+                            setMode('view');
+                            if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, page);
+                        }}
+                    >
+                        <Eye className="h-4 w-4" />
+                        View
+                    </Button>
                 </div>
 
-                {/* Right: Return + Actions — col 3, always occupies space so center block never shifts */}
-                <div className={`flex items-center justify-end gap-2 ${mode !== 'new' ? 'invisible pointer-events-none' : ''}`}>
-                    <button
-                        type="button"
-                        disabled={!!editInvoice && !editInvoice.is_return}
-                        onClick={() => setIsReturn(r => !r)}
-                        className={`flex items-center gap-1.5 cursor-pointer select-none px-3 py-1.5 rounded-lg border-2 font-black text-[12px] uppercase tracking-[0.1em] transition-all shadow-sm disabled:opacity-40 disabled:cursor-not-allowed ${
-                            isReturn
-                                ? 'bg-red-500 text-white border-red-700 shadow-red-500/20'
-                                : 'bg-[var(--cl-surface-2)] border-[var(--cl-border)] text-[var(--cl-text-muted)]'
-                        }`}
+                {/* Brand */}
+                <div className="flex flex-col gap-0.5">
+                    <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--cl-text-muted)]">Brand</span>
+                    <Select
+                        disabled={brands.length === 0 || loading}
+                        value={selectedBrand}
+                        onValueChange={setSelectedBrand}
                     >
-                        <RotateCcw className="h-3 w-3" />
-                        Return
-                    </button>
-                    <div className="flex items-center gap-2 border-l border-[var(--cl-border)] pl-2">
-                        <Button
-                            className="h-8 gap-1.5 px-3 text-xs font-extrabold uppercase tracking-widest text-[var(--cl-text)]"
-                            variant="ghost"
-                            onClick={() => { setEditInvoice(null); newPurchaseRef.current?.reset(); }}
-                            disabled={submitting}
-                        >
-                            <RefreshCw className={`h-3.5 w-3.5 ${submitting ? 'animate-spin' : ''}`} />
-                            Reset
-                        </Button>
-                        <Button
-                            className="h-8 gap-1.5 px-4 text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm font-extrabold uppercase tracking-widest transition-all disabled:opacity-30 disabled:bg-slate-300 disabled:text-slate-600 disabled:shadow-none disabled:cursor-not-allowed"
-                            onClick={() => newPurchaseRef.current?.submit()}
-                            disabled={!newFormValid || submitting}
-                        >
-                            {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-                            Save Invoice
-                        </Button>
-                    </div>
+                        <SelectTrigger className={`h-9 w-[130px] bg-[var(--cl-surface-2)] text-xs font-bold border-2 transition-all ${mode === 'new' && !selectedBrand ? 'border-red-500' : 'border-[var(--cl-border)] focus:border-[var(--cl-accent)]'}`}>
+                            <SelectValue placeholder="Brand" />
+                        </SelectTrigger>
+                        <SelectContent className="z-50">
+                            {brands.map(b => (
+                                <SelectItem key={b.id} value={String(b.id)} className="text-xs font-semibold">{b.name}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+
+                {/* IGST — invisible in view mode */}
+                <label className={`flex items-center gap-1.5 cursor-pointer select-none px-3 py-1.5 rounded-lg border-2 font-black text-[12px] uppercase tracking-[0.1em] transition-all shadow-sm ${
+                    mode !== 'new'
+                        ? 'invisible pointer-events-none'
+                        : isIgst
+                        ? 'bg-blue-400 text-white border-blue-600 shadow-blue-500/20'
+                        : 'bg-[var(--cl-surface-2)] border-[var(--cl-border)] text-[var(--cl-text-muted)]'
+                }`}>
+                    <input
+                        type="checkbox"
+                        className="h-3.5 w-3.5 accent-white cursor-pointer"
+                        checked={isIgst}
+                        onChange={e => setIsIgst(e.target.checked)}
+                    />
+                    IGST
+                </label>
+
+                {/* Return — invisible in view mode */}
+                <button
+                    type="button"
+                    disabled={!!editInvoice && !editInvoice.is_return}
+                    onClick={() => setIsReturn(r => !r)}
+                    className={`flex items-center gap-1.5 cursor-pointer select-none px-3 py-1.5 rounded-lg border-2 font-black text-[12px] uppercase tracking-[0.1em] transition-all shadow-sm disabled:opacity-40 disabled:cursor-not-allowed ${
+                        mode !== 'new'
+                            ? 'invisible pointer-events-none'
+                            : isReturn
+                            ? 'bg-red-500 text-white border-red-700 shadow-red-500/20'
+                            : 'bg-[var(--cl-surface-2)] border-[var(--cl-border)] text-[var(--cl-text-muted)]'
+                    }`}
+                >
+                    <RotateCcw className="h-3 w-3" />
+                    Return
+                </button>
+
+                {/* Reset · Save — invisible in view mode */}
+                <div className={`flex items-center gap-2 ${mode !== 'new' ? 'invisible pointer-events-none' : ''}`}>
+                    <Button
+                        className="h-8 gap-1.5 px-3 text-xs font-extrabold uppercase tracking-widest text-[var(--cl-text)]"
+                        variant="ghost"
+                        onClick={() => { setEditInvoice(null); newPurchaseRef.current?.reset(); }}
+                        disabled={submitting}
+                    >
+                        <RefreshCw className={`h-3.5 w-3.5 ${submitting ? 'animate-spin' : ''}`} />
+                        Reset
+                    </Button>
+                    <Button
+                        className="h-8 gap-1.5 px-4 text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm font-extrabold uppercase tracking-widest transition-all disabled:opacity-30 disabled:bg-slate-300 disabled:text-slate-600 disabled:shadow-none disabled:cursor-not-allowed"
+                        onClick={() => newPurchaseRef.current?.submit()}
+                        disabled={!newFormValid || submitting}
+                    >
+                        {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                        Save Invoice
+                    </Button>
                 </div>
             </div>
 

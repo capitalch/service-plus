@@ -1,6 +1,6 @@
 import { createSlice } from '@reduxjs/toolkit';
 import type { PayloadAction } from '@reduxjs/toolkit';
-import type { UserInstanceType } from '@/features/auth/services/auth-service';
+import type { UserInstanceType } from '@/lib/auth-service';
 
 /**
  * Authentication State Interface

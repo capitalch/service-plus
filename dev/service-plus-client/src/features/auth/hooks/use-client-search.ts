@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { searchClients } from '@/features/auth/services/auth-service';
+import { searchClients } from '@/lib/auth-service';
 import { useDebounce } from '@/hooks/use-debounce';
-import type { ClientType, SearchClientsResponseType } from '@/features/auth/services/auth-service';
+import type { ClientType, SearchClientsResponseType } from '@/lib/auth-service';
 
 /**
  * useClientSearch Hook
