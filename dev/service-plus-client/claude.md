@@ -6,6 +6,7 @@
 - Overwrite plan.md if required.
 - In plan.md write all the steps of execution as Step1, Step 2 and so on.
 - In plan.md include a workflow section which provides the workflow of entire effort
+- When in plan mode, in addition output your plan in plans/plan.md. Overwrite plan.md if it exists.
 - When creating a form never use red color for any control css. Red color will only be used for indicating errors.
 - Always make use of shadcn components and framer-motion for transition wherever required
 - For forms use react-hook-form and zod for validations and business rules

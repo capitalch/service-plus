@@ -19,13 +19,13 @@ from app.schemas.auth_schema import (
 
 async def get_clients_helper(criteria: str = "") -> list[ClientResponse]:
     """Retrieve clients from the database, optionally filtered by name prefix."""
-    logger.debug(f"get_clients_helper called with criteria='{criteria}'")
+    logger.debug("get_clients_helper called with criteria='%s'", criteria)
     rows = await exec_sql(
         db_name=None,
         sql=SqlStore.GET_ALL_CLIENTS_ON_CRITERIA,
         sql_args={"criteria": criteria},
     )
-    logger.debug(f"get_clients_helper returned {len(rows)} clients")
+    logger.debug("get_clients_helper returned %d clients", len(rows))
     return [ClientResponse(**row) for row in rows]
 
 
@@ -143,7 +143,7 @@ async def login_helper(body: LoginRequest) -> LoginResponse:
     })
 
     # [7] Log success
-    logger.info(f"{AppMessages.LOGIN_SUCCESSFUL}: user_id={user['id']}, client_id={body.client_id}")
+    logger.info("%s: user_id=%s, client_id=%s", AppMessages.LOGIN_SUCCESSFUL, user['id'], body.client_id)
     await audit_logger.log(
         action=AuditAction.LOGIN,
         actor_type="admin_user" if user["is_admin"] else "user",
@@ -216,7 +216,7 @@ async def set_password_helper(body: SetPasswordRequest) -> SetPasswordResponse:
         sql=SqlStore.SET_USER_PASSWORD,
         sql_args={"id": user_id, "password_hash": password_hash},
     )
-    logger.info(f"Password reset for user_id={user_id} in {db_name}")
+    logger.info("Password reset for user_id=%s in %s", user_id, db_name)
 
     # [5] Audit
     await audit_logger.log(

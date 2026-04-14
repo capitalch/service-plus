@@ -28,7 +28,7 @@ async def resolve_admin_dashboard_stats(_, info, db_name: str = "") -> Any:
     try:
         return await resolve_admin_dashboard_stats_helper(db_name)
     except Exception as e:
-        logger.error(f"Unexpected admin dashboard stats failure: {str(e)}", exc_info=True)
+        logger.error("Unexpected admin dashboard stats failure: %s", e, exc_info=True)
         raise GraphQLException(
             message=AppMessages.INTERNAL_SERVER_ERROR,
             extensions={"details": AppMessages.UNEXPECTED_ERROR},
@@ -54,7 +54,7 @@ async def resolve_audit_logs(
             search=search, to_date=to_date,
         )
     except Exception as e:
-        logger.error(f"Unexpected audit logs failure: {str(e)}", exc_info=True)
+        logger.error("Unexpected audit logs failure: %s", e, exc_info=True)
         raise GraphQLException(
             message=AppMessages.INTERNAL_SERVER_ERROR,
             extensions={"details": AppMessages.UNEXPECTED_ERROR},
@@ -70,7 +70,7 @@ async def resolve_audit_log_stats(
     try:
         return await resolve_audit_log_stats_helper(from_date=from_date, to_date=to_date)
     except Exception as e:
-        logger.error(f"Unexpected audit log stats failure: {str(e)}", exc_info=True)
+        logger.error("Unexpected audit log stats failure: %s", e, exc_info=True)
         raise GraphQLException(
             message=AppMessages.INTERNAL_SERVER_ERROR,
             extensions={"details": AppMessages.UNEXPECTED_ERROR},
@@ -90,7 +90,7 @@ async def resolve_generic_query(_, info, db_name="", schema="public", value="") 
 
     except Exception as e:
         # Catch-all ONLY for unexpected crashes
-        logger.error(f"Unexpected generic query failure: {str(e)}", exc_info=True)
+        logger.error("Unexpected generic query failure: %s", e, exc_info=True)
         raise GraphQLException(
             message=AppMessages.INTERNAL_SERVER_ERROR,
             extensions={"details": AppMessages.UNEXPECTED_ERROR}
@@ -109,7 +109,7 @@ async def resolve_super_admin_clients_data(_, info) -> Any:
         return await resolve_super_admin_clients_data_helper()
 
     except Exception as e:
-        logger.error(f"Unexpected super admin clients data failure: {str(e)}", exc_info=True)
+        logger.error("Unexpected super admin clients data failure: %s", e, exc_info=True)
         raise GraphQLException(
             message=AppMessages.INTERNAL_SERVER_ERROR,
             extensions={"details": AppMessages.UNEXPECTED_ERROR}
@@ -121,7 +121,7 @@ async def resolve_usage_health(_, info) -> Any:
     try:
         return await resolve_usage_health_helper()
     except Exception as e:
-        logger.error(f"Unexpected usage health failure: {str(e)}", exc_info=True)
+        logger.error("Unexpected usage health failure: %s", e, exc_info=True)
         raise GraphQLException(
             message=AppMessages.INTERNAL_SERVER_ERROR,
             extensions={"details": AppMessages.UNEXPECTED_ERROR},
@@ -133,7 +133,7 @@ async def resolve_system_settings(_, info) -> Any:
     try:
         return await resolve_system_settings_helper()
     except Exception as e:
-        logger.error(f"Unexpected system settings failure: {str(e)}", exc_info=True)
+        logger.error("Unexpected system settings failure: %s", e, exc_info=True)
         raise GraphQLException(
             message=AppMessages.INTERNAL_SERVER_ERROR,
             extensions={"details": AppMessages.UNEXPECTED_ERROR},
@@ -154,7 +154,7 @@ async def resolve_super_admin_dashboard_stats(_, info) -> Any:
 
     except Exception as e:
         # Catch-all ONLY for unexpected crashes
-        logger.error(f"Unexpected super admin dashboard stats failure: {str(e)}", exc_info=True)
+        logger.error("Unexpected super admin dashboard stats failure: %s", e, exc_info=True)
         raise GraphQLException(
             message=AppMessages.INTERNAL_SERVER_ERROR,
             extensions={"details": AppMessages.UNEXPECTED_ERROR}

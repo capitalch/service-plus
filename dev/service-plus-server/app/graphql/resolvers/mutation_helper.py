@@ -34,7 +34,7 @@ def _decode_value(value: str, context: str) -> dict:
     try:
         return json.loads(unquote(value))
     except (json.JSONDecodeError, ValueError) as e:
-        logger.error(f"Invalid JSON in {context} value: {e}")
+        logger.error("Invalid JSON in %s value: %s", context, e)
         raise ValidationException(
             message=AppMessages.INVALID_INPUT,
             extensions={"detail": AppMessages.INVALID_JSON_VALUE},
@@ -84,7 +84,7 @@ async def resolve_create_admin_user_helper(db_name: str, schema: str, value: str
         },
     }
     record_id = await exec_sql_object(db_name, schema or "security", sql_object)
-    logger.info(f"Admin user created successfully with id: {record_id}")
+    logger.info("Admin user '%s' created with id=%s", username, record_id)
 
     # Generate reset link so admin can set their own password
     token = create_reset_token({
@@ -107,7 +107,7 @@ async def resolve_create_admin_user_helper(db_name: str, schema: str, value: str
         )
         email_sent = True
     except Exception as mail_err:
-        logger.warning(f"Failed to send welcome email to {email}: {mail_err}")
+        logger.warning("Failed to send welcome email to %s: %s", email, mail_err)
 
     await audit_logger.log(
         action=AuditAction.CREATE_ADMIN_USER,
@@ -157,7 +157,7 @@ async def resolve_create_bu_schema_and_feed_seed_data_helper(
     raw_id = payload.get("id")
     if raw_id:
         bu_id = int(raw_id)
-        logger.info(f"Schema-repair path: using existing BU id={bu_id} for code='{code}'")
+        logger.info("Schema-repair path: using existing BU id=%d for code='%s'", bu_id, code)
     else:
         # 4a. Check code uniqueness
         rows = await exec_sql(
@@ -184,7 +184,7 @@ async def resolve_create_bu_schema_and_feed_seed_data_helper(
             )
 
         # 4c. Insert BU row into security.bu
-        logger.info(f"Creating BU '{code}' / '{name}' in db '{db_name}'")
+        logger.info("Creating BU '%s' / '%s' in db '%s'", code, name, db_name)
         rows = await exec_sql(
             db_name=db_name, schema="security",
             sql=SqlStore.INSERT_BU,
@@ -193,21 +193,21 @@ async def resolve_create_bu_schema_and_feed_seed_data_helper(
         bu_id = rows[0]["id"] if rows else None
 
     # 7. Create schema <code>
-    logger.info(f"Creating schema '{code}' in db '{db_name}'")
+    logger.info("Creating schema '%s' in db '%s'", code, db_name)
     await exec_sql(
         db_name=db_name, schema="security",
         sql=pgsql.SQL("CREATE SCHEMA IF NOT EXISTS {}").format(pgsql.Identifier(code)),
     )
 
     # 8. Create all BU tables in the new schema
-    logger.info(f"Running BU_SCHEMA_DDL in schema '{code}'")
+    logger.info("Running BU_SCHEMA_DDL in schema '%s'", code)
     await exec_sql(
         db_name=db_name, schema=code,
         sql=SqlBu.BU_SCHEMA_DDL,
     )
 
     # 9. Seed lookup data
-    logger.info(f"Seeding lookup data in schema '{code}'")
+    logger.info("Seeding lookup data in schema '%s'", code)
     await exec_sql(
         db_name=db_name, schema=code,
         sql=SqlBu.BU_SEED_SQL,
@@ -220,7 +220,7 @@ async def resolve_create_bu_schema_and_feed_seed_data_helper(
         resource_type="bu_schema",
     )
 
-    logger.info(f"BU '{code}' created successfully with schema and seed data")
+    logger.info("BU '%s' created successfully with schema and seed data", code)
     return {"code": code, "id": bu_id, "name": name}
 
 
@@ -273,7 +273,7 @@ async def resolve_create_business_user_helper(db_name: str, schema: str, value: 
     # Store a random unusable hash — user cannot log in until they set a password via reset link
     password_hash = hash_password(secrets.token_urlsafe(32))
 
-    logger.info(f"Creating business user '{username}' in database '{db_name}'")
+    logger.info("Creating business user '%s' in database '%s'", username, db_name)
 
     sql_object = {
         "tableName": "user",
@@ -288,7 +288,7 @@ async def resolve_create_business_user_helper(db_name: str, schema: str, value: 
         },
     }
     record_id = await exec_sql_object(db_name, schema_name, sql_object)
-    logger.info(f"Business user created with id: {record_id}")
+    logger.info("Business user created with id=%s", record_id)
 
     # Generate reset link so user can set their own password
     token = create_reset_token({"sub": str(record_id), "db_name": db_name})
@@ -307,7 +307,7 @@ async def resolve_create_business_user_helper(db_name: str, schema: str, value: 
         )
         email_sent = True
     except Exception as mail_err:
-        logger.warning(f"Failed to send setup link email to {email}: {mail_err}")
+        logger.warning("Failed to send setup link email to %s: %s", email, mail_err)
 
     await audit_logger.log(
         action=AuditAction.CREATE_ADMIN_USER,
@@ -348,7 +348,7 @@ async def resolve_create_client_helper(db_name: str, schema: str, value: str) ->
 
     sql_object = {"tableName": "client", "xData": xData}
     record_id = await exec_sql_object(None, "public", sql_object)
-    logger.info(f"Client '{name}' created with id={record_id}")
+    logger.info("Client '%s' created with id=%s", name, record_id)
 
     email_sent = False
     if email:
@@ -360,7 +360,7 @@ async def resolve_create_client_helper(db_name: str, schema: str, value: str) ->
             )
             email_sent = True
         except Exception as mail_err:
-            logger.warning(f"Failed to send welcome email to {email}: {mail_err}")
+            logger.warning("Failed to send welcome email to %s: %s", email, mail_err)
 
     await audit_logger.log(
         action=AuditAction.CREATE_CLIENT,
@@ -397,7 +397,7 @@ async def resolve_create_service_db_helper(db_name: str, schema: str, value: str
         )
 
     # 2. Check new_db_name uniqueness against pg_database
-    logger.info(f"Checking db_name uniqueness: {new_db_name}")
+    logger.info("Checking db_name uniqueness: %s", new_db_name)
     rows = await exec_sql(
         db_name=None,
         schema="public",
@@ -411,7 +411,7 @@ async def resolve_create_service_db_helper(db_name: str, schema: str, value: str
         )
 
     # 3. CREATE DATABASE (requires autocommit)
-    logger.info(f"Creating database: {new_db_name}")
+    logger.info("Creating database: %s", new_db_name)
     await exec_sql_dml(
         db_name=None,
         schema="public",
@@ -419,7 +419,7 @@ async def resolve_create_service_db_helper(db_name: str, schema: str, value: str
     )
 
     # 4. Set up security schema inside the new database
-    logger.info(f"Setting up security schema in: {new_db_name}")
+    logger.info("Setting up security schema in: %s", new_db_name)
     await exec_sql(
         db_name=new_db_name,
         schema="security",
@@ -427,7 +427,7 @@ async def resolve_create_service_db_helper(db_name: str, schema: str, value: str
     )
 
     # 5. Persist new_db_name on the client record
-    logger.info(f"Updating client {client_id} db_name → {new_db_name}")
+    logger.info("Updating client %s db_name → %s", client_id, new_db_name)
     await exec_sql(
         db_name=None,
         schema="public",
@@ -435,7 +435,7 @@ async def resolve_create_service_db_helper(db_name: str, schema: str, value: str
         sql_args={"db_name": new_db_name, "id": client_id},
     )
 
-    logger.info(f"Client {client_id} successfully initiated with db: {new_db_name}")
+    logger.info("Client %s successfully initiated with db: %s", client_id, new_db_name)
     await audit_logger.log(
         action=AuditAction.CREATE_SERVICE_DB,
         resource_name=new_db_name,
@@ -479,7 +479,7 @@ async def resolve_feed_bu_seed_data_helper(db_name: str, schema: str, value: str
             extensions={"detail": f"Schema '{code}' does not exist", "field": "code"},
         )
 
-    logger.info(f"Seeding lookup data into existing schema '{code}' in db '{db_name}'")
+    logger.info("Seeding lookup data into existing schema '%s' in db '%s'", code, db_name)
     await exec_sql(
         db_name=db_name, schema=code,
         sql=SqlBu.BU_SEED_SQL,
@@ -490,7 +490,7 @@ async def resolve_feed_bu_seed_data_helper(db_name: str, schema: str, value: str
         resource_name=code,
         resource_type="bu_schema",
     )
-    logger.info(f"Seed data fed into schema '{code}' successfully")
+    logger.info("Seed data fed into schema '%s' successfully", code)
     return {"code": code}
 
 
@@ -520,7 +520,7 @@ async def resolve_delete_bu_schema_helper(db_name: str, schema: str, value: str)
         )
 
     # Drop schema CASCADE (autocommit DDL)
-    logger.info(f"Dropping schema '{code}' in db '{db_name}'")
+    logger.info("Dropping schema '%s' in db '%s'", code, db_name)
     await exec_sql_dml(
         db_name=db_name, schema="security",
         sql=pgsql.SQL("DROP SCHEMA IF EXISTS {} CASCADE").format(pgsql.Identifier(code)),
@@ -528,7 +528,7 @@ async def resolve_delete_bu_schema_helper(db_name: str, schema: str, value: str)
 
     # Optionally delete the bu row
     if delete_bu_row:
-        logger.info(f"Deleting security.bu row for code='{code}'")
+        logger.info("Deleting security.bu row for code='%s'", code)
         await exec_sql(
             db_name=db_name, schema="security",
             sql=SqlStore.DELETE_BU_BY_CODE,
@@ -540,7 +540,7 @@ async def resolve_delete_bu_schema_helper(db_name: str, schema: str, value: str)
         resource_name=code,
         resource_type="bu_schema",
     )
-    logger.info(f"Schema '{code}' dropped successfully")
+    logger.info("Schema '%s' dropped successfully", code)
     return {"code": code, "delete_bu_row": delete_bu_row}
 
 
@@ -579,7 +579,7 @@ async def resolve_delete_client_helper(db_name: str, schema: str, value: str) ->
     # 2. Drop the associated database if present
     db_name_val = client.get("db_name")
     if db_name_val:
-        logger.info(f"Dropping client database: {db_name_val}")
+        logger.info("Dropping client database: %s", db_name_val)
         await exec_sql_dml(
             db_name=None, schema="public",
             sql=pgsql.SQL("DROP DATABASE IF EXISTS {}").format(pgsql.Identifier(db_name_val)),
@@ -592,7 +592,7 @@ async def resolve_delete_client_helper(db_name: str, schema: str, value: str) ->
         sql_args={"id": client_id},
     )
 
-    logger.info(f"Client id={client_id} deleted")
+    logger.info("Client id=%s deleted", client_id)
     await audit_logger.log(
         action=AuditAction.DELETE_CLIENT,
         resource_id=str(client_id),
@@ -649,13 +649,13 @@ async def resolve_drop_database_helper(db_name: str, schema: str, value: str) ->
         )
 
     # 4. DROP DATABASE (requires autocommit)
-    logger.info(f"Dropping orphan database: {target_db}")
+    logger.info("Dropping orphan database: %s", target_db)
     await exec_sql_dml(
         db_name=None, schema="public",
         sql=pgsql.SQL("DROP DATABASE {}").format(pgsql.Identifier(target_db)),
     )
 
-    logger.info(f"Orphan database dropped: {target_db}")
+    logger.info("Orphan database dropped: %s", target_db)
     await audit_logger.log(
         action=AuditAction.DROP_DATABASE,
         resource_name=target_db,
@@ -695,7 +695,7 @@ async def resolve_mail_business_user_credentials_helper(db_name: str, schema: st
         )
     user = rows[0]
 
-    logger.info(f"Generating reset link for business user id={id_} in {db_name}")
+    logger.info("Generating reset link for business user id=%s in %s", id_, db_name)
 
     # 2. Generate reset token — no password change in DB at this stage
     token = create_reset_token({"sub": str(id_), "db_name": db_name})
@@ -716,7 +716,7 @@ async def resolve_mail_business_user_credentials_helper(db_name: str, schema: st
         email_sent = True
     except Exception as mail_err:
         email_error = str(mail_err)
-        logger.warning(f"Failed to send reset link email to {user['email']}: {mail_err}")
+        logger.warning("Failed to send reset link email to %s: %s", user['email'], mail_err)
 
     await audit_logger.log(
         action=AuditAction.MAIL_ADMIN_CREDENTIALS,
@@ -731,17 +731,6 @@ async def resolve_mail_business_user_credentials_helper(db_name: str, schema: st
 async def resolve_generic_update_helper(db_name: str, schema: str = "public", value: str = "") -> int | None:
     """
     Decode, validate and execute a generic update SQL object.
-
-    Args:
-        db_name: Target service database name. Empty string routes to the client DB.
-        schema:  Database schema to execute against (default: "public").
-        value:   URL-encoded JSON string representing the SQL object to execute.
-
-    Returns:
-        The id of the last inserted/updated record, or None.
-
-    Raises:
-        ValidationException: If value is missing or not valid JSON.
     """
     if not value:
         raise ValidationException(
@@ -750,13 +739,13 @@ async def resolve_generic_update_helper(db_name: str, schema: str = "public", va
         )
 
     db_name_arg = db_name if db_name else None
-    logger.info(f"Updating database entry in: {db_name_arg or 'client_db'}")
+    logger.debug("Updating database entry in: %s", db_name_arg or 'client_db')
 
     value_string = unquote(value)
     try:
         sql_object: dict = json.loads(value_string)
     except json.JSONDecodeError as e:
-        logger.error(f"Invalid JSON in value parameter: {e}")
+        logger.error("Invalid JSON in value parameter: %s", e)
         raise ValidationException(
             message=AppMessages.INVALID_INPUT,
             extensions={"detail": AppMessages.INVALID_JSON_VALUE},
@@ -769,7 +758,7 @@ async def resolve_generic_update_helper(db_name: str, schema: str = "public", va
 
     record_id = await exec_sql_object(db_name_arg, schema or "public", sql_object)
 
-    logger.info(f"Database entry updated successfully in: {db_name_arg or 'client_db'}")
+    logger.debug("Database entry updated in: %s", db_name_arg or 'client_db')
     return record_id
 
 
@@ -794,7 +783,7 @@ async def resolve_create_sales_invoice_helper(db_name: str, schema: str = "publi
     try:
         payload: dict = json.loads(value_string)
     except json.JSONDecodeError as e:
-        logger.error(f"Invalid JSON in createSalesInvoice value: {e}")
+        logger.error("Invalid JSON in createSalesInvoice value: %s", e)
         raise ValidationException(
             message=AppMessages.INVALID_INPUT,
             extensions={"detail": AppMessages.INVALID_JSON_OBJECT},
@@ -807,7 +796,7 @@ async def resolve_create_sales_invoice_helper(db_name: str, schema: str = "publi
     schema_name = schema or "public"
 
     record_id = await exec_sql_object(db_name_arg, schema_name, payload)
-    logger.info(f"Sales invoice created with id: {record_id}")
+    logger.info("Sales invoice created with id=%s", record_id)
 
     if doc_sequence_id is not None and doc_sequence_next is not None:
         seq_object = {
@@ -815,7 +804,7 @@ async def resolve_create_sales_invoice_helper(db_name: str, schema: str = "publi
             "xData": {"id": doc_sequence_id, "next_number": doc_sequence_next},
         }
         await exec_sql_object(db_name_arg, schema_name, seq_object)
-        logger.info(f"Document sequence {doc_sequence_id} incremented to {doc_sequence_next}")
+        logger.debug("Document sequence %s incremented to %s", doc_sequence_id, doc_sequence_next)
 
     return record_id
 
@@ -857,9 +846,9 @@ async def resolve_generic_update_script_helper(db_name: str, schema: str = "publ
     sql_args = payload.get("sql_args") or {}
     db_name_arg = db_name if db_name else None
 
-    logger.info(f"Executing script '{sql_id}' on: {db_name_arg or 'client_db'}")
+    logger.debug("Executing script '%s' on: %s", sql_id, db_name_arg or 'client_db')
     result = await exec_sql(db_name_arg, schema or "public", sql, sql_args)
-    logger.info(f"Script '{sql_id}' executed successfully")
+    logger.debug("Script '%s' executed successfully", sql_id)
     return result
 
 
@@ -882,7 +871,7 @@ async def resolve_delete_unused_parts_by_brand_helper(db_name: str, schema: str,
         )
 
     schema_ = schema or "public"
-    logger.info(f"Deleting unused parts for brand_id={brand_id} in db={db_name}")
+    logger.info("Deleting unused parts for brand_id=%s in db=%s", brand_id, db_name)
 
     rows = await exec_sql(
         db_name=db_name,
@@ -892,7 +881,7 @@ async def resolve_delete_unused_parts_by_brand_helper(db_name: str, schema: str,
     )
 
     deleted_count = len(rows) if rows else 0
-    logger.info(f"Deleted {deleted_count} unused parts for brand_id={brand_id}")
+    logger.info("Deleted %d unused parts for brand_id=%s", deleted_count, brand_id)
     return {"deleted_count": deleted_count}
 
 
@@ -917,7 +906,7 @@ async def resolve_import_spare_parts_helper(db_name: str, schema: str = "public"
         )
 
     db_name_arg = db_name if db_name else None
-    logger.info(f"Bulk importing {len(payload)} spare parts into: {db_name_arg or 'client_db'}")
+    logger.info("Bulk importing %d spare parts into: %s", len(payload), db_name_arg or 'client_db')
 
     count = await bulk_insert_records(
         db_name=db_name_arg,
@@ -926,7 +915,7 @@ async def resolve_import_spare_parts_helper(db_name: str, schema: str = "public"
         records=payload,
     )
 
-    logger.info(f"Bulk import complete: {count} rows inserted")
+    logger.info("Bulk import complete: %d rows inserted", count)
     return {"success_count": count}
 
 
@@ -967,7 +956,7 @@ async def resolve_mail_admin_credentials_helper(db_name: str, schema: str, value
         "client_id": client_id,
     })
     reset_link = f"{settings.frontend_url}/reset-password?token={token}"
-    logger.info(f"Password reset link generated for admin user id={id_} in {db_name}")
+    logger.info("Password reset link generated for admin user id=%s in %s", id_, db_name)
 
     # 3. Email reset link
     email_sent = False
@@ -984,7 +973,7 @@ async def resolve_mail_admin_credentials_helper(db_name: str, schema: str, value
         email_sent = True
     except Exception as mail_err:
         email_error = str(mail_err)
-        logger.warning(f"Failed to send reset link email to {user['email']}: {mail_err}")
+        logger.warning("Failed to send reset link email to %s: %s", user['email'], mail_err)
 
     await audit_logger.log(
         action=AuditAction.MAIL_ADMIN_CREDENTIALS,
@@ -1029,7 +1018,7 @@ async def resolve_set_user_bu_role_helper(db_name: str, schema: str, value: str)
             extensions={"field": "user_id"},
         )
 
-    logger.info(f"Setting BU/role associations for user_id={user_id} in {db_name}")
+    logger.info("Setting BU/role associations for user_id=%s in %s", user_id, db_name)
 
     connection = get_service_db_connection(db_name)
     async with connection as conn:

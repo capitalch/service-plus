@@ -87,7 +87,7 @@ class AuditLogger:
                 async with aiofiles.open(str(file_path), "a", encoding="utf-8") as fh:
                     await fh.write(json.dumps(entry) + "\n")
         except Exception as exc:
-            logger.error(f"AuditLogger.log failed: {exc}")
+            logger.error("AuditLogger.log failed: %s", exc)
 
     async def purge_old_files(self) -> int:
         """Delete JSONL files older than audit_log_retention_days. Returns count deleted."""
@@ -101,7 +101,7 @@ class AuditLogger:
                 file_date = date.fromisoformat(f.stem[len("audit_"):])
                 if file_date < cutoff:
                     f.unlink()
-                    logger.info(f"Purged audit log: {f.name}")
+                    logger.info("Purged audit log: %s", f.name)
                     count += 1
             except (ValueError, OSError):
                 continue
@@ -156,7 +156,7 @@ class AuditLogger:
 
                             entries.append(entry)
                 except Exception as exc:
-                    logger.error(f"AuditLogger.query: error reading {file_path}: {exc}")
+                    logger.error("AuditLogger.query: error reading %s: %s", file_path, exc)
 
             current += timedelta(days=1)
 
@@ -213,7 +213,7 @@ class AuditLogger:
                             if oc in outcome_counts:
                                 outcome_counts[oc] += 1
                 except Exception as exc:
-                    logger.error(f"AuditLogger.stats: error reading {file_path}: {exc}")
+                    logger.error("AuditLogger.stats: error reading %s: %s", file_path, exc)
 
             current += timedelta(days=1)
 

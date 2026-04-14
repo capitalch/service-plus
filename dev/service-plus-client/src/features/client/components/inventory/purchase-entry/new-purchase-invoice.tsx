@@ -610,7 +610,7 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="flex flex-col gap-2 pb-2"
+            className="flex min-h-fit md:min-h-0 md:flex-1 flex-col gap-2 md:overflow-hidden"
         >
             {!branchId ? (
                 <div className="flex flex-col items-center justify-center py-20 bg-[var(--cl-surface-2)]/30 rounded-xl border-2 border-dashed border-[var(--cl-border)] text-center">
@@ -717,8 +717,8 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
                     </Card>
                     {/* table */}
                     <p className="text-[10px] font-black uppercase tracking-[0.15em] text-[var(--cl-text-muted)] px-1 mb-1">Line Items</p>
-                    <Card className={`border-[var(--cl-border)] shadow-sm flex flex-col min-h-0 relative bg-[var(--cl-surface)] ${isReturn ? "border-l-4 border-l-red-500" : ""}`}>
-                        <div className="overflow-x-auto w-full pb-4">
+                    <Card className={`border-[var(--cl-border)] shadow-sm flex min-h-0 md:flex-1 flex-col relative bg-[var(--cl-surface)] ${isReturn ? "border-l-4 border-l-red-500" : ""}`}>
+                        <div className="md:flex-1 min-h-[300px] overflow-x-auto overflow-y-auto w-full pb-4">
                             <table className="min-w-[860px] w-full border-collapse text-sm sticky-header">
                                 <thead>
                                     <tr className="bg-[var(--cl-surface-2)]/50">
@@ -852,7 +852,7 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
                                                 </td>
 
                                                 {/* Subtotal (read-only) */}
-                                                <td className={`${tdClass} text-right pt-1 font-mono tabular-nums text-[var(--cl-text-muted)] border-l border-[var(--cl-border)] bg-[var(--cl-surface-2)]/40`}>
+                                                <td className={`${tdClass} text-right pt-1 font-mono tabular-nums text-sm font-medium text-[var(--cl-text)] border-l border-[var(--cl-border)] bg-[var(--cl-surface-2)]/40`}>
                                                     {formatNumber(c.aggregate)}
                                                 </td>
 
@@ -872,16 +872,16 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
                                                 {!isIgst ? (
                                                     <>
                                                         {/* CGST Amt (read-only) */}
-                                                        <td className={`${tdClass} px-2 text-right pt-1 font-mono tabular-nums text-[var(--cl-text-muted)] bg-[var(--cl-surface-2)]/40`}>
+                                                        <td className={`${tdClass} px-2 text-right pt-1 font-mono tabular-nums text-sm font-medium text-[var(--cl-text-muted)] bg-[var(--cl-surface-2)]/40`}>
                                                             {formatNumber(c.cgstAmt)}
                                                         </td>
                                                         {/* SGST Amt (read-only) */}
-                                                        <td className={`${tdClass} px-2 text-right pt-1 font-mono tabular-nums text-[var(--cl-text-muted)] bg-[var(--cl-surface-2)]/40`}>
+                                                        <td className={`${tdClass} px-2 text-right pt-1 font-mono tabular-nums text-sm font-medium text-[var(--cl-text-muted)] bg-[var(--cl-surface-2)]/40`}>
                                                             {formatNumber(c.sgstAmt)}
                                                         </td>
                                                     </>
                                                 ) : (
-                                                    <td className={`${tdClass} px-2 text-right pt-1 font-mono tabular-nums text-[var(--cl-text-muted)] bg-[var(--cl-surface-2)]/40`} title="IGST Amount">
+                                                    <td className={`${tdClass} px-2 text-right pt-1 font-mono tabular-nums text-sm font-medium text-[var(--cl-text-muted)] bg-[var(--cl-surface-2)]/40`} title="IGST Amount">
                                                         {formatNumber(c.igstAmt)}
                                                     </td>
                                                 )}

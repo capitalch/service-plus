@@ -65,7 +65,7 @@ const DEBOUNCE_MS = 600;
 
 // ─── CSS ──────────────────────────────────────────────────────────────────────
 
-const thClass = "text-xs font-semibold uppercase tracking-wide text-[var(--cl-text-muted)] p-3 text-left border-b border-[var(--cl-border)] bg-[var(--cl-surface-2)]/50";
+const thClass = "sticky top-0 z-20 text-xs font-semibold uppercase tracking-wide text-[var(--cl-text-muted)] p-3 text-left border-b border-[var(--cl-border)] bg-[var(--cl-surface-2)]";
 const tdClass = "p-3 text-sm text-[var(--cl-text)] border-b border-[var(--cl-border)]";
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -446,7 +446,7 @@ export const PurchaseEntrySection = () => {
     return (
         <motion.div
             animate={{ opacity: 1 }}
-            className="flex min-h-0 flex-1 flex-col gap-4"
+            className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto md:overflow-y-hidden"
             initial={{ opacity: 0 }}
             transition={{ duration: 0.25 }}
         >
@@ -549,7 +549,7 @@ export const PurchaseEntrySection = () => {
                 {/* IGST — invisible in view mode */}
                 <label className={`flex items-center gap-1.5 cursor-pointer select-none px-3 py-1.5 rounded-lg border-2 font-black text-[12px] uppercase tracking-[0.1em] transition-all shadow-sm ${
                     mode !== 'new'
-                        ? 'invisible pointer-events-none'
+                        ? 'hidden md:flex md:invisible pointer-events-none'
                         : isIgst
                         ? 'bg-blue-400 text-white border-blue-600 shadow-blue-500/20'
                         : 'bg-[var(--cl-surface-2)] border-[var(--cl-border)] text-[var(--cl-text-muted)]'
@@ -570,7 +570,7 @@ export const PurchaseEntrySection = () => {
                     onClick={() => setIsReturn(r => !r)}
                     className={`flex items-center gap-1.5 cursor-pointer select-none px-3 py-1.5 rounded-lg border-2 font-black text-[12px] uppercase tracking-[0.1em] transition-all shadow-sm disabled:opacity-40 disabled:cursor-not-allowed ${
                         mode !== 'new'
-                            ? 'invisible pointer-events-none'
+                            ? 'hidden md:flex md:invisible pointer-events-none'
                             : isReturn
                             ? 'bg-red-500 text-white border-red-700 shadow-red-500/20'
                             : 'bg-[var(--cl-surface-2)] border-[var(--cl-border)] text-[var(--cl-text-muted)]'
@@ -581,7 +581,7 @@ export const PurchaseEntrySection = () => {
                 </button>
 
                 {/* Reset · Save — invisible in view mode */}
-                <div className={`flex items-center gap-2 ${mode !== 'new' ? 'invisible pointer-events-none' : ''}`}>
+                <div className={`flex items-center gap-2 ${mode !== 'new' ? 'hidden md:flex md:invisible pointer-events-none' : ''}`}>
                     <Button
                         className="h-8 gap-1.5 px-3 text-xs font-extrabold uppercase tracking-widest text-[var(--cl-text)]"
                         variant="ghost"
@@ -603,32 +603,34 @@ export const PurchaseEntrySection = () => {
             </div>
 
             {mode === 'new' ? (
-                <NewPurchaseInvoice
-                    ref={newPurchaseRef}
-                    branchId={branchId}
-                    states={states}
-                    txnTypes={txnTypes}
-                    vendors={vendors}
-                    onSuccess={() => {
-                        if (editInvoice) {
-                            setEditInvoice(null);
-                            setMode('view');
-                            if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, 1);
-                        } else {
-                            newPurchaseRef.current?.reset();
-                        }
-                    }}
-                    onStatusChange={(status) => {
-                        setNewFormValid(status.isValid);
-                        setSubmitting(status.isSubmitting);
-                    }}
-                    isIgst={isIgst}
-                    isReturn={isReturn}
-                    onIsReturnChange={setIsReturn}
-                    selectedBrandId={selectedBrand ? Number(selectedBrand) : null}
-                    brandName={brands.find(b => String(b.id) === selectedBrand)?.name}
-                    editInvoice={editInvoice}
-                />
+                <div className="flex min-h-fit md:min-h-0 md:flex-1 flex-col md:overflow-hidden px-4 pb-4">
+                    <NewPurchaseInvoice
+                        ref={newPurchaseRef}
+                        branchId={branchId}
+                        states={states}
+                        txnTypes={txnTypes}
+                        vendors={vendors}
+                        onSuccess={() => {
+                            if (editInvoice) {
+                                setEditInvoice(null);
+                                setMode('view');
+                                if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, 1);
+                            } else {
+                                newPurchaseRef.current?.reset();
+                            }
+                        }}
+                        onStatusChange={(status) => {
+                            setNewFormValid(status.isValid);
+                            setSubmitting(status.isSubmitting);
+                        }}
+                        isIgst={isIgst}
+                        isReturn={isReturn}
+                        onIsReturnChange={setIsReturn}
+                        selectedBrandId={selectedBrand ? Number(selectedBrand) : null}
+                        brandName={brands.find(b => String(b.id) === selectedBrand)?.name}
+                        editInvoice={editInvoice}
+                    />
+                </div>
             ) : (
                 <>
                     {/* Toolbar - Compacted */}
@@ -705,7 +707,7 @@ export const PurchaseEntrySection = () => {
                                 </div>
                             ) : (
                                 <table className="min-w-full border-collapse">
-                                    <thead className="sticky top-0 z-10">
+                                    <thead>
                                         <tr>
                                             <th className={thClass}>#</th>
                                             <th className={thClass}>Date</th>
@@ -716,7 +718,7 @@ export const PurchaseEntrySection = () => {
                                             <th className={`${thClass} text-right`}>SGST</th>
                                             <th className={`${thClass} text-right`}>IGST</th>
                                             <th className={`${thClass} text-right`}>Total</th>
-                                            <th className={`${thClass} sticky right-0 z-20 !bg-[var(--cl-surface-2)]`}>Actions</th>
+                                            <th className={`${thClass} sticky top-0 right-0 z-30 !bg-[var(--cl-surface-2)]`}>Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-[var(--cl-border)] bg-[var(--cl-surface)]">

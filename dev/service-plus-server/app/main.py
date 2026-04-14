@@ -11,7 +11,7 @@ from app.config import settings
 from app.core.audit_log import audit_logger
 from app.exceptions import AppMessages
 from app.graphql.schema import create_graphql_app
-from app.logger import logger
+from app.logger import logger, configure_for_uvicorn
 from app.routers.auth_router import router as auth_router
 from app.routers.base_router import router as base_router
 
@@ -20,18 +20,29 @@ from app.routers.base_router import router as base_router
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan event handler."""
+    # Align logging with Uvicorn after it has configured the root logger.
+    configure_for_uvicorn(suppress_access_log=True)
+
     logger.info("=" * 80)
-    logger.info(f"{settings.app_name} v{settings.app_version}")
+    logger.info("%s v%s", settings.app_name, settings.app_version)
     logger.info("=" * 80)
-    logger.info(f"Debug mode: {settings.debug}")
-    logger.info(f"GraphQL endpoint: http://{settings.host}:{settings.port}{settings.graphql_path}")
-    logger.info(f"GraphQL Playground: {'Enabled' if settings.graphql_playground else 'Disabled'}")
+    logger.info("Debug mode: %s", settings.debug)
+    logger.info(
+        "GraphQL endpoint: http://%s:%s%s",
+        settings.host,
+        settings.port,
+        settings.graphql_path,
+    )
+    logger.info(
+        "GraphQL Playground: %s",
+        "Enabled" if settings.graphql_playground else "Disabled",
+    )
     logger.info("=" * 80)
     # Ensure audit log directory exists and purge old files
     Path(settings.audit_log_dir).mkdir(parents=True, exist_ok=True)
     purged = await audit_logger.purge_old_files()
     if purged:
-        logger.info(f"Purged {purged} old audit log file(s)")
+        logger.info("Purged %d old audit log file(s)", purged)
     logger.info(AppMessages.SERVER_STARTED)
     yield  # Shutdown
     logger.info(AppMessages.SERVER_STOPPED)
@@ -68,7 +79,7 @@ app.mount(settings.graphql_path, graphql_app)
 if __name__ == "__main__":
     import uvicorn
 
-    logger.info(f"Starting {settings.app_name}...")
+    logger.info("Starting %s...", settings.app_name)
 
     uvicorn.run(
         "app.main:app",

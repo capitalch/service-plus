@@ -49,7 +49,7 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     )
     payload.update({"exp": expire, "type": "access"})
     token = jwt.encode(payload, settings.secret_key, algorithm=settings.algorithm)
-    logger.debug(f"Access token created for subject: {data.get('sub')}")
+    logger.debug("Access token created for subject: %s", data.get('sub'))
     return token
 
 
@@ -64,7 +64,7 @@ def create_reset_token(data: dict) -> str:
     expire = datetime.now(timezone.utc) + timedelta(hours=48)
     payload.update({"exp": expire, "type": "reset"})
     token = jwt.encode(payload, settings.secret_key, algorithm=settings.algorithm)
-    logger.debug(f"Reset token created for subject: {data.get('sub')}")
+    logger.debug("Reset token created for subject: %s", data.get('sub'))
     return token
 
 
@@ -81,7 +81,7 @@ def create_refresh_token(data: dict) -> str:
     )
     payload.update({"exp": expire, "type": "refresh"})
     token = jwt.encode(payload, settings.secret_key, algorithm=settings.algorithm)
-    logger.debug(f"Refresh token created for subject: {data.get('sub')}")
+    logger.debug("Refresh token created for subject: %s", data.get('sub'))
     return token
 
 
@@ -104,5 +104,5 @@ def decode_token(token: str) -> dict:
         logger.warning("JWT token has expired")
         raise AuthorizationException(AppMessages.TOKEN_EXPIRED)
     except jwt.InvalidTokenError as e:
-        logger.warning(f"Invalid JWT token: {e}")
+        logger.warning("Invalid JWT token: %s", e)
         raise AuthorizationException(AppMessages.TOKEN_INVALID)

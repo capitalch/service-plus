@@ -39,7 +39,7 @@ async def resolve_create_admin_user(_, info, db_name: str = "", schema: str = "s
     except ValidationException:
         raise
     except Exception as e:
-        logger.error(f"Error creating admin user: {str(e)}")
+        logger.error("Error creating admin user: %s", e)
         raise GraphQLException(
             message=AppMessages.OPERATION_FAILED, extensions={"details": str(e)}
         )
@@ -54,7 +54,7 @@ async def resolve_create_bu_schema_and_feed_seed_data(
     except ValidationException:
         raise
     except Exception as e:
-        logger.error(f"Error creating BU schema: {str(e)}", exc_info=True)
+        logger.error("Error creating BU schema: %s", e, exc_info=True)
         raise GraphQLException(
             message=AppMessages.BU_SCHEMA_CREATE_FAILED, extensions={"details": str(e)}
         )
@@ -67,7 +67,7 @@ async def resolve_create_client(_, info, db_name: str = "", schema: str = "publi
     except ValidationException:
         raise
     except Exception as e:
-        logger.error(f"Error creating client: {str(e)}")
+        logger.error("Error creating client: %s", e)
         raise GraphQLException(
             message=AppMessages.OPERATION_FAILED, extensions={"details": str(e)}
         )
@@ -80,7 +80,7 @@ async def resolve_create_business_user(_, info, db_name: str = "", schema: str =
     except ValidationException:
         raise
     except Exception as e:
-        logger.error(f"Error creating business user: {str(e)}", exc_info=True)
+        logger.error("Error creating business user: %s", e, exc_info=True)
         raise GraphQLException(
             message=AppMessages.OPERATION_FAILED, extensions={"details": str(e)}
         )
@@ -93,7 +93,7 @@ async def resolve_create_service_db(_, info, db_name: str = "", schema: str = "s
     except ValidationException:
         raise
     except Exception as e:
-        logger.error(f"Error creating service database: {str(e)}")
+        logger.error("Error creating service database: %s", e)
         raise GraphQLException(
             message=AppMessages.OPERATION_FAILED, extensions={"details": str(e)}
         )
@@ -108,7 +108,7 @@ async def resolve_feed_bu_seed_data(
     except ValidationException:
         raise
     except Exception as e:
-        logger.error(f"Error feeding BU seed data: {str(e)}", exc_info=True)
+        logger.error("Error feeding BU seed data: %s", e, exc_info=True)
         raise GraphQLException(
             message=AppMessages.BU_SEED_FEED_FAILED, extensions={"details": str(e)}
         )
@@ -123,7 +123,7 @@ async def resolve_delete_bu_schema(
     except ValidationException:
         raise
     except Exception as e:
-        logger.error(f"Error dropping BU schema: {str(e)}", exc_info=True)
+        logger.error("Error dropping BU schema: %s", e, exc_info=True)
         raise GraphQLException(
             message=AppMessages.BU_SCHEMA_DROP_FAILED, extensions={"details": str(e)}
         )
@@ -136,7 +136,7 @@ async def resolve_delete_client(_, info, db_name: str = "", schema: str = "secur
     except ValidationException:
         raise
     except Exception as e:
-        logger.error(f"Error deleting client: {str(e)}")
+        logger.error("Error deleting client: %s", e)
         raise GraphQLException(
             message=AppMessages.OPERATION_FAILED, extensions={"details": str(e)}
         )
@@ -149,7 +149,7 @@ async def resolve_drop_database(_, info, db_name: str = "", schema: str = "secur
     except ValidationException:
         raise
     except Exception as e:
-        logger.error(f"Error dropping database: {str(e)}")
+        logger.error("Error dropping database: %s", e)
         raise GraphQLException(
             message=AppMessages.DB_DROP_FAILED, extensions={"details": str(e)}
         )
@@ -162,7 +162,7 @@ async def resolve_generic_update(_, info, db_name="", schema="public", value="")
     except ValidationException:
         raise
     except Exception as e:
-        logger.error(f"Error creating customer: {str(e)}")
+        logger.error("Error in genericUpdate: %s", e)
         raise GraphQLException(
             message=AppMessages.OPERATION_FAILED, extensions={"details": str(e)}
         )
@@ -175,7 +175,7 @@ async def resolve_generic_update_script(_, info, db_name="", schema="public", va
     except ValidationException:
         raise
     except Exception as e:
-        logger.error(f"Error executing script: {str(e)}")
+        logger.error("Error executing script: %s", e)
         raise GraphQLException(
             message=AppMessages.OPERATION_FAILED, extensions={"details": str(e)}
         )
@@ -188,7 +188,7 @@ async def resolve_delete_unused_parts_by_brand(_, info, db_name: str = "", schem
     except ValidationException:
         raise
     except Exception as e:
-        logger.error(f"Error deleting unused parts by brand: {str(e)}")
+        logger.error("Error deleting unused parts by brand: %s", e)
         raise GraphQLException(
             message=AppMessages.OPERATION_FAILED, extensions={"details": str(e)}
         )
@@ -201,7 +201,7 @@ async def resolve_import_spare_parts(_, info, db_name="", schema="public", value
     except ValidationException:
         raise
     except Exception as e:
-        logger.error(f"Error importing spare parts: {str(e)}")
+        logger.error("Error importing spare parts: %s", e)
         raise GraphQLException(
             message=AppMessages.OPERATION_FAILED, extensions={"details": str(e)}
         )
@@ -214,7 +214,7 @@ async def resolve_mail_admin_credentials(_, info, db_name: str = "", schema: str
     except ValidationException:
         raise
     except Exception as e:
-        logger.error(f"Error mailing admin credentials: {str(e)}")
+        logger.error("Error mailing admin credentials: %s", e)
         raise GraphQLException(
             message=AppMessages.OPERATION_FAILED, extensions={"details": str(e)}
         )
@@ -227,7 +227,7 @@ async def resolve_mail_business_user_credentials(_, info, db_name: str = "", sch
     except ValidationException:
         raise
     except Exception as e:
-        logger.error(f"Error mailing business user credentials: {str(e)}")
+        logger.error("Error mailing business user credentials: %s", e)
         raise GraphQLException(
             message=AppMessages.OPERATION_FAILED, extensions={"details": str(e)}
         )
@@ -240,7 +240,7 @@ async def resolve_set_user_bu_role(_, info, db_name: str = "", schema: str = "se
     except ValidationException:
         raise
     except Exception as e:
-        logger.error(f"Error setting user BU/role: {str(e)}", exc_info=True)
+        logger.error("Error setting user BU/role: %s", e, exc_info=True)
         raise GraphQLException(
             message=AppMessages.OPERATION_FAILED, extensions={"details": str(e)}
         )
@@ -253,7 +253,7 @@ async def resolve_create_sales_invoice(_, info, db_name: str = "", schema: str =
     except ValidationException:
         raise
     except Exception as e:
-        logger.error(f"Error creating sales invoice: {str(e)}", exc_info=True)
+        logger.error("Error creating sales invoice: %s", e, exc_info=True)
         raise GraphQLException(
             message=AppMessages.OPERATION_FAILED, extensions={"details": str(e)}
         )

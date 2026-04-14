@@ -24,7 +24,7 @@ def create_schema():
         Executable GraphQL schema
     """
     try:
-        logger.info(f"Loading GraphQL schema from: {SCHEMA_PATH}")
+        logger.info("Loading GraphQL schema from: %s", SCHEMA_PATH)
 
         # Load schema from file
         type_defs = load_schema_from_path(str(SCHEMA_PATH))
@@ -41,7 +41,7 @@ def create_schema():
         return schema
 
     except Exception as e:
-        logger.error(f"Error creating GraphQL schema: {str(e)}")
+        logger.error("Error creating GraphQL schema: %s", e)
         raise
 
 
@@ -68,5 +68,5 @@ def create_graphql_app() -> GraphQL:
         return graphql_app
 
     except Exception as e:
-        logger.error(f"Error creating GraphQL app: {str(e)}")
+        logger.error("Error creating GraphQL app: %s", e)
         raise
