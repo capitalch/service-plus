@@ -40,4 +40,4 @@ def _send_email_sync(to: str, subject: str, body: str) -> None:
         if settings.smtp_user and settings.smtp_password:
             server.login(settings.smtp_user, settings.smtp_password)
         server.sendmail(settings.smtp_from, [to], msg.as_string())
-    logger.info(f"Email sent to {to} (subject: {subject})")
+    logger.info("Email sent to %s (subject: %s)", to, subject)

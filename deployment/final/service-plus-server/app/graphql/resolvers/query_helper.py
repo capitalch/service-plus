@@ -17,8 +17,8 @@ _MODULE_LOAD_TIME: float = _time.time()
 
 
 async def resolve_admin_dashboard_stats_helper(db_name: str) -> dict:
-    """Return BU/user stats and 7-day audit event count for a single client DB."""
-    logger.info(f"Admin dashboard stats requested for db_name={db_name!r}")
+    """Return summary statistics for the admin dashboard of a client database."""
+    logger.debug("Admin dashboard stats requested for db_name=%r", db_name)
 
     today    = date.today()
     week_ago = today - timedelta(days=6)
@@ -46,12 +46,13 @@ async def resolve_audit_log_stats_helper(
     from_date: str | None = None,
     to_date: str | None = None,
 ) -> dict:
+    """Return aggregated audit log statistics for a given date range."""
     today = date.today()
     fd = date.fromisoformat(from_date) if from_date else (today - timedelta(days=30))
     td = date.fromisoformat(to_date)   if to_date   else today
     if (td - fd).days > settings.audit_log_max_read_days:
         fd = td - timedelta(days=settings.audit_log_max_read_days)
-    logger.info(f"Audit log stats requested: {fd} to {td}")
+    logger.debug("Audit log stats requested: %s to %s", fd, td)
     return await audit_logger.stats(fd, td)
 
 
@@ -65,13 +66,14 @@ async def resolve_audit_logs_helper(
     search: str | None = None,
     to_date: str | None = None,
 ) -> dict:
+    """Return paginated audit log entries filtered by various criteria."""
     today = date.today()
     fd = date.fromisoformat(from_date) if from_date else (today - timedelta(days=30))
     td = date.fromisoformat(to_date)   if to_date   else today
     if (td - fd).days > settings.audit_log_max_read_days:
         fd = td - timedelta(days=settings.audit_log_max_read_days)
     page_size = min(page_size or 50, 200)
-    logger.info(f"Audit logs requested: {fd} to {td}, page={page}")
+    logger.debug("Audit logs requested: %s to %s, page=%d", fd, td, page)
     return await audit_logger.query(
         action=action,
         actor=actor,
@@ -85,7 +87,8 @@ async def resolve_audit_logs_helper(
 
 
 async def resolve_system_settings_helper() -> dict:
-    logger.info("System settings requested")
+    """Return current application and system configuration settings."""
+    logger.debug("System settings requested")
     return {
         "application": {
             "app_name":    settings.app_name,
@@ -121,9 +124,11 @@ async def resolve_system_settings_helper() -> dict:
 
 
 async def resolve_usage_health_helper() -> dict:
-    logger.info("Usage health data requested")
+    """Return a comprehensive health check and usage statistics report."""
+    logger.debug("Usage health data requested")
 
     async def _check_api() -> dict:
+        """Verify API server uptime and status."""
         elapsed = int(_time.time() - _MODULE_LOAD_TIME)
         hours, rem = divmod(elapsed, 3600)
         minutes = rem // 60
@@ -135,6 +140,7 @@ async def resolve_usage_health_helper() -> dict:
         }
 
     async def _check_platform_db() -> dict:
+        """Verify platform database connectivity and latency."""
         try:
             t0 = _time.perf_counter()
             await exec_sql(db_name=None, schema="public", sql="SELECT 1 AS ok")
@@ -154,6 +160,7 @@ async def resolve_usage_health_helper() -> dict:
             }
 
     async def _check_smtp() -> dict:
+        """Verify SMTP server connectivity and latency."""
         try:
             loop = asyncio.get_event_loop()
             t0 = _time.perf_counter()
@@ -183,6 +190,7 @@ async def resolve_usage_health_helper() -> dict:
             }
 
     async def _check_audit_log_health() -> dict:
+        """Verify audit log directory and file write status."""
         log_dir = Path(settings.audit_log_dir)
         if not log_dir.exists():
             return {
@@ -205,6 +213,7 @@ async def resolve_usage_health_helper() -> dict:
         }
 
     async def _get_audit_log_stats() -> dict:
+        """Return file counts, size, and recent activity for audit logs."""
         today_date = date.today()
         week_start = today_date - timedelta(days=6)
         today_stats = await audit_logger.stats(today_date, today_date)
@@ -225,6 +234,7 @@ async def resolve_usage_health_helper() -> dict:
         }
 
     async def _get_db_sizes() -> list:
+        """Return list of database names and their sizes in bytes."""
         try:
             sql = """
                 SELECT datname, pg_database_size(datname) AS size_bytes
@@ -235,10 +245,11 @@ async def resolve_usage_health_helper() -> dict:
             rows = await exec_sql(db_name=None, schema="public", sql=sql)
             return [{"db_name": r["datname"], "size_bytes": int(r["size_bytes"])} for r in rows]
         except Exception as e:
-            logger.warning(f"DB size query failed: {e}")
+            logger.warning("DB size query failed: %s", e)
             return []
 
     async def _get_platform_stats() -> dict:
+        """Return high-level statistics about clients, admins, and databases."""
         try:
             client_stats_rows = await exec_sql(db_name=None, schema="public", sql=SqlStore.GET_CLIENT_STATS)
             client_stats = client_stats_rows[0] if client_stats_rows else {}
@@ -270,7 +281,7 @@ async def resolve_usage_health_helper() -> dict:
                 "total_dbs":        total_dbs,
             }
         except Exception as e:
-            logger.warning(f"Platform stats query failed: {e}")
+            logger.warning("Platform stats query failed: %s", e)
             return {
                 "active_clients": 0, "inactive_clients": 0,
                 "total_admins": 0, "total_clients": 0, "total_dbs": 0,
@@ -305,7 +316,7 @@ async def resolve_usage_health_helper() -> dict:
     hours, rem = divmod(elapsed, 3600)
     minutes = rem // 60
 
-    logger.info("Usage health data assembled successfully")
+    logger.debug("Usage health data assembled successfully")
     return {
         "audit_log":      audit_stats,
         "db_sizes":       db_sizes,
@@ -325,7 +336,8 @@ async def resolve_usage_health_helper() -> dict:
 
 
 async def resolve_generic_query_helper(db_name: str, schema: str = "public", value: str = ""):
-    logger.info("Generic query requested")
+    """Execute a generic SQL query from SqlStore with provided arguments."""
+    logger.debug("Generic query requested")
 
     if not value:
         raise ValidationException(
@@ -336,7 +348,7 @@ async def resolve_generic_query_helper(db_name: str, schema: str = "public", val
     try:
         params: dict = json.loads(unquote(value))
     except (json.JSONDecodeError, ValueError) as e:
-        logger.error(f"Invalid JSON in genericQuery value: {e}")
+        logger.error("Invalid JSON in genericQuery value: %s", e)
         raise ValidationException(
             message=AppMessages.INVALID_INPUT,
             extensions={"detail": AppMessages.INVALID_JSON_VALUE},
@@ -347,7 +359,7 @@ async def resolve_generic_query_helper(db_name: str, schema: str = "public", val
 
     sql = getattr(SqlStore, sql_id, None)
     if not sql:
-        logger.error(f"Unknown sqlId in genericQuery: {sql_id!r}")
+        logger.error("Unknown sqlId in genericQuery: %r", sql_id)
         raise ValidationException(
             message=AppMessages.INVALID_INPUT,
             extensions={"detail": f"Unknown sqlId: {sql_id}"},
@@ -356,12 +368,13 @@ async def resolve_generic_query_helper(db_name: str, schema: str = "public", val
     db_name_arg = db_name if db_name else None
     rows = await exec_sql(db_name_arg, schema or "public", sql, sql_args, text_dates=True)
 
-    logger.info(f"Generic query completed successfully: sqlId={sql_id!r}")
+    logger.debug("Generic query completed: sqlId=%r", sql_id)
     return rows
 
 
 async def resolve_super_admin_clients_data_helper():
-    logger.info("Super admin clients data requested")
+    """Return detailed statistics and admin information for all clients."""
+    logger.debug("Super admin clients data requested")
 
     client_stats_rows = await exec_sql(db_name=None, schema="public", sql=SqlStore.GET_CLIENT_STATS)
     client_stats = client_stats_rows[0] if client_stats_rows else {}
@@ -406,7 +419,7 @@ async def resolve_super_admin_clients_data_helper():
                         "username":   a.get("username"),
                     })
             else:
-                logger.warning(f"Database '{db_name_val}' not found – flagging client")
+                logger.warning("Database '%s' not found – flagging client", db_name_val)
 
         total_active_admins   += active_admin
         total_inactive_admins += inactive_admin
@@ -440,7 +453,7 @@ async def resolve_super_admin_clients_data_helper():
     orphan_rows = await exec_sql(db_name=None, schema="public", sql=SqlStore.GET_ORPHAN_DATABASES)
     orphan_databases = [row["datname"] for row in orphan_rows]
 
-    logger.info("Super admin clients data completed successfully")
+    logger.debug("Super admin clients data completed")
     return {
         "activeAdmins":        total_active_admins,
         "activeClients":       client_stats.get("active_clients", 0),
@@ -455,7 +468,8 @@ async def resolve_super_admin_clients_data_helper():
 
 
 async def resolve_super_admin_dashboard_stats_helper():
-    logger.info("Super admin dashboard stats requested")
+    """Return aggregated user and business unit stats across all clients."""
+    logger.debug("Super admin dashboard stats requested")
 
     client_stats_rows = await exec_sql(db_name=None, schema="public", sql=SqlStore.GET_CLIENT_STATS)
     client_stats = client_stats_rows[0] if client_stats_rows else {}
@@ -470,7 +484,7 @@ async def resolve_super_admin_dashboard_stats_helper():
         if db_name_val:
             exists_rows = await exec_sql(db_name=None, schema="public", sql=SqlStore.CHECK_DB_NAME_EXISTS, sql_args={"db_name": db_name_val})
             if not (exists_rows and exists_rows[0].get("exists")):
-                logger.warning(f"Database '{db_name_val}' not found – skipping")
+                logger.warning("Database '%s' not found – skipping", db_name_val)
                 continue
 
             bu_rows = await exec_sql(db_name=db_name_val, schema="security", sql=SqlStore.GET_BU_USER_STATS)
@@ -486,7 +500,7 @@ async def resolve_super_admin_dashboard_stats_helper():
                 total_bu             += r.get("total_bu", 0)
                 total_users          += r.get("total_users", 0)
 
-    logger.info("Super admin dashboard stats completed successfully")
+    logger.debug("Super admin dashboard stats completed")
     return {
         "activeAdminUsers":   active_admin_users,
         "activeBu":           active_bu,

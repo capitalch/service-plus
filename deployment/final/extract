@@ -26,3 +26,6 @@ echo "🔒 Setting permissions (Optional)..."
 # sudo chown -R www-data:www-data "$TARGET_DIR"
 
 echo "✅ Extraction complete in $TARGET_DIR"
+
+echo "rebooting..."
+reboot

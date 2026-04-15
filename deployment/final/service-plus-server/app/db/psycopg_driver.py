@@ -428,18 +428,6 @@ async def bulk_insert_records(
 ) -> int:
     """
     Fast bulk insert using multi-row INSERT statements.
-
-    Automatically splits records into sub-batches to stay within psycopg's
-    2000-placeholder limit per query.
-
-    Args:
-        db_name:    Service database name; pass None to use the client DB.
-        schema:     PostgreSQL schema to set for the session.
-        table_name: Target table name.
-        records:    List of dicts, each representing one row. All dicts must have identical keys.
-
-    Returns:
-        Number of rows inserted.
     """
     if not records:
         return 0

@@ -41,8 +41,8 @@ async def test_email():
             subject=AppMessages.EMAIL_TEST_SUBJECT,
             body=AppMessages.EMAIL_TEST_BODY,
         )
-        logger.info(f"Test email sent to {AppMessages.EMAIL_TEST_RECIPIENT}")
+        logger.info("Test email sent to %s", AppMessages.EMAIL_TEST_RECIPIENT)
         return {"status": "ok", "message": AppMessages.EMAIL_TEST_SENT}
     except Exception as exc:
-        logger.error(f"Test email failed: {exc}")
+        logger.error("Test email failed: %s", exc)
         return {"status": "error", "message": AppMessages.EMAIL_TEST_FAILED, "detail": str(exc)}
