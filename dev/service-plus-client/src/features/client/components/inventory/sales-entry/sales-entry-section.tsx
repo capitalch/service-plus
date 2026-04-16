@@ -39,6 +39,7 @@ import { BrandSelect } from "@/features/client/components/inventory/brand-select
 import type { SalesInvoiceType, SalesLineType, DocumentSequenceRow } from "@/features/client/types/sales";
 import type { StockTransactionTypeRow } from "@/features/client/types/purchase";
 import type { CustomerTypeOption, StateOption } from "@/features/client/types/customer";
+import type { BranchType } from "@/features/client/components/masters/branch/branch";
 import type { StateRow } from "../purchase-entry/purchase-entry-section";
 
 import { NewSalesInvoice, type NewSalesInvoiceHandle } from "./new-sales-invoice";
@@ -56,7 +57,7 @@ type CompanyInfoRow = { id: number; company_name: string; state_id: number | nul
 const PAGE_SIZE   = 50;
 const DEBOUNCE_MS = 600;
 
-const thClass = "text-xs font-semibold uppercase tracking-wide text-[var(--cl-text-muted)] p-3 text-left border-b border-[var(--cl-border)] bg-[var(--cl-surface-2)]/50";
+const thClass = "sticky top-0 z-20 text-xs font-semibold uppercase tracking-wide text-[var(--cl-text-muted)] p-3 text-left border-b border-[var(--cl-border)] bg-[var(--cl-surface-2)]";
 const tdClass = "p-3 text-sm text-[var(--cl-text)] border-b border-[var(--cl-border)]";
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -72,6 +73,7 @@ export const SalesEntrySection = () => {
     const { from: defaultFrom, to: defaultTo } = currentFinancialYearRange();
 
     // Filter state
+    const [branches,      setBranches]      = useState<BranchType[]>([]);
     const [txnTypes,      setTxnTypes]      = useState<StockTransactionTypeRow[]>([]);
     const [fromDate,      setFromDate]      = useState(defaultFrom);
     const [toDate,        setToDate]        = useState(defaultTo);
@@ -123,7 +125,15 @@ export const SalesEntrySection = () => {
         if (!dbName || !schema) return;
         const fetchMeta = async () => {
             try {
-                const [txnRes, stateRes, brandRes, custTypeRes, masterStateRes, companyRes] = await Promise.all([
+                const [branchRes, txnRes, stateRes, brandRes, custTypeRes, masterStateRes, companyRes] = await Promise.all([
+                    apolloClient.query<GenericQueryData<BranchType>>({
+                        fetchPolicy: "network-only",
+                        query: GRAPHQL_MAP.genericQuery,
+                        variables: {
+                            db_name: dbName, schema,
+                            value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_ALL_BRANCHES }),
+                        },
+                    }),
                     apolloClient.query<GenericQueryData<StockTransactionTypeRow>>({
                         fetchPolicy: "network-only",
                         query: GRAPHQL_MAP.genericQuery,
@@ -173,6 +183,7 @@ export const SalesEntrySection = () => {
                         },
                     }),
                 ]);
+                setBranches(branchRes.data?.genericQuery ?? []);
                 setTxnTypes(txnRes.data?.genericQuery ?? []);
                 const loadedStates = stateRes.data?.genericQuery ?? [];
                 setStates(loadedStates);
@@ -429,13 +440,13 @@ export const SalesEntrySection = () => {
     return (
         <motion.div
             animate={{ opacity: 1 }}
-            className="flex min-h-0 flex-1 flex-col gap-4"
+            className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto md:overflow-y-hidden"
             initial={{ opacity: 0 }}
             transition={{ duration: 0.25 }}
         >
             {/* ── Header ────────────────────────────────────────────────────── */}
-            <div className="grid grid-cols-3 items-center border-b border-[var(--cl-border)] bg-[var(--cl-surface)] px-4 min-h-[56px]">
-                {/* Left: Title */}
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-3 border-b border-[var(--cl-border)] bg-[var(--cl-surface)] px-4 py-1">
+                {/* Title */}
                 <div className="flex items-center gap-3 overflow-hidden">
                     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-[var(--cl-accent)]/10 text-[var(--cl-accent)]">
                         <FileText className="h-4 w-4" />
@@ -447,102 +458,100 @@ export const SalesEntrySection = () => {
                             {mode === "new" &&  editInvoice && <span className="ml-2 text-sm font-medium text-amber-500 whitespace-nowrap">— Edit</span>}
                             {mode === "view" && <span className="ml-2 text-sm font-medium text-[var(--cl-text-muted)] whitespace-nowrap">— View</span>}
                         </h1>
+                        {mode === "new" && (
+                            <div className={`flex items-center gap-1 px-1.5 py-1 rounded-sm border shadow-sm animate-in fade-in zoom-in duration-500 delay-150 ml-4 ${
+                                isGstRegistered ? "bg-emerald-500/10 border-emerald-500/20" : "bg-red-500/10 border-red-500/20"
+                            }`}>
+                                {isGstRegistered
+                                    ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                                    : <XCircle className="h-3.5 w-3.5 text-red-600" />
+                                }
+                                <span className={`text-[10.5px] font-bold uppercase tracking-tighter ${isGstRegistered ? "text-emerald-700" : "text-red-700"}`}>
+                                    {isGstRegistered ? "GST" : "No-GST"}
+                                </span>
+                            </div>
+                        )}
                         {mode === "view" && (
                             <span className="text-xs text-[var(--cl-text-muted)] whitespace-nowrap">
                                 {loading ? "Loading…" : `(${total})`}
                             </span>
                         )}
                     </div>
-                    {mode === "new" && (
-                        <div className={`flex items-center gap-1 px-1.5 py-1 rounded-sm border shadow-sm animate-in fade-in zoom-in duration-500 delay-150 ml-4 ${
-                            isGstRegistered ? "bg-emerald-500/10 border-emerald-500/20" : "bg-red-500/10 border-red-500/20"
-                        }`}>
-                            {isGstRegistered
-                                ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-                                : <XCircle className="h-3.5 w-3.5 text-red-600" />
-                            }
-                            <span className={`text-[10.5px] font-bold uppercase tracking-tighter ${isGstRegistered ? "text-emerald-700" : "text-red-700"}`}>
-                                {isGstRegistered ? "GST" : "No-GST"}
-                            </span>
-                        </div>
-                    )}
                 </div>
 
-                {/* Center: Brand + Mode toggle */}
-                <div className="flex items-center justify-center">
-                    <div className="flex items-center justify-between gap-2 w-full max-w-[560px]">
-                        {/* Brand */}
-                        <div className="flex flex-1 justify-start">
-                            <BrandSelect
-                                brands={brands}
-                                value={selectedBrand}
-                                onValueChange={setSelectedBrand}
-                                disabled={brands.length === 0 || loading}
-                                highlightEmpty={mode === "new" && !selectedBrand}
-                            />
-                        </div>
+                {/* Spacer */}
+                <div className="flex-1" />
 
-                        {/* Mode Toggle */}
-                        <ViewModeToggle
-                            mode={mode}
-                            isEditing={!!editInvoice}
-                            onNewClick={() => { setEditInvoice(null); setIsReturn(false); setMode("new"); }}
-                            onViewClick={() => { setEditInvoice(null); setIsReturn(false); setMode("view"); if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, page); }}
-                        />
+                {/* Mode Toggle */}
+                <ViewModeToggle
+                    mode={mode}
+                    isEditing={!!editInvoice}
+                    onNewClick={() => { setEditInvoice(null); setIsReturn(false); setMode("new"); }}
+                    onViewClick={() => { setEditInvoice(null); setIsReturn(false); setMode("view"); if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, page); }}
+                />
 
-                        {/* IGST checkbox */}
-                        <label className={`flex items-center gap-1.5 cursor-pointer select-none px-3 py-1.5 rounded-lg border-2 font-black text-[12px] uppercase tracking-[0.1em] transition-all shadow-sm ${
-                            mode !== "new"
-                                ? "invisible pointer-events-none"
-                                : isIgst
-                                ? "bg-blue-400 text-white border-blue-600 shadow-blue-500/20"
-                                : "bg-[var(--cl-surface-2)] border-[var(--cl-border)] text-[var(--cl-text-muted)]"
-                        }`}>
-                            <input
-                                type="checkbox"
-                                className="h-3.5 w-3.5 accent-white cursor-pointer"
-                                checked={isIgst}
-                                onChange={e => setIsIgst(e.target.checked)}
-                            />
-                            IGST
-                        </label>
-                    </div>
-                </div>
+                {/* Brand */}
+                <BrandSelect
+                    brands={brands}
+                    value={selectedBrand}
+                    onValueChange={setSelectedBrand}
+                    disabled={brands.length === 0 || loading}
+                    highlightEmpty={mode === "new" && !selectedBrand}
+                />
 
-                {/* Right: Return + Save/Reset */}
-                <div className={`flex items-center justify-end gap-2 ${mode !== "new" ? "invisible pointer-events-none" : ""}`}>
-                    <button
-                        type="button"
-                        disabled={!!editInvoice && !editInvoice.is_return}
-                        onClick={() => setIsReturn(r => !r)}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border-2 font-black text-[12px] uppercase tracking-[0.1em] transition-all shadow-sm disabled:opacity-40 disabled:cursor-not-allowed ${
-                            isReturn
-                                ? "bg-red-500 text-white border-red-700 shadow-red-500/20"
-                                : "bg-[var(--cl-surface-2)] border-[var(--cl-border)] text-[var(--cl-text-muted)]"
-                        }`}
+                {/* IGST — invisible in view mode */}
+                <label className={`flex items-center gap-1.5 cursor-pointer select-none px-3 py-1.5 rounded-lg border-2 font-black text-[12px] uppercase tracking-[0.1em] transition-all shadow-sm ${
+                    mode !== "new"
+                        ? "hidden md:flex md:invisible pointer-events-none"
+                        : isIgst
+                        ? "bg-blue-400 text-white border-blue-600 shadow-blue-500/20"
+                        : "bg-[var(--cl-surface-2)] border-[var(--cl-border)] text-[var(--cl-text-muted)]"
+                }`}>
+                    <input
+                        type="checkbox"
+                        className="h-3.5 w-3.5 accent-white cursor-pointer"
+                        checked={isIgst}
+                        onChange={e => setIsIgst(e.target.checked)}
+                    />
+                    IGST
+                </label>
+
+                {/* Return — invisible in view mode */}
+                <button
+                    type="button"
+                    disabled={!!editInvoice && !editInvoice.is_return}
+                    onClick={() => setIsReturn(r => !r)}
+                    className={`flex items-center gap-1.5 cursor-pointer select-none px-3 py-1.5 rounded-lg border-2 font-black text-[12px] uppercase tracking-[0.1em] transition-all shadow-sm disabled:opacity-40 disabled:cursor-not-allowed ${
+                        mode !== "new"
+                            ? "hidden md:flex md:invisible pointer-events-none"
+                            : isReturn
+                            ? "bg-red-500 text-white border-red-700 shadow-red-500/20"
+                            : "bg-[var(--cl-surface-2)] border-[var(--cl-border)] text-[var(--cl-text-muted)]"
+                    }`}
+                >
+                    <RotateCcw className="h-3 w-3" />
+                    Return
+                </button>
+
+                {/* Reset · Save — invisible in view mode */}
+                <div className={`flex items-center gap-2 ${mode !== "new" ? "hidden md:flex md:invisible pointer-events-none" : ""}`}>
+                    <Button
+                        className="h-8 gap-1.5 px-3 text-xs font-extrabold uppercase tracking-widest text-[var(--cl-text)]"
+                        disabled={submitting}
+                        variant="ghost"
+                        onClick={() => { setEditInvoice(null); newSalesRef.current?.reset(); }}
                     >
-                        <RotateCcw className="h-3 w-3" />
-                        Return
-                    </button>
-                    <div className="flex items-center gap-2 border-l border-[var(--cl-border)] pl-3">
-                        <Button
-                            className="h-8 gap-1.5 px-3 text-xs font-extrabold uppercase tracking-widest text-[var(--cl-text)]"
-                            variant="ghost"
-                            onClick={() => { setEditInvoice(null); newSalesRef.current?.reset(); }}
-                            disabled={submitting}
-                        >
-                            <RefreshCw className={`h-3.5 w-3.5 ${submitting ? "animate-spin" : ""}`} />
-                            Reset
-                        </Button>
-                        <Button
-                            className="h-8 gap-1.5 px-4 text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm font-extrabold uppercase tracking-widest transition-all disabled:opacity-30 disabled:bg-slate-300 disabled:text-slate-600 disabled:shadow-none disabled:cursor-not-allowed"
-                            onClick={() => newSalesRef.current?.submit()}
-                            disabled={!newFormValid || submitting}
-                        >
-                            {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-                            Save Invoice
-                        </Button>
-                    </div>
+                        <RefreshCw className={`h-3.5 w-3.5 ${submitting ? "animate-spin" : ""}`} />
+                        Reset
+                    </Button>
+                    <Button
+                        className="h-8 gap-1.5 px-4 text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm font-extrabold uppercase tracking-widest transition-all disabled:opacity-30 disabled:bg-slate-300 disabled:text-slate-600 disabled:shadow-none disabled:cursor-not-allowed"
+                        disabled={!newFormValid || submitting}
+                        onClick={() => newSalesRef.current?.submit()}
+                    >
+                        {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                        Save Invoice
+                    </Button>
                 </div>
             </div>
 
@@ -810,6 +819,7 @@ export const SalesEntrySection = () => {
 
                     {/* PDF Preview Dialog */}
                     <SalesInvoicePdfPreviewDialog
+                        branch={pdfPreviewInvoice ? (branches.find(b => b.id === pdfPreviewInvoice.branch_id) ?? null) : null}
                         invoice={pdfPreviewInvoice}
                         open={pdfPreviewInvoice !== null}
                         onOpenChange={open => { if (!open) setPdfPreviewInvoice(null); }}

@@ -9,6 +9,17 @@ cd c:\projects\trace-plus
 - In production server, during startup, a startup.sh file runs which sets up APP_ENV environment variable (export APP_ENV=production)
 - In code, env: str = os.getenv("APP_ENV", "dev")  # default to development, line gets the environment. Based on the value of APP_ENV you can switch values
 
+## Sharing data between kubuntu and windows machine
+
+- kubuntu
+  - install samba in kubuntu
+  - Right click folder and set permissions and set shared from shared tab
+  - get ip address from 
+      hostname -I
+- windows: explorer: \\ip-address
+  - asking credentials: give uid, pwd of linux machine,maybe sushant,pwd
+- you will be able to see the shared folders
+
 ## Service management software client
 # pnpm: node 17 has it
 	- Steps:

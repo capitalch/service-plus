@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowRightLeft, Loader2, MoreHorizontal, Pencil, RefreshCw, Search, Save, Trash2 } from "lucide-react";
+import { FileText, Loader2, MoreHorizontal, Pencil, RefreshCw, Save, Search, Trash2 } from "lucide-react";
 import { ViewModeToggle, type ViewMode } from "@/features/client/components/inventory/view-mode-toggle";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
@@ -19,13 +19,6 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
 
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { MESSAGES } from "@/constants/messages";
@@ -54,7 +47,7 @@ const DEBOUNCE_MS = 600;
 
 // ─── CSS ──────────────────────────────────────────────────────────────────────
 
-const thClass = "text-xs font-semibold uppercase tracking-wide text-[var(--cl-text-muted)] p-3 text-left border-b border-[var(--cl-border)] bg-[var(--cl-surface-2)]/50";
+const thClass = "sticky top-0 z-20 text-xs font-semibold uppercase tracking-wide text-[var(--cl-text-muted)] p-3 text-left border-b border-[var(--cl-border)] bg-[var(--cl-surface-2)]";
 const tdClass = "p-3 text-sm text-[var(--cl-text)] border-b border-[var(--cl-border)]";
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -235,16 +228,16 @@ export const BranchTransferSection = () => {
     return (
         <motion.div
             animate={{ opacity: 1 }}
-            className="flex min-h-0 flex-1 flex-col gap-4"
+            className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto md:overflow-y-hidden"
             initial={{ opacity: 0 }}
             transition={{ duration: 0.25 }}
         >
             {/* Header */}
-            <div className="flex flex-col lg:grid lg:h-14 lg:grid-cols-3 items-stretch lg:items-center gap-4 border-b border-[var(--cl-border)] bg-[var(--cl-surface)] p-3 lg:px-4 lg:py-0">
-                {/* Left: Title */}
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-3 border-b border-[var(--cl-border)] bg-[var(--cl-surface)] px-4 py-1">
+                {/* Title */}
                 <div className="flex items-center gap-3 overflow-hidden">
                     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-[var(--cl-accent)]/10 text-[var(--cl-accent)]">
-                        <ArrowRightLeft className="h-4 w-4" />
+                        <FileText className="h-4 w-4" />
                     </div>
                     <div className="flex items-baseline gap-2 overflow-hidden">
                         <h1 className="text-lg font-bold text-[var(--cl-text)] truncate">
@@ -261,53 +254,45 @@ export const BranchTransferSection = () => {
                     </div>
                 </div>
 
-                {/* Center: Brand + Mode Toggle */}
-                <div className="flex items-center justify-center border-y border-[var(--cl-border)] py-3 lg:border-0 lg:py-0">
-                    <div className="flex w-full items-center justify-between gap-2 max-w-[550px]">
-                        {/* Brand Select */}
-                        <BrandSelect
-                            brands={brands}
-                            value={selectedBrand}
-                            onValueChange={setSelectedBrand}
-                            disabled={brands.length === 0 || loading}
-                            highlightEmpty={mode === "new" && !selectedBrand}
-                        />
+                {/* Spacer */}
+                <div className="flex-1" />
 
-                        {/* Mode Toggle */}
-                        <ViewModeToggle
-                            mode={mode}
-                            isEditing={!!editTransfer}
-                            onNewClick={() => { setEditTransfer(null); setMode("new"); }}
-                            onViewClick={() => { setMode("view"); if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, page); }}
-                        />
+                {/* Mode Toggle */}
+                <ViewModeToggle
+                    mode={mode}
+                    isEditing={!!editTransfer}
+                    onNewClick={() => { setEditTransfer(null); setMode("new"); }}
+                    onViewClick={() => { setMode("view"); if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, page); }}
+                />
 
-                        <div className="flex-1" />
-                    </div>
-                </div>
+                {/* Brand */}
+                <BrandSelect
+                    brands={brands}
+                    value={selectedBrand}
+                    onValueChange={setSelectedBrand}
+                    disabled={brands.length === 0 || loading}
+                    highlightEmpty={mode === "new" && !selectedBrand}
+                />
 
-                {/* Right: Actions */}
-                <div className="flex items-center lg:justify-end justify-between">
-                    {mode === 'new' && (
-                        <div className="flex w-full lg:w-auto items-center justify-between lg:justify-end gap-2 lg:border-l border-[var(--cl-border)] lg:pl-3">
-                            <Button
-                                className="h-9 lg:h-8 gap-1.5 px-3 text-xs font-extrabold uppercase tracking-widest text-[var(--cl-text)] flex-1 lg:flex-none"
-                                variant="ghost"
-                                onClick={() => { setEditTransfer(null); newRef.current?.reset(); }}
-                                disabled={submitting}
-                            >
-                                <RefreshCw className={`h-3.5 w-3.5 ${submitting ? 'animate-spin' : ''}`} />
-                                Reset
-                            </Button>
-                            <Button
-                                className="h-9 lg:h-8 gap-1.5 px-4 text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm font-extrabold uppercase tracking-widest transition-all disabled:opacity-30 disabled:bg-slate-300 disabled:text-slate-600 disabled:shadow-none disabled:cursor-not-allowed flex-1 lg:flex-none"
-                                onClick={() => newRef.current?.submit()}
-                                disabled={!newFormValid || submitting}
-                            >
-                                {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-                                Save
-                            </Button>
-                        </div>
-                    )}
+                {/* Reset · Save — invisible in view mode */}
+                <div className={`flex items-center gap-2 ${mode !== 'new' ? 'hidden md:flex md:invisible pointer-events-none' : ''}`}>
+                    <Button
+                        className="h-8 gap-1.5 px-3 text-xs font-extrabold uppercase tracking-widest text-[var(--cl-text)]"
+                        disabled={submitting}
+                        variant="ghost"
+                        onClick={() => { setEditTransfer(null); newRef.current?.reset(); }}
+                    >
+                        <RefreshCw className={`h-3.5 w-3.5 ${submitting ? 'animate-spin' : ''}`} />
+                        Reset
+                    </Button>
+                    <Button
+                        className="h-8 gap-1.5 px-4 text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm font-extrabold uppercase tracking-widest transition-all disabled:opacity-30 disabled:bg-slate-300 disabled:text-slate-600 disabled:shadow-none disabled:cursor-not-allowed"
+                        disabled={!newFormValid || submitting}
+                        onClick={() => newRef.current?.submit()}
+                    >
+                        {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                        Save
+                    </Button>
                 </div>
             </div>
 
@@ -391,7 +376,7 @@ export const BranchTransferSection = () => {
                                 </div>
                             ) : (
                                 <table className="min-w-full border-collapse">
-                                    <thead className="sticky top-0 z-10">
+                                    <thead>
                                         <tr>
                                             <th className={thClass}>#</th>
                                             <th className={thClass}>Date</th>
