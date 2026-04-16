@@ -202,7 +202,7 @@ export const BuBranchSwitcher = ({ variant = 'admin' }: BuBranchSwitcherPropsTyp
     const isClient = variant === 'client';
 
     return (
-        <div className={`flex items-center gap-2 ${isClient ? 'rounded-md border border-[var(--cl-accent)]/50 bg-[var(--cl-hover)] px-2.5 py-1' : ''}`}>
+        <div className={`flex items-center gap-2 ${isClient ? 'rounded-md bg-gray-100 px-2.5 py-1' : ''}`}>
             {/* BU selector */}
             <div className={`flex items-center gap-1.5 ${isClient ? '' : 'flex-col gap-0.5 items-start'}`}>
                 <span className={`flex shrink-0 items-center gap-1 font-medium ${s.labelSize} ${s.label}`}>

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Eye, Loader2, MoreHorizontal, Pencil, PlusCircle, RefreshCw, Search, Trash2, ArrowRightLeft, Save } from "lucide-react";
+import { ArrowRightLeft, Loader2, MoreHorizontal, Pencil, RefreshCw, Search, Save, Trash2 } from "lucide-react";
+import { ViewModeToggle, type ViewMode } from "@/features/client/components/inventory/view-mode-toggle";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 
@@ -36,13 +37,14 @@ import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectCurrentBranch, selectSchema } from "@/store/context-slice";
 import type { BrandOption } from "@/features/client/types/model";
+import { BrandSelect } from "@/features/client/components/inventory/brand-select";
 import type { Branch } from "@/types/db-schema-service";
 import type { StockBranchTransferType } from "@/features/client/types/branch-transfer";
 import { NewBranchTransfer, type NewBranchTransferHandle } from "./new-branch-transfer";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type ViewMode = "new" | "view";
+// ViewMode is imported from view-mode-toggle
 type GenericQueryData<T> = { genericQuery: T[] | null };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -263,56 +265,21 @@ export const BranchTransferSection = () => {
                 <div className="flex items-center justify-center border-y border-[var(--cl-border)] py-3 lg:border-0 lg:py-0">
                     <div className="flex w-full items-center justify-between gap-2 max-w-[550px]">
                         {/* Brand Select */}
-                        <div className="flex items-center gap-1.5">
-                            <span className="hidden lg:inline text-[10px] font-black uppercase text-[var(--cl-text-muted)] opacity-70 tracking-tight">Brand</span>
-                            <Select
-                                disabled={brands.length === 0 || loading}
-                                value={selectedBrand}
-                                onValueChange={setSelectedBrand}
-                            >
-                                <SelectTrigger className={`h-9 w-[130px] bg-[var(--cl-surface-2)] text-xs font-bold border-2 transition-all ${mode === 'new' && !selectedBrand ? 'border-red-500' : 'border-[var(--cl-border)] focus:border-[var(--cl-accent)]'}`}>
-                                    <SelectValue placeholder="Brand" />
-                                </SelectTrigger>
-                                <SelectContent className="z-50">
-                                    {brands.map(b => (
-                                        <SelectItem key={b.id} value={String(b.id)} className="text-xs font-semibold">{b.name}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
+                        <BrandSelect
+                            brands={brands}
+                            value={selectedBrand}
+                            onValueChange={setSelectedBrand}
+                            disabled={brands.length === 0 || loading}
+                            highlightEmpty={mode === "new" && !selectedBrand}
+                        />
 
                         {/* Mode Toggle */}
-                        <div className="flex-shrink-0 flex gap-2 items-center rounded-xl border-2 border-[var(--cl-border)] bg-[var(--cl-surface-2)] p-1 shadow-md">
-                            <Button
-                                className={`h-9 gap-2 px-4 text-sm transition-transform duration-200 rounded-lg border-0 ${
-                                    mode === 'new' && editTransfer
-                                    ? 'bg-amber-500 text-white font-bold shadow-lg scale-105 hover:brightness-110'
-                                    : mode === 'new'
-                                    ? 'bg-emerald-600 text-white font-bold shadow-lg scale-105 hover:brightness-110'
-                                    : 'bg-transparent text-[var(--cl-text-muted)] hover:text-white hover:bg-emerald-600 hover:scale-105 font-semibold'
-                                }`}
-                                size="sm"
-                                onClick={() => { setEditTransfer(null); setMode('new'); }}
-                            >
-                                {mode === 'new' && editTransfer ? <Pencil className="h-4 w-4" /> : <PlusCircle className="h-4 w-4" />}
-                                {mode === 'new' && editTransfer ? 'Edit' : 'New'}
-                            </Button>
-                            <Button
-                                className={`h-9 gap-2 px-4 text-sm transition-transform duration-200 rounded-lg border-0 ${
-                                    mode === 'view'
-                                    ? 'bg-sky-600 text-white font-bold shadow-lg scale-105 hover:brightness-110'
-                                    : 'bg-transparent text-[var(--cl-text-muted)] hover:text-white hover:bg-sky-600 hover:scale-105 font-semibold'
-                                }`}
-                                size="sm"
-                                onClick={() => {
-                                    setMode('view');
-                                    if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, page);
-                                }}
-                            >
-                                <Eye className="h-4 w-4" />
-                                View
-                            </Button>
-                        </div>
+                        <ViewModeToggle
+                            mode={mode}
+                            isEditing={!!editTransfer}
+                            onNewClick={() => { setEditTransfer(null); setMode("new"); }}
+                            onViewClick={() => { setMode("view"); if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, page); }}
+                        />
 
                         <div className="flex-1" />
                     </div>

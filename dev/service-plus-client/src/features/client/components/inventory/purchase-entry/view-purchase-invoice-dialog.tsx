@@ -113,8 +113,7 @@ export const ViewPurchaseInvoiceDialog = ({ invoice, open, onOpenChange, onShowP
                         <div className="grid grid-cols-2 gap-x-6 gap-y-3 rounded-xl border border-zinc-200 bg-zinc-50/50 p-5 text-sm sm:grid-cols-4 shadow-sm">
                             <Field label="Invoice No"      value={detail.invoice_no} />
                             <Field label="Invoice Date"    value={detail.invoice_date} />
-                            <Field label="Supplier"        className="sm:col-span-1" value={detail.supplier_name} />
-                            <Field label="State Code"      value={detail.supplier_state_code} />
+                            <Field label="Supplier"        className="sm:col-span-2" value={detail.supplier_name} />
                             {detail.remarks && <Field label="Remarks" value={detail.remarks} className="col-span-2 sm:col-span-4 border-t border-zinc-100 pt-2 mt-1" />}
                         </div>
 

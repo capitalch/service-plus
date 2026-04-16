@@ -29,10 +29,9 @@ export type PurchaseInvoiceType = {
     branch_id:           number;
     supplier_id:         number;
     supplier_name:       string;
-    invoice_no:          string;
-    invoice_date:        string;
-    supplier_state_code: string;
-    aggregate_amount:    number;
+    invoice_no:       string;
+    invoice_date:     string;
+    aggregate_amount: number;
     cgst_amount:         number;
     sgst_amount:         number;
     igst_amount:         number;

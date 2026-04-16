@@ -16,10 +16,9 @@ import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
-import { selectDefaultGstRate, selectIsGstRegistered, selectSchema } from "@/store/context-slice";
+import { selectEffectiveGstStateCode, selectDefaultGstRate, selectIsGstRegistered, selectSchema } from "@/store/context-slice";
 import type { VendorType } from "@/features/client/types/vendor";
 import type { PurchaseLineFormItem, StockTransactionTypeRow } from "@/features/client/types/purchase";
-import type { StateRow } from "./purchase-entry-section";
 
 import { PartCodeInput } from "../part-code-input";
 import { MasterDataDiffModal } from "./master-data-diff-modal";
@@ -35,11 +34,11 @@ type Props = {
     editInvoice?: import("@/features/client/types/purchase").PurchaseInvoiceType | null;
     isIgst: boolean;
     isReturn: boolean;
+    onIsIgstChange: (v: boolean) => void;
     onIsReturnChange: (v: boolean) => void;
     onStatusChange: (status: { isSubmitting: boolean; isValid: boolean }) => void;
     onSuccess: () => void;
     selectedBrandId: number | null;
-    states: StateRow[];
     txnTypes: StockTransactionTypeRow[];
     vendors: VendorType[];
 };
@@ -104,18 +103,18 @@ const inputCls = "h-7 border-[var(--cl-border)] bg-[var(--cl-surface)] text-sm p
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
-    branchId, brandName, editInvoice, isIgst, isReturn, onIsReturnChange, onStatusChange, onSuccess, selectedBrandId, states, txnTypes, vendors,
+    branchId, brandName, editInvoice, isIgst, isReturn, onIsIgstChange, onIsReturnChange, onStatusChange, onSuccess, selectedBrandId, txnTypes, vendors,
 }, ref) => {
-    const dbName         = useAppSelector(selectDbName);
-    const schema         = useAppSelector(selectSchema);
-    const isGstRegistered = useAppSelector(selectIsGstRegistered);
-    const defaultGstRate  = useAppSelector(selectDefaultGstRate);
+    const dbName                = useAppSelector(selectDbName);
+    const schema                = useAppSelector(selectSchema);
+    const isGstRegistered       = useAppSelector(selectIsGstRegistered);
+    const defaultGstRate        = useAppSelector(selectDefaultGstRate);
+    const effectiveGstStateCode = useAppSelector(selectEffectiveGstStateCode);
 
     // Header fields
     const [vendorId, setVendorId] = useState<number>(0);
     const [invoiceNo, setInvoiceNo] = useState("");
     const [invoiceDate, setInvoiceDate] = useState(today());
-    const [supplierStateCode, setSupplierStateCode] = useState("");
     const [remarks, setRemarks] = useState("");
     const [physicalTotal, setPhysicalTotal] = useState<number>(0);
     const [physicalQty, setPhysicalQty] = useState<number>(0);
@@ -147,17 +146,17 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
     const partInputRefs = useRef<(HTMLInputElement | null)[]>([]);
     const hsnInputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
-    // Auto-fill supplier state code on vendor change
+    // Auto-detect IGST on vendor change
     useEffect(() => {
-        if (!vendorId) {
-            setSupplierStateCode("");
-            return;
-        }
+        if (!vendorId || editInvoice) return;
         const vendor = vendors.find(v => v.id === vendorId);
-        if (vendor?.gstin && vendor.gstin.length >= 2) {
-            setSupplierStateCode(vendor.gstin.substring(0, 2));
+        const vendorStateCode = vendor?.gst_state_code
+            ?? (vendor?.gstin && vendor.gstin.length >= 2 ? vendor.gstin.substring(0, 2) : null);
+        if (vendorStateCode && effectiveGstStateCode) {
+            onIsIgstChange(vendorStateCode !== effectiveGstStateCode);
         }
-    }, [vendorId, vendors]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [vendorId, vendors, effectiveGstStateCode, editInvoice]);
 
     // Populate form when editInvoice changes
     useEffect(() => {
@@ -184,7 +183,6 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
             setVendorId(detail.supplier_id);
             setInvoiceNo(detail.invoice_no);
             setInvoiceDate(detail.invoice_date);
-            setSupplierStateCode(detail.supplier_state_code);
             setRemarks(detail.remarks ?? "");
             onIsReturnChange(Boolean(detail.is_return));
             setPhysicalTotal(0);
@@ -350,13 +348,12 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
     }, [isIgst, physicalQty, physicalCgst, physicalSgst, physicalIgst, physicalTotal, totals]);
 
     const isFormValid = useMemo(() => {
-        // 1. Header Validation: Brand, Supplier, Invoice No, Date, State
+        // 1. Header Validation: Brand, Supplier, Invoice No, Date
         const headerValid =
             !!selectedBrandId &&
             vendorId > 0 &&
             !!invoiceNo.trim() &&
             !!invoiceDate &&
-            !!supplierStateCode &&
             !invoiceExists &&
             !checkingDuplicate;
 
@@ -381,14 +378,13 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
         if (!allLinesValid) return false;
 
         return true;
-    }, [selectedBrandId, vendorId, invoiceNo, invoiceDate, supplierStateCode, invoiceExists, checkingDuplicate, lines]);
+    }, [selectedBrandId, vendorId, invoiceNo, invoiceDate, invoiceExists, checkingDuplicate, lines]);
 
     // Reset
     const handleReset = () => {
         setVendorId(0);
         setInvoiceNo("");
         setInvoiceDate(today());
-        setSupplierStateCode("");
         setRemarks("");
         onIsReturnChange(false);
         setPhysicalTotal(0);
@@ -506,7 +502,6 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
             supplier_id: vendorId,
             invoice_no: invoiceNo.trim(),
             invoice_date: invoiceDate,
-            supplier_state_code: supplierStateCode,
             aggregate_amount: totals.aggregate,
             cgst_amount: physicalCgst || 0,
             sgst_amount: physicalSgst || 0,
@@ -682,26 +677,6 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
                                 />
                             </div>
 
-                            <SearchableCombobox
-                                className="md:col-span-1 lg:col-span-2"
-                                isError={!supplierStateCode}
-                                label={<span>State <span className="text-red-500 ml-0.5">*</span></span>}
-                                placeholder="Select state..."
-                                selectedValue={supplierStateCode}
-                                onSelect={s => setSupplierStateCode(s?.gst_state_code ?? "")}
-                                items={states}
-                                getFilterKey={s => `${s.gst_state_code} ${s.name}`}
-                                getDisplayValue={s => `${s.gst_state_code} — ${s.name}`}
-                                renderItem={s => (
-                                    <div className="flex items-center gap-3 w-full">
-                                        <span className="flex h-6 w-8 shrink-0 items-center justify-center rounded bg-[var(--cl-accent)]/10 text-[10px] font-bold text-[var(--cl-accent)]">
-                                            {s.gst_state_code}
-                                        </span>
-                                        <span className="truncate font-medium">{s.name}</span>
-                                    </div>
-                                )}
-                            />
-
                             {/* Remarks */}
                             <div className="space-y-2 md:col-span-6 lg:col-span-2">
                                 <Label className="text-xs font-extrabold text-[var(--cl-text)] uppercase tracking-widest">Remarks</Label>
@@ -716,7 +691,7 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
                         </CardContent>
                     </Card>
                     {/* table */}
-                    <p className="text-[10px] font-black uppercase tracking-[0.15em] text-[var(--cl-text-muted)] px-1 mb-1">Line Items</p>
+                    <p className="text-[10px] font-black uppercase tracking-[0.15em] text-[var(--cl-text-muted)] my-2">Line Items</p>
                     <Card className={`border-[var(--cl-border)] shadow-sm flex min-h-0 md:flex-1 flex-col relative bg-[var(--cl-surface)] ${isReturn ? "border-l-4 border-l-red-500" : ""}`}>
                         <div className="md:flex-1 min-h-[300px] overflow-x-auto overflow-y-auto w-full pb-4">
                             <table className="min-w-[860px] w-full border-collapse text-sm sticky-header">
@@ -938,8 +913,26 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
                             <span className="text-[10px] font-black uppercase tracking-widest text-[var(--cl-text-muted)]">Subtotal</span>
                             <span className="font-mono font-semibold text-sm text-[var(--cl-text)]">₹{formatNumber(totals.aggregate)}</span>
                         </div>
+                        {totals.cgst > 0 && (
+                            <div className="flex items-center gap-1.5">
+                                <span className="text-[10px] font-black uppercase tracking-widest text-[var(--cl-text-muted)]">CGST</span>
+                                <span className="font-mono font-semibold text-sm text-[var(--cl-text-muted)]">₹{formatNumber(totals.cgst)}</span>
+                            </div>
+                        )}
+                        {totals.sgst > 0 && (
+                            <div className="flex items-center gap-1.5">
+                                <span className="text-[10px] font-black uppercase tracking-widest text-[var(--cl-text-muted)]">SGST</span>
+                                <span className="font-mono font-semibold text-sm text-[var(--cl-text-muted)]">₹{formatNumber(totals.sgst)}</span>
+                            </div>
+                        )}
+                        {totals.igst > 0 && (
+                            <div className="flex items-center gap-1.5">
+                                <span className="text-[10px] font-black uppercase tracking-widest text-[var(--cl-text-muted)]">IGST</span>
+                                <span className="font-mono font-semibold text-sm text-[var(--cl-text-muted)]">₹{formatNumber(totals.igst)}</span>
+                            </div>
+                        )}
                         <div className="flex items-center gap-1.5">
-                            <span className="text-[10px] font-black uppercase tracking-widest text-[var(--cl-text-muted)]">Tax</span>
+                            <span className="text-[10px] font-black uppercase tracking-widest text-[var(--cl-text-muted)]">Total Tax</span>
                             <span className="font-mono font-semibold text-sm text-[var(--cl-text-muted)]">₹{formatNumber(totals.total_tax)}</span>
                         </div>
                         <div className="flex items-center gap-1.5 border-l border-[var(--cl-border)] pl-4">

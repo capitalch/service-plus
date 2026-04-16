@@ -109,14 +109,6 @@ export const generatePurchaseInvoicePdf = (
     doc.setFontSize(9);
     doc.setTextColor(30, 30, 30);
     doc.text(invoice.invoice_date, rightX + 22, currentMetaY);
-    currentMetaY += 4.2;
-
-    doc.setFontSize(7);
-    doc.setTextColor(110, 110, 110);
-    doc.text("STATE CODE:", rightX, currentMetaY);
-    doc.setFontSize(9);
-    doc.setTextColor(30, 30, 30);
-    doc.text(invoice.supplier_state_code, rightX + 22, currentMetaY);
 
     // Row 1 End
     const row1MaxY = Math.max(partyRow1ContentStartY + (fromLines.length * 4.2), currentMetaY + 4.2);

@@ -13,6 +13,8 @@ import {
     selectCompanyName,
     selectIsGstRegistered,
     selectSchema,
+    setBuGstStateCode,
+    setBuGstin,
     setCompanyName,
     setDefaultGstRate,
     setIsGstRegistered,
@@ -123,7 +125,7 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
     useEffect(() => {
         if (!dbName || !schema) return;
 
-        void apolloClient.query<{ genericQuery: { company_name: string; gstin: string | null }[] }>({
+        void apolloClient.query<{ genericQuery: { company_name: string; gstin: string | null; gst_state_code: string | null }[] }>({
             fetchPolicy: 'network-only',
             query:       GRAPHQL_MAP.genericQuery,
             variables:   { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_COMPANY_INFO }) },
@@ -132,6 +134,8 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
             if (company) {
                 dispatch(setCompanyName(company.company_name));
                 dispatch(setIsGstRegistered(!!company.gstin));
+                dispatch(setBuGstin(company.gstin ?? null));
+                dispatch(setBuGstStateCode(company.gst_state_code ?? null));
             }
         }).catch(() => {/* silently ignore */});
 
@@ -193,13 +197,13 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
                         </p>
                         {companyName && (
                             <div className="flex items-center gap-2.5">
+                                {isGstRegistered && (
+                                    <span className="ml-1 text-[10px] font-bold text-emerald-500 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20 leading-none">GST</span>
+                                )}
                                 <Building2 className="h-4 w-4 text-[var(--cl-accent)]" />
                                 <span className="text-sm font-bold text-[var(--cl-text)] tracking-tight uppercase">
                                     {companyName}
                                 </span>
-                                {isGstRegistered && (
-                                    <span className="ml-1 text-[10px] font-bold text-emerald-500 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20 leading-none">GST</span>
-                                )}
                             </div>
                         )}
                     </div>

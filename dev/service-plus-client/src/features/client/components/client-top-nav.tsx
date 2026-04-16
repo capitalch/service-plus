@@ -77,7 +77,7 @@ export const ClientTopNav = ({ activeSection }: Props) => {
 
             {/* Right Section */}
             <div className="flex shrink-0 items-center justify-end gap-1 sm:gap-3">
-                <div className="border-r border-[var(--cl-border)] pr-2 lg:pr-10">
+                <div className="border-r border-[var(--cl-border)] pr-2 lg:pr-2">
                     <BuBranchSwitcher variant="client" />
                 </div>
 

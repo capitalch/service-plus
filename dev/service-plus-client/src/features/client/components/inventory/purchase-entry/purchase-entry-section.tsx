@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { CheckCircle2, Eye, FileDown, FileSpreadsheet, FileText, Loader2, MoreHorizontal, Pencil, PlusCircle, RefreshCw, RotateCcw, Search, Trash2, XCircle } from "lucide-react";
+import { CheckCircle2, Eye, FileDown, FileSpreadsheet, FileText, Loader2, MoreHorizontal, Pencil, RefreshCw, RotateCcw, Search, Trash2, XCircle } from "lucide-react";
+import { ViewModeToggle, type ViewMode } from "@/features/client/components/inventory/view-mode-toggle";
 import { utils, writeFile } from "xlsx";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -21,13 +22,6 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { MESSAGES } from "@/constants/messages";
 import { SQL_MAP } from "@/constants/sql-map";
@@ -43,14 +37,11 @@ import type { PurchaseInvoiceType, PurchaseLineType, StockTransactionTypeRow } f
 import { ViewPurchaseInvoiceDialog } from "./view-purchase-invoice-dialog";
 import { PurchaseInvoicePdfPreviewDialog } from "./purchase-invoice-pdf-preview-dialog";
 import { NewPurchaseInvoice, type NewPurchaseInvoiceHandle } from "./new-purchase-invoice";
-import type { BrandOption } from "@/features/client/types/model";
 import { Save } from "lucide-react";
+import type { BrandOption } from "@/features/client/types/model";
+import { BrandSelect } from "@/features/client/components/inventory/brand-select";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-export type StateRow = { id: number; name: string; code: string; gst_state_code: string };
-
-type ViewMode = "new" | "view";
+// ViewMode is imported from view-mode-toggle
 
 type GenericQueryData<T> = { genericQuery: T[] | null };
 
@@ -92,7 +83,6 @@ export const PurchaseEntrySection = () => {
  
     // New states for mode-based UI
     const [mode,           setMode]           = useState<ViewMode>("new");
-    const [states,         setStates]         = useState<StateRow[]>([]);
     const [brands,         setBrands]         = useState<BrandOption[]>([]);
 
     // Data state
@@ -127,7 +117,7 @@ export const PurchaseEntrySection = () => {
         if (!dbName || !schema) return;
         const fetchMeta = async () => {
             try {
-                const [branchRes, vendorRes, txnRes, stateRes, brandRes] = await Promise.all([
+                const [branchRes, vendorRes, txnRes, brandRes] = await Promise.all([
                     apolloClient.query<GenericQueryData<BranchType>>({
                         fetchPolicy: "network-only",
                         query: GRAPHQL_MAP.genericQuery,
@@ -155,15 +145,6 @@ export const PurchaseEntrySection = () => {
                             value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_STOCK_TRANSACTION_TYPES }),
                         },
                     }),
-                    apolloClient.query<GenericQueryData<StateRow>>({
-                        fetchPolicy: "network-only",
-                        query: GRAPHQL_MAP.genericQuery,
-                        variables: {
-                            db_name: dbName,
-                            schema,
-                            value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_ALL_STATES }),
-                        },
-                    }),
                     apolloClient.query<GenericQueryData<BrandOption>>({
                         fetchPolicy: "network-only",
                         query: GRAPHQL_MAP.genericQuery,
@@ -177,7 +158,6 @@ export const PurchaseEntrySection = () => {
                 setBranches(branchRes.data?.genericQuery ?? []);
                 setVendors(vendorRes.data?.genericQuery ?? []);
                 setTxnTypes(txnRes.data?.genericQuery ?? []);
-                setStates(stateRes.data?.genericQuery ?? []);
                 const brandList = brandRes.data?.genericQuery ?? [];
                 setBrands(brandList);
                 if (brandList.length === 1) setSelectedBrand(String(brandList[0].id));
@@ -451,7 +431,7 @@ export const PurchaseEntrySection = () => {
             transition={{ duration: 0.25 }}
         >
             {/* Header */}
-            <div className="flex flex-wrap items-end gap-x-4 gap-y-3 border-b border-[var(--cl-border)] bg-[var(--cl-surface)] px-4 py-3">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-3 border-b border-[var(--cl-border)] bg-[var(--cl-surface)] px-4 py-1">
                 {/* Title */}
                 <div className="flex items-center gap-3 overflow-hidden">
                     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-[var(--cl-accent)]/10 text-[var(--cl-accent)]">
@@ -494,57 +474,22 @@ export const PurchaseEntrySection = () => {
                 <div className="flex-1" />
 
                 {/* Mode Toggle */}
-                <div className="flex shrink-0 items-center gap-1 rounded-xl border-2 border-[var(--cl-border)] bg-[var(--cl-surface-2)] px-1 py-0.5 shadow-md">
-                    <Button
-                        className={`h-8 gap-2 px-4 text-sm transition-transform duration-200 rounded-lg border-0 ${
-                            mode === 'new' && editInvoice
-                            ? 'bg-amber-500 text-white font-bold shadow-lg scale-105'
-                            : mode === 'new'
-                            ? 'bg-emerald-600 text-white font-bold shadow-lg scale-105 hover:brightness-110'
-                            : 'bg-transparent text-[var(--cl-text-muted)] hover:text-white hover:bg-emerald-600 hover:scale-105 font-semibold'
-                        }`}
-                        size="sm"
-                        disabled={!!editInvoice}
-                        onClick={() => { setEditInvoice(null); setIsReturn(false); setMode('new'); }}
-                    >
-                        {mode === 'new' && editInvoice ? <Pencil className="h-4 w-4" /> : <PlusCircle className="h-4 w-4" />}
-                        {mode === 'new' && editInvoice ? 'Edit' : 'New'}
-                    </Button>
-                    <Button
-                        className={`h-8 gap-2 px-4 text-sm transition-transform duration-200 rounded-lg border-0 ${
-                            mode === 'view'
-                            ? 'bg-sky-600 text-white font-bold shadow-lg scale-105 hover:brightness-110'
-                            : 'bg-transparent text-[var(--cl-text-muted)] hover:text-white hover:bg-sky-600 hover:scale-105 font-semibold'
-                        }`}
-                        size="sm"
-                        onClick={() => {
-                            setMode('view');
-                            if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, page);
-                        }}
-                    >
-                        <Eye className="h-4 w-4" />
-                        View
-                    </Button>
-                </div>
+                <ViewModeToggle
+                    mode={mode}
+                    isEditing={!!editInvoice}
+                    disableNew={!!editInvoice}
+                    onNewClick={() => { setEditInvoice(null); setIsReturn(false); setMode("new"); }}
+                    onViewClick={() => { setMode("view"); if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, page); }}
+                />
 
                 {/* Brand */}
-                <div className="flex flex-col gap-0.5">
-                    <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--cl-text-muted)]">Brand</span>
-                    <Select
-                        disabled={brands.length === 0 || loading}
-                        value={selectedBrand}
-                        onValueChange={setSelectedBrand}
-                    >
-                        <SelectTrigger className={`h-9 w-[130px] bg-[var(--cl-surface-2)] text-xs font-bold border-2 transition-all ${mode === 'new' && !selectedBrand ? 'border-red-500' : 'border-[var(--cl-border)] focus:border-[var(--cl-accent)]'}`}>
-                            <SelectValue placeholder="Brand" />
-                        </SelectTrigger>
-                        <SelectContent className="z-50">
-                            {brands.map(b => (
-                                <SelectItem key={b.id} value={String(b.id)} className="text-xs font-semibold">{b.name}</SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                </div>
+                <BrandSelect
+                    brands={brands}
+                    value={selectedBrand}
+                    onValueChange={setSelectedBrand}
+                    disabled={brands.length === 0 || loading}
+                    highlightEmpty={mode === "new" && !selectedBrand}
+                />
 
                 {/* IGST — invisible in view mode */}
                 <label className={`flex items-center gap-1.5 cursor-pointer select-none px-3 py-1.5 rounded-lg border-2 font-black text-[12px] uppercase tracking-[0.1em] transition-all shadow-sm ${
@@ -603,11 +548,9 @@ export const PurchaseEntrySection = () => {
             </div>
 
             {mode === 'new' ? (
-                <div className="flex min-h-fit md:min-h-0 md:flex-1 flex-col md:overflow-hidden px-4 pb-4">
                     <NewPurchaseInvoice
                         ref={newPurchaseRef}
                         branchId={branchId}
-                        states={states}
                         txnTypes={txnTypes}
                         vendors={vendors}
                         onSuccess={() => {
@@ -625,12 +568,12 @@ export const PurchaseEntrySection = () => {
                         }}
                         isIgst={isIgst}
                         isReturn={isReturn}
+                        onIsIgstChange={setIsIgst}
                         onIsReturnChange={setIsReturn}
                         selectedBrandId={selectedBrand ? Number(selectedBrand) : null}
                         brandName={brands.find(b => String(b.id) === selectedBrand)?.name}
                         editInvoice={editInvoice}
                     />
-                </div>
             ) : (
                 <>
                     {/* Toolbar - Compacted */}

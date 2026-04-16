@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
     CheckCircle2, Eye, FileDown, FileSpreadsheet, FileText, Loader2,
-    MoreHorizontal, Pencil, PlusCircle, RefreshCw, RotateCcw, Save, Search, Trash2, XCircle,
+    MoreHorizontal, Pencil, RefreshCw, RotateCcw, Save, Search, Trash2, XCircle,
 } from "lucide-react";
+import { ViewModeToggle, type ViewMode } from "@/features/client/components/inventory/view-mode-toggle";
 import { utils, writeFile } from "xlsx";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -24,13 +25,6 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { MESSAGES } from "@/constants/messages";
 import { SQL_MAP } from "@/constants/sql-map";
@@ -41,6 +35,7 @@ import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectCurrentBranch, selectSchema, selectCompanyName, selectIsGstRegistered } from "@/store/context-slice";
 import type { BrandOption } from "@/features/client/types/model";
+import { BrandSelect } from "@/features/client/components/inventory/brand-select";
 import type { SalesInvoiceType, SalesLineType, DocumentSequenceRow } from "@/features/client/types/sales";
 import type { StockTransactionTypeRow } from "@/features/client/types/purchase";
 import type { CustomerTypeOption, StateOption } from "@/features/client/types/customer";
@@ -52,7 +47,7 @@ import { SalesInvoicePdfPreviewDialog } from "./sales-invoice-pdf-preview-dialog
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type ViewMode = "new" | "view";
+// ViewMode is imported from view-mode-toggle
 type GenericQueryData<T> = { genericQuery: T[] | null };
 type CompanyInfoRow = { id: number; company_name: string; state_id: number | null; gstin: string | null };
 
@@ -478,59 +473,22 @@ export const SalesEntrySection = () => {
                     <div className="flex items-center justify-between gap-2 w-full max-w-[560px]">
                         {/* Brand */}
                         <div className="flex flex-1 justify-start">
-                            <div className="flex items-center gap-1.5">
-                                <span className="hidden lg:inline text-[10px] font-black uppercase text-[var(--cl-text-muted)] opacity-70 tracking-tight">Brand</span>
-                                <Select
-                                    disabled={brands.length === 0 || loading}
-                                    value={selectedBrand}
-                                    onValueChange={setSelectedBrand}
-                                >
-                                    <SelectTrigger className={`h-9 w-[130px] bg-[var(--cl-surface-2)] text-xs font-bold border-2 transition-all ${mode === "new" && !selectedBrand ? "border-red-500" : "border-[var(--cl-border)] focus:border-[var(--cl-accent)]"}`}>
-                                        <SelectValue placeholder="Brand" />
-                                    </SelectTrigger>
-                                    <SelectContent className="z-50">
-                                        {brands.map(b => (
-                                            <SelectItem key={b.id} value={String(b.id)} className="text-xs font-semibold">{b.name}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
+                            <BrandSelect
+                                brands={brands}
+                                value={selectedBrand}
+                                onValueChange={setSelectedBrand}
+                                disabled={brands.length === 0 || loading}
+                                highlightEmpty={mode === "new" && !selectedBrand}
+                            />
                         </div>
 
                         {/* Mode Toggle */}
-                        <div className="flex-shrink-0 flex gap-2 items-center rounded-xl border-2 border-[var(--cl-border)] bg-[var(--cl-surface-2)] p-1 shadow-md">
-                            <Button
-                                className={`h-9 gap-2 px-4 text-sm transition-transform duration-200 rounded-lg border-0 ${
-                                    mode === "new" && editInvoice
-                                    ? "bg-amber-500 text-white font-bold shadow-lg scale-105"
-                                    : mode === "new"
-                                    ? "bg-emerald-600 text-white font-bold shadow-lg scale-105 hover:brightness-110"
-                                    : "bg-transparent text-[var(--cl-text-muted)] hover:text-white hover:bg-emerald-600 hover:scale-105 font-semibold"
-                                }`}
-                                size="sm"
-                                onClick={() => { setEditInvoice(null); setIsReturn(false); setMode("new"); }}
-                            >
-                                {mode === "new" && editInvoice ? <Pencil className="h-4 w-4" /> : <PlusCircle className="h-4 w-4" />}
-                                {mode === "new" && editInvoice ? "Edit" : "New"}
-                            </Button>
-                            <Button
-                                className={`h-9 gap-2 px-4 text-sm transition-transform duration-200 rounded-lg border-0 ${
-                                    mode === "view"
-                                    ? "bg-sky-600 text-white font-bold shadow-lg scale-105 hover:brightness-110"
-                                    : "bg-transparent text-[var(--cl-text-muted)] hover:text-white hover:bg-sky-600 hover:scale-105 font-semibold"
-                                }`}
-                                size="sm"
-                                onClick={() => {
-                                    setEditInvoice(null);
-                                    setIsReturn(false);
-                                    setMode("view");
-                                    if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, page);
-                                }}
-                            >
-                                <Eye className="h-4 w-4" />
-                                View
-                            </Button>
-                        </div>
+                        <ViewModeToggle
+                            mode={mode}
+                            isEditing={!!editInvoice}
+                            onNewClick={() => { setEditInvoice(null); setIsReturn(false); setMode("new"); }}
+                            onViewClick={() => { setEditInvoice(null); setIsReturn(false); setMode("view"); if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, page); }}
+                        />
 
                         {/* IGST checkbox */}
                         <label className={`flex items-center gap-1.5 cursor-pointer select-none px-3 py-1.5 rounded-lg border-2 font-black text-[12px] uppercase tracking-[0.1em] transition-all shadow-sm ${
