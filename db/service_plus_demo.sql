@@ -969,10 +969,10 @@ ALTER TABLE demo1.spare_part_master ALTER COLUMN id ADD GENERATED ALWAYS AS IDEN
 
 
 --
--- Name: spare_part_location_change; Type: TABLE; Schema: demo1; Owner: webadmin
+-- Name: stock_location_change; Type: TABLE; Schema: demo1; Owner: webadmin
 --
 
-CREATE TABLE demo1.spare_part_location_change (
+CREATE TABLE demo1.stock_location_change (
     id bigint NOT NULL,
     part_id bigint NOT NULL,
     branch_id bigint NOT NULL,
@@ -984,13 +984,13 @@ CREATE TABLE demo1.spare_part_location_change (
 );
 
 
-ALTER TABLE demo1.spare_part_location_change OWNER TO webadmin;
+ALTER TABLE demo1.stock_location_change OWNER TO webadmin;
 
 --
 -- Name: spare_part_location_change_id_seq; Type: SEQUENCE; Schema: demo1; Owner: webadmin
 --
 
-ALTER TABLE demo1.spare_part_location_change ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+ALTER TABLE demo1.stock_location_change ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
     SEQUENCE NAME demo1.spare_part_location_change_id_seq
     START WITH 1
     INCREMENT BY 1
@@ -1001,10 +1001,10 @@ ALTER TABLE demo1.spare_part_location_change ALTER COLUMN id ADD GENERATED ALWAY
 
 
 --
--- Name: spare_part_location_master; Type: TABLE; Schema: demo1; Owner: webadmin
+-- Name: stock_location_master; Type: TABLE; Schema: demo1; Owner: webadmin
 --
 
-CREATE TABLE demo1.spare_part_location_master (
+CREATE TABLE demo1.stock_location_master (
     id bigint NOT NULL,
     branch_id bigint NOT NULL,
     name text NOT NULL,
@@ -1012,13 +1012,13 @@ CREATE TABLE demo1.spare_part_location_master (
 );
 
 
-ALTER TABLE demo1.spare_part_location_master OWNER TO webadmin;
+ALTER TABLE demo1.stock_location_master OWNER TO webadmin;
 
 --
 -- Name: spare_part_location_master_id_seq; Type: SEQUENCE; Schema: demo1; Owner: webadmin
 --
 
-ALTER TABLE demo1.spare_part_location_master ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+ALTER TABLE demo1.stock_location_master ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
     SEQUENCE NAME demo1.spare_part_location_master_id_seq
     START WITH 1
     INCREMENT BY 1
@@ -2001,22 +2001,6 @@ ALTER TABLE ONLY demo1.spare_part_master
 
 
 --
--- Name: spare_part_location_change spare_part_location_change_pkey; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
---
-
-ALTER TABLE ONLY demo1.spare_part_location_change
-    ADD CONSTRAINT spare_part_location_change_pkey PRIMARY KEY (id);
-
-
---
--- Name: spare_part_location_master spare_part_location_master_pkey; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
---
-
-ALTER TABLE ONLY demo1.spare_part_location_master
-    ADD CONSTRAINT spare_part_location_master_pkey PRIMARY KEY (id);
-
-
---
 -- Name: spare_part_master spare_part_pkey; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
 --
 
@@ -2102,6 +2086,30 @@ ALTER TABLE ONLY demo1.stock_loan_line
 
 ALTER TABLE ONLY demo1.stock_loan
     ADD CONSTRAINT stock_loan_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: stock_location_change stock_location_change_pkey; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.stock_location_change
+    ADD CONSTRAINT stock_location_change_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: stock_location_master stock_location_master_branch_id_key; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.stock_location_master
+    ADD CONSTRAINT stock_location_master_branch_id_key UNIQUE (branch_id);
+
+
+--
+-- Name: stock_location_master stock_location_master_pkey; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.stock_location_master
+    ADD CONSTRAINT stock_location_master_pkey PRIMARY KEY (id);
 
 
 --
@@ -2472,27 +2480,6 @@ CREATE INDEX job_technician_idx ON demo1.job USING btree (technician_id);
 
 
 --
--- Name: spare_part_location_change_part_id_branch_id_idx; Type: INDEX; Schema: demo1; Owner: webadmin
---
-
-CREATE INDEX spare_part_location_change_part_id_branch_id_idx ON demo1.spare_part_location_change USING btree (part_id, branch_id) WITH (deduplicate_items='true');
-
-
---
--- Name: spare_part_location_change_transaction_date_idx; Type: INDEX; Schema: demo1; Owner: webadmin
---
-
-CREATE INDEX spare_part_location_change_transaction_date_idx ON demo1.spare_part_location_change USING btree (transaction_date DESC) WITH (deduplicate_items='true');
-
-
---
--- Name: spare_part_location_master_branch_id_idx; Type: INDEX; Schema: demo1; Owner: webadmin
---
-
-CREATE INDEX spare_part_location_master_branch_id_idx ON demo1.spare_part_location_master USING btree (branch_id) WITH (deduplicate_items='true');
-
-
---
 -- Name: stock_balance_location_id_idx; Type: INDEX; Schema: demo1; Owner: webadmin
 --
 
@@ -2560,6 +2547,20 @@ CREATE INDEX stock_loan_line_stock_loan_id_idx ON demo1.stock_loan_line USING bt
 --
 
 CREATE INDEX stock_loan_loan_date_idx ON demo1.stock_loan USING btree (loan_date) WITH (deduplicate_items='true');
+
+
+--
+-- Name: stock_location_change_part_id_branch_id_idx; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX stock_location_change_part_id_branch_id_idx ON demo1.stock_location_change USING btree (part_id, branch_id) WITH (deduplicate_items='true');
+
+
+--
+-- Name: stock_location_change_transaction_date_idx; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX stock_location_change_transaction_date_idx ON demo1.stock_location_change USING btree (transaction_date) WITH (deduplicate_items='true');
 
 
 --
@@ -2971,38 +2972,6 @@ ALTER TABLE ONLY demo1.spare_part_master
 
 
 --
--- Name: spare_part_location_change spare_part_location_change_branch_id_fkey; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
---
-
-ALTER TABLE ONLY demo1.spare_part_location_change
-    ADD CONSTRAINT spare_part_location_change_branch_id_fkey FOREIGN KEY (branch_id) REFERENCES demo1.branch(id);
-
-
---
--- Name: spare_part_location_change spare_part_location_change_part_id_fkey; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
---
-
-ALTER TABLE ONLY demo1.spare_part_location_change
-    ADD CONSTRAINT spare_part_location_change_part_id_fkey FOREIGN KEY (part_id) REFERENCES demo1.spare_part_master(id);
-
-
---
--- Name: spare_part_location_change spare_part_location_change_to_location_id_fkey; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
---
-
-ALTER TABLE ONLY demo1.spare_part_location_change
-    ADD CONSTRAINT spare_part_location_change_to_location_id_fkey FOREIGN KEY (to_location_id) REFERENCES demo1.spare_part_location_master(id);
-
-
---
--- Name: spare_part_location_master spare_part_location_master_branch_id_fkey; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
---
-
-ALTER TABLE ONLY demo1.spare_part_location_master
-    ADD CONSTRAINT spare_part_location_master_branch_id_fkey FOREIGN KEY (branch_id) REFERENCES demo1.branch(id);
-
-
---
 -- Name: stock_adjustment stock_adjustment_branch_fk; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
 --
 
@@ -3039,7 +3008,7 @@ ALTER TABLE ONLY demo1.stock_balance
 --
 
 ALTER TABLE ONLY demo1.stock_balance
-    ADD CONSTRAINT stock_balance_location_id_fkey FOREIGN KEY (location_id) REFERENCES demo1.spare_part_location_master(id);
+    ADD CONSTRAINT stock_balance_location_id_fkey FOREIGN KEY (location_id) REFERENCES demo1.stock_location_master(id) NOT VALID;
 
 
 --
@@ -3104,6 +3073,38 @@ ALTER TABLE ONLY demo1.stock_loan_line
 
 ALTER TABLE ONLY demo1.stock_loan_line
     ADD CONSTRAINT stock_loan_line_stock_loan_id_fkey FOREIGN KEY (stock_loan_id) REFERENCES demo1.stock_loan(id) ON DELETE CASCADE;
+
+
+--
+-- Name: stock_location_change stock_location_change_branch_id_fkey; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.stock_location_change
+    ADD CONSTRAINT stock_location_change_branch_id_fkey FOREIGN KEY (branch_id) REFERENCES demo1.branch(id) NOT VALID;
+
+
+--
+-- Name: stock_location_change stock_location_change_part_id_fkey; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.stock_location_change
+    ADD CONSTRAINT stock_location_change_part_id_fkey FOREIGN KEY (part_id) REFERENCES demo1.spare_part_master(id) NOT VALID;
+
+
+--
+-- Name: stock_location_change stock_location_change_to_location_id_fkey; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.stock_location_change
+    ADD CONSTRAINT stock_location_change_to_location_id_fkey FOREIGN KEY (to_location_id) REFERENCES demo1.stock_location_master(id) NOT VALID;
+
+
+--
+-- Name: stock_location_master stock_location_master_branch_id_fkey; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.stock_location_master
+    ADD CONSTRAINT stock_location_master_branch_id_fkey FOREIGN KEY (branch_id) REFERENCES demo1.branch(id) NOT VALID;
 
 
 --

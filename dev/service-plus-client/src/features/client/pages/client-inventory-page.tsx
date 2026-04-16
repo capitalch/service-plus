@@ -1,9 +1,10 @@
 import { ClientLayout, useClientSelection } from "../components/client-layout";
+import { BranchTransferSection } from "../components/inventory/branch-transfer/branch-transfer-section";
+import { LoanEntrySection } from "../components/inventory/loan-entry/loan-entry-section";
+import { OpeningStockSection } from "../components/inventory/opening-stock/opening-stock-section";
 import { PurchaseEntrySection } from "../components/inventory/purchase-entry/purchase-entry-section";
 import { SalesEntrySection } from "../components/inventory/sales-entry/sales-entry-section";
 import { StockAdjustmentSection } from "../components/inventory/stock-adjustment/stock-adjustment-section";
-import { BranchTransferSection } from "../components/inventory/branch-transfer/branch-transfer-section";
-import { LoanEntrySection } from "../components/inventory/loan-entry/loan-entry-section";
 import { StockOverviewSection } from "../components/stock-overview-section";
 
 // ─── Coming Soon placeholder ──────────────────────────────────────────────────
@@ -39,6 +40,8 @@ function InventoryContent() {
             return <BranchTransferSection />;
         case "Loan Entry":
             return <LoanEntrySection />;
+        case "Opening Stock":
+            return <OpeningStockSection />;
         default:
             return <ComingSoon label={selected || "Inventory"} />;
     }
