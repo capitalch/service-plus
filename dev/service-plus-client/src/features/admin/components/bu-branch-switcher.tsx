@@ -39,10 +39,10 @@ type GenericBranchDataType = { genericQuery: BranchContextType[] | null };
 const STYLES = {
     admin: {
         icon:      'text-teal-500',
-        label:     'text-slate-600',
+        label:     'text-slate-600 dark:text-slate-300',
         labelSize: 'text-[10px]',
-        static:    'border border-slate-200 bg-slate-50 text-slate-600',
-        trigger:   'border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 focus:ring-0',
+        static:    'border border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300',
+        trigger:   'border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 focus:ring-0 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700',
     },
     client: {
         icon:      'text-[var(--cl-accent-text)]',
@@ -202,7 +202,7 @@ export const BuBranchSwitcher = ({ variant = 'admin' }: BuBranchSwitcherPropsTyp
     const isClient = variant === 'client';
 
     return (
-        <div className={`flex items-center gap-2 ${isClient ? 'rounded-md bg-gray-100 px-2.5 py-1' : ''}`}>
+        <div className={`flex items-center gap-2 ${isClient ? 'rounded-md bg-[var(--cl-surface-2)] px-2.5 py-1' : ''}`}>
             {/* BU selector */}
             <div className={`flex items-center gap-1.5 ${isClient ? '' : 'flex-col gap-0.5 items-start'}`}>
                 <span className={`flex shrink-0 items-center gap-1 font-medium ${s.labelSize} ${s.label}`}>

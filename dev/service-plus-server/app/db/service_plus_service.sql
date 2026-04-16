@@ -2,10 +2,8 @@
 -- PostgreSQL database dump
 --
 
-\restrict crRnyxxB7btShFOsnZGRVGXQFpf0MjD9rva5FmHdQpoKTcxDPWEjcLZGBIc8JNf
-
 -- Dumped from database version 14.6
--- Dumped by pg_dump version 17.9 (Ubuntu 17.9-0ubuntu0.25.10.1)
+-- Dumped by pg_dump version 17.5
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -2107,6 +2105,14 @@ ALTER TABLE ONLY demo1.stock_loan
 
 
 --
+-- Name: stock_opening_balance stock_opening_balance_branch_id_key; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.stock_opening_balance
+    ADD CONSTRAINT stock_opening_balance_branch_id_key UNIQUE (branch_id);
+
+
+--
 -- Name: stock_opening_balance_line stock_opening_balance_line_pkey; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
 --
 
@@ -3279,6 +3285,4 @@ ALTER TABLE ONLY security.user_bu_role
 --
 -- PostgreSQL database dump complete
 --
-
-\unrestrict crRnyxxB7btShFOsnZGRVGXQFpf0MjD9rva5FmHdQpoKTcxDPWEjcLZGBIc8JNf
 

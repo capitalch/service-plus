@@ -2173,6 +2173,41 @@ class SqlStore:
         GROUP BY sl.id
     """
 
+    # ── Opening Stock ─────────────────────────────────────────────────────────
+
+    GET_OPENING_BALANCE_BY_BRANCH = """
+        with "p_branch_id" as (values(%(branch_id)s::bigint))
+        -- with "p_branch_id" as (values(1::bigint)) -- Test line
+        SELECT
+            sob.id,
+            sob.entry_date,
+            sob.ref_no,
+            sob.branch_id,
+            sob.remarks,
+            sob.created_by,
+            sob.created_at,
+            sob.updated_at,
+            COALESCE(
+                json_agg(
+                    json_build_object(
+                        'id',        sobl.id,
+                        'part_id',   sobl.part_id,
+                        'part_code', sp.part_code,
+                        'part_name', sp.part_name,
+                        'qty',       sobl.qty,
+                        'unit_cost', sobl.unit_cost,
+                        'remarks',   sobl.remarks
+                    ) ORDER BY sobl.id
+                ) FILTER (WHERE sobl.id IS NOT NULL),
+                '[]'::json
+            ) AS lines
+        FROM stock_opening_balance sob
+        LEFT JOIN stock_opening_balance_line sobl ON sobl.stock_opening_balance_id = sob.id
+        LEFT JOIN spare_part_master sp ON sp.id = sobl.part_id
+        WHERE sob.branch_id = (table "p_branch_id")
+        GROUP BY sob.id
+    """
+
     # ── Technicians ───────────────────────────────────────────────────────────
 
     CHECK_TECHNICIAN_CODE_EXISTS = """

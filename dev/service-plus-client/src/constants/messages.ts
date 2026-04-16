@@ -369,6 +369,16 @@ export const MESSAGES = {
   SUCCESS_LOAN_CREATED:                'Loan entry created successfully.',
   SUCCESS_LOAN_UPDATED:                'Loan entry updated successfully.',
   SUCCESS_LOAN_DELETED:                'Loan entry deleted successfully.',
+
+  // Opening Stock
+  ERROR_OPENING_STOCK_LOAD_FAILED:        'Failed to load opening stock. Please try again.',
+  ERROR_OPENING_STOCK_CREATE_FAILED:      'Failed to save opening stock. Please try again.',
+  ERROR_OPENING_STOCK_UPDATE_FAILED:      'Failed to update opening stock. Please try again.',
+  ERROR_OPENING_STOCK_DATE_REQUIRED:      'Entry date is required.',
+  ERROR_OPENING_STOCK_LINE_FIELDS_REQUIRED: 'Each line needs a part and quantity > 0.',
+  ERROR_OPENING_STOCK_TXN_TYPE_MISSING:   'Opening Balance transaction type not found. Please check configuration.',
+  SUCCESS_OPENING_STOCK_CREATED:          'Opening stock saved successfully.',
+  SUCCESS_OPENING_STOCK_UPDATED:          'Opening stock updated successfully.',
 } as const;
 
 // Type for message keys

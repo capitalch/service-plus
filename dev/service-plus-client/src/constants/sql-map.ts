@@ -157,4 +157,6 @@ export const SQL_MAP = {
     GET_STOCK_LOANS_COUNT:                "GET_STOCK_LOANS_COUNT",
     GET_STOCK_LOANS_PAGED:                "GET_STOCK_LOANS_PAGED",
     GET_STOCK_LOAN_DETAIL:                "GET_STOCK_LOAN_DETAIL",
+    // Opening Stock
+    GET_OPENING_BALANCE_BY_BRANCH:        "GET_OPENING_BALANCE_BY_BRANCH",
 }
