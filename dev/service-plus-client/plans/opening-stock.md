@@ -1,2 +1,0 @@
- implement Opening stock. It should follow the same ui /ux pattern as purchase entry, sales entry, stock adjustment, branch transfer and loan entry. Please make     
-  sure that tableimplement Opening stock. It should follow the same ui /ux pattern as purchase entry, sales entry, stock adjustment, branch transfer and loan entry. 
