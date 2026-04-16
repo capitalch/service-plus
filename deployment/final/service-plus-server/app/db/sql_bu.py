@@ -396,7 +396,6 @@ class SqlBu:
             supplier_id bigint NOT NULL,
             invoice_no text NOT NULL,
             invoice_date date NOT NULL,
-            supplier_state_code character(2) NOT NULL,
             aggregate_amount numeric(14,2) NOT NULL,
             cgst_amount numeric(14,2) DEFAULT 0 NOT NULL,
             sgst_amount numeric(14,2) DEFAULT 0 NOT NULL,

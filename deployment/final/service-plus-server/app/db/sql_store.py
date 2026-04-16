@@ -222,10 +222,12 @@ class SqlStore:
     GET_BU_BRANCHES = """
         with "dummy" as (values(1::int))
         -- with "dummy" as (values(1::int)) -- Test line
-        SELECT id, code, is_active, is_head_office, name
-        FROM branch
-        WHERE is_active = true
-        ORDER BY is_head_office DESC, name
+        SELECT b.id, b.code, b.is_active, b.is_head_office, b.name,
+               b.gstin, s.gst_state_code
+        FROM branch b
+        LEFT JOIN state s ON s.id = b.state_id
+        WHERE b.is_active = true
+        ORDER BY b.is_head_office DESC, b.name
     """
 
     # ── Business Units (BU) ───────────────────────────────────────────────────
@@ -590,10 +592,12 @@ class SqlStore:
     """
 
     GET_COMPANY_INFO = """
-        SELECT id, company_name, address_line1, address_line2,
-               city, state_id, country, pincode, phone, email, gstin, is_active
-        FROM company_info
-        ORDER BY id
+        SELECT ci.id, ci.company_name, ci.address_line1, ci.address_line2,
+               ci.city, ci.state_id, ci.country, ci.pincode, ci.phone, ci.email,
+               ci.gstin, ci.is_active, s.gst_state_code
+        FROM company_info ci
+        LEFT JOIN state s ON s.id = ci.state_id
+        ORDER BY ci.id
         LIMIT 1
     """
 
@@ -1746,7 +1750,6 @@ class SqlStore:
             s.name              AS supplier_name,
             pi.invoice_no,
             pi.invoice_date,
-            pi.supplier_state_code,
             pi.aggregate_amount,
             pi.cgst_amount,
             pi.sgst_amount,
@@ -2170,6 +2173,41 @@ class SqlStore:
         GROUP BY sl.id
     """
 
+    # ── Opening Stock ─────────────────────────────────────────────────────────
+
+    GET_OPENING_BALANCE_BY_BRANCH = """
+        with "p_branch_id" as (values(%(branch_id)s::bigint))
+        -- with "p_branch_id" as (values(1::bigint)) -- Test line
+        SELECT
+            sob.id,
+            sob.entry_date,
+            sob.ref_no,
+            sob.branch_id,
+            sob.remarks,
+            sob.created_by,
+            sob.created_at,
+            sob.updated_at,
+            COALESCE(
+                json_agg(
+                    json_build_object(
+                        'id',        sobl.id,
+                        'part_id',   sobl.part_id,
+                        'part_code', sp.part_code,
+                        'part_name', sp.part_name,
+                        'qty',       sobl.qty,
+                        'unit_cost', sobl.unit_cost,
+                        'remarks',   sobl.remarks
+                    ) ORDER BY sobl.id
+                ) FILTER (WHERE sobl.id IS NOT NULL),
+                '[]'::json
+            ) AS lines
+        FROM stock_opening_balance sob
+        LEFT JOIN stock_opening_balance_line sobl ON sobl.stock_opening_balance_id = sob.id
+        LEFT JOIN spare_part_master sp ON sp.id = sobl.part_id
+        WHERE sob.branch_id = (table "p_branch_id")
+        GROUP BY sob.id
+    """
+
     # ── Technicians ───────────────────────────────────────────────────────────
 
     CHECK_TECHNICIAN_CODE_EXISTS = """
@@ -2335,7 +2373,7 @@ class SqlStore:
             v.id, v.name, v.gstin, v.pan, v.phone, v.email,
             v.address_line1, v.address_line2, v.city, v.state_id,
             v.pincode, v.is_active, v.remarks,
-            s.name AS state_name
+            s.name AS state_name, s.gst_state_code
         FROM supplier v
         LEFT JOIN state s ON s.id = v.state_id
         ORDER BY v.name
