@@ -40,7 +40,6 @@ import type { SalesInvoiceType, SalesLineType, DocumentSequenceRow } from "@/fea
 import type { StockTransactionTypeRow } from "@/features/client/types/purchase";
 import type { CustomerTypeOption, StateOption } from "@/features/client/types/customer";
 import type { BranchType } from "@/features/client/components/masters/branch/branch";
-import type { StateRow } from "../purchase-entry/purchase-entry-section";
 
 import { NewSalesInvoice, type NewSalesInvoiceHandle } from "./new-sales-invoice";
 import { ViewSalesInvoiceDialog } from "./view-sales-invoice-dialog";
@@ -50,7 +49,6 @@ import { SalesInvoicePdfPreviewDialog } from "./sales-invoice-pdf-preview-dialog
 
 // ViewMode is imported from view-mode-toggle
 type GenericQueryData<T> = { genericQuery: T[] | null };
-type CompanyInfoRow = { id: number; company_name: string; state_id: number | null; gstin: string | null };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -83,12 +81,10 @@ export const SalesEntrySection = () => {
 
     // Mode
     const [mode,          setMode]          = useState<ViewMode>("new");
-    const [states,        setStates]        = useState<StateRow[]>([]);
     const [brands,        setBrands]        = useState<BrandOption[]>([]);
     const [customerTypes, setCustomerTypes] = useState<CustomerTypeOption[]>([]);
     const [masterStates,  setMasterStates]  = useState<StateOption[]>([]);
     const [docSequences,  setDocSequences]  = useState<DocumentSequenceRow[]>([]);
-    const [companyStateCode, setCompanyStateCode] = useState("");
 
     // Data
     const [invoices, setInvoices] = useState<SalesInvoiceType[]>([]);
@@ -125,7 +121,7 @@ export const SalesEntrySection = () => {
         if (!dbName || !schema) return;
         const fetchMeta = async () => {
             try {
-                const [branchRes, txnRes, stateRes, brandRes, custTypeRes, masterStateRes, companyRes] = await Promise.all([
+                const [branchRes, txnRes, brandRes, custTypeRes, masterStateRes] = await Promise.all([
                     apolloClient.query<GenericQueryData<BranchType>>({
                         fetchPolicy: "network-only",
                         query: GRAPHQL_MAP.genericQuery,
@@ -140,14 +136,6 @@ export const SalesEntrySection = () => {
                         variables: {
                             db_name: dbName, schema,
                             value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_STOCK_TRANSACTION_TYPES }),
-                        },
-                    }),
-                    apolloClient.query<GenericQueryData<StateRow>>({
-                        fetchPolicy: "network-only",
-                        query: GRAPHQL_MAP.genericQuery,
-                        variables: {
-                            db_name: dbName, schema,
-                            value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_ALL_STATES }),
                         },
                     }),
                     apolloClient.query<GenericQueryData<BrandOption>>({
@@ -174,19 +162,9 @@ export const SalesEntrySection = () => {
                             value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_ALL_STATES }),
                         },
                     }),
-                    apolloClient.query<GenericQueryData<CompanyInfoRow>>({
-                        fetchPolicy: "network-only",
-                        query: GRAPHQL_MAP.genericQuery,
-                        variables: {
-                            db_name: dbName, schema,
-                            value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_COMPANY_INFO }),
-                        },
-                    }),
                 ]);
                 setBranches(branchRes.data?.genericQuery ?? []);
                 setTxnTypes(txnRes.data?.genericQuery ?? []);
-                const loadedStates = stateRes.data?.genericQuery ?? [];
-                setStates(loadedStates);
                 const brandList = brandRes.data?.genericQuery ?? [];
                 setBrands(brandList);
                 if (brandList.length === 1) setSelectedBrand(String(brandList[0].id));
@@ -196,11 +174,6 @@ export const SalesEntrySection = () => {
                     code: (s as any).gst_state_code ?? s.code,
                     name: s.name,
                 })));
-                const company = companyRes.data?.genericQuery?.[0];
-                if (company?.state_id) {
-                    const st = loadedStates.find(s => s.id === company.state_id);
-                    if (st) setCompanyStateCode(st.gst_state_code);
-                }
             } catch {
                 toast.error(MESSAGES.ERROR_SALES_LOAD_FAILED);
             }
@@ -560,8 +533,6 @@ export const SalesEntrySection = () => {
                     ref={newSalesRef}
                     branchId={branchId}
                     txnTypes={txnTypes}
-                    states={states}
-                    companyStateCode={companyStateCode}
                     docSequence={editInvoice ? null : sinvSequence}
                     onSuccess={() => {
                         if (editInvoice) {

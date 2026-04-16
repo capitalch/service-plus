@@ -16,10 +16,9 @@ import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
-import { selectDefaultGstRate, selectIsGstRegistered, selectSchema } from "@/store/context-slice";
+import { selectDefaultGstRate, selectEffectiveGstStateCode, selectIsGstRegistered, selectSchema } from "@/store/context-slice";
 import type { StockTransactionTypeRow } from "@/features/client/types/purchase";
 import type { SalesInvoiceType, SalesLineFormItem, DocumentSequenceRow, CustomerSearchRow } from "@/features/client/types/sales";
-import type { StateRow } from "../purchase-entry/purchase-entry-section";
 import type { CustomerTypeOption, StateOption } from "@/features/client/types/customer";
 
 import { PartCodeInput } from "../part-code-input";
@@ -32,8 +31,6 @@ type GenericQueryData<T> = { genericQuery: T[] | null };
 type Props = {
     branchId:           number | null;
     txnTypes:           StockTransactionTypeRow[];
-    states:             StateRow[];
-    companyStateCode:   string;
     docSequence:        DocumentSequenceRow | null;
     onSuccess:          () => void;
     onStatusChange:     (status: { isValid: boolean; isSubmitting: boolean }) => void;
@@ -111,15 +108,16 @@ const inputCls = "h-7 border-[var(--cl-border)] bg-[var(--cl-surface)] text-sm p
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export const NewSalesInvoice = forwardRef<NewSalesInvoiceHandle, Props>(({
-    branchId, txnTypes, states, companyStateCode, docSequence,
+    branchId, txnTypes, docSequence,
     onSuccess, onStatusChange, isIgst, setIsIgst, isReturn, onIsReturnChange,
     selectedBrandId, brandName, editInvoice,
     customerTypes, masterStates,
 }, ref) => {
-    const dbName          = useAppSelector(selectDbName);
-    const schema          = useAppSelector(selectSchema);
-    const isGstRegistered  = useAppSelector(selectIsGstRegistered);
-    const defaultGstRate   = useAppSelector(selectDefaultGstRate);
+    const dbName                = useAppSelector(selectDbName);
+    const schema                = useAppSelector(selectSchema);
+    const isGstRegistered       = useAppSelector(selectIsGstRegistered);
+    const defaultGstRate        = useAppSelector(selectDefaultGstRate);
+    const effectiveGstStateCode = useAppSelector(selectEffectiveGstStateCode);
 
     // Header fields
     const [customerId,          setCustomerId]          = useState<number | null>(null);
@@ -170,8 +168,8 @@ export const NewSalesInvoice = forwardRef<NewSalesInvoiceHandle, Props>(({
             setInvoiceDate(detail.invoice_date);
             setRemarks(detail.remarks ?? "");
             onIsReturnChange(Boolean(detail.is_return));
-            const newIsIgst = !!detail.customer_state_code && !!companyStateCode
-                && detail.customer_state_code !== companyStateCode;
+            const newIsIgst = !!detail.customer_state_code && !!effectiveGstStateCode
+                && detail.customer_state_code !== effectiveGstStateCode;
             setIsIgst(newIsIgst);
             const loadedLines = ((detail as any).lines ?? []).map((l: any) => {
                 const igstAmt = Number(l.igst_amount ?? 0);
@@ -203,9 +201,9 @@ export const NewSalesInvoice = forwardRef<NewSalesInvoiceHandle, Props>(({
 
     // Sync isIgst when customerStateCode changes
     useEffect(() => {
-        if (!companyStateCode || !customerStateCode) return;
-        setIsIgst(customerStateCode !== companyStateCode);
-    }, [customerStateCode, companyStateCode, setIsIgst]);
+        if (!effectiveGstStateCode || !customerStateCode) return;
+        setIsIgst(customerStateCode !== effectiveGstStateCode);
+    }, [customerStateCode, effectiveGstStateCode, setIsIgst]);
 
     // Line mutations
     const updateLine = (idx: number, patch: Partial<SalesLineFormItem>) => {
@@ -527,14 +525,14 @@ export const NewSalesInvoice = forwardRef<NewSalesInvoiceHandle, Props>(({
                                 label={<span>State <span className="text-red-500 ml-0.5">*</span></span>}
                                 placeholder="Select state..."
                                 selectedValue={customerStateCode}
-                                onSelect={s => setCustomerStateCode(s?.gst_state_code ?? "")}
-                                items={states}
-                                getFilterKey={s => `${s.gst_state_code} ${s.name}`}
-                                getDisplayValue={s => `${s.gst_state_code} — ${s.name}`}
+                                onSelect={s => setCustomerStateCode(s?.code ?? "")}
+                                items={masterStates}
+                                getFilterKey={s => `${s.code} ${s.name}`}
+                                getDisplayValue={s => `${s.code} — ${s.name}`}
                                 renderItem={s => (
                                     <div className="flex items-center gap-3 w-full">
                                         <span className="flex h-6 w-8 shrink-0 items-center justify-center rounded bg-[var(--cl-accent)]/10 text-[10px] font-bold text-[var(--cl-accent)]">
-                                            {s.gst_state_code}
+                                            {s.code}
                                         </span>
                                         <span className="truncate font-medium">{s.name}</span>
                                     </div>

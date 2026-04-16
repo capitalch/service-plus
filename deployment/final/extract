@@ -27,5 +27,5 @@ echo "🔒 Setting permissions (Optional)..."
 
 echo "✅ Extraction complete in $TARGET_DIR"
 
-echo "rebooting..."
-reboot
+# echo "rebooting..."
+# reboot

@@ -9,7 +9,6 @@ import { Label } from "@/components/ui/label";
 
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { MESSAGES } from "@/constants/messages";
-import { SQL_MAP } from "@/constants/sql-map";
 import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
