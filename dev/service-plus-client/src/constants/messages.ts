@@ -175,6 +175,12 @@ export const MESSAGES = {
   SUCCESS_PART_LOCATION_DELETED:          'Part location deleted successfully.',
   SUCCESS_PART_LOCATION_UPDATED:          'Part location updated successfully.',
 
+  // Set Part Location
+  SUCCESS_SET_PART_LOCATIONS:             'Part location(s) set successfully.',
+  ERROR_SET_PART_LOCATIONS_FAILED:        'Failed to set part locations. Please try again.',
+  ERROR_SET_PART_LOCATIONS_LOAD_FAILED:   'Failed to load stock data. Please try again.',
+  ERROR_SET_PART_LOCATION_PART_NOT_FOUND: 'Part not found in stock for this branch.',
+
   // Customer CRUD
   ERROR_CUSTOMER_CREATE_FAILED:      'Failed to create customer. Please try again.',
   ERROR_CUSTOMER_DELETE_FAILED:      'Failed to delete customer. Please try again.',
@@ -379,6 +385,8 @@ export const MESSAGES = {
   ERROR_OPENING_STOCK_TXN_TYPE_MISSING:   'Opening Balance transaction type not found. Please check configuration.',
   SUCCESS_OPENING_STOCK_CREATED:          'Opening stock saved successfully.',
   SUCCESS_OPENING_STOCK_UPDATED:          'Opening stock updated successfully.',
+  SUCCESS_OPENING_STOCK_DELETED:          'Opening stock entry deleted successfully.',
+  ERROR_OPENING_STOCK_DELETE_FAILED:      'Failed to delete opening stock entry. Please try again.',
 } as const;
 
 // Type for message keys

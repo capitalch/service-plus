@@ -147,11 +147,11 @@ export const EditPartLocationDialog = ({
                     db_name: dbName,
                     schema,
                     value: graphQlUtils.buildGenericUpdateValue({
-                        tableName: "spare_part_location_master",
+                        tableName: "stock_location_master",
                         xData: {
                             id:        location.id,
                             branch_id: data.branch_id,
-                            location:  data.location,
+                            name:      data.location,
                         },
                     }),
                 },

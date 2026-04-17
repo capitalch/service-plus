@@ -9,13 +9,14 @@ import { Label } from "@/components/ui/label";
 
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { MESSAGES } from "@/constants/messages";
+import { SQL_MAP } from "@/constants/sql-map";
 import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectSchema } from "@/store/context-slice";
 import type { StockTransactionTypeRow } from "@/features/client/types/purchase";
-import type { OpeningStockLineFormItemType, OpeningStockType } from "@/features/client/types/stock-opening-balance";
+import type { OpeningStockLineFormItemType, OpeningStockListItem, OpeningStockType } from "@/features/client/types/stock-opening-balance";
 import { emptyOpeningStockLine } from "@/features/client/types/stock-opening-balance";
 
 import { LineAddDeleteActions } from "../line-add-delete-actions";
@@ -23,10 +24,12 @@ import { PartCodeInput } from "../part-code-input";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+type GenericQueryData<T> = { genericQuery: T[] | null };
+
 type Props = {
     branchId:        number | null;
     brandName?:      string;
-    editEntry?:      OpeningStockType | null;
+    editEntry?:      OpeningStockListItem | null;
     onStatusChange:  (status: { isSubmitting: boolean; isValid: boolean }) => void;
     onSuccess:       () => void;
     selectedBrandId: number | null;
@@ -81,25 +84,42 @@ export const NewOpeningStock = forwardRef<NewOpeningStockHandle, Props>(({
     useEffect(() => {
         if (!editEntry) {
             handleReset();
+            setOriginalLineIds([]);
             return;
         }
-        setEntryDate(editEntry.entry_date);
-        setRefNo(editEntry.ref_no ?? "");
-        setRemarks(editEntry.remarks ?? "");
-        const loaded = (editEntry.lines ?? []).map(l => ({
-            _key:      crypto.randomUUID(),
-            brand_id:  selectedBrandId,
-            part_code: l.part_code,
-            part_id:   l.part_id,
-            part_name: l.part_name,
-            qty:       Number(l.qty),
-            remarks:   l.remarks ?? "",
-            unit_cost: Number(l.unit_cost ?? 0),
-        }));
-        setLines(loaded.length > 0 ? loaded : [emptyOpeningStockLine(selectedBrandId)]);
-        setOriginalLineIds((editEntry.lines ?? []).map(l => l.id));
+        if (!dbName || !schema) return;
+        apolloClient.query<GenericQueryData<OpeningStockType>>({
+            fetchPolicy: "network-only",
+            query: GRAPHQL_MAP.genericQuery,
+            variables: {
+                db_name: dbName,
+                schema,
+                value: graphQlUtils.buildGenericQueryValue({
+                    sqlArgs: { id: editEntry.id },
+                    sqlId:   SQL_MAP.GET_OPENING_STOCK_DETAIL,
+                }),
+            },
+        }).then(res => {
+            const detail = res.data?.genericQuery?.[0];
+            if (!detail) return;
+            setEntryDate(detail.entry_date.slice(0, 10));
+            setRefNo(detail.ref_no ?? "");
+            setRemarks(detail.remarks ?? "");
+            const loaded = (detail.lines ?? []).map(l => ({
+                _key:      crypto.randomUUID(),
+                brand_id:  selectedBrandId,
+                part_code: l.part_code,
+                part_id:   l.part_id,
+                part_name: l.part_name,
+                qty:       Number(l.qty),
+                remarks:   l.remarks ?? "",
+                unit_cost: Number(l.unit_cost ?? 0),
+            }));
+            setLines(loaded.length > 0 ? loaded : [emptyOpeningStockLine(selectedBrandId)]);
+            setOriginalLineIds((detail.lines ?? []).map(l => l.id));
+        }).catch(() => toast.error(MESSAGES.ERROR_OPENING_STOCK_LOAD_FAILED));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [editEntry]);
+    }, [editEntry, dbName, schema]);
 
     // Validation
     const isFormValid =
@@ -315,7 +335,7 @@ export const NewOpeningStock = forwardRef<NewOpeningStockHandle, Props>(({
                     </Card>
 
                     {/* Section label */}
-                    <p className="mb-1 px-1 text-[10px] font-black uppercase tracking-[0.15em] text-[var(--cl-text-muted)]">Line Items</p>
+                    <p className="mb-1 px-1 text-[10px] font-black uppercase tracking-[0.15em] text-[var(--cl-text-muted)] my-2">Line Items</p>
 
                     {/* Lines table */}
                     <Card className="relative flex min-h-0 flex-col border-[var(--cl-border)] bg-[var(--cl-surface)] shadow-sm">

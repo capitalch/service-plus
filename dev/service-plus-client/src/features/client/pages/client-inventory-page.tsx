@@ -5,6 +5,7 @@ import { OpeningStockSection } from "../components/inventory/opening-stock/openi
 import { PurchaseEntrySection } from "../components/inventory/purchase-entry/purchase-entry-section";
 import { SalesEntrySection } from "../components/inventory/sales-entry/sales-entry-section";
 import { StockAdjustmentSection } from "../components/inventory/stock-adjustment/stock-adjustment-section";
+import { SetPartLocationSection } from "../components/inventory/set-part-location/set-part-location-section";
 import { StockOverviewSection } from "../components/stock-overview-section";
 
 // ─── Coming Soon placeholder ──────────────────────────────────────────────────
@@ -42,6 +43,8 @@ function InventoryContent() {
             return <LoanEntrySection />;
         case "Opening Stock":
             return <OpeningStockSection />;
+        case "Set Part Location":
+            return <SetPartLocationSection />;
         default:
             return <ComingSoon label={selected || "Inventory"} />;
     }

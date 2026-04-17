@@ -1,3 +1,5 @@
+## Openrouter api key
+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
 ## Service management software
 
 # Old Service DB extracts

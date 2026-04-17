@@ -1120,9 +1120,9 @@ class SqlStore:
         --     "p_branch_id" as (values(1::bigint)),          -- Test line
         --     "p_location"  as (values('Shelf A'::text))     -- Test line
         SELECT EXISTS(
-            SELECT 1 FROM spare_part_location_master
-            WHERE branch_id             = (table "p_branch_id")
-              AND LOWER(location)       = LOWER((table "p_location"))
+            SELECT 1 FROM stock_location_master
+            WHERE branch_id       = (table "p_branch_id")
+              AND LOWER(name)     = LOWER((table "p_location"))
         ) AS exists
     """
 
@@ -1136,28 +1136,140 @@ class SqlStore:
         --     "p_location"  as (values('Shelf A'::text)),    -- Test line
         --     "p_id"        as (values(1::bigint))           -- Test line
         SELECT EXISTS(
-            SELECT 1 FROM spare_part_location_master
-            WHERE branch_id             = (table "p_branch_id")
-              AND LOWER(location)       = LOWER((table "p_location"))
-              AND id                   <> (table "p_id")
+            SELECT 1 FROM stock_location_master
+            WHERE branch_id       = (table "p_branch_id")
+              AND LOWER(name)     = LOWER((table "p_location"))
+              AND id             <> (table "p_id")
         ) AS exists
     """
 
     CHECK_PART_LOCATION_IN_USE = """
         with "p_id" as (values(%(id)s::bigint))
         -- with "p_id" as (values(1::bigint)) -- Test line
-        SELECT false AS in_use
+        SELECT EXISTS(
+            SELECT 1 FROM stock_balance        WHERE location_id    = (table "p_id")
+            UNION ALL
+            SELECT 1 FROM stock_location_change WHERE to_location_id = (table "p_id")
+        ) AS in_use
     """
 
     GET_ALL_PART_LOCATIONS = """
         with "dummy" as (values(1::int))
         -- with "dummy" as (values(1::int)) -- Test line
         SELECT
-            pl.id, pl.branch_id, pl.location, pl.is_active,
+            pl.id, pl.branch_id, pl.name AS location, pl.is_active,
             b.name AS branch_name
-        FROM spare_part_location_master pl
+        FROM stock_location_master pl
         JOIN branch b ON b.id = pl.branch_id
-        ORDER BY b.name, pl.location
+        ORDER BY b.name, pl.name
+    """
+
+    # ── Set Part Location ─────────────────────────────────────────────────────
+
+    GET_STOCK_BALANCE_WITH_LOCATION = """
+        with "p_branch_id" as (values(%(branch_id)s::bigint))
+        -- with "p_branch_id" as (values(1::bigint)) -- Test line
+        SELECT
+            sb.part_id,
+            p.part_code,
+            p.part_name,
+            p.uom,
+            sb.qty,
+            sb.location_id,
+            lm.name AS location_name
+        FROM stock_balance sb
+        JOIN spare_part_master p           ON p.id  = sb.part_id
+        LEFT JOIN stock_location_master lm ON lm.id = sb.location_id
+        WHERE sb.branch_id = (table "p_branch_id")
+        ORDER BY p.part_code
+    """
+
+    GET_ACTIVE_LOCATIONS_BY_BRANCH = """
+        with "p_branch_id" as (values(%(branch_id)s::bigint))
+        -- with "p_branch_id" as (values(1::bigint)) -- Test line
+        SELECT id, name AS location
+        FROM stock_location_master
+        WHERE branch_id = (table "p_branch_id")
+          AND is_active = true
+        ORDER BY name
+    """
+
+    GET_PART_IN_STOCK_BY_CODE = """
+        with
+            "p_branch_id" as (values(%(branch_id)s::bigint)),
+            "p_part_code" as (values(%(part_code)s::text))
+        -- with
+        --     "p_branch_id" as (values(1::bigint)),        -- Test line
+        --     "p_part_code" as (values('ABC-001'::text))   -- Test line
+        SELECT
+            p.id        AS part_id,
+            p.part_code,
+            p.part_name,
+            p.uom,
+            sb.qty,
+            sb.location_id,
+            lm.name     AS location_name
+        FROM spare_part_master p
+        JOIN stock_balance sb              ON sb.part_id   = p.id
+                                          AND sb.branch_id = (table "p_branch_id")
+        LEFT JOIN stock_location_master lm ON lm.id        = sb.location_id
+        WHERE LOWER(p.part_code) = LOWER((table "p_part_code"))
+    """
+
+    GET_PART_LOCATION_HISTORY = """
+        with
+            "p_part_id"   as (values(%(part_id)s::bigint)),
+            "p_branch_id" as (values(%(branch_id)s::bigint))
+        -- with "p_part_id" as (values(1::bigint)), "p_branch_id" as (values(1::bigint)) -- Test line
+        SELECT
+            slc.id,
+            slc.transaction_date,
+            slc.ref_no,
+            slc.remarks,
+            lm.name AS location_name
+        FROM stock_location_change slc
+        JOIN stock_location_master lm ON lm.id = slc.to_location_id
+        WHERE slc.part_id   = (table "p_part_id")
+          AND slc.branch_id = (table "p_branch_id")
+        ORDER BY slc.transaction_date DESC, slc.created_at DESC
+        LIMIT 20
+    """
+
+    SET_PART_LOCATIONS = """
+        with
+            "p_branch_id" as (values(%(branch_id)s::bigint)),
+            "p_date"      as (values(%(transaction_date)s::date)),
+            "p_ref_no"    as (values(%(ref_no)s::text)),
+            "p_remarks"   as (values(%(remarks)s::text)),
+        -- with
+        --     "p_branch_id" as (values(1::bigint)),             -- Test line
+        --     "p_date"      as (values('2026-04-17'::date)),    -- Test line
+        --     "p_ref_no"    as (values(''::text)),              -- Test line
+        --     "p_remarks"   as (values(''::text)),              -- Test line
+            "p_pairs" AS (
+                SELECT
+                    UNNEST(%(part_ids)s::bigint[])     AS part_id,
+                    UNNEST(%(location_ids)s::bigint[]) AS location_id
+            ),
+            insert_history AS (
+                INSERT INTO stock_location_change
+                    (part_id, branch_id, to_location_id, transaction_date, ref_no, remarks)
+                SELECT
+                    p.part_id,
+                    (table "p_branch_id"),
+                    p.location_id,
+                    (table "p_date"),
+                    NULLIF((table "p_ref_no"),  ''),
+                    NULLIF((table "p_remarks"), '')
+                FROM "p_pairs" p
+                RETURNING id
+            )
+        UPDATE stock_balance sb
+        SET    location_id = pairs.location_id,
+               updated_at  = now()
+        FROM   "p_pairs" pairs
+        WHERE  sb.part_id   = pairs.part_id
+          AND  sb.branch_id = (table "p_branch_id")
     """
 
     GET_EXISTING_PART_CODES = """
@@ -2205,6 +2317,91 @@ class SqlStore:
         LEFT JOIN stock_opening_balance_line sobl ON sobl.stock_opening_balance_id = sob.id
         LEFT JOIN spare_part_master sp ON sp.id = sobl.part_id
         WHERE sob.branch_id = (table "p_branch_id")
+        GROUP BY sob.id
+    """
+
+    GET_OPENING_STOCK_COUNT = """
+        with
+            "p_branch_id" as (values(%(branch_id)s::bigint)),
+            "p_from"      as (values(%(from_date)s::date)),
+            "p_to"        as (values(%(to_date)s::date)),
+            "p_search"    as (values(%(search)s::text))
+        SELECT count(*) as total
+        FROM stock_opening_balance
+        WHERE branch_id  = (table "p_branch_id")
+          AND entry_date >= (table "p_from")
+          AND entry_date <= (table "p_to")
+          AND (
+            (table "p_search") = '' OR
+            ref_no  ILIKE '%%' || (table "p_search") || '%%' OR
+            remarks ILIKE '%%' || (table "p_search") || '%%'
+          )
+    """
+
+    GET_OPENING_STOCK_PAGED = """
+        with
+            "p_branch_id" as (values(%(branch_id)s::bigint)),
+            "p_from"      as (values(%(from_date)s::date)),
+            "p_to"        as (values(%(to_date)s::date)),
+            "p_search"    as (values(%(search)s::text)),
+            "p_limit"     as (values(%(limit)s::int)),
+            "p_offset"    as (values(%(offset)s::int))
+        SELECT
+            sob.id,
+            sob.entry_date,
+            sob.branch_id,
+            sob.ref_no,
+            sob.remarks,
+            COUNT(sobl.id)                                     AS line_count,
+            COALESCE(SUM(sobl.qty), 0)                         AS total_qty,
+            COALESCE(SUM(sobl.qty * sobl.unit_cost), 0)        AS total_value
+        FROM stock_opening_balance sob
+        LEFT JOIN stock_opening_balance_line sobl
+               ON sobl.stock_opening_balance_id = sob.id
+        WHERE sob.branch_id  = (table "p_branch_id")
+          AND sob.entry_date >= (table "p_from")
+          AND sob.entry_date <= (table "p_to")
+          AND (
+            (table "p_search") = '' OR
+            sob.ref_no  ILIKE '%%' || (table "p_search") || '%%' OR
+            sob.remarks ILIKE '%%' || (table "p_search") || '%%'
+          )
+        GROUP BY sob.id
+        ORDER BY sob.entry_date DESC, sob.id DESC
+        LIMIT  (table "p_limit")
+        OFFSET (table "p_offset")
+    """
+
+    GET_OPENING_STOCK_DETAIL = """
+        with "p_id" as (values(%(id)s::bigint))
+        SELECT
+            sob.id,
+            sob.entry_date,
+            sob.branch_id,
+            sob.ref_no,
+            sob.remarks,
+            sob.created_by,
+            sob.created_at,
+            sob.updated_at,
+            COALESCE(
+                json_agg(
+                    json_build_object(
+                        'id',        sobl.id,
+                        'part_id',   sobl.part_id,
+                        'part_code', sp.part_code,
+                        'part_name', sp.part_name,
+                        'qty',       sobl.qty,
+                        'unit_cost', sobl.unit_cost,
+                        'remarks',   sobl.remarks
+                    ) ORDER BY sobl.id
+                ) FILTER (WHERE sobl.id IS NOT NULL),
+                '[]'::json
+            ) AS lines
+        FROM stock_opening_balance sob
+        LEFT JOIN stock_opening_balance_line sobl
+               ON sobl.stock_opening_balance_id = sob.id
+        LEFT JOIN spare_part_master sp ON sp.id = sobl.part_id
+        WHERE sob.id = (table "p_id")
         GROUP BY sob.id
     """
 

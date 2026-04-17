@@ -1,12 +1,10 @@
 # instructions
 - limit yourself to current folder
 - Always make responsive design
-- When any text command is given to claude and last word is plan then do the plan only for the given command. Write your plan in the plan.md file in the plans folder(in windows it is C:\projects\service-plus\dev\service-plus-client/plans, In linux it is /home/sushant/projects/service-plus/dev/service-plus-client/plans  ). 
+- When plan mode or doing the planning then always write your planning in plan.md in plans folder. Overwrite plan.md if it exists. 
 - Make sure that you write plan.md in correct plans folder only. 
-- Overwrite plan.md if required.
 - In plan.md write all the steps of execution as Step1, Step 2 and so on.
 - In plan.md include a workflow section which provides the workflow of entire effort
-- When in plan mode, in addition output your plan in plans/plan.md. Overwrite plan.md if it exists.
 - When creating a form never use red color for any control css. Red color will only be used for indicating errors.
 - Always make use of shadcn components and framer-motion for transition wherever required
 - For forms use react-hook-form and zod for validations and business rules

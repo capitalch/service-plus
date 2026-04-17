@@ -126,7 +126,7 @@ export const PartLocationSection = () => {
                     db_name: dbName,
                     schema,
                     value: graphQlUtils.buildGenericUpdateValue({
-                        tableName: "spare_part_location_master",
+                        tableName: "stock_location_master",
                         xData: { id: loc.id, is_active: !loc.is_active },
                     }),
                 },
@@ -357,7 +357,6 @@ export const PartLocationSection = () => {
 
             {/* ── Dialogs ──────────────────────────────────────────────────────── */}
             <AddPartLocationDialog
-                branches={branches}
                 open={addOpen}
                 onOpenChange={setAddOpen}
                 onSuccess={loadData}

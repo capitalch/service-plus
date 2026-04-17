@@ -15,13 +15,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { MESSAGES } from "@/constants/messages";
 import { SQL_MAP } from "@/constants/sql-map";
@@ -30,13 +23,11 @@ import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
-import { selectSchema } from "@/store/context-slice";
-import type { BranchOption } from "@/features/client/types/part-location";
+import { selectCurrentBranch, selectSchema } from "@/store/context-slice";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type AddPartLocationDialogPropsType = {
-    branches:     BranchOption[];
     onOpenChange: (open: boolean) => void;
     onSuccess:    () => void;
     open:         boolean;
@@ -51,8 +42,7 @@ type CheckQueryDataType = {
 // ─── Schema ───────────────────────────────────────────────────────────────────
 
 const addPartLocationSchema = z.object({
-    branch_id: z.coerce.number().positive("Branch is required"),
-    location:  z.string().min(1, "Location is required").max(100, "Location must be 100 characters or fewer"),
+    location: z.string().min(1, "Location is required").max(100, "Location must be 100 characters or fewer"),
 });
 
 // ─── Field error ──────────────────────────────────────────────────────────────
@@ -64,7 +54,6 @@ function FieldError({ message }: { message?: string }) {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export const AddPartLocationDialog = ({
-    branches,
     onOpenChange,
     onSuccess,
     open,
@@ -73,22 +62,19 @@ export const AddPartLocationDialog = ({
     const [locationTaken,    setLocationTaken]    = useState<boolean | null>(null);
     const [submitting,       setSubmitting]       = useState(false);
 
-    const dbName = useAppSelector(selectDbName);
-    const schema = useAppSelector(selectSchema);
+    const dbName        = useAppSelector(selectDbName);
+    const schema        = useAppSelector(selectSchema);
+    const currentBranch = useAppSelector(selectCurrentBranch);
 
     const form = useForm<AddPartLocationFormType>({
-        defaultValues: {
-            branch_id: 0,
-            location:  "",
-        },
+        defaultValues: { location: "" },
         mode:     "onChange",
         resolver: zodResolver(addPartLocationSchema) as any,
     });
 
     const { formState: { errors } } = form;
-    const locationValue  = useWatch({ control: form.control, name: "location" });
-    const branchIdValue  = useWatch({ control: form.control, name: "branch_id" });
-    const debouncedLoc   = useDebounce(locationValue, 1200);
+    const locationValue = useWatch({ control: form.control, name: "location" });
+    const debouncedLoc  = useDebounce(locationValue, 1200);
 
     // Reset on close
     useEffect(() => {
@@ -100,9 +86,9 @@ export const AddPartLocationDialog = ({
         }
     }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    // Location uniqueness check (scoped to branch)
+    // Location uniqueness check (scoped to current branch)
     useEffect(() => {
-        if (!debouncedLoc || !branchIdValue || branchIdValue <= 0 || !dbName || !schema) {
+        if (!debouncedLoc || !currentBranch || !dbName || !schema) {
             setLocationTaken(null);
             return;
         }
@@ -116,7 +102,7 @@ export const AddPartLocationDialog = ({
                     db_name: dbName,
                     schema,
                     value: graphQlUtils.buildGenericQueryValue({
-                        sqlArgs: { branch_id: branchIdValue, location: debouncedLoc },
+                        sqlArgs: { branch_id: currentBranch.id, location: debouncedLoc },
                         sqlId:   SQL_MAP.CHECK_PART_LOCATION_EXISTS,
                     }),
                 },
@@ -129,10 +115,10 @@ export const AddPartLocationDialog = ({
             })
             .catch(() => setLocationTaken(null))
             .finally(() => setCheckingLocation(false));
-    }, [debouncedLoc, branchIdValue]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [debouncedLoc]); // eslint-disable-line react-hooks/exhaustive-deps
 
     async function onSubmit(data: AddPartLocationFormType) {
-        if (!dbName || !schema) return;
+        if (!dbName || !schema || !currentBranch) return;
         setSubmitting(true);
         try {
             await apolloClient.mutate({
@@ -141,10 +127,10 @@ export const AddPartLocationDialog = ({
                     db_name: dbName,
                     schema,
                     value: graphQlUtils.buildGenericUpdateValue({
-                        tableName: "spare_part_location_master",
+                        tableName: "stock_location_master",
                         xData: {
-                            branch_id: data.branch_id,
-                            location:  data.location,
+                            branch_id: currentBranch.id,
+                            name:      data.location,
                         },
                     }),
                 },
@@ -171,31 +157,6 @@ export const AddPartLocationDialog = ({
                 </DialogHeader>
 
                 <form className="flex flex-col gap-4 pt-1" onSubmit={form.handleSubmit(onSubmit)}>
-                    {/* Branch */}
-                    <div className="flex flex-col gap-1.5">
-                        <Label htmlFor="apl_branch">
-                            Branch <span className="text-red-500">*</span>
-                        </Label>
-                        <Select
-                            onValueChange={(v) => {
-                                form.setValue("branch_id", Number(v), { shouldValidate: true });
-                                setLocationTaken(null);
-                            }}
-                        >
-                            <SelectTrigger id="apl_branch">
-                                <SelectValue placeholder="Select branch" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {branches.map((b) => (
-                                    <SelectItem key={b.id} value={String(b.id)}>
-                                        {b.name}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                        <FieldError message={errors.branch_id?.message} />
-                    </div>
-
                     {/* Location */}
                     <div className="flex flex-col gap-1.5">
                         <Label htmlFor="apl_location">

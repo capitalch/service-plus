@@ -21,6 +21,12 @@ cd c:\projects\trace-plus
 - you will be able to see the shared folders
 
 ## Service management software client
+
+# Versionising. No new software required
+	npm version patch	1.0.1	Bug fixes (e.g., fixing a stock calculation error).
+	npm version minor	1.1.0	New features (e.g., adding a "Branch Transfer" module).
+	npm version major	2.0.0	Breaking changes (e.g., changing the database schema).
+	
 # pnpm: node 17 has it
 	- Steps:
 		- corepack enable pnpm

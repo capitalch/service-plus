@@ -92,7 +92,7 @@ server {
     - you need to upload final.zip in folder /usr/share/nginx/html
     - type extract in any terminal
     - restart server
-
+    
 ## Impotant docker commands for the docker env in kubuntu:
 docker run -it --name fastapi -p 8080:80 debian:bookworm-20260316 bash
     Explain:-it

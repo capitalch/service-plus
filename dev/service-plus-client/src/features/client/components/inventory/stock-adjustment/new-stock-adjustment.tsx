@@ -348,7 +348,7 @@ export const NewStockAdjustment = forwardRef<NewStockAdjustmentHandle, Props>(({
                     </Card>
 
                     {/* Section label */}
-                    <p className="text-[10px] font-black uppercase tracking-[0.15em] text-[var(--cl-text-muted)] px-1 mb-1">Line Items</p>
+                    <p className="text-[10px] font-black uppercase tracking-[0.15em] text-[var(--cl-text-muted)] px-1 my-2">Line Items</p>
 
                     {/* Lines table */}
                     <Card className="border-[var(--cl-border)] bg-[var(--cl-surface)] shadow-sm flex flex-col min-h-0 relative">

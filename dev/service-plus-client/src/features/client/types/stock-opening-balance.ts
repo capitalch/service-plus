@@ -32,6 +32,17 @@ export type OpeningStockType = {
     updated_at: string;
 };
 
+export type OpeningStockListItem = {
+    id:         number;
+    entry_date: string;
+    ref_no:     string | null;
+    remarks:    string | null;
+    branch_id:  number;
+    line_count: number;
+    total_qty:  number;
+    total_value: number;
+};
+
 export function emptyOpeningStockLine(brandId?: number | null): OpeningStockLineFormItemType {
     return {
         _key:      crypto.randomUUID(),

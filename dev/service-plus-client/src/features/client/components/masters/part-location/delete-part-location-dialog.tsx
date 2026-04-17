@@ -58,7 +58,7 @@ export const DeletePartLocationDialog = ({
                 schema,
                 value: graphQlUtils.buildGenericUpdateValue({
                     deletedIds: [location.id],
-                    tableName:  "spare_part_location_master",
+                    tableName:  "stock_location_master",
                     xData:      {},
                 }),
             },

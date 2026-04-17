@@ -577,7 +577,7 @@ export const NewSalesInvoice = forwardRef<NewSalesInvoiceHandle, Props>(({
                     </Card>
 
                     {/* Line Items Table */}
-                    <p className="text-[10px] font-black uppercase tracking-[0.15em] text-[var(--cl-text-muted)] px-1 mb-1 mt-1">
+                    <p className="text-[10px] font-black uppercase tracking-[0.15em] text-[var(--cl-text-muted)] px-1 my-2">
                         Line Items
                     </p>
                     <Card className={`border-[var(--cl-border)] shadow-sm flex flex-col min-h-0 relative bg-[var(--cl-surface)] ${isReturn ? "border-l-4 border-l-red-500" : ""}`}>
