@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { MapPin, RefreshCwIcon, SearchIcon } from "lucide-react";
+import { MapPin, RefreshCwIcon, SearchIcon, XIcon } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -103,10 +103,7 @@ export const SetPartLocationSection = () => {
 
     useEffect(() => { loadData(); }, [loadData]);
 
-    // Reset selection when search changes
-    useEffect(() => { setSelectedIds(new Set()); }, [search]);
-
-    const displayParts = useMemo(() => {
+const displayParts = useMemo(() => {
         if (!search.trim()) return parts;
         const q = search.toLowerCase();
         return parts.filter(p =>
@@ -217,18 +214,34 @@ export const SetPartLocationSection = () => {
                     <div className="relative flex-1">
                         <SearchIcon className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--cl-text-muted)]" />
                         <Input
-                            className="h-8 pl-8 text-sm"
+                            className="h-8 pl-8 pr-8 text-sm"
                             disabled={loading}
                             placeholder="Search part code, name or location…"
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                         />
+                        {search && (
+                            <button
+                                aria-label="Clear search"
+                                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-sm text-[var(--cl-text-muted)] hover:text-[var(--cl-text)] focus:outline-none"
+                                type="button"
+                                onClick={() => setSearch("")}
+                            >
+                                <XIcon className="h-3.5 w-3.5" />
+                            </button>
+                        )}
                     </div>
                     {!loading && parts.length > 0 && (
-                        <p className="shrink-0 text-xs text-[var(--cl-text-muted)]">
-                            {displayParts.length} of {parts.length}
-                            {selectedCount > 0 && ` · ${selectedCount} selected`}
-                        </p>
+                        <div className="flex shrink-0 items-center gap-2">
+                            <p className="text-xs text-[var(--cl-text-muted)]">
+                                {displayParts.length} of {parts.length}
+                            </p>
+                            {selectedCount > 0 && (
+                                <Badge className="border-sky-200 bg-sky-100 text-sky-700 dark:border-sky-700 dark:bg-sky-900/40 dark:text-sky-300" variant="outline">
+                                    {selectedCount} selected
+                                </Badge>
+                            )}
+                        </div>
                     )}
                 </div>
 
@@ -252,12 +265,13 @@ export const SetPartLocationSection = () => {
                                         <TableHead className="w-10 text-center">
                                             <Checkbox
                                                 checked={allSelected ? true : someSelected ? "indeterminate" : false}
+                                                className="border-[var(--cl-text-muted)] bg-[var(--cl-input-bg)] cursor-pointer"
                                                 onCheckedChange={toggleSelectAll}
                                             />
                                         </TableHead>
                                         <TableHead className={`w-8 text-center ${thClass}`}>#</TableHead>
                                         <TableHead className={thClass}>Part Code</TableHead>
-                                        <TableHead className={thClass}>Part Name</TableHead>
+                                        <TableHead className={thClass}>Part Details</TableHead>
                                         <TableHead className={thClass}>UOM</TableHead>
                                         <TableHead className={`${thClass} text-right`}>Qty</TableHead>
                                         <TableHead className={thClass}>Current Location</TableHead>
@@ -285,12 +299,18 @@ export const SetPartLocationSection = () => {
                                                     <TableCell className="text-center">
                                                         <Checkbox
                                                             checked={isSelected}
+                                                            className="border-[var(--cl-text-muted)] bg-[var(--cl-input-bg)] cursor-pointer"
                                                             onCheckedChange={() => toggleRow(part.part_id)}
                                                         />
                                                     </TableCell>
                                                     <TableCell className="text-center text-xs text-[var(--cl-text-muted)]">{idx + 1}</TableCell>
                                                     <TableCell className="font-mono text-sm font-medium text-[var(--cl-text)]">{part.part_code}</TableCell>
-                                                    <TableCell className="text-sm text-[var(--cl-text)]">{part.part_name}</TableCell>
+                                                    <TableCell className="text-sm text-[var(--cl-text)]">
+                                                        {[part.part_name, part.part_description, part.category, part.model]
+                                                            .map(v => v?.trim())
+                                                            .filter(Boolean)
+                                                            .join(" · ")}
+                                                    </TableCell>
                                                     <TableCell className="text-sm text-[var(--cl-text-muted)]">{part.uom ?? "—"}</TableCell>
                                                     <TableCell className="text-right text-sm tabular-nums text-[var(--cl-text)]">{part.qty}</TableCell>
                                                     <TableCell>

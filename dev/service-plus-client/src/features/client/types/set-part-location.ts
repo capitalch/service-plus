@@ -1,11 +1,14 @@
 export type StockBalanceWithLocationType = {
-    part_id:       number;
-    part_code:     string;
-    part_name:     string;
-    uom:           string | null;
-    qty:           number;
-    location_id:   number | null;
-    location_name: string | null;
+    category:         string | null;
+    location_id:      number | null;
+    location_name:    string | null;
+    model:            string | null;
+    part_code:        string;
+    part_description: string | null;
+    part_id:          number;
+    part_name:        string;
+    qty:              number;
+    uom:              string | null;
 };
 
 export type LocationOptionType = {

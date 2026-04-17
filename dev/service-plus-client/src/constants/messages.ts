@@ -175,6 +175,10 @@ export const MESSAGES = {
   SUCCESS_PART_LOCATION_DELETED:          'Part location deleted successfully.',
   SUCCESS_PART_LOCATION_UPDATED:          'Part location updated successfully.',
 
+  // Part Finder
+  ERROR_PART_FINDER_LOAD_FAILED:               'Failed to load parts. Please try again.',
+  ERROR_PART_FINDER_STOCK_BY_LOCATION_FAILED:  'Failed to load stock by location. Please try again.',
+  ERROR_PART_FINDER_HISTORY_LOAD_FAILED:       'Failed to load location history. Please try again.',
   // Set Part Location
   SUCCESS_SET_PART_LOCATIONS:             'Part location(s) set successfully.',
   ERROR_SET_PART_LOCATIONS_FAILED:        'Failed to set part locations. Please try again.',

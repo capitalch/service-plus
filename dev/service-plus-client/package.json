@@ -1,7 +1,7 @@
 {
   "name": "service-plus-client",
   "private": true,
-  "version": "0.0.2",
+  "version": "0.0.3",
   "type": "module",
   "scripts": {
     "start": "vite",
@@ -41,7 +41,7 @@
     "react-redux": "^9.2.0",
     "react-router-dom": "^7.14.1",
     "recharts": "3.8.1",
-    "shadcn": "^4.2.0",
+    "shadcn": "^4.3.0",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.5.0",
     "tailwindcss": "^4.2.2",
@@ -59,12 +59,12 @@
     "cross-var": "^1.1.0",
     "dotenv-cli": "^11.0.0",
     "eslint": "^10.2.0",
-    "eslint-plugin-react-hooks": "^7.0.1",
+    "eslint-plugin-react-hooks": "^7.1.0",
     "eslint-plugin-react-refresh": "^0.5.2",
     "globals": "^17.5.0",
     "pg-to-ts": "^4.1.1",
     "prettier": "^3.8.3",
-    "typescript": "~6.0.2",
+    "typescript": "~6.0.3",
     "typescript-eslint": "^8.58.2",
     "vite": "^8.0.8"
   },

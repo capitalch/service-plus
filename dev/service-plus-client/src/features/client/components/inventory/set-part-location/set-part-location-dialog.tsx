@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Loader2, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -22,32 +22,32 @@ import {
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { MESSAGES } from "@/constants/messages";
 import { SQL_MAP } from "@/constants/sql-map";
-import { useDebounce } from "@/hooks/use-debounce";
-import { apolloClient } from "@/lib/apollo-client";
-import { graphQlUtils } from "@/lib/graphql-utils";
-import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
-import { selectCurrentBranch, selectSchema } from "@/store/context-slice";
 import type { LocationOptionType, SetLocationLineType } from "@/features/client/types/set-part-location";
 import { emptyLine } from "@/features/client/types/set-part-location";
+import { useDebounce } from "@/hooks/use-debounce";
+import { apolloClient } from "@/lib/apollo-client";
+import { encodeObj, graphQlUtils } from "@/lib/graphql-utils";
+import { selectCurrentBranch, selectSchema } from "@/store/context-slice";
+import { useAppSelector } from "@/store/hooks";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type Props = {
-    locations:   LocationOptionType[];
-    open:        boolean;
-    onOpenChange:(open: boolean) => void;
-    onSuccess:   () => void;
+    locations:    LocationOptionType[];
+    onOpenChange: (open: boolean) => void;
+    onSuccess:    () => void;
+    open:         boolean;
 };
 
 type PartQueryRow = {
-    part_id:       number;
-    part_code:     string;
-    part_name:     string;
-    uom:           string | null;
-    qty:           number;
     location_id:   number | null;
     location_name: string | null;
+    part_code:     string;
+    part_id:       number;
+    part_name:     string;
+    qty:           number;
+    uom:           string | null;
 };
 
 type GenericQueryData<T> = { genericQuery: T[] | null };
@@ -64,35 +64,35 @@ const tdCls = "px-2 py-1 border-b border-[var(--cl-border)] text-sm align-top";
 // ─── Row component (isolates debounce per row) ────────────────────────────────
 
 type RowProps = {
-    line:        SetLocationLineType;
-    locations:   LocationOptionType[];
-    allPartCodes:string[];
-    dbName:      string | null;
-    schema:      string | null;
-    branchId:    number;
-    index:       number;
-    onUpdate:    (key: string, patch: Partial<SetLocationLineType>) => void;
-    onRemove:    (key: string) => void;
-    canRemove:   boolean;
+    allPartCodes: string[];
+    branchId:     number;
+    canRemove:    boolean;
+    dbName:       string | null;
+    index:        number;
+    line:         SetLocationLineType;
+    locations:    LocationOptionType[];
+    onRemove:     (key: string) => void;
+    onUpdate:     (key: string, patch: Partial<SetLocationLineType>) => void;
+    schema:       string | null;
 };
 
-function LocationRow({ line, locations, allPartCodes, dbName, schema, branchId, index, onUpdate, onRemove, canRemove }: RowProps) {
+function LocationRow({ allPartCodes, branchId, canRemove, dbName, index, line, locations, onRemove, onUpdate, schema }: RowProps) {
     const debouncedCode = useDebounce(line.part_code, 800);
 
     useEffect(() => {
         const code = debouncedCode.trim();
         if (!code) {
-            onUpdate(line._key, { part_id: null, part_name: "", error: null, validating: false });
+            onUpdate(line._key, { error: null, part_id: null, part_name: "", validating: false });
             return;
         }
         // Duplicate check within the dialog
         const dupeCount = allPartCodes.filter(c => c.trim().toLowerCase() === code.toLowerCase()).length;
         if (dupeCount > 1) {
-            onUpdate(line._key, { part_id: null, part_name: "", error: "Part already added", validating: false });
+            onUpdate(line._key, { error: "Part already added", part_id: null, part_name: "", validating: false });
             return;
         }
         if (!dbName || !schema) return;
-        onUpdate(line._key, { validating: true, error: null });
+        onUpdate(line._key, { error: null, validating: true });
         apolloClient
             .query<GenericQueryData<PartQueryRow>>({
                 fetchPolicy: "network-only",
@@ -110,21 +110,21 @@ function LocationRow({ line, locations, allPartCodes, dbName, schema, branchId, 
                 const row = res.data?.genericQuery?.[0];
                 if (row) {
                     onUpdate(line._key, {
+                        error:     null,
                         part_id:   row.part_id,
                         part_name: row.part_name,
-                        error:     null,
                         validating: false,
                     });
                 } else {
                     onUpdate(line._key, {
+                        error:     MESSAGES.ERROR_SET_PART_LOCATION_PART_NOT_FOUND,
                         part_id:   null,
                         part_name: "",
-                        error:     MESSAGES.ERROR_SET_PART_LOCATION_PART_NOT_FOUND,
                         validating: false,
                     });
                 }
             })
-            .catch(() => onUpdate(line._key, { part_id: null, part_name: "", error: "Validation error", validating: false }));
+            .catch(() => onUpdate(line._key, { error: "Validation error", part_id: null, part_name: "", validating: false }));
     }, [debouncedCode]); // eslint-disable-line react-hooks/exhaustive-deps
 
     return (
@@ -137,7 +137,7 @@ function LocationRow({ line, locations, allPartCodes, dbName, schema, branchId, 
                         className="h-7 text-sm"
                         placeholder="Part code"
                         value={line.part_code}
-                        onChange={(e) => onUpdate(line._key, { part_code: e.target.value, part_id: null, part_name: "", error: null })}
+                        onChange={(e) => onUpdate(line._key, { error: null, part_code: e.target.value, part_id: null, part_name: "" })}
                     />
                     {line.validating && (
                         <span className="flex items-center gap-1 text-xs text-[var(--cl-text-muted)]">
@@ -186,7 +186,7 @@ function LocationRow({ line, locations, allPartCodes, dbName, schema, branchId, 
 
 // ─── Dialog ───────────────────────────────────────────────────────────────────
 
-export const SetPartLocationDialog = ({ locations, open, onOpenChange, onSuccess }: Props) => {
+export const SetPartLocationDialog = ({ locations, onOpenChange, onSuccess, open }: Props) => {
     const dbName        = useAppSelector(selectDbName);
     const schema        = useAppSelector(selectSchema);
     const currentBranch = useAppSelector(selectCurrentBranch);
@@ -247,15 +247,15 @@ export const SetPartLocationDialog = ({ locations, open, onOpenChange, onSuccess
                 variables: {
                     db_name: dbName,
                     schema,
-                    value: graphQlUtils.buildGenericUpdateValue({
+                    value: encodeObj({
                         sql_id:   SQL_MAP.SET_PART_LOCATIONS,
                         sql_args: {
                             branch_id:        currentBranch.id,
-                            part_ids:         lines.map(l => l.part_id),
                             location_ids:     lines.map(l => l.location_id),
+                            part_ids:         lines.map(l => l.part_id),
+                            ref_no:           refNo   || "",
+                            remarks:          remarks || "",
                             transaction_date: txnDate,
-                            ref_no:           refNo    || "",
-                            remarks:          remarks  || "",
                         },
                     }),
                 },
@@ -358,9 +358,9 @@ export const SetPartLocationDialog = ({ locations, open, onOpenChange, onSuccess
                                         index={idx}
                                         line={line}
                                         locations={locations}
-                                        schema={schema}
                                         onRemove={handleRemove}
                                         onUpdate={handleUpdate}
+                                        schema={schema}
                                     />
                                 ))}
                             </tbody>

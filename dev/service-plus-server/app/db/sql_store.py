@@ -1173,6 +1173,9 @@ class SqlStore:
             sb.part_id,
             p.part_code,
             p.part_name,
+            p.part_description,
+            p.category,
+            p.model,
             p.uom,
             sb.qty,
             sb.location_id,
@@ -1233,6 +1236,156 @@ class SqlStore:
           AND slc.branch_id = (table "p_branch_id")
         ORDER BY slc.transaction_date DESC, slc.created_at DESC
         LIMIT 20
+    """
+
+    # ── Part Finder ───────────────────────────────────────────────────────────
+
+    PART_FINDER_COUNT = """
+        with
+            "p_branch_id" as (values(%(branch_id)s::bigint)),
+            "p_search"    as (values(%(search)s::text)),
+            "p_category"  as (values(%(category)s::text)),
+            "p_brand"     as (values(%(brand)s::text)),
+            "p_model"     as (values(%(model)s::text)),
+            "p_location"  as (values(%(location)s::text)),
+            "p_status"    as (values(%(stock_status)s::text))
+        -- with "p_branch_id" as (values(1::bigint)), "p_search" as (values(''::text)),
+        --      "p_category" as (values(''::text)), "p_brand" as (values(''::text)),
+        --      "p_model" as (values(''::text)), "p_location" as (values(''::text)),
+        --      "p_status" as (values('all'::text)) -- Test line
+        SELECT COUNT(*) AS total
+        FROM (
+            SELECT
+                p.id,
+                COALESCE(SUM(sb.qty), 0) AS qty
+            FROM spare_part_master p
+            LEFT JOIN brand b                  ON b.id  = p.brand_id
+            LEFT JOIN stock_balance sb         ON sb.part_id  = p.id
+                                             AND sb.branch_id = (table "p_branch_id")
+            LEFT JOIN stock_location_master lm ON lm.id = sb.location_id
+            WHERE p.is_active = true
+              AND ((table "p_search") = ''
+                   OR LOWER(p.part_code)                  LIKE '%%' || LOWER((table "p_search")) || '%%'
+                   OR LOWER(p.part_name)                  LIKE '%%' || LOWER((table "p_search")) || '%%'
+                   OR LOWER(COALESCE(p.part_description, '')) LIKE '%%' || LOWER((table "p_search")) || '%%')
+              AND ((table "p_category") = '' OR LOWER(COALESCE(p.category, '')) = LOWER((table "p_category")))
+              AND ((table "p_brand")    = '' OR LOWER(COALESCE(b.name, ''))     = LOWER((table "p_brand")))
+              AND ((table "p_model")    = '' OR LOWER(COALESCE(p.model,  ''))   = LOWER((table "p_model")))
+              AND ((table "p_location") = '' OR EXISTS (
+                  SELECT 1 FROM stock_balance sb2
+                  JOIN stock_location_master lm2 ON lm2.id = sb2.location_id
+                  WHERE sb2.part_id   = p.id
+                    AND sb2.branch_id = (table "p_branch_id")
+                    AND LOWER(lm2.name) = LOWER((table "p_location"))
+              ))
+            GROUP BY p.id
+            HAVING
+                (table "p_status") = 'all'
+                OR ((table "p_status") = 'out_of_stock' AND COALESCE(SUM(sb.qty), 0) = 0)
+                OR ((table "p_status") = 'low_stock'    AND COALESCE(SUM(sb.qty), 0) > 0
+                                                        AND COALESCE(SUM(sb.qty), 0) <= 5)
+                OR ((table "p_status") = 'in_stock'     AND COALESCE(SUM(sb.qty), 0) > 5)
+        ) sub
+    """
+
+    PART_FINDER_PAGED = """
+        with
+            "p_branch_id" as (values(%(branch_id)s::bigint)),
+            "p_search"    as (values(%(search)s::text)),
+            "p_category"  as (values(%(category)s::text)),
+            "p_brand"     as (values(%(brand)s::text)),
+            "p_model"     as (values(%(model)s::text)),
+            "p_location"  as (values(%(location)s::text)),
+            "p_status"    as (values(%(stock_status)s::text)),
+            "p_limit"     as (values(%(limit)s::int)),
+            "p_offset"    as (values(%(offset)s::int))
+        -- with "p_branch_id" as (values(1::bigint)), "p_search" as (values(''::text)),
+        --      "p_category" as (values(''::text)), "p_brand" as (values(''::text)),
+        --      "p_model" as (values(''::text)), "p_location" as (values(''::text)),
+        --      "p_status" as (values('all'::text)),
+        --      "p_limit" as (values(50::int)), "p_offset" as (values(0::int)) -- Test line
+        SELECT
+            p.id,
+            p.part_code,
+            p.part_name,
+            p.part_description,
+            p.category,
+            p.model,
+            b.name                                                                    AS brand_name,
+            p.uom,
+            p.cost_price,
+            p.mrp,
+            p.hsn_code,
+            p.gst_rate,
+            COALESCE(SUM(sb.qty), 0)                                                  AS qty,
+            COUNT(DISTINCT sb.location_id) FILTER (WHERE sb.location_id IS NOT NULL)  AS location_count,
+            MIN(lm.name)                                                               AS primary_location,
+            MIN(lm.id)                                                                 AS primary_location_id
+        FROM spare_part_master p
+        LEFT JOIN brand b                  ON b.id  = p.brand_id
+        LEFT JOIN stock_balance sb         ON sb.part_id  = p.id
+                                         AND sb.branch_id = (table "p_branch_id")
+        LEFT JOIN stock_location_master lm ON lm.id = sb.location_id
+        WHERE p.is_active = true
+          AND ((table "p_search") = ''
+               OR LOWER(p.part_code)                  LIKE '%%' || LOWER((table "p_search")) || '%%'
+               OR LOWER(p.part_name)                  LIKE '%%' || LOWER((table "p_search")) || '%%'
+               OR LOWER(COALESCE(p.part_description, '')) LIKE '%%' || LOWER((table "p_search")) || '%%')
+          AND ((table "p_category") = '' OR LOWER(COALESCE(p.category, '')) = LOWER((table "p_category")))
+          AND ((table "p_brand")    = '' OR LOWER(COALESCE(b.name, ''))     = LOWER((table "p_brand")))
+          AND ((table "p_model")    = '' OR LOWER(COALESCE(p.model,  ''))   = LOWER((table "p_model")))
+          AND ((table "p_location") = '' OR EXISTS (
+              SELECT 1 FROM stock_balance sb2
+              JOIN stock_location_master lm2 ON lm2.id = sb2.location_id
+              WHERE sb2.part_id   = p.id
+                AND sb2.branch_id = (table "p_branch_id")
+                AND LOWER(lm2.name) = LOWER((table "p_location"))
+          ))
+        GROUP BY p.id, p.part_code, p.part_name, p.part_description, p.category, p.model,
+                 b.name, p.uom, p.cost_price, p.mrp, p.hsn_code, p.gst_rate
+        HAVING
+            (table "p_status") = 'all'
+            OR ((table "p_status") = 'out_of_stock' AND COALESCE(SUM(sb.qty), 0) = 0)
+            OR ((table "p_status") = 'low_stock'    AND COALESCE(SUM(sb.qty), 0) > 0
+                                                    AND COALESCE(SUM(sb.qty), 0) <= 5)
+            OR ((table "p_status") = 'in_stock'     AND COALESCE(SUM(sb.qty), 0) > 5)
+        ORDER BY p.part_code
+        LIMIT  (table "p_limit")
+        OFFSET (table "p_offset")
+    """
+
+    PART_FINDER_DISTINCT_CATEGORIES = """
+        SELECT DISTINCT category AS value
+        FROM spare_part_master
+        WHERE is_active = true
+          AND category IS NOT NULL
+          AND category <> ''
+        ORDER BY category
+    """
+
+    PART_FINDER_DISTINCT_MODELS = """
+        SELECT DISTINCT model AS value
+        FROM spare_part_master
+        WHERE is_active = true
+          AND model IS NOT NULL
+          AND model <> ''
+        ORDER BY model
+    """
+
+    PART_FINDER_STOCK_BY_LOCATION = """
+        with
+            "p_part_id"   as (values(%(part_id)s::bigint)),
+            "p_branch_id" as (values(%(branch_id)s::bigint))
+        -- with "p_part_id" as (values(1::bigint)), "p_branch_id" as (values(1::bigint)) -- Test line
+        SELECT
+            lm.id   AS location_id,
+            lm.name AS location_name,
+            sb.qty
+        FROM stock_balance sb
+        JOIN stock_location_master lm ON lm.id = sb.location_id
+        WHERE sb.part_id   = (table "p_part_id")
+          AND sb.branch_id = (table "p_branch_id")
+        ORDER BY lm.name
     """
 
     SET_PART_LOCATIONS = """

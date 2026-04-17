@@ -2,10 +2,11 @@ import { ClientLayout, useClientSelection } from "../components/client-layout";
 import { BranchTransferSection } from "../components/inventory/branch-transfer/branch-transfer-section";
 import { LoanEntrySection } from "../components/inventory/loan-entry/loan-entry-section";
 import { OpeningStockSection } from "../components/inventory/opening-stock/opening-stock-section";
+import { PartFinderPage } from "../components/inventory/part-finder/part-finder-page";
 import { PurchaseEntrySection } from "../components/inventory/purchase-entry/purchase-entry-section";
 import { SalesEntrySection } from "../components/inventory/sales-entry/sales-entry-section";
-import { StockAdjustmentSection } from "../components/inventory/stock-adjustment/stock-adjustment-section";
 import { SetPartLocationSection } from "../components/inventory/set-part-location/set-part-location-section";
+import { StockAdjustmentSection } from "../components/inventory/stock-adjustment/stock-adjustment-section";
 import { StockOverviewSection } from "../components/stock-overview-section";
 
 // ─── Coming Soon placeholder ──────────────────────────────────────────────────
@@ -43,6 +44,8 @@ function InventoryContent() {
             return <LoanEntrySection />;
         case "Opening Stock":
             return <OpeningStockSection />;
+        case "Part Finder":
+            return <PartFinderPage />;
         case "Set Part Location":
             return <SetPartLocationSection />;
         default:
