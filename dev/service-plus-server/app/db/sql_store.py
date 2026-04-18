@@ -1254,38 +1254,27 @@ class SqlStore:
         --      "p_model" as (values(''::text)), "p_location" as (values(''::text)),
         --      "p_status" as (values('all'::text)) -- Test line
         SELECT COUNT(*) AS total
-        FROM (
-            SELECT
-                p.id,
-                COALESCE(SUM(sb.qty), 0) AS qty
-            FROM spare_part_master p
-            LEFT JOIN brand b                  ON b.id  = p.brand_id
-            LEFT JOIN stock_balance sb         ON sb.part_id  = p.id
-                                             AND sb.branch_id = (table "p_branch_id")
-            LEFT JOIN stock_location_master lm ON lm.id = sb.location_id
-            WHERE p.is_active = true
-              AND ((table "p_search") = ''
-                   OR LOWER(p.part_code)                  LIKE '%%' || LOWER((table "p_search")) || '%%'
-                   OR LOWER(p.part_name)                  LIKE '%%' || LOWER((table "p_search")) || '%%'
-                   OR LOWER(COALESCE(p.part_description, '')) LIKE '%%' || LOWER((table "p_search")) || '%%')
-              AND ((table "p_category") = '' OR LOWER(COALESCE(p.category, '')) = LOWER((table "p_category")))
-              AND ((table "p_brand")    = '' OR LOWER(COALESCE(b.name, ''))     = LOWER((table "p_brand")))
-              AND ((table "p_model")    = '' OR LOWER(COALESCE(p.model,  ''))   = LOWER((table "p_model")))
-              AND ((table "p_location") = '' OR EXISTS (
-                  SELECT 1 FROM stock_balance sb2
-                  JOIN stock_location_master lm2 ON lm2.id = sb2.location_id
-                  WHERE sb2.part_id   = p.id
-                    AND sb2.branch_id = (table "p_branch_id")
-                    AND LOWER(lm2.name) = LOWER((table "p_location"))
-              ))
-            GROUP BY p.id
-            HAVING
-                (table "p_status") = 'all'
-                OR ((table "p_status") = 'out_of_stock' AND COALESCE(SUM(sb.qty), 0) = 0)
-                OR ((table "p_status") = 'low_stock'    AND COALESCE(SUM(sb.qty), 0) > 0
-                                                        AND COALESCE(SUM(sb.qty), 0) <= 5)
-                OR ((table "p_status") = 'in_stock'     AND COALESCE(SUM(sb.qty), 0) > 5)
-        ) sub
+        FROM spare_part_master p
+        LEFT JOIN brand b                  ON b.id  = p.brand_id
+        LEFT JOIN stock_balance sb         ON sb.part_id  = p.id
+                                         AND sb.branch_id = (table "p_branch_id")
+        LEFT JOIN stock_location_master lm ON lm.id = sb.location_id
+        WHERE p.is_active = true
+          AND ((table "p_search") = ''
+               OR LOWER(p.part_code)                      LIKE '%%' || LOWER((table "p_search")) || '%%'
+               OR LOWER(p.part_name)                      LIKE '%%' || LOWER((table "p_search")) || '%%'
+               OR LOWER(COALESCE(p.part_description, '')) LIKE '%%' || LOWER((table "p_search")) || '%%')
+          AND ((table "p_category") = '' OR LOWER(COALESCE(p.category, '')) = LOWER((table "p_category")))
+          AND ((table "p_brand")    = '' OR LOWER(COALESCE(b.name, ''))     = LOWER((table "p_brand")))
+          AND ((table "p_model")    = '' OR LOWER(COALESCE(p.model,  ''))   = LOWER((table "p_model")))
+          AND ((table "p_location") = '' OR LOWER(COALESCE(lm.name, ''))   = LOWER((table "p_location")))
+          AND (
+              (table "p_status") = 'all'
+              OR ((table "p_status") = 'out_of_stock' AND COALESCE(sb.qty, 0) = 0)
+              OR ((table "p_status") = 'low_stock'    AND COALESCE(sb.qty, 0) > 0
+                                                      AND COALESCE(sb.qty, 0) <= 5)
+              OR ((table "p_status") = 'in_stock'     AND COALESCE(sb.qty, 0) > 5)
+          )
     """
 
     PART_FINDER_PAGED = """
@@ -1311,16 +1300,17 @@ class SqlStore:
             p.part_description,
             p.category,
             p.model,
-            b.name                                                                    AS brand_name,
+            b.name                                          AS brand_name,
             p.uom,
             p.cost_price,
             p.mrp,
             p.hsn_code,
             p.gst_rate,
-            COALESCE(SUM(sb.qty), 0)                                                  AS qty,
-            COUNT(DISTINCT sb.location_id) FILTER (WHERE sb.location_id IS NOT NULL)  AS location_count,
-            MIN(lm.name)                                                               AS primary_location,
-            MIN(lm.id)                                                                 AS primary_location_id
+            COALESCE(sb.qty, 0)                             AS qty,
+            CASE WHEN sb.location_id IS NOT NULL THEN 1
+                 ELSE 0 END                                 AS location_count,
+            lm.name                                         AS primary_location,
+            lm.id                                           AS primary_location_id
         FROM spare_part_master p
         LEFT JOIN brand b                  ON b.id  = p.brand_id
         LEFT JOIN stock_balance sb         ON sb.part_id  = p.id
@@ -1328,27 +1318,20 @@ class SqlStore:
         LEFT JOIN stock_location_master lm ON lm.id = sb.location_id
         WHERE p.is_active = true
           AND ((table "p_search") = ''
-               OR LOWER(p.part_code)                  LIKE '%%' || LOWER((table "p_search")) || '%%'
-               OR LOWER(p.part_name)                  LIKE '%%' || LOWER((table "p_search")) || '%%'
+               OR LOWER(p.part_code)                      LIKE '%%' || LOWER((table "p_search")) || '%%'
+               OR LOWER(p.part_name)                      LIKE '%%' || LOWER((table "p_search")) || '%%'
                OR LOWER(COALESCE(p.part_description, '')) LIKE '%%' || LOWER((table "p_search")) || '%%')
           AND ((table "p_category") = '' OR LOWER(COALESCE(p.category, '')) = LOWER((table "p_category")))
           AND ((table "p_brand")    = '' OR LOWER(COALESCE(b.name, ''))     = LOWER((table "p_brand")))
           AND ((table "p_model")    = '' OR LOWER(COALESCE(p.model,  ''))   = LOWER((table "p_model")))
-          AND ((table "p_location") = '' OR EXISTS (
-              SELECT 1 FROM stock_balance sb2
-              JOIN stock_location_master lm2 ON lm2.id = sb2.location_id
-              WHERE sb2.part_id   = p.id
-                AND sb2.branch_id = (table "p_branch_id")
-                AND LOWER(lm2.name) = LOWER((table "p_location"))
-          ))
-        GROUP BY p.id, p.part_code, p.part_name, p.part_description, p.category, p.model,
-                 b.name, p.uom, p.cost_price, p.mrp, p.hsn_code, p.gst_rate
-        HAVING
-            (table "p_status") = 'all'
-            OR ((table "p_status") = 'out_of_stock' AND COALESCE(SUM(sb.qty), 0) = 0)
-            OR ((table "p_status") = 'low_stock'    AND COALESCE(SUM(sb.qty), 0) > 0
-                                                    AND COALESCE(SUM(sb.qty), 0) <= 5)
-            OR ((table "p_status") = 'in_stock'     AND COALESCE(SUM(sb.qty), 0) > 5)
+          AND ((table "p_location") = '' OR LOWER(COALESCE(lm.name, ''))   = LOWER((table "p_location")))
+          AND (
+              (table "p_status") = 'all'
+              OR ((table "p_status") = 'out_of_stock' AND COALESCE(sb.qty, 0) = 0)
+              OR ((table "p_status") = 'low_stock'    AND COALESCE(sb.qty, 0) > 0
+                                                      AND COALESCE(sb.qty, 0) <= 5)
+              OR ((table "p_status") = 'in_stock'     AND COALESCE(sb.qty, 0) > 5)
+          )
         ORDER BY p.part_code
         LIMIT  (table "p_limit")
         OFFSET (table "p_offset")

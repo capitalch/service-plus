@@ -2485,6 +2485,12 @@ CREATE INDEX job_technician_idx ON demo1.job USING btree (technician_id);
 
 CREATE INDEX stock_balance_location_id_idx ON demo1.stock_balance USING btree (location_id) WITH (deduplicate_items='true');
 
+--
+-- Name: spare_part_master_is_active_part_code_idx; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX spare_part_master_is_active_part_code_idx ON demo1.spare_part_master USING btree (part_code) WHERE (is_active = true);
+
 
 --
 -- Name: stock_branch_transfer_from_branch_id_idx; Type: INDEX; Schema: demo1; Owner: webadmin

@@ -1,10 +1,7 @@
 export type PartFinderFiltersType = {
-    brands:      string[];
-    categories:  string[];
-    locations:   string[];
-    models:      string[];
-    search:      string;
-    stockStatus: StockStatusType;
+    categories: string[];
+    models:     string[];
+    search:     string;
 };
 
 export type PartFinderResultType = {
@@ -34,13 +31,15 @@ export type PartFinderStockByLocationType = {
 
 export type StockStatusType = "all" | "in_stock" | "low_stock" | "out_of_stock";
 
+export type FilterOptionsType = {
+    categories: string[];
+    models:     string[];
+};
+
 export const DEFAULT_FILTERS: PartFinderFiltersType = {
-    brands:      [],
-    categories:  [],
-    locations:   [],
-    models:      [],
-    search:      "",
-    stockStatus: "all",
+    categories: [],
+    models:     [],
+    search:     "",
 };
 
 export function getStockStatus(qty: number): StockStatusType {

@@ -2,7 +2,6 @@ import { motion } from "framer-motion";
 import { MapPin, Package } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import type { PartFinderResultType } from "@/features/client/types/part-finder";
 import { getStockStatus } from "@/features/client/types/part-finder";
@@ -122,15 +121,6 @@ function PartCard({ isSelected, onSelect, part }: CardItemProps) {
                     </div>
                 )}
 
-                {/* View details button */}
-                <Button
-                    className="mt-auto h-7 w-full border border-[var(--cl-border)] bg-[var(--cl-surface-3)] text-xs text-[var(--cl-text-muted)] hover:bg-[var(--cl-hover)] hover:text-[var(--cl-text)]"
-                    size="sm"
-                    variant="outline"
-                    onClick={e => { e.stopPropagation(); onSelect(part); }}
-                >
-                    View Details
-                </Button>
             </Card>
         </motion.div>
     );

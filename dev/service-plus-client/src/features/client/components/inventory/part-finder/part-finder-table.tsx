@@ -1,9 +1,8 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { ArrowDown, ArrowUp, ArrowUpDown, CheckIcon, CopyIcon, EyeIcon, MapPin, Package } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, CheckIcon, CopyIcon, MapPin, Package } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
     Table,
     TableBody,
@@ -158,7 +157,7 @@ export const PartFinderTable = ({ loading, onSelectPart, parts, selectedId }: Pr
                 <Table>
                     <TableHeader>
                         <TableRow className="sticky top-0 z-10 bg-[var(--cl-surface-3)] hover:bg-[var(--cl-surface-3)]">
-                            <TableHead className={`w-8 text-center ${thClass}`}>#</TableHead>
+                            <TableHead className="w-10" />
                             <ColHead field="part_code"       label="Part Code" />
                             <ColHead field="part_name"       label="Part Name" />
                             <ColHead field="brand_name"      label="Brand" />
@@ -168,7 +167,6 @@ export const PartFinderTable = ({ loading, onSelectPart, parts, selectedId }: Pr
                             <ColHead field="qty"             label="Qty" />
                             <TableHead className={thClass}>UOM</TableHead>
                             <TableHead className={thClass}>Status</TableHead>
-                            <TableHead className={`${thClass} text-center`}>Details</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -177,10 +175,10 @@ export const PartFinderTable = ({ loading, onSelectPart, parts, selectedId }: Pr
                             return (
                                 <motion.tr
                                     animate="visible"
-                                    className={`cursor-pointer border-b border-[var(--cl-border)] last:border-b-0 hover:bg-[var(--cl-surface-3)] ${
+                                    className={`cursor-pointer border-b transition-colors last:border-b-0 ${
                                         isActive
-                                            ? "bg-[var(--cl-accent)]/10 hover:bg-[var(--cl-accent)]/10"
-                                            : idx % 2 === 1 ? "bg-[var(--cl-surface-3)]/40" : ""
+                                            ? "border-[var(--cl-accent)]/30 bg-[var(--cl-accent)]/15 hover:bg-[var(--cl-accent)]/20"
+                                            : "border-[var(--cl-border)] hover:bg-[var(--cl-surface-3)] " + (idx % 2 === 1 ? "bg-[var(--cl-surface-3)]/40" : "")
                                     }`}
                                     custom={idx}
                                     initial="hidden"
@@ -188,7 +186,15 @@ export const PartFinderTable = ({ loading, onSelectPart, parts, selectedId }: Pr
                                     variants={rowVariants}
                                     onClick={() => onSelectPart(part)}
                                 >
-                                    <TableCell className="text-center text-xs text-[var(--cl-text-muted)]">{idx + 1}</TableCell>
+                                    <TableCell className="w-10 pl-3 pr-1">
+                                        <div className={`flex h-4 w-4 items-center justify-center rounded border-2 transition-colors ${
+                                            isActive
+                                                ? "border-[var(--cl-accent)] bg-[var(--cl-accent)]"
+                                                : "border-[var(--cl-border)] bg-transparent"
+                                        }`}>
+                                            {isActive && <CheckIcon className="h-2.5 w-2.5 text-white" />}
+                                        </div>
+                                    </TableCell>
                                     <TableCell onClick={e => e.stopPropagation()}>
                                         <CopyCode code={part.part_code} />
                                     </TableCell>
@@ -232,16 +238,6 @@ export const PartFinderTable = ({ loading, onSelectPart, parts, selectedId }: Pr
                                     </TableCell>
                                     <TableCell className="text-sm text-[var(--cl-text-muted)]">{part.uom ?? "—"}</TableCell>
                                     <TableCell><StockBadge qty={part.qty} /></TableCell>
-                                    <TableCell className="text-center">
-                                        <Button
-                                            className="h-6 w-6 p-0 text-[var(--cl-text-muted)] hover:text-[var(--cl-text)]"
-                                            size="sm"
-                                            variant="ghost"
-                                            onClick={e => { e.stopPropagation(); onSelectPart(part); }}
-                                        >
-                                            <EyeIcon className="h-3.5 w-3.5" />
-                                        </Button>
-                                    </TableCell>
                                 </motion.tr>
                             );
                         })}

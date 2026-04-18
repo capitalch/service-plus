@@ -5,6 +5,10 @@ CLIENT_DIR="/home/sushant/projects/service-plus/dev/service-plus-client"
 SERVER_DIR="/home/sushant/projects/service-plus/dev/service-plus-server"
 DEPLOY_DIR="/home/sushant/projects/service-plus/deployment/final"
 
+#echo "🚀 Incrementing the version..."
+#pnpm version patch
+#pnpm version minor
+#pnpm version major
 echo "🚀 Starting Deployment Script..."
 
 # 0. Cleanup old deployment files
