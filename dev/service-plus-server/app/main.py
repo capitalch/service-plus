@@ -14,6 +14,7 @@ from app.graphql.schema import create_graphql_app
 from app.logger import logger, configure_for_uvicorn
 from app.routers.auth_router import router as auth_router
 from app.routers.base_router import router as base_router
+from app.scheduler import start_scheduler, stop_scheduler
 
 
 
@@ -44,7 +45,9 @@ async def lifespan(app: FastAPI):
     if purged:
         logger.info("Purged %d old audit log file(s)", purged)
     logger.info(AppMessages.SERVER_STARTED)
+    start_scheduler()
     yield  # Shutdown
+    stop_scheduler()
     logger.info(AppMessages.SERVER_STOPPED)
 
 

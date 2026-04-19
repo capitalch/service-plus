@@ -380,6 +380,11 @@ export const MESSAGES = {
   SUCCESS_LOAN_UPDATED:                'Loan entry updated successfully.',
   SUCCESS_LOAN_DELETED:                'Loan entry deleted successfully.',
 
+  // Stock Snapshot
+  ERROR_STOCK_SNAPSHOT_FAILED:       'Failed to generate stock snapshot. Please try again.',
+  ERROR_STOCK_SNAPSHOT_NO_DATA:      'No stock transactions found for the selected period.',
+  INFO_STOCK_SNAPSHOT_NO_SNAPSHOT:   'No snapshot recorded yet. Showing live transaction data.',
+  SUCCESS_STOCK_SNAPSHOT_GENERATED:  'Stock snapshot generated successfully.',
   // Opening Stock
   ERROR_OPENING_STOCK_LOAD_FAILED:        'Failed to load opening stock. Please try again.',
   ERROR_OPENING_STOCK_CREATE_FAILED:      'Failed to save opening stock. Please try again.',

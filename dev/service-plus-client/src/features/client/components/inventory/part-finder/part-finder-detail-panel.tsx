@@ -10,13 +10,11 @@ import { SQL_MAP } from "@/constants/sql-map";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { SetPartLocationDialog } from "@/features/client/components/inventory/set-part-location/set-part-location-dialog";
 import type { LocationOptionType, PartLocationHistoryType } from "@/features/client/types/set-part-location";
-import type { PartFinderResultType, PartFinderStockByLocationType } from "@/features/client/types/part-finder";
+import type { PartFinderResultType, PartFinderStockByLocationType, PartFinderStockSummaryType } from "@/features/client/types/part-finder";
 import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
 import { selectCurrentBranch, selectSchema } from "@/store/context-slice";
 import { useAppSelector } from "@/store/hooks";
-import { PartFinderStockChart } from "./part-finder-stock-chart";
-
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type TabType = "history" | "overview" | "stock";
@@ -46,8 +44,8 @@ function TabBtn({ active, label, onClick }: { active: boolean; label: string; on
         <button
             className={`flex-1 rounded-md px-2 py-1.5 text-xs font-medium transition-colors ${
                 active
-                    ? "bg-[var(--cl-accent)] text-white shadow"
-                    : "text-[var(--cl-text-muted)] hover:bg-[var(--cl-hover)] hover:text-[var(--cl-text)]"
+                    ? "bg-[var(--cl-accent)] text-white shadow cursor-pointer"
+                    : "text-[var(--cl-text-muted)] hover:bg-[var(--cl-hover)] hover:text-[var(--cl-text)] cursor-pointer"
             }`}
             type="button"
             onClick={onClick}
@@ -64,30 +62,46 @@ export const PartFinderDetailPanel = ({ locations, onClose, onRefresh, part }: P
     const schema        = useAppSelector(selectSchema);
     const currentBranch = useAppSelector(selectCurrentBranch);
 
-    const [tab,           setTab]           = useState<TabType>("overview");
-    const [stockByLoc,    setStockByLoc]    = useState<PartFinderStockByLocationType[]>([]);
-    const [history,       setHistory]       = useState<PartLocationHistoryType[]>([]);
-    const [loadingStock,  setLoadingStock]  = useState(false);
-    const [loadingHist,   setLoadingHist]   = useState(false);
-    const [locDialogOpen, setLocDialogOpen] = useState(false);
+    const [tab,            setTab]            = useState<TabType>("overview");
+    const [stockByLoc,     setStockByLoc]     = useState<PartFinderStockByLocationType[]>([]);
+    const [stockSummary,   setStockSummary]   = useState<PartFinderStockSummaryType | null>(null);
+    const [history,        setHistory]        = useState<PartLocationHistoryType[]>([]);
+    const [loadingStock,   setLoadingStock]   = useState(false);
+    const [loadingHist,    setLoadingHist]    = useState(false);
+    const [locDialogOpen,  setLocDialogOpen]  = useState(false);
 
     const loadStockByLoc = useCallback(async () => {
         if (!dbName || !schema || !currentBranch || !part) return;
         setLoadingStock(true);
         try {
-            const res = await apolloClient.query<GenericQueryData<PartFinderStockByLocationType>>({
-                fetchPolicy: "network-only",
-                query:       GRAPHQL_MAP.genericQuery,
-                variables:   {
-                    db_name: dbName,
-                    schema,
-                    value: graphQlUtils.buildGenericQueryValue({
-                        sqlArgs: { branch_id: currentBranch.id, part_id: part.id },
-                        sqlId:   SQL_MAP.PART_FINDER_STOCK_BY_LOCATION,
-                    }),
-                },
-            });
-            setStockByLoc(res.data?.genericQuery ?? []);
+            const [locRes, summaryRes] = await Promise.all([
+                apolloClient.query<GenericQueryData<PartFinderStockByLocationType>>({
+                    fetchPolicy: "network-only",
+                    query:       GRAPHQL_MAP.genericQuery,
+                    variables:   {
+                        db_name: dbName,
+                        schema,
+                        value: graphQlUtils.buildGenericQueryValue({
+                            sqlArgs: { branch_id: currentBranch.id, part_id: part.id },
+                            sqlId:   SQL_MAP.PART_FINDER_STOCK_BY_LOCATION,
+                        }),
+                    },
+                }),
+                apolloClient.query<GenericQueryData<PartFinderStockSummaryType>>({
+                    fetchPolicy: "network-only",
+                    query:       GRAPHQL_MAP.genericQuery,
+                    variables:   {
+                        db_name: dbName,
+                        schema,
+                        value: graphQlUtils.buildGenericQueryValue({
+                            sqlArgs: { branch_id: currentBranch.id, part_id: part.id },
+                            sqlId:   SQL_MAP.PART_FINDER_STOCK_SUMMARY,
+                        }),
+                    },
+                }),
+            ]);
+            setStockByLoc(locRes.data?.genericQuery ?? []);
+            setStockSummary(summaryRes.data?.genericQuery?.[0] ?? null);
         } catch {
             toast.error(MESSAGES.ERROR_PART_FINDER_STOCK_BY_LOCATION_FAILED);
         } finally {
@@ -124,6 +138,7 @@ export const PartFinderDetailPanel = ({ locations, onClose, onRefresh, part }: P
         if (part) {
             setTab("overview");
             setStockByLoc([]);
+            setStockSummary(null);
             setHistory([]);
         }
     }, [part?.id]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -248,7 +263,7 @@ export const PartFinderDetailPanel = ({ locations, onClose, onRefresh, part }: P
                                 <div className="space-y-4">
                                     <div className="flex items-center justify-between">
                                         <div>
-                                            <p className="text-xs text-[var(--cl-text-muted)]">Total Stock</p>
+                                            <p className="text-xs text-[var(--cl-text-muted)]">Current Stock</p>
                                             <p className={`text-2xl font-bold tabular-nums ${
                                                 part.qty <= 0 ? "text-rose-600" : part.qty <= 5 ? "text-amber-600" : "text-emerald-600"
                                             }`}>
@@ -268,44 +283,111 @@ export const PartFinderDetailPanel = ({ locations, onClose, onRefresh, part }: P
 
                                     {loadingStock ? (
                                         <div className="space-y-2">
-                                            {Array.from({ length: 3 }).map((_, i) => (
+                                            {Array.from({ length: 4 }).map((_, i) => (
                                                 <div key={i} className="h-8 animate-pulse rounded bg-[var(--cl-surface-3)]" />
                                             ))}
                                         </div>
-                                    ) : stockByLoc.length === 0 ? (
-                                        <div className="rounded-lg border border-[var(--cl-border)] bg-[var(--cl-surface-3)] px-4 py-6 text-center text-sm text-[var(--cl-text-muted)]">
-                                            No location data available
-                                        </div>
                                     ) : (
                                         <>
-                                            <div className="overflow-hidden rounded-lg border border-[var(--cl-border)]">
-                                                <table className="w-full text-sm">
-                                                    <thead className="bg-[var(--cl-surface-3)]">
-                                                        <tr>
-                                                            <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[var(--cl-text-muted)]">Location</th>
-                                                            <th className="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wide text-[var(--cl-text-muted)]">Qty</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody className="divide-y divide-[var(--cl-border)]">
-                                                        {stockByLoc.map(loc => (
-                                                            <tr key={loc.location_id} className="hover:bg-[var(--cl-surface-3)]">
-                                                                <td className="px-3 py-2 text-[var(--cl-text)]">
-                                                                    <span className="flex items-center gap-1.5">
-                                                                        <MapPin className="h-3 w-3 text-[var(--cl-text-muted)]" />
-                                                                        {loc.location_name}
-                                                                    </span>
-                                                                </td>
-                                                                <td className={`px-3 py-2 text-right font-bold tabular-nums ${
-                                                                    loc.qty <= 0 ? "text-rose-600" : loc.qty <= 5 ? "text-amber-600" : "text-emerald-600"
-                                                                }`}>
-                                                                    {loc.qty}
-                                                                </td>
-                                                            </tr>
-                                                        ))}
-                                                    </tbody>
-                                                </table>
+                                            {/* Snapshot summary */}
+                                            <div className="rounded-lg border border-[var(--cl-border)] bg-[var(--cl-surface-3)] p-3 text-xs">
+                                                {stockSummary?.last_snapshot_date ? (
+                                                    <>
+                                                        <div className="mb-2 flex items-center justify-between">
+                                                            <span className="font-semibold text-[var(--cl-text-muted)]">Last Snapshot</span>
+                                                            <span className="font-mono text-[var(--cl-text)]">{stockSummary.last_snapshot_date}</span>
+                                                        </div>
+                                                        <div className="mb-2 flex items-center justify-between border-b border-[var(--cl-border)] pb-2">
+                                                            <span className="text-[var(--cl-text-muted)]">Snapshot Balance</span>
+                                                            <span className="font-bold tabular-nums text-[var(--cl-text)]">{stockSummary.snapshot_closing.toFixed(3)}</span>
+                                                        </div>
+                                                        <p className="mb-1 font-semibold uppercase tracking-wide text-[var(--cl-accent-text)]">Since snapshot</p>
+                                                        <div className="space-y-1">
+                                                            {stockSummary.purchase_in_since > 0 && (
+                                                                <div className="flex justify-between">
+                                                                    <span className="text-[var(--cl-text-muted)]">Purchase In</span>
+                                                                    <span className="tabular-nums text-emerald-600">+{stockSummary.purchase_in_since.toFixed(3)}</span>
+                                                                </div>
+                                                            )}
+                                                            {stockSummary.purchase_out_since > 0 && (
+                                                                <div className="flex justify-between">
+                                                                    <span className="text-[var(--cl-text-muted)]">Purchase Return</span>
+                                                                    <span className="tabular-nums text-rose-600">-{stockSummary.purchase_out_since.toFixed(3)}</span>
+                                                                </div>
+                                                            )}
+                                                            {stockSummary.sales_in_since > 0 && (
+                                                                <div className="flex justify-between">
+                                                                    <span className="text-[var(--cl-text-muted)]">Sales Return</span>
+                                                                    <span className="tabular-nums text-emerald-600">+{stockSummary.sales_in_since.toFixed(3)}</span>
+                                                                </div>
+                                                            )}
+                                                            {stockSummary.sales_out_since > 0 && (
+                                                                <div className="flex justify-between">
+                                                                    <span className="text-[var(--cl-text-muted)]">Sales Out</span>
+                                                                    <span className="tabular-nums text-rose-600">-{stockSummary.sales_out_since.toFixed(3)}</span>
+                                                                </div>
+                                                            )}
+                                                            {stockSummary.adjust_in_since > 0 && (
+                                                                <div className="flex justify-between">
+                                                                    <span className="text-[var(--cl-text-muted)]">Adjustment In</span>
+                                                                    <span className="tabular-nums text-emerald-600">+{stockSummary.adjust_in_since.toFixed(3)}</span>
+                                                                </div>
+                                                            )}
+                                                            {stockSummary.adjust_out_since > 0 && (
+                                                                <div className="flex justify-between">
+                                                                    <span className="text-[var(--cl-text-muted)]">Adjustment Out</span>
+                                                                    <span className="tabular-nums text-rose-600">-{stockSummary.adjust_out_since.toFixed(3)}</span>
+                                                                </div>
+                                                            )}
+                                                            <div className="flex justify-between border-t border-[var(--cl-border)] pt-1 font-semibold">
+                                                                <span className="text-[var(--cl-text-muted)]">Net</span>
+                                                                <span className={`tabular-nums ${stockSummary.net_since_snapshot >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
+                                                                    {stockSummary.net_since_snapshot >= 0 ? "+" : ""}{stockSummary.net_since_snapshot.toFixed(3)}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    </>
+                                                ) : (
+                                                    <p className="text-center text-[var(--cl-text-muted)]">
+                                                        No snapshot yet — all balance from live transactions
+                                                    </p>
+                                                )}
                                             </div>
-                                            <PartFinderStockChart data={stockByLoc} />
+
+                                            {/* Stock by location table */}
+                                            {stockByLoc.length === 0 ? (
+                                                <div className="rounded-lg border border-[var(--cl-border)] bg-[var(--cl-surface-3)] px-4 py-6 text-center text-sm text-[var(--cl-text-muted)]">
+                                                    No location data available
+                                                </div>
+                                            ) : (
+                                                <div className="overflow-hidden rounded-lg border border-[var(--cl-border)]">
+                                                    <table className="w-full text-sm">
+                                                        <thead className="bg-[var(--cl-surface-3)]">
+                                                            <tr>
+                                                                <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[var(--cl-text-muted)]">Location</th>
+                                                                <th className="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wide text-[var(--cl-text-muted)]">Qty</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody className="divide-y divide-[var(--cl-border)]">
+                                                            {stockByLoc.map(loc => (
+                                                                <tr key={loc.location_id} className="hover:bg-[var(--cl-surface-3)]">
+                                                                    <td className="px-3 py-2 text-[var(--cl-text)]">
+                                                                        <span className="flex items-center gap-1.5">
+                                                                            <MapPin className="h-3 w-3 text-[var(--cl-text-muted)]" />
+                                                                            {loc.location_name}
+                                                                        </span>
+                                                                    </td>
+                                                                    <td className={`px-3 py-2 text-right font-bold tabular-nums ${
+                                                                        loc.qty <= 0 ? "text-rose-600" : loc.qty <= 5 ? "text-amber-600" : "text-emerald-600"
+                                                                    }`}>
+                                                                        {loc.qty}
+                                                                    </td>
+                                                                </tr>
+                                                            ))}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            )}
                                         </>
                                     )}
                                 </div>

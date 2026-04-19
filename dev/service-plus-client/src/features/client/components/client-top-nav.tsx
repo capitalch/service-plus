@@ -40,7 +40,7 @@ export const ClientTopNav = ({ activeSection }: Props) => {
                 {/* Mobile Menu Toggle — opens the Explorer Panel which has section nav + sub-items */}
                 <button
                     onClick={toggleExplorer}
-                    className="rounded p-1.5 text-[var(--cl-text-muted)] transition-colors hover:bg-[var(--cl-hover)] hover:text-[var(--cl-text)] md:hidden focus:outline-none"
+                    className="rounded p-1.5 text-[var(--cl-text-muted)] transition-colors hover:bg-[var(--cl-hover)] hover:text-[var(--cl-text)] md:hidden focus:outline-none cursor-pointer"
                     title="Open menu"
                 >
                     <Menu className="h-4 w-4" />
@@ -49,7 +49,7 @@ export const ClientTopNav = ({ activeSection }: Props) => {
                 {/* Explorer Toggle on md+ */}
                 <button
                     onClick={toggleExplorer}
-                    className="hidden shrink-0 rounded p-1.5 text-[var(--cl-text-muted)] transition-colors hover:bg-[var(--cl-hover)] hover:text-[var(--cl-text)] md:block focus:outline-none"
+                    className="hidden shrink-0 rounded p-1.5 text-[var(--cl-text-muted)] transition-colors hover:bg-[var(--cl-hover)] hover:text-[var(--cl-text)] md:block focus:outline-none cursor-pointer"
                     title="Toggle explorer"
                 >
                     <PanelLeft className="h-4 w-4" />
@@ -63,7 +63,7 @@ export const ClientTopNav = ({ activeSection }: Props) => {
                             key={to}
                             to={to}
                             end={end}
-                            className={`cursor-pointer pb-1 text-[13px] lg:text-sm font-medium tracking-tight transition-all active:scale-95 whitespace-nowrap ${
+                            className={`flex h-full cursor-pointer items-center pb-1 text-[13px] lg:text-sm font-medium tracking-tight transition-all active:scale-95 whitespace-nowrap ${
                                 activeSection === section
                                     ? 'border-b-2 border-[var(--cl-accent)] text-[var(--cl-text)]'
                                     : 'text-[var(--cl-text-muted)] hover:text-[var(--cl-text)]'

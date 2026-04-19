@@ -1,7 +1,5 @@
 export type PartFinderFiltersType = {
-    categories: string[];
-    models:     string[];
-    search:     string;
+    search: string;
 };
 
 export type PartFinderResultType = {
@@ -20,6 +18,7 @@ export type PartFinderResultType = {
     primary_location:    string | null;
     primary_location_id: number | null;
     qty:                 number;
+    total:               number;
     uom:                 string | null;
 };
 
@@ -29,17 +28,23 @@ export type PartFinderStockByLocationType = {
     qty:           number;
 };
 
-export type StockStatusType = "all" | "in_stock" | "low_stock" | "out_of_stock";
-
-export type FilterOptionsType = {
-    categories: string[];
-    models:     string[];
+export type PartFinderStockSummaryType = {
+    adjust_in_since:    number;
+    adjust_out_since:   number;
+    current_stock:      number;
+    last_snapshot_date: string | null;
+    net_since_snapshot: number;
+    purchase_in_since:  number;
+    purchase_out_since: number;
+    sales_in_since:     number;
+    sales_out_since:    number;
+    snapshot_closing:   number;
 };
 
+export type StockStatusType = "all" | "in_stock" | "low_stock" | "out_of_stock";
+
 export const DEFAULT_FILTERS: PartFinderFiltersType = {
-    categories: [],
-    models:     [],
-    search:     "",
+    search: "",
 };
 
 export function getStockStatus(qty: number): StockStatusType {

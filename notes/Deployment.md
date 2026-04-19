@@ -64,7 +64,7 @@ server {
   
 # 7 install code and libraries
 	pip install --upgrade pip
--   pip install aiofiles ariadne bcrypt fastapi openpyxl pandas python-multipart psycopg[binary] pydantic pydantic-settings PyJWT uvicorn[standard] websockets
+-   pip install aiofiles ariadne bcrypt fastapi openpyxl pandas python-multipart psycopg[binary] pydantic pydantic-settings PyJWT uvicorn[standard] websockets apscheduler mcp[cli]
 	- copy TraceServer folder as it is containing config.py to final folder in local machine
 	- npm run build for react trace-client app. Copy the dist folder to final folder in local machine
 	- zip final folder as say final.zip: final.zip

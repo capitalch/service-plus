@@ -1,7 +1,8 @@
-# Plan for implementation of opening stock
-- at present we have stock_opening_balance and stock_opening_balance_line tables in the database.
-- Opening balance is givan once in a lifetime for a branch.
-- Corresponding to each entry in stock_opening_balance table, there will be multiple entries in stock_opening_balance_line table.
-- for each entry in stock_opening_balance_line table, there will be a corresponding entry in stock_transaction table.
-- Please check current table structure and give a suggestion for best strategy to implement opening stock.
-- If required we can make changes in table structure.
+# Strategy and plan for stock snapshot
+- We have a table named as stock_snapshot in database
+- I want to upate this tab with the details of stock transactions at the end of every month.
+- This should be done in a way that it does not affect the performance of the application.
+- This should be done by fastapi server by detecting the change in month.
+- Admin should be able to trigger this process manually for a selected period. The reason being that stock transactions can be done on back date, thus requiring manual intervention to update the stock snapshot. Is there other way to handle this?
+- The part-finder stock detail panel should show the uptodate stock summary details by taking into account the aggregate of last stock snapshot and the stock transactions after that.
+- Create a detailed strategy and plan for this and write this in plan.md file.

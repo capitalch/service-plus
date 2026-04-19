@@ -31,11 +31,8 @@ type Props = {
 const thClass = "text-xs font-semibold uppercase tracking-wide text-[var(--cl-text-muted)]";
 
 const rowVariants = {
-    hidden:  { opacity: 0, y: 4 },
-    visible: (i: number) => ({
-        opacity: 1, y: 0,
-        transition: { delay: i * 0.02, duration: 0.18, ease: "easeOut" as const },
-    }),
+    hidden:  { opacity: 0 },
+    visible: { opacity: 1, transition: { duration: 0.15 } },
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -120,7 +117,7 @@ export const PartFinderTable = ({ loading, onSelectPart, parts, selectedId }: Pr
 
     const sorted = sortParts(parts, sortField, sortDir);
 
-    if (loading && parts.length === 0) {
+    if (loading) {
         return (
             <div className="flex flex-col gap-2">
                 {Array.from({ length: 6 }).map((_, i) => (
@@ -180,7 +177,6 @@ export const PartFinderTable = ({ loading, onSelectPart, parts, selectedId }: Pr
                                             ? "border-[var(--cl-accent)]/30 bg-[var(--cl-accent)]/15 hover:bg-[var(--cl-accent)]/20"
                                             : "border-[var(--cl-border)] hover:bg-[var(--cl-surface-3)] " + (idx % 2 === 1 ? "bg-[var(--cl-surface-3)]/40" : "")
                                     }`}
-                                    custom={idx}
                                     initial="hidden"
                                     key={part.id}
                                     variants={rowVariants}

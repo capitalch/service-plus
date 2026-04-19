@@ -7,6 +7,7 @@ import { PurchaseEntrySection } from "../components/inventory/purchase-entry/pur
 import { SalesEntrySection } from "../components/inventory/sales-entry/sales-entry-section";
 import { SetPartLocationSection } from "../components/inventory/set-part-location/set-part-location-section";
 import { StockAdjustmentSection } from "../components/inventory/stock-adjustment/stock-adjustment-section";
+import { StockSnapshotTrigger } from "../components/inventory/stock-snapshot/stock-snapshot-trigger";
 import { StockOverviewSection } from "../components/stock-overview-section";
 
 // ─── Coming Soon placeholder ──────────────────────────────────────────────────
@@ -48,6 +49,8 @@ function InventoryContent() {
             return <PartFinderPage />;
         case "Set Part Location":
             return <SetPartLocationSection />;
+        case "Stock Snapshot":
+            return <StockSnapshotTrigger />;
         default:
             return <ComingSoon label={selected || "Inventory"} />;
     }

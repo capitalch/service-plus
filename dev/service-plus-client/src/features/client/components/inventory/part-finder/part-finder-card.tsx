@@ -129,7 +129,7 @@ function PartCard({ isSelected, onSelect, part }: CardItemProps) {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export const PartFinderCard = ({ loading, onSelectPart, parts, selectedId }: Props) => {
-    if (loading && parts.length === 0) {
+    if (loading) {
         return (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {Array.from({ length: 6 }).map((_, i) => (

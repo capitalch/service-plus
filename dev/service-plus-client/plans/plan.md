@@ -1,549 +1,315 @@
-# Set Part Location — Implementation Plan
+# Plan: Stock Snapshot Strategy
 
-## Feature Summary
+## Context
+The `stock_snapshot` table captures periodic (monthly) summaries of stock movements per part per branch. Currently the table exists but is not populated. The goals are:
+1. Auto-populate it at end of every month (FastAPI background job).
+2. Allow Admin to manually trigger snapshot generation for any selected period (to handle back-dated stock transactions).
+3. Enhance the part-finder stock detail panel to show an up-to-date summary = **last snapshot closing balance + transactions after the snapshot date**.
 
-Allow users to bulk-assign storage locations to multiple parts in one dialog. Each save:
-- Updates `stock_balance.location_id` for every submitted part
-- Inserts one audit row per part into `stock_location_change`
-- Both operations are atomic across all parts — the entire batch succeeds or the entire batch rolls back
-
----
-
-## Database Schema (existing — no changes needed)
-
-### `stock_balance`
-| Column | Type | Notes |
-|--------|------|-------|
-| part_id | bigint | PK component, FK → spare_part_master |
-| branch_id | bigint | PK component, FK → branch |
-| qty | numeric(12,3) | Current stock quantity |
-| location_id | bigint | **NULLABLE** FK → stock_location_master (target field) |
-| updated_at | timestamptz | Auto-updated |
-
-> Composite PK `(part_id, branch_id)` — no `id` column. Cannot use standard `genericUpdate`. Must use `genericUpdateScript` with a custom SQL query.
-
-### `stock_location_change` (audit trail)
-| Column | Type | Notes |
-|--------|------|-------|
-| id | bigint | Auto-generated identity |
-| part_id | bigint | FK → spare_part_master |
-| branch_id | bigint | FK → branch |
-| to_location_id | bigint | FK → stock_location_master |
-| transaction_date | date | NOT NULL |
-| ref_no | text | Optional |
-| remarks | text | Optional |
-| created_at | timestamptz | AUTO |
-
-### `stock_location_master`
-| Column | Type | Notes |
-|--------|------|-------|
-| id | bigint | PK |
-| branch_id | bigint | FK → branch |
-| name | text | Location name |
-| is_active | boolean | DEFAULT true |
+**Note on back-dated transactions:** Since `stock_balance` is maintained by a PostgreSQL trigger (`fn_maintain_stock_balance`) that runs on every INSERT/UPDATE/DELETE of `stock_transaction` — regardless of `transaction_date` — the **current balance is always accurate**. However, already-generated snapshots for past months will be stale when back-dated transactions are added. Recommended strategy: allow admin to **re-run** the snapshot for any period, which overwrites the previous snapshot via UPSERT.
 
 ---
 
 ## Workflow
-
 ```
-Section loads
-  └─ Query: GET_STOCK_BALANCE_WITH_LOCATION (current branch)
-       └─ Shows reference table: part_code | part_name | uom | qty | current location (or "—")
-  └─ Query: GET_ACTIVE_LOCATIONS_BY_BRANCH (current branch)
-       └─ Stored in state — passed to dialog
+End of month (auto)
+  FastAPI scheduler detects month change (1st of month at 00:05)
+        ↓
+  Calls generate_stock_snapshot(db_name, schema, year, month)
+        ↓
+  Sums stock_transaction rows for that month by part+branch
+  Computes opening (= prev snapshot closing or 0)
+  UPSERTs into stock_snapshot
+        ↓
+  Logs result
 
-User clicks "Set Locations" button (top of section)
-  └─ Dialog opens with:
-       ┌─ Shared header ────────────────────────────────────────────────────────┐
-       │  Apply to All: [location dropdown]  → copies selected location to     │
-       │                                       every row that has no location   │
-       │  Date: [date input, default today]                                     │
-       │  Ref No: [text, optional]                                              │
-       │  Remarks: [text, optional]                                             │
-       └────────────────────────────────────────────────────────────────────────┘
-       ┌─ Lines table ──────────────────────────────────────────────────────────┐
-       │  Part Code [input]  | Part Name (auto-filled) | Location [dropdown] | ✕│
-       │  Part Code [input]  | Part Name (auto-filled) | Location [dropdown] | ✕│
-       │  [+ Add Row]                                                           │
-       └────────────────────────────────────────────────────────────────────────┘
+Admin manual trigger (UI)
+  Selects year + month → POST /api/{db_name}/{schema}/stock-snapshot/generate
+        ↓
+  Same generate_stock_snapshot logic, overwrites existing snapshot
+        ↓
+  Success notification with row count
 
-       Part code validation (debounced, per row):
-         → GET_PART_IN_STOCK_BY_CODE (branch_id + part_code)
-         → On match:  fills part_id, part_name; clears error
-         → On miss:   shows "Part not found in stock for this branch"
-         → Duplicate part code in same dialog → "Part already added"
-
-       On submit — single genericUpdateScript call → SET_PART_LOCATIONS
-         Atomic data-modifying CTE:
-           UNNEST parallel arrays (part_ids[], location_ids[])
-           INSERT N rows into stock_location_change
-           UPDATE N rows in stock_balance
-
-       On success: toast + close dialog + reload section
+Part Finder Detail Panel — Stock Tab
+  Query: last snapshot + transactions since last snapshot date
+        ↓
+  Shows: snapshot_date, snapshot_closing, movements breakdown since, current_total
+  (current_total always matches stock_balance.qty — ground truth from triggers)
 ```
 
 ---
 
-## Step 1 — Backend: `sql_store.py` (5 new queries)
+## Step 1 — Add SQL to sql_store.py
+**File:** `service-plus-server/app/db/sql_store.py`
 
-### `GET_STOCK_BALANCE_WITH_LOCATION`
+### SQL_GENERATE_STOCK_SNAPSHOT
+Generates/overwrites snapshot for a given month. Parameters: `p_year` (int), `p_month` (int).
+
+Key logic:
+- `period_start` = first day of month, `period_end` = last day of month, `snapshot_date` = last day
+- `opening` = `closing` from the most recent snapshot BEFORE this period (or 0 if none)
+- `closing` = opening + net movements for the month
+- Each in/out column = SUM filtered by `stock_transaction_type.code`
+- `ON CONFLICT ... DO UPDATE SET` overwrites all columns (handles re-runs for back-dated corrections)
+
 ```sql
-with "p_branch_id" as (values(%(branch_id)s::bigint))
--- with "p_branch_id" as (values(1::bigint)) -- Test line
+WITH period AS (
+    SELECT
+        DATE_TRUNC('month', make_date(:p_year, :p_month, 1))::date                                   AS period_start,
+        (DATE_TRUNC('month', make_date(:p_year, :p_month, 1)) + INTERVAL '1 month - 1 day')::date    AS period_end,
+        (DATE_TRUNC('month', make_date(:p_year, :p_month, 1)) + INTERVAL '1 month - 1 day')::date    AS snapshot_date
+),
+prev_snapshot AS (
+    SELECT ss.part_id, ss.branch_id, ss.closing
+    FROM demo1.stock_snapshot ss
+    INNER JOIN (
+        SELECT part_id, branch_id, MAX(snapshot_date) AS max_date
+        FROM demo1.stock_snapshot
+        WHERE snapshot_date < (SELECT period_start FROM period)
+        GROUP BY part_id, branch_id
+    ) latest ON latest.part_id = ss.part_id
+           AND latest.branch_id = ss.branch_id
+           AND latest.snapshot_date = latest.max_date
+),
+tran_summary AS (
+    SELECT
+        st.part_id,
+        st.branch_id,
+        SUM(CASE WHEN stt.dr_cr = 'D' THEN st.qty ELSE -st.qty END)           AS net_qty,
+        SUM(CASE WHEN stt.code = 'PURCHASE' AND stt.dr_cr = 'D' THEN st.qty ELSE 0 END) AS purchase_in,
+        SUM(CASE WHEN stt.code = 'PURCHASE' AND stt.dr_cr = 'C' THEN st.qty ELSE 0 END) AS purchase_out,
+        SUM(CASE WHEN stt.code = 'SALES'    AND stt.dr_cr = 'D' THEN st.qty ELSE 0 END) AS sales_in,
+        SUM(CASE WHEN stt.code = 'SALES'    AND stt.dr_cr = 'C' THEN st.qty ELSE 0 END) AS sales_out,
+        SUM(CASE WHEN stt.code = 'ADJUST'   AND stt.dr_cr = 'D' THEN st.qty ELSE 0 END) AS adjust_in,
+        SUM(CASE WHEN stt.code = 'ADJUST'   AND stt.dr_cr = 'C' THEN st.qty ELSE 0 END) AS adjust_out,
+        SUM(CASE WHEN stt.code = 'LOAN'     AND stt.dr_cr = 'D' THEN st.qty ELSE 0 END) AS loan_in,
+        SUM(CASE WHEN stt.code = 'LOAN'     AND stt.dr_cr = 'C' THEN st.qty ELSE 0 END) AS loan_out,
+        SUM(CASE WHEN stt.code = 'TRANSFER' AND stt.dr_cr = 'D' THEN st.qty ELSE 0 END) AS branch_transfer_in,
+        SUM(CASE WHEN stt.code = 'TRANSFER' AND stt.dr_cr = 'C' THEN st.qty ELSE 0 END) AS branch_transfer_out
+    FROM demo1.stock_transaction st
+    JOIN demo1.stock_transaction_type stt ON stt.id = st.stock_transaction_type_id
+    WHERE st.transaction_date BETWEEN (SELECT period_start FROM period)
+                                  AND (SELECT period_end   FROM period)
+    GROUP BY st.part_id, st.branch_id
+)
+INSERT INTO demo1.stock_snapshot (
+    snapshot_date, part_id, branch_id,
+    opening, closing,
+    purchase_in, purchase_out, sales_in, sales_out,
+    adjust_in, adjust_out, loan_in, loan_out,
+    branch_transfer_in, branch_transfer_out
+)
 SELECT
-    sb.part_id,
-    p.part_code,
-    p.part_name,
-    p.uom,
-    sb.qty,
-    sb.location_id,
-    lm.name AS location_name
-FROM stock_balance sb
-JOIN spare_part_master p           ON p.id  = sb.part_id
-LEFT JOIN stock_location_master lm ON lm.id = sb.location_id
-WHERE sb.branch_id = (table "p_branch_id")
-ORDER BY p.part_code
+    (SELECT snapshot_date FROM period),
+    ts.part_id, ts.branch_id,
+    COALESCE(ps.closing, 0)                        AS opening,
+    COALESCE(ps.closing, 0) + ts.net_qty           AS closing,
+    ts.purchase_in,  ts.purchase_out,
+    ts.sales_in,     ts.sales_out,
+    ts.adjust_in,    ts.adjust_out,
+    ts.loan_in,      ts.loan_out,
+    ts.branch_transfer_in, ts.branch_transfer_out
+FROM tran_summary ts
+LEFT JOIN prev_snapshot ps ON ps.part_id = ts.part_id AND ps.branch_id = ts.branch_id
+ON CONFLICT (snapshot_date, part_id, branch_id) DO UPDATE SET
+    opening              = EXCLUDED.opening,
+    closing              = EXCLUDED.closing,
+    purchase_in          = EXCLUDED.purchase_in,
+    purchase_out         = EXCLUDED.purchase_out,
+    sales_in             = EXCLUDED.sales_in,
+    sales_out            = EXCLUDED.sales_out,
+    adjust_in            = EXCLUDED.adjust_in,
+    adjust_out           = EXCLUDED.adjust_out,
+    loan_in              = EXCLUDED.loan_in,
+    loan_out             = EXCLUDED.loan_out,
+    branch_transfer_in   = EXCLUDED.branch_transfer_in,
+    branch_transfer_out  = EXCLUDED.branch_transfer_out
+RETURNING part_id
 ```
+> **Important:** Verify exact `code` values in `stock_transaction_type` table before finalising the CASE expressions.
 
-### `GET_ACTIVE_LOCATIONS_BY_BRANCH`
-```sql
-with "p_branch_id" as (values(%(branch_id)s::bigint))
--- with "p_branch_id" as (values(1::bigint)) -- Test line
-SELECT id, name AS location
-FROM stock_location_master
-WHERE branch_id = (table "p_branch_id")
-  AND is_active = true
-ORDER BY name
-```
+### SQL_PART_FINDER_STOCK_SUMMARY
+New query for part-finder detail panel. Parameters: `p_part_id`, `p_branch_id`.
 
-### `GET_PART_IN_STOCK_BY_CODE`
-Validates a typed part code against `stock_balance` for the current branch.
-Returns the part row if valid, empty if not in stock.
+Returns a single row: last snapshot info + aggregate of transactions since that snapshot date.
+
 ```sql
-with
-    "p_branch_id" as (values(%(branch_id)s::bigint)),
-    "p_part_code" as (values(%(part_code)s::text))
--- with
---     "p_branch_id" as (values(1::bigint)),       -- Test line
---     "p_part_code" as (values('ABC-001'::text))  -- Test line
+WITH last_snap AS (
+    SELECT snapshot_date, closing,
+           purchase_in, purchase_out, sales_in, sales_out,
+           adjust_in, adjust_out, loan_in, loan_out,
+           branch_transfer_in, branch_transfer_out
+    FROM demo1.stock_snapshot
+    WHERE part_id = :p_part_id AND branch_id = :p_branch_id
+    ORDER BY snapshot_date DESC
+    LIMIT 1
+),
+tran_since AS (
+    SELECT
+        SUM(CASE WHEN stt.dr_cr = 'D' THEN st.qty ELSE -st.qty END)           AS net_qty,
+        SUM(CASE WHEN stt.code = 'PURCHASE' AND stt.dr_cr = 'D' THEN st.qty ELSE 0 END) AS purchase_in,
+        SUM(CASE WHEN stt.code = 'PURCHASE' AND stt.dr_cr = 'C' THEN st.qty ELSE 0 END) AS purchase_out,
+        SUM(CASE WHEN stt.code = 'SALES'    AND stt.dr_cr = 'C' THEN st.qty ELSE 0 END) AS sales_out,
+        SUM(CASE WHEN stt.code = 'ADJUST'   AND stt.dr_cr = 'D' THEN st.qty ELSE 0 END) AS adjust_in,
+        SUM(CASE WHEN stt.code = 'ADJUST'   AND stt.dr_cr = 'C' THEN st.qty ELSE 0 END) AS adjust_out
+    FROM demo1.stock_transaction st
+    JOIN demo1.stock_transaction_type stt ON stt.id = st.stock_transaction_type_id
+    WHERE st.part_id   = :p_part_id
+      AND st.branch_id = :p_branch_id
+      AND st.transaction_date > COALESCE((SELECT snapshot_date FROM last_snap), '1900-01-01'::date)
+)
 SELECT
-    p.id        AS part_id,
-    p.part_code,
-    p.part_name,
-    p.uom,
-    sb.qty,
-    sb.location_id,
-    lm.name     AS location_name
-FROM spare_part_master p
-JOIN stock_balance sb              ON sb.part_id   = p.id
-                                  AND sb.branch_id = (table "p_branch_id")
-LEFT JOIN stock_location_master lm ON lm.id        = sb.location_id
-WHERE LOWER(p.part_code) = LOWER((table "p_part_code"))
-```
-
-### `GET_PART_LOCATION_HISTORY`
-```sql
-with
-    "p_part_id"   as (values(%(part_id)s::bigint)),
-    "p_branch_id" as (values(%(branch_id)s::bigint))
--- with "p_part_id" as (values(1::bigint)), "p_branch_id" as (values(1::bigint)) -- Test line
-SELECT
-    slc.id,
-    slc.transaction_date,
-    slc.ref_no,
-    slc.remarks,
-    lm.name AS location_name
-FROM stock_location_change slc
-JOIN stock_location_master lm ON lm.id = slc.to_location_id
-WHERE slc.part_id   = (table "p_part_id")
-  AND slc.branch_id = (table "p_branch_id")
-ORDER BY slc.transaction_date DESC, slc.created_at DESC
-LIMIT 20
-```
-
-### `SET_PART_LOCATIONS`
-Accepts **parallel arrays** `part_ids[]` and `location_ids[]` (same length, matched by index).
-Uses `UNNEST` to expand the arrays, then a **data-modifying CTE** to atomically INSERT N audit rows
-and UPDATE N stock_balance rows in a single statement.
-
-```sql
-with
-    "p_branch_id" as (values(%(branch_id)s::bigint)),
-    "p_date"      as (values(%(transaction_date)s::date)),
-    "p_ref_no"    as (values(%(ref_no)s::text)),
-    "p_remarks"   as (values(%(remarks)s::text)),
--- with
---     "p_branch_id" as (values(1::bigint)),             -- Test line
---     "p_date"      as (values('2026-04-17'::date)),    -- Test line
---     "p_ref_no"    as (values(''::text)),              -- Test line
---     "p_remarks"   as (values(''::text)),              -- Test line
-    "p_pairs" AS (
-        SELECT
-            UNNEST(%(part_ids)s::bigint[])     AS part_id,
-            UNNEST(%(location_ids)s::bigint[]) AS location_id
-    ),
-    insert_history AS (
-        INSERT INTO stock_location_change
-            (part_id, branch_id, to_location_id, transaction_date, ref_no, remarks)
-        SELECT
-            p.part_id,
-            (table "p_branch_id"),
-            p.location_id,
-            (table "p_date"),
-            NULLIF((table "p_ref_no"),  ''),
-            NULLIF((table "p_remarks"), '')
-        FROM "p_pairs" p
-        RETURNING id
-    )
-UPDATE stock_balance sb
-SET    location_id = pairs.location_id,
-       updated_at  = now()
-FROM   "p_pairs" pairs
-WHERE  sb.part_id   = pairs.part_id
-  AND  sb.branch_id = (table "p_branch_id")
-```
-
-> Works for N = 1 (single part) or N > 1 (bulk). If any row fails FK validation, the entire
-> batch rolls back. `NULLIF(..., '')` converts empty strings to NULL for optional fields.
-
----
-
-## Step 2 — Client: `sql-map.ts` (5 new entries)
-
-```typescript
-// Set Part Location
-GET_STOCK_BALANCE_WITH_LOCATION:   "GET_STOCK_BALANCE_WITH_LOCATION",
-GET_ACTIVE_LOCATIONS_BY_BRANCH:    "GET_ACTIVE_LOCATIONS_BY_BRANCH",
-GET_PART_IN_STOCK_BY_CODE:         "GET_PART_IN_STOCK_BY_CODE",
-GET_PART_LOCATION_HISTORY:         "GET_PART_LOCATION_HISTORY",
-SET_PART_LOCATIONS:                "SET_PART_LOCATIONS",
+    ls.snapshot_date                                        AS last_snapshot_date,
+    COALESCE(ls.closing, 0)                                 AS snapshot_closing,
+    COALESCE(ts.net_qty, 0)                                 AS net_since_snapshot,
+    COALESCE(ls.closing, 0) + COALESCE(ts.net_qty, 0)      AS current_stock,
+    COALESCE(ts.purchase_in,  0)                            AS purchase_in_since,
+    COALESCE(ts.purchase_out, 0)                            AS purchase_out_since,
+    COALESCE(ts.sales_out,    0)                            AS sales_out_since,
+    COALESCE(ts.adjust_in,    0)                            AS adjust_in_since,
+    COALESCE(ts.adjust_out,   0)                            AS adjust_out_since
+FROM last_snap ls
+FULL OUTER JOIN tran_since ts ON true
 ```
 
 ---
 
-## Step 3 — Client: `messages.ts` (4 new entries)
+## Step 3 — FastAPI Background Scheduler
+**New file:** `service-plus-server/app/scheduler.py`
 
-```typescript
-SUCCESS_SET_PART_LOCATIONS:              'Part location(s) set successfully.',
-ERROR_SET_PART_LOCATIONS_FAILED:         'Failed to set part locations. Please try again.',
-ERROR_SET_PART_LOCATIONS_LOAD_FAILED:    'Failed to load stock data. Please try again.',
-ERROR_SET_PART_LOCATION_PART_NOT_FOUND:  'Part not found in stock for this branch.',
-```
+- Use `apscheduler` library (add to `requirements.txt`: `apscheduler>=3.10`)
+- `AsyncIOScheduler` with a cron trigger: runs at `00:05` on the 1st of every month
+- Job logic:
+  1. Calculate previous month's year + month
+  2. Query all active clients from `service_plus_client.public.client` table (get `db_name`, `schema`)
+  3. For each client: execute `SQL_GENERATE_STOCK_SNAPSHOT` using that client's db_name + schema
+  4. Log results (rows generated per client)
 
----
-
-## Step 4 — Client: TypeScript types
-
-New file: `src/features/client/types/set-part-location.ts`
-
-```typescript
-export type StockBalanceWithLocationType = {
-    part_id:       number;
-    part_code:     string;
-    part_name:     string;
-    uom:           string | null;
-    qty:           number;
-    location_id:   number | null;
-    location_name: string | null;
-};
-
-export type LocationOptionType = {
-    id:       number;
-    location: string;
-};
-
-export type PartLocationHistoryType = {
-    id:               number;
-    transaction_date: string;
-    location_name:    string;
-    ref_no:           string | null;
-    remarks:          string | null;
-};
-
-// One row in the dialog's line table
-export type SetLocationLineType = {
-    _key:          string;          // crypto.randomUUID() — React key
-    part_code:     string;          // user-typed
-    part_id:       number | null;   // filled after validation
-    part_name:     string;          // filled after validation
-    location_id:   number | null;   // user-selected
-    validating:    boolean;         // debounce spinner
-    error:         string | null;   // validation error message
-};
-```
+**Modified file:** `service-plus-server/app/main.py`
+- In the `lifespan` context manager: start scheduler on startup, shutdown on exit
 
 ---
 
-## Step 5 — Client: `set-part-location-dialog.tsx`
+## Step 4 — Client: Admin Manual Trigger UI
+**No separate FastAPI REST endpoint needed.** Use `genericUpdateScript` via Apollo — this is the project-standard pattern for all mutations and is already authenticated globally via `authMiddleware` (Bearer token sent on every Apollo call).
 
-### Props
-```typescript
-type SetPartLocationDialogPropsType = {
-    locations:   LocationOptionType[];
-    open:        boolean;
-    onOpenChange:(open: boolean) => void;
-    onSuccess:   () => void;
-};
-```
-> No `part` prop — dialog is opened from section level, not from a row.
+**New file:** `src/features/client/components/inventory/stock-snapshot/stock-snapshot-trigger.tsx`
 
-### Shared header state (not in react-hook-form — managed with useState)
-```
-transaction_date  string   default: today (YYYY-MM-DD)
-ref_no            string   default: ""
-remarks           string   default: ""
-applyToAll        number   0 (sentinel = "not set")
-```
-
-### Lines state
-```typescript
-const [lines, setLines] = useState<SetLocationLineType[]>([emptyLine()])
-```
-
-### "Apply to All" behaviour
-- Standalone `<Select>` (not a form field) at top of dialog
-- On change → set `location_id` on **all** lines (overwriting existing selections too, so user can bulk-change)
-- Stays independent of per-row selects
-
-### Part code validation (per row, debounced 800 ms)
-```
-on part_code change →
-  mark row: validating = true, part_id = null, part_name = "", error = null
-  after debounce →
-    check for duplicate within lines → error "Part already added"
-    else → GET_PART_IN_STOCK_BY_CODE(branch_id, part_code)
-      found    → fill part_id, part_name; validating = false; error = null
-      not found→ error = MESSAGES.ERROR_SET_PART_LOCATION_PART_NOT_FOUND
-```
-
-### Per-row location select
-- Dropdown of active locations (same `locations` prop as section)
-- Independent per row — user can mix locations across rows
-
-### Submit guard
-Save button disabled while:
-- Any row is `validating`
-- Any row has `error !== null`
-- Any row has `part_id === null`
-- Any row has `location_id === null`
-- `transaction_date` is empty
-
-### Submit
-```typescript
+- Add `SQL_GENERATE_STOCK_SNAPSHOT` to `src/constants/sql-map.ts`
+- Form: Year (number input, default current year) + Month (Select 1-12, default previous month)
+- Uses `react-hook-form` + `zod` for validation (year ≥ 2020, month 1-12); `*` on required fields shown in red
+- On submit:
+```ts
 await apolloClient.mutate({
     mutation: GRAPHQL_MAP.genericUpdateScript,
     variables: {
-        db_name: dbName, schema,
-        value: graphQlUtils.buildGenericUpdateValue({
-            sql_id:   SQL_MAP.SET_PART_LOCATIONS,
-            sql_args: {
-                branch_id:        currentBranch.id,
-                part_ids:         lines.map(l => l.part_id),
-                location_ids:     lines.map(l => l.location_id),
-                transaction_date: transactionDate,
-                ref_no:           refNo   || "",
-                remarks:          remarks || "",
-            },
+        db_name: dbName,
+        schema,
+        value: encodeObj({
+            sql_id:   SQL_MAP.SQL_GENERATE_STOCK_SNAPSHOT,
+            sql_args: { year: selectedYear, month: selectedMonth },
         }),
     },
 });
 ```
+- On success: Sonner toast "Snapshot generated: {count} parts updated for {month}/{year}"
+- On error: error toast
 
-### Reset on close
-- All lines → `[emptyLine()]`
-- Header fields reset to defaults
-- `applyToAll` reset to 0
+**Admin-only visibility:** Check `user.userType === 'A' || user.userType === 'S'` (from `selectCurrentUser` selector) — hide the menu item entirely for non-admin users.
 
----
+**New menu item in Inventory sidebar:**
+- File: `src/features/client/components/client-explorer-panel.tsx`
+- Add a new `CollapsibleGroup label="Admin"` section at the bottom of `InventoryExplorer` (same pattern as `MastersExplorer` uses for group labels)
+- Inside it: `<TreeItem icon={Camera} label="Stock Snapshot" />`  
+- Wrap the entire `CollapsibleGroup` in a conditional: only render when `userType === 'A' || userType === 'S'`
 
-## Step 6 — Client: `set-part-location-section.tsx`
-
-### State
-```
-parts:     StockBalanceWithLocationType[]   loaded from GET_STOCK_BALANCE_WITH_LOCATION
-locations: LocationOptionType[]             loaded from GET_ACTIVE_LOCATIONS_BY_BRANCH
-loading:   boolean
-search:    string                           filters part_code | part_name
-dialogOpen:boolean                          drives dialog open state
-```
-
-### Load
-`Promise.all` of both queries on mount and when `currentBranch` changes (same pattern as other sections).
-
-### Table columns
-`#` | `Part Code` | `Part Name` | `UOM` | `Qty` | `Current Location` | (no actions column)
-
-### Header buttons
-- `Refresh` — reloads data
-- `Set Locations` — sets `dialogOpen = true` (opens the dialog)
-
-### Empty states
-- No active locations for branch → amber info banner:
-  _"No active locations found. Add locations under Masters > Part Location before using this feature."_
-  (also disables the "Set Locations" button)
-- No stock → _"No stock found for this branch."_
+**Wire up in page:**
+- File: `src/features/client/pages/client-inventory-page.tsx`
+- Add `case "Stock Snapshot": return <StockSnapshotTrigger />;`
 
 ---
 
-## Step 7 — Client: `client-inventory-page.tsx`
+## Step 6 — Client: Enhance Part Finder Stock Tab
+**File:** `src/features/client/components/inventory/part-finder/part-finder-detail-panel.tsx`
 
-```typescript
-import { SetPartLocationSection } from "../components/inventory/set-part-location/set-part-location-section";
+- Add new SQL key `PART_FINDER_STOCK_SUMMARY` to `src/constants/sql-map.ts`
+- Add `PartFinderStockSummaryType` to `src/features/client/types/part-finder.ts`:
+  ```ts
+  type PartFinderStockSummaryType = {
+      adjust_in_since:    number;
+      adjust_out_since:   number;
+      current_stock:      number;
+      last_snapshot_date: string | null;
+      net_since_snapshot: number;
+      purchase_in_since:  number;
+      purchase_out_since: number;
+      sales_out_since:    number;
+      snapshot_closing:   number;
+  }
+  ```
+- In the Stock tab, fire `SQL_PART_FINDER_STOCK_SUMMARY` (in addition to the existing `PART_FINDER_STOCK_BY_LOCATION` query)
+- Render a summary block above the location table:
 
-case "Set Part Location":
-    return <SetPartLocationSection />;
+```
+Last Snapshot: 31 Mar 2026          Snapshot Balance: 45.000
+─────────────────────────────────────────────────────────────
+Movements since snapshot:
+  Purchase In:   +12.000    Sales Out:  -8.000
+  Adjustments:   +2.000 in / -0.000 out
+  Net:           +6.000
+─────────────────────────────────────────────────────────────
+Current Stock:  51.000   [In Stock]
+```
+
+- If no snapshot exists: show "No snapshot yet — all stock from live transactions" and display full stock from `stock_balance`.
+
+---
+
+## Step 7 — Client: messages.ts
+Add to `src/constants/messages.ts`:
+```ts
+STOCK_SNAPSHOT_ERROR:       'Failed to generate stock snapshot. Please try again.',
+STOCK_SNAPSHOT_NO_DATA:     'No stock transactions found for the selected period.',
+STOCK_SNAPSHOT_NO_SNAPSHOT: 'No snapshot recorded yet. Showing live transaction data.',
+STOCK_SNAPSHOT_SUCCESS:     'Stock snapshot generated successfully.',
 ```
 
 ---
 
-## Files to Create / Modify (Phase 1 — DONE)
+## Back-Dated Transactions — Final Recommendation
+
+| Option | Complexity | Accuracy |
+|--------|-----------|----------|
+| **Manual re-run** (chosen) | Low | Admin re-runs affected month | Accurate after re-run |
+| Auto-dirty flag | Medium | PostgreSQL trigger flags stale snapshots; scheduler re-runs them | Fully automatic |
+| No snapshots for balance | Low | Always compute from live transactions; snapshots for analytics only | Always accurate |
+
+**Recommendation:** Implement manual re-run (Steps 4+5) now. The part-finder stock summary query (Step 6) already provides accurate live data regardless of whether snapshots are up-to-date, because it computes `last_snapshot.closing + net transactions since snapshot` — which will always equal `stock_balance.qty` (the trigger-maintained ground truth).
+
+---
+
+## Files to Create / Modify
 
 | File | Action |
 |------|--------|
-| `service-plus-server/app/db/sql_store.py` | Add 5 SQL queries ✅ |
-| `service-plus-client/src/constants/sql-map.ts` | Add 5 SQL IDs ✅ |
-| `service-plus-client/src/constants/messages.ts` | Add 4 messages ✅ |
-| `service-plus-client/src/features/client/types/set-part-location.ts` | **NEW** ✅ |
-| `service-plus-client/src/features/client/components/inventory/set-part-location/set-part-location-section.tsx` | **NEW** ✅ |
-| `service-plus-client/src/features/client/components/inventory/set-part-location/set-part-location-dialog.tsx` | **NEW** ✅ |
-| `service-plus-client/src/features/client/pages/client-inventory-page.tsx` | Add case ✅ |
+| `service-plus-server/app/db/sql_store.py` | Add `SQL_GENERATE_STOCK_SNAPSHOT` + `SQL_PART_FINDER_STOCK_SUMMARY` |
+| `service-plus-server/app/scheduler.py` | NEW — APScheduler monthly job |
+| `service-plus-server/app/main.py` | Wire scheduler into lifespan |
+| `service-plus-client/src/constants/sql-map.ts` | Add `SQL_GENERATE_STOCK_SNAPSHOT` + `PART_FINDER_STOCK_SUMMARY` |
+| `service-plus-client/src/constants/messages.ts` | Add 4 messages |
+| `service-plus-client/src/features/client/types/part-finder.ts` | Add `PartFinderStockSummaryType` |
+| `service-plus-client/src/features/client/components/inventory/part-finder/part-finder-detail-panel.tsx` | Enhance Stock tab |
+| `service-plus-client/src/features/client/components/client-explorer-panel.tsx` | Add Admin `CollapsibleGroup` + Stock Snapshot item (admin-only) |
+| `service-plus-client/src/features/client/pages/client-inventory-page.tsx` | Add `case "Stock Snapshot"` |
+| `service-plus-client/src/features/client/components/inventory/stock-snapshot/stock-snapshot-trigger.tsx` | NEW — Admin UI (uses `genericUpdateScript`) |
 
 ---
 
-## Phase 2 — Row Selection + Set Location for Selected
-
-### Feature summary
-The section table gains row-level checkboxes. When one or more rows are selected, a
-**"Set Location for Selected (N)"** button appears. Clicking it opens a focused dialog
-(`set-location-for-selected-dialog.tsx`) where the user picks a **single location** that
-is applied to all selected parts at once.
-
-Reuses the existing `SET_PART_LOCATIONS` SQL — no backend changes needed.
-All selected parts get the same `location_id`, so `location_ids[]` is the same value repeated N times.
-
----
-
-### Step A — `set-part-location-section.tsx` changes
-
-**New state:**
-```
-selectedIds: Set<number>    set of selected part_ids
-```
-
-**Checkbox column** added as the first column (`w-8`, centered):
-- Header cell: `<Checkbox>` — checked when `selectedIds.size === displayParts.length > 0`,
-  indeterminate when some but not all are selected, unchecked when none.
-  On change: select all `displayParts` or deselect all.
-- Body cell: `<Checkbox>` per row. On change: toggle `part.part_id` in `selectedIds`.
-
-**Reset selection** when search changes or data reloads (call `setSelectedIds(new Set())`).
-
-**Header buttons** (updated):
-```
-[Refresh]   [Set Location for Selected (N)]  [Set Locations]
-```
-- "Set Location for Selected (N)" — only visible when `selectedIds.size > 0`; disabled when `noLocations`.
-  Opens `selectedDialogOpen`.
-- "Set Locations" — unchanged (opens the existing type-in dialog).
-
-**New dialog state:**
-```
-selectedDialogOpen: boolean
-```
-
-**New dialog mount** (alongside the existing one):
-```tsx
-<SetLocationForSelectedDialog
-    locations={locations}
-    open={selectedDialogOpen}
-    parts={parts.filter(p => selectedIds.has(p.part_id))}
-    onOpenChange={setSelectedDialogOpen}
-    onSuccess={() => { setSelectedIds(new Set()); loadData(); }}
-/>
-```
-
----
-
-### Step B — New file: `set-location-for-selected-dialog.tsx`
-
-**Props:**
-```typescript
-type Props = {
-    locations:   LocationOptionType[];
-    open:        boolean;
-    parts:       StockBalanceWithLocationType[];   // already-resolved selected rows
-    onOpenChange:(open: boolean) => void;
-    onSuccess:   () => void;
-};
-```
-
-**State (all `useState`, no react-hook-form):**
-```
-locationId: number   0 = not set
-txnDate:    string   today
-refNo:      string   ""
-remarks:    string   ""
-submitting: boolean  false
-```
-
-**Layout:**
-```
-┌─ Dialog ─────────────────────────────────────────────────────┐
-│ Title: "Set Location for Selected Parts"                      │
-│                                                               │
-│ Selected parts (N):                                           │
-│  ┌─ compact read-only table ───────────────────────────────┐  │
-│  │  Part Code  │  Part Name  │  Current Location           │  │
-│  │  ...        │  ...        │  ...                        │  │
-│  └─────────────────────────────────────────────────────────┘  │
-│                                                               │
-│  Location *   [dropdown — required]                           │
-│  Date *        [date — default today]                         │
-│  Ref No        [text — optional]                              │
-│  Remarks       [text — optional]                              │
-│                                                               │
-│                              [Cancel]  [Save]                 │
-└───────────────────────────────────────────────────────────────┘
-```
-
-**Submit guard:** Save disabled while `locationId === 0 || !txnDate || submitting`.
-
-**Submit:**
-```typescript
-await apolloClient.mutate({
-    mutation: GRAPHQL_MAP.genericUpdateScript,
-    variables: {
-        db_name: dbName, schema,
-        value: graphQlUtils.buildGenericUpdateValue({
-            sql_id:   SQL_MAP.SET_PART_LOCATIONS,
-            sql_args: {
-                branch_id:        currentBranch.id,
-                part_ids:         parts.map(p => p.part_id),
-                location_ids:     parts.map(() => locationId),   // same location for all
-                transaction_date: txnDate,
-                ref_no:           refNo   || "",
-                remarks:          remarks || "",
-            },
-        }),
-    },
-});
-```
-
-**Reset on close:** all state back to defaults.
-
----
-
-## Files to Create / Modify (Phase 2)
-
-| File | Action |
-|------|--------|
-| `set-part-location-section.tsx` | Add checkbox column, `selectedIds` state, "Set Location for Selected" button, `selectedDialogOpen` state, mount new dialog |
-| `set-location-for-selected-dialog.tsx` | **NEW** — focused single-location dialog for pre-selected parts |
-
----
-
-## Implementation Order (Phase 2)
-
-1. `set-location-for-selected-dialog.tsx` — new component
-2. `set-part-location-section.tsx` — add selection + new button + mount dialog
+## Verification
+1. Run DB migration; verify `uq_stock_snapshot_date_part_branch` constraint exists.
+2. Start FastAPI; verify scheduler starts in logs.
+3. Use admin UI: select previous month → Generate → verify `stock_snapshot` rows in DB.
+4. Re-run same month (simulate back-dated transaction fix) → verify UPSERT updates rows.
+5. Open Part Finder → select a part with transactions → Stock tab shows snapshot summary + movements since.
+6. Test a part with NO snapshot → shows "No snapshot yet" + live stock from `stock_balance`.
+7. Manually invoke scheduler function in a test script to verify end-of-month logic.

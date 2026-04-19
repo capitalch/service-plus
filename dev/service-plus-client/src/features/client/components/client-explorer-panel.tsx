@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import type { ComponentType } from "react";
 import {
-    BarChart3, BookOpen, Building2, ChevronDown, ChevronRight,
+    BarChart3, BookOpen, Building2, Camera, ChevronDown, ChevronRight,
     ClipboardList, DollarSign, FileText, Globe, Hash,
     LayoutDashboard, MapPin, Package, PlusCircle, PrinterCheck,
     RefreshCcw, RotateCcw, Settings2, ShoppingCart,
@@ -11,7 +11,9 @@ import { NavLink } from "react-router-dom";
 
 import { useClientSelection, useLayout } from "./client-layout";
 import type { Section } from "./client-layout";
+import { selectCurrentUser } from "@/features/auth/store/auth-slice";
 import { ROUTES } from "@/router/routes";
+import { useAppSelector } from "@/store/hooks";
 
 type Props = { activeSection: Section };
 
@@ -107,6 +109,9 @@ function DashboardExplorer() {
 }
 
 function InventoryExplorer() {
+    const currentUser = useAppSelector(selectCurrentUser);
+    const isAdmin = currentUser?.userType === "A" || currentUser?.userType === "S";
+
     return (
         <div className="space-y-4">
             <div className="space-y-1">
@@ -120,6 +125,11 @@ function InventoryExplorer() {
                 <TreeItem icon={Globe}         label="Part Finder" />
                 <TreeItem icon={MapPin}        label="Set Part Location" />
             </div>
+            {isAdmin && (
+                <CollapsibleGroup defaultOpen={false} label="Admin">
+                    <TreeItem icon={Camera} label="Stock Snapshot" />
+                </CollapsibleGroup>
+            )}
         </div>
     );
 }
