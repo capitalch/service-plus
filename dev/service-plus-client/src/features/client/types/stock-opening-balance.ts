@@ -23,7 +23,6 @@ export type OpeningStockLineType = {
 export type OpeningStockType = {
     branch_id:  number;
     created_at: string;
-    created_by: number | null;
     entry_date: string;
     id:         number;
     lines:      OpeningStockLineType[];

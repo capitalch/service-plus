@@ -2,8 +2,10 @@
 -- PostgreSQL database dump
 --
 
+\restrict tNrnD6vhJHkhB6HBxU9nEhBqUbXgxlIHQR3ZWgCqmFiddbaYbn1eQjwMdDnQ0sD
+
 -- Dumped from database version 14.6
--- Dumped by pg_dump version 17.5
+-- Dumped by pg_dump version 17.9 (Ubuntu 17.9-0ubuntu0.25.10.1)
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -853,7 +855,7 @@ CREATE TABLE demo1.sales_invoice (
     invoice_no text NOT NULL,
     invoice_date date NOT NULL,
     company_id bigint NOT NULL,
-    customer_contact_id bigint,
+    customer_contact_id bigint NOT NULL,
     customer_name text NOT NULL,
     customer_gstin text,
     customer_state_code character(2) NOT NULL,
@@ -2480,6 +2482,48 @@ CREATE INDEX job_technician_idx ON demo1.job USING btree (technician_id);
 
 
 --
+-- Name: spare_part_master_category_idx; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX spare_part_master_category_idx ON demo1.spare_part_master USING btree (category) WITH (deduplicate_items='true');
+
+
+--
+-- Name: spare_part_master_is_active_part_code_idx; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX spare_part_master_is_active_part_code_idx ON demo1.spare_part_master USING btree (part_code) WHERE (is_active = true);
+
+
+--
+-- Name: spare_part_master_model_idx; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX spare_part_master_model_idx ON demo1.spare_part_master USING btree (model) WITH (deduplicate_items='true');
+
+
+--
+-- Name: spare_part_master_part_code_idx; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX spare_part_master_part_code_idx ON demo1.spare_part_master USING btree (part_code) WITH (deduplicate_items='true');
+
+
+--
+-- Name: spare_part_master_part_description_idx; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX spare_part_master_part_description_idx ON demo1.spare_part_master USING btree (part_description) WITH (deduplicate_items='true');
+
+
+--
+-- Name: spare_part_master_part_name_idx; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX spare_part_master_part_name_idx ON demo1.spare_part_master USING btree (part_name) WITH (deduplicate_items='true');
+
+
+--
 -- Name: stock_balance_location_id_idx; Type: INDEX; Schema: demo1; Owner: webadmin
 --
 
@@ -3286,4 +3330,6 @@ ALTER TABLE ONLY security.user_bu_role
 --
 -- PostgreSQL database dump complete
 --
+
+\unrestrict tNrnD6vhJHkhB6HBxU9nEhBqUbXgxlIHQR3ZWgCqmFiddbaYbn1eQjwMdDnQ0sD
 

@@ -1,3 +1,5 @@
+# gemini api key: AIzaSyARzzPAsk65fx2mAWt1gVjX4bEn5CvyDG0
+# bifrost api key: sk-bf-3160dc3b-7f2b-417d-8ff6-f79c34a20b38
 ## Server
 # **Creating and activating virtual env in windows in context of Trace**
 Download and Install Python from installer
@@ -8,6 +10,16 @@ cd c:\projects\trace-plus
 # environment switching
 - In production server, during startup, a startup.sh file runs which sets up APP_ENV environment variable (export APP_ENV=production)
 - In code, env: str = os.getenv("APP_ENV", "dev")  # default to development, line gets the environment. Based on the value of APP_ENV you can switch values
+
+# venv in kubuntu
+sudo apt update
+sudo apt install python3-venv
+- Note: If you are using a specific version like Python 3.14, install python3.14-venv instead.
+
+cd ~/path/to/your/project
+python3 -m venv env
+source env/bin/activate
+
 
 ## Sharing data between kubuntu and windows machine
 

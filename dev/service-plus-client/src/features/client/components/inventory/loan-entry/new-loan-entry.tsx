@@ -81,6 +81,28 @@ export const NewLoanEntry = forwardRef<NewLoanEntryHandle, Props>(({
     const partInputRefs = useRef<(HTMLInputElement | null)[]>([]);
     const qtyInputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
+    const scrollWrapperRef = useRef<HTMLDivElement>(null);
+    const summaryRef       = useRef<HTMLDivElement>(null);
+    const [maxTableHeight, setMaxTableHeight] = useState<number | undefined>(undefined);
+
+    useEffect(() => {
+        function recalc() {
+            if (window.innerWidth < 768) {
+                setMaxTableHeight(undefined);
+                return;
+            }
+            const el = scrollWrapperRef.current;
+            if (!el) return;
+            const top = el.getBoundingClientRect().top;
+            const summaryHeight = summaryRef.current?.getBoundingClientRect().height ?? 0;
+            // 14px layout gap; 8px = gap between table and summary
+            setMaxTableHeight(window.innerHeight - top - summaryHeight - 8 - 14);
+        }
+        recalc();
+        window.addEventListener('resize', recalc);
+        return () => window.removeEventListener('resize', recalc);
+    }, [lines.length]);
+
     // Populate form on edit
     useEffect(() => {
         if (!editLoan) {
@@ -263,7 +285,7 @@ export const NewLoanEntry = forwardRef<NewLoanEntryHandle, Props>(({
     return (
         <motion.div
             animate={{ opacity: 1, y: 0 }}
-            className="flex flex-col gap-2 pb-2"
+            className="flex min-h-fit md:min-h-0 md:flex-1 flex-col gap-2 pb-0 md:overflow-hidden"
             exit={{ opacity: 0, y: -10 }}
             initial={{ opacity: 0, y: 10 }}
         >
@@ -335,8 +357,12 @@ export const NewLoanEntry = forwardRef<NewLoanEntryHandle, Props>(({
                     <p className="text-[10px] font-black uppercase tracking-[0.15em] text-[var(--cl-text-muted)] px-1 my-2">Line Items</p>
 
                     {/* Lines grid */}
-                    <Card className="border-[var(--cl-border)] bg-[var(--cl-surface)] shadow-sm overflow-hidden">
-                        <div className="w-full text-sm overflow-x-auto custom-scrollbar">
+                    <Card className="border-[var(--cl-border)] bg-[var(--cl-surface)] shadow-sm flex flex-col min-h-0 md:flex-1 relative">
+                        <div
+                            ref={scrollWrapperRef}
+                            className="w-full text-sm overflow-x-auto overflow-y-auto custom-scrollbar pb-4"
+                            style={maxTableHeight !== undefined ? { maxHeight: maxTableHeight } : undefined}
+                        >
                             <div className="min-w-[800px]">
 
                                 {/* Header row */}
@@ -471,7 +497,7 @@ export const NewLoanEntry = forwardRef<NewLoanEntryHandle, Props>(({
                     </Card>
 
                     {/* ── Summary Bar ── */}
-                    <div className="rounded-lg border border-[var(--cl-border)] bg-[var(--cl-surface-2)]/40 px-4 py-2.5 flex flex-wrap items-center gap-x-6 gap-y-1 justify-end">
+                    <div ref={summaryRef} className="rounded-lg border border-[var(--cl-border)] bg-[var(--cl-surface-2)]/40 px-4 py-2.5 flex flex-wrap items-center gap-x-6 gap-y-1 justify-end">
                         <div className="flex items-center gap-1.5">
                             <span className="text-[10px] font-black uppercase tracking-widest text-[var(--cl-text-muted)]">Lines</span>
                             <span className="font-mono font-semibold text-sm text-[var(--cl-text)]">{lines.length}</span>

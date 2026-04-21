@@ -136,8 +136,26 @@ export const NewSalesInvoice = forwardRef<NewSalesInvoiceHandle, Props>(({
     // Submit
     const [submitting, setSubmitting] = useState(false);
 
-    const partInputRefs = useRef<(HTMLInputElement | null)[]>([]);
-    const hsnInputRefs  = useRef<(HTMLInputElement | null)[]>([]);
+    const partInputRefs      = useRef<(HTMLInputElement | null)[]>([]);
+    const hsnInputRefs        = useRef<(HTMLInputElement | null)[]>([]);
+    const scrollWrapperRef    = useRef<HTMLDivElement>(null);
+    const summaryRef          = useRef<HTMLDivElement>(null);
+
+    const [maxTableHeight, setMaxTableHeight] = useState<number | undefined>(undefined);
+
+    useEffect(() => {
+        function recalc() {
+            const el = scrollWrapperRef.current;
+            if (!el) return;
+            const top = el.getBoundingClientRect().top;
+            const summaryHeight = summaryRef.current?.getBoundingClientRect().height ?? 0;
+            // 14px = clearance from ClientLayout; 8px = gap between table and summary
+            setMaxTableHeight(window.innerHeight - top - summaryHeight - 8 - 14);
+        }
+        recalc();
+        window.addEventListener('resize', recalc);
+        return () => window.removeEventListener('resize', recalc);
+    }, []);
 
     // Populate form when editInvoice changes
     useEffect(() => {
@@ -441,7 +459,7 @@ export const NewSalesInvoice = forwardRef<NewSalesInvoiceHandle, Props>(({
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="flex flex-col gap-2 pb-2"
+            className="flex min-h-fit md:min-h-0 md:flex-1 flex-col gap-2 pb-0 md:overflow-hidden"
         >
             {!branchId ? (
                 <div className="flex flex-col items-center justify-center py-20 bg-[var(--cl-surface-2)]/30 rounded-xl border-2 border-dashed border-[var(--cl-border)] text-center">
@@ -580,8 +598,12 @@ export const NewSalesInvoice = forwardRef<NewSalesInvoiceHandle, Props>(({
                     <p className="text-[10px] font-black uppercase tracking-[0.15em] text-[var(--cl-text-muted)] px-1 my-2">
                         Line Items
                     </p>
-                    <Card className={`border-[var(--cl-border)] shadow-sm flex flex-col min-h-0 relative bg-[var(--cl-surface)] ${isReturn ? "border-l-4 border-l-red-500" : ""}`}>
-                        <div className="overflow-x-auto w-full pb-4">
+                    <Card className={`border-[var(--cl-border)] shadow-sm relative bg-[var(--cl-surface)] flex min-h-0 md:flex-1 flex-col ${isReturn ? "border-l-4 border-l-red-500" : ""}`}>
+                        <div
+                            ref={scrollWrapperRef}
+                            className="w-full overflow-x-auto overflow-y-auto pb-4"
+                            style={maxTableHeight !== undefined ? { maxHeight: maxTableHeight } : undefined}
+                        >
                             <table className="min-w-[920px] w-full border-collapse text-sm sticky-header">
                                 <thead>
                                     <tr className="bg-[var(--cl-surface-2)]/50">
@@ -759,7 +781,7 @@ export const NewSalesInvoice = forwardRef<NewSalesInvoiceHandle, Props>(({
                     </Card>
 
                     {/* Summary bar */}
-                    <div className={`rounded-lg border px-4 py-2.5 flex flex-wrap items-center gap-x-6 gap-y-1 justify-end ${isReturn ? "border-red-500/30 bg-red-500/5" : "border-[var(--cl-border)] bg-[var(--cl-surface-2)]/40"}`}>
+                    <div ref={summaryRef} className={`rounded-lg border px-4 py-2.5 flex flex-wrap items-center gap-x-6 gap-y-1 justify-end ${isReturn ? "border-red-500/30 bg-red-500/5" : "border-[var(--cl-border)] bg-[var(--cl-surface-2)]/40"}`}>
                         <div className="flex items-center gap-1.5">
                             <span className="text-[10px] font-black uppercase tracking-[0.1em] text-[var(--cl-text-muted)]">Lines</span>
                             <span className="font-bold tabular-nums text-sm text-[var(--cl-text)]">{lines.length}</span>

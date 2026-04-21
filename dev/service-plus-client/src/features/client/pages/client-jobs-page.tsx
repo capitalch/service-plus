@@ -1,5 +1,6 @@
 import { ClientLayout, useClientSelection } from "../components/client-layout";
 import { ConsumptionSection } from "../components/consumption-section";
+import { JobSection } from "../components/jobs/job-section";
 
 // ─── Coming Soon placeholder ──────────────────────────────────────────────────
 
@@ -22,6 +23,8 @@ function JobsContent() {
     const { selected } = useClientSelection();
 
     switch (selected) {
+        case "New Job":
+            return <JobSection />;
         case "Part Used (Job)":
             return <ConsumptionSection />;
         default:

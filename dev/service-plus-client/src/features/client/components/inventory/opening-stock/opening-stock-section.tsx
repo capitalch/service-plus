@@ -25,7 +25,6 @@ import { MESSAGES } from "@/constants/messages";
 import { SQL_MAP } from "@/constants/sql-map";
 import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
-import { currentFinancialYearRange } from "@/lib/utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectCurrentBranch, selectSchema } from "@/store/context-slice";
@@ -58,11 +57,7 @@ export const OpeningStockSection = () => {
     const globalBranch = useAppSelector(selectCurrentBranch);
     const branchId     = globalBranch?.id ?? null;
 
-    const { from: defaultFrom, to: defaultTo } = currentFinancialYearRange();
-
     // Filter state
-    const [fromDate,      setFromDate]      = useState(defaultFrom);
-    const [toDate,        setToDate]        = useState(defaultTo);
     const [search,        setSearch]        = useState("");
     const [searchQ,       setSearchQ]       = useState("");
     const [selectedBrand, setSelectedBrand] = useState("");
@@ -93,6 +88,31 @@ export const OpeningStockSection = () => {
     const [submitting, setSubmitting]     = useState(false);
 
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const scrollWrapperRef = useRef<HTMLDivElement>(null);
+
+    // Dynamic height calculation for the data grid
+    const [maxHeight, setMaxHeight] = useState<number>(0);
+
+    const recalc = useCallback(() => {
+        if (scrollWrapperRef.current) {
+            const rect = scrollWrapperRef.current.getBoundingClientRect();
+            // Leave space for pagination (approx 48px) and some margin
+            const availableHeight = window.innerHeight - rect.top - 60;
+            setMaxHeight(Math.max(200, availableHeight));
+        }
+    }, []);
+
+    useEffect(() => {
+        if (mode === "view") {
+            // Slight delay to ensure DOM is ready
+            const timer = setTimeout(recalc, 100);
+            window.addEventListener("resize", recalc);
+            return () => {
+                clearTimeout(timer);
+                window.removeEventListener("resize", recalc);
+            };
+        }
+    }, [mode, recalc, entries.length]); // Also recalc on data load
 
     // Load brands and txnTypes on mount
     useEffect(() => {
@@ -132,12 +152,12 @@ export const OpeningStockSection = () => {
 
     // Load entries (paged)
     const loadData = useCallback(async (
-        bId: number, from: string, to: string, q: string, pg: number,
+        bId: number, q: string, pg: number,
     ) => {
         if (!dbName || !schema) return;
         setLoading(true);
         try {
-            const commonArgs = { branch_id: bId, from_date: from, search: q, to_date: to };
+            const commonArgs = { branch_id: bId, search: q };
             const [dataRes, countRes] = await Promise.all([
                 apolloClient.query<GenericQueryData<OpeningStockListItem>>({
                     fetchPolicy: "network-only",
@@ -176,13 +196,13 @@ export const OpeningStockSection = () => {
     // Re-fetch when filters or branch change
     useEffect(() => {
         if (mode !== "view" || !branchId) return;
-        void loadData(Number(branchId), fromDate, toDate, searchQ, page);
-    }, [branchId, fromDate, toDate, searchQ, page, mode, loadData]);
+        void loadData(Number(branchId), searchQ, page);
+    }, [branchId, searchQ, page, mode, loadData]);
 
-    const handleFilterChange = (setter: (v: string) => void) => (v: string) => {
-        setter(v);
-        setPage(1);
-    };
+    // const handleFilterChange = (setter: (v: string) => void) => (v: string) => {
+    //     setter(v);
+    //     setPage(1);
+    // };
 
     const handleSearchChange = (value: string) => {
         setSearch(value);
@@ -212,7 +232,7 @@ export const OpeningStockSection = () => {
             });
             toast.success(MESSAGES.SUCCESS_OPENING_STOCK_DELETED);
             setDeleteId(null);
-            void loadData(Number(branchId), fromDate, toDate, searchQ, page);
+            void loadData(Number(branchId), searchQ, page);
         } catch {
             toast.error(MESSAGES.ERROR_OPENING_STOCK_DELETE_FAILED);
         } finally {
@@ -227,7 +247,7 @@ export const OpeningStockSection = () => {
     return (
         <motion.div
             animate={{ opacity: 1 }}
-            className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto md:overflow-y-hidden"
+            className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden"
             initial={{ opacity: 0 }}
             transition={{ duration: 0.25 }}
         >
@@ -261,17 +281,19 @@ export const OpeningStockSection = () => {
                     mode={mode}
                     isEditing={!!editEntry}
                     onNewClick={() => { setEditEntry(null); setMode("new"); }}
-                    onViewClick={() => { setMode("view"); if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, page); }}
+                    onViewClick={() => { setMode("view"); if (branchId) void loadData(Number(branchId), searchQ, page); }}
                 />
 
                 {/* Brand */}
-                <BrandSelect
-                    brands={brands}
-                    value={selectedBrand}
-                    onValueChange={setSelectedBrand}
-                    disabled={brands.length === 0 || loading}
-                    highlightEmpty={mode === "new" && !selectedBrand}
-                />
+                <div className={mode !== "new" ? "hidden md:flex md:invisible pointer-events-none" : ""}>
+                    <BrandSelect
+                        brands={brands}
+                        value={selectedBrand}
+                        onValueChange={setSelectedBrand}
+                        disabled={brands.length === 0 || loading}
+                        highlightEmpty={mode === "new" && !selectedBrand}
+                    />
+                </div>
 
                 {/* Reset · Save — invisible in view mode */}
                 <div className={`flex items-center gap-2 ${mode !== "new" ? "hidden md:flex md:invisible pointer-events-none" : ""}`}>
@@ -311,7 +333,7 @@ export const OpeningStockSection = () => {
                         if (editEntry) {
                             setEditEntry(null);
                             setMode("view");
-                            if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, 1);
+                            if (branchId) void loadData(Number(branchId), searchQ, 1);
                         } else {
                             formRef.current?.reset();
                         }
@@ -321,23 +343,6 @@ export const OpeningStockSection = () => {
                 <>
                     {/* Toolbar */}
                     <div className="flex flex-wrap items-center gap-2 px-4 py-2 bg-[var(--cl-surface-2)]/30">
-                        <div className="flex items-center gap-1">
-                            <Input
-                                className="h-8 w-32 border-[var(--cl-border)] bg-[var(--cl-surface)] text-xs"
-                                disabled={loading}
-                                type="date"
-                                value={fromDate}
-                                onChange={e => handleFilterChange(setFromDate)(e.target.value)}
-                            />
-                            <span className="text-[var(--cl-text-muted)] text-xs">—</span>
-                            <Input
-                                className="h-8 w-32 border-[var(--cl-border)] bg-[var(--cl-surface)] text-xs"
-                                disabled={loading}
-                                type="date"
-                                value={toDate}
-                                onChange={e => handleFilterChange(setToDate)(e.target.value)}
-                            />
-                        </div>
                         <div className="relative flex-1 sm:max-w-xs">
                             <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--cl-text-muted)]" />
                             <Input
@@ -354,7 +359,7 @@ export const OpeningStockSection = () => {
                                 disabled={loading || !branchId}
                                 size="sm"
                                 variant="outline"
-                                onClick={() => { if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, page); }}
+                                onClick={() => { if (branchId) void loadData(Number(branchId), searchQ, page); }}
                             >
                                 <RefreshCw className="mr-1.5 h-3 w-3" />
                                 Refresh
@@ -364,11 +369,40 @@ export const OpeningStockSection = () => {
 
                     {/* Data Grid */}
                     <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-[var(--cl-border)] bg-[var(--cl-surface)] shadow-sm">
-                        <div className="flex-1 overflow-x-auto overflow-y-auto">
+                        <div
+                            ref={scrollWrapperRef}
+                            className="flex-1 overflow-x-auto overflow-y-auto"
+                            style={{ maxHeight: mode === "view" ? maxHeight : undefined }}
+                        >
                             {loading ? (
-                                <div className="flex h-32 items-center justify-center">
-                                    <Loader2 className="h-6 w-6 animate-spin text-[var(--cl-accent)]" />
-                                </div>
+                                <table className="min-w-full border-collapse">
+                                    <thead className="sticky top-0 z-30">
+                                        <tr className="bg-[var(--cl-surface-2)]">
+                                            <th className={thClass} style={{ width: "5%" }}>#</th>
+                                            <th className={thClass} style={{ width: "12%" }}>Date</th>
+                                            <th className={thClass} style={{ width: "15%" }}>Ref #</th>
+                                            <th className={`${thClass} text-right`} style={{ width: "8%" }}>Lines</th>
+                                            <th className={`${thClass} text-right`} style={{ width: "12%" }}>Total Qty</th>
+                                            <th className={`${thClass} text-right`} style={{ width: "12%" }}>Total Value</th>
+                                            <th className={thClass} style={{ width: "24%" }}>Remarks</th>
+                                            <th className={`${thClass} text-center`} style={{ width: "10%" }}>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {Array.from({ length: 15 }).map((_, i) => (
+                                            <tr key={i} className="animate-pulse">
+                                                <td className={tdClass}><div className="h-4 w-4 rounded bg-[var(--cl-border)]" /></td>
+                                                <td className={tdClass}><div className="h-4 w-20 rounded bg-[var(--cl-border)]" /></td>
+                                                <td className={tdClass}><div className="h-4 w-24 rounded bg-[var(--cl-border)]" /></td>
+                                                <td className={`${tdClass} text-right`}><div className="ml-auto h-4 w-8 rounded bg-[var(--cl-border)]" /></td>
+                                                <td className={`${tdClass} text-right`}><div className="ml-auto h-4 w-12 rounded bg-[var(--cl-border)]" /></td>
+                                                <td className={`${tdClass} text-right`}><div className="ml-auto h-4 w-16 rounded bg-[var(--cl-border)]" /></td>
+                                                <td className={tdClass}><div className="h-4 w-48 rounded bg-[var(--cl-border)]" /></td>
+                                                <td className={tdClass}><div className="mx-auto h-4 w-8 rounded bg-[var(--cl-border)]" /></td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
                             ) : entries.length === 0 ? (
                                 <div className="flex h-32 items-center justify-center text-sm text-[var(--cl-text-muted)]">
                                     No opening stock entries found for the selected filters.

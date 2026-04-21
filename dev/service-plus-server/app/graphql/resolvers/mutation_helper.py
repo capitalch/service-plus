@@ -809,6 +809,67 @@ async def resolve_create_sales_invoice_helper(db_name: str, schema: str = "publi
     return record_id
 
 
+async def resolve_create_job_helper(db_name: str, schema: str = "public", value: str = "") -> Any:
+    """
+    Create a job and atomically insert an initial job_transaction + increment document sequence.
+
+    The `value` JSON must contain:
+      - tableName: "job"
+      - doc_sequence_id   (int): ID of the document_sequence row to increment.
+      - doc_sequence_next (int): The new next_number value (current + 1).
+      - performed_by_user_id (int): User ID for the initial job_transaction.
+      - xData: job fields (performed_by_user_id is stripped before DB insert).
+    """
+    if not value:
+        raise ValidationException(
+            message=AppMessages.INVALID_INPUT,
+            extensions={"detail": AppMessages.INVALID_JSON_OBJECT},
+        )
+    value_string = unquote(value)
+    try:
+        payload: dict = json.loads(value_string)
+    except json.JSONDecodeError as e:
+        logger.error("Invalid JSON in createJob value: %s", e)
+        raise ValidationException(
+            message=AppMessages.INVALID_INPUT,
+            extensions={"detail": AppMessages.INVALID_JSON_OBJECT},
+        )
+
+    doc_sequence_id   = payload.pop("doc_sequence_id", None)
+    doc_sequence_next = payload.pop("doc_sequence_next", None)
+    performed_by      = payload.get("xData", {}).pop("performed_by_user_id", None)
+    initial_status_id = payload.get("xData", {}).get("job_status_id")
+
+    db_name_arg = db_name if db_name else None
+    schema_name = schema or "public"
+
+    job_id = await exec_sql_object(db_name_arg, schema_name, payload)
+    logger.info("Job created with id=%s", job_id)
+
+    # Insert initial job_transaction
+    if performed_by is not None:
+        txn_object = {
+            "tableName": "job_transaction",
+            "xData": {
+                "job_id":               job_id,
+                "status_id":            initial_status_id,
+                "performed_by_user_id": performed_by,
+            },
+        }
+        await exec_sql_object(db_name_arg, schema_name, txn_object)
+        logger.debug("Initial job_transaction inserted for job_id=%s", job_id)
+
+    if doc_sequence_id is not None and doc_sequence_next is not None:
+        seq_object = {
+            "tableName": "document_sequence",
+            "xData": {"id": doc_sequence_id, "next_number": doc_sequence_next},
+        }
+        await exec_sql_object(db_name_arg, schema_name, seq_object)
+        logger.debug("Document sequence %s incremented to %s", doc_sequence_id, doc_sequence_next)
+
+    return job_id
+
+
 async def resolve_generic_update_script_helper(db_name: str, schema: str = "public", value: str = "") -> Any:
     """
     Execute a pre-defined SQL script from SqlStore with optional named parameters.

@@ -1,56 +1,47 @@
-# Plan: Better UI for StockSnapshotTrigger
+# Implementation Plan: Recreate Stock Ledger and Balance Data
 
-## Current State
-The current UI is a simple Card with:
-- A number `<Input>` for Year (can type any number, error-prone)
-- A `<Select>` dropdown for Month (12 items in a list)
-- A submit button
+## Objective
+To develop and execute a server-side script that reconciles the `stock_transaction` ledger and `stock_balance` snapshots by re-processing all documented inventory movements (Purchase, Sales, Loans, Transfers, etc.).
 
----
+## Workflow
+1.  **Identification**: Enumerate all active Business Units (schemas) in the `service_plus_service` database.
+2.  **Clean Slate**: Truncate `stock_transaction` and `stock_balance` tables within each target schema.
+3.  **Source Aggregation**: Iterate through all inventory-impacting tables:
+    *   `stock_opening_balance_line` (Opening stocks)
+    *   `purchase_invoice_line` (Stock In)
+    *   `sales_invoice_line` (Stock Out)
+    *   `stock_adjustment_line` (Increase/Decrease)
+    *   `stock_loan_line` (Borrowed In / Lent Out)
+    *   `stock_branch_transfer_line` (Inter-branch movement)
+    *   `job_part_used` (Consumption for repairs)
+4.  **Transaction Reconstruction**: Insert reconstructed records into `stock_transaction`.
+5.  **Balance Reconciliation**: The database triggers (`trg_stock_balance_insert`) will automatically update `stock_balance` during the insertion process.
 
-## UI Improvement Suggestions
+## Steps
 
-### Suggestion 1 — Visual Month Grid (replaces the dropdown)
-Instead of a 12-item dropdown, render the months as a **3×4 grid of toggle-buttons**.
-- User clicks a month name directly — no dropdown to open/scroll
-- Selected month is highlighted with the accent colour
-- Much faster to scan and select (tap-friendly on mobile too)
+### Step 1: Create Re-processing Script
+Create a Python utility script `scripts/recreate_stock.py` in the server project. This script will:
+- Connect to the PostgreSQL database.
+- Resolve any missing system-defined `stock_transaction_type` entries.
+- Support running for a single specific BU or all BUs.
 
-### Suggestion 2 — Year Spinner with Arrows (replaces the number input)
-Replace the raw `<input type="number">` with a **← YYYY →** stepper:
-- Left / Right arrow buttons decrement / increment the year
-- Year displayed as a large bold label in the centre
-- Clamps at `min=2020` and `max=currentYear` — no invalid input possible
-- Eliminates typo risk entirely
+### Step 2: Implement Logic for Each Transaction Type
+- **Opening Balances**: Direct mapping from `stock_opening_balance_line` (code: 'OPENING').
+- **Purchases**: Map `purchase_invoice_line` (dr_cr: 'D', code: 'PURCHASE') with reference to invoice date.
+- **Sales**: Map `sales_invoice_line` (dr_cr: 'C', code: 'SALES').
+- **Adjustments**: Map `dr_cr` as documented in `stock_adjustment_line` (code: 'ADJUST').
+- **Loans**: 
+    - If `dr_cr` is 'D', it's a Borrow In (code: 'LOAN').
+    - If `dr_cr` is 'C', it's a Lend Out (code: 'LOAN').
+- **Branch Transfers**: 
+    - Create a 'C' (OUT) transaction for the Source Branch (code: 'TRANSFER').
+    - Create a 'D' (IN) transaction for the Destination Branch (code: 'TRANSFER').
+- **Job Parts**: Map consumption from repairs where stock was utilized (code: 'JOB_CONSUME').
 
-### Suggestion 3 — Current Period Indicator
-Add a small tag above the form showing **"Current period: Month YYYY"**
-(derived from `defaultMonth` / `defaultYear`), so the user can immediately
-see what the pre-selected period means before hitting Generate.
+### Step 3: Validation and Finalization
+- Log the number of records processed per BU.
+- Verify consistency between `stock_transaction` totals and final `stock_balance` values.
+- (Optional) Regenerate `stock_snapshot` if required.
 
-### Suggestion 4 — Confirmation Step
-Generating a snapshot is a meaningful server operation.
-Add an **`AlertDialog`** confirmation before the form submits:
-> "Regenerate stock snapshot for April 2025? This will overwrite any existing snapshot for this period."
-- Prevents accidental triggers
-- Uses shadcn `AlertDialog` (already available in the project)
-
-### Suggestion 5 — Info Banner in Card Header
-Add a subtle info `Alert` below `CardDescription` that explains the use case:
-> "ℹ️ Use this after entering back-dated transactions to keep your stock snapshot accurate."
-
----
-
-## Recommended Implementation Order
-1. Step 1 — Month grid (highest impact, replaces dropdown)
-2. Step 2 — Year stepper (eliminates invalid input risk)
-3. Step 3 — Current period indicator
-4. Step 4 — Info banner
-5. Step 5 — Confirmation dialog
-
----
-
-## Files Affected
-| File | Change |
-|------|--------|
-| `stock-snapshot-trigger.tsx` | Replace Select+Input with month grid + year stepper; add banner + confirm dialog |
+## Proposed SQL Logic for Reconstruction (Python-assisted)
+The script will use batch inserts for performance while ensuring the `search_path` is correctly set per BU.

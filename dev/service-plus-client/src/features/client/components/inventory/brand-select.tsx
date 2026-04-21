@@ -13,6 +13,7 @@ interface BrandSelectProps {
     onValueChange: (value: string) => void;
     disabled?:     boolean;
     highlightEmpty?: boolean;   // show red border when no brand is selected
+    showAllOption?: boolean;   // add "All Brands" with value "0"
 }
 
 export function BrandSelect({
@@ -21,6 +22,7 @@ export function BrandSelect({
     onValueChange,
     disabled = false,
     highlightEmpty = false,
+    showAllOption = false,
 }: BrandSelectProps) {
     return (
         <div className="flex items-center gap-1.5">
@@ -38,6 +40,11 @@ export function BrandSelect({
                     <SelectValue placeholder="Brand" />
                 </SelectTrigger>
                 <SelectContent className="z-50">
+                    {showAllOption && (
+                        <SelectItem value="0" className="text-xs font-bold">
+                            All Brands
+                        </SelectItem>
+                    )}
                     {brands.map(b => (
                         <SelectItem key={b.id} value={String(b.id)} className="text-xs font-semibold">
                             {b.name}

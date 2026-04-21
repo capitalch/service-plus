@@ -27,6 +27,7 @@ export type PurchaseLineType = {
 export type PurchaseInvoiceType = {
     id:                  number;
     branch_id:           number;
+    brand_id:            number;
     supplier_id:         number;
     supplier_name:       string;
     invoice_no:       string;

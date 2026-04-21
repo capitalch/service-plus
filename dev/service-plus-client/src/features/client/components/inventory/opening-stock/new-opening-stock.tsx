@@ -80,6 +80,28 @@ export const NewOpeningStock = forwardRef<NewOpeningStockHandle, Props>(({
     const partInputRefs = useRef<(HTMLInputElement | null)[]>([]);
     const qtyInputRefs  = useRef<(HTMLInputElement | null)[]>([]);
 
+    const scrollWrapperRef = useRef<HTMLDivElement>(null);
+    const summaryRef       = useRef<HTMLDivElement>(null);
+    const [maxTableHeight, setMaxTableHeight] = useState<number | undefined>(undefined);
+
+    useEffect(() => {
+        function recalc() {
+            if (window.innerWidth < 768) {
+                setMaxTableHeight(undefined);
+                return;
+            }
+            const el = scrollWrapperRef.current;
+            if (!el) return;
+            const top = el.getBoundingClientRect().top;
+            const summaryHeight = summaryRef.current?.getBoundingClientRect().height ?? 0;
+            // 14px layout gap; 8px = gap between table and summary
+            setMaxTableHeight(window.innerHeight - top - summaryHeight - 8 - 14);
+        }
+        recalc();
+        window.addEventListener('resize', recalc);
+        return () => window.removeEventListener('resize', recalc);
+    }, [lines.length]);
+
     // Populate form when editing
     useEffect(() => {
         if (!editEntry) {
@@ -165,7 +187,7 @@ export const NewOpeningStock = forwardRef<NewOpeningStockHandle, Props>(({
     };
 
     const executeSave = async () => {
-        const openingBalTypeId = txnTypes.find(t => t.code === "OPENING_BALANCE")?.id;
+        const openingBalTypeId = txnTypes.find(t => t.code === "OPENING")?.id;
         if (!openingBalTypeId) {
             toast.error(MESSAGES.ERROR_OPENING_STOCK_TXN_TYPE_MISSING);
             return;
@@ -266,7 +288,7 @@ export const NewOpeningStock = forwardRef<NewOpeningStockHandle, Props>(({
     return (
         <motion.div
             animate={{ opacity: 1, y: 0 }}
-            className="flex flex-col gap-2 pb-2"
+            className="flex min-h-fit md:min-h-0 md:flex-1 flex-col gap-2 pb-0 md:overflow-hidden"
             exit={{ opacity: 0, y: -10 }}
             initial={{ opacity: 0, y: 10 }}
         >
@@ -338,8 +360,12 @@ export const NewOpeningStock = forwardRef<NewOpeningStockHandle, Props>(({
                     <p className="mb-1 px-1 text-[10px] font-black uppercase tracking-[0.15em] text-[var(--cl-text-muted)] my-2">Line Items</p>
 
                     {/* Lines table */}
-                    <Card className="relative flex min-h-0 flex-col border-[var(--cl-border)] bg-[var(--cl-surface)] shadow-sm">
-                        <div className="w-full overflow-x-auto pb-4">
+                    <Card className="relative flex min-h-0 flex-col border-[var(--cl-border)] bg-[var(--cl-surface)] shadow-sm md:flex-1">
+                        <div
+                            ref={scrollWrapperRef}
+                            className="w-full overflow-x-auto overflow-y-auto custom-scrollbar pb-4"
+                            style={maxTableHeight !== undefined ? { maxHeight: maxTableHeight } : undefined}
+                        >
                             <table className="min-w-[720px] w-full border-collapse text-sm sticky-header">
                                 <thead>
                                     <tr className="bg-[var(--cl-surface-2)]/50">
@@ -437,7 +463,7 @@ export const NewOpeningStock = forwardRef<NewOpeningStockHandle, Props>(({
                     </Card>
 
                     {/* Summary bar */}
-                    <div className="flex flex-wrap items-center justify-end gap-x-6 gap-y-1 rounded-lg border border-[var(--cl-border)] bg-[var(--cl-surface-2)]/40 px-4 py-2.5">
+                    <div ref={summaryRef} className="flex flex-wrap items-center justify-end gap-x-6 gap-y-1 rounded-lg border border-[var(--cl-border)] bg-[var(--cl-surface-2)]/40 px-4 py-2.5">
                         <div className="flex items-center gap-1.5">
                             <span className="text-[10px] font-black uppercase tracking-widest text-[var(--cl-text-muted)]">Lines</span>
                             <span className="font-mono text-sm font-semibold text-[var(--cl-text)]">{lines.length}</span>

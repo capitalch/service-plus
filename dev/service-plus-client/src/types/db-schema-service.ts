@@ -959,7 +959,7 @@ export interface SalesInvoice {
   invoice_no: string;
   invoice_date: Date;
   company_id: number;
-  customer_contact_id: number | null;
+  customer_contact_id: number;
   customer_name: string;
   customer_gstin: string | null;
   customer_state_code: string;
@@ -980,7 +980,7 @@ export interface SalesInvoiceInput {
   invoice_no: string;
   invoice_date: Date;
   company_id: number;
-  customer_contact_id?: number | null;
+  customer_contact_id: number;
   customer_name: string;
   customer_gstin?: string | null;
   customer_state_code: string;
@@ -999,7 +999,7 @@ export interface SalesInvoiceInput {
 const sales_invoice = {
   tableName: 'sales_invoice',
   columns: ['id', 'invoice_no', 'invoice_date', 'company_id', 'customer_contact_id', 'customer_name', 'customer_gstin', 'customer_state_code', 'aggregate_amount', 'cgst_amount', 'sgst_amount', 'igst_amount', 'total_tax', 'total_amount', 'branch_id', 'remarks', 'created_at', 'updated_at', 'is_return'],
-  requiredForInsert: ['id', 'invoice_no', 'invoice_date', 'company_id', 'customer_name', 'customer_state_code', 'aggregate_amount', 'total_tax', 'total_amount', 'branch_id'],
+  requiredForInsert: ['id', 'invoice_no', 'invoice_date', 'company_id', 'customer_contact_id', 'customer_name', 'customer_state_code', 'aggregate_amount', 'total_tax', 'total_amount', 'branch_id'],
   primaryKey: 'id',
   foreignKeys: {
     company_id: { table: 'company_info', column: 'id', $type: null as unknown as CompanyInfo },

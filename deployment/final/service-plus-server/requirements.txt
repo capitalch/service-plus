@@ -1,7 +1,9 @@
 aiofiles
+apscheduler
 ariadne
 bcrypt
 fastapi
+mcp[cli]
 openpyxl
 pandas
 python-multipart

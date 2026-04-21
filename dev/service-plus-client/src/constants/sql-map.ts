@@ -143,7 +143,8 @@ export const SQL_MAP = {
     // Document Sequences (Configurations)
     GET_DOCUMENT_SEQUENCES:               "GET_DOCUMENT_SEQUENCES",
     // Inventory
-    GET_STOCK_OVERVIEW:                   "GET_STOCK_OVERVIEW",
+    GET_STOCK_OVERVIEW_COUNT:             "GET_STOCK_OVERVIEW_COUNT",
+    GET_STOCK_OVERVIEW_PAGED:             "GET_STOCK_OVERVIEW_PAGED",
     GET_PARTS_CONSUMPTION:                "GET_PARTS_CONSUMPTION",
     GET_PARTS_CONSUMPTION_COUNT:          "GET_PARTS_CONSUMPTION_COUNT",
     // Purchase Entry
@@ -176,4 +177,8 @@ export const SQL_MAP = {
     GET_OPENING_STOCK_COUNT:              "GET_OPENING_STOCK_COUNT",
     GET_OPENING_STOCK_PAGED:              "GET_OPENING_STOCK_PAGED",
     GET_OPENING_STOCK_DETAIL:             "GET_OPENING_STOCK_DETAIL",
+    // Job Entry
+    GET_JOBS_COUNT:                       "GET_JOBS_COUNT",
+    GET_JOBS_PAGED:                       "GET_JOBS_PAGED",
+    GET_JOB_DETAIL:                       "GET_JOB_DETAIL",
 }

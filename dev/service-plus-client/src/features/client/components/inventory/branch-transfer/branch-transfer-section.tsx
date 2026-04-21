@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { FileText, Loader2, MoreHorizontal, Pencil, RefreshCw, Save, Search, Trash2 } from "lucide-react";
+import { FileText, Loader2, MoreHorizontal, Pencil, RefreshCw, Save, Search, Trash2, ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon } from "lucide-react";
 import { ViewModeToggle, type ViewMode } from "@/features/client/components/inventory/view-mode-toggle";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
@@ -93,6 +93,31 @@ export const BranchTransferSection = () => {
     const [submitting,   setSubmitting]   = useState(false);
 
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const scrollWrapperRef = useRef<HTMLDivElement>(null);
+
+    // Dynamic height calculation for the data grid
+    const [maxHeight, setMaxHeight] = useState<number>(0);
+
+    const recalc = useCallback(() => {
+        if (scrollWrapperRef.current) {
+            const rect = scrollWrapperRef.current.getBoundingClientRect();
+            // Leave space for pagination (approx 48px) and some margin
+            const availableHeight = window.innerHeight - rect.top - 60;
+            setMaxHeight(Math.max(200, availableHeight));
+        }
+    }, []);
+
+    useEffect(() => {
+        if (mode === "view") {
+            // Slight delay to ensure DOM is ready
+            const timer = setTimeout(recalc, 100);
+            window.addEventListener("resize", recalc);
+            return () => {
+                clearTimeout(timer);
+                window.removeEventListener("resize", recalc);
+            };
+        }
+    }, [mode, recalc, transfers.length]); // Also recalc on data load
 
     // Load brands and branches on mount
     useEffect(() => {
@@ -228,7 +253,7 @@ export const BranchTransferSection = () => {
     return (
         <motion.div
             animate={{ opacity: 1 }}
-            className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto md:overflow-y-hidden"
+            className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden"
             initial={{ opacity: 0 }}
             transition={{ duration: 0.25 }}
         >
@@ -266,13 +291,15 @@ export const BranchTransferSection = () => {
                 />
 
                 {/* Brand */}
-                <BrandSelect
-                    brands={brands}
-                    value={selectedBrand}
-                    onValueChange={setSelectedBrand}
-                    disabled={brands.length === 0 || loading}
-                    highlightEmpty={mode === "new" && !selectedBrand}
-                />
+                <div className={mode !== "new" ? "hidden md:flex md:invisible pointer-events-none" : ""}>
+                    <BrandSelect
+                        brands={brands}
+                        value={selectedBrand}
+                        onValueChange={setSelectedBrand}
+                        disabled={brands.length === 0 || loading}
+                        highlightEmpty={mode === "new" && !selectedBrand}
+                    />
+                </div>
 
                 {/* Reset · Save — invisible in view mode */}
                 <div className={`flex items-center gap-2 ${mode !== 'new' ? 'hidden md:flex md:invisible pointer-events-none' : ''}`}>
@@ -365,11 +392,36 @@ export const BranchTransferSection = () => {
 
                     {/* Data Grid */}
                     <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-[var(--cl-border)] bg-[var(--cl-surface)] shadow-sm">
-                        <div className="flex-1 overflow-x-auto overflow-y-auto">
+                        <div
+                            ref={scrollWrapperRef}
+                            className="flex-1 overflow-x-auto overflow-y-auto"
+                            style={{ maxHeight: mode === "view" ? maxHeight : undefined }}
+                        >
                             {loading ? (
-                                <div className="flex h-32 items-center justify-center">
-                                    <Loader2 className="h-6 w-6 animate-spin text-[var(--cl-accent)]" />
-                                </div>
+                                <table className="min-w-full border-collapse">
+                                    <thead className="sticky top-0 z-30">
+                                        <tr className="bg-[var(--cl-surface-2)]">
+                                            <th className={thClass} style={{ width: "5%" }}>#</th>
+                                            <th className={thClass} style={{ width: "12%" }}>Date</th>
+                                            <th className={thClass} style={{ width: "25%" }}>Source Branch</th>
+                                            <th className={thClass} style={{ width: "25%" }}>Dest. Branch</th>
+                                            <th className={thClass} style={{ width: "23%" }}>Ref No</th>
+                                            <th className={`${thClass} text-center`} style={{ width: "10%" }}>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {Array.from({ length: 15 }).map((_, i) => (
+                                            <tr key={i} className="animate-pulse">
+                                                <td className={tdClass}><div className="h-4 w-4 rounded bg-[var(--cl-border)]" /></td>
+                                                <td className={tdClass}><div className="h-4 w-20 rounded bg-[var(--cl-border)]" /></td>
+                                                <td className={tdClass}><div className="h-4 w-48 rounded bg-[var(--cl-border)]" /></td>
+                                                <td className={tdClass}><div className="h-4 w-48 rounded bg-[var(--cl-border)]" /></td>
+                                                <td className={tdClass}><div className="h-4 w-32 rounded bg-[var(--cl-border)]" /></td>
+                                                <td className={tdClass}><div className="mx-auto h-4 w-8 rounded bg-[var(--cl-border)]" /></td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
                             ) : transfers.length === 0 ? (
                                 <div className="flex h-32 items-center justify-center text-sm text-[var(--cl-text-muted)]">
                                     No branch transfers found for the selected filters.
@@ -442,32 +494,72 @@ export const BranchTransferSection = () => {
                             )}
                         </div>
 
-                        {/* Pagination */}
-                        {totalPages > 1 && (
-                            <div className="flex items-center justify-between border-t border-[var(--cl-border)] px-4 py-2">
-                                <span className="text-xs text-[var(--cl-text-muted)]">
-                                    Page {page} of {totalPages} · {total} records
-                                </span>
-                                <div className="flex gap-1">
-                                    <Button
-                                        disabled={page <= 1 || loading}
-                                        size="sm"
-                                        variant="outline"
-                                        onClick={() => setPage(p => p - 1)}
-                                    >
-                                        Prev
-                                    </Button>
-                                    <Button
-                                        disabled={page >= totalPages || loading}
-                                        size="sm"
-                                        variant="outline"
-                                        onClick={() => setPage(p => p + 1)}
-                                    >
-                                        Next
-                                    </Button>
-                                </div>
+                        {/* Summary footer — always pinned at bottom */}
+                        {transfers.length > 0 && (
+                            <div className="border-t border-[var(--cl-border)] bg-[var(--cl-surface-2)]">
+                                <table className="min-w-full border-collapse">
+                                    <tbody>
+                                        <tr>
+                                            <td className={tdClass} style={{ width: "5%" }}></td>
+                                            <td className={tdClass} colSpan={5}>
+                                                <div className="flex items-center justify-between">
+                                                    <span className="text-xs text-[var(--cl-text-muted)]">{transfers.length} lines</span>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
                             </div>
                         )}
+
+                        {/* Pagination */}
+                        <div className="flex items-center justify-between border-t border-[var(--cl-border)] px-4 py-2">
+                            <span className="text-xs text-[var(--cl-text-muted)]">
+                                Page {page} of {totalPages} · {total} records
+                            </span>
+                            <div className="flex items-center gap-1">
+                                <Button
+                                    className="h-7 w-7"
+                                    disabled={page <= 1 || loading}
+                                    size="icon"
+                                    title="First page"
+                                    variant="ghost"
+                                    onClick={() => setPage(1)}
+                                >
+                                    <ChevronsLeftIcon className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                    className="h-7 w-7"
+                                    disabled={page <= 1 || loading}
+                                    size="icon"
+                                    title="Previous page"
+                                    variant="ghost"
+                                    onClick={() => setPage(p => p - 1)}
+                                >
+                                    <ChevronLeftIcon className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                    className="h-7 w-7"
+                                    disabled={page >= totalPages || loading}
+                                    size="icon"
+                                    title="Next page"
+                                    variant="ghost"
+                                    onClick={() => setPage(p => p + 1)}
+                                >
+                                    <ChevronRightIcon className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                    className="h-7 w-7"
+                                    disabled={page >= totalPages || loading}
+                                    size="icon"
+                                    title="Last page"
+                                    variant="ghost"
+                                    onClick={() => setPage(totalPages)}
+                                >
+                                    <ChevronsRightIcon className="h-4 w-4" />
+                                </Button>
+                            </div>
+                        </div>
                     </div>
 
                     {/* Delete Confirm Dialog */}

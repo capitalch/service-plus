@@ -385,6 +385,18 @@ export const MESSAGES = {
   ERROR_STOCK_SNAPSHOT_NO_DATA:      'No stock transactions found for the selected period.',
   INFO_STOCK_SNAPSHOT_NO_SNAPSHOT:   'No snapshot recorded yet. Showing live transaction data.',
   SUCCESS_STOCK_SNAPSHOT_GENERATED:  'Stock snapshot generated successfully.',
+  // Job Entry
+  ERROR_JOB_LOAD_FAILED:               'Failed to load jobs. Please try again.',
+  ERROR_JOB_CREATE_FAILED:             'Failed to create job. Please try again.',
+  ERROR_JOB_UPDATE_FAILED:             'Failed to update job. Please try again.',
+  ERROR_JOB_DELETE_FAILED:             'Failed to delete job. Please try again.',
+  ERROR_JOB_CUSTOMER_REQUIRED:         'Please select a customer.',
+  ERROR_JOB_TYPE_REQUIRED:             'Please select a job type.',
+  ERROR_JOB_RECEIVE_MANNER_REQUIRED:   'Please select a receive manner.',
+  ERROR_JOB_PROBLEM_REQUIRED:          'Problem reported is required.',
+  SUCCESS_JOB_CREATED:                 'Job created successfully.',
+  SUCCESS_JOB_UPDATED:                 'Job updated successfully.',
+  SUCCESS_JOB_DELETED:                 'Job deleted successfully.',
   // Opening Stock
   ERROR_OPENING_STOCK_LOAD_FAILED:        'Failed to load opening stock. Please try again.',
   ERROR_OPENING_STOCK_CREATE_FAILED:      'Failed to save opening stock. Please try again.',

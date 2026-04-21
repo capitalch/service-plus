@@ -27,6 +27,7 @@ type Mutation {
     mailBusinessUserCredentials(db_name: String!, schema: String, value: String!): Generic
     setUserBuRole(db_name: String!, schema: String, value: String!): Generic
     createSalesInvoice(db_name: String!, schema: String, value: String!): Generic
+    createJob(db_name: String!, schema: String, value: String!): Generic
 }
 
 type Subscription {

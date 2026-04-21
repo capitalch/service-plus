@@ -142,9 +142,27 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
     // Master data diff confirmation
     const [masterDiffLines, setMasterDiffLines] = useState<PurchaseLineFormItem[]>([]);
 
-    const dupDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const partInputRefs = useRef<(HTMLInputElement | null)[]>([]);
-    const hsnInputRefs = useRef<(HTMLInputElement | null)[]>([]);
+    const dupDebounceRef   = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const partInputRefs    = useRef<(HTMLInputElement | null)[]>([]);
+    const hsnInputRefs     = useRef<(HTMLInputElement | null)[]>([]);
+    const scrollWrapperRef = useRef<HTMLDivElement>(null);
+    const summaryRef       = useRef<HTMLDivElement>(null);
+
+    const [maxTableHeight, setMaxTableHeight] = useState<number | undefined>(undefined);
+
+    useEffect(() => {
+        function recalc() {
+            const el = scrollWrapperRef.current;
+            if (!el) return;
+            const top = el.getBoundingClientRect().top;
+            const summaryHeight = summaryRef.current?.getBoundingClientRect().height ?? 0;
+            // 14px = clearance from ClientLayout; 8px = gap between table and summary
+            setMaxTableHeight(window.innerHeight - top - summaryHeight - 8 - 14);
+        }
+        recalc();
+        window.addEventListener('resize', recalc);
+        return () => window.removeEventListener('resize', recalc);
+    }, []);
 
     // Auto-detect IGST on vendor change
     useEffect(() => {
@@ -605,7 +623,7 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="flex min-h-fit md:min-h-0 md:flex-1 flex-col gap-2 md:overflow-hidden"
+            className="flex min-h-fit md:min-h-0 md:flex-1 flex-col gap-2 pb-0 md:overflow-hidden"
         >
             {!branchId ? (
                 <div className="flex flex-col items-center justify-center py-20 bg-[var(--cl-surface-2)]/30 rounded-xl border-2 border-dashed border-[var(--cl-border)] text-center">
@@ -693,7 +711,11 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
                     {/* table */}
                     <p className="text-[10px] font-black uppercase tracking-[0.15em] text-[var(--cl-text-muted)] my-2">Line Items</p>
                     <Card className={`border-[var(--cl-border)] shadow-sm flex min-h-0 md:flex-1 flex-col relative bg-[var(--cl-surface)] ${isReturn ? "border-l-4 border-l-red-500" : ""}`}>
-                        <div className="md:flex-1 min-h-[300px] overflow-x-auto overflow-y-auto w-full pb-4">
+                        <div
+                            ref={scrollWrapperRef}
+                            className="w-full overflow-x-auto overflow-y-auto pb-4"
+                            style={maxTableHeight !== undefined ? { maxHeight: maxTableHeight } : undefined}
+                        >
                             <table className="min-w-[860px] w-full border-collapse text-sm sticky-header">
                                 <thead>
                                     <tr className="bg-[var(--cl-surface-2)]/50">
@@ -900,7 +922,7 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
                     </Card>
 
                     {/* ── Summary Bar ── */}
-                    <div className={`rounded-lg border px-4 py-2.5 flex flex-wrap items-center gap-x-6 gap-y-1 justify-end ${isReturn ? "border-red-500/30 bg-red-500/5" : "border-[var(--cl-border)] bg-[var(--cl-surface-2)]/40"}`}>
+                    <div ref={summaryRef} className={`rounded-lg border px-4 py-2.5 flex flex-wrap items-center gap-x-6 gap-y-1 justify-end ${isReturn ? "border-red-500/30 bg-red-500/5" : "border-[var(--cl-border)] bg-[var(--cl-surface-2)]/40"}`}>
                         <div className="flex items-center gap-1.5">
                             <span className="text-[10px] font-black uppercase tracking-widest text-[var(--cl-text-muted)]">Lines</span>
                             <span className="font-mono font-semibold text-sm text-[var(--cl-text)]">{lines.length}</span>

@@ -1831,8 +1831,30 @@ class SqlStore:
 
     # ── Stock (Inventory Overview) ────────────────────────────────────────────
 
-    GET_STOCK_OVERVIEW = """
-        with "p_branch_id" as (values(%(branch_id)s::bigint))
+    GET_STOCK_OVERVIEW_COUNT = """
+        with
+            "p_branch_id" as (values(%(branch_id)s::bigint)),
+            "p_brand_id"  as (values(%(brand_id)s::bigint)),
+            "p_search"    as (values(%(search)s::text))
+        SELECT count(distinct sp.id) as total
+        FROM spare_part_master sp
+        JOIN stock_transaction st ON st.part_id = sp.id AND st.branch_id = (table "p_branch_id")
+        WHERE (
+            ((table "p_brand_id") = 0 OR sp.brand_id = (table "p_brand_id")) AND
+            ((table "p_search") = '' OR
+             LOWER(sp.part_code) ILIKE '%%' || LOWER((table "p_search")) || '%%' OR
+             LOWER(sp.part_name) ILIKE '%%' || LOWER((table "p_search")) || '%%' OR
+             LOWER(sp.category)  ILIKE '%%' || LOWER((table "p_search")) || '%%')
+        )
+    """
+
+    GET_STOCK_OVERVIEW_PAGED = """
+        with
+            "p_branch_id" as (values(%(branch_id)s::bigint)),
+            "p_brand_id"  as (values(%(brand_id)s::bigint)),
+            "p_search"    as (values(%(search)s::text)),
+            "p_limit"     as (values(%(limit)s::int)),
+            "p_offset"    as (values(%(offset)s::int))
         SELECT
             sp.id AS part_id,
             sp.part_code,
@@ -1843,9 +1865,19 @@ class SqlStore:
             COALESCE(SUM(CASE WHEN st.dr_cr = 'D' THEN st.qty ELSE -st.qty END), 0) AS current_stock
         FROM spare_part_master sp
         JOIN stock_transaction st ON st.part_id = sp.id AND st.branch_id = (table "p_branch_id")
+        WHERE (
+            ((table "p_brand_id") = 0 OR sp.brand_id = (table "p_brand_id")) AND
+            ((table "p_search") = '' OR
+             LOWER(sp.part_code) ILIKE '%%' || LOWER((table "p_search")) || '%%' OR
+             LOWER(sp.part_name) ILIKE '%%' || LOWER((table "p_search")) || '%%' OR
+             LOWER(sp.category)  ILIKE '%%' || LOWER((table "p_search")) || '%%')
+        )
         GROUP BY sp.id, sp.part_code, sp.part_name, sp.category, sp.uom, sp.cost_price
         ORDER BY sp.part_name
+        LIMIT  (table "p_limit")
+        OFFSET (table "p_offset")
     """
+
 
     # ── Consumption (Parts Usage) ─────────────────────────────────────────────
 
@@ -1959,6 +1991,7 @@ class SqlStore:
         SELECT
             pi.id,
             pi.branch_id,
+            pi.brand_id,
             pi.supplier_id,
             s.name        AS supplier_name,
             pi.invoice_no,
@@ -2351,14 +2384,18 @@ class SqlStore:
             "p_to"        as (values(%(to_date)s::date)),
             "p_search"    as (values(%(search)s::text))
         SELECT count(*) as total
-        FROM stock_loan
-        WHERE branch_id = (table "p_branch_id")
-          AND loan_date >= (table "p_from")
-          AND loan_date <= (table "p_to")
+        FROM stock_loan sl
+        WHERE sl.branch_id = (table "p_branch_id")
+          AND sl.loan_date >= (table "p_from")
+          AND sl.loan_date <= (table "p_to")
           AND (
             (table "p_search") = '' OR
-            loan_to ILIKE '%%' || (table "p_search") || '%%' OR
-            ref_no  ILIKE '%%' || (table "p_search") || '%%'
+            sl.ref_no ILIKE '%%' || (table "p_search") || '%%' OR
+            EXISTS (
+                SELECT 1 FROM stock_loan_line sll
+                WHERE sll.stock_loan_id = sl.id
+                  AND sll.loan_to ILIKE '%%' || (table "p_search") || '%%'
+            )
           )
     """
 
@@ -2371,18 +2408,22 @@ class SqlStore:
             "p_limit"     as (values(%(limit)s::int)),
             "p_offset"    as (values(%(offset)s::int))
         SELECT
-            id, loan_date, branch_id, loan_to, ref_no, remarks,
-            created_at, updated_at
-        FROM stock_loan
-        WHERE branch_id = (table "p_branch_id")
-          AND loan_date >= (table "p_from")
-          AND loan_date <= (table "p_to")
+            sl.id, sl.loan_date, sl.branch_id, sl.ref_no, sl.remarks,
+            sl.created_at, sl.updated_at
+        FROM stock_loan sl
+        WHERE sl.branch_id = (table "p_branch_id")
+          AND sl.loan_date >= (table "p_from")
+          AND sl.loan_date <= (table "p_to")
           AND (
             (table "p_search") = '' OR
-            loan_to ILIKE '%%' || (table "p_search") || '%%' OR
-            ref_no  ILIKE '%%' || (table "p_search") || '%%'
+            sl.ref_no ILIKE '%%' || (table "p_search") || '%%' OR
+            EXISTS (
+                SELECT 1 FROM stock_loan_line sll
+                WHERE sll.stock_loan_id = sl.id
+                  AND sll.loan_to ILIKE '%%' || (table "p_search") || '%%'
+            )
           )
-        ORDER BY loan_date DESC, id DESC
+        ORDER BY sl.loan_date DESC, sl.id DESC
         LIMIT (table "p_limit")
         OFFSET (table "p_offset")
     """
@@ -2393,7 +2434,6 @@ class SqlStore:
             sl.id,
             sl.loan_date,
             sl.branch_id,
-            sl.loan_to,
             sl.ref_no,
             sl.remarks,
             sl.created_at,
@@ -2404,6 +2444,7 @@ class SqlStore:
                     'part_id',   sll.part_id,
                     'part_code', sp.part_code,
                     'part_name', sp.part_name,
+                    'loan_to',   sll.loan_to,
                     'dr_cr',     sll.dr_cr,
                     'qty',       sll.qty,
                     'remarks',   sll.remarks
@@ -2454,14 +2495,10 @@ class SqlStore:
     GET_OPENING_STOCK_COUNT = """
         with
             "p_branch_id" as (values(%(branch_id)s::bigint)),
-            "p_from"      as (values(%(from_date)s::date)),
-            "p_to"        as (values(%(to_date)s::date)),
             "p_search"    as (values(%(search)s::text))
         SELECT count(*) as total
         FROM stock_opening_balance
         WHERE branch_id  = (table "p_branch_id")
-          AND entry_date >= (table "p_from")
-          AND entry_date <= (table "p_to")
           AND (
             (table "p_search") = '' OR
             ref_no  ILIKE '%%' || (table "p_search") || '%%' OR
@@ -2472,8 +2509,6 @@ class SqlStore:
     GET_OPENING_STOCK_PAGED = """
         with
             "p_branch_id" as (values(%(branch_id)s::bigint)),
-            "p_from"      as (values(%(from_date)s::date)),
-            "p_to"        as (values(%(to_date)s::date)),
             "p_search"    as (values(%(search)s::text)),
             "p_limit"     as (values(%(limit)s::int)),
             "p_offset"    as (values(%(offset)s::int))
@@ -2490,8 +2525,6 @@ class SqlStore:
         LEFT JOIN stock_opening_balance_line sobl
                ON sobl.stock_opening_balance_id = sob.id
         WHERE sob.branch_id  = (table "p_branch_id")
-          AND sob.entry_date >= (table "p_from")
-          AND sob.entry_date <= (table "p_to")
           AND (
             (table "p_search") = '' OR
             sob.ref_no  ILIKE '%%' || (table "p_search") || '%%' OR
@@ -2511,7 +2544,6 @@ class SqlStore:
             sob.branch_id,
             sob.ref_no,
             sob.remarks,
-            sob.created_by,
             sob.created_at,
             sob.updated_at,
             COALESCE(
@@ -2872,4 +2904,143 @@ class SqlStore:
             coalesce(ts.adjust_out,   0)                        as adjust_out_since
         from last_snap ls
         full outer join tran_since ts on true
+    """
+
+    # ── Job Entry ─────────────────────────────────────────────────────────────
+
+    GET_OPEN_JOBS_COUNT = """
+        with
+            "p_branch_id"   as (values(%(branch_id)s::bigint)),
+            "p_from_date"   as (values(%(from_date)s::date)),
+            "p_to_date"     as (values(%(to_date)s::date)),
+            "p_search"      as (values(%(search)s::text)),
+            "p_show_closed" as (values(%(show_closed)s::boolean))
+        SELECT COUNT(*) AS total
+        FROM job j
+        JOIN customer_contact cc ON cc.id = j.customer_contact_id
+        WHERE j.branch_id = (table "p_branch_id")
+          AND j.job_date BETWEEN (table "p_from_date") AND (table "p_to_date")
+          AND j.is_closed = (table "p_show_closed")
+          AND ((table "p_search") = ''
+           OR LOWER(j.job_no)       LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(cc.mobile)      LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(cc.full_name)   LIKE '%%' || LOWER((table "p_search")) || '%%')
+    """
+
+    GET_OPEN_JOBS_PAGED = """
+        with
+            "p_branch_id"   as (values(%(branch_id)s::bigint)),
+            "p_from_date"   as (values(%(from_date)s::date)),
+            "p_to_date"     as (values(%(to_date)s::date)),
+            "p_search"      as (values(%(search)s::text)),
+            "p_show_closed" as (values(%(show_closed)s::boolean)),
+            "p_limit"       as (values(%(limit)s::int)),
+            "p_offset"      as (values(%(offset)s::int))
+        SELECT
+            j.id,
+            j.job_no,
+            j.job_date,
+            j.is_closed,
+            j.amount,
+            j.diagnosis,
+            j.last_transaction_id,
+            cc.full_name  AS customer_name,
+            cc.mobile,
+            jt.name       AS job_type_name,
+            js.name       AS job_status_name,
+            t.name        AS technician_name
+        FROM job j
+        JOIN customer_contact cc ON cc.id = j.customer_contact_id
+        JOIN job_type          jt ON jt.id = j.job_type_id
+        JOIN job_status        js ON js.id = j.job_status_id
+        LEFT JOIN technician   t  ON t.id  = j.technician_id
+        WHERE j.branch_id = (table "p_branch_id")
+          AND j.job_date BETWEEN (table "p_from_date") AND (table "p_to_date")
+          AND j.is_closed = (table "p_show_closed")
+          AND ((table "p_search") = ''
+           OR LOWER(j.job_no)       LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(cc.mobile)      LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(cc.full_name)   LIKE '%%' || LOWER((table "p_search")) || '%%')
+        ORDER BY j.job_date DESC, j.job_no
+        LIMIT  (table "p_limit")
+        OFFSET (table "p_offset")
+    """
+
+    GET_JOBS_COUNT = """
+        with
+            "p_branch_id" as (values(%(branch_id)s::bigint)),
+            "p_from_date" as (values(%(from_date)s::date)),
+            "p_to_date"   as (values(%(to_date)s::date)),
+            "p_search"    as (values(%(search)s::text))
+        SELECT COUNT(*) AS total
+        FROM job j
+        JOIN customer_contact cc ON cc.id = j.customer_contact_id
+        WHERE j.branch_id = (table "p_branch_id")
+          AND j.job_date BETWEEN (table "p_from_date") AND (table "p_to_date")
+          AND ((table "p_search") = ''
+           OR LOWER(j.job_no)       LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(cc.mobile)      LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(cc.full_name)   LIKE '%%' || LOWER((table "p_search")) || '%%')
+    """
+
+    GET_JOBS_PAGED = """
+        with
+            "p_branch_id" as (values(%(branch_id)s::bigint)),
+            "p_from_date" as (values(%(from_date)s::date)),
+            "p_to_date"   as (values(%(to_date)s::date)),
+            "p_search"    as (values(%(search)s::text)),
+            "p_limit"     as (values(%(limit)s::int)),
+            "p_offset"    as (values(%(offset)s::int))
+        SELECT
+            j.id,
+            j.job_no,
+            j.job_date,
+            j.is_closed,
+            j.amount,
+            cc.full_name  AS customer_name,
+            cc.mobile,
+            jt.name       AS job_type_name,
+            js.name       AS job_status_name,
+            t.name        AS technician_name
+        FROM job j
+        JOIN customer_contact cc ON cc.id = j.customer_contact_id
+        JOIN job_type          jt ON jt.id = j.job_type_id
+        JOIN job_status        js ON js.id = j.job_status_id
+        LEFT JOIN technician   t  ON t.id  = j.technician_id
+        WHERE j.branch_id = (table "p_branch_id")
+          AND j.job_date BETWEEN (table "p_from_date") AND (table "p_to_date")
+          AND ((table "p_search") = ''
+           OR LOWER(j.job_no)       LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(cc.mobile)      LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(cc.full_name)   LIKE '%%' || LOWER((table "p_search")) || '%%')
+        ORDER BY j.job_date DESC, j.job_no
+        LIMIT  (table "p_limit")
+        OFFSET (table "p_offset")
+    """
+
+    GET_JOB_DETAIL = """
+        with "p_id" as (values(%(id)s::bigint))
+        SELECT
+            j.*,
+            cc.full_name  AS customer_name,
+            cc.mobile,
+            jt.name       AS job_type_name,
+            js.name       AS job_status_name,
+            jrm.name      AS job_receive_manner_name,
+            jrc.name      AS job_receive_condition_name,
+            t.name        AS technician_name,
+            pbm.model_name,
+            b.name        AS brand_name,
+            p.name        AS product_name
+        FROM job j
+        JOIN customer_contact      cc  ON cc.id  = j.customer_contact_id
+        JOIN job_type              jt  ON jt.id  = j.job_type_id
+        JOIN job_status            js  ON js.id  = j.job_status_id
+        JOIN job_receive_manner    jrm ON jrm.id = j.job_receive_manner_id
+        LEFT JOIN job_receive_condition jrc ON jrc.id = j.job_receive_condition_id
+        LEFT JOIN technician       t   ON t.id   = j.technician_id
+        LEFT JOIN product_brand_model pbm ON pbm.id = j.product_brand_model_id
+        LEFT JOIN brand            b   ON b.id   = pbm.brand_id
+        LEFT JOIN product          p   ON p.id   = pbm.product_id
+        WHERE j.id = (table "p_id")
     """

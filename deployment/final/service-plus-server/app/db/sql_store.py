@@ -1244,14 +1244,11 @@ class SqlStore:
         with
             "p_branch_id" as (values(%(branch_id)s::bigint)),
             "p_search"    as (values(%(search)s::text)),
-            "p_category"  as (values(%(category)s::text)),
             "p_brand"     as (values(%(brand)s::text)),
-            "p_model"     as (values(%(model)s::text)),
             "p_location"  as (values(%(location)s::text)),
             "p_status"    as (values(%(stock_status)s::text))
         -- with "p_branch_id" as (values(1::bigint)), "p_search" as (values(''::text)),
-        --      "p_category" as (values(''::text)), "p_brand" as (values(''::text)),
-        --      "p_model" as (values(''::text)), "p_location" as (values(''::text)),
+        --      "p_brand" as (values(''::text)), "p_location" as (values(''::text)),
         --      "p_status" as (values('all'::text)) -- Test line
         SELECT COUNT(*) AS total
         FROM spare_part_master p
@@ -1263,11 +1260,11 @@ class SqlStore:
           AND ((table "p_search") = ''
                OR LOWER(p.part_code)                      LIKE '%%' || LOWER((table "p_search")) || '%%'
                OR LOWER(p.part_name)                      LIKE '%%' || LOWER((table "p_search")) || '%%'
-               OR LOWER(COALESCE(p.part_description, '')) LIKE '%%' || LOWER((table "p_search")) || '%%')
-          AND ((table "p_category") = '' OR LOWER(COALESCE(p.category, '')) = LOWER((table "p_category")))
-          AND ((table "p_brand")    = '' OR LOWER(COALESCE(b.name, ''))     = LOWER((table "p_brand")))
-          AND ((table "p_model")    = '' OR LOWER(COALESCE(p.model,  ''))   = LOWER((table "p_model")))
-          AND ((table "p_location") = '' OR LOWER(COALESCE(lm.name, ''))   = LOWER((table "p_location")))
+               OR LOWER(COALESCE(p.part_description, '')) LIKE '%%' || LOWER((table "p_search")) || '%%'
+               OR LOWER(COALESCE(p.category, ''))         LIKE '%%' || LOWER((table "p_search")) || '%%'
+               OR LOWER(COALESCE(p.model, ''))            LIKE '%%' || LOWER((table "p_search")) || '%%')
+          AND ((table "p_brand")    = '' OR LOWER(COALESCE(b.name, ''))   = LOWER((table "p_brand")))
+          AND ((table "p_location") = '' OR LOWER(COALESCE(lm.name, '')) = LOWER((table "p_location")))
           AND (
               (table "p_status") = 'all'
               OR ((table "p_status") = 'out_of_stock' AND COALESCE(sb.qty, 0) = 0)
@@ -1281,16 +1278,13 @@ class SqlStore:
         with
             "p_branch_id" as (values(%(branch_id)s::bigint)),
             "p_search"    as (values(%(search)s::text)),
-            "p_category"  as (values(%(category)s::text)),
             "p_brand"     as (values(%(brand)s::text)),
-            "p_model"     as (values(%(model)s::text)),
             "p_location"  as (values(%(location)s::text)),
             "p_status"    as (values(%(stock_status)s::text)),
             "p_limit"     as (values(%(limit)s::int)),
             "p_offset"    as (values(%(offset)s::int))
         -- with "p_branch_id" as (values(1::bigint)), "p_search" as (values(''::text)),
-        --      "p_category" as (values(''::text)), "p_brand" as (values(''::text)),
-        --      "p_model" as (values(''::text)), "p_location" as (values(''::text)),
+        --      "p_brand" as (values(''::text)), "p_location" as (values(''::text)),
         --      "p_status" as (values('all'::text)),
         --      "p_limit" as (values(50::int)), "p_offset" as (values(0::int)) -- Test line
         SELECT
@@ -1310,7 +1304,8 @@ class SqlStore:
             CASE WHEN sb.location_id IS NOT NULL THEN 1
                  ELSE 0 END                                 AS location_count,
             lm.name                                         AS primary_location,
-            lm.id                                           AS primary_location_id
+            lm.id                                           AS primary_location_id,
+            COUNT(*) OVER()                                 AS total
         FROM spare_part_master p
         LEFT JOIN brand b                  ON b.id  = p.brand_id
         LEFT JOIN stock_balance sb         ON sb.part_id  = p.id
@@ -1320,11 +1315,11 @@ class SqlStore:
           AND ((table "p_search") = ''
                OR LOWER(p.part_code)                      LIKE '%%' || LOWER((table "p_search")) || '%%'
                OR LOWER(p.part_name)                      LIKE '%%' || LOWER((table "p_search")) || '%%'
-               OR LOWER(COALESCE(p.part_description, '')) LIKE '%%' || LOWER((table "p_search")) || '%%')
-          AND ((table "p_category") = '' OR LOWER(COALESCE(p.category, '')) = LOWER((table "p_category")))
-          AND ((table "p_brand")    = '' OR LOWER(COALESCE(b.name, ''))     = LOWER((table "p_brand")))
-          AND ((table "p_model")    = '' OR LOWER(COALESCE(p.model,  ''))   = LOWER((table "p_model")))
-          AND ((table "p_location") = '' OR LOWER(COALESCE(lm.name, ''))   = LOWER((table "p_location")))
+               OR LOWER(COALESCE(p.part_description, '')) LIKE '%%' || LOWER((table "p_search")) || '%%'
+               OR LOWER(COALESCE(p.category, ''))         LIKE '%%' || LOWER((table "p_search")) || '%%'
+               OR LOWER(COALESCE(p.model, ''))            LIKE '%%' || LOWER((table "p_search")) || '%%')
+          AND ((table "p_brand")    = '' OR LOWER(COALESCE(b.name, ''))   = LOWER((table "p_brand")))
+          AND ((table "p_location") = '' OR LOWER(COALESCE(lm.name, '')) = LOWER((table "p_location")))
           AND (
               (table "p_status") = 'all'
               OR ((table "p_status") = 'out_of_stock' AND COALESCE(sb.qty, 0) = 0)
@@ -1836,8 +1831,30 @@ class SqlStore:
 
     # ── Stock (Inventory Overview) ────────────────────────────────────────────
 
-    GET_STOCK_OVERVIEW = """
-        with "p_branch_id" as (values(%(branch_id)s::bigint))
+    GET_STOCK_OVERVIEW_COUNT = """
+        with
+            "p_branch_id" as (values(%(branch_id)s::bigint)),
+            "p_brand_id"  as (values(%(brand_id)s::bigint)),
+            "p_search"    as (values(%(search)s::text))
+        SELECT count(distinct sp.id) as total
+        FROM spare_part_master sp
+        JOIN stock_transaction st ON st.part_id = sp.id AND st.branch_id = (table "p_branch_id")
+        WHERE (
+            ((table "p_brand_id") = 0 OR sp.brand_id = (table "p_brand_id")) AND
+            ((table "p_search") = '' OR
+             LOWER(sp.part_code) ILIKE '%%' || LOWER((table "p_search")) || '%%' OR
+             LOWER(sp.part_name) ILIKE '%%' || LOWER((table "p_search")) || '%%' OR
+             LOWER(sp.category)  ILIKE '%%' || LOWER((table "p_search")) || '%%')
+        )
+    """
+
+    GET_STOCK_OVERVIEW_PAGED = """
+        with
+            "p_branch_id" as (values(%(branch_id)s::bigint)),
+            "p_brand_id"  as (values(%(brand_id)s::bigint)),
+            "p_search"    as (values(%(search)s::text)),
+            "p_limit"     as (values(%(limit)s::int)),
+            "p_offset"    as (values(%(offset)s::int))
         SELECT
             sp.id AS part_id,
             sp.part_code,
@@ -1848,9 +1865,19 @@ class SqlStore:
             COALESCE(SUM(CASE WHEN st.dr_cr = 'D' THEN st.qty ELSE -st.qty END), 0) AS current_stock
         FROM spare_part_master sp
         JOIN stock_transaction st ON st.part_id = sp.id AND st.branch_id = (table "p_branch_id")
+        WHERE (
+            ((table "p_brand_id") = 0 OR sp.brand_id = (table "p_brand_id")) AND
+            ((table "p_search") = '' OR
+             LOWER(sp.part_code) ILIKE '%%' || LOWER((table "p_search")) || '%%' OR
+             LOWER(sp.part_name) ILIKE '%%' || LOWER((table "p_search")) || '%%' OR
+             LOWER(sp.category)  ILIKE '%%' || LOWER((table "p_search")) || '%%')
+        )
         GROUP BY sp.id, sp.part_code, sp.part_name, sp.category, sp.uom, sp.cost_price
         ORDER BY sp.part_name
+        LIMIT  (table "p_limit")
+        OFFSET (table "p_offset")
     """
+
 
     # ── Consumption (Parts Usage) ─────────────────────────────────────────────
 
@@ -1964,6 +1991,7 @@ class SqlStore:
         SELECT
             pi.id,
             pi.branch_id,
+            pi.brand_id,
             pi.supplier_id,
             s.name        AS supplier_name,
             pi.invoice_no,
@@ -2356,14 +2384,18 @@ class SqlStore:
             "p_to"        as (values(%(to_date)s::date)),
             "p_search"    as (values(%(search)s::text))
         SELECT count(*) as total
-        FROM stock_loan
-        WHERE branch_id = (table "p_branch_id")
-          AND loan_date >= (table "p_from")
-          AND loan_date <= (table "p_to")
+        FROM stock_loan sl
+        WHERE sl.branch_id = (table "p_branch_id")
+          AND sl.loan_date >= (table "p_from")
+          AND sl.loan_date <= (table "p_to")
           AND (
             (table "p_search") = '' OR
-            loan_to ILIKE '%%' || (table "p_search") || '%%' OR
-            ref_no  ILIKE '%%' || (table "p_search") || '%%'
+            sl.ref_no ILIKE '%%' || (table "p_search") || '%%' OR
+            EXISTS (
+                SELECT 1 FROM stock_loan_line sll
+                WHERE sll.stock_loan_id = sl.id
+                  AND sll.loan_to ILIKE '%%' || (table "p_search") || '%%'
+            )
           )
     """
 
@@ -2376,18 +2408,22 @@ class SqlStore:
             "p_limit"     as (values(%(limit)s::int)),
             "p_offset"    as (values(%(offset)s::int))
         SELECT
-            id, loan_date, branch_id, loan_to, ref_no, remarks,
-            created_at, updated_at
-        FROM stock_loan
-        WHERE branch_id = (table "p_branch_id")
-          AND loan_date >= (table "p_from")
-          AND loan_date <= (table "p_to")
+            sl.id, sl.loan_date, sl.branch_id, sl.ref_no, sl.remarks,
+            sl.created_at, sl.updated_at
+        FROM stock_loan sl
+        WHERE sl.branch_id = (table "p_branch_id")
+          AND sl.loan_date >= (table "p_from")
+          AND sl.loan_date <= (table "p_to")
           AND (
             (table "p_search") = '' OR
-            loan_to ILIKE '%%' || (table "p_search") || '%%' OR
-            ref_no  ILIKE '%%' || (table "p_search") || '%%'
+            sl.ref_no ILIKE '%%' || (table "p_search") || '%%' OR
+            EXISTS (
+                SELECT 1 FROM stock_loan_line sll
+                WHERE sll.stock_loan_id = sl.id
+                  AND sll.loan_to ILIKE '%%' || (table "p_search") || '%%'
+            )
           )
-        ORDER BY loan_date DESC, id DESC
+        ORDER BY sl.loan_date DESC, sl.id DESC
         LIMIT (table "p_limit")
         OFFSET (table "p_offset")
     """
@@ -2398,7 +2434,6 @@ class SqlStore:
             sl.id,
             sl.loan_date,
             sl.branch_id,
-            sl.loan_to,
             sl.ref_no,
             sl.remarks,
             sl.created_at,
@@ -2409,6 +2444,7 @@ class SqlStore:
                     'part_id',   sll.part_id,
                     'part_code', sp.part_code,
                     'part_name', sp.part_name,
+                    'loan_to',   sll.loan_to,
                     'dr_cr',     sll.dr_cr,
                     'qty',       sll.qty,
                     'remarks',   sll.remarks
@@ -2459,14 +2495,10 @@ class SqlStore:
     GET_OPENING_STOCK_COUNT = """
         with
             "p_branch_id" as (values(%(branch_id)s::bigint)),
-            "p_from"      as (values(%(from_date)s::date)),
-            "p_to"        as (values(%(to_date)s::date)),
             "p_search"    as (values(%(search)s::text))
         SELECT count(*) as total
         FROM stock_opening_balance
         WHERE branch_id  = (table "p_branch_id")
-          AND entry_date >= (table "p_from")
-          AND entry_date <= (table "p_to")
           AND (
             (table "p_search") = '' OR
             ref_no  ILIKE '%%' || (table "p_search") || '%%' OR
@@ -2477,8 +2509,6 @@ class SqlStore:
     GET_OPENING_STOCK_PAGED = """
         with
             "p_branch_id" as (values(%(branch_id)s::bigint)),
-            "p_from"      as (values(%(from_date)s::date)),
-            "p_to"        as (values(%(to_date)s::date)),
             "p_search"    as (values(%(search)s::text)),
             "p_limit"     as (values(%(limit)s::int)),
             "p_offset"    as (values(%(offset)s::int))
@@ -2495,8 +2525,6 @@ class SqlStore:
         LEFT JOIN stock_opening_balance_line sobl
                ON sobl.stock_opening_balance_id = sob.id
         WHERE sob.branch_id  = (table "p_branch_id")
-          AND sob.entry_date >= (table "p_from")
-          AND sob.entry_date <= (table "p_to")
           AND (
             (table "p_search") = '' OR
             sob.ref_no  ILIKE '%%' || (table "p_search") || '%%' OR
@@ -2516,7 +2544,6 @@ class SqlStore:
             sob.branch_id,
             sob.ref_no,
             sob.remarks,
-            sob.created_by,
             sob.created_at,
             sob.updated_at,
             COALESCE(
@@ -2744,4 +2771,137 @@ class SqlStore:
             WHERE LOWER(setting_key) = LOWER((table "p_key"))
               AND id <> (table "p_id")
         ) AS exists
+    """
+
+    # ── Stock Snapshot ────────────────────────────────────────────────────────
+
+    SQL_GENERATE_STOCK_SNAPSHOT = """
+        with
+            "p_year"  as (values(%(year)s::int)),
+            "p_month" as (values(%(month)s::int)),
+        -- with
+        --     "p_year"  as (values(2026::int)), -- Test line
+        --     "p_month" as (values(3::int)),    -- Test line
+        period as (
+            select
+                date_trunc('month', make_date((table "p_year"), (table "p_month"), 1))::date                                as period_start,
+                (date_trunc('month', make_date((table "p_year"), (table "p_month"), 1)) + interval '1 month - 1 day')::date as period_end,
+                (date_trunc('month', make_date((table "p_year"), (table "p_month"), 1)) + interval '1 month - 1 day')::date as snapshot_date
+        ),
+        prev_snapshot as (
+            select ss.part_id, ss.branch_id, ss.closing
+            from stock_snapshot ss
+            inner join (
+                select part_id, branch_id, max(snapshot_date) as max_date
+                from stock_snapshot
+                where snapshot_date < (select period_start from period)
+                group by part_id, branch_id
+            ) latest on latest.part_id    = ss.part_id
+                    and latest.branch_id  = ss.branch_id
+                    and ss.snapshot_date      = latest.max_date
+        ),
+        tran_summary as (
+            select
+                st.part_id,
+                st.branch_id,
+                sum(case when stt.dr_cr = 'D' then st.qty else -st.qty end)           as net_qty,
+                sum(case when stt.code = 'PURCHASE'            then st.qty else 0 end) as purchase_in,
+                sum(case when stt.code = 'PURCHASE_RETURN'     then st.qty else 0 end) as purchase_out,
+                sum(case when stt.code = 'SALES_RETURN'        then st.qty else 0 end) as sales_in,
+                sum(case when stt.code = 'SALES'               then st.qty else 0 end) as sales_out,
+                sum(case when stt.code = 'ADJUSTMENT_IN'       then st.qty else 0 end) as adjust_in,
+                sum(case when stt.code = 'ADJUSTMENT_OUT'      then st.qty else 0 end) as adjust_out,
+                sum(case when stt.code = 'LOAN_IN'             then st.qty else 0 end) as loan_in,
+                sum(case when stt.code = 'LOAN_OUT'            then st.qty else 0 end) as loan_out,
+                sum(case when stt.code = 'BRANCH_TRANSFER_IN'  then st.qty else 0 end) as branch_transfer_in,
+                sum(case when stt.code = 'BRANCH_TRANSFER_OUT' then st.qty else 0 end) as branch_transfer_out
+            from stock_transaction st
+            join stock_transaction_type stt on stt.id = st.stock_transaction_type_id
+            where st.transaction_date between (select period_start from period)
+                                          and (select period_end   from period)
+            group by st.part_id, st.branch_id
+        )
+        insert into stock_snapshot (
+            snapshot_date, part_id, branch_id,
+            opening, closing,
+            purchase_in, purchase_out, sales_in, sales_out,
+            adjust_in, adjust_out, loan_in, loan_out,
+            branch_transfer_in, branch_transfer_out
+        )
+        select
+            (select snapshot_date from period),
+            ts.part_id, ts.branch_id,
+            coalesce(ps.closing, 0)                  as opening,
+            coalesce(ps.closing, 0) + ts.net_qty     as closing,
+            ts.purchase_in,  ts.purchase_out,
+            ts.sales_in,     ts.sales_out,
+            ts.adjust_in,    ts.adjust_out,
+            ts.loan_in,      ts.loan_out,
+            ts.branch_transfer_in, ts.branch_transfer_out
+        from tran_summary ts
+        left join prev_snapshot ps on ps.part_id = ts.part_id and ps.branch_id = ts.branch_id
+        on conflict (snapshot_date, part_id, branch_id) do update set
+            opening             = excluded.opening,
+            closing             = excluded.closing,
+            purchase_in         = excluded.purchase_in,
+            purchase_out        = excluded.purchase_out,
+            sales_in            = excluded.sales_in,
+            sales_out           = excluded.sales_out,
+            adjust_in           = excluded.adjust_in,
+            adjust_out          = excluded.adjust_out,
+            loan_in             = excluded.loan_in,
+            loan_out            = excluded.loan_out,
+            branch_transfer_in  = excluded.branch_transfer_in,
+            branch_transfer_out = excluded.branch_transfer_out
+        returning part_id
+    """
+
+    SQL_PART_FINDER_STOCK_SUMMARY = """
+        with
+            "p_part_id"   as (values(%(part_id)s::bigint)),
+            "p_branch_id" as (values(%(branch_id)s::bigint)),
+        -- with
+        --     "p_part_id"   as (values(1::bigint)), -- Test line
+        --     "p_branch_id" as (values(1::bigint)), -- Test line
+        last_snap as (
+            select snapshot_date, closing,
+                   purchase_in, purchase_out, sales_in, sales_out,
+                   adjust_in, adjust_out, loan_in, loan_out,
+                   branch_transfer_in, branch_transfer_out
+            from stock_snapshot
+            where part_id   = (table "p_part_id")
+              and branch_id = (table "p_branch_id")
+            order by snapshot_date desc
+            limit 1
+        ),
+        tran_since as (
+            select
+                sum(case when stt.dr_cr = 'D' then st.qty else -st.qty end)           as net_qty,
+                sum(case when stt.code = 'PURCHASE'            then st.qty else 0 end) as purchase_in,
+                sum(case when stt.code = 'PURCHASE_RETURN'     then st.qty else 0 end) as purchase_out,
+                sum(case when stt.code = 'SALES_RETURN'        then st.qty else 0 end) as sales_in,
+                sum(case when stt.code = 'SALES'               then st.qty else 0 end) as sales_out,
+                sum(case when stt.code = 'ADJUSTMENT_IN'       then st.qty else 0 end) as adjust_in,
+                sum(case when stt.code = 'ADJUSTMENT_OUT'      then st.qty else 0 end) as adjust_out
+            from stock_transaction st
+            join stock_transaction_type stt on stt.id = st.stock_transaction_type_id
+            where st.part_id   = (table "p_part_id")
+              and st.branch_id = (table "p_branch_id")
+              and st.transaction_date > coalesce(
+                    (select snapshot_date from last_snap), '1900-01-01'::date
+                  )
+        )
+        select
+            ls.snapshot_date                                    as last_snapshot_date,
+            coalesce(ls.closing, 0)                             as snapshot_closing,
+            coalesce(ts.net_qty, 0)                             as net_since_snapshot,
+            coalesce(ls.closing, 0) + coalesce(ts.net_qty, 0)  as current_stock,
+            coalesce(ts.purchase_in,  0)                        as purchase_in_since,
+            coalesce(ts.purchase_out, 0)                        as purchase_out_since,
+            coalesce(ts.sales_in,     0)                        as sales_in_since,
+            coalesce(ts.sales_out,    0)                        as sales_out_since,
+            coalesce(ts.adjust_in,    0)                        as adjust_in_since,
+            coalesce(ts.adjust_out,   0)                        as adjust_out_since
+        from last_snap ls
+        full outer join tran_since ts on true
     """

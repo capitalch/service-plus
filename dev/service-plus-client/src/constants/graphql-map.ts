@@ -124,6 +124,11 @@ export const GRAPHQL_MAP = {
             createSalesInvoice(db_name: $db_name, schema: $schema, value: $value)
         }
     `,
+    createJob: gql`
+        mutation CreateJob($db_name: String!, $schema: String, $value: String!) {
+            createJob(db_name: $db_name, schema: $schema, value: $value)
+        }
+    `,
     superAdminClientsData: gql`
         query SuperAdminClientsData {
             superAdminClientsData
