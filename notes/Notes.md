@@ -1,7 +1,3 @@
-## Openrouter api key
-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
-# gemini api key: AIzaSyARzzPAsk65fx2mAWt1gVjX4bEn5CvyDG0
-# bifrost api key: sk-bf-3160dc3b-7f2b-417d-8ff6-f79c34a20b38
 ## Service management software
 
 # Old Service DB extracts
