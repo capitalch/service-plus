@@ -160,14 +160,13 @@ class SqlBu:
             job_receive_condition_id smallint,
             product_brand_model_id bigint,
             serial_no text,
-            problem_reported text NOT NULL,
+            problem_reported text,
             diagnosis text,
             work_done text,
             remarks text,
             amount numeric(12,2),
             delivery_date date,
             is_closed boolean DEFAULT false NOT NULL,
-            is_warranty boolean DEFAULT false NOT NULL,
             warranty_card_no text,
             is_active boolean DEFAULT true NOT NULL,
             created_at timestamp with time zone DEFAULT now() NOT NULL,
@@ -816,28 +815,29 @@ class SqlBu:
             (6, 'NOT_APPLICABLE', 'Not Applicable', true)
         ON CONFLICT (id) DO NOTHING;
 
-        INSERT INTO job_receive_condition (id, code, name, description, is_system) VALUES
-            (1,  'DEAD',           'Dead',                        'Item is completely dead',                                           true),
-            (2,  'NOT_WORKING',    'Not Working',                 'Item is completely non-functional at the time of receipt',          true),
-            (3,  'PARTIAL_WORKING','Partially Working',           'Item is working but with reported issues or faults',                true),
-            (4,  'DAMAGED',        'Damaged',                     'Item has visible physical damage affecting usability',             true),
-            (5,  'MINOR_DAMAGE',   'Minor Damage',                'Item has minor scratches, dents, or cosmetic issues',              true),
-            (6,  'MISSING_PARTS',  'Missing Parts / Accessories', 'Some parts or accessories are missing',                           true),
-            (7,  'WATER_DAMAGE',   'Water Damaged',               'Item shows signs of liquid damage',                               true),
-            (8,  'BURNT',          'Burnt / Electrical Damage',   'Item has electrical damage',                                      true),
-            (9,  'PHYSICAL_BREAK', 'Physically Broken',           'Item is broken',                                                  true),
-            (10, 'UNKNOWN',        'Condition Unknown',           'Condition not verified',                                          true)
+        INSERT INTO job_receive_condition (id, code, name, description, is_system, display_order) VALUES
+            (1,  'DEAD',           'Dead',                        'Item is completely dead',                                           true, 1),
+            (2,  'NOT_WORKING',    'Not Working',                 'Item is completely non-functional at the time of receipt',          true, 2),
+            (3,  'PARTIAL_WORKING','Partially Working',           'Item is working but with reported issues or faults',                true, 0),
+            (4,  'DAMAGED',        'Damaged',                     'Item has visible physical damage affecting usability',             true, 3),
+            (5,  'MINOR_DAMAGE',   'Minor Damage',                'Item has minor scratches, dents, or cosmetic issues',              true, 0),
+            (6,  'MISSING_PARTS',  'Missing Parts / Accessories', 'Some parts or accessories are missing',                           true, 4),
+            (7,  'WATER_DAMAGE',   'Water Damaged',               'Item shows signs of liquid damage',                               true, 5),
+            (8,  'BURNT',          'Burnt / Electrical Damage',   'Item has electrical damage',                                      true, 6),
+            (9,  'PHYSICAL_BREAK', 'Physically Broken',           'Item is broken',                                                  true, 7),
+            (10, 'UNKNOWN',        'Condition Unknown',           'Condition not verified',                                          true, 0)
         ON CONFLICT (id) DO NOTHING;
 
-        INSERT INTO job_receive_manner (id, code, name) VALUES
-            (1, 'WALKIN', 'Walk-in (Customer Visit)'),
-            (2, 'PICKUP', 'Home Pickup'),
-            (3, 'ONLINE', 'Online Booking'),
-            (4, 'PHONE',  'Phone Booking'),
-            (5, 'COURIER','Received via Courier'),
-            (6, 'AMC',    'AMC / Contract Service'),
-            (7, 'POST',   'Received via Postal Service'),
-            (8, 'OTHER',  'Other')
+        INSERT INTO job_receive_manner (id, code, name, is_system, display_order) VALUES
+            (1, 'WALKIN',       'Walk-in (Customer Visit)',  true, 1),
+            (2, 'HOME_PICKUP',  'Home Pickup',              true, 2),
+            (3, 'ONLINE',       'Online Booking',           true, 0),
+            (4, 'PHONE',        'Phone Booking',            true, 0),
+            (5, 'COURIER',      'Received via Courier',     true, 0),
+            (6, 'AMC',          'AMC / Contract Service',   true, 0),
+            (7, 'POST',         'Received via Postal Service', true, 0),
+            (8, 'OTHER',        'Other',                    true, 0),
+            (9, 'HOME_SERVICE', 'Home Service',             true, 0)
         ON CONFLICT (id) DO NOTHING;
 
         INSERT INTO job_status (id, code, name, description, display_order) VALUES
@@ -859,17 +859,17 @@ class SqlBu:
             (16, 'DISPOSED',          'Disposed',         'Item disposed',              16)
         ON CONFLICT (id) DO NOTHING;
 
-        INSERT INTO job_type (id, code, name, description, is_system) VALUES
-            (1,  'MAKE_READY',     'Make Ready',    'Make item ready',          true),
-            (2,  'ESTIMATE',       'Estimate',      'Estimate for repair',      true),
-            (3,  'UNDER_WARRANTY', 'Under Warranty','Warranty service',         true),
-            (4,  'INSTALLATION',   'Installation',  'Installing product',       true),
-            (5,  'DEMO',           'Demo',          'Product demo',             true),
-            (6,  'MAINTENANCE',    'Maintenance',   'Preventive maintenance',   true),
-            (7,  'INSPECTION',     'Inspection',    'Diagnosis only',           true),
-            (8,  'AMC_SERVICE',    'AMC Service',   'AMC service',              true),
-            (9,  'UPGRADE',        'Upgrade',       'Upgrade components',       true),
-            (10, 'REFURBISH',      'Refurbishment', 'Restore item',             true)
+        INSERT INTO job_type (id, code, name, description, is_system, display_order) VALUES
+            (1,  'MAKE_READY',     'Make Ready',    'Make item ready',          true, 1),
+            (2,  'ESTIMATE',       'Estimate',      'Estimate for repair',      true, 2),
+            (3,  'UNDER_WARRANTY', 'Under Warranty', 'Warranty service',        true, 3),
+            (4,  'INSTALLATION',   'Installation',  'Installing product',       true, 0),
+            (5,  'DEMO',           'Demo',          'Product demo',             true, 0),
+            (6,  'MAINTENANCE',    'Maintenance',   'Preventive maintenance',   true, 0),
+            (7,  'INSPECTION',     'Inspection',    'Diagnosis only',           true, 0),
+            (8,  'AMC_SERVICE',    'AMC Service',   'AMC service',              true, 0),
+            (9,  'UPGRADE',        'Upgrade',       'Upgrade components',       true, 0),
+            (10, 'REFURBISH',      'Refurbishment', 'Restore item',             true, 0)
         ON CONFLICT (id) DO NOTHING;
 
         INSERT INTO stock_transaction_type (id, code, name, dr_cr, description, is_system) VALUES

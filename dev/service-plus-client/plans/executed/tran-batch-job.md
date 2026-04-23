@@ -1,0 +1,12 @@
+# Modification of plan in plan-batch-job.md
+    - modify the plan based on changes in new single job and current layout of new job form
+    - Purpose of the batch jobs is only to track multiple jobs together
+    - A new nullable field as batch_no, being a running numbe, somewhere in database stored the last_batch_no. Gets incremented by 1 for each batch created.
+    - Multiple jobs can be linked together to form a batch. 
+    - With batch jobs there is convenience of receiving multiple jobs together
+        - Job sheet can be printed with all the details of all jobs in the batch
+        - Saves time from printing job sheets for each job individually
+    - If several jobs are received together from single source, say some corporate office or collection center etc.
+        - Then the jobs are logged in single batch. 
+        - One sheet prints for all the jobs.
+        - Saves time from printing job sheets for each job individually

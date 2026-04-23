@@ -147,6 +147,8 @@ export const SQL_MAP = {
     GET_STOCK_OVERVIEW_PAGED:             "GET_STOCK_OVERVIEW_PAGED",
     GET_PARTS_CONSUMPTION:                "GET_PARTS_CONSUMPTION",
     GET_PARTS_CONSUMPTION_COUNT:          "GET_PARTS_CONSUMPTION_COUNT",
+    GET_JOBS_BY_KEYWORD:                  "GET_JOBS_BY_KEYWORD",
+    GET_JOB_PART_USED_BY_JOB:            "GET_JOB_PART_USED_BY_JOB",
     // Purchase Entry
     GET_STOCK_TRANSACTION_TYPES:          "GET_STOCK_TRANSACTION_TYPES",
     GET_PURCHASE_INVOICES_COUNT:          "GET_PURCHASE_INVOICES_COUNT",
@@ -181,4 +183,9 @@ export const SQL_MAP = {
     GET_JOBS_COUNT:                       "GET_JOBS_COUNT",
     GET_JOBS_PAGED:                       "GET_JOBS_PAGED",
     GET_JOB_DETAIL:                       "GET_JOB_DETAIL",
+    GET_JOB_IMAGE_DOCS:                   "GET_JOB_IMAGE_DOCS",
+    // Batch Job Entry
+    GET_JOB_BATCHES_PAGED:               "GET_JOB_BATCHES_PAGED",
+    GET_JOB_BATCHES_COUNT:               "GET_JOB_BATCHES_COUNT",
+    GET_JOB_BATCH_DETAIL:                "GET_JOB_BATCH_DETAIL",
 }

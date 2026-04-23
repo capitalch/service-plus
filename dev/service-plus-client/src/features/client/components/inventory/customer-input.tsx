@@ -116,7 +116,7 @@ export function CustomerInput({
 
     return (
         <>
-            <div className={`relative flex flex-col gap-0.5 px-1.5 py-1${className ? ` ${className}` : ""}`}>
+            <div className={`relative flex flex-col gap-0.5  py-1 ${className ? ` ${className}` : ""}`}>
                 <div className="relative group/cust">
                     <button
                         type="button"

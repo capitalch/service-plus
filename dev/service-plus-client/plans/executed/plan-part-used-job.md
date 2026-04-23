@@ -38,23 +38,16 @@ Two-file section following the purchase/sales invoice pattern:
    - Add `GET_JOB_PART_USED_BY_JOB` — existing lines for selected job (id, part_id, part_code, part_name, uom, quantity)
    - Modify `GET_PARTS_CONSUMPTION` — add `jpu.id` to SELECT (needed for delete action in view mode)
 
-2. **`app/graphql/schema.graphql`**
-   - Add `saveJobPartUsed(db_name: String!, schema: String, value: String!): Generic`
-
-3. **`app/graphql/resolvers/mutation_helper.py`**
-   - Add `resolve_save_job_part_used_helper` — deletes removed lines + inserts new lines atomically
-
-4. **`app/graphql/resolvers/mutation.py`**
-   - Import + add `@mutation.field("saveJobPartUsed")` resolver
+> **No new mutation needed.** `genericUpdate` (via `process_details`) already handles `deletedIds` + `xData` list + nested `xDetails` with FK propagation — all within one connection/transaction.
 
 ### Frontend
-5. **`src/constants/sql-map.ts`**
+2. **`src/constants/sql-map.ts`**
    - Add `GET_JOBS_BY_KEYWORD`, `GET_JOB_PART_USED_BY_JOB`
 
-6. **`src/constants/graphql-map.ts`**
-   - Add `saveJobPartUsed` mutation
+3. **`src/constants/graphql-map.ts`**
+   - No changes needed — use existing `GRAPHQL_MAP.genericUpdate` for both save and delete
 
-7. **`src/constants/messages.ts`**
+4. **`src/constants/messages.ts`**
    - Add:
      ```
      ERROR_PART_USED_JOB_REQUIRED:    'Please select a job.'
@@ -66,7 +59,7 @@ Two-file section following the purchase/sales invoice pattern:
      SUCCESS_PART_USED_DELETED:       'Part usage record deleted.'
      ```
 
-8. **`src/features/client/pages/client-jobs-page.tsx`**
+5. **`src/features/client/pages/client-jobs-page.tsx`**
    - Replace `ConsumptionSection` import with `PartUsedSection`
    - Change `case "Part Used (Job)": return <PartUsedSection />;`
 
@@ -103,48 +96,35 @@ WHERE jpu.job_id = %(job_id)s
 ORDER BY jpu.id
 ```
 
-### `saveJobPartUsed` Mutation Payload
+### `genericUpdate` Save Payload
+
+Built on the frontend and passed to `GRAPHQL_MAP.genericUpdate`. `stock_transaction_type_id` is resolved from the already-loaded `txnTypes` array (find the entry with `code === 'JOB_CONSUME'`).
+
 ```typescript
 {
-    job_id:      number,
-    branch_id:   number,
-    job_date:    string,       // for stock_transaction.transaction_date
-    deletedIds:  number[],     // existing job_part_used ids to remove
-    newLines: [
-        { part_id: number, quantity: number }
-    ]
+  tableName: "job_part_used",
+  deletedIds: number[],          // existing jpu ids to remove (cascade-deletes stock_transaction)
+  xData: newLines.map(line => ({
+    job_id:   number,
+    part_id:  line.part_id,
+    quantity: line.quantity,
+    xDetails: {
+      tableName: "stock_transaction",
+      fkeyName:  "job_part_used_id",   // driver passes the new jpu.id here automatically
+      xData: {
+        branch_id:                  number,
+        part_id:                    line.part_id,
+        quantity:                   line.quantity,
+        dr_cr:                      "C",
+        transaction_date:           job_date,   // ISO date string
+        stock_transaction_type_id:  consumeTypeId,
+      }
+    }
+  }))
 }
 ```
 
-### `resolve_save_job_part_used_helper` (Python)
-```python
-async def resolve_save_job_part_used_helper(db_name, schema, value):
-    # 1. Decode payload → {job_id, branch_id, job_date, deletedIds, newLines}
-    # 2. DELETE job_part_used WHERE id = ANY(deletedIds)
-    #    → stock_transaction rows cascade-delete, trg_stock_balance_delete fires
-    # 3. Find JOB_CONSUME stock_transaction_type id
-    # 4. For each line in newLines:
-    #    a. exec_sql_object → insert job_part_used {job_id, part_id, quantity} → jpu_id
-    #    b. exec_sql_object → insert stock_transaction {branch_id, part_id, qty=quantity,
-    #       dr_cr='C', transaction_date=job_date, stock_transaction_type_id=consume_type_id,
-    #       job_part_used_id=jpu_id}
-    # Returns: total lines saved
-```
-
-For step 2, use a raw DELETE via `exec_sql` with a parameterized query (not `exec_sql_object` which is for INSERT/UPDATE). Example:
-```python
-if deletedIds:
-    await exec_sql(db_name_arg, schema_name,
-        "DELETE FROM job_part_used WHERE id = ANY(%(ids)s)",
-        {"ids": deletedIds})
-```
-
-For finding JOB_CONSUME type:
-```python
-result = await exec_sql(db_name_arg, schema_name,
-    "SELECT id FROM stock_transaction_type WHERE code = 'JOB_CONSUME'", {})
-consume_type_id = result[0]["id"]
-```
+`process_details` runs this atomically (one connection): deletes first, then inserts each `job_part_used` row and immediately inserts its `stock_transaction` child with the returned FK.
 
 ### `new-part-used-form.tsx` Layout
 
@@ -185,7 +165,7 @@ type Props = {
 
 **Job combobox**: When user types 2+ chars, debounced call to `GET_JOBS_BY_KEYWORD` (limit 20). On selection, load `GET_JOB_PART_USED_BY_JOB` to populate existing lines.
 
-**Save payload** → `GRAPHQL_MAP.saveJobPartUsed`
+**Save payload** → `GRAPHQL_MAP.genericUpdate`
 
 ### `part-used-section.tsx` Structure
 
@@ -224,7 +204,7 @@ const formRef = useRef<NewPartUsedFormHandle>(null);
 | `GET_STOCK_TRANSACTION_TYPES` | Load to find `JOB_CONSUME` type id |
 | `GET_PARTS_CONSUMPTION` / `GET_PARTS_CONSUMPTION_COUNT` | View list (add `jpu.id` to query) |
 | `GET_ALL_BRANCHES` | Branch selector in view mode |
-| `GRAPHQL_MAP.genericUpdate` | View-mode delete (single line) |
+| `GRAPHQL_MAP.genericUpdate` | Both new-form save and view-mode delete |
 | `ViewModeToggle` | Mode switch header |
 | Pagination + skeleton | Clone from job-section.tsx |
 | `selectCurrentBranch` | Default branch for job search |

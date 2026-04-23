@@ -18,9 +18,14 @@ import { selectCurrentUser, selectDbName } from "@/features/auth/store/auth-slic
 import { selectSchema } from "@/store/context-slice";
 import type { DocumentSequenceRow, CustomerSearchRow } from "@/features/client/types/sales";
 import type { JobDetailType, JobLookupRow, ModelRow, TechnicianRow } from "@/features/client/types/job";
-
 import { CustomerInput } from "@/features/client/components/inventory/customer-input";
+import { JobImageUpload, type StagedFile } from "./job-image-upload";
+import { uploadJobFile } from "@/lib/image-service";
+import { SearchableCombobox } from "@/components/ui/searchable-combobox";
+import { AddModelDialog } from "@/features/client/components/masters/model/add-model-dialog";
+import { Button } from "@/components/ui/button";
 import type { CustomerTypeOption, StateOption } from "@/features/client/types/customer";
+import type { BrandOption, ProductOption } from "@/features/client/types/model";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -35,14 +40,17 @@ type Props = {
     receiveConditions: JobLookupRow[];
     technicians:     TechnicianRow[];
     models:          ModelRow[];
+    brands:          BrandOption[];
+    products:        ProductOption[];
     customerTypes:   CustomerTypeOption[];
     masterStates:    StateOption[];
     editJob?:        JobDetailType | null;
+    onRefreshModels: () => void;
     onSuccess:       () => void;
     onStatusChange:  (status: { isValid: boolean; isSubmitting: boolean }) => void;
 };
 
-export type NewJobFormHandle = {
+export type NewSingleJobFormHandle = {
     submit:       () => void;
     reset:        () => void;
     isSubmitting: boolean;
@@ -63,32 +71,35 @@ const labelCls = "text-xs font-extrabold text-[var(--cl-text)] uppercase trackin
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export const NewJobForm = forwardRef<NewJobFormHandle, Props>(({
-    branchId, docSequence, jobStatuses, jobTypes, receiveMannners, receiveConditions,
-    technicians, models, customerTypes, masterStates, editJob, onSuccess, onStatusChange,
+export const NewSingleJobForm = forwardRef<NewSingleJobFormHandle, Props>(({
+    branchId, docSequence, jobStatuses, jobTypes, receiveMannners, receiveConditions, models, brands, products, customerTypes, masterStates, editJob,
+    onRefreshModels, onSuccess, onStatusChange,
 }, ref) => {
     const dbName      = useAppSelector(selectDbName);
     const schema      = useAppSelector(selectSchema);
     const currentUser = useAppSelector(selectCurrentUser);
 
     // Header state
-    const [customerId,          setCustomerId]         = useState<number | null>(null);
-    const [customerName,        setCustomerName]       = useState("");
+    const [customerId,          setCustomerId]         = useState<number | null>(editJob?.customer_contact_id ?? null);
+    const [customerName,        setCustomerName]       = useState(editJob?.customer_name ?? "");
     const [jobDate,             setJobDate]            = useState(today());
-    const [jobTypeId,           setJobTypeId]          = useState<number | null>(null);
-    const [receiveMannerId,     setReceiveMannerId]    = useState<number | null>(null);
-    const [receiveConditionId,  setReceiveConditionId] = useState<number | null>(null);
-    const [jobStatusId,         setJobStatusId]        = useState<number | null>(null);
-    const [technicianId,        setTechnicianId]       = useState<number | null>(null);
-    const [modelId,             setModelId]            = useState<number | null>(null);
-    const [serialNo,            setSerialNo]           = useState("");
-    const [problemReported,     setProblemReported]    = useState("");
-    const [deliveryDate,        setDeliveryDate]       = useState("");
-    const [isWarranty,          setIsWarranty]         = useState(false);
-    const [warrantyCardNo,      setWarrantyCardNo]     = useState("");
-    const [remarks,             setRemarks]            = useState("");
+    const [jobTypeId,           setJobTypeId]          = useState<number | null>(editJob?.job_type_id ?? null);
+    const [receiveMannerId,     setReceiveMannerId]    = useState<number | null>(editJob?.job_receive_manner_id ?? null);
+    const [receiveConditionId,  setReceiveConditionId] = useState<number | null>(editJob?.job_receive_condition_id ?? null);
+    const [jobStatusId,         setJobStatusId]        = useState<number | null>(editJob?.job_status_id ?? null);
+    const [modelId,             setModelId]            = useState<number | null>(editJob?.product_brand_model_id ?? null);
+    const [serialNo,            setSerialNo]           = useState(editJob?.serial_no ?? "");
+    const [quantity,            setQuantity]           = useState(editJob?.quantity ?? 1);
+    const [problemReported,     setProblemReported]    = useState(editJob?.problem_reported ?? "");
+    const [warrantyCardNo,      setWarrantyCardNo]     = useState(editJob?.warranty_card_no ?? "");
+    const [remarks,             setRemarks]            = useState(editJob?.remarks ?? "");
 
     const [submitting, setSubmitting] = useState(false);
+    const [showAddModel, setShowAddModel] = useState(false);
+    const [pendingAttachments, setPendingAttachments] = useState<StagedFile[]>([]);
+    const [stagedKey, setStagedKey] = useState(0);
+
+    const isWarranty = jobTypes.find(t => t.id === jobTypeId)?.code === "UNDER_WARRANTY";
 
     // Set initial job status on first load
     useEffect(() => {
@@ -126,12 +137,10 @@ export const NewJobForm = forwardRef<NewJobFormHandle, Props>(({
             setReceiveMannerId(d.job_receive_manner_id);
             setReceiveConditionId(d.job_receive_condition_id ?? null);
             setJobStatusId(d.job_status_id);
-            setTechnicianId(d.technician_id ?? null);
             setModelId(d.product_brand_model_id ?? null);
             setSerialNo(d.serial_no ?? "");
+            setQuantity(d.quantity);
             setProblemReported(d.problem_reported);
-            setDeliveryDate(d.delivery_date ?? "");
-            setIsWarranty(d.is_warranty);
             setWarrantyCardNo(d.warranty_card_no ?? "");
             setRemarks(d.remarks ?? "");
         }).catch(() => toast.error(MESSAGES.ERROR_JOB_LOAD_FAILED));
@@ -139,6 +148,8 @@ export const NewJobForm = forwardRef<NewJobFormHandle, Props>(({
     }, [editJob, dbName, schema]);
 
     const handleReset = () => {
+        setPendingAttachments([]);
+        setStagedKey((k) => k + 1);
         setCustomerId(null);
         setCustomerName("");
         setJobDate(today());
@@ -147,12 +158,10 @@ export const NewJobForm = forwardRef<NewJobFormHandle, Props>(({
         setJobTypeId(null);
         setReceiveMannerId(null);
         setReceiveConditionId(null);
-        setTechnicianId(null);
         setModelId(null);
         setSerialNo("");
+        setQuantity(1);
         setProblemReported("");
-        setDeliveryDate("");
-        setIsWarranty(false);
         setWarrantyCardNo("");
         setRemarks("");
     };
@@ -161,9 +170,10 @@ export const NewJobForm = forwardRef<NewJobFormHandle, Props>(({
         if (!customerId) return false;
         if (!jobTypeId) return false;
         if (!receiveMannerId) return false;
-        if (!problemReported.trim()) return false;
+        if (pendingAttachments.some((f) => !f.about.trim())) return false;
+        if (quantity < 1) return false;
         return true;
-    }, [customerId, jobTypeId, receiveMannerId, problemReported]);
+    }, [customerId, jobTypeId, receiveMannerId, pendingAttachments]);
 
     const executeSave = async () => {
         if (!branchId || !dbName || !schema) {
@@ -183,12 +193,10 @@ export const NewJobForm = forwardRef<NewJobFormHandle, Props>(({
                         job_receive_manner_id:    receiveMannerId,
                         job_receive_condition_id: receiveConditionId ?? null,
                         job_status_id:            jobStatusId,
-                        technician_id:            technicianId ?? null,
                         product_brand_model_id:   modelId ?? null,
                         serial_no:                serialNo.trim() || null,
+                        quantity:                 quantity,
                         problem_reported:         problemReported.trim(),
-                        delivery_date:            deliveryDate || null,
-                        is_warranty:              isWarranty,
                         warranty_card_no:         warrantyCardNo.trim() || null,
                         remarks:                  remarks.trim() || null,
                     },
@@ -213,22 +221,30 @@ export const NewJobForm = forwardRef<NewJobFormHandle, Props>(({
                         job_receive_manner_id:    receiveMannerId,
                         job_receive_condition_id: receiveConditionId ?? null,
                         job_status_id:            jobStatusId,
-                        technician_id:            technicianId ?? null,
                         product_brand_model_id:   modelId ?? null,
                         serial_no:                serialNo.trim() || null,
+                        quantity:                 quantity,
                         problem_reported:         problemReported.trim(),
-                        delivery_date:            deliveryDate || null,
-                        is_warranty:              isWarranty,
                         warranty_card_no:         warrantyCardNo.trim() || null,
                         remarks:                  remarks.trim() || null,
                         performed_by_user_id:     currentUser?.id ?? null,
                     },
                 };
                 const encoded = encodeURIComponent(JSON.stringify(sqlObject));
-                await apolloClient.mutate({
-                    mutation: GRAPHQL_MAP.createJob,
+                const result = await apolloClient.mutate({
+                    mutation: GRAPHQL_MAP.createSingleJob,
                     variables: { db_name: dbName, schema, value: encoded },
                 });
+                const newJobId = (result.data as { createSingleJob?: number })?.createSingleJob;
+                if (newJobId && pendingAttachments.length > 0) {
+                    for (const { file, about } of pendingAttachments) {
+                        try {
+                            await uploadJobFile(dbName, schema, newJobId, about, file);
+                        } catch (err: unknown) {
+                            toast.error(`Upload failed for "${about}": ${(err as Error).message}`);
+                        }
+                    }
+                }
                 toast.success(MESSAGES.SUCCESS_JOB_CREATED);
             }
             onSuccess();
@@ -244,10 +260,8 @@ export const NewJobForm = forwardRef<NewJobFormHandle, Props>(({
         if (!customerId) { toast.error(MESSAGES.ERROR_JOB_CUSTOMER_REQUIRED); return; }
         if (!jobTypeId) { toast.error(MESSAGES.ERROR_JOB_TYPE_REQUIRED); return; }
         if (!receiveMannerId) { toast.error(MESSAGES.ERROR_JOB_RECEIVE_MANNER_REQUIRED); return; }
-        if (!problemReported.trim()) { toast.error(MESSAGES.ERROR_JOB_PROBLEM_REQUIRED); return; }
         await executeSave();
     };
-
     useEffect(() => {
         onStatusChange({ isValid: isFormValid, isSubmitting: submitting });
     }, [isFormValid, submitting, onStatusChange]);
@@ -260,14 +274,14 @@ export const NewJobForm = forwardRef<NewJobFormHandle, Props>(({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }), [submitting, isFormValid]);
 
-    const initialStatus = jobStatuses.find(s => s.is_initial);
+    // const initialStatus = jobStatuses.find(s => s.is_initial);
 
     return (
         <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="flex flex-col gap-3 pb-2 overflow-y-auto"
+            className="flex flex-col gap-3 overflow-y-auto"
         >
             {!branchId ? (
                 <div className="flex flex-col items-center justify-center py-20 bg-[var(--cl-surface-2)]/30 rounded-xl border-2 border-dashed border-[var(--cl-border)] text-center">
@@ -281,14 +295,33 @@ export const NewJobForm = forwardRef<NewJobFormHandle, Props>(({
                 </div>
             ) : (
                 <>
-                    <p className="text-[10px] font-black uppercase tracking-[0.15em] text-[var(--cl-text-muted)] px-1">
+                    <p className="text-[10px] font-black uppercase tracking-[0.15em] text-[var(--cl-text-muted)]">
                         Job Details
                     </p>
                     <Card className="border-[var(--cl-border)] shadow-md bg-[var(--cl-surface)] !overflow-visible">
-                        <CardContent className="pt-4 grid grid-cols-1 md:grid-cols-6 lg:grid-cols-12 gap-x-3 gap-y-3 !overflow-visible">
+                        <CardContent className="pt-2 grid grid-cols-1 md:grid-cols-6 lg:grid-cols-12 gap-x-3 gap-y-3 !overflow-visible">
 
-                            {/* Customer */}
-                            <div className="space-y-1.5 md:col-span-3 lg:col-span-4">
+                            {/* Row 1: Job No, Date, Customer, Manner */}
+                            <div className="space-y-1.5 md:col-span-6 lg:col-span-6 xl:col-span-3">
+                                <Label className={labelCls}>Job No</Label>
+                                <Input
+                                    readOnly
+                                    className="bg-[var(--cl-surface-2)] font-mono text-[var(--cl-accent)] font-bold cursor-not-allowed opacity-80"
+                                    value={docSequence ? buildJobNo(docSequence) : (editJob?.job_no ?? "—")}
+                                />
+                            </div>
+
+                            <div className="space-y-1.5 md:col-span-6 lg:col-span-6 xl:col-span-3">
+                                <Label className={labelCls}>Job Date</Label>
+                                <Input
+                                    className="bg-[var(--cl-surface-2)]"
+                                    type="date"
+                                    value={jobDate}
+                                    onChange={e => setJobDate(e.target.value)}
+                                />
+                            </div>
+
+                            <div className="space-y-1.5 md:col-span-6 lg:col-span-6 xl:col-span-3">
                                 <Label className={labelCls}>
                                     Customer <span className="text-red-500 ml-0.5">*</span>
                                 </Label>
@@ -309,46 +342,7 @@ export const NewJobForm = forwardRef<NewJobFormHandle, Props>(({
                                 />
                             </div>
 
-                            {/* Job Date */}
-                            <div className="space-y-1.5 md:col-span-2 lg:col-span-2">
-                                <Label className={labelCls}>Job Date</Label>
-                                <Input
-                                    className="bg-[var(--cl-surface-2)]"
-                                    type="date"
-                                    value={jobDate}
-                                    onChange={e => setJobDate(e.target.value)}
-                                />
-                            </div>
-
-                            {/* Job No (read-only) */}
-                            <div className="space-y-1.5 md:col-span-1 lg:col-span-2">
-                                <Label className={labelCls}>Job No</Label>
-                                <Input
-                                    readOnly
-                                    className="bg-[var(--cl-surface-2)] font-mono text-[var(--cl-accent)] font-bold cursor-not-allowed opacity-80"
-                                    value={docSequence ? buildJobNo(docSequence) : (editJob?.job_no ?? "—")}
-                                />
-                            </div>
-
-                            {/* Job Type */}
-                            <div className="space-y-1.5 md:col-span-2 lg:col-span-2">
-                                <Label className={labelCls}>
-                                    Job Type <span className="text-red-500 ml-0.5">*</span>
-                                </Label>
-                                <select
-                                    className={`w-full h-9 rounded-md border text-sm px-2 bg-[var(--cl-surface-2)] text-[var(--cl-text)] ${!jobTypeId ? "border-red-400" : "border-[var(--cl-border)]"}`}
-                                    value={jobTypeId ?? ""}
-                                    onChange={e => setJobTypeId(e.target.value ? Number(e.target.value) : null)}
-                                >
-                                    <option value="">Select…</option>
-                                    {jobTypes.filter(j => j.is_active).map(j => (
-                                        <option key={j.id} value={j.id}>{j.name}</option>
-                                    ))}
-                                </select>
-                            </div>
-
-                            {/* Receive Manner */}
-                            <div className="space-y-1.5 md:col-span-2 lg:col-span-2">
+                            <div className="space-y-1.5 md:col-span-6 lg:col-span-6 xl:col-span-3">
                                 <Label className={labelCls}>
                                     Receive Manner <span className="text-red-500 ml-0.5">*</span>
                                 </Label>
@@ -364,8 +358,29 @@ export const NewJobForm = forwardRef<NewJobFormHandle, Props>(({
                                 </select>
                             </div>
 
-                            {/* Receive Condition */}
-                            <div className="space-y-1.5 md:col-span-2 lg:col-span-2">
+                            {/* Row 2: Job Type, Receive Condition, Product / Model, Qty */}
+                            <div className="space-y-1.5 md:col-span-6 lg:col-span-6 xl:col-span-3">
+                                <Label className={labelCls}>
+                                    Job Type <span className="text-red-500 ml-0.5">*</span>
+                                </Label>
+                                <select
+                                    className={`w-full h-9 rounded-md border text-sm px-2 bg-[var(--cl-surface-2)] text-[var(--cl-text)] ${!jobTypeId ? "border-red-400" : "border-[var(--cl-border)]"}`}
+                                    value={jobTypeId ?? ""}
+                                    onChange={e => {
+                                        const newId = e.target.value ? Number(e.target.value) : null;
+                                        const newCode = jobTypes.find(t => t.id === newId)?.code;
+                                        if (newCode !== "UNDER_WARRANTY") setWarrantyCardNo("");
+                                        setJobTypeId(newId);
+                                    }}
+                                >
+                                    <option value="">Select…</option>
+                                    {jobTypes.filter(j => j.is_active).map(j => (
+                                        <option key={j.id} value={j.id}>{j.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div className="space-y-1.5 md:col-span-6 lg:col-span-6 xl:col-span-3">
                                 <Label className={labelCls}>Receive Condition</Label>
                                 <select
                                     className="w-full h-9 rounded-md border border-[var(--cl-border)] text-sm px-2 bg-[var(--cl-surface-2)] text-[var(--cl-text)]"
@@ -379,61 +394,53 @@ export const NewJobForm = forwardRef<NewJobFormHandle, Props>(({
                                 </select>
                             </div>
 
-                            {/* Status (read-only for new, editable for edit) */}
-                            <div className="space-y-1.5 md:col-span-2 lg:col-span-2">
-                                <Label className={labelCls}>Status</Label>
-                                {editJob ? (
-                                    <select
-                                        className="w-full h-9 rounded-md border border-[var(--cl-border)] text-sm px-2 bg-[var(--cl-surface-2)] text-[var(--cl-text)]"
-                                        value={jobStatusId ?? ""}
-                                        onChange={e => setJobStatusId(e.target.value ? Number(e.target.value) : null)}
-                                    >
-                                        <option value="">Select…</option>
-                                        {jobStatuses.filter(s => s.is_active).map(s => (
-                                            <option key={s.id} value={s.id}>{s.name}</option>
-                                        ))}
-                                    </select>
-                                ) : (
-                                    <div className="flex h-9 items-center rounded-md border border-[var(--cl-border)] bg-[var(--cl-surface-2)]/60 px-2 text-sm font-semibold text-[var(--cl-accent)] cursor-not-allowed">
-                                        {initialStatus?.name ?? "—"}
+                            <div className="space-y-1.5 md:col-span-6 lg:col-span-6 xl:col-span-3">
+                                <div className="flex items-end gap-2">
+                                    <div className="flex-1">
+                                        <SearchableCombobox<ModelRow>
+                                            label="Product / Model"
+                                            placeholder="Search by brand, product or model…"
+                                            items={models.filter(m => m.is_active)}
+                                            selectedValue={modelId?.toString() ?? ""}
+                                            getDisplayValue={m => `${m.brand_name} — ${m.product_name} — ${m.model_name}`}
+                                            getFilterKey={m => `${m.brand_name} ${m.product_name} ${m.model_name}`}
+                                            getIdentifier={m => m.id.toString()}
+                                            onSelect={m => setModelId(m ? m.id : null)}
+                                            renderItem={m => (
+                                                <div className="flex flex-col gap-0.5">
+                                                    <span className="font-semibold">{m.brand_name}</span>
+                                                    <span className="text-xs opacity-70">{m.product_name} — {m.model_name}</span>
+                                                </div>
+                                            )}
+                                        />
                                     </div>
-                                )}
+                                    <Button
+                                        type="button"
+                                        size="icon"
+                                        className="h-9 w-9 bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm shrink-0"
+                                        title="Add Missing Model"
+                                        onClick={() => setShowAddModel(true)}
+                                    >
+                                        <Plus className="h-4 w-4" />
+                                    </Button>
+                                </div>
                             </div>
 
-                            {/* Technician */}
-                            <div className="space-y-1.5 md:col-span-2 lg:col-span-2">
-                                <Label className={labelCls}>Technician</Label>
-                                <select
-                                    className="w-full h-9 rounded-md border border-[var(--cl-border)] text-sm px-2 bg-[var(--cl-surface-2)] text-[var(--cl-text)]"
-                                    value={technicianId ?? ""}
-                                    onChange={e => setTechnicianId(e.target.value ? Number(e.target.value) : null)}
-                                >
-                                    <option value="">None</option>
-                                    {technicians.filter(t => t.is_active).map(t => (
-                                        <option key={t.id} value={t.id}>{t.name}</option>
-                                    ))}
-                                </select>
+                            <div className="space-y-1.5 md:col-span-6 lg:col-span-6 xl:col-span-3">
+                                <Label className={labelCls}>
+                                    Qty <span className="text-red-500 ml-0.5">*</span>
+                                </Label>
+                                <Input
+                                    className={`bg-[var(--cl-surface-2)] ${quantity < 1 ? "border-red-400" : ""}`}
+                                    type="number"
+                                    min={1}
+                                    value={quantity}
+                                    onChange={e => setQuantity(Math.max(1, Number(e.target.value)))}
+                                />
                             </div>
 
-                            {/* Product / Model */}
-                            <div className="space-y-1.5 md:col-span-2 lg:col-span-3">
-                                <Label className={labelCls}>Product / Model</Label>
-                                <select
-                                    className="w-full h-9 rounded-md border border-[var(--cl-border)] text-sm px-2 bg-[var(--cl-surface-2)] text-[var(--cl-text)]"
-                                    value={modelId ?? ""}
-                                    onChange={e => setModelId(e.target.value ? Number(e.target.value) : null)}
-                                >
-                                    <option value="">None</option>
-                                    {models.filter(m => m.is_active).map(m => (
-                                        <option key={m.id} value={m.id}>
-                                            {m.brand_name} — {m.product_name} — {m.model_name}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-
-                            {/* Serial No */}
-                            <div className="space-y-1.5 md:col-span-1 lg:col-span-2">
+                            {/* Row 3: Serial No, Warranty Card No */}
+                            <div className="space-y-1.5 md:col-span-6 lg:col-span-6 xl:col-span-3">
                                 <Label className={labelCls}>Serial No</Label>
                                 <Input
                                     className="bg-[var(--cl-surface-2)]"
@@ -443,62 +450,31 @@ export const NewJobForm = forwardRef<NewJobFormHandle, Props>(({
                                 />
                             </div>
 
-                            {/* Delivery Date */}
-                            <div className="space-y-1.5 md:col-span-1 lg:col-span-2">
-                                <Label className={labelCls}>Delivery Date</Label>
+                            <div className="space-y-1.5 md:col-span-6 lg:col-span-6 xl:col-span-3">
+                                <Label className={labelCls}>Warranty Card No</Label>
                                 <Input
-                                    className="bg-[var(--cl-surface-2)]"
-                                    type="date"
-                                    value={deliveryDate}
-                                    onChange={e => setDeliveryDate(e.target.value)}
+                                    disabled={!isWarranty}
+                                    className={`bg-[var(--cl-surface-2)] ${!isWarranty ? "opacity-50 cursor-not-allowed" : ""}`}
+                                    placeholder={isWarranty ? "Card number…" : "N/A"}
+                                    value={warrantyCardNo}
+                                    onChange={e => setWarrantyCardNo(e.target.value)}
                                 />
                             </div>
 
-                            {/* Warranty */}
-                            <div className="space-y-1.5 md:col-span-2 lg:col-span-2">
-                                <Label className={labelCls}>Warranty</Label>
-                                <div className="flex items-center gap-2 h-9">
-                                    <label className="flex items-center gap-1.5 cursor-pointer select-none">
-                                        <input
-                                            type="checkbox"
-                                            className="h-4 w-4 accent-[var(--cl-accent)] cursor-pointer"
-                                            checked={isWarranty}
-                                            onChange={e => { setIsWarranty(e.target.checked); if (!e.target.checked) setWarrantyCardNo(""); }}
-                                        />
-                                        <span className="text-sm text-[var(--cl-text)]">Under Warranty</span>
-                                    </label>
-                                </div>
-                            </div>
-
-                            {/* Warranty Card No */}
-                            {isWarranty && (
-                                <div className="space-y-1.5 md:col-span-2 lg:col-span-3">
-                                    <Label className={labelCls}>Warranty Card No</Label>
-                                    <Input
-                                        className="bg-[var(--cl-surface-2)]"
-                                        placeholder="Card number…"
-                                        value={warrantyCardNo}
-                                        onChange={e => setWarrantyCardNo(e.target.value)}
-                                    />
-                                </div>
-                            )}
-
                             {/* Problem Reported */}
-                            <div className="space-y-1.5 md:col-span-6 lg:col-span-12">
-                                <Label className={labelCls}>
-                                    Problem Reported <span className="text-red-500 ml-0.5">*</span>
-                                </Label>
+                            <div className="space-y-1.5 md:col-span-6 lg:col-span-6">
+                                <Label className={labelCls}>Problem Reported</Label>
                                 <Textarea
                                     rows={3}
-                                    className={`bg-[var(--cl-surface-2)] resize-none ${!problemReported.trim() ? "border-red-400" : "border-[var(--cl-border)]"}`}
-                                    placeholder="Describe the problem reported by the customer…"
+                                    className="bg-[var(--cl-surface-2)] resize-none border-[var(--cl-border)]"
+                                    placeholder="Describe the problem reported by the customer (optional)…"
                                     value={problemReported}
                                     onChange={e => setProblemReported(e.target.value)}
                                 />
                             </div>
 
                             {/* Remarks */}
-                            <div className="space-y-1.5 md:col-span-6 lg:col-span-12">
+                            <div className="space-y-1.5 md:col-span-12 lg:col-span-12">
                                 <Label className={labelCls}>Remarks</Label>
                                 <Textarea
                                     rows={3}
@@ -507,6 +483,15 @@ export const NewJobForm = forwardRef<NewJobFormHandle, Props>(({
                                     value={remarks}
                                     onChange={e => setRemarks(e.target.value)}
                                 />
+                            </div>
+
+                            {/* Attachments */}
+                            <div className="space-y-1.5 md:col-span-12 lg:col-span-12">
+                                <Label className={labelCls}>Attachments</Label>
+                                {editJob
+                                    ? <JobImageUpload jobId={editJob.id} />
+                                    : <JobImageUpload key={stagedKey} onPendingChange={setPendingAttachments} />
+                                }
                             </div>
 
                         </CardContent>
@@ -519,8 +504,16 @@ export const NewJobForm = forwardRef<NewJobFormHandle, Props>(({
                     )}
                 </>
             )}
+
+            <AddModelDialog
+                brands={brands}
+                products={products}
+                open={showAddModel}
+                onOpenChange={setShowAddModel}
+                onSuccess={onRefreshModels}
+            />
         </motion.div>
     );
 });
 
-NewJobForm.displayName = "NewJobForm";
+NewSingleJobForm.displayName = "NewSingleJobForm";

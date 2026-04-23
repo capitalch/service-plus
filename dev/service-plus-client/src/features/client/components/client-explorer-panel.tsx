@@ -138,7 +138,10 @@ function JobsExplorer() {
     return (
         <div className="space-y-4">
             <div className="space-y-1">
-                <TreeItem icon={PlusCircle}    label="New Job" />
+                <CollapsibleGroup label="New Job">
+                    <TreeItem icon={PlusCircle} label="Single Job" />
+                    <TreeItem icon={PlusCircle} label="Batch Jobs" />
+                </CollapsibleGroup>
                 <TreeItem icon={ClipboardList} label="Job List / Search" />
                 <TreeItem icon={Wrench}        label="Update Job" />
                 <TreeItem icon={FileText}      label="Ready for Delivery" />

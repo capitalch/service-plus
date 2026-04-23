@@ -809,6 +809,267 @@ async def resolve_create_sales_invoice_helper(db_name: str, schema: str = "publi
     return record_id
 
 
+async def resolve_create_single_job_helper(db_name: str, schema: str = "public", value: str = "") -> Any:
+    """
+    Create a single job and atomically insert an initial job_transaction + increment document sequence.
+
+    The `value` JSON must contain:
+      - tableName: "job"
+      - doc_sequence_id   (int): ID of the document_sequence row to increment.
+      - doc_sequence_next (int): The new next_number value (current + 1).
+      - performed_by_user_id (int): User ID for the initial job_transaction.
+      - xData: job fields (performed_by_user_id is stripped before DB insert).
+    """
+    if not value:
+        raise ValidationException(
+            message=AppMessages.INVALID_INPUT,
+            extensions={"detail": AppMessages.INVALID_JSON_OBJECT},
+        )
+    value_string = unquote(value)
+    try:
+        payload: dict = json.loads(value_string)
+    except json.JSONDecodeError as e:
+        logger.error("Invalid JSON in createSingleJob value: %s", e)
+        raise ValidationException(
+            message=AppMessages.INVALID_INPUT,
+            extensions={"detail": AppMessages.INVALID_JSON_OBJECT},
+        )
+
+    doc_sequence_id   = payload.pop("doc_sequence_id", None)
+    doc_sequence_next = payload.pop("doc_sequence_next", None)
+    performed_by      = payload.get("xData", {}).pop("performed_by_user_id", None)
+    initial_status_id = payload.get("xData", {}).get("job_status_id")
+
+    db_name_arg = db_name if db_name else None
+    schema_name = schema or "public"
+
+    job_id = await exec_sql_object(db_name_arg, schema_name, payload)
+    logger.info("Single job created with id=%s", job_id)
+
+    # Insert initial job_transaction
+    if performed_by is not None:
+        txn_object = {
+            "tableName": "job_transaction",
+            "xData": {
+                "job_id":               job_id,
+                "status_id":            initial_status_id,
+                "performed_by_user_id": performed_by,
+            },
+        }
+        await exec_sql_object(db_name_arg, schema_name, txn_object)
+        logger.debug("Initial job_transaction inserted for job_id=%s", job_id)
+
+    if doc_sequence_id is not None and doc_sequence_next is not None:
+        seq_object = {
+            "tableName": "document_sequence",
+            "xData": {"id": doc_sequence_id, "next_number": doc_sequence_next},
+        }
+        await exec_sql_object(db_name_arg, schema_name, seq_object)
+        logger.debug("Document sequence %s incremented to %s", doc_sequence_id, doc_sequence_next)
+
+    return job_id
+
+
+async def resolve_create_job_batch_helper(db_name: str, schema: str = "public", value: str = "") -> Any:
+    payload = _decode_value(value, "createJobBatch")
+    shared = payload.get("sharedData", {})
+    jobs   = payload.get("jobs", [])
+
+    branch_id             = shared.get("branch_id")
+    batch_date            = shared.get("batch_date")
+    customer_contact_id   = shared.get("customer_contact_id")
+    job_type_id           = shared.get("job_type_id")
+    job_receive_manner_id = shared.get("job_receive_manner_id")
+    job_status_id         = shared.get("job_status_id")
+    performed_by          = shared.get("performed_by_user_id")
+    doc_sequence_id       = shared.get("job_doc_sequence_id")
+    doc_sequence_next     = shared.get("job_doc_sequence_next")
+
+    db_name_arg = db_name if db_name else None
+    schema_name = schema or "public"
+
+    async with get_service_db_connection(db_name_arg) as conn:
+        async with conn.cursor(row_factory=dict_row) as cur:
+            await cur.execute(
+                pgsql.SQL("SET search_path TO {}").format(pgsql.Identifier(schema_name))
+            )
+            await cur.execute("SELECT nextval('job_batch_no_seq') AS batch_no")
+            batch_no = (await cur.fetchone())["batch_no"]
+            logger.info("Assigned batch_no=%s", batch_no)
+
+            job_ids = []
+            for job in jobs:
+                await cur.execute(
+                    "INSERT INTO job"
+                    " (branch_id, batch_no, job_no, job_date, customer_contact_id,"
+                    "  job_type_id, job_receive_manner_id, job_status_id,"
+                    "  product_brand_model_id, serial_no, problem_reported,"
+                    "  warranty_card_no, job_receive_condition_id, remarks, qty)"
+                    " VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
+                    (
+                        branch_id, batch_no, job.get("job_no"), batch_date,
+                        customer_contact_id, job_type_id, job_receive_manner_id, job_status_id,
+                        job.get("product_brand_model_id"), job.get("serial_no"),
+                        job.get("problem_reported"), job.get("warranty_card_no"),
+                        job.get("job_receive_condition_id"), job.get("remarks"),
+                        job.get("qty", 1),
+                    ),
+                )
+                job_id = (await cur.fetchone())["id"]
+                job_ids.append(job_id)
+
+                if performed_by is not None:
+                    await cur.execute(
+                        "INSERT INTO job_transaction (job_id, status_id, performed_by_user_id)"
+                        " VALUES (%s, %s, %s)",
+                        (job_id, job_status_id, performed_by),
+                    )
+
+            if doc_sequence_id is not None and doc_sequence_next is not None:
+                await cur.execute(
+                    "UPDATE document_sequence SET next_number = %s WHERE id = %s",
+                    (doc_sequence_next, doc_sequence_id),
+                )
+
+    logger.info("Job batch created: batch_no=%s, jobs=%s", batch_no, job_ids)
+    return {"batch_no": batch_no, "job_ids": job_ids}
+
+
+async def resolve_update_job_batch_helper(db_name: str, schema: str = "public", value: str = "") -> Any:
+    payload      = _decode_value(value, "updateJobBatch")
+    batch_no     = payload.get("batch_no")
+    shared       = payload.get("sharedData", {})
+    added_jobs   = payload.get("addedJobs", [])
+    updated_jobs = payload.get("updatedJobs", [])
+    deleted_ids  = payload.get("deletedJobIds", [])
+    doc_seq_id   = payload.get("job_doc_sequence_id")
+    doc_seq_next = payload.get("job_doc_sequence_next")
+    performed_by = shared.get("performed_by_user_id")
+
+    db_name_arg = db_name if db_name else None
+    schema_name = schema or "public"
+
+    async with get_service_db_connection(db_name_arg) as conn:
+        async with conn.cursor(row_factory=dict_row) as cur:
+            await cur.execute(
+                pgsql.SQL("SET search_path TO {}").format(pgsql.Identifier(schema_name))
+            )
+
+            await cur.execute(
+                "UPDATE job SET job_date=%s, customer_contact_id=%s, job_type_id=%s,"
+                " job_receive_manner_id=%s WHERE batch_no=%s",
+                (
+                    shared.get("batch_date"), shared.get("customer_contact_id"),
+                    shared.get("job_type_id"), shared.get("job_receive_manner_id"),
+                    batch_no,
+                ),
+            )
+
+            for job_id in deleted_ids:
+                await cur.execute(
+                    "SELECT COUNT(*) AS cnt FROM job_transaction WHERE job_id = %s", (job_id,)
+                )
+                row = await cur.fetchone()
+                if row and row["cnt"] > 1:
+                    raise ValidationException(
+                        message="Cannot delete job with activity",
+                        extensions={"job_id": job_id},
+                    )
+                await cur.execute("DELETE FROM job_transaction WHERE job_id = %s", (job_id,))
+                await cur.execute("DELETE FROM job WHERE id = %s", (job_id,))
+
+            for job in updated_jobs:
+                job_id = job.get("id")
+                await cur.execute(
+                    "UPDATE job SET product_brand_model_id=%s, serial_no=%s,"
+                    " problem_reported=%s, warranty_card_no=%s,"
+                    " job_receive_condition_id=%s, remarks=%s WHERE id=%s",
+                    (
+                        job.get("product_brand_model_id"), job.get("serial_no"),
+                        job.get("problem_reported"), job.get("warranty_card_no"),
+                        job.get("job_receive_condition_id"), job.get("remarks"),
+                        job_id,
+                    ),
+                )
+
+            if added_jobs:
+                await cur.execute(
+                    "SELECT job_status_id FROM job WHERE batch_no=%s LIMIT 1", (batch_no,)
+                )
+                status_row    = await cur.fetchone()
+                job_status_id = status_row["job_status_id"] if status_row else None
+
+                for job in added_jobs:
+                    await cur.execute(
+                        "INSERT INTO job"
+                        " (branch_id, batch_no, job_no, job_date, customer_contact_id,"
+                        "  job_type_id, job_receive_manner_id, job_status_id,"
+                        "  product_brand_model_id, serial_no, problem_reported,"
+                        "  warranty_card_no, job_receive_condition_id, remarks, qty)"
+                        " VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
+                        (
+                            shared.get("branch_id"), batch_no, job.get("job_no"),
+                            shared.get("batch_date"), shared.get("customer_contact_id"),
+                            shared.get("job_type_id"), shared.get("job_receive_manner_id"),
+                            job_status_id,
+                            job.get("product_brand_model_id"), job.get("serial_no"),
+                            job.get("problem_reported"), job.get("warranty_card_no"),
+                            job.get("job_receive_condition_id"), job.get("remarks"),
+                            job.get("qty", 1),
+                        ),
+                    )
+                    new_job_id = (await cur.fetchone())["id"]
+                    if performed_by is not None:
+                        await cur.execute(
+                            "INSERT INTO job_transaction (job_id, status_id, performed_by_user_id)"
+                            " VALUES (%s, %s, %s)",
+                            (new_job_id, job_status_id, performed_by),
+                        )
+
+                if doc_seq_id is not None and doc_seq_next is not None:
+                    await cur.execute(
+                        "UPDATE document_sequence SET next_number = %s WHERE id = %s",
+                        (doc_seq_next, doc_seq_id),
+                    )
+
+    return {"batch_no": batch_no}
+
+
+async def resolve_delete_job_batch_helper(db_name: str, schema: str = "public", value: str = "") -> Any:
+    payload  = _decode_value(value, "deleteJobBatch")
+    batch_no = payload.get("batch_no")
+
+    db_name_arg = db_name if db_name else None
+    schema_name = schema or "public"
+
+    async with get_service_db_connection(db_name_arg) as conn:
+        async with conn.cursor(row_factory=dict_row) as cur:
+            await cur.execute(
+                pgsql.SQL("SET search_path TO {}").format(pgsql.Identifier(schema_name))
+            )
+            await cur.execute("SELECT id FROM job WHERE batch_no = %s", (batch_no,))
+            job_ids = [r["id"] for r in await cur.fetchall()]
+
+            for job_id in job_ids:
+                await cur.execute(
+                    "SELECT COUNT(*) AS cnt FROM job_transaction WHERE job_id = %s", (job_id,)
+                )
+                row = await cur.fetchone()
+                if row and row["cnt"] > 1:
+                    raise ValidationException(
+                        message="Batch has jobs with activity and cannot be deleted",
+                        extensions={"job_id": job_id},
+                    )
+
+            if job_ids:
+                await cur.execute(
+                    "DELETE FROM job_transaction WHERE job_id = ANY(%s)", (job_ids,)
+                )
+            await cur.execute("DELETE FROM job WHERE batch_no = %s", (batch_no,))
+
+    return {"success": True}
+
+
 async def resolve_generic_update_script_helper(db_name: str, schema: str = "public", value: str = "") -> Any:
     """
     Execute a pre-defined SQL script from SqlStore with optional named parameters.

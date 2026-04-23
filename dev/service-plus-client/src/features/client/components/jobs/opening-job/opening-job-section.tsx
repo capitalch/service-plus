@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-    Briefcase, ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon,
+    RotateCcw, ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon,
     Loader2, MoreHorizontal, Pencil, RefreshCw, Save, Search, Trash2
 } from "lucide-react";
 import { toast } from "sonner";
@@ -25,11 +25,11 @@ import { currentFinancialYearRange } from "@/lib/utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectCurrentBranch, selectSchema } from "@/store/context-slice";
-import type { DocumentSequenceRow } from "@/features/client/types/sales";
 import type { JobDetailType, JobListRow, JobLookupRow, ModelRow, TechnicianRow } from "@/features/client/types/job";
 import type { CustomerTypeOption, StateOption } from "@/features/client/types/customer";
+import type { BrandOption, ProductOption } from "@/features/client/types/model";
 
-import { NewJobForm, type NewJobFormHandle } from "./new-job-form";
+import { OpeningJobForm, type OpeningJobFormHandle } from "./opening-job-form";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -45,7 +45,7 @@ const tdClass = "p-3 text-sm text-[var(--cl-text)] border-b border-[var(--cl-bor
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export const JobSection = () => {
+export const OpeningJobSection = () => {
     const dbName       = useAppSelector(selectDbName);
     const schema       = useAppSelector(selectSchema);
     const globalBranch = useAppSelector(selectCurrentBranch);
@@ -69,9 +69,10 @@ export const JobSection = () => {
     const [receiveConditions, setReceiveConditions] = useState<JobLookupRow[]>([]);
     const [technicians,       setTechnicians]       = useState<TechnicianRow[]>([]);
     const [models,            setModels]            = useState<ModelRow[]>([]);
+    const [brands,            setBrands]            = useState<BrandOption[]>([]);
+    const [products,          setProducts]          = useState<ProductOption[]>([]);
     const [customerTypes,     setCustomerTypes]     = useState<CustomerTypeOption[]>([]);
     const [masterStates,      setMasterStates]      = useState<StateOption[]>([]);
-    const [docSequences,      setDocSequences]      = useState<DocumentSequenceRow[]>([]);
 
     // Data
     const [jobs,    setJobs]    = useState<JobListRow[]>([]);
@@ -80,14 +81,14 @@ export const JobSection = () => {
     const [loading, setLoading] = useState(false);
 
     // Dialogs
-    const [deleteId,  setDeleteId]  = useState<number | null>(null);
-    const [deleting,  setDeleting]  = useState(false);
+    const [deleteId, setDeleteId] = useState<number | null>(null);
+    const [deleting, setDeleting] = useState(false);
 
     // Edit
     const [editJob, setEditJob] = useState<JobDetailType | null>(null);
 
     // Form
-    const newJobRef      = useRef<NewJobFormHandle>(null);
+    const openingJobRef             = useRef<OpeningJobFormHandle>(null);
     const [newFormValid, setNewFormValid] = useState(false);
     const [submitting,   setSubmitting]  = useState(false);
 
@@ -110,14 +111,24 @@ export const JobSection = () => {
         }
     }, [mode, recalc, jobs.length]);
 
-    const jobSequence = docSequences.find(ds => ds.document_type_code === "JOB") ?? null;
+    const refreshModels = useCallback(async () => {
+        if (!dbName || !schema) return;
+        try {
+            const res = await apolloClient.query<GenericQueryData<ModelRow>>({
+                fetchPolicy: "network-only",
+                query: GRAPHQL_MAP.genericQuery,
+                variables: { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_ALL_MODELS }) },
+            });
+            setModels(res.data?.genericQuery ?? []);
+        } catch { /* ignore */ }
+    }, [dbName, schema]);
 
     // Load metadata on mount
     useEffect(() => {
-        if (!dbName || !schema) return;
+        if (!dbName || !schema || !branchId) return;
         const fetchMeta = async () => {
             try {
-                const [statusRes, typeRes, mannerRes, condRes, techRes, modelRes, custTypeRes, stateRes] =
+                const [statusRes, typeRes, mannerRes, condRes, techRes, modelRes, brandRes, prodRes, custTypeRes, stateRes] =
                     await Promise.all([
                         apolloClient.query<GenericQueryData<JobLookupRow>>({
                             fetchPolicy: "network-only",
@@ -142,12 +153,22 @@ export const JobSection = () => {
                         apolloClient.query<GenericQueryData<TechnicianRow>>({
                             fetchPolicy: "network-only",
                             query: GRAPHQL_MAP.genericQuery,
-                            variables: { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_ALL_TECHNICIANS }) },
+                            variables: { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_ALL_TECHNICIANS, sqlArgs: { branch_id: branchId } }) },
                         }),
                         apolloClient.query<GenericQueryData<ModelRow>>({
                             fetchPolicy: "network-only",
                             query: GRAPHQL_MAP.genericQuery,
                             variables: { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_ALL_MODELS }) },
+                        }),
+                        apolloClient.query<GenericQueryData<BrandOption>>({
+                            fetchPolicy: "network-only",
+                            query: GRAPHQL_MAP.genericQuery,
+                            variables: { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_ALL_BRANDS }) },
+                        }),
+                        apolloClient.query<GenericQueryData<ProductOption>>({
+                            fetchPolicy: "network-only",
+                            query: GRAPHQL_MAP.genericQuery,
+                            variables: { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_ALL_PRODUCTS }) },
                         }),
                         apolloClient.query<GenericQueryData<CustomerTypeOption>>({
                             fetchPolicy: "network-only",
@@ -166,31 +187,17 @@ export const JobSection = () => {
                 setReceiveConditions(condRes.data?.genericQuery ?? []);
                 setTechnicians(techRes.data?.genericQuery ?? []);
                 setModels(modelRes.data?.genericQuery ?? []);
+                setBrands(brandRes.data?.genericQuery ?? []);
+                setProducts(prodRes.data?.genericQuery ?? []);
                 setCustomerTypes(custTypeRes.data?.genericQuery ?? []);
                 setMasterStates((stateRes.data?.genericQuery ?? []).map(s => ({
                     id: s.id, code: (s as any).gst_state_code ?? s.code, name: s.name,
                 })));
             } catch {
-                toast.error(MESSAGES.ERROR_JOB_LOAD_FAILED);
+                toast.error(MESSAGES.ERROR_OPENING_JOB_LOAD_FAILED);
             }
         };
         void fetchMeta();
-    }, [dbName, schema]);
-
-    // Load doc sequences when branchId available
-    useEffect(() => {
-        if (!dbName || !schema || !branchId) return;
-        apolloClient.query<GenericQueryData<DocumentSequenceRow>>({
-            fetchPolicy: "network-only",
-            query: GRAPHQL_MAP.genericQuery,
-            variables: {
-                db_name: dbName, schema,
-                value: graphQlUtils.buildGenericQueryValue({
-                    sqlId: SQL_MAP.GET_DOCUMENT_SEQUENCES,
-                    sqlArgs: { branch_id: branchId },
-                }),
-            },
-        }).then(res => setDocSequences(res.data?.genericQuery ?? [])).catch(() => {});
     }, [dbName, schema, branchId]);
 
     const loadData = useCallback(async (bId: number, from: string, to: string, q: string, pg: number) => {
@@ -225,7 +232,7 @@ export const JobSection = () => {
             setJobs(dataRes.data?.genericQuery ?? []);
             setTotal(countRes.data?.genericQuery?.[0]?.total ?? 0);
         } catch {
-            toast.error(MESSAGES.ERROR_JOB_LOAD_FAILED);
+            toast.error(MESSAGES.ERROR_OPENING_JOB_LOAD_FAILED);
         } finally {
             setLoading(false);
         }
@@ -255,29 +262,14 @@ export const JobSection = () => {
                 mutation: GRAPHQL_MAP.genericUpdate,
                 variables: { db_name: dbName, schema, value: payload },
             });
-            toast.success(MESSAGES.SUCCESS_JOB_DELETED);
+            toast.success(MESSAGES.SUCCESS_OPENING_JOB_DELETED);
             setDeleteId(null);
             if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, page);
         } catch {
-            toast.error(MESSAGES.ERROR_JOB_DELETE_FAILED);
+            toast.error(MESSAGES.ERROR_OPENING_JOB_DELETE_FAILED);
         } finally {
             setDeleting(false);
         }
-    };
-
-    const refreshDocSequences = () => {
-        if (!dbName || !schema || !branchId) return;
-        apolloClient.query<GenericQueryData<DocumentSequenceRow>>({
-            fetchPolicy: "network-only",
-            query: GRAPHQL_MAP.genericQuery,
-            variables: {
-                db_name: dbName, schema,
-                value: graphQlUtils.buildGenericQueryValue({
-                    sqlId: SQL_MAP.GET_DOCUMENT_SEQUENCES,
-                    sqlArgs: { branch_id: branchId },
-                }),
-            },
-        }).then(res => setDocSequences(res.data?.genericQuery ?? [])).catch(() => {});
     };
 
     const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -293,11 +285,11 @@ export const JobSection = () => {
             <div className="flex flex-wrap items-center gap-x-4 gap-y-3 border-b border-[var(--cl-border)] bg-[var(--cl-surface)] px-4 py-1">
                 <div className="flex items-center gap-3 overflow-hidden">
                     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-[var(--cl-accent)]/10 text-[var(--cl-accent)]">
-                        <Briefcase className="h-4 w-4" />
+                        <RotateCcw className="h-4 w-4" />
                     </div>
                     <div className="flex items-baseline gap-2 overflow-hidden">
                         <h1 className="text-lg font-bold text-[var(--cl-text)] truncate">
-                            New Job
+                            Opening Jobs
                             {mode === "new" && !editJob && <span className="ml-2 text-sm font-medium text-[var(--cl-text-muted)] whitespace-nowrap">— New</span>}
                             {mode === "new" &&  editJob && <span className="ml-2 text-sm font-medium text-amber-500 whitespace-nowrap">— Edit</span>}
                             {mode === "view" && <span className="ml-2 text-sm font-medium text-[var(--cl-text-muted)] whitespace-nowrap">— View</span>}
@@ -313,8 +305,8 @@ export const JobSection = () => {
                 <div className="flex-1" />
 
                 <ViewModeToggle
-                    mode={mode}
                     isEditing={!!editJob}
+                    mode={mode}
                     onNewClick={() => { setEditJob(null); setMode("new"); }}
                     onViewClick={() => {
                         setEditJob(null);
@@ -329,7 +321,7 @@ export const JobSection = () => {
                         className="h-8 gap-1.5 px-3 text-xs font-extrabold uppercase tracking-widest text-[var(--cl-text)]"
                         disabled={submitting}
                         variant="ghost"
-                        onClick={() => { setEditJob(null); newJobRef.current?.reset(); }}
+                        onClick={() => { setEditJob(null); openingJobRef.current?.reset(); }}
                     >
                         <RefreshCw className={`h-3.5 w-3.5 ${submitting ? "animate-spin" : ""}`} />
                         Reset
@@ -337,7 +329,7 @@ export const JobSection = () => {
                     <Button
                         className="h-8 gap-1.5 px-4 text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm font-extrabold uppercase tracking-widest transition-all disabled:opacity-30 disabled:bg-slate-300 disabled:text-slate-600 disabled:shadow-none disabled:cursor-not-allowed"
                         disabled={!newFormValid || submitting}
-                        onClick={() => newJobRef.current?.submit()}
+                        onClick={() => openingJobRef.current?.submit()}
                     >
                         {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
                         Save Job
@@ -346,28 +338,29 @@ export const JobSection = () => {
             </div>
 
             {mode === "new" ? (
-                <div className="flex-1 overflow-y-auto px-4 pb-4">
-                    <NewJobForm
-                        ref={newJobRef}
+                <div className="flex-1 overflow-y-auto">
+                    <OpeningJobForm
+                        ref={openingJobRef}
                         branchId={branchId}
-                        docSequence={editJob ? null : jobSequence}
+                        brands={brands}
+                        customerTypes={customerTypes}
+                        editJob={editJob}
                         jobStatuses={jobStatuses}
                         jobTypes={jobTypes}
-                        receiveMannners={receiveMannners}
-                        receiveConditions={receiveConditions}
-                        technicians={technicians}
-                        models={models}
-                        customerTypes={customerTypes}
                         masterStates={masterStates}
-                        editJob={editJob}
+                        models={models}
+                        products={products}
+                        receiveConditions={receiveConditions}
+                        receiveMannners={receiveMannners}
+                        technicians={technicians}
+                        onRefreshModels={refreshModels}
                         onSuccess={() => {
                             if (editJob) {
                                 setEditJob(null);
                                 setMode("view");
                                 if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, 1);
                             } else {
-                                newJobRef.current?.reset();
-                                refreshDocSequences();
+                                openingJobRef.current?.reset();
                             }
                         }}
                         onStatusChange={status => {
@@ -422,7 +415,7 @@ export const JobSection = () => {
                     </div>
 
                     {/* Data Grid */}
-                    <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-[var(--cl-border)] bg-[var(--cl-surface)] shadow-sm mx-4">
+                    <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-[var(--cl-border)] bg-[var(--cl-surface)] shadow-sm">
                         <div
                             ref={scrollWrapperRef}
                             className="flex-1 overflow-x-auto overflow-y-auto"
@@ -449,7 +442,7 @@ export const JobSection = () => {
                                 </table>
                             ) : jobs.length === 0 ? (
                                 <div className="flex h-32 items-center justify-center text-sm text-[var(--cl-text-muted)]">
-                                    No jobs found for the selected filters.
+                                    No opening jobs found for the selected filters.
                                 </div>
                             ) : (
                                 <table className="min-w-full border-collapse">
@@ -533,16 +526,16 @@ export const JobSection = () => {
                                 Page {page} of {totalPages} · {total} records
                             </span>
                             <div className="flex items-center gap-1">
-                                <Button className="h-7 w-7" disabled={page <= 1 || loading} size="icon" variant="ghost" title="First page" onClick={() => setPage(1)}>
+                                <Button className="h-7 w-7" disabled={page <= 1 || loading} size="icon" title="First page" variant="ghost" onClick={() => setPage(1)}>
                                     <ChevronsLeftIcon className="h-4 w-4" />
                                 </Button>
-                                <Button className="h-7 w-7" disabled={page <= 1 || loading} size="icon" variant="ghost" title="Previous page" onClick={() => setPage(p => p - 1)}>
+                                <Button className="h-7 w-7" disabled={page <= 1 || loading} size="icon" title="Previous page" variant="ghost" onClick={() => setPage(p => p - 1)}>
                                     <ChevronLeftIcon className="h-4 w-4" />
                                 </Button>
-                                <Button className="h-7 w-7" disabled={page >= totalPages || loading} size="icon" variant="ghost" title="Next page" onClick={() => setPage(p => p + 1)}>
+                                <Button className="h-7 w-7" disabled={page >= totalPages || loading} size="icon" title="Next page" variant="ghost" onClick={() => setPage(p => p + 1)}>
                                     <ChevronRightIcon className="h-4 w-4" />
                                 </Button>
-                                <Button className="h-7 w-7" disabled={page >= totalPages || loading} size="icon" variant="ghost" title="Last page" onClick={() => setPage(totalPages)}>
+                                <Button className="h-7 w-7" disabled={page >= totalPages || loading} size="icon" title="Last page" variant="ghost" onClick={() => setPage(totalPages)}>
                                     <ChevronsRightIcon className="h-4 w-4" />
                                 </Button>
                             </div>
@@ -553,10 +546,10 @@ export const JobSection = () => {
                     <Dialog open={deleteId !== null} onOpenChange={open => { if (!open && !deleting) setDeleteId(null); }}>
                         <DialogContent aria-describedby={undefined} className="sm:max-w-sm !bg-[var(--cl-surface)] text-[var(--cl-text)]">
                             <DialogHeader>
-                                <DialogTitle>Delete Job</DialogTitle>
+                                <DialogTitle>Delete Opening Job</DialogTitle>
                             </DialogHeader>
                             <p className="text-sm text-[var(--cl-text-muted)]">
-                                This will permanently delete the job and all associated records. This action cannot be undone.
+                                This will permanently delete the opening job and all associated records. This action cannot be undone.
                             </p>
                             <DialogFooter>
                                 <Button disabled={deleting} variant="outline" onClick={() => setDeleteId(null)}>Cancel</Button>

@@ -1,7 +1,7 @@
 {
   "name": "service-plus-client",
   "private": true,
-  "version": "0.0.7",
+  "version": "0.0.10",
   "type": "module",
   "scripts": {
     "start": "vite",
@@ -37,6 +37,7 @@
     "radix-ui": "^1.4.3",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
+    "react-dropzone": "^15.0.0",
     "react-hook-form": "^7.72.1",
     "react-redux": "^9.2.0",
     "react-router-dom": "^7.14.1",

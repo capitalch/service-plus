@@ -15,13 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
+import { SearchableCombobox } from "@/components/ui/searchable-combobox";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { SQL_MAP } from "@/constants/sql-map";
 import { useDebounce } from "@/hooks/use-debounce";
@@ -180,44 +174,52 @@ export const AddModelDialog = ({
                 <form className="flex flex-col gap-4 pt-1" onSubmit={form.handleSubmit(onSubmit)}>
                     <div className="grid grid-cols-2 gap-4">
                         {/* Product */}
-                        <div className="flex flex-col gap-1.5">
-                            <Label htmlFor="am_product">
-                                Product <span className="text-red-500">*</span>
-                            </Label>
-                            <Select onValueChange={(v) => {
-                                form.setValue("product_id", Number(v), { shouldValidate: true });
-                                setModelTaken(null);
-                            }}>
-                                <SelectTrigger id="am_product">
-                                    <SelectValue placeholder="Select product" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {products.map((p) => (
-                                        <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                        <div className="flex flex-col gap-1">
+                            <SearchableCombobox<ProductOption>
+                                getDisplayValue={(p) => p.name}
+                                getFilterKey={(p) => p.name}
+                                getIdentifier={(p) => p.id.toString()}
+                                isError={!!errors.product_id}
+                                items={products}
+                                label={
+                                    <>
+                                        Product <span className="text-red-500 ml-0.5">*</span>
+                                    </>
+                                }
+                                onSelect={(p) => {
+                                    form.setValue("product_id", p ? p.id : null as any, { shouldValidate: true });
+                                    setModelTaken(null);
+                                }}
+                                placeholder="Search product..."
+                                renderItem={(p) => <span>{p.name}</span>}
+                                selectedValue={productIdValue?.toString() || ""}
+                                showOnFocus={false}
+                            />
                             <FieldError message={errors.product_id?.message} />
                         </div>
 
                         {/* Brand */}
-                        <div className="flex flex-col gap-1.5">
-                            <Label htmlFor="am_brand">
-                                Brand <span className="text-red-500">*</span>
-                            </Label>
-                            <Select onValueChange={(v) => {
-                                form.setValue("brand_id", Number(v), { shouldValidate: true });
-                                setModelTaken(null);
-                            }}>
-                                <SelectTrigger id="am_brand">
-                                    <SelectValue placeholder="Select brand" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {brands.map((b) => (
-                                        <SelectItem key={b.id} value={String(b.id)}>{b.name}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                        <div className="flex flex-col gap-1">
+                            <SearchableCombobox<BrandOption>
+                                getDisplayValue={(b) => b.name}
+                                getFilterKey={(b) => b.name}
+                                getIdentifier={(b) => b.id.toString()}
+                                isError={!!errors.brand_id}
+                                items={brands}
+                                label={
+                                    <>
+                                        Brand <span className="text-red-500 ml-0.5">*</span>
+                                    </>
+                                }
+                                onSelect={(b) => {
+                                    form.setValue("brand_id", b ? b.id : null as any, { shouldValidate: true });
+                                    setModelTaken(null);
+                                }}
+                                placeholder="Search brand..."
+                                renderItem={(b) => <span>{b.name}</span>}
+                                selectedValue={brandIdValue?.toString() || ""}
+                                showOnFocus={false}
+                            />
                             <FieldError message={errors.brand_id?.message} />
                         </div>
                     </div>

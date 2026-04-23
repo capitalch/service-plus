@@ -11,7 +11,7 @@ from app.graphql.resolvers.mutation_helper import (
     resolve_create_bu_schema_and_feed_seed_data_helper,
     resolve_create_business_user_helper,
     resolve_create_client_helper,
-    resolve_create_job_helper,
+    resolve_create_single_job_helper,
     resolve_create_sales_invoice_helper,
     resolve_create_service_db_helper,
     resolve_delete_bu_schema_helper,
@@ -25,6 +25,9 @@ from app.graphql.resolvers.mutation_helper import (
     resolve_import_spare_parts_helper,
     resolve_mail_business_user_credentials_helper,
     resolve_set_user_bu_role_helper,
+    resolve_create_job_batch_helper,
+    resolve_update_job_batch_helper,
+    resolve_delete_job_batch_helper,
 )
 # from app.graphql.pubsub import pubsub
 
@@ -247,14 +250,47 @@ async def resolve_set_user_bu_role(_, info, db_name: str = "", schema: str = "se
         )
 
 
-@mutation.field("createJob")
-async def resolve_create_job(_, info, db_name: str = "", schema: str = "public", value: str = "") -> Any:
+@mutation.field("createSingleJob")
+async def resolve_create_single_job(_, info, db_name: str = "", schema: str = "public", value: str = "") -> Any:
     try:
-        return await resolve_create_job_helper(db_name, schema, value)
+        return await resolve_create_single_job_helper(db_name, schema, value)
     except ValidationException:
         raise
     except Exception as e:
-        logger.error("Error creating job: %s", e, exc_info=True)
+        logger.error("Error creating single job: %s", e, exc_info=True)
+        raise GraphQLException(
+            message=AppMessages.OPERATION_FAILED, extensions={"details": str(e)}
+        )
+
+
+@mutation.field("createJobBatch")
+async def resolve_create_job_batch(_, info, db_name: str = "", schema: str = "public", value: str = "") -> Any:
+    try:
+        return await resolve_create_job_batch_helper(db_name, schema, value)
+    except Exception as e:
+        logger.error("Error creating job batch: %s", e, exc_info=True)
+        raise GraphQLException(
+            message=AppMessages.OPERATION_FAILED, extensions={"details": str(e)}
+        )
+
+
+@mutation.field("updateJobBatch")
+async def resolve_update_job_batch(_, info, db_name: str = "", schema: str = "public", value: str = "") -> Any:
+    try:
+        return await resolve_update_job_batch_helper(db_name, schema, value)
+    except Exception as e:
+        logger.error("Error updating job batch: %s", e, exc_info=True)
+        raise GraphQLException(
+            message=AppMessages.OPERATION_FAILED, extensions={"details": str(e)}
+        )
+
+
+@mutation.field("deleteJobBatch")
+async def resolve_delete_job_batch(_, info, db_name: str = "", schema: str = "public", value: str = "") -> Any:
+    try:
+        return await resolve_delete_job_batch_helper(db_name, schema, value)
+    except Exception as e:
+        logger.error("Error deleting job batch: %s", e, exc_info=True)
         raise GraphQLException(
             message=AppMessages.OPERATION_FAILED, extensions={"details": str(e)}
         )

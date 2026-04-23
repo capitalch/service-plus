@@ -858,7 +858,7 @@ class SqlStore:
         -- with "dummy" as (values(1::int)) -- Test line
         SELECT id, code, name, description, display_order, is_active, is_system
         FROM job_receive_condition
-        ORDER BY display_order NULLS LAST, name
+        ORDER BY (display_order = 0), display_order, name
     """
 
     # ── Job Receive Manners ───────────────────────────────────────────────────
@@ -898,8 +898,7 @@ class SqlStore:
         with "dummy" as (values(1::int))
         -- with "dummy" as (values(1::int)) -- Test line
         SELECT id, code, name, display_order, is_active, is_system
-        FROM job_receive_manner
-        ORDER BY display_order, name
+        FROM job_receive_manner ORDER BY (display_order = 0), display_order, code
     """
 
     # ── Job Statuses ──────────────────────────────────────────────────────────
@@ -950,7 +949,7 @@ class SqlStore:
         -- with "dummy" as (values(1::int)) -- Test line
         SELECT id, code, name, description, display_order, is_active, is_system
         FROM job_type
-        ORDER BY display_order NULLS LAST, name
+        ORDER BY (display_order = 0), display_order, code;
     """
 
     # ── Models (product_brand_model) ──────────────────────────────────────────
@@ -1920,6 +1919,7 @@ class SqlStore:
         --     "p_limit"     as (values(50::int)),             -- Test line
         --     "p_offset"    as (values(0::int))              -- Test line
         SELECT
+            jpu.id,
             j.job_no,
             j.job_date,
             sp.part_code,
@@ -2904,4 +2904,260 @@ class SqlStore:
             coalesce(ts.adjust_out,   0)                        as adjust_out_since
         from last_snap ls
         full outer join tran_since ts on true
+    """
+
+    # ── Job Entry ─────────────────────────────────────────────────────────────
+
+    GET_OPEN_JOBS_COUNT = """
+        with
+            "p_branch_id"   as (values(%(branch_id)s::bigint)),
+            "p_from_date"   as (values(%(from_date)s::date)),
+            "p_to_date"     as (values(%(to_date)s::date)),
+            "p_search"      as (values(%(search)s::text)),
+            "p_show_closed" as (values(%(show_closed)s::boolean))
+        SELECT COUNT(*) AS total
+        FROM job j
+        JOIN customer_contact cc ON cc.id = j.customer_contact_id
+        WHERE j.branch_id = (table "p_branch_id")
+          AND j.job_date BETWEEN (table "p_from_date") AND (table "p_to_date")
+          AND j.is_closed = (table "p_show_closed")
+          AND ((table "p_search") = ''
+           OR LOWER(j.job_no)       LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(cc.mobile)      LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(cc.full_name)   LIKE '%%' || LOWER((table "p_search")) || '%%')
+    """
+
+    GET_OPEN_JOBS_PAGED = """
+        with
+            "p_branch_id"   as (values(%(branch_id)s::bigint)),
+            "p_from_date"   as (values(%(from_date)s::date)),
+            "p_to_date"     as (values(%(to_date)s::date)),
+            "p_search"      as (values(%(search)s::text)),
+            "p_show_closed" as (values(%(show_closed)s::boolean)),
+            "p_limit"       as (values(%(limit)s::int)),
+            "p_offset"      as (values(%(offset)s::int))
+        SELECT
+            j.id,
+            j.job_no,
+            j.job_date,
+            j.is_closed,
+            j.amount,
+            j.diagnosis,
+            j.last_transaction_id,
+            cc.full_name  AS customer_name,
+            cc.mobile,
+            jt.name       AS job_type_name,
+            js.name       AS job_status_name,
+            t.name        AS technician_name
+        FROM job j
+        JOIN customer_contact cc ON cc.id = j.customer_contact_id
+        JOIN job_type          jt ON jt.id = j.job_type_id
+        JOIN job_status        js ON js.id = j.job_status_id
+        LEFT JOIN technician   t  ON t.id  = j.technician_id
+        WHERE j.branch_id = (table "p_branch_id")
+          AND j.job_date BETWEEN (table "p_from_date") AND (table "p_to_date")
+          AND j.is_closed = (table "p_show_closed")
+          AND ((table "p_search") = ''
+           OR LOWER(j.job_no)       LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(cc.mobile)      LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(cc.full_name)   LIKE '%%' || LOWER((table "p_search")) || '%%')
+        ORDER BY j.job_date DESC, j.job_no
+        LIMIT  (table "p_limit")
+        OFFSET (table "p_offset")
+    """
+
+    GET_JOBS_COUNT = """
+        with
+            "p_branch_id" as (values(%(branch_id)s::bigint)),
+            "p_from_date" as (values(%(from_date)s::date)),
+            "p_to_date"   as (values(%(to_date)s::date)),
+            "p_search"    as (values(%(search)s::text))
+        SELECT COUNT(*) AS total
+        FROM job j
+        JOIN customer_contact cc ON cc.id = j.customer_contact_id
+        WHERE j.branch_id = (table "p_branch_id")
+          AND j.job_date BETWEEN (table "p_from_date") AND (table "p_to_date")
+          AND ((table "p_search") = ''
+           OR LOWER(j.job_no)       LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(cc.mobile)      LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(cc.full_name)   LIKE '%%' || LOWER((table "p_search")) || '%%')
+    """
+
+    GET_JOBS_PAGED = """
+        with
+            "p_branch_id" as (values(%(branch_id)s::bigint)),
+            "p_from_date" as (values(%(from_date)s::date)),
+            "p_to_date"   as (values(%(to_date)s::date)),
+            "p_search"    as (values(%(search)s::text)),
+            "p_limit"     as (values(%(limit)s::int)),
+            "p_offset"    as (values(%(offset)s::int))
+        SELECT
+            j.id,
+            j.job_no,
+            j.job_date,
+            j.is_closed,
+            j.amount,
+            cc.full_name  AS customer_name,
+            cc.mobile,
+            jt.name       AS job_type_name,
+            js.name       AS job_status_name,
+            t.name        AS technician_name
+        FROM job j
+        JOIN customer_contact cc ON cc.id = j.customer_contact_id
+        JOIN job_type          jt ON jt.id = j.job_type_id
+        JOIN job_status        js ON js.id = j.job_status_id
+        LEFT JOIN technician   t  ON t.id  = j.technician_id
+        WHERE j.branch_id = (table "p_branch_id")
+          AND j.job_date BETWEEN (table "p_from_date") AND (table "p_to_date")
+          AND ((table "p_search") = ''
+           OR LOWER(j.job_no)       LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(cc.mobile)      LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(cc.full_name)   LIKE '%%' || LOWER((table "p_search")) || '%%')
+        ORDER BY j.job_date DESC, j.job_no
+        LIMIT  (table "p_limit")
+        OFFSET (table "p_offset")
+    """
+
+    GET_JOB_DETAIL = """
+        with "p_id" as (values(%(id)s::bigint))
+        SELECT
+            j.*,
+            cc.full_name  AS customer_name,
+            cc.mobile,
+            jt.name       AS job_type_name,
+            js.name       AS job_status_name,
+            jrm.name      AS job_receive_manner_name,
+            jrc.name      AS job_receive_condition_name,
+            t.name        AS technician_name,
+            pbm.model_name,
+            b.name        AS brand_name,
+            p.name        AS product_name
+        FROM job j
+        JOIN customer_contact      cc  ON cc.id  = j.customer_contact_id
+        JOIN job_type              jt  ON jt.id  = j.job_type_id
+        JOIN job_status            js  ON js.id  = j.job_status_id
+        JOIN job_receive_manner    jrm ON jrm.id = j.job_receive_manner_id
+        LEFT JOIN job_receive_condition jrc ON jrc.id = j.job_receive_condition_id
+        LEFT JOIN technician       t   ON t.id   = j.technician_id
+        LEFT JOIN product_brand_model pbm ON pbm.id = j.product_brand_model_id
+        LEFT JOIN brand            b   ON b.id   = pbm.brand_id
+        LEFT JOIN product          p   ON p.id   = pbm.product_id
+        WHERE j.id = (table "p_id")
+    """
+
+    GET_JOB_IMAGE_DOCS = """
+        SELECT id, url, about, created_at
+        FROM job_image_doc
+        WHERE job_id = %(job_id)s
+        ORDER BY created_at
+    """
+
+    DELETE_JOB_IMAGE_DOC = """
+        DELETE FROM job_image_doc
+        WHERE id = %(id)s
+        RETURNING url
+    """
+
+    GET_JOB_BATCHES_PAGED = """
+        with
+            "p_branch_id" as (values(%(branch_id)s::bigint)),
+            "p_from_date"  as (values(%(from_date)s::date)),
+            "p_to_date"    as (values(%(to_date)s::date)),
+            "p_search"     as (values(%(search)s::text)),
+            "p_limit"      as (values(%(limit)s::int)),
+            "p_offset"     as (values(%(offset)s::int))
+        SELECT
+            j.batch_no,
+            MIN(j.job_date)   AS batch_date,
+            cc.full_name      AS customer_name,
+            cc.mobile,
+            jt.name           AS job_type_name,
+            COUNT(j.id)       AS job_count
+        FROM job j
+        JOIN customer_contact  cc ON cc.id = j.customer_contact_id
+        JOIN job_type          jt ON jt.id = j.job_type_id
+        WHERE j.batch_no IS NOT NULL
+          AND j.branch_id = (table "p_branch_id")
+          AND j.job_date BETWEEN (table "p_from_date") AND (table "p_to_date")
+          AND ((table "p_search") = ''
+           OR  LOWER(cc.full_name) LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(cc.mobile)    LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  CAST(j.batch_no AS text) LIKE '%%' || (table "p_search") || '%%')
+        GROUP BY j.batch_no, cc.full_name, cc.mobile, jt.name
+        ORDER BY j.batch_no DESC
+        LIMIT  (table "p_limit")
+        OFFSET (table "p_offset")
+    """
+
+    GET_JOB_BATCHES_COUNT = """
+        with
+            "p_branch_id" as (values(%(branch_id)s::bigint)),
+            "p_from_date"  as (values(%(from_date)s::date)),
+            "p_to_date"    as (values(%(to_date)s::date)),
+            "p_search"     as (values(%(search)s::text))
+        SELECT COUNT(DISTINCT j.batch_no) AS total
+        FROM job j
+        JOIN customer_contact cc ON cc.id = j.customer_contact_id
+        WHERE j.batch_no IS NOT NULL
+          AND j.branch_id = (table "p_branch_id")
+          AND j.job_date BETWEEN (table "p_from_date") AND (table "p_to_date")
+          AND ((table "p_search") = ''
+           OR  LOWER(cc.full_name) LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(cc.mobile)    LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  CAST(j.batch_no AS text) LIKE '%%' || (table "p_search") || '%%')
+    """
+
+    GET_JOB_BATCH_DETAIL = """
+        with "p_batch_no" as (values(%(batch_no)s::integer))
+        SELECT
+            j.*,
+            cc.full_name  AS customer_name,
+            cc.mobile,
+            jt.name       AS job_type_name,
+            jrm.name      AS receive_manner_name,
+            pbm.model_name,
+            b.name        AS brand_name,
+            p.name        AS product_name,
+            (SELECT COUNT(*) FROM job_transaction jtr WHERE jtr.job_id = j.id) AS transaction_count
+        FROM job j
+        JOIN customer_contact      cc  ON cc.id  = j.customer_contact_id
+        JOIN job_type              jt  ON jt.id  = j.job_type_id
+        JOIN job_receive_manner    jrm ON jrm.id = j.job_receive_manner_id
+        LEFT JOIN product_brand_model pbm ON pbm.id = j.product_brand_model_id
+        LEFT JOIN brand            b   ON b.id   = pbm.brand_id
+        LEFT JOIN product          p   ON p.id   = pbm.product_id
+        WHERE j.batch_no = (table "p_batch_no")
+        ORDER BY j.id
+    """
+
+    # ── Part Used (Job) ───────────────────────────────────────────────────────
+
+    GET_JOBS_BY_KEYWORD = """
+        with
+            "p_branch_id" as (values(%(branch_id)s::bigint)),
+            "p_search"    as (values(%(search)s::text)),
+            "p_limit"     as (values(%(limit)s::int))
+        SELECT j.id, j.job_no, j.job_date, j.branch_id, j.is_closed,
+               cc.full_name AS customer_name, cc.mobile,
+               js.name AS job_status_name
+        FROM job j
+        JOIN customer_contact cc ON cc.id = j.customer_contact_id
+        JOIN job_status        js ON js.id = j.job_status_id
+        WHERE j.branch_id = (table "p_branch_id")
+          AND ((table "p_search") = ''
+           OR LOWER(j.job_no)     LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(cc.mobile)    LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(cc.full_name) LIKE '%%' || LOWER((table "p_search")) || '%%')
+        ORDER BY j.job_date DESC, j.job_no
+        LIMIT (table "p_limit")
+    """
+
+    GET_JOB_PART_USED_BY_JOB = """
+        with "p_job_id" as (values(%(job_id)s::bigint))
+        SELECT jpu.id, jpu.part_id, jpu.quantity,
+               sp.part_code, sp.part_name, sp.uom
+        FROM job_part_used jpu
+        JOIN spare_part_master sp ON sp.id = jpu.part_id
+        WHERE jpu.job_id = (table "p_job_id")
+        ORDER BY jpu.id
     """

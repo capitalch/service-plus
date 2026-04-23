@@ -70,7 +70,7 @@ const SECTION_DEFAULTS: Record<Section, string> = {
     configurations: 'Company Profile',
     dashboard:      'Overview',
     inventory:      'Stock Overview',
-    jobs:           'New Job',
+    jobs:           'Single Job',
     masters:        'Branch',
     reports:        'Job Status Report',
 };
@@ -79,7 +79,7 @@ const SECTION_DEFAULT_GROUPS: Record<Section, string> = {
     configurations: '',
     dashboard:      '',
     inventory:      '',
-    jobs:           '',
+    jobs:           'New Job',
     masters:        'Organization',
     reports:        'Job Reports',
 };

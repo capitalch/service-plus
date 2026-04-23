@@ -1,6 +1,8 @@
 import { ClientLayout, useClientSelection } from "../components/client-layout";
-import { ConsumptionSection } from "../components/consumption-section";
-import { JobSection } from "../components/jobs/job-section";
+import { SingleJobSection } from "../components/jobs/single-job/single-job-section";
+import { BatchJobSection } from "../components/jobs/batch-job/batch-job-section";
+import { PartUsedSection } from "../components/jobs/part-used/part-used-section";
+import { OpeningJobSection } from "../components/jobs/opening-job/opening-job-section";
 
 // ─── Coming Soon placeholder ──────────────────────────────────────────────────
 
@@ -23,10 +25,14 @@ function JobsContent() {
     const { selected } = useClientSelection();
 
     switch (selected) {
-        case "New Job":
-            return <JobSection />;
+        case "Single Job":
+            return <SingleJobSection />;
+        case "Batch Jobs":
+            return <BatchJobSection />;
         case "Part Used (Job)":
-            return <ConsumptionSection />;
+            return <PartUsedSection />;
+        case "Opening Jobs":
+            return <OpeningJobSection />;
         default:
             return <ComingSoon label={selected || "Jobs"} />;
     }

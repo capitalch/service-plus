@@ -6,6 +6,7 @@ fastapi
 mcp[cli]
 openpyxl
 pandas
+Pillow
 python-multipart
 psycopg[binary]
 pydantic

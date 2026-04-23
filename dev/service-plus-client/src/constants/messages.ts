@@ -306,6 +306,14 @@ export const MESSAGES = {
   // Inventory
   ERROR_STOCK_OVERVIEW_LOAD_FAILED:    'Failed to load stock overview. Please try again.',
   ERROR_CONSUMPTION_LOAD_FAILED:       'Failed to load consumption data. Please try again.',
+  // Part Used (Job)
+  ERROR_PART_USED_JOB_REQUIRED:        'Please select a job.',
+  ERROR_PART_USED_LINES_REQUIRED:      'Add at least one part line.',
+  ERROR_PART_USED_LOAD_FAILED:         'Failed to load parts used. Please try again.',
+  ERROR_PART_USED_SAVE_FAILED:         'Failed to save parts used. Please try again.',
+  ERROR_PART_USED_DELETE_FAILED:       'Failed to delete part usage record. Please try again.',
+  SUCCESS_PART_USED_SAVED:             'Parts usage saved successfully.',
+  SUCCESS_PART_USED_DELETED:           'Part usage record deleted.',
   // Purchase Entry
   ERROR_PURCHASE_LOAD_FAILED:          'Failed to load purchase invoices. Please try again.',
   ERROR_PURCHASE_CREATE_FAILED:        'Failed to create purchase invoice. Please try again.',
@@ -397,6 +405,14 @@ export const MESSAGES = {
   SUCCESS_JOB_CREATED:                 'Job created successfully.',
   SUCCESS_JOB_UPDATED:                 'Job updated successfully.',
   SUCCESS_JOB_DELETED:                 'Job deleted successfully.',
+  // Opening Job
+  ERROR_OPENING_JOB_NO_REQUIRED:       'Job No is required.',
+  ERROR_OPENING_JOB_LOAD_FAILED:       'Failed to load opening jobs. Please try again.',
+  ERROR_OPENING_JOB_CREATE_FAILED:     'Failed to save opening job. Please try again.',
+  ERROR_OPENING_JOB_DELETE_FAILED:     'Failed to delete opening job. Please try again.',
+  SUCCESS_OPENING_JOB_CREATED:         'Opening job saved successfully.',
+  SUCCESS_OPENING_JOB_UPDATED:         'Opening job updated successfully.',
+  SUCCESS_OPENING_JOB_DELETED:         'Opening job deleted successfully.',
   // Opening Stock
   ERROR_OPENING_STOCK_LOAD_FAILED:        'Failed to load opening stock. Please try again.',
   ERROR_OPENING_STOCK_CREATE_FAILED:      'Failed to save opening stock. Please try again.',

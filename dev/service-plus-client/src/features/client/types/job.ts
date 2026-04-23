@@ -31,8 +31,10 @@ export type JobDetailType = {
     amount:                      number | null;
     delivery_date:                string | null;
     is_closed:                   boolean;
-    is_warranty:                 boolean;
+    is_final:                    boolean;
+    last_transaction_id:         number | null;
     warranty_card_no:            string | null;
+    quantity:                    number;
     // Joined fields
     customer_name:               string | null;
     mobile:                      string;
@@ -73,4 +75,39 @@ export type ModelRow = {
     is_active:    boolean;
     product_name: string;
     brand_name:   string;
+};
+
+export type JobFileRow = {
+    id:         number;
+    url:        string;
+    about:      string;
+    created_at: string;
+};
+
+export type BatchJobRow = {
+    localId:                  string;         // uuid — React key, not sent to server
+    id?:                      number;         // present when editing an existing job
+    job_no:                   string;
+    product_brand_model_id:   number | null;
+    serial_no:                string;
+    problem_reported:         string;
+    warranty_card_no:         string;
+    job_receive_condition_id: number | null;
+    remarks:                  string;
+    quantity:                 number;
+    isDeletable:              boolean;        // false when transaction_count > 1
+};
+
+export type JobBatchListRow = {
+    batch_no:      number;
+    batch_date:    string;
+    customer_name: string;
+    mobile:        string;
+    job_type_name: string;
+    job_count:     number;
+};
+
+export type JobBatchDetailRow = JobDetailType & {
+    transaction_count: number;
+    receive_manner_name: string;
 };

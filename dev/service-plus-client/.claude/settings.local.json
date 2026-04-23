@@ -19,7 +19,9 @@
       "Bash(ls -d /home/sushant/projects/service-plus/dev/service-plus-client/src/*/)",
       "Bash(ls:*)",
       "Bash(find:*)",
-      "Bash(xargs basename:*)"
+      "Bash(xargs basename:*)",
+      "Read(//home/sushant/projects/service-plus/dev/deployment/final/service-plus-server/**)",
+      "Read(//home/sushant/projects/service-plus/dev/deployment/final/service-plus-server/app/**)"
     ]
   }
 }

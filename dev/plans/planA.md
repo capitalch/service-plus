@@ -1,45 +1,32 @@
-# Plan - Add Part MRP vs Cost Price Validation
+# Implementation Plan - Integrate "Add Model" Shortcut in New Job Form
 
-This plan outlines the steps to implement a validation rule where MRP must be greater than Cost Price, while allowing both to be 0.
+This plan details how to provide a provision for users to add a new model directly from the New Job entry screen if it's missing from the selection.
 
 ## Workflow
-1.  Analyze the existing `zod` validation schema in `AddPartDialog`.
-2.  Modify the `superRefine` block to include the exception for 0 values.
-3.  Test the validation in the UI with various price combinations.
+1. Enhance the metadata loading to include Brands and Products.
+2. Add an "Add New" button/trigger to the Product/Model field.
+3. Reuse the existing `AddModelDialog` from the masters feature.
+4. Implement a callback to refresh the model list upon successful creation.
 
 ## Execution Steps
 
-### Step 1: Locate the Components
-The validation schema needs to be updated in both:
-1.  `service-plus-client/src/features/client/components/add-part-dialog.tsx`
-2.  `service-plus-client/src/features/client/components/edit-part-dialog.tsx`
+### Step 1: Data Preparation in JobSection
+- **Update Fetching**: Modify the `fetchMeta` function in `job-section.tsx` to also fetch:
+  - `GET_ALL_BRANDS`
+  - `GET_ALL_PRODUCTS`
+- **PropTypes**: Update `NewJobForm` props to receive `brands` and `products`.
 
-### Step 2: Update the Validation Schemas
-Modify the `superRefine` logic for the `schema` object in both files.
+### Step 2: Implement "Add Model" Provision in NewJobForm
+- **State**: Add `showAddModel` (boolean) state.
+- **Trigger**: Add a small "Add" button (Emerald color with `Plus` icon) next to the `SearchableCombobox`.
+- **Dialog**: Embed `<AddModelDialog />` at the bottom of the component.
+- **Props**: Pass `brands`, `products`, `open`, `onOpenChange`, and `onSuccess`.
 
-**Current Logic:**
-```typescript
-.superRefine((data, ctx) => {
-    if (data.mrp != null && data.cost_price != null && data.mrp <= data.cost_price) {
-        ctx.addIssue({ code: "custom", message: "MRP must be greater than cost price", path: ["mrp"] });
-    }
-});
-```
+### Step 3: Handle Success & Refresh
+- **Refresh Logic**: On `onSuccess` from the dialog:
+  - Trigger a refetch of the `models` list (via a parent callback `onRefreshModels`).
+  - Optionally auto-select the newly created model if its ID can be retrieved.
 
-**New Logic (Same for both files):**
-The condition for error should exclude the case where both values are 0.
-```typescript
-.superRefine((data, ctx) => {
-    const mrp = data.mrp ?? 0;
-    const cost = data.cost_price ?? 0;
-    
-    // Trigger error if MRP is not > Cost, UNLESS both are 0
-    if (mrp <= cost && (mrp !== 0 || cost !== 0)) {
-        ctx.addIssue({ 
-            code: "custom", 
-            message: "MRP must be greater than cost price", 
-            path: ["mrp"] 
-        });
-    }
-});
-```
+### Step 4: UI/UX Polish
+- Ensure the "Add" button is visually consistent with the "Add Customer" button.
+- Verify placement and responsive behavior of the button next to the combobox.

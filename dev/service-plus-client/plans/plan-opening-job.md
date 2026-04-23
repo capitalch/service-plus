@@ -9,6 +9,8 @@
 
 The same `job` table is used. The existing `createJob` mutation already supports skipping the document sequence (when `doc_sequence_id` is null), so **no new backend mutation is needed**.
 
+All opening job numbers are prefixed with **`Z-`** to distinguish them from system-generated jobs. The prefix is applied automatically on save — if the user's `job_no` does not already start with `Z-` (case-insensitive), the frontend prepends it before sending the payload.
+
 ---
 
 ## Architecture
@@ -68,7 +70,7 @@ All existing backend pieces are reused:
 ### `opening-job-form.tsx`
 
 Modeled after `new-job-form.tsx` with these differences:
-- **Manual job_no** text input (required) instead of auto-generated read-only field
+- **Manual job_no** text input (required) instead of auto-generated read-only field. On save, if the entered value does not already start with `Z-` (case-insensitive), the frontend prepends `Z-` automatically (e.g. `"001"` → `"Z-001"`, `"z-001"` → `"Z-001"`, `"Z-001"` stays `"Z-001"`)
 - **No `docSequence` prop**
 - Additional **Progress / Completion** section at the bottom with these extra fields:
   - Job Status * (dropdown, required — no auto-set to initial; user picks any status)
@@ -119,7 +121,7 @@ Validation: `job_no` required, customer required, job type required, receive man
     tableName: "job",
     xData: {
         branch_id,
-        job_no,            // manual input
+        job_no,            // manual input, ensured to start with "Z-" before sending
         job_date,
         customer_contact_id,
         job_type_id,

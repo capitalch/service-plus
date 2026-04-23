@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict tNrnD6vhJHkhB6HBxU9nEhBqUbXgxlIHQR3ZWgCqmFiddbaYbn1eQjwMdDnQ0sD
+\restrict Eo2e7Mnn9jyV7TAaY0hlpjAlJy60lcbL2EkoPsp8Di2QrW4eW5RWRZsBhMfzlbz
 
 -- Dumped from database version 14.6
 -- Dumped by pg_dump version 17.9 (Ubuntu 17.9-0ubuntu0.25.10.1)
@@ -358,21 +358,22 @@ CREATE TABLE demo1.job (
     job_receive_condition_id smallint,
     product_brand_model_id bigint,
     serial_no text,
-    problem_reported text NOT NULL,
+    problem_reported text,
     diagnosis text,
     work_done text,
     remarks text,
     amount numeric(12,2),
     delivery_date date,
     is_closed boolean DEFAULT false NOT NULL,
-    is_warranty boolean DEFAULT false NOT NULL,
     warranty_card_no text,
     is_active boolean DEFAULT true NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     address_snapshot text,
     last_transaction_id bigint,
-    is_final boolean DEFAULT false NOT NULL
+    is_final boolean DEFAULT false NOT NULL,
+    quantity integer DEFAULT 1 NOT NULL,
+    batch_no integer NOT NULL
 );
 
 
@@ -413,6 +414,27 @@ ALTER TABLE demo1.job_additional_charge ALTER COLUMN id ADD GENERATED ALWAYS AS 
 
 
 --
+-- Name: job_batch_no_seq; Type: SEQUENCE; Schema: demo1; Owner: webadmin
+--
+
+CREATE SEQUENCE demo1.job_batch_no_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE demo1.job_batch_no_seq OWNER TO webadmin;
+
+--
+-- Name: job_batch_no_seq; Type: SEQUENCE OWNED BY; Schema: demo1; Owner: webadmin
+--
+
+ALTER SEQUENCE demo1.job_batch_no_seq OWNED BY demo1.job.batch_no;
+
+
+--
 -- Name: job_delivery_manner; Type: TABLE; Schema: demo1; Owner: webadmin
 --
 
@@ -436,6 +458,35 @@ ALTER TABLE demo1.job_delivery_manner OWNER TO webadmin;
 
 ALTER TABLE demo1.job ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
     SEQUENCE NAME demo1.job_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: job_image_doc; Type: TABLE; Schema: demo1; Owner: webadmin
+--
+
+CREATE TABLE demo1.job_image_doc (
+    id bigint NOT NULL,
+    job_id bigint NOT NULL,
+    url text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    about text NOT NULL
+);
+
+
+ALTER TABLE demo1.job_image_doc OWNER TO webadmin;
+
+--
+-- Name: job_image_doc_id_seq; Type: SEQUENCE; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE demo1.job_image_doc ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME demo1.job_image_doc_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -536,6 +587,7 @@ CREATE TABLE demo1.job_part_used (
     quantity numeric(10,2) NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    remarks text,
     CONSTRAINT job_part_used_quantity_check CHECK ((quantity > (0)::numeric))
 );
 
@@ -599,7 +651,7 @@ CREATE TABLE demo1.job_receive_condition (
     code text NOT NULL,
     name text NOT NULL,
     description text,
-    display_order smallint,
+    display_order smallint DEFAULT 0 NOT NULL,
     is_active boolean DEFAULT true NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
@@ -691,7 +743,7 @@ CREATE TABLE demo1.job_type (
     code text NOT NULL,
     name text NOT NULL,
     description text,
-    display_order smallint,
+    display_order smallint DEFAULT 0 NOT NULL,
     is_active boolean DEFAULT true NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
@@ -1787,6 +1839,14 @@ ALTER TABLE ONLY demo1.job_delivery_manner
 
 
 --
+-- Name: job_image_doc job_image_doc_pkey; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.job_image_doc
+    ADD CONSTRAINT job_image_doc_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: job_invoice job_invoice_company_no_uidx; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
 --
 
@@ -1840,6 +1900,14 @@ ALTER TABLE ONLY demo1.job_payment
 
 ALTER TABLE ONLY demo1.job
     ADD CONSTRAINT job_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: job job_qty_check; Type: CHECK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE demo1.job
+    ADD CONSTRAINT job_qty_check CHECK ((quantity <> 0)) NOT VALID;
 
 
 --
@@ -2447,6 +2515,13 @@ CREATE INDEX idx_stock_adj_line_part ON demo1.stock_adjustment_line USING btree 
 
 
 --
+-- Name: job_batch_no_idx; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX job_batch_no_idx ON demo1.job USING btree (batch_no) WITH (deduplicate_items='true');
+
+
+--
 -- Name: job_branch_idx; Type: INDEX; Schema: demo1; Owner: webadmin
 --
 
@@ -2789,6 +2864,14 @@ ALTER TABLE ONLY demo1.job
 
 ALTER TABLE ONLY demo1.job
     ADD CONSTRAINT job_customer_fk FOREIGN KEY (customer_contact_id) REFERENCES demo1.customer_contact(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: job_image_doc job_image_doc_job_id_fkey; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.job_image_doc
+    ADD CONSTRAINT job_image_doc_job_id_fkey FOREIGN KEY (job_id) REFERENCES demo1.job(id);
 
 
 --
@@ -3331,5 +3414,5 @@ ALTER TABLE ONLY security.user_bu_role
 -- PostgreSQL database dump complete
 --
 
-\unrestrict tNrnD6vhJHkhB6HBxU9nEhBqUbXgxlIHQR3ZWgCqmFiddbaYbn1eQjwMdDnQ0sD
+\unrestrict Eo2e7Mnn9jyV7TAaY0hlpjAlJy60lcbL2EkoPsp8Di2QrW4eW5RWRZsBhMfzlbz
 

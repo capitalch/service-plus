@@ -1,26 +1,46 @@
 # To Do
+- Jobs
+	- New job
+								- Equal width
+								- Set job no as first item
+								- Remove technician
+								- Remove status
+								- Remove delivery date
+								- Problem reported may be optional
+							- Job type sequence
+								- Make ready, Estimate, Under warranty, thereafter sort
+							- Job receive manner
+								- Walkin, Home pickup, Add home service
+							- Receieve condition
+								- Dead, Not working, Damaged, then sort
+							- product model
+								- should be typable select
+								- Add a button to create a new product, brand, model
+								- maybe is_warranty field is not required in table. Warrant_card no box will appear if job type is under warranty
+		- provision for multiple jobs in a batch
+		- provision to load multiple images less than 500KB
 - Inventory
 	- db
 								- stock_branch_transfer table
 								- stock_branch_transfer_line table
-		- stock_loan table
-		- stock_loan_line table
-		- corresponding entries in stock_transaction
+								- stock_loan table
+								- stock_loan_line table
+								- corresponding entries in stock_transaction
 								- seed value add branch_in, branch_out for table stock_transaction_type
-		- Treatment for opening stock
-- sales
-	- Why DELETE_SALES_INVOICE is used? genericUpdate can do delete. On delete cascade is already enabled at database
-	- Create a separate mutation for sales, which uses exec_sql_object, using the sql object sent by client and then incrementing the document sequence, don't use xExtras. For edit ise genericUpdate.
+								- Treatment for opening stock
+							- sales
+								- Why DELETE_SALES_INVOICE is used? genericUpdate can do delete. On delete cascade is already enabled at database
+								- Create a separate mutation for sales, which uses exec_sql_object, using the sql object sent by client and then incrementing the document sequence, don't use xExtras. For edit ise genericUpdate.
+								
+								- taxable_amount to be changed to aggregate_amount in relevant places. Already made changed at database level
+								- In SalesLineFormItem why cgst_rate, sgst_rate and igst_rate are there. There should be cgst_amount, sgst_amount and igst_amount
+								- In Line table columns replace Aggregate for Taxable
+								- On part selection fill the relevant fields from master
+								- HSN required if gst is applicable
+								- set default_gst_rate if 0
+								- Need to take care of document_sequence to increment next_number by 1 in the same mutation at server. No need for separate mutation
 	
-	- taxable_amount to be changed to aggregate_amount in relevant places. Already made changed at database level
-	- In SalesLineFormItem why cgst_rate, sgst_rate and igst_rate are there. There should be cgst_amount, sgst_amount and igst_amount
-	- In Line table columns replace Aggregate for Taxable
-	- On part selection fill the relevant fields from master
-	- HSN required if gst is applicable
-	- set default_gst_rate if 0
-	- Need to take care of document_sequence to increment next_number by 1 in the same mutation at server. No need for separate mutation
-	
-- purchase
+							- purchase
 								- download as excel
 								- Actions buttons overlap with background data. should be opaque
 								- Dark mode issues
