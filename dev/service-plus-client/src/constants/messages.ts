@@ -413,6 +413,18 @@ export const MESSAGES = {
   SUCCESS_OPENING_JOB_CREATED:         'Opening job saved successfully.',
   SUCCESS_OPENING_JOB_UPDATED:         'Opening job updated successfully.',
   SUCCESS_OPENING_JOB_DELETED:         'Opening job deleted successfully.',
+  // Job Receipts (Payments)
+  ERROR_RECEIPT_AMOUNT_REQUIRED:       'Amount must be greater than zero.',
+  ERROR_RECEIPT_CREATE_FAILED:         'Failed to create receipt. Please try again.',
+  ERROR_RECEIPT_DELETE_FAILED:         'Failed to delete receipt. Please try again.',
+  ERROR_RECEIPT_JOB_REQUIRED:          'Please select a job.',
+  ERROR_RECEIPT_LOAD_FAILED:           'Failed to load receipts. Please try again.',
+  ERROR_RECEIPT_PAYMENT_DATE_REQUIRED: 'Payment date is required.',
+  ERROR_RECEIPT_PAYMENT_MODE_REQUIRED: 'Payment mode is required.',
+  ERROR_RECEIPT_UPDATE_FAILED:         'Failed to update receipt. Please try again.',
+  SUCCESS_RECEIPT_CREATED:             'Receipt created successfully.',
+  SUCCESS_RECEIPT_DELETED:             'Receipt deleted successfully.',
+  SUCCESS_RECEIPT_UPDATED:             'Receipt updated successfully.',
   // Opening Stock
   ERROR_OPENING_STOCK_LOAD_FAILED:        'Failed to load opening stock. Please try again.',
   ERROR_OPENING_STOCK_CREATE_FAILED:      'Failed to save opening stock. Please try again.',

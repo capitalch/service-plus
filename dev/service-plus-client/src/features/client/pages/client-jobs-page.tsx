@@ -1,8 +1,9 @@
 import { ClientLayout, useClientSelection } from "../components/client-layout";
-import { SingleJobSection } from "../components/jobs/single-job/single-job-section";
 import { BatchJobSection } from "../components/jobs/batch-job/batch-job-section";
-import { PartUsedSection } from "../components/jobs/part-used/part-used-section";
 import { OpeningJobSection } from "../components/jobs/opening-job/opening-job-section";
+import { PartUsedSection } from "../components/jobs/part-used/part-used-section";
+import { ReceiptsSection } from "../components/jobs/receipts/receipts-section";
+import { SingleJobSection } from "../components/jobs/single-job/single-job-section";
 
 // ─── Coming Soon placeholder ──────────────────────────────────────────────────
 
@@ -29,10 +30,12 @@ function JobsContent() {
             return <SingleJobSection />;
         case "Batch Jobs":
             return <BatchJobSection />;
-        case "Part Used (Job)":
-            return <PartUsedSection />;
         case "Opening Jobs":
             return <OpeningJobSection />;
+        case "Part Used (Job)":
+            return <PartUsedSection />;
+        case "Receipts":
+            return <ReceiptsSection />;
         default:
             return <ComingSoon label={selected || "Jobs"} />;
     }
