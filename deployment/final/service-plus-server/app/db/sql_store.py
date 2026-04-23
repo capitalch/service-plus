@@ -1926,6 +1926,7 @@ class SqlStore:
             sp.part_name,
             sp.uom,
             jpu.quantity,
+            jpu.remarks,
             b.name AS branch_name
         FROM job_part_used jpu
         JOIN job             j  ON j.id  = jpu.job_id
@@ -3154,7 +3155,7 @@ class SqlStore:
 
     GET_JOB_PART_USED_BY_JOB = """
         with "p_job_id" as (values(%(job_id)s::bigint))
-        SELECT jpu.id, jpu.part_id, jpu.quantity,
+        SELECT jpu.id, jpu.part_id, jpu.quantity, jpu.remarks,
                sp.part_code, sp.part_name, sp.uom
         FROM job_part_used jpu
         JOIN spare_part_master sp ON sp.id = jpu.part_id

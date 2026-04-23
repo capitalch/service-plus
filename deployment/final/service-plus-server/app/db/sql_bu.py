@@ -173,13 +173,20 @@ class SqlBu:
             updated_at timestamp with time zone DEFAULT now() NOT NULL,
             address_snapshot text,
             last_transaction_id bigint,
-            is_final boolean DEFAULT false NOT NULL
+            is_final boolean DEFAULT false NOT NULL,
+            quantity integer DEFAULT 1 NOT NULL,
+            batch_no integer
         );
 
         ALTER TABLE job ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
             SEQUENCE NAME job_id_seq
             START WITH 1 INCREMENT BY 1 NO MINVALUE NO MAXVALUE CACHE 1
         );
+
+        CREATE SEQUENCE job_batch_no_seq
+            START WITH 1 INCREMENT BY 1 NO MINVALUE NO MAXVALUE CACHE 1;
+
+        ALTER SEQUENCE job_batch_no_seq OWNED BY job.batch_no;
 
         CREATE TABLE job_additional_charge (
             id bigint NOT NULL,

@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict aOhvsyBZegW4cZL88RTtXE8Xfbtm5KXo2YYcNydmPg0PG6ncYwAHCzGZcE8SUzf
+\restrict Eo2e7Mnn9jyV7TAaY0hlpjAlJy60lcbL2EkoPsp8Di2QrW4eW5RWRZsBhMfzlbz
 
 -- Dumped from database version 14.6
 -- Dumped by pg_dump version 17.9 (Ubuntu 17.9-0ubuntu0.25.10.1)
@@ -372,7 +372,7 @@ CREATE TABLE demo1.job (
     address_snapshot text,
     last_transaction_id bigint,
     is_final boolean DEFAULT false NOT NULL,
-    qty integer DEFAULT 1 NOT NULL,
+    quantity integer DEFAULT 1 NOT NULL,
     batch_no integer NOT NULL
 );
 
@@ -587,6 +587,7 @@ CREATE TABLE demo1.job_part_used (
     quantity numeric(10,2) NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    remarks text,
     CONSTRAINT job_part_used_quantity_check CHECK ((quantity > (0)::numeric))
 );
 
@@ -1906,7 +1907,7 @@ ALTER TABLE ONLY demo1.job
 --
 
 ALTER TABLE demo1.job
-    ADD CONSTRAINT job_qty_check CHECK ((qty <> 0)) NOT VALID;
+    ADD CONSTRAINT job_qty_check CHECK ((quantity <> 0)) NOT VALID;
 
 
 --
@@ -3413,5 +3414,5 @@ ALTER TABLE ONLY security.user_bu_role
 -- PostgreSQL database dump complete
 --
 
-\unrestrict aOhvsyBZegW4cZL88RTtXE8Xfbtm5KXo2YYcNydmPg0PG6ncYwAHCzGZcE8SUzf
+\unrestrict Eo2e7Mnn9jyV7TAaY0hlpjAlJy60lcbL2EkoPsp8Di2QrW4eW5RWRZsBhMfzlbz
 
