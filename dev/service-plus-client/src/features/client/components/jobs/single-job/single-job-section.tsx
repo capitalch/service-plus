@@ -1,11 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
     Briefcase, ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon, Eye,
-    Loader2, MoreHorizontal, Pencil, RefreshCw, Save, Search, Trash2
+    Loader2, MoreHorizontal, Pencil, Printer, RefreshCw, Save, Search, Trash2
 } from "lucide-react";
-import { JobViewModal } from "./job-view-modal";
-import { jsPDF } from "jspdf";
-import autoTable from "jspdf-autotable";
+import { SingleJobViewModal } from "./single-job-view-modal";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 
@@ -34,23 +32,11 @@ import type { CustomerTypeOption, StateOption } from "@/features/client/types/cu
 import type { BrandOption, ProductOption } from "@/features/client/types/model";
 
 import { NewSingleJobForm, type NewSingleJobFormHandle } from "./new-single-job-form";
+import { downloadJobSheet, openJobSheetInTab, type CompanyInfoType } from "./job-sheet-pdf";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type GenericQueryData<T> = { genericQuery: T[] | null };
-
-type CompanyInfoRow = {
-    id:             number;
-    company_name:   string;
-    address_line1:  string;
-    address_line2:  string | null;
-    city:           string | null;
-    pincode:        string | null;
-    phone:          string | null;
-    email:          string | null;
-    gstin:          string | null;
-    gst_state_code: string | null;
-};
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -91,7 +77,7 @@ export const SingleJobSection = () => {
     const [customerTypes,     setCustomerTypes]     = useState<CustomerTypeOption[]>([]);
     const [masterStates,      setMasterStates]      = useState<StateOption[]>([]);
     const [docSequences,      setDocSequences]      = useState<DocumentSequenceRow[]>([]);
-    const [companyInfo,       setCompanyInfo]       = useState<CompanyInfoRow | null>(null);
+    const [companyInfo,       setCompanyInfo]       = useState<CompanyInfoType | null>(null);
 
     // Data
     const [jobs,    setJobs]    = useState<JobListRow[]>([]);
@@ -202,7 +188,7 @@ export const SingleJobSection = () => {
                             query: GRAPHQL_MAP.genericQuery,
                             variables: { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_ALL_STATES }) },
                         }),
-                        apolloClient.query<GenericQueryData<CompanyInfoRow>>({
+                        apolloClient.query<GenericQueryData<CompanyInfoType>>({
                             fetchPolicy: "network-only",
                             query: GRAPHQL_MAP.genericQuery,
                             variables: { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_COMPANY_INFO }) },
@@ -333,9 +319,7 @@ export const SingleJobSection = () => {
 
     const handleViewJob = async (job: JobListRow) => {
         if (!dbName || !schema) return;
-        const loadingToast = toast.loading("Fetching job details...", {
-            icon: <Loader2 className="h-4 w-4 animate-spin text-indigo-600" />,
-        });
+        const loadingToast = toast.loading(MESSAGES.INFO_JOB_DETAIL_LOADING);
 
         try {
             const res = await apolloClient.query<GenericQueryData<JobDetailType>>({
@@ -346,108 +330,55 @@ export const SingleJobSection = () => {
                     schema,
                     value: graphQlUtils.buildGenericQueryValue({
                         sqlId: SQL_MAP.GET_JOB_DETAIL,
-                        sqlArgs: { id: job.id }
-                    })
+                        sqlArgs: { id: job.id },
+                    }),
                 },
             });
 
             const details = res.data?.genericQuery?.[0];
             if (!details) {
-                toast.error("Failed to fetch job details", { id: loadingToast });
+                toast.error(MESSAGES.ERROR_JOB_DETAIL_LOAD_FAILED, { id: loadingToast });
                 return;
             }
 
+            toast.dismiss(loadingToast);
             setViewJob(details);
-            toast.success("Job details loaded", { id: loadingToast });
-        } catch (error) {
-            console.error("View Error:", error);
-            toast.error("Failed to fetch job details", { id: loadingToast });
+        } catch {
+            toast.error(MESSAGES.ERROR_JOB_DETAIL_LOAD_FAILED, { id: loadingToast });
         }
     };
 
     const handlePrintFromView = () => {
         if (!viewJob) return;
-        const doc = new jsPDF();
-        const pageWidth = doc.internal.pageSize.getWidth();
+        downloadJobSheet(viewJob, companyInfo);
+    };
 
-        // --- Header ---
-        doc.setFontSize(18);
-        doc.setFont("helvetica", "bold");
-        const companyName = companyInfo?.company_name ?? "Electronic Gadgets Repair";
-        doc.text(companyName, pageWidth / 2, 20, { align: "center" });
-
-        doc.setFontSize(10);
-        doc.setFont("helvetica", "normal");
-        let y = 26;
-        if (companyInfo) {
-            const addr = [companyInfo.address_line1, companyInfo.address_line2, companyInfo.city, companyInfo.pincode].filter(Boolean).join(", ");
-            doc.text(addr, pageWidth / 2, y, { align: "center" });
-            y += 5;
-            if (companyInfo.phone || companyInfo.email) {
-                const contact = [companyInfo.phone && `Phone: ${companyInfo.phone}`, companyInfo.email && `Email: ${companyInfo.email}`].filter(Boolean).join(" | ");
-                doc.text(contact, pageWidth / 2, y, { align: "center" });
-                y += 5;
+    const handlePrintPdf = async (job: JobListRow) => {
+        if (!dbName || !schema) return;
+        const loadingToast = toast.loading(MESSAGES.INFO_JOB_DETAIL_LOADING);
+        try {
+            const res = await apolloClient.query<GenericQueryData<JobDetailType>>({
+                fetchPolicy: "network-only",
+                query: GRAPHQL_MAP.genericQuery,
+                variables: {
+                    db_name: dbName,
+                    schema,
+                    value: graphQlUtils.buildGenericQueryValue({
+                        sqlId: SQL_MAP.GET_JOB_DETAIL,
+                        sqlArgs: { id: job.id },
+                    }),
+                },
+            });
+            const details = res.data?.genericQuery?.[0];
+            if (!details) {
+                toast.error(MESSAGES.ERROR_JOB_DETAIL_LOAD_FAILED, { id: loadingToast });
+                return;
             }
-            if (companyInfo.gstin) {
-                doc.text(`GSTIN: ${companyInfo.gstin}`, pageWidth / 2, y, { align: "center" });
-                y += 7;
-            }
+            toast.dismiss(loadingToast);
+            openJobSheetInTab(details, companyInfo);
+        } catch {
+            toast.error(MESSAGES.ERROR_JOB_DETAIL_LOAD_FAILED, { id: loadingToast });
         }
-
-        doc.setDrawColor(200);
-        doc.line(15, y, pageWidth - 15, y);
-        y += 10;
-
-        doc.setFontSize(14);
-        doc.setFont("helvetica", "bold");
-        doc.text("JOB SHEET", pageWidth / 2, y, { align: "center" });
-        y += 10;
-
-        // --- Job Info Grid ---
-        autoTable(doc, {
-            startY: y,
-            margin: { left: 15, right: 15 },
-            theme: "grid",
-            styles: { fontSize: 10, cellPadding: 3 },
-            columnStyles: { 0: { fontStyle: "bold", cellWidth: 40 }, 2: { fontStyle: "bold", cellWidth: 40 } },
-            body: [
-                ["Job No:", viewJob.job_no, "Date:", viewJob.job_date],
-                ["Customer:", viewJob.customer_name ?? "—", "Mobile:", viewJob.mobile],
-                ["Product:", viewJob.product_name ?? "—", "Brand:", viewJob.brand_name ?? "—"],
-                ["Model:", viewJob.model_name ?? "—", "Serial No:", viewJob.serial_no ?? "—"],
-                ["Job Type:", viewJob.job_type_name, "Warranty Card:", viewJob.warranty_card_no ?? "—"],
-            ],
-        });
-
-        y = (doc as any).lastAutoTable.finalY + 10;
-
-        // --- Problem Reported ---
-        doc.setFontSize(11);
-        doc.setFont("helvetica", "bold");
-        doc.text("Problem Reported:", 15, y);
-        y += 6;
-        doc.setFont("helvetica", "normal");
-        const splitProblem = doc.splitTextToSize(viewJob.problem_reported || "—", pageWidth - 30);
-        doc.text(splitProblem, 15, y);
-        y += splitProblem.length * 5 + 10;
-
-        // --- Technician Section (Empty for manual filling) ---
-        doc.setDrawColor(220);
-        doc.rect(15, y, pageWidth - 30, 40);
-        doc.setFont("helvetica", "bold");
-        doc.text("Technician Observations & Diagnosis:", 18, y + 6);
-        y += 45;
-
-        doc.rect(15, y, pageWidth - 30, 40);
-        doc.text("Work Done:", 18, y + 6);
-        y += 50;
-
-        // --- Footer Signatures ---
-        doc.setFontSize(10);
-        doc.text("Customer Signature", 15, y + 20);
-        doc.text("Authorized Signatory", pageWidth - 15, y + 20, { align: "right" });
-
-        doc.save(`JobSheet_${viewJob.job_no}.pdf`);
     };
 
     const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -690,6 +621,13 @@ export const SingleJobSection = () => {
                                                                     <span>View Job</span>
                                                                 </DropdownMenuItem>
                                                                 <DropdownMenuItem
+                                                                    className="flex items-center gap-2 cursor-pointer text-indigo-500 focus:bg-indigo-500/10 focus:text-indigo-600 font-semibold"
+                                                                    onClick={() => void handlePrintPdf(job)}
+                                                                >
+                                                                    <Printer className="h-4 w-4" />
+                                                                    <span>Print PDF</span>
+                                                                </DropdownMenuItem>
+                                                                <DropdownMenuItem
                                                                     className="flex items-center gap-2 cursor-pointer text-red-500 focus:bg-red-500/10 focus:text-red-600 font-semibold"
                                                                     onClick={() => setDeleteId(job.id)}
                                                                 >
@@ -749,7 +687,7 @@ export const SingleJobSection = () => {
                     </Dialog>
 
                     {/* View Job Modal */}
-                    <JobViewModal
+                    <SingleJobViewModal
                         isOpen={viewJob !== null}
                         job={viewJob}
                         onClose={() => setViewJob(null)}

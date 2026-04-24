@@ -47,7 +47,7 @@ const SectionCard = ({ title, icon: Icon, children }: { title: string; icon: any
     </div>
 );
 
-export const JobViewModal = ({ isOpen, job, onClose, onPrint }: JobViewModalPropsType) => {
+export const SingleJobViewModal = ({ isOpen, job, onClose, onPrint }: JobViewModalPropsType) => {
     const branches = useAppSelector(selectAvailableBranches);
     if (!job) return null;
 

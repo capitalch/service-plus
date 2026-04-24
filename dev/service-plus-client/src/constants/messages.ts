@@ -394,10 +394,12 @@ export const MESSAGES = {
   INFO_STOCK_SNAPSHOT_NO_SNAPSHOT:   'No snapshot recorded yet. Showing live transaction data.',
   SUCCESS_STOCK_SNAPSHOT_GENERATED:  'Stock snapshot generated successfully.',
   // Job Entry
+  ERROR_JOB_DETAIL_LOAD_FAILED:        'Failed to load job details. Please try again.',
   ERROR_JOB_LOAD_FAILED:               'Failed to load jobs. Please try again.',
   ERROR_JOB_CREATE_FAILED:             'Failed to create job. Please try again.',
   ERROR_JOB_UPDATE_FAILED:             'Failed to update job. Please try again.',
   ERROR_JOB_DELETE_FAILED:             'Failed to delete job. Please try again.',
+  INFO_JOB_DETAIL_LOADING:             'Fetching job details…',
   ERROR_JOB_CUSTOMER_REQUIRED:         'Please select a customer.',
   ERROR_JOB_TYPE_REQUIRED:             'Please select a job type.',
   ERROR_JOB_RECEIVE_MANNER_REQUIRED:   'Please select a receive manner.',
