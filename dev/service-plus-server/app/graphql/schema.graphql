@@ -29,8 +29,10 @@ type Mutation {
     createSalesInvoice(db_name: String!, schema: String, value: String!): Generic
     createSingleJob(db_name: String!, schema: String, value: String!): Generic
     createJobBatch(db_name: String!, schema: String, value: String!): Generic
+    updateJob(db_name: String!, schema: String, value: String!): Generic
     updateJobBatch(db_name: String!, schema: String, value: String!): Generic
     deleteJobBatch(db_name: String!, schema: String, value: String!): Generic
+    deliverJob(db_name: String!, schema: String, value: String!): Generic
 }
 
 type Subscription {

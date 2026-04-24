@@ -425,6 +425,17 @@ export const MESSAGES = {
   SUCCESS_RECEIPT_CREATED:             'Receipt created successfully.',
   SUCCESS_RECEIPT_DELETED:             'Receipt deleted successfully.',
   SUCCESS_RECEIPT_UPDATED:             'Receipt updated successfully.',
+  // Ready for Delivery
+  ERROR_READY_JOBS_LOAD_FAILED:        'Failed to load ready jobs. Please try again.',
+  ERROR_JOB_INVOICE_LOAD_FAILED:       'Failed to load job invoice. Please try again.',
+  ERROR_JOB_INVOICE_SAVE_FAILED:       'Failed to save job invoice. Please try again.',
+  ERROR_JOB_INVOICE_LINE_REQUIRED:     'Add at least one invoice line.',
+  SUCCESS_JOB_INVOICE_SAVED:           'Invoice saved and job marked as Ready for Delivery.',
+  // Deliver Job
+  ERROR_DELIVERABLE_JOBS_LOAD_FAILED:  'Failed to load jobs for delivery. Please try again.',
+  ERROR_JOB_DELIVERY_DETAIL_FAILED:    'Failed to load job delivery details. Please try again.',
+  ERROR_JOB_DELIVER_FAILED:            'Failed to deliver job. Please try again.',
+  SUCCESS_JOB_DELIVERED:               'Job delivered and closed successfully.',
   // Opening Stock
   ERROR_OPENING_STOCK_LOAD_FAILED:        'Failed to load opening stock. Please try again.',
   ERROR_OPENING_STOCK_CREATE_FAILED:      'Failed to save opening stock. Please try again.',

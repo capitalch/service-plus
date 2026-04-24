@@ -13,6 +13,7 @@ from app.graphql.resolvers.mutation_helper import (
     resolve_create_client_helper,
     resolve_create_single_job_helper,
     resolve_create_sales_invoice_helper,
+    resolve_update_job_helper,
     resolve_create_service_db_helper,
     resolve_delete_bu_schema_helper,
     resolve_delete_client_helper,
@@ -28,6 +29,7 @@ from app.graphql.resolvers.mutation_helper import (
     resolve_create_job_batch_helper,
     resolve_update_job_batch_helper,
     resolve_delete_job_batch_helper,
+    resolve_deliver_job_helper,
 )
 # from app.graphql.pubsub import pubsub
 
@@ -263,6 +265,19 @@ async def resolve_create_single_job(_, info, db_name: str = "", schema: str = "p
         )
 
 
+@mutation.field("updateJob")
+async def resolve_update_job(_, info, db_name: str = "", schema: str = "public", value: str = "") -> Any:
+    try:
+        return await resolve_update_job_helper(db_name, schema, value)
+    except ValidationException:
+        raise
+    except Exception as e:
+        logger.error("Error updating job: %s", e, exc_info=True)
+        raise GraphQLException(
+            message=AppMessages.OPERATION_FAILED, extensions={"details": str(e)}
+        )
+
+
 @mutation.field("createJobBatch")
 async def resolve_create_job_batch(_, info, db_name: str = "", schema: str = "public", value: str = "") -> Any:
     try:
@@ -291,6 +306,19 @@ async def resolve_delete_job_batch(_, info, db_name: str = "", schema: str = "pu
         return await resolve_delete_job_batch_helper(db_name, schema, value)
     except Exception as e:
         logger.error("Error deleting job batch: %s", e, exc_info=True)
+        raise GraphQLException(
+            message=AppMessages.OPERATION_FAILED, extensions={"details": str(e)}
+        )
+
+
+@mutation.field("deliverJob")
+async def resolve_deliver_job(_, info, db_name: str = "", schema: str = "public", value: str = "") -> Any:
+    try:
+        return await resolve_deliver_job_helper(db_name, schema, value)
+    except ValidationException:
+        raise
+    except Exception as e:
+        logger.error("Error delivering job: %s", e, exc_info=True)
         raise GraphQLException(
             message=AppMessages.OPERATION_FAILED, extensions={"details": str(e)}
         )

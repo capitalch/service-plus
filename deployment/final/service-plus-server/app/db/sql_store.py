@@ -3019,6 +3019,62 @@ class SqlStore:
         OFFSET (table "p_offset")
     """
 
+    GET_JOB_LIST_COUNT = """
+        with
+            "p_branch_id"   as (values(%(branch_id)s::bigint)),
+            "p_from_date"   as (values(%(from_date)s::date)),
+            "p_to_date"     as (values(%(to_date)s::date)),
+            "p_search"      as (values(%(search)s::text)),
+            "p_show_closed" as (values(%(show_closed)s::boolean))
+        SELECT COUNT(*) AS total
+        FROM job j
+        JOIN customer_contact cc ON cc.id = j.customer_contact_id
+        WHERE j.branch_id = (table "p_branch_id")
+          AND j.job_date BETWEEN (table "p_from_date") AND (table "p_to_date")
+          AND ((table "p_show_closed") IS NULL OR j.is_closed = (table "p_show_closed"))
+          AND ((table "p_search") = ''
+           OR LOWER(j.job_no)     LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(cc.mobile)    LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(cc.full_name) LIKE '%%' || LOWER((table "p_search")) || '%%')
+    """
+
+    GET_JOB_LIST_PAGED = """
+        with
+            "p_branch_id"   as (values(%(branch_id)s::bigint)),
+            "p_from_date"   as (values(%(from_date)s::date)),
+            "p_to_date"     as (values(%(to_date)s::date)),
+            "p_search"      as (values(%(search)s::text)),
+            "p_show_closed" as (values(%(show_closed)s::boolean)),
+            "p_limit"       as (values(%(limit)s::int)),
+            "p_offset"      as (values(%(offset)s::int))
+        SELECT
+            j.id,
+            j.job_no,
+            j.job_date,
+            j.is_closed,
+            j.amount,
+            cc.full_name AS customer_name,
+            cc.mobile,
+            jt.name      AS job_type_name,
+            js.name      AS job_status_name,
+            t.name       AS technician_name
+        FROM job j
+        JOIN customer_contact cc ON cc.id = j.customer_contact_id
+        JOIN job_type          jt ON jt.id = j.job_type_id
+        JOIN job_status        js ON js.id = j.job_status_id
+        LEFT JOIN technician   t  ON t.id  = j.technician_id
+        WHERE j.branch_id = (table "p_branch_id")
+          AND j.job_date BETWEEN (table "p_from_date") AND (table "p_to_date")
+          AND ((table "p_show_closed") IS NULL OR j.is_closed = (table "p_show_closed"))
+          AND ((table "p_search") = ''
+           OR LOWER(j.job_no)     LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(cc.mobile)    LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(cc.full_name) LIKE '%%' || LOWER((table "p_search")) || '%%')
+        ORDER BY j.job_date DESC, j.job_no
+        LIMIT  (table "p_limit")
+        OFFSET (table "p_offset")
+    """
+
     GET_JOB_DETAIL = """
         with "p_id" as (values(%(id)s::bigint))
         SELECT
@@ -3161,4 +3217,263 @@ class SqlStore:
         JOIN spare_part_master sp ON sp.id = jpu.part_id
         WHERE jpu.job_id = (table "p_job_id")
         ORDER BY jpu.id
+    """
+
+    # ── Job Receipts (Payments) ───────────────────────────────────────────────
+
+    GET_JOB_PAYMENTS_COUNT = """
+        with
+            "p_branch_id" as (values(%(branch_id)s::bigint)),
+            "p_from_date"  as (values(%(from_date)s::date)),
+            "p_to_date"    as (values(%(to_date)s::date)),
+            "p_search"     as (values(%(search)s::text))
+        SELECT COUNT(*) AS count
+        FROM job_payment jp
+        JOIN job j ON j.id = jp.job_id
+        LEFT JOIN customer_contact cc ON cc.id = j.customer_contact_id
+        WHERE j.branch_id = (table "p_branch_id")
+          AND jp.payment_date BETWEEN (table "p_from_date") AND (table "p_to_date")
+          AND ((table "p_search") = ''
+           OR  j.job_no::text ILIKE '%%' || (table "p_search") || '%%'
+           OR  LOWER(cc.full_name) LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(jp.payment_mode) LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(COALESCE(jp.reference_no, '')) LIKE '%%' || LOWER((table "p_search")) || '%%')
+    """
+
+    GET_JOB_PAYMENTS_PAGED = """
+        with
+            "p_branch_id" as (values(%(branch_id)s::bigint)),
+            "p_from_date"  as (values(%(from_date)s::date)),
+            "p_to_date"    as (values(%(to_date)s::date)),
+            "p_search"     as (values(%(search)s::text)),
+            "p_limit"      as (values(%(limit)s::int)),
+            "p_offset"     as (values(%(offset)s::int))
+        SELECT jp.id, jp.job_id, j.job_no, cc.full_name AS customer_name, cc.mobile,
+               jp.payment_date, jp.payment_mode, jp.amount, jp.reference_no, jp.remarks,
+               jp.created_at, jp.updated_at
+        FROM job_payment jp
+        JOIN job j ON j.id = jp.job_id
+        LEFT JOIN customer_contact cc ON cc.id = j.customer_contact_id
+        WHERE j.branch_id = (table "p_branch_id")
+          AND jp.payment_date BETWEEN (table "p_from_date") AND (table "p_to_date")
+          AND ((table "p_search") = ''
+           OR  j.job_no::text ILIKE '%%' || (table "p_search") || '%%'
+           OR  LOWER(cc.full_name) LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(jp.payment_mode) LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(COALESCE(jp.reference_no, '')) LIKE '%%' || LOWER((table "p_search")) || '%%')
+        ORDER BY jp.payment_date DESC, jp.id DESC
+        LIMIT  (table "p_limit")
+        OFFSET (table "p_offset")
+    """
+
+    GET_JOB_PAYMENTS_BY_JOB = """
+        with "p_job_id" as (values(%(job_id)s::bigint))
+        SELECT jp.id, jp.job_id, jp.payment_date, jp.payment_mode, jp.amount,
+               jp.reference_no, jp.remarks, jp.created_at, jp.updated_at
+        FROM job_payment jp
+        WHERE jp.job_id = (table "p_job_id")
+        ORDER BY jp.payment_date DESC, jp.id DESC
+    """
+
+    GET_JOBS_FOR_RECEIPT_LOOKUP = """
+        with
+            "p_branch_id" as (values(%(branch_id)s::bigint)),
+            "p_search"    as (values(%(search)s::text)),
+            "p_limit"     as (values(%(limit)s::int))
+        SELECT j.id, j.job_no, j.job_date, j.amount, j.is_closed,
+               cc.full_name AS customer_name, cc.mobile
+        FROM job j
+        LEFT JOIN customer_contact cc ON cc.id = j.customer_contact_id
+        WHERE j.branch_id = (table "p_branch_id")
+          AND j.is_active = true
+          AND ((table "p_search") = ''
+           OR  j.job_no::text ILIKE '%%' || (table "p_search") || '%%'
+           OR  LOWER(cc.full_name) LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(cc.mobile)    LIKE '%%' || LOWER((table "p_search")) || '%%')
+        ORDER BY j.job_date DESC, j.id DESC
+        LIMIT (table "p_limit")
+    """
+
+    # ── Ready for Delivery ────────────────────────────────────────────────────
+
+    GET_READY_JOBS_COUNT = """
+        with
+            "p_branch_id" as (values(%(branch_id)s::bigint)),
+            "p_from_date" as (values(%(from_date)s::date)),
+            "p_to_date"   as (values(%(to_date)s::date)),
+            "p_search"    as (values(%(search)s::text))
+        SELECT COUNT(*) AS total
+        FROM job j
+        JOIN customer_contact cc ON cc.id = j.customer_contact_id
+        WHERE j.branch_id = (table "p_branch_id")
+          AND j.job_date BETWEEN (table "p_from_date") AND (table "p_to_date")
+          AND j.is_final = true
+          AND j.is_closed = false
+          AND ((table "p_search") = ''
+           OR  LOWER(j.job_no::text) LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(cc.mobile)      LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(cc.full_name)   LIKE '%%' || LOWER((table "p_search")) || '%%')
+    """
+
+    GET_READY_JOBS_PAGED = """
+        with
+            "p_branch_id" as (values(%(branch_id)s::bigint)),
+            "p_from_date" as (values(%(from_date)s::date)),
+            "p_to_date"   as (values(%(to_date)s::date)),
+            "p_search"    as (values(%(search)s::text)),
+            "p_limit"     as (values(%(limit)s::int)),
+            "p_offset"    as (values(%(offset)s::int))
+        SELECT j.id, j.job_no, j.job_date, j.amount,
+               cc.full_name AS customer_name, cc.mobile,
+               js.name      AS job_status_name,
+               t.name       AS technician_name,
+               EXISTS(
+                   SELECT 1 FROM job_invoice ji WHERE ji.job_id = j.id
+               ) AS has_invoice
+        FROM job j
+        JOIN customer_contact cc ON cc.id = j.customer_contact_id
+        JOIN job_status        js ON js.id = j.job_status_id
+        LEFT JOIN technician   t  ON t.id  = j.technician_id
+        WHERE j.branch_id = (table "p_branch_id")
+          AND j.job_date BETWEEN (table "p_from_date") AND (table "p_to_date")
+          AND j.is_final = true
+          AND j.is_closed = false
+          AND ((table "p_search") = ''
+           OR  LOWER(j.job_no::text) LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(cc.mobile)      LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(cc.full_name)   LIKE '%%' || LOWER((table "p_search")) || '%%')
+        ORDER BY j.job_date DESC, j.job_no
+        LIMIT  (table "p_limit")
+        OFFSET (table "p_offset")
+    """
+
+    GET_JOB_INVOICE_BY_JOB = """
+        with "p_job_id" as (values(%(job_id)s::bigint))
+        SELECT ji.id, ji.job_id, ji.company_id, ji.invoice_no, ji.invoice_date,
+               ji.supply_state_code, ji.taxable_amount, ji.cgst_amount, ji.sgst_amount,
+               ji.igst_amount, ji.total_tax, ji.total_amount,
+               COALESCE(
+                   json_agg(
+                       json_build_object(
+                           'id',             jil.id,
+                           'job_invoice_id', jil.job_invoice_id,
+                           'description',    jil.description,
+                           'part_code',      jil.part_code,
+                           'hsn_code',       jil.hsn_code,
+                           'quantity',       jil.quantity,
+                           'unit_price',     jil.unit_price,
+                           'taxable_amount', jil.taxable_amount,
+                           'cgst_rate',      jil.cgst_rate,
+                           'sgst_rate',      jil.sgst_rate,
+                           'igst_rate',      jil.igst_rate,
+                           'cgst_amount',    jil.cgst_amount,
+                           'sgst_amount',    jil.sgst_amount,
+                           'igst_amount',    jil.igst_amount,
+                           'total_amount',   jil.total_amount
+                       ) ORDER BY jil.id
+                   ) FILTER (WHERE jil.id IS NOT NULL),
+                   '[]'::json
+               ) AS lines
+        FROM job_invoice ji
+        LEFT JOIN job_invoice_line jil ON jil.job_invoice_id = ji.id
+        WHERE ji.job_id = (table "p_job_id")
+        GROUP BY ji.id
+    """
+
+    GET_JOB_PARTS_FOR_INVOICE = """
+        with "p_job_id" as (values(%(job_id)s::bigint))
+        SELECT jpu.quantity, sp.part_code, sp.part_name, sp.uom
+        FROM job_part_used jpu
+        JOIN spare_part_master sp ON sp.id = jpu.part_id
+        WHERE jpu.job_id = (table "p_job_id")
+        ORDER BY jpu.id
+    """
+
+    # ── Deliver Job ───────────────────────────────────────────────────────────
+
+    GET_DELIVERABLE_JOBS_COUNT = """
+        with
+            "p_branch_id" as (values(%(branch_id)s::bigint)),
+            "p_from_date" as (values(%(from_date)s::date)),
+            "p_to_date"   as (values(%(to_date)s::date)),
+            "p_search"    as (values(%(search)s::text))
+        SELECT COUNT(*) AS total
+        FROM job j
+        JOIN customer_contact cc ON cc.id = j.customer_contact_id
+        WHERE j.branch_id = (table "p_branch_id")
+          AND j.job_date BETWEEN (table "p_from_date") AND (table "p_to_date")
+          AND j.is_final  = true
+          AND j.is_closed = false
+          AND ((table "p_search") = ''
+           OR  LOWER(j.job_no::text) LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(cc.mobile)      LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(cc.full_name)   LIKE '%%' || LOWER((table "p_search")) || '%%')
+    """
+
+    GET_DELIVERABLE_JOBS_PAGED = """
+        with
+            "p_branch_id" as (values(%(branch_id)s::bigint)),
+            "p_from_date" as (values(%(from_date)s::date)),
+            "p_to_date"   as (values(%(to_date)s::date)),
+            "p_search"    as (values(%(search)s::text)),
+            "p_limit"     as (values(%(limit)s::int)),
+            "p_offset"    as (values(%(offset)s::int))
+        SELECT j.id, j.job_no, j.job_date, j.amount, j.last_transaction_id,
+               cc.full_name  AS customer_name, cc.mobile,
+               js.name       AS job_status_name,
+               t.name        AS technician_name,
+               ji.total_amount AS invoice_total,
+               ji.invoice_no
+        FROM job j
+        JOIN customer_contact cc ON cc.id = j.customer_contact_id
+        JOIN job_status        js ON js.id = j.job_status_id
+        LEFT JOIN technician   t  ON t.id  = j.technician_id
+        LEFT JOIN job_invoice  ji ON ji.job_id = j.id
+        WHERE j.branch_id = (table "p_branch_id")
+          AND j.job_date BETWEEN (table "p_from_date") AND (table "p_to_date")
+          AND j.is_final  = true
+          AND j.is_closed = false
+          AND ((table "p_search") = ''
+           OR  LOWER(j.job_no::text) LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(cc.mobile)      LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(cc.full_name)   LIKE '%%' || LOWER((table "p_search")) || '%%')
+        ORDER BY j.job_date DESC, j.job_no
+        LIMIT  (table "p_limit")
+        OFFSET (table "p_offset")
+    """
+
+    GET_JOB_DELIVERY_DETAIL = """
+        with "p_job_id" as (values(%(job_id)s::bigint))
+        SELECT
+            j.id, j.job_no, j.job_date, j.problem_reported, j.diagnosis, j.work_done,
+            j.amount, j.delivery_date, j.is_closed, j.last_transaction_id,
+            cc.full_name AS customer_name, cc.mobile,
+            js.name      AS job_status_name,
+            t.name       AS technician_name,
+            ji.id        AS invoice_id,
+            ji.invoice_no,
+            ji.invoice_date,
+            ji.total_amount AS invoice_total,
+            COALESCE(
+                json_agg(
+                    json_build_object(
+                        'id',           jp.id,
+                        'payment_date', jp.payment_date,
+                        'payment_mode', jp.payment_mode,
+                        'amount',       jp.amount,
+                        'reference_no', jp.reference_no,
+                        'remarks',      jp.remarks
+                    ) ORDER BY jp.created_at
+                ) FILTER (WHERE jp.id IS NOT NULL),
+                '[]'::json
+            ) AS payments
+        FROM job j
+        JOIN customer_contact cc ON cc.id = j.customer_contact_id
+        JOIN job_status        js ON js.id = j.job_status_id
+        LEFT JOIN technician   t  ON t.id  = j.technician_id
+        LEFT JOIN job_invoice  ji ON ji.job_id = j.id
+        LEFT JOIN job_payment  jp ON jp.job_id = j.id
+        WHERE j.id = (table "p_job_id")
+        GROUP BY j.id, cc.full_name, cc.mobile, js.name, t.name,
+                 ji.id, ji.invoice_no, ji.invoice_date, ji.total_amount
     """

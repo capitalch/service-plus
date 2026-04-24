@@ -182,8 +182,14 @@ export const SQL_MAP = {
     // Job Entry
     GET_JOBS_COUNT:                       "GET_JOBS_COUNT",
     GET_JOBS_PAGED:                       "GET_JOBS_PAGED",
+    // Job List / Search
+    GET_JOB_LIST_COUNT:                   "GET_JOB_LIST_COUNT",
+    GET_JOB_LIST_PAGED:                   "GET_JOB_LIST_PAGED",
     GET_JOB_DETAIL:                       "GET_JOB_DETAIL",
     GET_JOB_IMAGE_DOCS:                   "GET_JOB_IMAGE_DOCS",
+    // Update Job
+    GET_OPEN_JOBS_COUNT:                  "GET_OPEN_JOBS_COUNT",
+    GET_OPEN_JOBS_PAGED:                  "GET_OPEN_JOBS_PAGED",
     // Batch Job Entry
     GET_JOB_BATCHES_PAGED:               "GET_JOB_BATCHES_PAGED",
     GET_JOB_BATCHES_COUNT:               "GET_JOB_BATCHES_COUNT",
@@ -193,4 +199,13 @@ export const SQL_MAP = {
     GET_JOB_PAYMENTS_COUNT:              "GET_JOB_PAYMENTS_COUNT",
     GET_JOB_PAYMENTS_PAGED:              "GET_JOB_PAYMENTS_PAGED",
     GET_JOBS_FOR_RECEIPT_LOOKUP:         "GET_JOBS_FOR_RECEIPT_LOOKUP",
+    // Ready for Delivery
+    GET_READY_JOBS_COUNT:                "GET_READY_JOBS_COUNT",
+    GET_READY_JOBS_PAGED:                "GET_READY_JOBS_PAGED",
+    GET_JOB_INVOICE_BY_JOB:             "GET_JOB_INVOICE_BY_JOB",
+    GET_JOB_PARTS_FOR_INVOICE:          "GET_JOB_PARTS_FOR_INVOICE",
+    // Deliver Job
+    GET_DELIVERABLE_JOBS_COUNT:         "GET_DELIVERABLE_JOBS_COUNT",
+    GET_DELIVERABLE_JOBS_PAGED:         "GET_DELIVERABLE_JOBS_PAGED",
+    GET_JOB_DELIVERY_DETAIL:            "GET_JOB_DELIVERY_DETAIL",
 }

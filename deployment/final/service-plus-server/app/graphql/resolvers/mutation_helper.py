@@ -870,6 +870,128 @@ async def resolve_create_single_job_helper(db_name: str, schema: str = "public",
     return job_id
 
 
+async def resolve_update_job_helper(db_name: str, schema: str = "public", value: str = "") -> Any:
+    payload = _decode_value(value, "updateJob")
+
+    job_id               = payload.pop("job_id")
+    last_transaction_id  = payload.pop("last_transaction_id", None)
+    performed_by         = payload.pop("performed_by_user_id", None)
+    transaction_notes    = payload.pop("transaction_notes", "")
+    x_data               = payload.get("xData", {})
+
+    job_status_id = x_data.get("job_status_id")
+    technician_id = x_data.get("technician_id")
+    amount        = x_data.get("amount")
+
+    db_name_arg = db_name if db_name else None
+    schema_name = schema or "public"
+
+    # 1. Update the job row
+    job_object = {"tableName": "job", "xData": x_data}
+    await exec_sql_object(db_name_arg, schema_name, job_object)
+    logger.info("Job %s updated", job_id)
+
+    # 2. Insert job_transaction
+    txn_data: dict = {
+        "job_id":               job_id,
+        "status_id":            job_status_id,
+        "performed_by_user_id": performed_by,
+    }
+    if technician_id is not None:
+        txn_data["technician_id"] = technician_id
+    if amount is not None:
+        txn_data["amount"] = amount
+    if transaction_notes:
+        txn_data["notes"] = transaction_notes
+    if last_transaction_id is not None:
+        txn_data["previous_transaction_id"] = last_transaction_id
+
+    txn_object = {"tableName": "job_transaction", "xData": txn_data}
+    new_txn_id = await exec_sql_object(db_name_arg, schema_name, txn_object)
+    logger.debug("Job transaction inserted, id=%s", new_txn_id)
+
+    # 3. Update job.last_transaction_id with the new transaction id
+    if new_txn_id:
+        upd_object = {
+            "tableName": "job",
+            "xData": {"id": job_id, "last_transaction_id": new_txn_id},
+        }
+        await exec_sql_object(db_name_arg, schema_name, upd_object)
+        logger.debug("job.last_transaction_id updated to %s", new_txn_id)
+
+    return new_txn_id
+
+
+async def resolve_deliver_job_helper(db_name: str, schema: str = "public", value: str = "") -> Any:
+    payload = _decode_value(value, "deliverJob")
+
+    job_id               = payload.pop("job_id")
+    last_transaction_id  = payload.pop("last_transaction_id", None)
+    performed_by         = payload.pop("performed_by_user_id", None)
+    delivered_status_id  = payload.pop("delivered_status_id")
+    delivery_date        = payload.pop("delivery_date")
+    delivery_manner_name = payload.pop("delivery_manner_name", "")
+    transaction_notes    = payload.pop("transaction_notes", "")
+    payment              = payload.pop("payment", {})
+
+    db_name_arg = db_name if db_name else None
+    schema_name = schema or "public"
+
+    # 1. Insert job_payment if amount > 0
+    payment_amount = payment.get("amount", 0) or 0
+    if payment_amount > 0:
+        payment_data = {
+            "job_id":       job_id,
+            "payment_date": payment.get("payment_date"),
+            "payment_mode": payment.get("payment_mode", ""),
+            "amount":       payment_amount,
+            "reference_no": payment.get("reference_no", ""),
+            "remarks":      payment.get("remarks", ""),
+        }
+        await exec_sql_object(db_name_arg, schema_name, {"tableName": "job_payment", "xData": payment_data})
+        logger.info("Payment inserted for job %s, amount=%s", job_id, payment_amount)
+
+    # 2. Update job: close it and record delivery
+    job_object = {
+        "tableName": "job",
+        "xData": {
+            "id":            job_id,
+            "is_closed":     True,
+            "delivery_date": delivery_date,
+            "job_status_id": delivered_status_id,
+        },
+    }
+    await exec_sql_object(db_name_arg, schema_name, job_object)
+    logger.info("Job %s closed, delivery_date=%s", job_id, delivery_date)
+
+    # 3. Insert job_transaction
+    notes_parts = [p for p in [delivery_manner_name, transaction_notes] if p]
+    full_notes  = ". ".join(notes_parts)
+
+    txn_data: dict = {
+        "job_id":               job_id,
+        "status_id":            delivered_status_id,
+        "performed_by_user_id": performed_by,
+    }
+    if full_notes:
+        txn_data["notes"] = full_notes
+    if last_transaction_id is not None:
+        txn_data["previous_transaction_id"] = last_transaction_id
+
+    new_txn_id = await exec_sql_object(db_name_arg, schema_name, {"tableName": "job_transaction", "xData": txn_data})
+    logger.debug("Delivery transaction inserted, id=%s", new_txn_id)
+
+    # 4. Update job.last_transaction_id
+    if new_txn_id:
+        await exec_sql_object(db_name_arg, schema_name, {
+            "tableName": "job",
+            "xData": {"id": job_id, "last_transaction_id": new_txn_id},
+        })
+        logger.debug("job.last_transaction_id updated to %s", new_txn_id)
+
+    return new_txn_id
+
+
 async def resolve_create_job_batch_helper(db_name: str, schema: str = "public", value: str = "") -> Any:
     payload = _decode_value(value, "createJobBatch")
     shared = payload.get("sharedData", {})

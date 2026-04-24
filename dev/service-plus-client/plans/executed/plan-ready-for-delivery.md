@@ -49,23 +49,13 @@ No separate form file — line items are in-line within the section (same as upd
    - Add `GET_JOB_INVOICE_BY_JOB` — full `job_invoice` with its `job_invoice_line` rows for a given `job_id` (null if none)
    - Add `GET_JOB_PARTS_FOR_INVOICE` — `job_part_used` joined to `spare_part_master` for a given `job_id` (used for auto-populate button)
 
-2. **`app/graphql/schema.graphql`**
-   - Add `saveJobInvoice(db_name: String!, schema: String, value: String!): Generic`
-
-3. **`app/graphql/resolvers/mutation_helper.py`**
-   - Add `resolve_save_job_invoice_helper` — atomic: insert/update `job_invoice` + lines + increment `document_sequence` + update `job.job_status_id` to "Ready for Delivery" status
-
-4. **`app/graphql/resolvers/mutation.py`**
-   - Import + add `@mutation.field("saveJobInvoice")` resolver
+> **No new GraphQL mutation needed.** `genericUpdate` handles this via its `xDetails` sibling pattern: `job_invoice_line`, `job`, and `document_sequence` are all siblings inside `xDetails`. The driver (`process_details`) passes the parent's id as `fkey_value` to each child; siblings that carry their own `id` trigger UPDATE and ignore `fkey_value`; siblings with `fkeyName` receive it for INSERT. All ops run inside a single connection/transaction.
 
 ### Frontend
-5. **`src/constants/sql-map.ts`**
+2. **`src/constants/sql-map.ts`**
    - Add: `GET_READY_JOBS_COUNT`, `GET_READY_JOBS_PAGED`, `GET_JOB_INVOICE_BY_JOB`, `GET_JOB_PARTS_FOR_INVOICE`
 
-6. **`src/constants/graphql-map.ts`**
-   - Add `saveJobInvoice` mutation
-
-7. **`src/constants/messages.ts`**
+3. **`src/constants/messages.ts`**
    - Add:
      ```
      ERROR_READY_JOBS_LOAD_FAILED:    'Failed to load ready jobs. Please try again.'
@@ -75,7 +65,7 @@ No separate form file — line items are in-line within the section (same as upd
      SUCCESS_JOB_INVOICE_SAVED:       'Invoice saved and job marked as Ready for Delivery.'
      ```
 
-8. **`src/features/client/pages/client-jobs-page.tsx`**
+4. **`src/features/client/pages/client-jobs-page.tsx`**
    - Add `case "Ready for Delivery": return <ReadyForDeliverySection />;`
 
 ---
@@ -186,56 +176,82 @@ WHERE jpu.job_id = %(job_id)s
 ORDER BY jpu.id
 ```
 
-### `saveJobInvoice` Mutation Payload
-```typescript
+### `genericUpdate` Payload — New Invoice
+All totals are pre-computed on the frontend. The driver handles everything in one transaction.
+
+```json
 {
-    job_id:                number,
-    job_invoice_id:        number | null,      // null = new invoice
-    ready_status_id:       number,             // job_status.id where code = 'READY'
-    doc_sequence_id:       number | null,      // null if invoice already exists
-    doc_sequence_next:     number | null,
-    invoice_no:            string,             // built from docSequence or existing
-    invoice_date:          string,
-    supply_state_code:     string,
-    company_id:            number,
-    is_igst:               boolean,
-    lines: [
+    "tableName": "job_invoice",
+    "xData": {
+        "job_id":             "<job_id>",
+        "company_id":         "<company_id>",
+        "invoice_no":         "<generated from doc sequence>",
+        "invoice_date":       "<date>",
+        "supply_state_code":  "<state code>",
+        "taxable_amount":     "<number>",
+        "cgst_amount":        "<number>",
+        "sgst_amount":        "<number>",
+        "igst_amount":        "<number>",
+        "total_tax":          "<number>",
+        "total_amount":       "<number>"
+    },
+    "xDetails": [
         {
-            description: string,
-            part_code:   string | null,
-            hsn_code:    string,
-            quantity:    number,
-            unit_price:  number,
-            taxable_amount: number,
-            cgst_rate:   number, cgst_amount: number,
-            sgst_rate:   number, sgst_amount: number,
-            igst_rate:   number, igst_amount: number,
-            total_amount: number,
+            "tableName": "job_invoice_line",
+            "fkeyName":  "job_invoice_id",
+            "xData": [
+                { "description": "...", "hsn_code": "...", "quantity": 1, "unit_price": 500, "taxable_amount": 500, "cgst_rate": 9, "cgst_amount": 45, "sgst_rate": 9, "sgst_amount": 45, "igst_rate": 0, "igst_amount": 0, "total_amount": 590 }
+            ]
+        },
+        {
+            "tableName": "job",
+            "xData": { "id": "<job_id>", "job_status_id": "<ready_status_id>" }
+        },
+        {
+            "tableName": "document_sequence",
+            "xData": { "id": "<doc_seq_id>", "next_number": "<next_number + 1>" }
         }
-    ],
-    // Aggregated totals
-    taxable_amount: number,
-    cgst_amount:    number,
-    sgst_amount:    number,
-    igst_amount:    number,
-    total_tax:      number,
-    total_amount:   number,
+    ]
 }
 ```
 
-### `resolve_save_job_invoice_helper` (Python)
-```python
-async def resolve_save_job_invoice_helper(db_name, schema, value):
-    # 1. Decode payload
-    # 2. Pop: job_id, job_invoice_id, ready_status_id, doc_sequence_id, doc_sequence_next, lines
-    # 3. If job_invoice_id exists: DELETE FROM job_invoice_line WHERE job_invoice_id = job_invoice_id
-    #    Else: exec_sql_object → INSERT job_invoice → new job_invoice_id
-    # 4. exec_sql_object → INSERT job_invoice_line rows (each with job_invoice_id FK)
-    # 5. If job_invoice already existed: exec_sql_object → UPDATE job_invoice totals (id=job_invoice_id)
-    # 6. exec_sql_object → UPDATE job SET job_status_id = ready_status_id WHERE id = job_id
-    # 7. If doc_sequence_id: exec_sql_object → increment document_sequence
-    # Returns: job_invoice_id
+> **Sibling pattern**: `job` and `document_sequence` have their own `id` → driver runs UPDATE, ignores the `fkey_value` (job_invoice.id) passed by the parent. `job_invoice_line` has `fkeyName: "job_invoice_id"` → driver injects the new invoice id as FK.
+
+### `genericUpdate` Payload — Existing Invoice (re-save / edit)
+Lines are replaced: `deletedIds` removes old rows, new `xData` inserts replacements. No document_sequence update (invoice_no already generated).
+
+```json
+{
+    "tableName": "job_invoice",
+    "xData": {
+        "id":                 "<existing_invoice_id>",
+        "invoice_date":       "<date>",
+        "supply_state_code":  "<state code>",
+        "taxable_amount":     "<number>",
+        "cgst_amount":        "<number>",
+        "sgst_amount":        "<number>",
+        "igst_amount":        "<number>",
+        "total_tax":          "<number>",
+        "total_amount":       "<number>"
+    },
+    "xDetails": [
+        {
+            "tableName":  "job_invoice_line",
+            "fkeyName":   "job_invoice_id",
+            "deletedIds": ["<old_line_id_1>", "<old_line_id_2>"],
+            "xData": [
+                { "description": "...", "hsn_code": "...", "quantity": 1, "unit_price": 500, "taxable_amount": 500, "cgst_rate": 9, "cgst_amount": 45, "sgst_rate": 9, "sgst_amount": 45, "igst_rate": 0, "igst_amount": 0, "total_amount": 590 }
+            ]
+        },
+        {
+            "tableName": "job",
+            "xData": { "id": "<job_id>", "job_status_id": "<ready_status_id>" }
+        }
+    ]
+}
 ```
+
+> **`deletedIds`**: `process_deleted_ids` runs `DELETE FROM job_invoice_line WHERE id = ANY(...)` before the INSERT. Pass only when the list is non-empty (empty array is falsy in Python and would be skipped anyway).
 
 ### Invoice View UI Layout
 ```
@@ -291,6 +307,7 @@ async def resolve_save_job_invoice_helper(db_name, schema, value):
 
 | Utility | Notes |
 |---------|-------|
+| `GRAPHQL_MAP.genericUpdate` | Save invoice + lines + job status + doc sequence in one transaction |
 | `GET_JOB_DELIVERY_MANNERS` | Available if needed for delivery manner dropdown |
 | `GET_DOCUMENT_SEQUENCES` | Load with `document_type_code = 'JINV'` |
 | `GET_JOB_STATUSES` | Find "Ready for Delivery" status id by code |

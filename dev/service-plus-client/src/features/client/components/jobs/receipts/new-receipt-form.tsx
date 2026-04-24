@@ -43,9 +43,9 @@ const today = () => new Date().toISOString().slice(0, 10);
 // ─── Schema ───────────────────────────────────────────────────────────────────
 
 const formSchema = z.object({
-    amount:       z.coerce.number({ invalid_type_error: MESSAGES.ERROR_RECEIPT_AMOUNT_REQUIRED })
+    amount:       z.coerce.number({ error: MESSAGES.ERROR_RECEIPT_AMOUNT_REQUIRED })
                     .positive(MESSAGES.ERROR_RECEIPT_AMOUNT_REQUIRED),
-    job_id:       z.number({ required_error: MESSAGES.ERROR_RECEIPT_JOB_REQUIRED })
+    job_id:       z.number({ error: MESSAGES.ERROR_RECEIPT_JOB_REQUIRED })
                     .int()
                     .positive(MESSAGES.ERROR_RECEIPT_JOB_REQUIRED),
     payment_date: z.string().min(1, MESSAGES.ERROR_RECEIPT_PAYMENT_DATE_REQUIRED),

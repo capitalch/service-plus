@@ -15,7 +15,19 @@ createRoot(document.getElementById("root")!).render(
     <ApolloProvider client={apolloClient}>
       <Provider store={store}>
         <RouterProvider router={router} />
-        <Toaster position="top-right" richColors />
+        <Toaster 
+          position="top-right" 
+          richColors 
+          expand 
+          closeButton 
+          toastOptions={{
+            style: {
+              borderRadius: '12px',
+              border: 'none',
+              boxShadow: '0 10px 30px -10px rgba(0,0,0,0.2)',
+            },
+          }}
+        />
       </Provider>
     </ApolloProvider>
   </StrictMode>

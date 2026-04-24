@@ -42,9 +42,9 @@ No separate form file (no line items; fields are simple inputs/selects/textareas
    - Add job-update specific messages (reuse `ERROR_JOB_UPDATE_FAILED`, `SUCCESS_JOB_UPDATED` already added)
 
 ### Backend
-5. **`app/db/sql_store.py`**
-   - Add `GET_OPEN_JOBS_COUNT` — like GET_JOBS_COUNT but with optional `is_closed` filter parameter
-   - Add `GET_OPEN_JOBS_PAGED` — like GET_JOBS_PAGED but with `is_closed` filter
+5. **`app/db/sql_store.py`** ✅ already done
+   - `GET_OPEN_JOBS_COUNT` — exists (filters by `is_closed` via `p_show_closed` param)
+   - `GET_OPEN_JOBS_PAGED` — exists (includes `diagnosis`, `last_transaction_id`, `is_closed` filter)
 
 6. **`app/graphql/schema.graphql`**
    - Add `updateJob(db_name: String!, schema: String, value: String!): Generic`
@@ -59,17 +59,19 @@ No separate form file (no line items; fields are simple inputs/selects/textareas
 
 ## Implementation Details
 
-### SQL: `GET_OPEN_JOBS_COUNT` and `GET_OPEN_JOBS_PAGED`
+### SQL: `GET_OPEN_JOBS_COUNT` and `GET_OPEN_JOBS_PAGED` ✅ already in `sql_store.py`
 
-```sql
--- GET_OPEN_JOBS_COUNT
--- Same as GET_JOBS_COUNT but adds: AND j.is_closed = (table "p_show_closed")
--- p_show_closed defaults to false (show only open jobs)
+Both queries exist. Frontend only needs `GET_OPEN_JOBS_COUNT` and `GET_OPEN_JOBS_PAGED` added to `sql-map.ts` (Step 2).
 
--- GET_OPEN_JOBS_PAGED
--- Same as GET_JOBS_PAGED + diagnosis snippet + is_closed filter
--- Extra columns: j.diagnosis (truncated, to show in list)
-```
+### Why `updateJob` needs a custom mutation (not `genericUpdate`)
+
+`genericUpdate` supports multi-table operations via `xDetails` — the parent row's id is passed down as `fkeyName` to child rows. This handles:
+- Step 1: `UPDATE job SET diagnosis, work_done, ...` (xData with id)
+- Step 2: `INSERT INTO job_transaction` (xDetails, fkey = job_id)
+
+But step 3 — `UPDATE job SET last_transaction_id = <new_txn_id>` — requires the child's inserted id to be written back to the parent. The driver propagates parent→child only; there is no reverse propagation. `genericUpdate` cannot do this.
+
+`last_transaction_id` is read by `GET_OPEN_JOBS_PAGED` and sent back by the frontend as `previous_transaction_id` on the next save, so it must be kept current.
 
 ### `updateJob` mutation payload (from frontend)
 
@@ -96,17 +98,26 @@ No separate form file (no line items; fields are simple inputs/selects/textareas
 
 ### `resolve_update_job_helper` (Python)
 
+Three sequential `exec_sql_object` calls (same pattern as `resolve_create_job_helper`):
+
 ```python
 async def resolve_update_job_helper(db_name, schema, value):
     # 1. Decode payload
-    # 2. Pop: last_transaction_id, performed_by_user_id, transaction_notes, job_id
-    # 3. exec_sql_object → update job row (tableName: "job", xData: { id, ...fields })
-    # 4. Insert job_transaction:
-    #    { job_id, status_id (from xData.job_status_id), technician_id, amount,
+    # 2. Pop top-level keys: last_transaction_id, performed_by_user_id, transaction_notes
+    #    xData contains: { id (job_id), job_status_id, technician_id, diagnosis,
+    #                      work_done, amount, delivery_date, is_closed, is_final, remarks }
+    # 3. exec_sql_object → UPDATE job (tableName: "job", xData: { id, ...fields })
+    # 4. exec_sql_object → INSERT job_transaction:
+    #    { job_id, status_id=job_status_id, technician_id, amount,
     #      notes=transaction_notes, performed_by_user_id,
     #      previous_transaction_id=last_transaction_id }
-    # 5. exec_sql_object → update job.last_transaction_id = new_txn_id
-    # Returns: new transaction id
+    #    → returns new_txn_id
+    # 5. exec_sql_object → UPDATE job SET last_transaction_id = new_txn_id
+    #    (tableName: "job", xData: { id: job_id, last_transaction_id: new_txn_id })
+    # Returns: new_txn_id
+    #
+    # Note: steps 3–5 are separate exec_sql_object calls (each opens its own connection),
+    # matching the pattern in resolve_create_job_helper.
 ```
 
 ### `update-job-section.tsx` Structure
@@ -158,11 +169,10 @@ const [showClosed, setShowClosed] = useState(false);
 
 | Utility | Location |
 |---------|----------|
-| `GET_JOBS_PAGED` / `GET_JOBS_COUNT` | `SQL_MAP` — adapt for open-job filter |
+| `GET_OPEN_JOBS_PAGED` / `GET_OPEN_JOBS_COUNT` | `SQL_MAP` (to be added) — already in `sql_store.py` |
 | `GET_JOB_DETAIL` | `SQL_MAP` — load full job on select |
 | `GET_JOB_STATUSES` | `SQL_MAP` — status dropdown |
 | `GET_ALL_TECHNICIANS` | `SQL_MAP` — technician dropdown |
-| `GRAPHQL_MAP.genericUpdate` | fallback for simple job updates (no txn needed) |
 | `selectCurrentUser` | auth slice — for `performed_by_user_id` |
 | `currentFinancialYearRange()` | default date range filter |
 | Pagination buttons JSX | clone from `job-section.tsx` |
