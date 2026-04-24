@@ -82,6 +82,7 @@ export const NewSingleJobForm = forwardRef<NewSingleJobFormHandle, Props>(({
     // Header state
     const [customerId,          setCustomerId]         = useState<number | null>(editJob?.customer_contact_id ?? null);
     const [customerName,        setCustomerName]       = useState(editJob?.customer_name ?? "");
+    const [addressSnapshot,     setAddressSnapshot]    = useState(editJob?.address_snapshot ?? "");
     const [jobDate,             setJobDate]            = useState(today());
     const [jobTypeId,           setJobTypeId]          = useState<number | null>(editJob?.job_type_id ?? null);
     const [receiveMannerId,     setReceiveMannerId]    = useState<number | null>(editJob?.job_receive_manner_id ?? null);
@@ -132,6 +133,7 @@ export const NewSingleJobForm = forwardRef<NewSingleJobFormHandle, Props>(({
             if (!d) return;
             setCustomerId(d.customer_contact_id);
             setCustomerName(d.customer_name ?? d.mobile ?? "");
+            setAddressSnapshot(d.address_snapshot ?? "");
             setJobDate(d.job_date);
             setJobTypeId(d.job_type_id);
             setReceiveMannerId(d.job_receive_manner_id);
@@ -152,6 +154,7 @@ export const NewSingleJobForm = forwardRef<NewSingleJobFormHandle, Props>(({
         setStagedKey((k) => k + 1);
         setCustomerId(null);
         setCustomerName("");
+        setAddressSnapshot("");
         setJobDate(today());
         const initial = jobStatuses.find(s => s.is_initial);
         setJobStatusId(initial?.id ?? null);
@@ -199,6 +202,7 @@ export const NewSingleJobForm = forwardRef<NewSingleJobFormHandle, Props>(({
                         problem_reported:         problemReported.trim(),
                         warranty_card_no:         warrantyCardNo.trim() || null,
                         remarks:                  remarks.trim() || null,
+                        address_snapshot:         addressSnapshot.trim() || null,
                     },
                 });
                 await apolloClient.mutate({
@@ -228,6 +232,7 @@ export const NewSingleJobForm = forwardRef<NewSingleJobFormHandle, Props>(({
                         warranty_card_no:         warrantyCardNo.trim() || null,
                         remarks:                  remarks.trim() || null,
                         performed_by_user_id:     currentUser?.id ?? null,
+                        address_snapshot:         addressSnapshot.trim() || null,
                     },
                 };
                 const encoded = encodeURIComponent(JSON.stringify(sqlObject));
@@ -334,10 +339,23 @@ export const NewSingleJobForm = forwardRef<NewSingleJobFormHandle, Props>(({
                                         setCustomerName(name);
                                         if (!name.trim()) setCustomerId(null);
                                     }}
-                                    onClear={() => { setCustomerId(null); setCustomerName(""); }}
+                                    onClear={() => { 
+                                        setCustomerId(null); 
+                                        setCustomerName(""); 
+                                        setAddressSnapshot("");
+                                    }}
                                     onSelect={(c: CustomerSearchRow) => {
                                         setCustomerId(c.id);
                                         setCustomerName(c.full_name ?? c.mobile);
+                                        // Format address snapshot
+                                        const parts = [
+                                            c.address_line1,
+                                            c.address_line2,
+                                            c.city,
+                                            c.state_name,
+                                            c.postal_code
+                                        ].filter(Boolean);
+                                        setAddressSnapshot(parts.join(", "));
                                     }}
                                 />
                             </div>

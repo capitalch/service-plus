@@ -46,6 +46,7 @@ export type JobDetailType = {
     model_name:                  string | null;
     brand_name:                  string | null;
     product_name:                string | null;
+    address_snapshot:            string | null;
     branch_code:                 string | null;
 };
 

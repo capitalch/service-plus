@@ -16,7 +16,7 @@ export type CompanyInfoType = {
     pincode:        string | null;
 };
 
-function buildJobSheetDoc(job: JobDetailType, companyInfo: CompanyInfoType | null): jsPDF {
+function buildSingleJobSheetDoc(job: JobDetailType, companyInfo: CompanyInfoType | null): jsPDF {
     // Standard A4 page; content fits within top 148.5 mm (half-A4 stationery)
     const doc       = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
@@ -53,28 +53,34 @@ function buildJobSheetDoc(job: JobDetailType, companyInfo: CompanyInfoType | nul
         }
     }
 
-    doc.setDrawColor(200);
-    doc.line(15, y, pageWidth - 15, y);
-    y += 6;
-
-    doc.setFontSize(12);
+    doc.setFontSize(13);
     doc.setFont("helvetica", "bold");
-    doc.text("JOB SHEET", pageWidth / 2, y, { align: "center" });
-    y += 7;
+    doc.text("JOB SHEET", pageWidth / 2, y + 1, { align: "center" });
+    y += 9;
 
     // ── Info Grid ─────────────────────────────────────────────────────────────
     autoTable(doc, {
         body: [
-            ["Job No:",    job.job_no,                   "Date:",          job.job_date],
-            ["Customer:",  job.customer_name ?? "—",     "Mobile:",        job.mobile],
-            ["Product:",   job.product_name  ?? "—",     "Brand:",         job.brand_name ?? "—"],
-            ["Model:",     job.model_name    ?? "—",     "Serial No:",     job.serial_no  ?? "—"],
-            ["Job Type:",  job.job_type_name,             "Warranty Card:", job.warranty_card_no ?? "—"],
+            ["Job No:",   job.job_no,                  "Date:",          job.job_date],
+            ["Branch:",   job.branch_code ?? "—",       "Customer:",      job.customer_name ?? "—"],
+            [
+                { content: "Mobile:", styles: { fontStyle: "bold" } },
+                { content: job.mobile, colSpan: 3 },
+            ],
+            [
+                { content: "Address:", styles: { fontStyle: "bold" } },
+                { content: job.address_snapshot ?? "—", colSpan: 3 },
+            ],
+            ["Product:",  job.product_name  ?? "—",     "Brand:",         job.brand_name ?? "—"],
+            ["Model:",    job.model_name    ?? "—",      "Serial No:",     job.serial_no  ?? "—"],
+            [{ content: "Qty:", styles: { fontStyle: "bold" } }, { content: String(job.quantity), colSpan: 3 }],
+            ["Job Type:", job.job_type_name,             "Warranty Card:", job.warranty_card_no ?? "—"],
+            ["Manner:",   job.job_receive_manner_name,   "Condition:",     job.job_receive_condition_name ?? "—"],
         ],
         columnStyles: { 0: { cellWidth: 35, fontStyle: "bold" }, 2: { cellWidth: 35, fontStyle: "bold" } },
         margin:       { left: 15, right: 15 },
         startY:       y,
-        styles:       { cellPadding: 2, fontSize: 9 },
+        styles:       { cellPadding: 2, fontSize: 9, lineColor: [180, 180, 180], lineWidth: 0.3 },
         theme:        "grid",
     });
 
@@ -102,10 +108,15 @@ function buildJobSheetDoc(job: JobDetailType, companyInfo: CompanyInfoType | nul
 }
 
 export function downloadJobSheet(job: JobDetailType, companyInfo: CompanyInfoType | null): void {
-    buildJobSheetDoc(job, companyInfo).save(`JobSheet_${job.job_no}.pdf`);
+    buildSingleJobSheetDoc(job, companyInfo).save(`JobSheet_${job.job_no}.pdf`);
+}
+
+export function getJobSheetBlobUrl(job: JobDetailType, companyInfo: CompanyInfoType | null): string {
+    const doc = buildSingleJobSheetDoc(job, companyInfo);
+    return String(doc.output("bloburl"));
 }
 
 export function openJobSheetInTab(job: JobDetailType, companyInfo: CompanyInfoType | null): void {
-    const url = buildJobSheetDoc(job, companyInfo).output("bloburl");
-    window.open(String(url), "_blank");
+    const url = getJobSheetBlobUrl(job, companyInfo);
+    window.open(url, "_blank");
 }

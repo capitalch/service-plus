@@ -1,28 +1,5 @@
-# generate Insert sql statements for realistic dummy data for testing the application.
-- Create sql scripts to insert 300 rows in job table.
-- Read the sql_bu.py to get the id from the seed data for various columns of the table.
-- The sql statements should be written in such a way that they can be run in a postgresql database.
-- job_date should be in the last 60 days.
-- use customer_contact_id between 1 to 100
-- use job_no as running no from 1,2,3 and so on
-- use branch_id as 2 only
-- technician_id null
-- job_status_id as 1 for all
-- job_type_id between 1 and 10 randomly
-- job_receive_manner_id between 1 and 8 randomly
-- job_receive_condition_id between 1 and 10 randomly
-- product_brand_model_id between 1 and 500 randomly
-- serial_no as randon alphanumeric number between 9 and 20 characters long
-- problem_reported as realistic electronic gadget problem discription.
-- diagnosis as null
-- work_done as null
-- remarks as "Created test data"
-- amount 0
-- delivery_date null
-- is_closed false
-- is_final false
-- address snapshot as random address
-- quantity 1 for all
-- batch_no 0
-- Write the sql scripts in plans/insert-job-data.sql
+# Change in format of single-job-sheet-pdf.ts
+- Provide address snapshot ordetailed customer address
+- Provide job receive manner
+- Provide job receive condition
 

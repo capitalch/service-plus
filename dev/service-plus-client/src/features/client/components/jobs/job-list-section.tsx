@@ -266,7 +266,7 @@ export const JobListSection = () => {
                         <table className="min-w-full border-collapse">
                             <thead>
                                 <tr className="bg-[var(--cl-surface-2)]">
-                                    {["#", "Date", "Job No", "Customer", "Mobile", "Job Type", "Status", "Technician", "Amount", "Actions"].map(h => (
+                                    {["#", "Date", "Job No", "Customer", "Mobile", "Job Type", "Status", "Amount", "Actions"].map(h => (
                                         <th key={h} className={thClass}>{h}</th>
                                     ))}
                                 </tr>
@@ -274,7 +274,7 @@ export const JobListSection = () => {
                             <tbody>
                                 {Array.from({ length: 12 }).map((_, i) => (
                                     <tr key={i} className="animate-pulse">
-                                        {Array.from({ length: 10 }).map((__, j) => (
+                                        {Array.from({ length: 9 }).map((__, j) => (
                                             <td key={j} className={tdClass}><div className="h-4 w-16 rounded bg-[var(--cl-border)]" /></td>
                                         ))}
                                     </tr>
@@ -296,7 +296,6 @@ export const JobListSection = () => {
                                     <th className={thClass}>Mobile</th>
                                     <th className={thClass}>Job Type</th>
                                     <th className={thClass}>Status</th>
-                                    <th className={thClass}>Technician</th>
                                     <th className={`${thClass} text-right`}>Amount</th>
                                     <th className={`${thClass} sticky right-0 z-20 !bg-[var(--cl-surface-2)]`}>Actions</th>
                                 </tr>
@@ -322,7 +321,6 @@ export const JobListSection = () => {
                                                 {job.job_status_name}
                                             </span>
                                         </td>
-                                        <td className={tdClass}>{job.technician_name ?? "—"}</td>
                                         <td className={`${tdClass} text-right`}>
                                             {job.amount != null ? `₹${Number(job.amount).toFixed(2)}` : "—"}
                                         </td>

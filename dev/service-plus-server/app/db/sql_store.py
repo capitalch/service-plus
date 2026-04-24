@@ -2112,6 +2112,7 @@ class SqlStore:
         SELECT
             cc.id, cc.full_name, cc.mobile, cc.gstin,
             cc.state_id, s.code AS state_code, s.name AS state_name,
+            cc.address_line1, cc.address_line2, cc.city, cc.postal_code,
             ct.name AS customer_type_name
         FROM customer_contact cc
         JOIN customer_type ct ON ct.id = cc.customer_type_id

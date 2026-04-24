@@ -1,7 +1,7 @@
 # instructions
 - limit yourself to current folder
 - Always make responsive design
-- When plan mode or doing the planning then always write your planning in plan.md in plans folder. Overwrite plan.md if it exists. 
+- When you are in plan mode or doing the planning then always write your planning in plans/plan.md in root folder. Overwrite plan.md if it exists. 
 - Make sure that you write plan.md in correct plans folder only. 
 - In plan.md write all the steps of execution as Step1, Step 2 and so on.
 - In plan.md include a workflow section which provides the workflow of entire effort

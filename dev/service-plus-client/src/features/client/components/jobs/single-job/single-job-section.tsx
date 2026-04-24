@@ -32,7 +32,8 @@ import type { CustomerTypeOption, StateOption } from "@/features/client/types/cu
 import type { BrandOption, ProductOption } from "@/features/client/types/model";
 
 import { NewSingleJobForm, type NewSingleJobFormHandle } from "./new-single-job-form";
-import { downloadJobSheet, openJobSheetInTab, type CompanyInfoType } from "./job-sheet-pdf";
+import { getJobSheetBlobUrl, type CompanyInfoType } from "./single-job-sheet-pdf";
+import { PdfPreviewModal } from "@/components/shared/pdf-preview-modal";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -92,6 +93,10 @@ export const SingleJobSection = () => {
     // Edit / View
     const [editJob, setEditJob] = useState<JobDetailType | null>(null);
     const [viewJob, setViewJob] = useState<JobDetailType | null>(null);
+
+    // PDF Preview
+    const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
+    const [showPdfModal,  setShowPdfModal]  = useState(false);
 
     // Form
     const singleJobRef      = useRef<NewSingleJobFormHandle>(null);
@@ -350,7 +355,9 @@ export const SingleJobSection = () => {
 
     const handlePrintFromView = () => {
         if (!viewJob) return;
-        downloadJobSheet(viewJob, companyInfo);
+        const url = getJobSheetBlobUrl(viewJob, companyInfo);
+        setPdfPreviewUrl(url);
+        setShowPdfModal(true);
     };
 
     const handlePrintPdf = async (job: JobListRow) => {
@@ -375,7 +382,9 @@ export const SingleJobSection = () => {
                 return;
             }
             toast.dismiss(loadingToast);
-            openJobSheetInTab(details, companyInfo);
+            const url = getJobSheetBlobUrl(details, companyInfo);
+            setPdfPreviewUrl(url);
+            setShowPdfModal(true);
         } catch {
             toast.error(MESSAGES.ERROR_JOB_DETAIL_LOAD_FAILED, { id: loadingToast });
         }
@@ -692,6 +701,17 @@ export const SingleJobSection = () => {
                         job={viewJob}
                         onClose={() => setViewJob(null)}
                         onPrint={handlePrintFromView}
+                    />
+
+                    <PdfPreviewModal
+                        isOpen={showPdfModal}
+                        pdfUrl={pdfPreviewUrl}
+                        title={`Job Sheet #${viewJob?.job_no || ""}`}
+                        filename={`JobSheet_${viewJob?.job_no || "document"}.pdf`}
+                        onClose={() => {
+                            setShowPdfModal(false);
+                            setPdfPreviewUrl(null);
+                        }}
                     />
                 </>
             )}

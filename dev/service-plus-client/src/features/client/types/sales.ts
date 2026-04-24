@@ -75,5 +75,9 @@ export type CustomerSearchRow = {
     state_id:   number | null;
     state_code: string | null;
     state_name: string | null;
+    address_line1: string | null;
+    address_line2: string | null;
+    city: string | null;
+    postal_code: string | null;
     customer_type_name: string;
 };
