@@ -96,6 +96,7 @@ export const SingleJobSection = () => {
 
     // PDF Preview
     const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
+    const [pdfFilename,   setPdfFilename]   = useState<string>("Job-Sheet.pdf");
     const [showPdfModal,  setShowPdfModal]  = useState(false);
 
     // Form
@@ -357,6 +358,7 @@ export const SingleJobSection = () => {
         if (!viewJob) return;
         const url = getJobSheetBlobUrl(viewJob, companyInfo);
         setPdfPreviewUrl(url);
+        setPdfFilename(`Job-Sheet_${viewJob.job_date}_${viewJob.customer_name || "customer"}.pdf`);
         setShowPdfModal(true);
     };
 
@@ -384,6 +386,7 @@ export const SingleJobSection = () => {
             toast.dismiss(loadingToast);
             const url = getJobSheetBlobUrl(details, companyInfo);
             setPdfPreviewUrl(url);
+            setPdfFilename(`Job-Sheet_${details.job_date}_${details.customer_name || "customer"}.pdf`);
             setShowPdfModal(true);
         } catch {
             toast.error(MESSAGES.ERROR_JOB_DETAIL_LOAD_FAILED, { id: loadingToast });
@@ -707,7 +710,7 @@ export const SingleJobSection = () => {
                         isOpen={showPdfModal}
                         pdfUrl={pdfPreviewUrl}
                         title={`Job Sheet #${viewJob?.job_no || ""}`}
-                        filename={`JobSheet_${viewJob?.job_no || "document"}.pdf`}
+                        filename={pdfFilename}
                         onClose={() => {
                             setShowPdfModal(false);
                             setPdfPreviewUrl(null);

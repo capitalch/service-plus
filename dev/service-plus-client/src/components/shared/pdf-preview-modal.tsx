@@ -15,8 +15,12 @@ export const PdfPreviewModal = ({ isOpen, onClose, pdfUrl, title = "PDF Preview"
         if (!pdfUrl) return;
         const link = document.createElement("a");
         link.href = pdfUrl;
-        link.download = filename;
+        // Sanitize filename: remove characters that might cause issues in file systems
+        const sanitizedFilename = filename.replace(/[/\\?%*:|"<>]/g, '-');
+        link.download = sanitizedFilename;
+        document.body.appendChild(link);
         link.click();
+        document.body.removeChild(link);
     };
 
     return (

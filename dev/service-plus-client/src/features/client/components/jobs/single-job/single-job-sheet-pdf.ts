@@ -22,6 +22,13 @@ function buildSingleJobSheetDoc(job: JobDetailType, companyInfo: CompanyInfoType
     const pageWidth = doc.internal.pageSize.getWidth();
     // Signatures are anchored to the bottom edge of the printable half-A4 area
     const HALF_A4_BOTTOM = 140;
+    
+    doc.setProperties({
+        title: `Job-Sheet_${job.job_date}_${job.customer_name || "customer"}`,
+        subject: "Job Sheet",
+        author: companyInfo?.company_name || "Service Plus",
+        creator: "Service Plus"
+    });
 
     // ── Header ────────────────────────────────────────────────────────────────
     doc.setFontSize(15);

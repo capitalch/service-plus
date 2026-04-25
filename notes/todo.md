@@ -1,3 +1,19 @@
+# QA round
+- Jobs
+	- Single Job
+		- Check save
+		- File upload
+		- Edit save
+		- Search
+		- Check batch_no functionality. null or 0
+	- Batch Jobs
+	- Job list search
+		- Remove date filter
+		- Make search stronger
+		- Remove delete from Actions
+		- Add job view
+			- Job details
+			- Job transactions
 # To Do
 - Jobs
 	- New job
@@ -17,8 +33,8 @@
 								- should be typable select
 								- Add a button to create a new product, brand, model
 								- maybe is_warranty field is not required in table. Warrant_card no box will appear if job type is under warranty
-		- provision for multiple jobs in a batch
-		- provision to load multiple images less than 500KB
+								- provision for multiple jobs in a batch
+								- provision to load multiple images less than 500KB
 - Inventory
 	- db
 								- stock_branch_transfer table
