@@ -32,7 +32,7 @@ export const MasterDataDiffModal = ({
 }: Props) => {
     return (
         <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
-            <DialogContent className="max-w-2xl">
+            <DialogContent aria-describedby={undefined} className="max-w-2xl">
                 <DialogHeader>
                     <DialogTitle>Part Master Data Will Be Updated</DialogTitle>
                 </DialogHeader>

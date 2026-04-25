@@ -3,7 +3,7 @@ import type { ComponentType } from "react";
 import {
     BarChart3, BookOpen, Building2, Camera, ChevronDown, ChevronRight,
     ClipboardList, DollarSign, FileText, Globe, Hash,
-    LayoutDashboard, MapPin, Package, PlusCircle, PrinterCheck,
+    LayoutDashboard, MapPin, Package, PlusCircle, PrinterCheck, Receipt,
     RefreshCcw, RotateCcw, Settings2, ShoppingCart,
     Tag, TrendingUp, Truck, User, UserCog, Users, Wrench,
 } from "lucide-react";
@@ -147,7 +147,7 @@ function JobsExplorer() {
                 <TreeItem icon={FileText}      label="Ready for Delivery" />
                 <TreeItem icon={Truck}         label="Deliver Job" />
                 <TreeItem icon={RotateCcw}     label="Opening Jobs" />
-                <TreeItem icon={DollarSign}    label="Receipts" />
+                <TreeItem icon={Receipt}       label="Receipts" />
                 <TreeItem icon={Package}       label="Part Used (Job)" />
             </div>
         </div>

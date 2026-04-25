@@ -26,6 +26,7 @@ export const PdfPreviewModal = ({ isOpen, onClose, pdfUrl, title = "PDF Preview"
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
             <DialogContent
+                aria-describedby={undefined}
                 showCloseButton={false}
                 style={{ width: "90vw", maxWidth: "90vw" }}
                 className="h-[90vh] p-0 gap-0 overflow-hidden flex flex-col rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shadow-2xl"

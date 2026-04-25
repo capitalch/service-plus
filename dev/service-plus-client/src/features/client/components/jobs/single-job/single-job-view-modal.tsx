@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import {
     Dialog,
     DialogContent,
+    DialogTitle,
+    DialogDescription,
 } from "@/components/ui/dialog";
 import type { JobDetailType } from "../../../types/job";
 import { Badge } from "@/components/ui/badge";
@@ -57,7 +59,8 @@ export const SingleJobViewModal = ({ isOpen, job, onClose, onPrint }: JobViewMod
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="w-[95vw] sm:max-w-4xl p-0 overflow-hidden bg-background border-none shadow-2xl rounded-[1.5rem] flex flex-col max-h-[92vh]">
+            <DialogContent aria-describedby={undefined} className="w-[95vw] sm:max-w-4xl p-0 overflow-hidden bg-background border-none shadow-2xl rounded-[1.5rem] flex flex-col max-h-[92vh]">
+                <DialogTitle className="sr-only">Job Details: #{job.job_no}</DialogTitle>
                 {/* Compact Premium Header */}
                 <div className="relative bg-white dark:bg-zinc-950 px-6 py-5 md:px-8 md:py-6 border-b text-foreground overflow-hidden shrink-0">
                     <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 rounded-full -mr-32 -mt-32 blur-[80px] pointer-events-none" />
