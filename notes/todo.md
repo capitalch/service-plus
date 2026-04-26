@@ -1,10 +1,17 @@
 # QA round
 - Jobs
 	- Single Job
-		- Check save
+								- Remove date filter
+								- Search to include all items
+								- View list to include product, brand, model.
+								- Search debounce be 1200
+		- Check new save
+		- Check edit save
 		- File upload
 		- Edit save
-		- Search
+								- Search working
+		- Delete job
+		- Edit job
 		- Check batch_no functionality. null or 0
 	- Batch Jobs
 	- Job list search

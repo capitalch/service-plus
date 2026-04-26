@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-    RotateCcw, ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon,
-    Loader2, MoreHorizontal, Pencil, RefreshCw, Save, Search, Trash2
-} from "lucide-react";
+import { FormProvider, useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import {RotateCcw, ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon,
+    Loader2, MoreHorizontal, Pencil, RefreshCw, Save, Search, Trash2, X} from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 
@@ -23,13 +23,14 @@ import { apolloClient } from "@/lib/apollo-client";
 import { encodeObj, graphQlUtils } from "@/lib/graphql-utils";
 import { currentFinancialYearRange } from "@/lib/utils";
 import { useAppSelector } from "@/store/hooks";
-import { selectDbName } from "@/features/auth/store/auth-slice";
+import { selectCurrentUser, selectDbName } from "@/features/auth/store/auth-slice";
 import { selectCurrentBranch, selectSchema } from "@/store/context-slice";
 import type { JobDetailType, JobListRow, JobLookupRow, ModelRow, TechnicianRow } from "@/features/client/types/job";
 import type { CustomerTypeOption, StateOption } from "@/features/client/types/customer";
 import type { BrandOption, ProductOption } from "@/features/client/types/model";
 
-import { OpeningJobForm, type OpeningJobFormHandle } from "./opening-job-form";
+import { OpeningJobForm } from "./opening-job-form";
+import { openingJobFormSchema, type OpeningJobFormValues, getOpeningJobDefaultValues, normalizeJobNo } from "./opening-job-schema";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -38,7 +39,7 @@ type GenericQueryData<T> = { genericQuery: T[] | null };
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const PAGE_SIZE   = 50;
-const DEBOUNCE_MS = 600;
+const DEBOUNCE_MS = 1200;
 
 const thClass = "sticky top-0 z-20 text-xs font-semibold uppercase tracking-wide text-[var(--cl-text-muted)] p-3 text-left border-b border-[var(--cl-border)] bg-[var(--cl-surface-2)]";
 const tdClass = "p-3 text-sm text-[var(--cl-text)] border-b border-[var(--cl-border)]";
@@ -87,10 +88,12 @@ export const OpeningJobSection = () => {
     // Edit
     const [editJob, setEditJob] = useState<JobDetailType | null>(null);
 
-    // Form
-    const openingJobRef             = useRef<OpeningJobFormHandle>(null);
-    const [newFormValid, setNewFormValid] = useState(false);
-    const [submitting,   setSubmitting]  = useState(false);
+    const form = useForm<OpeningJobFormValues>({
+        defaultValues: getOpeningJobDefaultValues(),
+        mode:          "onChange",
+        resolver:      zodResolver(openingJobFormSchema) as any,
+    });
+    const currentUser = useAppSelector(selectCurrentUser);
 
     const debounceRef      = useRef<ReturnType<typeof setTimeout> | null>(null);
     const scrollWrapperRef = useRef<HTMLDivElement>(null);
@@ -274,6 +277,95 @@ export const OpeningJobSection = () => {
 
     const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
+    const executeSave = async (values: OpeningJobFormValues) => {
+        if (!branchId || !dbName || !schema) {
+            toast.error(MESSAGES.ERROR_OPENING_JOB_CREATE_FAILED);
+            return;
+        }
+        const normalizedJobNo = normalizeJobNo(values.job_no);
+        const isWarranty = jobTypes.find(t => t.id === values.job_type_id)?.code === "UNDER_WARRANTY";
+        try {
+            if (editJob) {
+                const payload = graphQlUtils.buildGenericUpdateValue({
+                    tableName: "job",
+                    xData: {
+                        id:                       editJob.id,
+                        job_no:                   normalizedJobNo,
+                        job_date:                 values.job_date,
+                        customer_contact_id:      values.customer_id,
+                        job_type_id:              values.job_type_id,
+                        job_receive_manner_id:    values.receive_manner_id,
+                        job_receive_condition_id: values.receive_condition_id ?? null,
+                        job_status_id:            values.job_status_id,
+                        technician_id:            values.technician_id ?? null,
+                        product_brand_model_id:   values.model_id ?? null,
+                        serial_no:                values.serial_no?.trim() || null,
+                        quantity:                 values.quantity,
+                        problem_reported:         values.problem_reported.trim(),
+                        diagnosis:                values.diagnosis?.trim() || null,
+                        work_done:                values.work_done?.trim() || null,
+                        amount:                   values.amount !== "" ? Number(values.amount) : null,
+                        delivery_date:            values.delivery_date || null,
+                        is_closed:                values.is_closed ?? false,
+                        is_final:                 values.is_final ?? false,
+                        warranty_card_no:         values.warranty_card_no?.trim() || null,
+                        remarks:                  values.remarks?.trim() || null,
+                    },
+                });
+                await apolloClient.mutate({
+                    mutation:  GRAPHQL_MAP.genericUpdate,
+                    variables: { db_name: dbName, schema, value: payload },
+                });
+                toast.success(MESSAGES.SUCCESS_OPENING_JOB_UPDATED);
+            } else {
+                const sqlObject = {
+                    tableName:         "job",
+                    doc_sequence_id:   null,
+                    doc_sequence_next: null,
+                    xData: {
+                        branch_id:                branchId,
+                        job_no:                   normalizedJobNo,
+                        job_date:                 values.job_date,
+                        customer_contact_id:      values.customer_id,
+                        job_type_id:              values.job_type_id,
+                        job_receive_manner_id:    values.receive_manner_id,
+                        job_receive_condition_id: values.receive_condition_id ?? null,
+                        job_status_id:            values.job_status_id,
+                        technician_id:            values.technician_id ?? null,
+                        product_brand_model_id:   values.model_id ?? null,
+                        serial_no:                values.serial_no?.trim() || null,
+                        quantity:                 values.quantity,
+                        problem_reported:         values.problem_reported.trim(),
+                        diagnosis:                values.diagnosis?.trim() || null,
+                        work_done:                values.work_done?.trim() || null,
+                        amount:                   values.amount !== "" ? Number(values.amount) : null,
+                        delivery_date:            values.delivery_date || null,
+                        is_closed:                values.is_closed ?? false,
+                        is_final:                 values.is_final ?? false,
+                        is_warranty:              isWarranty,
+                        warranty_card_no:         values.warranty_card_no?.trim() || null,
+                        remarks:                  values.remarks?.trim() || null,
+                        performed_by_user_id:     currentUser?.id ?? null,
+                    },
+                };
+                const encoded = encodeURIComponent(JSON.stringify(sqlObject));
+                await apolloClient.mutate({
+                    mutation:  GRAPHQL_MAP.createSingleJob,
+                    variables: { db_name: dbName, schema, value: encoded },
+                });
+                toast.success(MESSAGES.SUCCESS_OPENING_JOB_CREATED);
+            }
+            form.reset(getOpeningJobDefaultValues());
+            if (editJob) {
+                setEditJob(null);
+                setMode("view");
+                if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, 1);
+            }
+        } catch {
+            toast.error(MESSAGES.ERROR_OPENING_JOB_CREATE_FAILED);
+        }
+    };
+
     return (
         <motion.div
             animate={{ opacity: 1 }}
@@ -319,19 +411,19 @@ export const OpeningJobSection = () => {
                 <div className={`flex items-center gap-2 ${mode !== "new" ? "hidden md:flex md:invisible pointer-events-none" : ""}`}>
                     <Button
                         className="h-8 gap-1.5 px-3 text-xs font-extrabold uppercase tracking-widest text-[var(--cl-text)]"
-                        disabled={submitting}
+                        disabled={form.formState.isSubmitting}
                         variant="ghost"
-                        onClick={() => { setEditJob(null); openingJobRef.current?.reset(); }}
+                        onClick={() => { setEditJob(null); form.reset(getOpeningJobDefaultValues()); }}
                     >
-                        <RefreshCw className={`h-3.5 w-3.5 ${submitting ? "animate-spin" : ""}`} />
+                        <RefreshCw className={`h-3.5 w-3.5 ${form.formState.isSubmitting ? "animate-spin" : ""}`} />
                         Reset
                     </Button>
                     <Button
                         className="h-8 gap-1.5 px-4 text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm font-extrabold uppercase tracking-widest transition-all disabled:opacity-30 disabled:bg-slate-300 disabled:text-slate-600 disabled:shadow-none disabled:cursor-not-allowed"
-                        disabled={!newFormValid || submitting}
-                        onClick={() => openingJobRef.current?.submit()}
+                        disabled={!form.formState.isValid || form.formState.isSubmitting}
+                        onClick={form.handleSubmit(executeSave)}
                     >
-                        {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                        {form.formState.isSubmitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
                         Save Job
                     </Button>
                 </div>
@@ -339,35 +431,23 @@ export const OpeningJobSection = () => {
 
             {mode === "new" ? (
                 <div className="flex-1 overflow-y-auto">
-                    <OpeningJobForm
-                        ref={openingJobRef}
-                        branchId={branchId}
-                        brands={brands}
-                        customerTypes={customerTypes}
-                        editJob={editJob}
-                        jobStatuses={jobStatuses}
-                        jobTypes={jobTypes}
-                        masterStates={masterStates}
-                        models={models}
-                        products={products}
-                        receiveConditions={receiveConditions}
-                        receiveMannners={receiveMannners}
-                        technicians={technicians}
-                        onRefreshModels={refreshModels}
-                        onSuccess={() => {
-                            if (editJob) {
-                                setEditJob(null);
-                                setMode("view");
-                                if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, 1);
-                            } else {
-                                openingJobRef.current?.reset();
-                            }
-                        }}
-                        onStatusChange={status => {
-                            setNewFormValid(status.isValid);
-                            setSubmitting(status.isSubmitting);
-                        }}
-                    />
+                    <FormProvider {...form}>
+                        <OpeningJobForm
+                            branchId={branchId}
+                            brands={brands}
+                            customerTypes={customerTypes}
+                            editJob={editJob}
+                            jobStatuses={jobStatuses}
+                            jobTypes={jobTypes}
+                            masterStates={masterStates}
+                            models={models}
+                            products={products}
+                            receiveConditions={receiveConditions}
+                            receiveMannners={receiveMannners}
+                            technicians={technicians}
+                            onRefreshModels={refreshModels}
+                        />
+                    </FormProvider>
                 </div>
             ) : (
                 <>
@@ -399,6 +479,15 @@ export const OpeningJobSection = () => {
                                 value={search}
                                 onChange={e => handleSearchChange(e.target.value)}
                             />
+                            {search && (
+                                <button
+                                    className="absolute right-2.5 top-1/2 flex h-4 w-4 -translate-y-1/2 items-center justify-center rounded-full bg-[var(--cl-text-muted)] text-[var(--cl-surface)] hover:bg-[var(--cl-text)] focus:outline-none"
+                                    type="button"
+                                    onClick={() => handleSearchChange("")}
+                                >
+                                    <X className="h-2.5 w-2.5" />
+                                </button>
+                            )}
                         </div>
                         <div className="ml-auto">
                             <Button

@@ -54,7 +54,8 @@ export function CustomerInput({
 
     const debounceRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
     const inputRef     = useRef<HTMLInputElement | null>(null);
-    const skipBlurRef  = useRef(false);
+    const skipBlurRef    = useRef(false);
+    const justFocusedRef = useRef(false);
 
     const doSearch = useCallback(async (q: string) => {
         if (!dbName || !schema || !q.trim()) return;
@@ -74,7 +75,9 @@ export function CustomerInput({
             });
             const rows = res.data?.genericQuery ?? [];
             setResults(rows);
-            setDropdownOpen(rows.length > 0);
+            if (document.activeElement === inputRef.current) {
+                setDropdownOpen(rows.length > 0);
+            }
         } catch {
             // silent
         } finally {
@@ -89,6 +92,7 @@ export function CustomerInput({
 
         const q = customerName.trim();
         if (!q) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setResults([]);
             setDropdownOpen(false);
             return;
@@ -122,7 +126,10 @@ export function CustomerInput({
                         type="button"
                         tabIndex={-1}
                         onMouseDown={e => { e.preventDefault(); skipBlurRef.current = true; }}
-                        onClick={() => inputRef.current?.focus()}
+                        onClick={() => {
+                            if (results.length > 0) setDropdownOpen(prev => !prev);
+                            inputRef.current?.focus();
+                        }}
                         className="absolute left-1.5 top-1/2 -translate-y-1/2 rounded-md p-1 bg-[var(--cl-accent)] text-white hover:bg-[var(--cl-accent)]/10 hover:text-[var(--cl-accent)] shadow-sm transition-all z-10"
                         title="Search customers"
                     >
@@ -137,7 +144,22 @@ export function CustomerInput({
                         placeholder="Customer name or mobile…"
                         value={customerName}
                         onChange={e => onChange(e.target.value)}
-                        onFocus={() => { if (results.length > 0) setDropdownOpen(true); }}
+                        onFocus={() => {
+                            if (results.length > 0) setDropdownOpen(true);
+                            justFocusedRef.current = true;
+                            setTimeout(() => { justFocusedRef.current = false; }, 200);
+                        }}
+                        onClick={() => {
+                            if (results.length > 0 && !justFocusedRef.current) {
+                                setDropdownOpen(prev => !prev);
+                            }
+                        }}
+                        onKeyDown={e => {
+                            if (e.key === "Escape" && dropdownOpen) {
+                                setDropdownOpen(false);
+                                e.stopPropagation();
+                            }
+                        }}
                         onBlur={() => {
                             if (skipBlurRef.current) { skipBlurRef.current = false; return; }
                             setTimeout(() => setDropdownOpen(false), 150);

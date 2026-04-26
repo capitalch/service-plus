@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { RotateCcw, Search, Loader2, RefreshCw } from "lucide-react";
+import {RotateCcw, Search, Loader2, RefreshCw, X} from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 
@@ -44,7 +44,7 @@ type GenericQueryData<T> = { genericQuery: T[] | null };
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const PAGE_SIZE   = 50;
-const DEBOUNCE_MS = 600;
+const DEBOUNCE_MS = 1200;
 
 function currentMonthRange() {
     const now   = new Date();
@@ -245,6 +245,15 @@ export const ConsumptionSection = () => {
                         value={search}
                         onChange={e => handleSearchChange(e.target.value)}
                     />
+                            {search && (
+                                <button
+                                    className="absolute right-2.5 top-1/2 flex h-4 w-4 -translate-y-1/2 items-center justify-center rounded-full bg-[var(--cl-text-muted)] text-[var(--cl-surface)] hover:bg-[var(--cl-text)] focus:outline-none"
+                                    type="button"
+                                    onClick={() => handleSearchChange("")}
+                                >
+                                    <X className="h-2.5 w-2.5" />
+                                </button>
+                            )}
                 </div>
                 <Button
                     className="h-9"

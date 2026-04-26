@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { FileText, Loader2, MoreHorizontal, Pencil, RefreshCw, Save, Search, Trash2 } from "lucide-react";
+import {FileText, Loader2, MoreHorizontal, Pencil, RefreshCw, Save, Search, Trash2, X} from "lucide-react";
 import { ViewModeToggle, type ViewMode } from "@/features/client/components/inventory/view-mode-toggle";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
@@ -33,7 +33,7 @@ import type { BrandOption } from "@/features/client/types/model";
 import { BrandSelect } from "@/features/client/components/inventory/brand-select";
 import type { StockTransactionTypeRow } from "@/features/client/types/purchase";
 import type { OpeningStockListItem } from "@/features/client/types/stock-opening-balance";
-import { NewOpeningStock, type NewOpeningStockHandle } from "./new-opening-stock";
+import { NewOpeningStock } from "./new-opening-stock";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -42,7 +42,7 @@ type GenericQueryData<T> = { genericQuery: T[] | null };
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const PAGE_SIZE   = 50;
-const DEBOUNCE_MS = 600;
+const DEBOUNCE_MS = 1200;
 
 // ─── CSS ──────────────────────────────────────────────────────────────────────
 
@@ -83,9 +83,9 @@ export const OpeningStockSection = () => {
     const [editEntry, setEditEntry] = useState<OpeningStockListItem | null>(null);
 
     // Form coordination
-    const formRef                         = useRef<NewOpeningStockHandle>(null);
-    const [formValid,  setFormValid]      = useState(false);
-    const [submitting, setSubmitting]     = useState(false);
+    const [submitTrigger, setSubmitTrigger] = useState(0);
+    const [formValid,  setFormValid]        = useState(false);
+    const [submitting, setSubmitting]       = useState(false);
 
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const scrollWrapperRef = useRef<HTMLDivElement>(null);
@@ -301,7 +301,7 @@ export const OpeningStockSection = () => {
                         className="h-8 gap-1.5 px-3 text-xs font-extrabold uppercase tracking-widest text-[var(--cl-text)]"
                         disabled={submitting}
                         variant="ghost"
-                        onClick={() => { setEditEntry(null); formRef.current?.reset(); }}
+                        onClick={() => { setEditEntry(null); }}
                     >
                         <RefreshCw className={`h-3.5 w-3.5 ${submitting ? "animate-spin" : ""}`} />
                         Reset
@@ -309,7 +309,7 @@ export const OpeningStockSection = () => {
                     <Button
                         className="h-8 gap-1.5 px-4 text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm font-extrabold uppercase tracking-widest transition-all disabled:opacity-30 disabled:bg-slate-300 disabled:text-slate-600 disabled:shadow-none disabled:cursor-not-allowed"
                         disabled={!formValid || submitting}
-                        onClick={() => formRef.current?.submit()}
+                        onClick={() => setSubmitTrigger(t => t + 1)}
                     >
                         {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
                         Save
@@ -319,11 +319,11 @@ export const OpeningStockSection = () => {
 
             {mode === "new" ? (
                 <NewOpeningStock
-                    ref={formRef}
                     branchId={branchId}
                     brandName={brands.find(b => String(b.id) === selectedBrand)?.name}
                     editEntry={editEntry}
                     selectedBrandId={selectedBrand ? Number(selectedBrand) : null}
+                    submitTrigger={submitTrigger}
                     txnTypes={txnTypes}
                     onStatusChange={status => {
                         setFormValid(status.isValid);
@@ -334,8 +334,6 @@ export const OpeningStockSection = () => {
                             setEditEntry(null);
                             setMode("view");
                             if (branchId) void loadData(Number(branchId), searchQ, 1);
-                        } else {
-                            formRef.current?.reset();
                         }
                     }}
                 />
@@ -352,6 +350,15 @@ export const OpeningStockSection = () => {
                                 value={search}
                                 onChange={e => handleSearchChange(e.target.value)}
                             />
+                            {search && (
+                                <button
+                                    className="absolute right-2.5 top-1/2 flex h-4 w-4 -translate-y-1/2 items-center justify-center rounded-full bg-[var(--cl-text-muted)] text-[var(--cl-surface)] hover:bg-[var(--cl-text)] focus:outline-none"
+                                    type="button"
+                                    onClick={() => handleSearchChange("")}
+                                >
+                                    <X className="h-2.5 w-2.5" />
+                                </button>
+                            )}
                         </div>
                         <div className="flex items-center gap-2 ml-auto">
                             <Button

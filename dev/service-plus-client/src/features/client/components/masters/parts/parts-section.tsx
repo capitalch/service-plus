@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import {
-    ChevronLeftIcon,
+import {ChevronLeftIcon,
     ChevronRightIcon,
     ChevronsLeftIcon,
     ChevronsRightIcon,
@@ -13,8 +12,7 @@ import {
     ToggleLeftIcon,
     ToggleRightIcon,
     Trash2Icon,
-    UploadIcon,
-} from "lucide-react";
+    UploadIcon, X} from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -349,6 +347,15 @@ export const PartsSection = () => {
                                     value={search}
                                     onChange={e => setSearch(e.target.value)}
                                 />
+                            {search && (
+                                <button
+                                    className="absolute right-2.5 top-1/2 flex h-4 w-4 -translate-y-1/2 items-center justify-center rounded-full bg-[var(--cl-text-muted)] text-[var(--cl-surface)] hover:bg-[var(--cl-text)] focus:outline-none"
+                                    type="button"
+                                    onClick={() => setSearch("")}
+                                >
+                                    <X className="h-2.5 w-2.5" />
+                                </button>
+                            )}
                             </div>
                             {!partsLoading && total > 0 && (
                                 <p className="shrink-0 text-xs text-[var(--cl-text-muted)]">

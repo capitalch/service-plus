@@ -1,4 +1,7 @@
-import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { ArrowRightLeft } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
@@ -26,6 +29,7 @@ import type { StockBranchTransferType, BranchTransferLineFormItem } from "@/feat
 import { emptyTransferLine } from "@/features/client/types/branch-transfer";
 import type { Branch } from "@/types/db-schema-service";
 
+import { IsValidReporter } from "@/features/client/components/is-valid-reporter";
 import { PartCodeInput } from "../part-code-input";
 import { LineAddDeleteActions } from "../line-add-delete-actions";
 
@@ -33,21 +37,24 @@ import { LineAddDeleteActions } from "../line-add-delete-actions";
 
 type GenericQueryData<T> = { genericQuery: T[] | null };
 
-type Props = {
-    branchId: number | null;
-    onSuccess: () => void;
-    onStatusChange: (status: { isValid: boolean; isSubmitting: boolean }) => void;
-    selectedBrandId: number | null;
-    brandName?: string;
-    editTransfer?: StockBranchTransferType | null;
-    branches: Branch[];
-};
+const formSchema = z.object({
+    transfer_date: z.string().min(1, "Date is required"),
+    to_branch_id:  z.string().min(1, "Destination branch is required"),
+    ref_no:        z.string().optional(),
+    remarks:       z.string().optional(),
+});
 
-export type NewBranchTransferHandle = {
-    submit: () => void;
-    reset: () => void;
-    isSubmitting: boolean;
-    isValid: boolean;
+type FormValues = z.infer<typeof formSchema>;
+
+type Props = {
+    branchId:        number | null;
+    onSuccess:       () => void;
+    onStatusChange:  (status: { isValid: boolean; isSubmitting: boolean }) => void;
+    selectedBrandId: number | null;
+    brandName?:      string;
+    editTransfer?:   StockBranchTransferType | null;
+    branches:        Branch[];
+    submitTrigger:   number;
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -64,26 +71,24 @@ const inputCls = "h-8 border-[var(--cl-border)] bg-[var(--cl-surface)] text-sm p
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export const NewBranchTransfer = forwardRef<NewBranchTransferHandle, Props>(({
-    branchId, onSuccess, onStatusChange, selectedBrandId, brandName, editTransfer, branches,
-}, ref) => {
+export function NewBranchTransfer({
+    branchId, onSuccess, onStatusChange, selectedBrandId, brandName, editTransfer, branches, submitTrigger,
+}: Props) {
     const dbName = useAppSelector(selectDbName);
     const schema = useAppSelector(selectSchema);
 
-    // Header fields
-    const [transferDate, setTransferDate] = useState(today());
-    const [toBranchId,   setToBranchId]   = useState<string>("");
-    const [refNo,        setRefNo]        = useState("");
-    const [remarks,      setRemarks]      = useState("");
+    const form = useForm<FormValues>({
+        defaultValues: { transfer_date: today(), to_branch_id: "", ref_no: "", remarks: "" },
+        mode: "onChange",
+        resolver: zodResolver(formSchema) as any,
+    });
+    const { register, formState: { isValid, isSubmitting }, reset, setValue, watch } = form;
 
     // Lines
     const [lines, setLines] = useState<BranchTransferLineFormItem[]>([emptyTransferLine(selectedBrandId)]);
-
-    // Edit mode
     const [originalLineIds, setOriginalLineIds] = useState<number[]>([]);
 
-    // Submit
-    const [submitting, setSubmitting] = useState(false);
+    const linesValid = lines.length > 0 && lines.every(l => !!l.part_id && l.qty > 0);
 
     const partInputRefs = useRef<(HTMLInputElement | null)[]>([]);
     const qtyInputRefs  = useRef<(HTMLInputElement | null)[]>([]);
@@ -106,12 +111,19 @@ export const NewBranchTransfer = forwardRef<NewBranchTransferHandle, Props>(({
             setMaxTableHeight(window.innerHeight - top - summaryHeight - 8 - 14);
         }
         recalc();
-        window.addEventListener('resize', recalc);
-        return () => window.removeEventListener('resize', recalc);
+        window.addEventListener("resize", recalc);
+        return () => window.removeEventListener("resize", recalc);
     }, [lines.length]);
 
     // Filter destination branches (cannot transfer to self)
     const destinationBranches = branches.filter(b => b.id !== branchId);
+
+    // Submit trigger
+    useEffect(() => {
+        if (!submitTrigger) return;
+        void form.handleSubmit(executeSave)();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [submitTrigger]);
 
     // Populate form on edit
     useEffect(() => {
@@ -135,18 +147,20 @@ export const NewBranchTransfer = forwardRef<NewBranchTransferHandle, Props>(({
         }).then(res => {
             const detail = res.data?.genericQuery?.[0];
             if (!detail) return;
-            setTransferDate(detail.transfer_date.slice(0, 10));
-            setToBranchId(String(detail.to_branch_id));
-            setRefNo(detail.ref_no ?? "");
-            setRemarks(detail.remarks ?? "");
+            reset({
+                transfer_date: detail.transfer_date.slice(0, 10),
+                to_branch_id:  String(detail.to_branch_id),
+                ref_no:        detail.ref_no ?? "",
+                remarks:       detail.remarks ?? "",
+            });
             const loadedLines = (detail.lines ?? []).map(l => ({
-                _key:       crypto.randomUUID(),
-                part_id:    l.part_id,
-                brand_id:   selectedBrandId,
-                part_code:  l.part_code,
-                part_name:  l.part_name,
-                qty:        Number(l.qty),
-                remarks:    l.remarks ?? "",
+                _key:      crypto.randomUUID(),
+                part_id:   l.part_id,
+                brand_id:  selectedBrandId,
+                part_code: l.part_code,
+                part_name: l.part_name,
+                qty:       Number(l.qty),
+                remarks:   l.remarks ?? "",
             }));
             setLines(loadedLines);
             setOriginalLineIds((detail.lines ?? []).map(l => l.id));
@@ -171,41 +185,24 @@ export const NewBranchTransfer = forwardRef<NewBranchTransferHandle, Props>(({
         setLines(prev => prev.length === 1 ? prev : prev.filter((_, i) => i !== idx));
     };
 
-    // Validation
-    const isFormValid =
-        !!transferDate &&
-        !!toBranchId &&
-        lines.length > 0 &&
-        lines.every(l => !!l.part_id && l.qty > 0);
-
     // Reset
     const handleReset = () => {
-        setTransferDate(today());
-        setToBranchId("");
-        setRefNo("");
-        setRemarks("");
+        reset({ transfer_date: today(), to_branch_id: "", ref_no: "", remarks: "" });
         setLines([emptyTransferLine(selectedBrandId)]);
         setOriginalLineIds([]);
     };
 
-    const handleSubmit = async () => {
-        if (!branchId) { toast.error("Branch is not selected globally."); return; }
-        if (!transferDate) { toast.error(MESSAGES.ERROR_TRANSFER_DATE_REQUIRED); return; }
-        if (!toBranchId) { toast.error(MESSAGES.ERROR_TRANSFER_DESTINATION_REQUIRED); return; }
-        if (lines.some(l => !l.part_id || l.qty <= 0)) {
+    // Save
+    const executeSave = async (values: FormValues) => {
+        if (!linesValid) {
             toast.error(MESSAGES.ERROR_TRANSFER_LINE_FIELDS_REQUIRED);
             return;
         }
-        await executeSave();
-    };
-
-    const executeSave = async () => {
-        if (!branchId || !toBranchId || !dbName || !schema) {
+        if (!branchId || !values.to_branch_id || !dbName || !schema) {
             toast.error(MESSAGES.ERROR_TRANSFER_CREATE_FAILED);
             return;
         }
 
-        setSubmitting(true);
         try {
             // Fetch txn types
             const txnRes = await apolloClient.query<GenericQueryData<{ id: number; code: string }>>({
@@ -217,12 +214,11 @@ export const NewBranchTransfer = forwardRef<NewBranchTransferHandle, Props>(({
                 },
             });
             const tTypes = txnRes.data?.genericQuery ?? [];
-            const outType = tTypes.find(t => t.code === 'BRANCH_TRANSFER_OUT')?.id;
-            const inType  = tTypes.find(t => t.code === 'BRANCH_TRANSFER_IN')?.id;
+            const outType = tTypes.find(t => t.code === "BRANCH_TRANSFER_OUT")?.id;
+            const inType  = tTypes.find(t => t.code === "BRANCH_TRANSFER_IN")?.id;
 
             if (!outType || !inType) {
                 toast.error("Required stock transaction types (BRANCH_TRANSFER_IN/OUT) not found.");
-                setSubmitting(false);
                 return;
             }
 
@@ -231,38 +227,35 @@ export const NewBranchTransfer = forwardRef<NewBranchTransferHandle, Props>(({
                 qty:     line.qty,
                 remarks: line.remarks?.trim() || null,
                 xDetails: [{
-                    // Double entry in stock_transaction
                     tableName: "stock_transaction",
                     fkeyName:  "stock_branch_transfer_line_id",
                     xData: [
                         {
-                            // Source branch (Credit - OUT)
                             branch_id:                 branchId,
                             part_id:                   line.part_id,
                             qty:                       line.qty,
                             dr_cr:                     "C",
-                            transaction_date:          transferDate,
+                            transaction_date:          values.transfer_date,
                             stock_transaction_type_id: outType,
                         },
                         {
-                            // Destination branch (Debit - IN)
-                            branch_id:                 Number(toBranchId),
+                            branch_id:                 Number(values.to_branch_id),
                             part_id:                   line.part_id,
                             qty:                       line.qty,
                             dr_cr:                     "D",
-                            transaction_date:          transferDate,
+                            transaction_date:          values.transfer_date,
                             stock_transaction_type_id: inType,
-                        }
+                        },
                     ],
                 }],
             }));
 
             const headerFields = {
-                transfer_date:  transferDate,
+                transfer_date:  values.transfer_date,
                 from_branch_id: branchId,
-                to_branch_id:   Number(toBranchId),
-                ref_no:         refNo.trim() || null,
-                remarks:        remarks.trim() || null,
+                to_branch_id:   Number(values.to_branch_id),
+                ref_no:         values.ref_no?.trim() || null,
+                remarks:        values.remarks?.trim() || null,
             };
 
             if (editTransfer) {
@@ -302,27 +295,16 @@ export const NewBranchTransfer = forwardRef<NewBranchTransferHandle, Props>(({
                 });
                 toast.success(MESSAGES.SUCCESS_TRANSFER_CREATED);
             }
+            handleReset();
             onSuccess();
         } catch (err) {
             console.error(err);
             toast.error(editTransfer ? MESSAGES.ERROR_TRANSFER_UPDATE_FAILED : MESSAGES.ERROR_TRANSFER_CREATE_FAILED);
-        } finally {
-            setSubmitting(false);
         }
     };
 
-    // Sync status with parent
-    useEffect(() => {
-        onStatusChange({ isValid: isFormValid, isSubmitting: submitting });
-    }, [isFormValid, submitting, onStatusChange]);
-
-    // Expose actions to parent
-    useImperativeHandle(ref, () => ({
-        submit:      () => { void handleSubmit(); },
-        reset:       handleReset,
-        isSubmitting: submitting,
-        isValid:      isFormValid,
-    }), [handleSubmit, handleReset, submitting, isFormValid]); // eslint-disable-line react-hooks/exhaustive-deps
+    const transferDate = watch("transfer_date");
+    const toBranchId   = watch("to_branch_id");
 
     return (
         <motion.div
@@ -331,6 +313,12 @@ export const NewBranchTransfer = forwardRef<NewBranchTransferHandle, Props>(({
             exit={{ opacity: 0, y: -10 }}
             className="flex min-h-fit md:min-h-0 md:flex-1 flex-col gap-2 pb-0 md:overflow-hidden"
         >
+            <IsValidReporter
+                isSubmitting={isSubmitting}
+                isValid={isValid && linesValid}
+                onStatusChange={onStatusChange}
+            />
+
             {!branchId ? (
                 <div className="flex flex-col items-center justify-center py-20 bg-[var(--cl-surface-2)]/30 rounded-xl border-2 border-dashed border-[var(--cl-border)] text-center">
                     <div className="bg-[var(--cl-accent)]/5 p-5 rounded-full mb-4">
@@ -359,10 +347,9 @@ export const NewBranchTransfer = forwardRef<NewBranchTransferHandle, Props>(({
                                         Date <span className="text-red-500 ml-0.5">*</span>
                                     </Label>
                                     <Input
+                                        {...register("transfer_date")}
                                         className={`bg-[var(--cl-surface-2)] ${!transferDate ? "border-red-500 focus:border-red-500 ring-red-500/10" : ""}`}
                                         type="date"
-                                        value={transferDate}
-                                        onChange={e => setTransferDate(e.target.value)}
                                     />
                                 </div>
 
@@ -371,7 +358,10 @@ export const NewBranchTransfer = forwardRef<NewBranchTransferHandle, Props>(({
                                     <Label className="text-xs font-extrabold text-[var(--cl-text)] uppercase tracking-widest">
                                         Destination Branch <span className="text-red-500 ml-0.5">*</span>
                                     </Label>
-                                    <Select value={toBranchId} onValueChange={setToBranchId}>
+                                    <Select
+                                        value={toBranchId}
+                                        onValueChange={v => setValue("to_branch_id", v, { shouldValidate: true })}
+                                    >
                                         <SelectTrigger className={`bg-[var(--cl-surface-2)] ${!toBranchId ? "border-red-500" : ""}`}>
                                             <SelectValue placeholder="Select branch" />
                                         </SelectTrigger>
@@ -389,10 +379,9 @@ export const NewBranchTransfer = forwardRef<NewBranchTransferHandle, Props>(({
                                         Ref No
                                     </Label>
                                     <Input
+                                        {...register("ref_no")}
                                         className="bg-[var(--cl-surface-2)]"
                                         placeholder="Optional reference"
-                                        value={refNo}
-                                        onChange={e => setRefNo(e.target.value)}
                                     />
                                 </div>
 
@@ -402,10 +391,9 @@ export const NewBranchTransfer = forwardRef<NewBranchTransferHandle, Props>(({
                                         Remarks
                                     </Label>
                                     <Input
+                                        {...register("remarks")}
                                         className="bg-[var(--cl-surface-2)]"
                                         placeholder="Optional ..."
-                                        value={remarks}
-                                        onChange={e => setRemarks(e.target.value)}
                                     />
                                 </div>
                             </div>{/* end grid */}
@@ -533,6 +521,4 @@ export const NewBranchTransfer = forwardRef<NewBranchTransferHandle, Props>(({
             )}
         </motion.div>
     );
-});
-
-NewBranchTransfer.displayName = "NewBranchTransfer";
+}

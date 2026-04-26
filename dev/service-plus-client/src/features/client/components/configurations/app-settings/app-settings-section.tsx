@@ -1,11 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import {
-    MoreHorizontalIcon,
+import {MoreHorizontalIcon,
     PencilIcon,
     RefreshCwIcon,
-    SearchIcon,
-} from "lucide-react";
+    SearchIcon, X} from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -160,6 +158,15 @@ export const AppSettingsSection = () => {
                             value={search}
                             onChange={e => setSearch(e.target.value)}
                         />
+                            {search && (
+                                <button
+                                    className="absolute right-2.5 top-1/2 flex h-4 w-4 -translate-y-1/2 items-center justify-center rounded-full bg-[var(--cl-text-muted)] text-[var(--cl-surface)] hover:bg-[var(--cl-text)] focus:outline-none"
+                                    type="button"
+                                    onClick={() => setSearch("")}
+                                >
+                                    <X className="h-2.5 w-2.5" />
+                                </button>
+                            )}
                     </div>
                     {!loading && records.length > 0 && (
                         <p className="shrink-0 text-xs text-[var(--cl-text-muted)]">

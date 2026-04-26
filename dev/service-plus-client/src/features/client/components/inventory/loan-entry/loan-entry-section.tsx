@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { FileText, Loader2, MoreHorizontal, Pencil, RefreshCw, Save, Search, Trash2, ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon } from "lucide-react";
+import {FileText, Loader2, MoreHorizontal, Pencil, RefreshCw, Save, Search, Trash2, ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon, X} from "lucide-react";
 import { ViewModeToggle, type ViewMode } from "@/features/client/components/inventory/view-mode-toggle";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
@@ -35,7 +35,6 @@ import { BrandSelect } from "@/features/client/components/inventory/brand-select
 import type { StockTransactionTypeRow } from "@/features/client/types/purchase";
 import type { StockLoanType } from "@/features/client/types/stock-loan";
 import { NewLoanEntry } from "./new-loan-entry";
-import type { NewLoanEntryHandle } from "./new-loan-entry";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -46,7 +45,7 @@ type GenericQueryData<T> = { genericQuery: T[] | null };
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const PAGE_SIZE   = 50;
-const DEBOUNCE_MS = 600;
+const DEBOUNCE_MS = 1200;
 
 // ─── CSS ──────────────────────────────────────────────────────────────────────
 
@@ -91,9 +90,9 @@ export const LoanEntrySection = () => {
     const [editLoan, setEditLoan] = useState<StockLoanType | null>(null);
 
     // Form coordination
-    const newLoanRef               = useRef<NewLoanEntryHandle>(null);
-    const [newFormValid, setNewFormValid] = useState(false);
-    const [submitting,   setSubmitting]   = useState(false);
+    const [submitTrigger, setSubmitTrigger] = useState(0);
+    const [newFormValid,  setNewFormValid]  = useState(false);
+    const [submitting,    setSubmitting]    = useState(false);
 
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const scrollWrapperRef = useRef<HTMLDivElement>(null);
@@ -309,7 +308,7 @@ export const LoanEntrySection = () => {
                         className="h-8 gap-1.5 px-3 text-xs font-extrabold uppercase tracking-widest text-[var(--cl-text)]"
                         disabled={submitting}
                         variant="ghost"
-                        onClick={() => { setEditLoan(null); newLoanRef.current?.reset(); }}
+                        onClick={() => { setEditLoan(null); }}
                     >
                         <RefreshCw className={`h-3.5 w-3.5 ${submitting ? "animate-spin" : ""}`} />
                         Reset
@@ -317,7 +316,7 @@ export const LoanEntrySection = () => {
                     <Button
                         className="h-8 gap-1.5 px-4 text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm font-extrabold uppercase tracking-widest transition-all disabled:opacity-30 disabled:bg-slate-300 disabled:text-slate-600 disabled:shadow-none disabled:cursor-not-allowed"
                         disabled={!newFormValid || submitting}
-                        onClick={() => newLoanRef.current?.submit()}
+                        onClick={() => setSubmitTrigger(t => t + 1)}
                     >
                         {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
                         Save
@@ -327,11 +326,11 @@ export const LoanEntrySection = () => {
 
             {mode === "new" ? (
                 <NewLoanEntry
-                    ref={newLoanRef}
                     branchId={branchId}
                     brandName={brands.find(b => String(b.id) === selectedBrand)?.name}
                     editLoan={editLoan as any}
                     selectedBrandId={selectedBrand ? Number(selectedBrand) : null}
+                    submitTrigger={submitTrigger}
                     txnTypes={txnTypes}
                     onStatusChange={status => {
                         setNewFormValid(status.isValid);
@@ -342,8 +341,6 @@ export const LoanEntrySection = () => {
                             setEditLoan(null);
                             setMode("view");
                             if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, 1);
-                        } else {
-                            newLoanRef.current?.reset();
                         }
                     }}
                 />
@@ -377,6 +374,15 @@ export const LoanEntrySection = () => {
                                 value={search}
                                 onChange={e => handleSearchChange(e.target.value)}
                             />
+                            {search && (
+                                <button
+                                    className="absolute right-2.5 top-1/2 flex h-4 w-4 -translate-y-1/2 items-center justify-center rounded-full bg-[var(--cl-text-muted)] text-[var(--cl-surface)] hover:bg-[var(--cl-text)] focus:outline-none"
+                                    type="button"
+                                    onClick={() => handleSearchChange("")}
+                                >
+                                    <X className="h-2.5 w-2.5" />
+                                </button>
+                            )}
                         </div>
                         <div className="flex items-center gap-2 ml-auto">
                             <Button

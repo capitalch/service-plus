@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import {
-	ArrowDownIcon,
+import {ArrowDownIcon,
 	ArrowUpDownIcon,
 	ArrowUpIcon,
 	BanIcon,
@@ -24,8 +23,7 @@ import {
 	UnplugIcon,
 	UserPlusIcon,
 	UsersIcon,
-	XCircleIcon,
-} from "lucide-react";
+	XCircleIcon, X} from "lucide-react";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { useQuery } from "@apollo/client/react";
 import { toast } from "sonner";
@@ -431,6 +429,15 @@ export const ClientsPage = () => {
 							placeholder="Search clients or admins…"
 							value={search}
 						/>
+                            {search && (
+                                <button
+                                    className="absolute right-2.5 top-1/2 flex h-4 w-4 -translate-y-1/2 items-center justify-center rounded-full bg-[var(--cl-text-muted)] text-[var(--cl-surface)] hover:bg-[var(--cl-text)] focus:outline-none"
+                                    type="button"
+                                    onClick={() => setSearch("")}
+                                >
+                                    <X className="h-2.5 w-2.5" />
+                                </button>
+                            )}
 					</div>
 					<Button
 						className="h-9 gap-1 border border-slate-200 bg-white text-xs text-slate-600 hover:bg-slate-50"

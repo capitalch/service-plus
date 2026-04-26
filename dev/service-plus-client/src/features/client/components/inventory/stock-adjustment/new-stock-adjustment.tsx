@@ -1,4 +1,7 @@
-import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
@@ -19,6 +22,7 @@ import type { StockTransactionTypeRow } from "@/features/client/types/purchase";
 import type { StockAdjustmentLineFormItem, StockAdjustmentType } from "@/features/client/types/stock-adjustment";
 import { emptyAdjustmentLine } from "@/features/client/types/stock-adjustment";
 
+import { IsValidReporter } from "@/features/client/components/is-valid-reporter";
 import { PartCodeInput } from "../part-code-input";
 import { LineAddDeleteActions } from "../line-add-delete-actions";
 
@@ -26,21 +30,24 @@ import { LineAddDeleteActions } from "../line-add-delete-actions";
 
 type GenericQueryData<T> = { genericQuery: T[] | null };
 
-type Props = {
-    branchId: number | null;
-    txnTypes: StockTransactionTypeRow[];
-    onSuccess: () => void;
-    onStatusChange: (status: { isValid: boolean; isSubmitting: boolean }) => void;
-    selectedBrandId: number | null;
-    brandName?: string;
-    editAdjustment?: StockAdjustmentType | null;
-};
+const formSchema = z.object({
+    adjustment_date:   z.string().min(1, "Date is required"),
+    adjustment_reason: z.string().min(1, "Reason is required"),
+    ref_no:            z.string().optional(),
+    remarks:           z.string().optional(),
+});
 
-export type NewStockAdjustmentHandle = {
-    submit: () => void;
-    reset: () => void;
-    isSubmitting: boolean;
-    isValid: boolean;
+type FormValues = z.infer<typeof formSchema>;
+
+type Props = {
+    branchId:        number | null;
+    txnTypes:        StockTransactionTypeRow[];
+    onSuccess:       () => void;
+    onStatusChange:  (status: { isValid: boolean; isSubmitting: boolean }) => void;
+    selectedBrandId: number | null;
+    brandName?:      string;
+    editAdjustment?: StockAdjustmentType | null;
+    submitTrigger:   number;
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -57,26 +64,26 @@ const inputCls = "h-7 border-[var(--cl-border)] bg-[var(--cl-surface)] text-sm p
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export const NewStockAdjustment = forwardRef<NewStockAdjustmentHandle, Props>(({
-    branchId, txnTypes, onSuccess, onStatusChange, selectedBrandId, brandName, editAdjustment,
-}, ref) => {
+export function NewStockAdjustment({
+    branchId, txnTypes, onSuccess, onStatusChange, selectedBrandId, brandName, editAdjustment, submitTrigger,
+}: Props) {
     const dbName = useAppSelector(selectDbName);
     const schema = useAppSelector(selectSchema);
 
-    // Header fields
-    const [adjustmentDate,   setAdjustmentDate]   = useState(today());
-    const [adjustmentReason, setAdjustmentReason] = useState("");
-    const [refNo,            setRefNo]            = useState("");
-    const [remarks,          setRemarks]          = useState("");
+    const form = useForm<FormValues>({
+        defaultValues: { adjustment_date: today(), adjustment_reason: "", ref_no: "", remarks: "" },
+        mode: "onChange",
+        resolver: zodResolver(formSchema) as any,
+    });
+    const { register, formState: { isValid, isSubmitting }, reset, watch } = form;
 
     // Lines
     const [lines, setLines] = useState<StockAdjustmentLineFormItem[]>([emptyAdjustmentLine(selectedBrandId)]);
-
-    // Edit mode
     const [originalLineIds, setOriginalLineIds] = useState<number[]>([]);
 
-    // Submit
-    const [submitting, setSubmitting] = useState(false);
+    const linesValid =
+        lines.length > 0 &&
+        lines.every(l => !!l.part_id && l.qty > 0 && (l.dr_cr === "D" || l.dr_cr === "C"));
 
     const partInputRefs    = useRef<(HTMLInputElement | null)[]>([]);
     const qtyInputRefs     = useRef<(HTMLInputElement | null)[]>([]);
@@ -95,9 +102,16 @@ export const NewStockAdjustment = forwardRef<NewStockAdjustmentHandle, Props>(({
             setMaxTableHeight(window.innerHeight - top - summaryHeight - 8 - 14);
         }
         recalc();
-        window.addEventListener('resize', recalc);
-        return () => window.removeEventListener('resize', recalc);
+        window.addEventListener("resize", recalc);
+        return () => window.removeEventListener("resize", recalc);
     }, []);
+
+    // Submit trigger
+    useEffect(() => {
+        if (!submitTrigger) return;
+        void form.handleSubmit(executeSave)();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [submitTrigger]);
 
     // Populate form on edit
     useEffect(() => {
@@ -121,19 +135,21 @@ export const NewStockAdjustment = forwardRef<NewStockAdjustmentHandle, Props>(({
         }).then(res => {
             const detail = res.data?.genericQuery?.[0];
             if (!detail) return;
-            setAdjustmentDate(detail.adjustment_date);
-            setAdjustmentReason(detail.adjustment_reason);
-            setRefNo(detail.ref_no ?? "");
-            setRemarks(detail.remarks ?? "");
+            reset({
+                adjustment_date:   detail.adjustment_date,
+                adjustment_reason: detail.adjustment_reason,
+                ref_no:            detail.ref_no ?? "",
+                remarks:           detail.remarks ?? "",
+            });
             const loadedLines = (detail.lines ?? []).map(l => ({
-                _key:       crypto.randomUUID(),
-                part_id:    l.part_id,
-                brand_id:   selectedBrandId,
-                part_code:  l.part_code,
-                part_name:  l.part_name,
-                dr_cr:      l.dr_cr as "D" | "C",
-                qty:        Number(l.qty),
-                remarks:    l.remarks ?? "",
+                _key:      crypto.randomUUID(),
+                part_id:   l.part_id,
+                brand_id:  selectedBrandId,
+                part_code: l.part_code,
+                part_name: l.part_name,
+                dr_cr:     l.dr_cr as "D" | "C",
+                qty:       Number(l.qty),
+                remarks:   l.remarks ?? "",
             }));
             setLines(loadedLines);
             setOriginalLineIds((detail.lines ?? []).map(l => l.id));
@@ -158,35 +174,19 @@ export const NewStockAdjustment = forwardRef<NewStockAdjustmentHandle, Props>(({
         setLines(prev => prev.length === 1 ? prev : prev.filter((_, i) => i !== idx));
     };
 
-    // Validation
-    const isFormValid =
-        !!adjustmentDate &&
-        !!adjustmentReason.trim() &&
-        lines.length > 0 &&
-        lines.every(l => !!l.part_id && l.qty > 0 && (l.dr_cr === "D" || l.dr_cr === "C"));
-
     // Reset
     const handleReset = () => {
-        setAdjustmentDate(today());
-        setAdjustmentReason("");
-        setRefNo("");
-        setRemarks("");
+        reset({ adjustment_date: today(), adjustment_reason: "", ref_no: "", remarks: "" });
         setLines([emptyAdjustmentLine(selectedBrandId)]);
         setOriginalLineIds([]);
     };
 
-    const handleSubmit = async () => {
-        if (!branchId) { toast.error("Branch is not selected globally."); return; }
-        if (!adjustmentDate) { toast.error(MESSAGES.ERROR_ADJUSTMENT_DATE_REQUIRED); return; }
-        if (!adjustmentReason.trim()) { toast.error(MESSAGES.ERROR_ADJUSTMENT_REASON_REQUIRED); return; }
-        if (lines.some(l => !l.part_id || l.qty <= 0 || (l.dr_cr !== "D" && l.dr_cr !== "C"))) {
+    // Save
+    const executeSave = async (values: FormValues) => {
+        if (!linesValid) {
             toast.error(MESSAGES.ERROR_ADJUSTMENT_LINE_FIELDS_REQUIRED);
             return;
         }
-        await executeSave();
-    };
-
-    const executeSave = async () => {
         const adjustmentInTypeId  = txnTypes.find(t => t.code === "ADJUSTMENT_IN")?.id;
         const adjustmentOutTypeId = txnTypes.find(t => t.code === "ADJUSTMENT_OUT")?.id;
         if (!branchId || !dbName || !schema) {
@@ -207,20 +207,19 @@ export const NewStockAdjustment = forwardRef<NewStockAdjustmentHandle, Props>(({
                     part_id:                   line.part_id,
                     qty:                       line.qty,
                     dr_cr:                     line.dr_cr,
-                    transaction_date:          adjustmentDate,
+                    transaction_date:          values.adjustment_date,
                     stock_transaction_type_id: line.dr_cr === "D" ? adjustmentInTypeId : adjustmentOutTypeId,
                 }],
             }],
         }));
 
         const headerFields = {
-            adjustment_date:   adjustmentDate,
-            adjustment_reason: adjustmentReason.trim(),
-            ref_no:            refNo.trim() || null,
-            remarks:           remarks.trim() || null,
+            adjustment_date:   values.adjustment_date,
+            adjustment_reason: values.adjustment_reason.trim(),
+            ref_no:            values.ref_no?.trim() || null,
+            remarks:           values.remarks?.trim() || null,
         };
 
-        setSubmitting(true);
         try {
             if (editAdjustment) {
                 const payload = graphQlUtils.buildGenericUpdateValue({
@@ -260,26 +259,15 @@ export const NewStockAdjustment = forwardRef<NewStockAdjustmentHandle, Props>(({
                 });
                 toast.success(MESSAGES.SUCCESS_ADJUSTMENT_CREATED);
             }
+            handleReset();
             onSuccess();
         } catch {
             toast.error(editAdjustment ? MESSAGES.ERROR_ADJUSTMENT_UPDATE_FAILED : MESSAGES.ERROR_ADJUSTMENT_CREATE_FAILED);
-        } finally {
-            setSubmitting(false);
         }
     };
 
-    // Sync status with parent
-    useEffect(() => {
-        onStatusChange({ isValid: isFormValid, isSubmitting: submitting });
-    }, [isFormValid, submitting, onStatusChange]);
-
-    // Expose actions to parent
-    useImperativeHandle(ref, () => ({
-        submit:      () => { void handleSubmit(); },
-        reset:       handleReset,
-        isSubmitting: submitting,
-        isValid:      isFormValid,
-    }), [handleSubmit, handleReset, submitting, isFormValid]); // eslint-disable-line react-hooks/exhaustive-deps
+    const adjustmentDate   = watch("adjustment_date");
+    const adjustmentReason = watch("adjustment_reason");
 
     return (
         <motion.div
@@ -288,6 +276,12 @@ export const NewStockAdjustment = forwardRef<NewStockAdjustmentHandle, Props>(({
             exit={{ opacity: 0, y: -10 }}
             className="flex min-h-fit md:min-h-0 md:flex-1 flex-col gap-2 pb-0 md:overflow-hidden"
         >
+            <IsValidReporter
+                isSubmitting={isSubmitting}
+                isValid={isValid && linesValid}
+                onStatusChange={onStatusChange}
+            />
+
             {!branchId ? (
                 <div className="flex flex-col items-center justify-center py-20 bg-[var(--cl-surface-2)]/30 rounded-xl border-2 border-dashed border-[var(--cl-border)] text-center">
                     <div className="bg-[var(--cl-accent)]/5 p-5 rounded-full mb-4">
@@ -316,10 +310,9 @@ export const NewStockAdjustment = forwardRef<NewStockAdjustmentHandle, Props>(({
                                     Date <span className="text-red-500 ml-0.5">*</span>
                                 </Label>
                                 <Input
+                                    {...register("adjustment_date")}
                                     className={`bg-[var(--cl-surface-2)] ${!adjustmentDate ? "border-red-500 focus:border-red-500 ring-red-500/10" : ""}`}
                                     type="date"
-                                    value={adjustmentDate}
-                                    onChange={e => setAdjustmentDate(e.target.value)}
                                 />
                             </div>
 
@@ -329,10 +322,9 @@ export const NewStockAdjustment = forwardRef<NewStockAdjustmentHandle, Props>(({
                                     Reason <span className="text-red-500 ml-0.5">*</span>
                                 </Label>
                                 <Input
-                                    className={`bg-[var(--cl-surface-2)] ${!adjustmentReason.trim() ? "border-red-500 focus:border-red-500 ring-red-500/10" : ""}`}
+                                    {...register("adjustment_reason")}
+                                    className={`bg-[var(--cl-surface-2)] ${!adjustmentReason?.trim() ? "border-red-500 focus:border-red-500 ring-red-500/10" : ""}`}
                                     placeholder="e.g. Physical count correction"
-                                    value={adjustmentReason}
-                                    onChange={e => setAdjustmentReason(e.target.value)}
                                 />
                             </div>
 
@@ -342,10 +334,9 @@ export const NewStockAdjustment = forwardRef<NewStockAdjustmentHandle, Props>(({
                                     Ref No
                                 </Label>
                                 <Input
+                                    {...register("ref_no")}
                                     className="bg-[var(--cl-surface-2)]"
                                     placeholder="Optional reference"
-                                    value={refNo}
-                                    onChange={e => setRefNo(e.target.value)}
                                 />
                             </div>
 
@@ -355,10 +346,9 @@ export const NewStockAdjustment = forwardRef<NewStockAdjustmentHandle, Props>(({
                                     Remarks
                                 </Label>
                                 <Input
+                                    {...register("remarks")}
                                     className="bg-[var(--cl-surface-2)]"
                                     placeholder="Optional..."
-                                    value={remarks}
-                                    onChange={e => setRemarks(e.target.value)}
                                 />
                             </div>
                             </div>{/* end grid */}
@@ -523,6 +513,4 @@ export const NewStockAdjustment = forwardRef<NewStockAdjustmentHandle, Props>(({
             )}
         </motion.div>
     );
-});
-
-NewStockAdjustment.displayName = "NewStockAdjustment";
+}

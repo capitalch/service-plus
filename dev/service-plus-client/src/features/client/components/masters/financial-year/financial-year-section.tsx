@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import {
-    ArrowDownIcon,
+import {ArrowDownIcon,
     ArrowUpDownIcon,
     ArrowUpIcon,
     MoreHorizontalIcon,
@@ -9,8 +8,7 @@ import {
     PlusIcon,
     RefreshCwIcon,
     SearchIcon,
-    Trash2Icon,
-} from "lucide-react";
+    Trash2Icon, X} from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -206,6 +204,15 @@ export const FinancialYearSection = () => {
                             value={search}
                             onChange={e => setSearch(e.target.value)}
                         />
+                            {search && (
+                                <button
+                                    className="absolute right-2.5 top-1/2 flex h-4 w-4 -translate-y-1/2 items-center justify-center rounded-full bg-[var(--cl-text-muted)] text-[var(--cl-surface)] hover:bg-[var(--cl-text)] focus:outline-none"
+                                    type="button"
+                                    onClick={() => setSearch("")}
+                                >
+                                    <X className="h-2.5 w-2.5" />
+                                </button>
+                            )}
                     </div>
                     {!loading && fys.length > 0 && (
                         <p className="shrink-0 text-xs text-[var(--cl-text-muted)]">

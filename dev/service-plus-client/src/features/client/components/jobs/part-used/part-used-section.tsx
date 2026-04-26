@@ -1,8 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-    ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon,
-    Loader2, RefreshCw, RotateCcw, Save, Search, Trash2,
-} from "lucide-react";
+import {ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon,
+    Loader2, RefreshCw, RotateCcw, Save, Search, Trash2, X} from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 
@@ -24,7 +22,7 @@ import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectCurrentBranch, selectSchema } from "@/store/context-slice";
 import type { StockTransactionTypeRow } from "@/features/client/types/purchase";
 
-import { NewPartUsedForm, type NewPartUsedFormHandle } from "./new-part-used-form";
+import { NewPartUsedForm } from "./new-part-used-form";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -60,7 +58,7 @@ function currentMonthRange() {
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const PAGE_SIZE   = 50;
-const DEBOUNCE_MS = 600;
+const DEBOUNCE_MS = 1200;
 
 const thClass = "sticky top-0 z-20 text-xs font-semibold uppercase tracking-wide text-[var(--cl-text-muted)] p-3 text-left border-b border-[var(--cl-border)] bg-[var(--cl-surface-2)]";
 const tdClass = "p-3 text-sm text-[var(--cl-text)] border-b border-[var(--cl-border)]";
@@ -99,7 +97,7 @@ export const PartUsedSection = () => {
     const [deleting,   setDeleting]   = useState(false);
 
     // Form
-    const formRef                   = useRef<NewPartUsedFormHandle>(null);
+    const [submitTrigger, setSubmitTrigger] = useState(0);
     const [formValid,   setFormValid]   = useState(false);
     const [submitting,  setSubmitting]  = useState(false);
 
@@ -263,7 +261,7 @@ export const PartUsedSection = () => {
                         className="h-8 gap-1.5 px-3 text-xs font-extrabold uppercase tracking-widest text-[var(--cl-text)]"
                         disabled={submitting}
                         variant="ghost"
-                        onClick={() => formRef.current?.reset()}
+                        onClick={() => {}}
                     >
                         <RefreshCw className={`h-3.5 w-3.5 ${submitting ? "animate-spin" : ""}`} />
                         Reset
@@ -271,7 +269,7 @@ export const PartUsedSection = () => {
                     <Button
                         className="h-8 gap-1.5 px-4 text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm font-extrabold uppercase tracking-widest transition-all disabled:opacity-30 disabled:bg-slate-300 disabled:text-slate-600 disabled:shadow-none disabled:cursor-not-allowed"
                         disabled={!formValid || submitting}
-                        onClick={() => formRef.current?.submit()}
+                        onClick={() => setSubmitTrigger(t => t + 1)}
                     >
                         {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
                         Save
@@ -282,11 +280,10 @@ export const PartUsedSection = () => {
             {mode === "new" ? (
                 <div className="flex-1 overflow-y-auto">
                     <NewPartUsedForm
-                        ref={formRef}
                         branchId={branchId}
+                        submitTrigger={submitTrigger}
                         txnTypes={txnTypes}
                         onSuccess={() => {
-                            formRef.current?.reset();
                             setMode("view");
                             if (selectedBranch) void loadData(Number(selectedBranch), fromDate, toDate, searchQ, 1);
                         }}
@@ -324,6 +321,15 @@ export const PartUsedSection = () => {
                         <div className="relative flex-1 sm:max-w-xs">
                             <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--cl-text-muted)]" />
                             <Input className="h-8 border-[var(--cl-border)] bg-[var(--cl-surface)] pl-8 text-xs" disabled={loading} placeholder="Job no, part code or part name…" value={search} onChange={e => handleSearchChange(e.target.value)} />
+                            {search && (
+                                <button
+                                    className="absolute right-2.5 top-1/2 flex h-4 w-4 -translate-y-1/2 items-center justify-center rounded-full bg-[var(--cl-text-muted)] text-[var(--cl-surface)] hover:bg-[var(--cl-text)] focus:outline-none"
+                                    type="button"
+                                    onClick={() => handleSearchChange("")}
+                                >
+                                    <X className="h-2.5 w-2.5" />
+                                </button>
+                            )}
                         </div>
                         <Button className="h-8 px-2.5 text-xs" disabled={loading || !selectedBranch} size="sm" variant="outline" onClick={() => { if (selectedBranch) void loadData(Number(selectedBranch), fromDate, toDate, searchQ, page); }}>
                             <RefreshCw className="mr-1.5 h-3 w-3" /> Refresh

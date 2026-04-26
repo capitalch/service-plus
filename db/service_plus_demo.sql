@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict Eo2e7Mnn9jyV7TAaY0hlpjAlJy60lcbL2EkoPsp8Di2QrW4eW5RWRZsBhMfzlbz
+\restrict EXVawd56hPxgpNJG3ikiUdzWrgkOY9lbWeyf6OkNfn8Qyz3dsjFdIqbh3gMomXT
 
 -- Dumped from database version 14.6
 -- Dumped by pg_dump version 17.9 (Ubuntu 17.9-0ubuntu0.25.10.1)
@@ -373,7 +373,7 @@ CREATE TABLE demo1.job (
     last_transaction_id bigint,
     is_final boolean DEFAULT false NOT NULL,
     quantity integer DEFAULT 1 NOT NULL,
-    batch_no integer NOT NULL
+    batch_no integer
 );
 
 
@@ -3414,5 +3414,5 @@ ALTER TABLE ONLY security.user_bu_role
 -- PostgreSQL database dump complete
 --
 
-\unrestrict Eo2e7Mnn9jyV7TAaY0hlpjAlJy60lcbL2EkoPsp8Di2QrW4eW5RWRZsBhMfzlbz
+\unrestrict EXVawd56hPxgpNJG3ikiUdzWrgkOY9lbWeyf6OkNfn8Qyz3dsjFdIqbh3gMomXT
 

@@ -1,4 +1,5 @@
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { IsValidReporter } from "@/features/client/components/is-valid-reporter";
 import { Loader2, X } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
@@ -58,10 +59,9 @@ type NewLine = {
     remarks:   string;
 };
 
-export type NewPartUsedFormHandle = { submit: () => void; reset: () => void };
-
 type Props = {
     branchId:       number | null;
+    submitTrigger:  number;
     txnTypes:       StockTransactionTypeRow[];
     onSuccess:      () => void;
     onStatusChange: (s: { isValid: boolean; isSubmitting: boolean }) => void;
@@ -88,9 +88,9 @@ const inputCls = "h-7 border-[var(--cl-border)] bg-[var(--cl-surface)] text-sm p
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export const NewPartUsedForm = forwardRef<NewPartUsedFormHandle, Props>(({
-    branchId, txnTypes, onSuccess, onStatusChange,
-}, ref) => {
+export function NewPartUsedForm({
+    branchId, submitTrigger, txnTypes, onSuccess, onStatusChange,
+}: Props) {
     const dbName = useAppSelector(selectDbName);
     const schema = useAppSelector(selectSchema);
 
@@ -263,23 +263,20 @@ export const NewPartUsedForm = forwardRef<NewPartUsedFormHandle, Props>(({
         }
     };
 
-    const handleReset = () => {
-        setSelectedJob(null);
-        setJobQuery("");
-        setJobOptions([]);
-        setExistingLines([]);
-        setDeletedIds([]);
-        setNewLines([emptyLine()]);
-    };
+    // const handleReset = () => {
+    //     setSelectedJob(null);
+    //     setJobQuery("");
+    //     setJobOptions([]);
+    //     setExistingLines([]);
+    //     setDeletedIds([]);
+    //     setNewLines([emptyLine()]);
+    // };
 
     useEffect(() => {
-        onStatusChange({ isValid, isSubmitting: submitting });
-    }, [isValid, submitting, onStatusChange]);
-
-    useImperativeHandle(ref, () => ({
-        submit: () => { void handleSubmit(); },
-        reset:  handleReset,
-    }));
+        if (!submitTrigger) return;
+        void handleSubmit();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [submitTrigger]);
 
     return (
         <motion.div
@@ -288,6 +285,7 @@ export const NewPartUsedForm = forwardRef<NewPartUsedFormHandle, Props>(({
             initial={{ opacity: 0, y: 10 }}
             transition={{ duration: 0.2 }}
         >
+            <IsValidReporter isSubmitting={submitting} isValid={isValid} onStatusChange={onStatusChange} />
             {!branchId ? (
                 <div className="flex flex-col items-center justify-center py-20 rounded-xl border-2 border-dashed border-[var(--cl-border)] text-center">
                     <p className="text-sm font-semibold text-[var(--cl-text)]">No Branch Selected</p>
@@ -495,6 +493,4 @@ export const NewPartUsedForm = forwardRef<NewPartUsedFormHandle, Props>(({
             )}
         </motion.div>
     );
-});
-
-NewPartUsedForm.displayName = "NewPartUsedForm";
+}

@@ -1,8 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-    Briefcase, ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon,
-    Loader2, Pencil, RefreshCw, Save, Search, Trash2,
-} from "lucide-react";
+import {Briefcase, ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon,
+    Loader2, Pencil, RefreshCw, Save, Search, Trash2, X} from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 
@@ -21,11 +19,17 @@ import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectCurrentBranch, selectSchema } from "@/store/context-slice";
 import type { DocumentSequenceRow } from "@/features/client/types/sales";
-import type { JobBatchDetailRow, JobBatchListRow, JobLookupRow, ModelRow } from "@/features/client/types/job";
+import type { BatchJobRow, JobBatchDetailRow, JobBatchListRow, JobLookupRow, ModelRow } from "@/features/client/types/job";
 import type { CustomerTypeOption, StateOption } from "@/features/client/types/customer";
 import type { BrandOption, ProductOption } from "@/features/client/types/model";
 
-import { NewBatchJobForm, type NewBatchJobFormHandle } from "./new-batch-job-form";
+import { NewBatchJobForm } from "./new-batch-job-form";
+import { FormProvider, useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { batchJobFormSchema, type BatchJobFormValues, getBatchJobDefaultValues, blankBatchRow } from "./batch-job-schema";
+import { selectCurrentUser } from "@/features/auth/store/auth-slice";
+import { uploadJobFile } from "@/lib/image-service";
+import { type StagedFile } from "@/features/client/components/jobs/single-job/job-image-upload";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -34,7 +38,7 @@ type GenericQueryData<T> = { genericQuery: T[] | null };
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const PAGE_SIZE = 50;
-const DEBOUNCE_MS = 600;
+const DEBOUNCE_MS = 1200;
 
 const thClass = "sticky top-0 z-20 text-xs font-semibold uppercase tracking-wide text-[var(--cl-text-muted)] p-3 text-left border-b border-[var(--cl-border)] bg-[var(--cl-surface-2)]";
 const tdClass = "p-3 text-sm text-[var(--cl-text)] border-b border-[var(--cl-border)]";
@@ -45,6 +49,7 @@ export const BatchJobSection = () => {
     const dbName       = useAppSelector(selectDbName);
     const schema       = useAppSelector(selectSchema);
     const globalBranch = useAppSelector(selectCurrentBranch);
+    const currentUser  = useAppSelector(selectCurrentUser);
     const branchId     = globalBranch?.id ?? null;
 
     const { from: defaultFrom, to: defaultTo } = currentFinancialYearRange();
@@ -57,9 +62,12 @@ export const BatchJobSection = () => {
     const [mode, setMode] = useState<ViewMode>("new");
 
     // Metadata
+     
+     
     const [jobStatuses,       setJobStatuses]       = useState<JobLookupRow[]>([]);
     const [jobTypes,          setJobTypes]          = useState<JobLookupRow[]>([]);
     const [receiveMannners,   setReceiveManners]    = useState<JobLookupRow[]>([]);
+     
     const [receiveConditions, setReceiveConditions] = useState<JobLookupRow[]>([]);
     const [models,            setModels]            = useState<ModelRow[]>([]);
     const [brands,            setBrands]            = useState<BrandOption[]>([]);
@@ -84,9 +92,119 @@ export const BatchJobSection = () => {
     const [editRows,     setEditRows]     = useState<JobBatchDetailRow[]>([]);
 
     // Form
-    const batchFormRef   = useRef<NewBatchJobFormHandle>(null);
-    const [newFormValid, setNewFormValid] = useState(false);
-    const [submitting,   setSubmitting]   = useState(false);
+    const [submitting, setSubmitting] = useState(false);
+    const [rows, setRows] = useState<BatchJobRow[]>([]);
+    const [pendingFiles, setPendingFiles] = useState<Record<string, StagedFile[]>>({});
+
+    const form = useForm<BatchJobFormValues>({
+        defaultValues: getBatchJobDefaultValues(),
+        mode: "onChange",
+        resolver: zodResolver(batchJobFormSchema) as any, // eslint-disable-line @typescript-eslint/no-explicit-any
+    });
+    
+    const rowsValid = rows.length > 0 && rows.every(r => !!r.product_brand_model_id && r.quantity >= 1);
+    
+    function handleReset() {
+        form.reset(getBatchJobDefaultValues());
+        setPendingFiles({});
+        setRows([blankBatchRow(jobSequence, 0)]);
+    }
+
+
+    const executeSave = async (values: BatchJobFormValues) => {
+        setSubmitting(true);
+        if (!branchId || !dbName || !schema) {
+            toast.error(MESSAGES.ERROR_JOB_CREATE_FAILED);
+            return;
+        }
+        try {
+            if (editBatchNo) {
+                const originalIds   = new Set((editRows ?? []).map(r => r.id));
+                const currentIds    = new Set(rows.filter(r => r.id).map(r => r.id!));
+                const deletedJobIds = [...originalIds].filter(id => !currentIds.has(id));
+                const addedJobs     = rows.filter(r => !r.id).map(r => ({
+                    job_no: r.job_no, product_brand_model_id: r.product_brand_model_id,
+                    serial_no: r.serial_no || null, problem_reported: r.problem_reported,
+                    warranty_card_no: r.warranty_card_no || null,
+                    job_receive_condition_id: r.job_receive_condition_id, remarks: r.remarks || null,
+                    quantity: r.quantity,
+                }));
+                const updatedJobs   = rows.filter(r => r.id).map(r => ({
+                    id: r.id!, product_brand_model_id: r.product_brand_model_id,
+                    serial_no: r.serial_no || null, problem_reported: r.problem_reported,
+                    warranty_card_no: r.warranty_card_no || null,
+                    job_receive_condition_id: r.job_receive_condition_id, remarks: r.remarks || null,
+                    quantity: r.quantity,
+                }));
+
+                const payload = encodeURIComponent(JSON.stringify({
+                    batch_no: editBatchNo,
+                    sharedData: {
+                        branch_id: branchId, batch_date: values.batch_date,
+                        customer_contact_id: values.customer_id, job_type_id: values.job_type_id,
+                        job_receive_manner_id: values.receive_manner_id,
+                        performed_by_user_id: currentUser?.id ?? null,
+                    },
+                    addedJobs, updatedJobs, deletedJobIds,
+                    job_doc_sequence_id:   addedJobs.length > 0 ? (jobSequence?.id ?? null) : null,
+                    job_doc_sequence_next: addedJobs.length > 0 ? (jobSequence ? jobSequence.next_number + addedJobs.length : null) : null,
+                }));
+
+                await apolloClient.mutate({
+                    mutation:  GRAPHQL_MAP.updateJobBatch,
+                    variables: { db_name: dbName, schema, value: payload },
+                });
+                toast.success(`Batch #${editBatchNo} updated`);
+            } else {
+                const payload = encodeURIComponent(JSON.stringify({
+                    sharedData: {
+                        branch_id: branchId, batch_date: values.batch_date,
+                        customer_contact_id: values.customer_id, job_type_id: values.job_type_id,
+                        job_receive_manner_id: values.receive_manner_id,
+                        job_status_id: jobStatuses.find(s => s.is_initial)?.id ?? null,
+                        performed_by_user_id: currentUser?.id ?? null,
+                        job_doc_sequence_id:   jobSequence?.id ?? null,
+                        job_doc_sequence_next: jobSequence ? jobSequence.next_number + rows.length : null,
+                    },
+                    jobs: rows.map(r => ({
+                        job_no: r.job_no, product_brand_model_id: r.product_brand_model_id,
+                        serial_no: r.serial_no || null, problem_reported: r.problem_reported,
+                        warranty_card_no: r.warranty_card_no || null,
+                        job_receive_condition_id: r.job_receive_condition_id, remarks: r.remarks || null,
+                        quantity: r.quantity,
+                    })),
+                }));
+
+                const result = await apolloClient.mutate({
+                    mutation:  GRAPHQL_MAP.createJobBatch,
+                    variables: { db_name: dbName, schema, value: payload },
+                });
+                const data   = result.data as { createJobBatch?: { batch_no: number; job_ids: number[] } };
+                const batchNo = data?.createJobBatch?.batch_no;
+                const jobIds  = data?.createJobBatch?.job_ids ?? [];
+
+                await Promise.all(
+                    rows.map(async (row, idx) => {
+                        const jobId = jobIds[idx];
+                        if (!jobId) return;
+                        for (const { file, about } of (pendingFiles[row.localId] ?? [])) {
+                            try {
+                                await uploadJobFile(dbName, schema, jobId, about, file);
+                            } catch (err: unknown) {
+                                toast.error(`Upload failed for "${about}": ${(err as Error).message}`);
+                            }
+                        }
+                    })
+                );
+                toast.success(`Batch #${batchNo} created with ${rows.length} job${rows.length !== 1 ? "s" : ""}`);
+            }
+            handleReset();
+            setMode("view");
+        } catch {
+            toast.error(editBatchNo ? "Failed to update batch" : MESSAGES.ERROR_JOB_CREATE_FAILED);
+        }
+        setSubmitting(false);
+    };
 
     const debounceRef      = useRef<ReturnType<typeof setTimeout> | null>(null);
     const scrollWrapperRef = useRef<HTMLDivElement>(null);
@@ -146,7 +264,7 @@ export const BatchJobSection = () => {
                 setProducts(prodRes.data?.genericQuery ?? []);
                 setCustomerTypes(custTypeRes.data?.genericQuery ?? []);
                 setMasterStates((stateRes.data?.genericQuery ?? []).map(s => ({
-                    id: s.id, code: (s as any).gst_state_code ?? s.code, name: s.name,
+                    id: s.id, code: (s as { gst_state_code?: string }).gst_state_code ?? s.code, name: s.name,
                 })));
             } catch { toast.error(MESSAGES.ERROR_JOB_LOAD_FAILED); }
         };
@@ -162,14 +280,7 @@ export const BatchJobSection = () => {
         }).then(res => setDocSequences(res.data?.genericQuery ?? [])).catch(() => {});
     }, [dbName, schema, branchId]);
 
-    const refreshDocSequences = () => {
-        if (!dbName || !schema || !branchId) return;
-        apolloClient.query<GenericQueryData<DocumentSequenceRow>>({
-            fetchPolicy: "network-only",
-            query: GRAPHQL_MAP.genericQuery,
-            variables: { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_DOCUMENT_SEQUENCES, sqlArgs: { branch_id: branchId } }) },
-        }).then(res => setDocSequences(res.data?.genericQuery ?? [])).catch(() => {});
-    };
+
 
     const loadData = useCallback(async (bId: number, from: string, to: string, q: string, pg: number) => {
         if (!dbName || !schema) return;
@@ -196,6 +307,7 @@ export const BatchJobSection = () => {
 
     useEffect(() => {
         if (!branchId || mode !== "view") return;
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         void loadData(Number(branchId), fromDate, toDate, searchQ, page);
     }, [branchId, fromDate, toDate, searchQ, page, loadData, mode]);
 
@@ -230,7 +342,8 @@ export const BatchJobSection = () => {
             });
             toast.success(`Batch #${deleteBatchNo} deleted`);
             setDeleteBatchNo(null);
-            if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, page);
+            if (branchId)  
+        void loadData(Number(branchId), fromDate, toDate, searchQ, page);
         } catch { toast.error("Failed to delete batch"); }
         finally { setDeleting(false); }
     };
@@ -273,7 +386,8 @@ export const BatchJobSection = () => {
                     onNewClick={() => { setEditBatchNo(null); setEditRows([]); setMode("new"); }}
                     onViewClick={() => {
                         setEditBatchNo(null); setEditRows([]); setMode("view");
-                        if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, page);
+                        if (branchId)  
+        void loadData(Number(branchId), fromDate, toDate, searchQ, page);
                     }}
                 />
 
@@ -281,15 +395,15 @@ export const BatchJobSection = () => {
                     <Button
                         className="h-8 gap-1.5 px-3 text-xs font-extrabold uppercase tracking-widest text-[var(--cl-text)]"
                         disabled={submitting} variant="ghost"
-                        onClick={() => { setEditBatchNo(null); setEditRows([]); batchFormRef.current?.reset(); }}
+                        onClick={() => { setEditBatchNo(null); setEditRows([]); }}
                     >
                         <RefreshCw className={`h-3.5 w-3.5 ${submitting ? "animate-spin" : ""}`} />
                         Reset
                     </Button>
                     <Button
                         className="h-8 gap-1.5 px-4 text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm font-extrabold uppercase tracking-widest transition-all disabled:opacity-30 disabled:bg-slate-300 disabled:text-slate-600 disabled:shadow-none disabled:cursor-not-allowed"
-                        disabled={!newFormValid || submitting}
-                        onClick={() => batchFormRef.current?.submit()}
+                        disabled={!form.formState.isValid || !rowsValid || submitting}
+                        onClick={form.handleSubmit(executeSave)}
                     >
                         {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
                         Save Batch
@@ -299,37 +413,27 @@ export const BatchJobSection = () => {
 
             {mode === "new" ? (
                 <div className="flex-1 overflow-y-auto">
-                    <NewBatchJobForm
-                        ref={batchFormRef}
-                        branchId={branchId}
-                        docSequence={editBatchNo ? null : jobSequence}
-                        jobStatuses={jobStatuses}
-                        jobTypes={jobTypes}
-                        receiveMannners={receiveMannners}
-                        receiveConditions={receiveConditions}
-                        models={models}
-                        brands={brands}
-                        products={products}
-                        customerTypes={customerTypes}
-                        masterStates={masterStates}
-                        editBatchNo={editBatchNo}
-                        editRows={editRows}
-                        onRefreshModels={refreshModels}
-                        onSuccess={() => {
-                            if (editBatchNo) {
-                                setEditBatchNo(null); setEditRows([]);
-                                setMode("view");
-                                if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, 1);
-                            } else {
-                                batchFormRef.current?.reset();
-                                refreshDocSequences();
-                            }
-                        }}
-                        onStatusChange={status => {
-                            setNewFormValid(status.isValid);
-                            setSubmitting(status.isSubmitting);
-                        }}
-                    />
+                    <FormProvider {...form}>
+                        <NewBatchJobForm
+                            branchId={branchId}
+                            docSequence={jobSequence}
+                            jobTypes={jobTypes}
+                            receiveMannners={receiveMannners}
+                            receiveConditions={receiveConditions}
+                            models={models}
+                            brands={brands}
+                            products={products}
+                            customerTypes={customerTypes}
+                            masterStates={masterStates}
+                            editBatchNo={editBatchNo}
+                            editRows={editRows}
+                            onRefreshModels={refreshModels}
+                            rows={rows}
+                            setRows={setRows}
+                            
+                            setPendingFiles={setPendingFiles}
+                        />
+                    </FormProvider>
                 </div>
             ) : (
                 <>
@@ -343,9 +447,19 @@ export const BatchJobSection = () => {
                         <div className="relative flex-1 sm:max-w-xs">
                             <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--cl-text-muted)]" />
                             <Input className="h-8 border-[var(--cl-border)] bg-[var(--cl-surface)] pl-8 text-xs" disabled={loading} placeholder="Batch no, customer or mobile…" value={search} onChange={e => handleSearchChange(e.target.value)} />
+                            {search && (
+                                <button
+                                    className="absolute right-2.5 top-1/2 flex h-4 w-4 -translate-y-1/2 items-center justify-center rounded-full bg-[var(--cl-text-muted)] text-[var(--cl-surface)] hover:bg-[var(--cl-text)] focus:outline-none"
+                                    type="button"
+                                    onClick={() => handleSearchChange("")}
+                                >
+                                    <X className="h-2.5 w-2.5" />
+                                </button>
+                            )}
                         </div>
                         <div className="ml-auto">
-                            <Button className="h-8 px-2.5 text-xs" disabled={loading || !branchId} size="sm" variant="outline" onClick={() => { if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, page); }}>
+                            <Button className="h-8 px-2.5 text-xs" disabled={loading || !branchId} size="sm" variant="outline" onClick={() => { if (branchId)  
+        void loadData(Number(branchId), fromDate, toDate, searchQ, page); }}>
                                 <RefreshCw className="mr-1.5 h-3 w-3" /> Refresh
                             </Button>
                         </div>

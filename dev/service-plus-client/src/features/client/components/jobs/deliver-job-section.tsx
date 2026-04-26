@@ -1,9 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-    ArrowLeft,
+import {ArrowLeft,
     ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon,
-    Loader2, RefreshCw, Search, Truck,
-} from "lucide-react";
+    Loader2, RefreshCw, Search, Truck, X} from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 
@@ -88,7 +86,7 @@ type JobStatusRow = {
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const PAGE_SIZE   = 50;
-const DEBOUNCE_MS = 600;
+const DEBOUNCE_MS = 1200;
 
 const PAYMENT_MODES = ["Cash", "Card", "UPI", "Cheque", "Online Transfer", "Other"];
 
@@ -636,6 +634,15 @@ export const DeliverJobSection = () => {
                         value={search}
                         onChange={e => handleSearchChange(e.target.value)}
                     />
+                            {search && (
+                                <button
+                                    className="absolute right-2.5 top-1/2 flex h-4 w-4 -translate-y-1/2 items-center justify-center rounded-full bg-[var(--cl-text-muted)] text-[var(--cl-surface)] hover:bg-[var(--cl-text)] focus:outline-none"
+                                    type="button"
+                                    onClick={() => handleSearchChange("")}
+                                >
+                                    <X className="h-2.5 w-2.5" />
+                                </button>
+                            )}
                 </div>
                 <Button
                     className="h-8 px-2.5 text-xs"

@@ -1,4 +1,7 @@
-import { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
+import { useFormContext } from "react-hook-form";
+
+import type { SingleJobFormValues } from "./single-job-schema";
 import { Loader2, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
@@ -14,13 +17,12 @@ import { SQL_MAP } from "@/constants/sql-map";
 import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
-import { selectCurrentUser, selectDbName } from "@/features/auth/store/auth-slice";
+import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectSchema } from "@/store/context-slice";
-import type { DocumentSequenceRow, CustomerSearchRow } from "@/features/client/types/sales";
+import type { CustomerSearchRow } from "@/features/client/types/sales";
 import type { JobDetailType, JobLookupRow, ModelRow, TechnicianRow } from "@/features/client/types/job";
 import { CustomerInput } from "@/features/client/components/inventory/customer-input";
-import { JobImageUpload, type StagedFile } from "./job-image-upload";
-import { uploadJobFile } from "@/lib/image-service";
+import { JobImageUpload } from "./job-image-upload";
 import { SearchableCombobox } from "@/components/ui/searchable-combobox";
 import { AddModelDialog } from "@/features/client/components/masters/model/add-model-dialog";
 import { Button } from "@/components/ui/button";
@@ -32,88 +34,48 @@ import type { BrandOption, ProductOption } from "@/features/client/types/model";
 type GenericQueryData<T> = { genericQuery: T[] | null };
 
 type Props = {
-    branchId:        number | null;
-    docSequence:     DocumentSequenceRow | null;
-    jobStatuses:     JobLookupRow[];
-    jobTypes:        JobLookupRow[];
-    receiveMannners: JobLookupRow[];
+    branchId:          number | null;
+    jobStatuses:       JobLookupRow[];
+    jobTypes:          JobLookupRow[];
+    receiveMannners:   JobLookupRow[];
     receiveConditions: JobLookupRow[];
-    technicians:     TechnicianRow[];
-    models:          ModelRow[];
-    brands:          BrandOption[];
-    products:        ProductOption[];
-    customerTypes:   CustomerTypeOption[];
-    masterStates:    StateOption[];
-    editJob?:        JobDetailType | null;
-    onRefreshModels: () => void;
-    onSuccess:       () => void;
-    onStatusChange:  (status: { isValid: boolean; isSubmitting: boolean }) => void;
+    technicians:       TechnicianRow[];
+    models:            ModelRow[];
+    brands:            BrandOption[];
+    products:          ProductOption[];
+    customerTypes:     CustomerTypeOption[];
+    masterStates:      StateOption[];
+    editJob?:          JobDetailType | null;
+    onRefreshModels:   () => void;
 };
-
-export type NewSingleJobFormHandle = {
-    submit:       () => void;
-    reset:        () => void;
-    isSubmitting: boolean;
-    isValid:      boolean;
-};
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function today(): string {
-    return new Date().toISOString().slice(0, 10);
-}
-
-function buildJobNo(seq: DocumentSequenceRow): string {
-    return `${seq.prefix}${seq.separator}${String(seq.next_number).padStart(seq.padding, "0")}`;
-}
 
 const labelCls = "text-xs font-extrabold text-[var(--cl-text)] uppercase tracking-widest";
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export const NewSingleJobForm = forwardRef<NewSingleJobFormHandle, Props>(({
-    branchId, docSequence, jobStatuses, jobTypes, receiveMannners, receiveConditions, models, brands, products, customerTypes, masterStates, editJob,
-    onRefreshModels, onSuccess, onStatusChange,
-}, ref) => {
+export function NewSingleJobForm({
+    branchId, jobStatuses, jobTypes, receiveMannners, receiveConditions, models, brands, products, customerTypes, masterStates, editJob,
+    onRefreshModels,
+}: Props) {
     const dbName      = useAppSelector(selectDbName);
     const schema      = useAppSelector(selectSchema);
-    const currentUser = useAppSelector(selectCurrentUser);
-
-    // Header state
-    const [customerId,          setCustomerId]         = useState<number | null>(editJob?.customer_contact_id ?? null);
-    const [customerName,        setCustomerName]       = useState(editJob?.customer_name ?? "");
-    const [addressSnapshot,     setAddressSnapshot]    = useState(editJob?.address_snapshot ?? "");
-    const [jobDate,             setJobDate]            = useState(today());
-    const [jobTypeId,           setJobTypeId]          = useState<number | null>(editJob?.job_type_id ?? null);
-    const [receiveMannerId,     setReceiveMannerId]    = useState<number | null>(editJob?.job_receive_manner_id ?? null);
-    const [receiveConditionId,  setReceiveConditionId] = useState<number | null>(editJob?.job_receive_condition_id ?? null);
-    const [jobStatusId,         setJobStatusId]        = useState<number | null>(editJob?.job_status_id ?? null);
-    const [modelId,             setModelId]            = useState<number | null>(editJob?.product_brand_model_id ?? null);
-    const [serialNo,            setSerialNo]           = useState(editJob?.serial_no ?? "");
-    const [quantity,            setQuantity]           = useState(editJob?.quantity ?? 1);
-    const [problemReported,     setProblemReported]    = useState(editJob?.problem_reported ?? "");
-    const [warrantyCardNo,      setWarrantyCardNo]     = useState(editJob?.warranty_card_no ?? "");
-    const [remarks,             setRemarks]            = useState(editJob?.remarks ?? "");
-
-    const [submitting, setSubmitting] = useState(false);
-    const [showAddModel, setShowAddModel] = useState(false);
-    const [pendingAttachments, setPendingAttachments] = useState<StagedFile[]>([]);
-    const [stagedKey, setStagedKey] = useState(0);
-
+    const [showAddModel,       setShowAddModel]       = useState(false);
+    const form = useFormContext<SingleJobFormValues>();
+    const { formState: { errors, isSubmitting }, setValue, watch } = form;
+    const jobTypeId  = watch("job_type_id");
     const isWarranty = jobTypes.find(t => t.id === jobTypeId)?.code === "UNDER_WARRANTY";
 
     // Set initial job status on first load
     useEffect(() => {
         if (jobStatuses.length > 0 && !editJob) {
             const initial = jobStatuses.find(s => s.is_initial);
-            if (initial) setJobStatusId(initial.id);
+            if (initial) setValue("job_status_id", initial.id, { shouldValidate: false });
         }
-    }, [jobStatuses, editJob]);
+    }, [jobStatuses, editJob]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Populate form when editing
     useEffect(() => {
         if (!editJob) {
-            handleReset();
             return;
         }
         if (!dbName || !schema) return;
@@ -124,162 +86,35 @@ export const NewSingleJobForm = forwardRef<NewSingleJobFormHandle, Props>(({
                 db_name: dbName,
                 schema,
                 value: graphQlUtils.buildGenericQueryValue({
-                    sqlId: SQL_MAP.GET_JOB_DETAIL,
-                    sqlArgs: { id: editJob.id },
+                    sqlId:    SQL_MAP.GET_JOB_DETAIL,
+                    sqlArgs:  { id: editJob.id },
                 }),
             },
         }).then(res => {
             const d = res.data?.genericQuery?.[0];
             if (!d) return;
-            setCustomerId(d.customer_contact_id);
-            setCustomerName(d.customer_name ?? d.mobile ?? "");
-            setAddressSnapshot(d.address_snapshot ?? "");
-            setJobDate(d.job_date);
-            setJobTypeId(d.job_type_id);
-            setReceiveMannerId(d.job_receive_manner_id);
-            setReceiveConditionId(d.job_receive_condition_id ?? null);
-            setJobStatusId(d.job_status_id);
-            setModelId(d.product_brand_model_id ?? null);
-            setSerialNo(d.serial_no ?? "");
-            setQuantity(d.quantity);
-            setProblemReported(d.problem_reported);
-            setWarrantyCardNo(d.warranty_card_no ?? "");
-            setRemarks(d.remarks ?? "");
+            form.reset({
+                customer_id:          d.customer_contact_id ?? (undefined as unknown as number),
+                customer_name:        d.customer_name ?? d.mobile ?? "",
+                address_snapshot:     d.address_snapshot ?? "",
+                job_date:             d.job_date,
+                job_type_id:          d.job_type_id ?? (undefined as unknown as number),
+                receive_manner_id:    d.job_receive_manner_id ?? (undefined as unknown as number),
+                receive_condition_id: d.job_receive_condition_id ?? null,
+                job_status_id:        d.job_status_id ?? null,
+                model_id:             d.product_brand_model_id ?? null,
+                serial_no:            d.serial_no ?? "",
+                quantity:             d.quantity,
+                problem_reported:     d.problem_reported,
+                warranty_card_no:     d.warranty_card_no ?? "",
+                remarks:              d.remarks ?? "",
+            });
         }).catch(() => toast.error(MESSAGES.ERROR_JOB_LOAD_FAILED));
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [editJob, dbName, schema]);
 
-    const handleReset = () => {
-        setPendingAttachments([]);
-        setStagedKey((k) => k + 1);
-        setCustomerId(null);
-        setCustomerName("");
-        setAddressSnapshot("");
-        setJobDate(today());
-        const initial = jobStatuses.find(s => s.is_initial);
-        setJobStatusId(initial?.id ?? null);
-        setJobTypeId(null);
-        setReceiveMannerId(null);
-        setReceiveConditionId(null);
-        setModelId(null);
-        setSerialNo("");
-        setQuantity(1);
-        setProblemReported("");
-        setWarrantyCardNo("");
-        setRemarks("");
-    };
-
-    const isFormValid = useMemo(() => {
-        if (!customerId) return false;
-        if (!jobTypeId) return false;
-        if (!receiveMannerId) return false;
-        if (pendingAttachments.some((f) => !f.about.trim())) return false;
-        if (quantity < 1) return false;
-        return true;
-    }, [customerId, jobTypeId, receiveMannerId, pendingAttachments]);
-
-    const executeSave = async () => {
-        if (!branchId || !dbName || !schema) {
-            toast.error(MESSAGES.ERROR_JOB_CREATE_FAILED);
-            return;
-        }
-        setSubmitting(true);
-        try {
-            if (editJob) {
-                const payload = graphQlUtils.buildGenericUpdateValue({
-                    tableName: "job",
-                    xData: {
-                        id:                       editJob.id,
-                        customer_contact_id:      customerId,
-                        job_date:                 jobDate,
-                        job_type_id:              jobTypeId,
-                        job_receive_manner_id:    receiveMannerId,
-                        job_receive_condition_id: receiveConditionId ?? null,
-                        job_status_id:            jobStatusId,
-                        product_brand_model_id:   modelId ?? null,
-                        serial_no:                serialNo.trim() || null,
-                        quantity:                 quantity,
-                        problem_reported:         problemReported.trim(),
-                        warranty_card_no:         warrantyCardNo.trim() || null,
-                        remarks:                  remarks.trim() || null,
-                        address_snapshot:         addressSnapshot.trim() || null,
-                    },
-                });
-                await apolloClient.mutate({
-                    mutation: GRAPHQL_MAP.genericUpdate,
-                    variables: { db_name: dbName, schema, value: payload },
-                });
-                toast.success(MESSAGES.SUCCESS_JOB_UPDATED);
-            } else {
-                const jobNo = docSequence ? buildJobNo(docSequence) : "";
-                const sqlObject = {
-                    tableName:         "job",
-                    doc_sequence_id:   docSequence?.id ?? null,
-                    doc_sequence_next: docSequence ? (docSequence.next_number + 1) : null,
-                    xData: {
-                        branch_id:                branchId,
-                        job_no:                   jobNo,
-                        job_date:                 jobDate,
-                        customer_contact_id:      customerId,
-                        job_type_id:              jobTypeId,
-                        job_receive_manner_id:    receiveMannerId,
-                        job_receive_condition_id: receiveConditionId ?? null,
-                        job_status_id:            jobStatusId,
-                        product_brand_model_id:   modelId ?? null,
-                        serial_no:                serialNo.trim() || null,
-                        quantity:                 quantity,
-                        problem_reported:         problemReported.trim(),
-                        warranty_card_no:         warrantyCardNo.trim() || null,
-                        remarks:                  remarks.trim() || null,
-                        performed_by_user_id:     currentUser?.id ?? null,
-                        address_snapshot:         addressSnapshot.trim() || null,
-                    },
-                };
-                const encoded = encodeURIComponent(JSON.stringify(sqlObject));
-                const result = await apolloClient.mutate({
-                    mutation: GRAPHQL_MAP.createSingleJob,
-                    variables: { db_name: dbName, schema, value: encoded },
-                });
-                const newJobId = (result.data as { createSingleJob?: number })?.createSingleJob;
-                if (newJobId && pendingAttachments.length > 0) {
-                    for (const { file, about } of pendingAttachments) {
-                        try {
-                            await uploadJobFile(dbName, schema, newJobId, about, file);
-                        } catch (err: unknown) {
-                            toast.error(`Upload failed for "${about}": ${(err as Error).message}`);
-                        }
-                    }
-                }
-                toast.success(MESSAGES.SUCCESS_JOB_CREATED);
-            }
-            onSuccess();
-        } catch {
-            toast.error(editJob ? MESSAGES.ERROR_JOB_UPDATE_FAILED : MESSAGES.ERROR_JOB_CREATE_FAILED);
-        } finally {
-            setSubmitting(false);
-        }
-    };
-
-    const handleSubmit = async () => {
-        if (!branchId) { toast.error("Branch is not selected globally."); return; }
-        if (!customerId) { toast.error(MESSAGES.ERROR_JOB_CUSTOMER_REQUIRED); return; }
-        if (!jobTypeId) { toast.error(MESSAGES.ERROR_JOB_TYPE_REQUIRED); return; }
-        if (!receiveMannerId) { toast.error(MESSAGES.ERROR_JOB_RECEIVE_MANNER_REQUIRED); return; }
-        await executeSave();
-    };
-    useEffect(() => {
-        onStatusChange({ isValid: isFormValid, isSubmitting: submitting });
-    }, [isFormValid, submitting, onStatusChange]);
-
-    useImperativeHandle(ref, () => ({
-        submit:       () => { void handleSubmit(); },
-        reset:        handleReset,
-        isSubmitting: submitting,
-        isValid:      isFormValid,
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }), [submitting, isFormValid]);
-
-    // const initialStatus = jobStatuses.find(s => s.is_initial);
+    
+    // const hasAttachmentError = (form.watch("attachments") || []).some((f: { about: string }) => !f.about.trim());
 
     return (
         <motion.div
@@ -312,7 +147,7 @@ export const NewSingleJobForm = forwardRef<NewSingleJobFormHandle, Props>(({
                                 <Input
                                     readOnly
                                     className="bg-[var(--cl-surface-2)] font-mono text-[var(--cl-accent)] font-bold cursor-not-allowed opacity-80"
-                                    value={docSequence ? buildJobNo(docSequence) : (editJob?.job_no ?? "—")}
+                                    value={editJob?.job_no ?? "AUTO"}
                                 />
                             </div>
 
@@ -321,8 +156,7 @@ export const NewSingleJobForm = forwardRef<NewSingleJobFormHandle, Props>(({
                                 <Input
                                     className="bg-[var(--cl-surface-2)]"
                                     type="date"
-                                    value={jobDate}
-                                    onChange={e => setJobDate(e.target.value)}
+                                    {...form.register("job_date")}
                                 />
                             </div>
 
@@ -331,33 +165,27 @@ export const NewSingleJobForm = forwardRef<NewSingleJobFormHandle, Props>(({
                                     Customer <span className="text-red-500 ml-0.5">*</span>
                                 </Label>
                                 <CustomerInput
-                                    customerId={customerId}
-                                    customerName={customerName}
+                                    customerId={watch("customer_id") ?? null}
+                                    customerName={watch("customer_name") ?? ""}
                                     customerTypes={customerTypes}
                                     states={masterStates}
                                     onChange={name => {
-                                        setCustomerName(name);
-                                        if (!name.trim()) setCustomerId(null);
+                                        setValue("customer_name", name, { shouldValidate: false });
+                                        if (!name.trim()) setValue("customer_id", undefined as unknown as number, { shouldValidate: true });
                                     }}
-                                    onClear={() => { 
-                                        setCustomerId(null); 
-                                        setCustomerName(""); 
-                                        setAddressSnapshot("");
+                                    onClear={() => {
+                                        setValue("customer_id",      undefined as unknown as number, { shouldValidate: true });
+                                        setValue("customer_name",    "", { shouldValidate: false });
+                                        setValue("address_snapshot", "", { shouldValidate: false });
                                     }}
                                     onSelect={(c: CustomerSearchRow) => {
-                                        setCustomerId(c.id);
-                                        setCustomerName(c.full_name ?? c.mobile);
-                                        // Format address snapshot
-                                        const parts = [
-                                            c.address_line1,
-                                            c.address_line2,
-                                            c.city,
-                                            c.state_name,
-                                            c.postal_code
-                                        ].filter(Boolean);
-                                        setAddressSnapshot(parts.join(", "));
+                                        setValue("customer_id",   c.id,                          { shouldValidate: true });
+                                        setValue("customer_name", c.full_name ?? c.mobile,        { shouldValidate: false });
+                                        const parts = [c.address_line1, c.address_line2, c.city, c.state_name, c.postal_code].filter(Boolean);
+                                        setValue("address_snapshot", parts.join(", "),            { shouldValidate: false });
                                     }}
                                 />
+                                {errors.customer_id && <p className="mt-1 text-xs text-red-500">{errors.customer_id.message}</p>}
                             </div>
 
                             <div className="space-y-1.5 md:col-span-6 lg:col-span-6 xl:col-span-3">
@@ -365,9 +193,9 @@ export const NewSingleJobForm = forwardRef<NewSingleJobFormHandle, Props>(({
                                     Receive Manner <span className="text-red-500 ml-0.5">*</span>
                                 </Label>
                                 <select
-                                    className={`w-full h-9 rounded-md border text-sm px-2 bg-[var(--cl-surface-2)] text-[var(--cl-text)] ${!receiveMannerId ? "border-red-400" : "border-[var(--cl-border)]"}`}
-                                    value={receiveMannerId ?? ""}
-                                    onChange={e => setReceiveMannerId(e.target.value ? Number(e.target.value) : null)}
+                                    className={`w-full h-9 rounded-md border text-sm px-2 bg-[var(--cl-surface-2)] text-[var(--cl-text)] ${!watch("receive_manner_id") ? "border-red-400" : "border-[var(--cl-border)]"}`}
+                                    value={watch("receive_manner_id") ?? ""}
+                                    onChange={e => setValue("receive_manner_id", e.target.value ? Number(e.target.value) : (undefined as unknown as number), { shouldValidate: true })}
                                 >
                                     <option value="">Select…</option>
                                     {receiveMannners.filter(r => r.is_active).map(r => (
@@ -382,13 +210,13 @@ export const NewSingleJobForm = forwardRef<NewSingleJobFormHandle, Props>(({
                                     Job Type <span className="text-red-500 ml-0.5">*</span>
                                 </Label>
                                 <select
-                                    className={`w-full h-9 rounded-md border text-sm px-2 bg-[var(--cl-surface-2)] text-[var(--cl-text)] ${!jobTypeId ? "border-red-400" : "border-[var(--cl-border)]"}`}
-                                    value={jobTypeId ?? ""}
+                                    className={`w-full h-9 rounded-md border text-sm px-2 bg-[var(--cl-surface-2)] text-[var(--cl-text)] ${!watch("job_type_id") ? "border-red-400" : "border-[var(--cl-border)]"}`}
+                                    value={watch("job_type_id") ?? ""}
                                     onChange={e => {
-                                        const newId = e.target.value ? Number(e.target.value) : null;
+                                        const newId   = e.target.value ? Number(e.target.value) : (undefined as unknown as number);
                                         const newCode = jobTypes.find(t => t.id === newId)?.code;
-                                        if (newCode !== "UNDER_WARRANTY") setWarrantyCardNo("");
-                                        setJobTypeId(newId);
+                                        if (newCode !== "UNDER_WARRANTY") setValue("warranty_card_no", "", { shouldValidate: false });
+                                        setValue("job_type_id", newId, { shouldValidate: true });
                                     }}
                                 >
                                     <option value="">Select…</option>
@@ -402,8 +230,8 @@ export const NewSingleJobForm = forwardRef<NewSingleJobFormHandle, Props>(({
                                 <Label className={labelCls}>Receive Condition</Label>
                                 <select
                                     className="w-full h-9 rounded-md border border-[var(--cl-border)] text-sm px-2 bg-[var(--cl-surface-2)] text-[var(--cl-text)]"
-                                    value={receiveConditionId ?? ""}
-                                    onChange={e => setReceiveConditionId(e.target.value ? Number(e.target.value) : null)}
+                                    value={watch("receive_condition_id") ?? ""}
+                                    onChange={e => setValue("receive_condition_id", e.target.value ? Number(e.target.value) : null, { shouldValidate: false })}
                                 >
                                     <option value="">None</option>
                                     {receiveConditions.filter(r => r.is_active).map(r => (
@@ -419,11 +247,11 @@ export const NewSingleJobForm = forwardRef<NewSingleJobFormHandle, Props>(({
                                             label="Product / Model"
                                             placeholder="Search by brand, product or model…"
                                             items={models.filter(m => m.is_active)}
-                                            selectedValue={modelId?.toString() ?? ""}
+                                            selectedValue={watch("model_id")?.toString() ?? ""}
                                             getDisplayValue={m => `${m.brand_name} — ${m.product_name} — ${m.model_name}`}
                                             getFilterKey={m => `${m.brand_name} ${m.product_name} ${m.model_name}`}
                                             getIdentifier={m => m.id.toString()}
-                                            onSelect={m => setModelId(m ? m.id : null)}
+                                            onSelect={m => setValue("model_id", m ? m.id : null, { shouldValidate: false })}
                                             renderItem={m => (
                                                 <div className="flex flex-col gap-0.5">
                                                     <span className="font-semibold">{m.brand_name}</span>
@@ -449,11 +277,10 @@ export const NewSingleJobForm = forwardRef<NewSingleJobFormHandle, Props>(({
                                     Qty <span className="text-red-500 ml-0.5">*</span>
                                 </Label>
                                 <Input
-                                    className={`bg-[var(--cl-surface-2)] ${quantity < 1 ? "border-red-400" : ""}`}
+                                    className={`bg-[var(--cl-surface-2)] ${errors.quantity ? "border-red-400" : ""}`}
                                     type="number"
                                     min={1}
-                                    value={quantity}
-                                    onChange={e => setQuantity(Math.max(1, Number(e.target.value)))}
+                                    {...form.register("quantity", { valueAsNumber: true })}
                                 />
                             </div>
 
@@ -463,8 +290,7 @@ export const NewSingleJobForm = forwardRef<NewSingleJobFormHandle, Props>(({
                                 <Input
                                     className="bg-[var(--cl-surface-2)]"
                                     placeholder="Optional…"
-                                    value={serialNo}
-                                    onChange={e => setSerialNo(e.target.value)}
+                                    {...form.register("serial_no")}
                                 />
                             </div>
 
@@ -474,8 +300,7 @@ export const NewSingleJobForm = forwardRef<NewSingleJobFormHandle, Props>(({
                                     disabled={!isWarranty}
                                     className={`bg-[var(--cl-surface-2)] ${!isWarranty ? "opacity-50 cursor-not-allowed" : ""}`}
                                     placeholder={isWarranty ? "Card number…" : "N/A"}
-                                    value={warrantyCardNo}
-                                    onChange={e => setWarrantyCardNo(e.target.value)}
+                                    {...form.register("warranty_card_no")}
                                 />
                             </div>
 
@@ -486,8 +311,7 @@ export const NewSingleJobForm = forwardRef<NewSingleJobFormHandle, Props>(({
                                     rows={3}
                                     className="bg-[var(--cl-surface-2)] resize-none border-[var(--cl-border)]"
                                     placeholder="Describe the problem reported by the customer (optional)…"
-                                    value={problemReported}
-                                    onChange={e => setProblemReported(e.target.value)}
+                                    {...form.register("problem_reported")}
                                 />
                             </div>
 
@@ -498,8 +322,7 @@ export const NewSingleJobForm = forwardRef<NewSingleJobFormHandle, Props>(({
                                     rows={3}
                                     className="bg-[var(--cl-surface-2)] resize-none"
                                     placeholder="Optional…"
-                                    value={remarks}
-                                    onChange={e => setRemarks(e.target.value)}
+                                    {...form.register("remarks")}
                                 />
                             </div>
 
@@ -508,14 +331,14 @@ export const NewSingleJobForm = forwardRef<NewSingleJobFormHandle, Props>(({
                                 <Label className={labelCls}>Attachments</Label>
                                 {editJob
                                     ? <JobImageUpload jobId={editJob.id} />
-                                    : <JobImageUpload key={stagedKey} onPendingChange={setPendingAttachments} />
+                                    : <JobImageUpload onPendingChange={a => form.setValue("attachments", a, { shouldValidate: true })} />
                                 }
                             </div>
 
                         </CardContent>
                     </Card>
 
-                    {submitting && (
+                    {isSubmitting && (
                         <div className="flex items-center justify-center gap-2 py-2 text-sm text-[var(--cl-text-muted)]">
                             <Loader2 className="h-4 w-4 animate-spin" /> Saving…
                         </div>
@@ -532,6 +355,4 @@ export const NewSingleJobForm = forwardRef<NewSingleJobFormHandle, Props>(({
             />
         </motion.div>
     );
-});
-
-NewSingleJobForm.displayName = "NewSingleJobForm";
+}

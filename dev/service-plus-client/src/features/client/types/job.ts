@@ -9,6 +9,7 @@ export type JobListRow = {
     technician_name:   string | null;
     amount:            number | null;
     is_closed:         boolean;
+    device_details:    string | null;
 };
 
 export type JobDetailType = {

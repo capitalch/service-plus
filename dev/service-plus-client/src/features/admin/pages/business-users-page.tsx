@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import {
-    LinkIcon,
+import {LinkIcon,
     MailIcon,
     MoreHorizontalIcon,
     PencilIcon,
@@ -10,8 +9,7 @@ import {
     SearchIcon,
     Trash2Icon,
     UserCheckIcon,
-    UserXIcon,
-} from "lucide-react";
+    UserXIcon, X} from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -173,6 +171,15 @@ export const BusinessUsersPage = () => {
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                     />
+                            {search && (
+                                <button
+                                    className="absolute right-2.5 top-1/2 flex h-4 w-4 -translate-y-1/2 items-center justify-center rounded-full bg-[var(--cl-text-muted)] text-[var(--cl-surface)] hover:bg-[var(--cl-text)] focus:outline-none"
+                                    type="button"
+                                    onClick={() => setSearch("")}
+                                >
+                                    <X className="h-2.5 w-2.5" />
+                                </button>
+                            )}
                 </div>
 
                 {/* Skeleton */}

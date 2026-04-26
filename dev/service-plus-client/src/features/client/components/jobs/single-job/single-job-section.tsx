@@ -1,11 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-    Briefcase, ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon, Eye,
-    Loader2, MoreHorizontal, Pencil, Printer, RefreshCw, Save, Search, Trash2
-} from "lucide-react";
+import {Briefcase, ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon, Eye,
+    Loader2, MoreHorizontal, Pencil, Printer, RefreshCw, Save, Search, Trash2, X} from "lucide-react";
 import { SingleJobViewModal } from "./single-job-view-modal";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
+
+
+import { useForm, FormProvider } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { singleJobFormSchema, type SingleJobFormValues, getSingleJobDefaultValues, buildJobNo } from "./single-job-schema";
+import { uploadJobFile } from "@/lib/image-service";
+import { selectCurrentUser } from "@/features/auth/store/auth-slice";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -22,7 +27,7 @@ import { MESSAGES } from "@/constants/messages";
 import { SQL_MAP } from "@/constants/sql-map";
 import { apolloClient } from "@/lib/apollo-client";
 import { encodeObj, graphQlUtils } from "@/lib/graphql-utils";
-import { currentFinancialYearRange } from "@/lib/utils";
+
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectCurrentBranch, selectSchema } from "@/store/context-slice";
@@ -31,7 +36,7 @@ import type { JobDetailType, JobListRow, JobLookupRow, ModelRow, TechnicianRow }
 import type { CustomerTypeOption, StateOption } from "@/features/client/types/customer";
 import type { BrandOption, ProductOption } from "@/features/client/types/model";
 
-import { NewSingleJobForm, type NewSingleJobFormHandle } from "./new-single-job-form";
+import { NewSingleJobForm } from "./new-single-job-form";
 import { getJobSheetBlobUrl, type CompanyInfoType } from "./single-job-sheet-pdf";
 import { PdfPreviewModal } from "@/components/shared/pdf-preview-modal";
 
@@ -41,8 +46,8 @@ type GenericQueryData<T> = { genericQuery: T[] | null };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const PAGE_SIZE   = 50;
-const DEBOUNCE_MS = 600;
+const PAGE_SIZE = 50;
+const DEBOUNCE_MS = 1200;
 
 const thClass = "sticky top-0 z-20 text-xs font-semibold uppercase tracking-wide text-[var(--cl-text-muted)] p-3 text-left border-b border-[var(--cl-border)] bg-[var(--cl-surface-2)]";
 const tdClass = "p-3 text-sm text-[var(--cl-text)] border-b border-[var(--cl-border)]";
@@ -50,45 +55,41 @@ const tdClass = "p-3 text-sm text-[var(--cl-text)] border-b border-[var(--cl-bor
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export const SingleJobSection = () => {
-    const dbName       = useAppSelector(selectDbName);
-    const schema       = useAppSelector(selectSchema);
+    const dbName = useAppSelector(selectDbName);
+    const schema = useAppSelector(selectSchema);
     const globalBranch = useAppSelector(selectCurrentBranch);
-    const branchId     = globalBranch?.id ?? null;
-
-    const { from: defaultFrom, to: defaultTo } = currentFinancialYearRange();
+    const branchId = globalBranch?.id ?? null;
 
     // Filters
-    const [fromDate, setFromDate] = useState(defaultFrom);
-    const [toDate,   setToDate]   = useState(defaultTo);
-    const [search,   setSearch]   = useState("");
-    const [searchQ,  setSearchQ]  = useState("");
+    const [search, setSearch] = useState("");
+    const [searchQ, setSearchQ] = useState("");
 
     // Mode
     const [mode, setMode] = useState<ViewMode>("new");
 
     // Metadata
-    const [jobStatuses,       setJobStatuses]       = useState<JobLookupRow[]>([]);
-    const [jobTypes,          setJobTypes]          = useState<JobLookupRow[]>([]);
-    const [receiveMannners,   setReceiveManners]    = useState<JobLookupRow[]>([]);
+    const [jobStatuses, setJobStatuses] = useState<JobLookupRow[]>([]);
+    const [jobTypes, setJobTypes] = useState<JobLookupRow[]>([]);
+    const [receiveMannners, setReceiveManners] = useState<JobLookupRow[]>([]);
     const [receiveConditions, setReceiveConditions] = useState<JobLookupRow[]>([]);
-    const [technicians,       setTechnicians]       = useState<TechnicianRow[]>([]);
-    const [models,            setModels]            = useState<ModelRow[]>([]);
-    const [brands,            setBrands]            = useState<BrandOption[]>([]);
-    const [products,          setProducts]          = useState<ProductOption[]>([]);
-    const [customerTypes,     setCustomerTypes]     = useState<CustomerTypeOption[]>([]);
-    const [masterStates,      setMasterStates]      = useState<StateOption[]>([]);
-    const [docSequences,      setDocSequences]      = useState<DocumentSequenceRow[]>([]);
-    const [companyInfo,       setCompanyInfo]       = useState<CompanyInfoType | null>(null);
+    const [technicians, setTechnicians] = useState<TechnicianRow[]>([]);
+    const [models, setModels] = useState<ModelRow[]>([]);
+    const [brands, setBrands] = useState<BrandOption[]>([]);
+    const [products, setProducts] = useState<ProductOption[]>([]);
+    const [customerTypes, setCustomerTypes] = useState<CustomerTypeOption[]>([]);
+    const [masterStates, setMasterStates] = useState<StateOption[]>([]);
+    const [docSequences, setDocSequences] = useState<DocumentSequenceRow[]>([]);
+    const [companyInfo, setCompanyInfo] = useState<CompanyInfoType | null>(null);
 
     // Data
-    const [jobs,    setJobs]    = useState<JobListRow[]>([]);
-    const [total,   setTotal]   = useState(0);
-    const [page,    setPage]    = useState(1);
+    const [jobs, setJobs] = useState<JobListRow[]>([]);
+    const [total, setTotal] = useState(0);
+    const [page, setPage] = useState(1);
     const [loading, setLoading] = useState(false);
 
     // Dialogs
-    const [deleteId,  setDeleteId]  = useState<number | null>(null);
-    const [deleting,  setDeleting]  = useState(false);
+    const [deleteId, setDeleteId] = useState<number | null>(null);
+    const [deleting, setDeleting] = useState(false);
 
     // Edit / View
     const [editJob, setEditJob] = useState<JobDetailType | null>(null);
@@ -96,15 +97,118 @@ export const SingleJobSection = () => {
 
     // PDF Preview
     const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
-    const [pdfFilename,   setPdfFilename]   = useState<string>("Job-Sheet.pdf");
-    const [showPdfModal,  setShowPdfModal]  = useState(false);
+    const [pdfFilename, setPdfFilename] = useState<string>("Job-Sheet.pdf");
+    const [showPdfModal, setShowPdfModal] = useState(false);
 
     // Form
-    const singleJobRef      = useRef<NewSingleJobFormHandle>(null);
-    const [newFormValid, setNewFormValid] = useState(false);
-    const [submitting,   setSubmitting]  = useState(false);
+    const [submitting, setSubmitting] = useState(false);
+    const currentUser = useAppSelector(selectCurrentUser);
 
-    const debounceRef      = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const form = useForm<SingleJobFormValues>({
+        defaultValues: getSingleJobDefaultValues(),
+        mode: "onChange",
+        resolver: zodResolver(singleJobFormSchema) as unknown as any, // eslint-disable-line @typescript-eslint/no-explicit-any
+    });
+
+    const executeSave = async (values: SingleJobFormValues) => {
+        if (!branchId || !dbName || !schema) {
+            toast.error(MESSAGES.ERROR_JOB_CREATE_FAILED);
+            return;
+        }
+        const pendingAttachments = values.attachments || [];
+        if (pendingAttachments.some((f: { about: string }) => !f.about.trim())) {
+            toast.error("Please fill in the 'About' field for all attachments.");
+            return;
+        }
+        setSubmitting(true);
+        try {
+            if (editJob) {
+                const payload = graphQlUtils.buildGenericUpdateValue({
+                    tableName: "job",
+                    xData: {
+                        id:                       editJob.id,
+                        customer_contact_id:      values.customer_id,
+                        job_date:                 values.job_date,
+                        job_type_id:              values.job_type_id,
+                        job_receive_manner_id:    values.receive_manner_id,
+                        job_receive_condition_id: values.receive_condition_id ?? null,
+                        job_status_id:            values.job_status_id ?? null,
+                        product_brand_model_id:   values.model_id ?? null,
+                        serial_no:                values.serial_no?.trim() || null,
+                        quantity:                 values.quantity,
+                        problem_reported:         values.problem_reported?.trim() ?? "",
+                        warranty_card_no:         values.warranty_card_no?.trim() || null,
+                        remarks:                  values.remarks?.trim() || null,
+                        address_snapshot:         values.address_snapshot?.trim() || null,
+                    },
+                });
+                await apolloClient.mutate({
+                    mutation:  GRAPHQL_MAP.genericUpdate,
+                    variables: { db_name: dbName, schema, value: payload },
+                });
+                toast.success(MESSAGES.SUCCESS_JOB_UPDATED);
+            } else {
+                const jobSequence = docSequences.find(s => s.document_type_code === "JOB") ?? null;
+                const receivedStatusId = jobStatuses.find(s => s.code === "RECEIVED")?.id ?? null;
+                const jobNo = jobSequence ? buildJobNo(jobSequence.prefix, jobSequence.separator, jobSequence.next_number, jobSequence.padding) : "";
+                const sqlObject = {
+                    tableName:         "job",
+                    doc_sequence_id:   jobSequence?.id ?? null,
+                    doc_sequence_next: jobSequence ? (jobSequence.next_number + 1) : null,
+                    xData: {
+                        branch_id:                branchId,
+                        job_no:                   jobNo,
+                        job_date:                 values.job_date,
+                        customer_contact_id:      values.customer_id,
+                        job_type_id:              values.job_type_id,
+                        job_receive_manner_id:    values.receive_manner_id,
+                        job_receive_condition_id: values.receive_condition_id ?? null,
+                        job_status_id:            receivedStatusId,
+                        product_brand_model_id:   values.model_id ?? null,
+                        serial_no:                values.serial_no?.trim() || null,
+                        quantity:                 values.quantity,
+                        problem_reported:         values.problem_reported?.trim() ?? "",
+                        warranty_card_no:         values.warranty_card_no?.trim() || null,
+                        remarks:                  values.remarks?.trim() || null,
+                        performed_by_user_id:     currentUser?.id ?? null,
+                        address_snapshot:         values.address_snapshot?.trim() || null,
+                    },
+                };
+                const encoded  = encodeURIComponent(JSON.stringify(sqlObject));
+                const result   = await apolloClient.mutate({
+                    mutation:  GRAPHQL_MAP.createSingleJob,
+                    variables: { db_name: dbName, schema, value: encoded },
+                });
+                const newJobId = (result.data as { createSingleJob?: number })?.createSingleJob;
+                if (newJobId && pendingAttachments.length > 0) {
+                    for (const { file, about } of pendingAttachments) {
+                        try {
+                            await uploadJobFile(dbName, schema, newJobId, about, file);
+                        } catch (err: unknown) {
+                            toast.error(`Upload failed for "${about}": ${(err as Error).message}`);
+                        }
+                    }
+                }
+                toast.success(MESSAGES.SUCCESS_JOB_CREATED);
+            }
+            form.reset(getSingleJobDefaultValues());
+            // call onSuccess manually
+            if (editJob) {
+                setEditJob(null);
+                setMode("view");
+                if (branchId) void loadData(Number(branchId), searchQ, 1);
+            } else {
+                refreshDocSequences();
+            }
+        } catch {
+            toast.error(editJob ? MESSAGES.ERROR_JOB_UPDATE_FAILED : MESSAGES.ERROR_JOB_CREATE_FAILED);
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+
+    const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const scrollWrapperRef = useRef<HTMLDivElement>(null);
     const [maxHeight, setMaxHeight] = useState(0);
 
@@ -134,8 +238,6 @@ export const SingleJobSection = () => {
             setModels(res.data?.genericQuery ?? []);
         } catch { /* ignore */ }
     }, [dbName, schema]);
-
-    const jobSequence = docSequences.find(ds => ds.document_type_code === "JOB") ?? null;
 
     // Load metadata on mount
     useEffect(() => {
@@ -210,7 +312,7 @@ export const SingleJobSection = () => {
                 setProducts(prodRes.data?.genericQuery ?? []);
                 setCustomerTypes(custTypeRes.data?.genericQuery ?? []);
                 setMasterStates((stateRes.data?.genericQuery ?? []).map(s => ({
-                    id: s.id, code: (s as any).gst_state_code ?? s.code, name: s.name,
+                    id: s.id, code: (s as { gst_state_code?: string }).gst_state_code ?? s.code, name: s.name,
                 })));
                 setCompanyInfo(compRes.data?.genericQuery?.[0] ?? null);
             } catch {
@@ -233,14 +335,14 @@ export const SingleJobSection = () => {
                     sqlArgs: { branch_id: branchId },
                 }),
             },
-        }).then(res => setDocSequences(res.data?.genericQuery ?? [])).catch(() => {});
+        }).then(res => setDocSequences(res.data?.genericQuery ?? [])).catch(() => { });
     }, [dbName, schema, branchId]);
 
-    const loadData = useCallback(async (bId: number, from: string, to: string, q: string, pg: number) => {
+    const loadData = useCallback(async (bId: number, q: string, pg: number) => {
         if (!dbName || !schema) return;
         setLoading(true);
         try {
-            const commonArgs = { branch_id: bId, from_date: from, to_date: to, search: q };
+            const commonArgs = { branch_id: bId, search: q, from_date: "2000-01-01", to_date: "3000-12-31" };
             const [dataRes, countRes] = await Promise.all([
                 apolloClient.query<GenericQueryData<JobListRow>>({
                     fetchPolicy: "network-only",
@@ -276,17 +378,13 @@ export const SingleJobSection = () => {
 
     useEffect(() => {
         if (!branchId || mode !== "view") return;
-        void loadData(Number(branchId), fromDate, toDate, searchQ, page);
-    }, [branchId, fromDate, toDate, searchQ, page, loadData, mode]);
+        void loadData(Number(branchId), searchQ, page);
+    }, [branchId, searchQ, page, loadData, mode]);
 
     const handleSearchChange = (value: string) => {
         setSearch(value);
         if (debounceRef.current) clearTimeout(debounceRef.current);
         debounceRef.current = setTimeout(() => { setPage(1); setSearchQ(value); }, DEBOUNCE_MS);
-    };
-
-    const handleFilterChange = (setter: (v: string) => void) => (v: string) => {
-        setter(v); setPage(1);
     };
 
     const handleDelete = async () => {
@@ -300,7 +398,7 @@ export const SingleJobSection = () => {
             });
             toast.success(MESSAGES.SUCCESS_JOB_DELETED);
             setDeleteId(null);
-            if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, page);
+            if (branchId) void loadData(Number(branchId), searchQ, page);
         } catch {
             toast.error(MESSAGES.ERROR_JOB_DELETE_FAILED);
         } finally {
@@ -320,7 +418,7 @@ export const SingleJobSection = () => {
                     sqlArgs: { branch_id: branchId },
                 }),
             },
-        }).then(res => setDocSequences(res.data?.genericQuery ?? [])).catch(() => {});
+        }).then(res => setDocSequences(res.data?.genericQuery ?? [])).catch(() => { });
     };
 
     const handleViewJob = async (job: JobListRow) => {
@@ -412,7 +510,7 @@ export const SingleJobSection = () => {
                         <h1 className="text-lg font-bold text-[var(--cl-text)] truncate">
                             Single Job
                             {mode === "new" && !editJob && <span className="ml-2 text-sm font-medium text-[var(--cl-text-muted)] whitespace-nowrap">— New</span>}
-                            {mode === "new" &&  editJob && <span className="ml-2 text-sm font-medium text-amber-500 whitespace-nowrap">— Edit</span>}
+                            {mode === "new" && editJob && <span className="ml-2 text-sm font-medium text-amber-500 whitespace-nowrap">— Edit</span>}
                             {mode === "view" && <span className="ml-2 text-sm font-medium text-[var(--cl-text-muted)] whitespace-nowrap">— View</span>}
                         </h1>
                         {mode === "view" && (
@@ -432,7 +530,6 @@ export const SingleJobSection = () => {
                     onViewClick={() => {
                         setEditJob(null);
                         setMode("view");
-                        if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, page);
                     }}
                 />
 
@@ -442,15 +539,15 @@ export const SingleJobSection = () => {
                         className="h-8 gap-1.5 px-3 text-xs font-extrabold uppercase tracking-widest text-[var(--cl-text)]"
                         disabled={submitting}
                         variant="ghost"
-                        onClick={() => { setEditJob(null); singleJobRef.current?.reset(); }}
+                        onClick={() => { setEditJob(null); }}
                     >
                         <RefreshCw className={`h-3.5 w-3.5 ${submitting ? "animate-spin" : ""}`} />
                         Reset
                     </Button>
                     <Button
                         className="h-8 gap-1.5 px-4 text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm font-extrabold uppercase tracking-widest transition-all disabled:opacity-30 disabled:bg-slate-300 disabled:text-slate-600 disabled:shadow-none disabled:cursor-not-allowed"
-                        disabled={!newFormValid || submitting}
-                        onClick={() => singleJobRef.current?.submit()}
+                        disabled={!form.formState.isValid || submitting}
+                        onClick={form.handleSubmit(executeSave)}
                     >
                         {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
                         Save Job
@@ -460,10 +557,10 @@ export const SingleJobSection = () => {
 
             {mode === "new" ? (
                 <div className="flex-1 overflow-y-auto">
-                    <NewSingleJobForm
-                        ref={singleJobRef}
+                    <FormProvider {...form}>
+                        <NewSingleJobForm
                         branchId={branchId}
-                        docSequence={editJob ? null : jobSequence}
+                        
                         jobStatuses={jobStatuses}
                         jobTypes={jobTypes}
                         receiveMannners={receiveMannners}
@@ -476,52 +573,31 @@ export const SingleJobSection = () => {
                         masterStates={masterStates}
                         editJob={editJob}
                         onRefreshModels={refreshModels}
-                        onSuccess={() => {
-                            if (editJob) {
-                                setEditJob(null);
-                                setMode("view");
-                                if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, 1);
-                            } else {
-                                singleJobRef.current?.reset();
-                                refreshDocSequences();
-                            }
-                        }}
-                        onStatusChange={status => {
-                            setNewFormValid(status.isValid);
-                            setSubmitting(status.isSubmitting);
-                        }}
                     />
+                    </FormProvider>
                 </div>
             ) : (
                 <>
                     {/* Toolbar */}
                     <div className="flex flex-wrap items-center gap-2 px-4 py-2 bg-[var(--cl-surface-2)]/30">
-                        <div className="flex items-center gap-1">
-                            <Input
-                                className="h-8 w-32 border-[var(--cl-border)] bg-[var(--cl-surface)] text-xs"
-                                disabled={loading}
-                                type="date"
-                                value={fromDate}
-                                onChange={e => handleFilterChange(setFromDate)(e.target.value)}
-                            />
-                            <span className="text-[var(--cl-text-muted)] text-xs">—</span>
-                            <Input
-                                className="h-8 w-32 border-[var(--cl-border)] bg-[var(--cl-surface)] text-xs"
-                                disabled={loading}
-                                type="date"
-                                value={toDate}
-                                onChange={e => handleFilterChange(setToDate)(e.target.value)}
-                            />
-                        </div>
-                        <div className="relative flex-1 sm:max-w-xs">
+                        <div className="relative flex-1 sm:max-w-md">
                             <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--cl-text-muted)]" />
                             <Input
                                 className="h-8 border-[var(--cl-border)] bg-[var(--cl-surface)] pl-8 text-xs"
                                 disabled={loading}
-                                placeholder="Job no, customer or mobile…"
+                                placeholder="Job no, customer, mobile, model, brand, sl no"
                                 value={search}
                                 onChange={e => handleSearchChange(e.target.value)}
                             />
+                            {search && (
+                                <button
+                                    className="absolute right-2.5 top-1/2 flex h-4 w-4 -translate-y-1/2 items-center justify-center rounded-full bg-[var(--cl-text-muted)] text-[var(--cl-surface)] hover:bg-[var(--cl-text)] focus:outline-none"
+                                    type="button"
+                                    onClick={() => handleSearchChange("")}
+                                >
+                                    <X className="h-2.5 w-2.5" />
+                                </button>
+                            )}
                         </div>
                         <div className="ml-auto">
                             <Button
@@ -529,7 +605,7 @@ export const SingleJobSection = () => {
                                 disabled={loading || !branchId}
                                 size="sm"
                                 variant="outline"
-                                onClick={() => { if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, page); }}
+                                onClick={() => { if (branchId) void loadData(Number(branchId), searchQ, page); }}
                             >
                                 <RefreshCw className="mr-1.5 h-3 w-3" />
                                 Refresh
@@ -548,7 +624,7 @@ export const SingleJobSection = () => {
                                 <table className="min-w-full border-collapse">
                                     <thead>
                                         <tr className="bg-[var(--cl-surface-2)]">
-                                            {["#", "Date", "Job No", "Customer", "Mobile", "Job Type", "Status", "Technician", "Amount", "Actions"].map(h => (
+                                            {["#", "Date", "Job", "Customer", "Mobile", "Device Details", "Job Type", "Status", "Technician", "Amount", "Actions"].map(h => (
                                                 <th key={h} className={thClass}>{h}</th>
                                             ))}
                                         </tr>
@@ -556,7 +632,7 @@ export const SingleJobSection = () => {
                                     <tbody>
                                         {Array.from({ length: 12 }).map((_, i) => (
                                             <tr key={i} className="animate-pulse">
-                                                {Array.from({ length: 10 }).map((__, j) => (
+                                                {Array.from({ length: 11 }).map((__, j) => (
                                                     <td key={j} className={tdClass}><div className="h-4 w-16 rounded bg-[var(--cl-border)]" /></td>
                                                 ))}
                                             </tr>
@@ -572,10 +648,11 @@ export const SingleJobSection = () => {
                                     <thead className="sticky top-0 z-10">
                                         <tr>
                                             <th className={thClass}>#</th>
-                                            <th className={thClass}>Date</th>
-                                            <th className={thClass}>Job No</th>
+                                            <th className={`${thClass} whitespace-nowrap`}>Date</th>
+                                            <th className={thClass}>Job</th>
                                             <th className={thClass}>Customer</th>
                                             <th className={thClass}>Mobile</th>
+                                            <th className={`${thClass} w-[10rem]`}>Device Details</th>
                                             <th className={thClass}>Job Type</th>
                                             <th className={thClass}>Status</th>
                                             <th className={thClass}>Technician</th>
@@ -589,7 +666,7 @@ export const SingleJobSection = () => {
                                                 <td className={`${tdClass} text-[var(--cl-text-muted)]`}>
                                                     {(page - 1) * PAGE_SIZE + idx + 1}
                                                 </td>
-                                                <td className={tdClass}>{job.job_date}</td>
+                                                <td className={`${tdClass} whitespace-nowrap`}>{job.job_date}</td>
                                                 <td className={`${tdClass} font-mono font-medium text-[var(--cl-accent)]`}>
                                                     {job.job_no}
                                                     {job.is_closed && (
@@ -598,6 +675,7 @@ export const SingleJobSection = () => {
                                                 </td>
                                                 <td className={tdClass}>{job.customer_name ?? "—"}</td>
                                                 <td className={`${tdClass} font-mono text-xs`}>{job.mobile}</td>
+                                                <td className={`${tdClass} text-xs`}>{job.device_details || "—"}</td>
                                                 <td className={tdClass}>{job.job_type_name}</td>
                                                 <td className={tdClass}>
                                                     <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-[var(--cl-accent)]/10 text-[var(--cl-accent)]">

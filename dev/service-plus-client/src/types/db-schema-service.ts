@@ -351,7 +351,7 @@ export interface Job {
   last_transaction_id: number | null;
   is_final: boolean;
   quantity: number;
-  batch_no: number;
+  batch_no: number | null;
 }
 export interface JobInput {
   id: number;
@@ -381,12 +381,12 @@ export interface JobInput {
   last_transaction_id?: number | null;
   is_final?: boolean;
   quantity?: number;
-  batch_no: number;
+  batch_no?: number | null;
 }
 const job = {
   tableName: 'job',
   columns: ['id', 'job_no', 'job_date', 'customer_contact_id', 'branch_id', 'technician_id', 'job_status_id', 'job_type_id', 'job_receive_manner_id', 'job_receive_condition_id', 'product_brand_model_id', 'serial_no', 'problem_reported', 'diagnosis', 'work_done', 'remarks', 'amount', 'delivery_date', 'is_closed', 'warranty_card_no', 'is_active', 'created_at', 'updated_at', 'address_snapshot', 'last_transaction_id', 'is_final', 'quantity', 'batch_no'],
-  requiredForInsert: ['id', 'job_no', 'customer_contact_id', 'branch_id', 'job_status_id', 'job_type_id', 'job_receive_manner_id', 'batch_no'],
+  requiredForInsert: ['id', 'job_no', 'customer_contact_id', 'branch_id', 'job_status_id', 'job_type_id', 'job_receive_manner_id'],
   primaryKey: 'id',
   foreignKeys: {
     customer_contact_id: { table: 'customer_contact', column: 'id', $type: null as unknown as CustomerContact },

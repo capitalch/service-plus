@@ -1,8 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-    ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon,
-    DollarSign, Loader2, Pencil, RefreshCw, Save, Search, Trash2,
-} from "lucide-react";
+import {ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon,
+    DollarSign, Loader2, Pencil, RefreshCw, Save, Search, Trash2, X} from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 
@@ -21,7 +19,10 @@ import { currentFinancialYearRange } from "@/lib/utils";
 import { selectCurrentBranch, selectSchema } from "@/store/context-slice";
 import { useAppSelector } from "@/store/hooks";
 import type { JobReceiptDetailType, JobReceiptListRowType } from "@/features/client/types/receipt";
-import { NewReceiptForm, type NewReceiptFormHandleType } from "./new-receipt-form";
+import { NewReceiptForm } from "./new-receipt-form";
+import { FormProvider, useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { receiptFormSchema, type ReceiptFormValues, getReceiptDefaultValues } from "./receipt-form-schema";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -74,14 +75,16 @@ export const ReceiptsSection = () => {
     // Dialog (new / edit)
     const [isDialogOpen,    setIsDialogOpen]    = useState(false);
     const [selectedReceipt, setSelectedReceipt] = useState<JobReceiptDetailType | null>(null);
-    const [formValid,       setFormValid]       = useState(false);
-    const [formSubmitting,  setFormSubmitting]  = useState(false);
+
+    const form = useForm<ReceiptFormValues>({
+        defaultValues: getReceiptDefaultValues(),
+        mode:          "onChange",
+        resolver:      zodResolver(receiptFormSchema) as any, // eslint-disable-line @typescript-eslint/no-explicit-any
+    });
 
     // Delete dialog
     const [deleteRow,  setDeleteRow]  = useState<JobReceiptListRowType | null>(null);
     const [deleting,   setDeleting]   = useState(false);
-
-    const formRef      = useRef<NewReceiptFormHandleType>(null);
     const debounceRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
     const scrollRef    = useRef<HTMLDivElement>(null);
     const [maxHeight, setMaxHeight] = useState(0);
@@ -154,12 +157,12 @@ export const ReceiptsSection = () => {
 
     function handleNewReceipt() {
         setSelectedReceipt(null);
-        setFormValid(false);
+        form.reset(getReceiptDefaultValues());
         setIsDialogOpen(true);
     }
 
     function handleEditReceipt(row: JobReceiptListRowType) {
-        setSelectedReceipt({
+        const receipt = {
             amount:       Number(row.amount),
             id:           row.id,
             job_id:       row.job_id,
@@ -167,15 +170,51 @@ export const ReceiptsSection = () => {
             payment_mode: row.payment_mode,
             reference_no: row.reference_no ?? "",
             remarks:      row.remarks ?? "",
+        };
+        setSelectedReceipt(receipt);
+        form.reset({
+            amount:       receipt.amount,
+            job_id:       receipt.job_id,
+            payment_date: receipt.payment_date,
+            payment_mode: receipt.payment_mode,
+            reference_no: receipt.reference_no,
+            remarks:      receipt.remarks,
         });
-        setFormValid(false);
         setIsDialogOpen(true);
     }
 
-    function handleDialogSuccess() {
-        setIsDialogOpen(false);
-        if (branchId) void loadData(branchId, fromDate, toDate, searchQ, page);
-    }
+    const executeSave = async (values: ReceiptFormValues) => {
+        if (!dbName || !schema) return;
+        const isEdit = !!selectedReceipt?.id;
+        try {
+            const xData: Record<string, unknown> = {
+                amount:       Number(values.amount),
+                job_id:       values.job_id,
+                payment_date: values.payment_date,
+                payment_mode: values.payment_mode,
+                reference_no: values.reference_no || null,
+                remarks:      values.remarks || null,
+            };
+            if (isEdit) xData.id = selectedReceipt!.id;
+            await apolloClient.mutate({
+                mutation:  GRAPHQL_MAP.genericUpdate,
+                variables: {
+                    db_name: dbName,
+                    schema,
+                    value: graphQlUtils.buildGenericUpdateValue({
+                        tableName: "job_payment",
+                        xData,
+                    }),
+                },
+            });
+            toast.success(isEdit ? MESSAGES.SUCCESS_RECEIPT_UPDATED : MESSAGES.SUCCESS_RECEIPT_CREATED);
+            form.reset(getReceiptDefaultValues());
+            setIsDialogOpen(false);
+            if (branchId) void loadData(branchId, fromDate, toDate, searchQ, page);
+        } catch {
+            toast.error(isEdit ? MESSAGES.ERROR_RECEIPT_UPDATE_FAILED : MESSAGES.ERROR_RECEIPT_CREATE_FAILED);
+        }
+    };
 
     async function handleDelete() {
         if (!deleteRow || !dbName || !schema) return;
@@ -265,6 +304,15 @@ export const ReceiptsSection = () => {
                         value={search}
                         onChange={e => handleSearchChange(e.target.value)}
                     />
+                            {search && (
+                                <button
+                                    className="absolute right-2.5 top-1/2 flex h-4 w-4 -translate-y-1/2 items-center justify-center rounded-full bg-[var(--cl-text-muted)] text-[var(--cl-surface)] hover:bg-[var(--cl-text)] focus:outline-none"
+                                    type="button"
+                                    onClick={() => handleSearchChange("")}
+                                >
+                                    <X className="h-2.5 w-2.5" />
+                                </button>
+                            )}
                 </div>
                 <Button
                     className="h-8 px-2.5 text-xs"
@@ -397,7 +445,7 @@ export const ReceiptsSection = () => {
             {/* New / Edit Dialog */}
             <Dialog
                 open={isDialogOpen}
-                onOpenChange={open => { if (!open && !formSubmitting) setIsDialogOpen(false); }}
+                onOpenChange={open => { if (!open && !form.formState.isSubmitting) setIsDialogOpen(false); }}
             >
                 <DialogContent
                     aria-describedby={undefined}
@@ -409,16 +457,13 @@ export const ReceiptsSection = () => {
                         </DialogTitle>
                     </DialogHeader>
                     <div className="max-h-[70vh] overflow-y-auto py-1 px-1">
-                        <NewReceiptForm
-                            ref={formRef}
-                            initial={selectedReceipt}
-                            onStatusChange={s => { setFormValid(s.isValid); setFormSubmitting(s.isSubmitting); }}
-                            onSuccess={handleDialogSuccess}
-                        />
+                        <FormProvider {...form}>
+                            <NewReceiptForm initial={selectedReceipt} />
+                        </FormProvider>
                     </div>
                     <DialogFooter>
                         <Button
-                            disabled={formSubmitting}
+                            disabled={form.formState.isSubmitting}
                             variant="outline"
                             onClick={() => setIsDialogOpen(false)}
                         >
@@ -426,10 +471,10 @@ export const ReceiptsSection = () => {
                         </Button>
                         <Button
                             className="bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-30 disabled:bg-slate-300 disabled:text-slate-600 disabled:cursor-not-allowed"
-                            disabled={!formValid || formSubmitting}
-                            onClick={() => formRef.current?.submit()}
+                            disabled={!form.formState.isValid || form.formState.isSubmitting}
+                            onClick={form.handleSubmit(executeSave)}
                         >
-                            {formSubmitting ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Save className="mr-1.5 h-4 w-4" />}
+                            {form.formState.isSubmitting ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Save className="mr-1.5 h-4 w-4" />}
                             Save
                         </Button>
                     </DialogFooter>

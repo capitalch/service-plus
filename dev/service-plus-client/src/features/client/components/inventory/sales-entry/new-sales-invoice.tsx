@@ -1,4 +1,7 @@
-import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { Loader2, Plus } from "lucide-react";
 import { LineAddDeleteActions } from "../line-add-delete-actions";
 import { toast } from "sonner";
@@ -21,12 +24,20 @@ import type { StockTransactionTypeRow } from "@/features/client/types/purchase";
 import type { SalesInvoiceType, SalesLineFormItem, DocumentSequenceRow, CustomerSearchRow } from "@/features/client/types/sales";
 import type { CustomerTypeOption, StateOption } from "@/features/client/types/customer";
 
+import { IsValidReporter } from "@/features/client/components/is-valid-reporter";
 import { PartCodeInput } from "../part-code-input";
 import { CustomerInput } from "../customer-input";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type GenericQueryData<T> = { genericQuery: T[] | null };
+
+const formSchema = z.object({
+    invoice_date: z.string().min(1, "Invoice date is required"),
+    remarks:      z.string().optional(),
+});
+
+type FormValues = z.infer<typeof formSchema>;
 
 type Props = {
     branchId:           number | null;
@@ -43,13 +54,7 @@ type Props = {
     editInvoice?:       SalesInvoiceType | null;
     customerTypes:      CustomerTypeOption[];
     masterStates:       StateOption[];
-};
-
-export type NewSalesInvoiceHandle = {
-    submit:        () => void;
-    reset:         () => void;
-    isSubmitting:  boolean;
-    isValid:       boolean;
+    submitTrigger:      number;
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -107,39 +112,51 @@ const inputCls = "h-7 border-[var(--cl-border)] bg-[var(--cl-surface)] text-sm p
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export const NewSalesInvoice = forwardRef<NewSalesInvoiceHandle, Props>(({
+export function NewSalesInvoice({
     branchId, txnTypes, docSequence,
     onSuccess, onStatusChange, isIgst, setIsIgst, isReturn, onIsReturnChange,
     selectedBrandId, brandName, editInvoice,
-    customerTypes, masterStates,
-}, ref) => {
+    customerTypes, masterStates, submitTrigger,
+}: Props) {
     const dbName                = useAppSelector(selectDbName);
     const schema                = useAppSelector(selectSchema);
     const isGstRegistered       = useAppSelector(selectIsGstRegistered);
     const defaultGstRate        = useAppSelector(selectDefaultGstRate);
     const effectiveGstStateCode = useAppSelector(selectEffectiveGstStateCode);
 
-    // Header fields
-    const [customerId,          setCustomerId]          = useState<number | null>(null);
-    const [customerName,        setCustomerName]        = useState("");
-    const [customerGstin,       setCustomerGstin]       = useState("");
-    const [customerStateCode,   setCustomerStateCode]   = useState("");
-    const [invoiceDate,         setInvoiceDate]         = useState(today());
-    const [remarks,             setRemarks]             = useState("");
+    const form = useForm<FormValues>({
+        defaultValues: { invoice_date: today(), remarks: "" },
+        mode: "onChange",
+        resolver: zodResolver(formSchema) as any,
+    });
+    const { register, formState: { isValid, isSubmitting }, reset } = form;
+
+    // Customer fields (driven by CustomerInput / SearchableCombobox externally)
+    const [customerId,        setCustomerId]        = useState<number | null>(null);
+    const [customerName,      setCustomerName]      = useState("");
+    const [customerGstin,     setCustomerGstin]     = useState("");
+    const [customerStateCode, setCustomerStateCode] = useState("");
 
     // Line items
     const [lines, setLines] = useState<SalesLineFormItem[]>([emptyLine(selectedBrandId)]);
-
-    // Edit: original line IDs to delete on update
     const [originalLineIds, setOriginalLineIds] = useState<number[]>([]);
 
-    // Submit
-    const [submitting, setSubmitting] = useState(false);
+    const linesValid = useMemo(() => {
+        if (lines.length === 0) return false;
+        return lines.every(l => {
+            if (!l.part_id || l.quantity <= 0) return false;
+            if ((l.unit_price > 0 || l.gst_rate > 0) && !l.hsn_code.trim()) return false;
+            return true;
+        });
+    }, [lines]);
 
-    const partInputRefs      = useRef<(HTMLInputElement | null)[]>([]);
-    const hsnInputRefs        = useRef<(HTMLInputElement | null)[]>([]);
-    const scrollWrapperRef    = useRef<HTMLDivElement>(null);
-    const summaryRef          = useRef<HTMLDivElement>(null);
+    const headerValid = isValid && !!customerName.trim() && !!customerStateCode && !!selectedBrandId;
+    const overallValid = headerValid && linesValid;
+
+    const partInputRefs   = useRef<(HTMLInputElement | null)[]>([]);
+    const hsnInputRefs    = useRef<(HTMLInputElement | null)[]>([]);
+    const scrollWrapperRef = useRef<HTMLDivElement>(null);
+    const summaryRef       = useRef<HTMLDivElement>(null);
 
     const [maxTableHeight, setMaxTableHeight] = useState<number | undefined>(undefined);
 
@@ -153,9 +170,16 @@ export const NewSalesInvoice = forwardRef<NewSalesInvoiceHandle, Props>(({
             setMaxTableHeight(window.innerHeight - top - summaryHeight - 8 - 14);
         }
         recalc();
-        window.addEventListener('resize', recalc);
-        return () => window.removeEventListener('resize', recalc);
+        window.addEventListener("resize", recalc);
+        return () => window.removeEventListener("resize", recalc);
     }, []);
+
+    // Submit trigger
+    useEffect(() => {
+        if (!submitTrigger) return;
+        void form.handleSubmit(executeSave)();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [submitTrigger]);
 
     // Populate form when editInvoice changes
     useEffect(() => {
@@ -183,8 +207,7 @@ export const NewSalesInvoice = forwardRef<NewSalesInvoiceHandle, Props>(({
             setCustomerName(detail.customer_name ?? "");
             setCustomerGstin(detail.customer_gstin ?? "");
             setCustomerStateCode(detail.customer_state_code ?? "");
-            setInvoiceDate(detail.invoice_date);
-            setRemarks(detail.remarks ?? "");
+            reset({ invoice_date: detail.invoice_date, remarks: detail.remarks ?? "" });
             onIsReturnChange(Boolean(detail.is_return));
             const newIsIgst = !!detail.customer_state_code && !!effectiveGstStateCode
                 && detail.customer_state_code !== effectiveGstStateCode;
@@ -281,39 +304,40 @@ export const NewSalesInvoice = forwardRef<NewSalesInvoiceHandle, Props>(({
         return { quantity, aggregate, cgst, sgst, igst, total_tax: cgst + sgst + igst, total: aggregate + cgst + sgst + igst };
     }, [lines, isIgst]);
 
-    const isFormValid = useMemo(() => {
-        if (!selectedBrandId) return false;
-        if (!customerName.trim()) return false;
-        if (!customerStateCode) return false;
-        if (!invoiceDate) return false;
-        if (lines.length === 0) return false;
-        return lines.every(l => {
-            if (!l.part_id || l.quantity <= 0) return false;
-            if ((l.unit_price > 0 || l.gst_rate > 0) && !l.hsn_code.trim()) return false;
-            return true;
-        });
-    }, [selectedBrandId, customerName, customerStateCode, invoiceDate, lines]);
-
+    // Reset
     const handleReset = () => {
+        reset({ invoice_date: today(), remarks: "" });
         setCustomerId(null);
         setCustomerName("");
         setCustomerGstin("");
         setCustomerStateCode("");
-        setInvoiceDate(today());
-        setRemarks("");
         onIsReturnChange(false);
         setLines([emptyLine(selectedBrandId)]);
         setOriginalLineIds([]);
     };
 
-    const executeSave = async () => {
+    // Save
+    const executeSave = async (values: FormValues) => {
+        if (!linesValid) {
+            toast.error(MESSAGES.ERROR_SALES_LINE_FIELDS_REQUIRED);
+            return;
+        }
+        if (!customerName.trim()) {
+            toast.error(MESSAGES.ERROR_SALES_CUSTOMER_REQUIRED);
+            return;
+        }
+        if (!customerStateCode) {
+            toast.error("Customer state is required.");
+            return;
+        }
+
         const salesTypeId  = txnTypes.find(t => t.code === "SALES")?.id;
         const returnTypeId = txnTypes.find(t => t.code === "SALE_RETURN")?.id;
         if (isReturn && !returnTypeId) {
             toast.error("Sale Return transaction type not found. Please contact admin.");
             return;
         }
-        if (!salesTypeId || !branchId || !dbName || !schema || !customerName.trim() || !invoiceDate) {
+        if (!salesTypeId || !branchId || !dbName || !schema) {
             toast.error(MESSAGES.ERROR_SALES_CREATE_FAILED);
             return;
         }
@@ -346,7 +370,7 @@ export const NewSalesInvoice = forwardRef<NewSalesInvoiceHandle, Props>(({
                             qty:                        line.quantity,
                             unit_cost:                  line.unit_price,
                             dr_cr:                      drCr,
-                            transaction_date:           invoiceDate,
+                            transaction_date:           values.invoice_date,
                             stock_transaction_type_id:  txnTypeId,
                         }],
                     },
@@ -359,7 +383,7 @@ export const NewSalesInvoice = forwardRef<NewSalesInvoiceHandle, Props>(({
             customer_name:       customerName.trim(),
             customer_gstin:      customerGstin.trim() || null,
             customer_state_code: customerStateCode,
-            invoice_date:        invoiceDate,
+            invoice_date:        values.invoice_date,
             aggregate_amount:    totals.aggregate,
             cgst_amount:         totals.cgst,
             sgst_amount:         totals.sgst,
@@ -367,11 +391,10 @@ export const NewSalesInvoice = forwardRef<NewSalesInvoiceHandle, Props>(({
             total_tax:           totals.total_tax,
             total_amount:        totals.total,
             brand_id:            selectedBrandId,
-            remarks:             remarks.trim() || null,
+            remarks:             values.remarks?.trim() || null,
             is_return:           isReturn,
         };
 
-        setSubmitting(true);
         try {
             if (editInvoice) {
                 const payload = graphQlUtils.buildGenericUpdateValue({
@@ -393,7 +416,6 @@ export const NewSalesInvoice = forwardRef<NewSalesInvoiceHandle, Props>(({
                 });
                 toast.success(MESSAGES.SUCCESS_SALES_UPDATED);
             } else {
-                // New invoice: use dedicated mutation that also increments document_sequence
                 const invoiceNo = docSequence ? buildInvoiceNo(docSequence) : "";
                 const sqlObject = {
                     tableName: "sales_invoice",
@@ -417,42 +439,14 @@ export const NewSalesInvoice = forwardRef<NewSalesInvoiceHandle, Props>(({
                 });
                 toast.success(MESSAGES.SUCCESS_SALES_CREATED);
             }
+            handleReset();
             onSuccess();
         } catch {
             toast.error(editInvoice ? MESSAGES.ERROR_SALES_UPDATE_FAILED : MESSAGES.ERROR_SALES_CREATE_FAILED);
-        } finally {
-            setSubmitting(false);
         }
     };
 
-    const handleSubmit = async () => {
-        if (!branchId) { toast.error("Branch is not selected globally."); return; }
-        if (!customerName.trim()) { toast.error(MESSAGES.ERROR_SALES_CUSTOMER_REQUIRED); return; }
-        if (!customerStateCode) { toast.error("Customer state is required."); return; }
-        if (!invoiceDate) { toast.error(MESSAGES.ERROR_SALES_INVOICE_DATE_REQUIRED); return; }
-        if (lines.length === 0 || lines.some(l => {
-            if (!l.part_id || l.quantity <= 0) return true;
-            if ((l.unit_price > 0 || l.gst_rate > 0) && !l.hsn_code.trim()) return true;
-            return false;
-        })) {
-            toast.error(MESSAGES.ERROR_SALES_LINE_FIELDS_REQUIRED);
-            return;
-        }
-        await executeSave();
-    };
-
-    // Sync status with parent
-    useEffect(() => {
-        onStatusChange({ isValid: isFormValid, isSubmitting: submitting });
-    }, [isFormValid, submitting, onStatusChange]);
-
-    useImperativeHandle(ref, () => ({
-        submit:      () => { void handleSubmit(); },
-        reset:       handleReset,
-        isSubmitting: submitting,
-        isValid:      isFormValid,
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }), [submitting, isFormValid]);
+    const invoiceDate = form.watch("invoice_date");
 
     return (
         <motion.div
@@ -461,6 +455,12 @@ export const NewSalesInvoice = forwardRef<NewSalesInvoiceHandle, Props>(({
             exit={{ opacity: 0, y: -10 }}
             className="flex min-h-fit md:min-h-0 md:flex-1 flex-col gap-2 pb-0 md:overflow-hidden"
         >
+            <IsValidReporter
+                isSubmitting={isSubmitting}
+                isValid={overallValid}
+                onStatusChange={onStatusChange}
+            />
+
             {!branchId ? (
                 <div className="flex flex-col items-center justify-center py-20 bg-[var(--cl-surface-2)]/30 rounded-xl border-2 border-dashed border-[var(--cl-border)] text-center">
                     <div className="bg-[var(--cl-accent)]/5 p-5 rounded-full mb-4">
@@ -573,10 +573,9 @@ export const NewSalesInvoice = forwardRef<NewSalesInvoiceHandle, Props>(({
                                     Inv Date <span className="text-red-500 ml-0.5">*</span>
                                 </Label>
                                 <Input
+                                    {...register("invoice_date")}
                                     className={`bg-[var(--cl-surface-2)] ${!invoiceDate ? "border-red-500 focus:border-red-500 ring-red-500/10" : ""}`}
                                     type="date"
-                                    value={invoiceDate}
-                                    onChange={e => setInvoiceDate(e.target.value)}
                                 />
                             </div>
 
@@ -584,10 +583,9 @@ export const NewSalesInvoice = forwardRef<NewSalesInvoiceHandle, Props>(({
                             <div className="space-y-2 md:col-span-2 lg:col-span-4">
                                 <Label className="text-xs font-extrabold text-[var(--cl-text)] uppercase tracking-widest">Remarks</Label>
                                 <Input
+                                    {...register("remarks")}
                                     className="bg-[var(--cl-surface-2)]"
                                     placeholder="Optional…"
-                                    value={remarks}
-                                    onChange={e => setRemarks(e.target.value)}
                                 />
                             </div>
 
@@ -651,7 +649,7 @@ export const NewSalesInvoice = forwardRef<NewSalesInvoiceHandle, Props>(({
                                                         }}
                                                         onClear={() => updateLine(idx, { part_code: "", part_id: null, part_name: "" })}
                                                         onSelect={part => {
-                                                            const masterGstRate  = Number(part.gst_rate ?? 0);
+                                                            const masterGstRate    = Number(part.gst_rate ?? 0);
                                                             const effectiveGstRate = (isGstRegistered && masterGstRate === 0)
                                                                 ? defaultGstRate
                                                                 : masterGstRate;
@@ -810,7 +808,7 @@ export const NewSalesInvoice = forwardRef<NewSalesInvoiceHandle, Props>(({
                         )}
                     </div>
 
-                    {submitting && (
+                    {isSubmitting && (
                         <div className="flex items-center justify-center gap-2 py-2 text-sm text-[var(--cl-text-muted)]">
                             <Loader2 className="h-4 w-4 animate-spin" /> Saving…
                         </div>
@@ -819,6 +817,4 @@ export const NewSalesInvoice = forwardRef<NewSalesInvoiceHandle, Props>(({
             )}
         </motion.div>
     );
-});
-
-NewSalesInvoice.displayName = "NewSalesInvoice";
+}

@@ -1,6 +1,6 @@
-import { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
+import { useFormContext } from "react-hook-form";
 import { Loader2, Plus, Trash2 } from "lucide-react";
-import { toast } from "sonner";
 import { AnimatePresence, motion } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
@@ -13,127 +13,78 @@ import { AddModelDialog } from "@/features/client/components/masters/model/add-m
 import { CustomerInput } from "@/features/client/components/inventory/customer-input";
 import { JobImageUpload, type StagedFile } from "@/features/client/components/jobs/single-job/job-image-upload";
 
-import { GRAPHQL_MAP } from "@/constants/graphql-map";
-import { MESSAGES } from "@/constants/messages";
-import { apolloClient } from "@/lib/apollo-client";
-import { uploadJobFile } from "@/lib/image-service";
-import { useAppSelector } from "@/store/hooks";
-import { selectCurrentUser, selectDbName } from "@/features/auth/store/auth-slice";
-import { selectSchema } from "@/store/context-slice";
-import type { DocumentSequenceRow, CustomerSearchRow } from "@/features/client/types/sales";
+import type { CustomerSearchRow, DocumentSequenceRow } from "@/features/client/types/sales";
 import type { BatchJobRow, JobBatchDetailRow, JobLookupRow, ModelRow } from "@/features/client/types/job";
 import type { BrandOption, ProductOption } from "@/features/client/types/model";
 import type { CustomerTypeOption, StateOption } from "@/features/client/types/customer";
 
+import { type BatchJobFormValues, blankBatchRow, getBatchJobDefaultValues } from "./batch-job-schema";
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type Props = {
-    branchId:         number | null;
-    docSequence:      DocumentSequenceRow | null;
-    jobStatuses:      JobLookupRow[];
-    jobTypes:         JobLookupRow[];
-    receiveMannners:  JobLookupRow[];
+    branchId:          number | null;
+    docSequence:       DocumentSequenceRow | null;
+    jobTypes:          JobLookupRow[];
+    receiveMannners:   JobLookupRow[];
     receiveConditions: JobLookupRow[];
-    models:           ModelRow[];
-    brands:           BrandOption[];
-    products:         ProductOption[];
-    customerTypes:    CustomerTypeOption[];
-    masterStates:     StateOption[];
-    editBatchNo?:     number | null;
-    editRows?:        JobBatchDetailRow[];
-    onRefreshModels:  () => void;
-    onSuccess:        () => void;
-    onStatusChange:   (s: { isValid: boolean; isSubmitting: boolean }) => void;
-};
-
-export type NewBatchJobFormHandle = {
-    submit:       () => void;
-    reset:        () => void;
-    isSubmitting: boolean;
-    isValid:      boolean;
+    models:            ModelRow[];
+    brands:            BrandOption[];
+    products:          ProductOption[];
+    customerTypes:     CustomerTypeOption[];
+    masterStates:      StateOption[];
+    editBatchNo?:      number | null;
+    editRows?:         JobBatchDetailRow[];
+    onRefreshModels:   () => void;
+    rows:              BatchJobRow[];
+    setRows:           React.Dispatch<React.SetStateAction<BatchJobRow[]>>;
+    setPendingFiles:   React.Dispatch<React.SetStateAction<Record<string, StagedFile[]>>>;
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function today(): string {
-    return new Date().toISOString().slice(0, 10);
-}
 
-function buildJobNo(seq: DocumentSequenceRow, offset = 0): string {
-    return `${seq.prefix}${seq.separator}${String(seq.next_number + offset).padStart(seq.padding, "0")}`;
-}
-
-function blankRow(seq: DocumentSequenceRow | null, offset: number): BatchJobRow {
-    return {
-        localId:                  crypto.randomUUID(),
-        job_no:                   seq ? buildJobNo(seq, offset) : "",
-        product_brand_model_id:   null,
-        serial_no:                "",
-        problem_reported:         "",
-        warranty_card_no:         "",
-        job_receive_condition_id: null,
-        remarks:                  "",
-        quantity:                 1,
-        isDeletable:              true,
-    };
-}
 
 const labelCls = "text-xs font-extrabold text-[var(--cl-text)] uppercase tracking-widest";
 
-
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export const NewBatchJobForm = forwardRef<NewBatchJobFormHandle, Props>(({
-    branchId, docSequence, jobStatuses, jobTypes, receiveMannners, receiveConditions,
+export function NewBatchJobForm({
+    branchId, docSequence, jobTypes, receiveMannners, receiveConditions,
     models, brands, products, customerTypes, masterStates,
     editBatchNo, editRows,
-    onRefreshModels, onSuccess, onStatusChange,
-}, ref) => {
-    const dbName      = useAppSelector(selectDbName);
-    const schema      = useAppSelector(selectSchema);
-    const currentUser = useAppSelector(selectCurrentUser);
+    onRefreshModels, rows, setRows, setPendingFiles,
+}: Props) {
 
-    // Shared fields
-    const [batchDate,          setBatchDate]         = useState(today());
-    const [customerId,         setCustomerId]        = useState<number | null>(null);
-    const [customerName,       setCustomerName]      = useState("");
-    const [jobTypeId,          setJobTypeId]         = useState<number | null>(null);
-    const [receiveMannerId,    setReceiveMannerId]   = useState<number | null>(null);
+    // Job rows stay as useState — they're not standard form fields
+    const [showAddModel, setShowAddModel] = useState(false);
+    const [seqOffset,    setSeqOffset]    = useState(0);
 
-    // Job rows
-    const [rows,         setRows]         = useState<BatchJobRow[]>([]);
-    const [pendingFiles, setPendingFiles] = useState<Record<string, StagedFile[]>>({});
+    const form = useFormContext<BatchJobFormValues>();
 
+    const { formState: { isSubmitting }, setValue, watch } = form;
 
-    // UI state
-    const [submitting,    setSubmitting]    = useState(false);
-    const [showAddModel,  setShowAddModel]  = useState(false);
-    const [seqOffset,     setSeqOffset]     = useState(0);
-
+    const jobTypeId  = watch("job_type_id");
     const isWarranty = jobTypes.find(t => t.id === jobTypeId)?.code === "UNDER_WARRANTY";
 
-    // Initialise / reset rows
-    const handleReset = () => {
-        setBatchDate(today());
-        setCustomerId(null);
-        setCustomerName("");
-        setJobTypeId(null);
-        setReceiveMannerId(null);
+    function handleReset() {
+        form.reset(getBatchJobDefaultValues());
         setSeqOffset(0);
         setPendingFiles({});
-        // setExpandedRow(null);
-        setRows([blankRow(docSequence, 0)]);
-    };
+        setRows([blankBatchRow(docSequence, 0)]);
+    }
 
-    // On mount / seq change — set initial row
+    // Initialise / reset rows on edit change
     useEffect(() => {
         if (editBatchNo && editRows && editRows.length > 0) {
             const first = editRows[0];
-            setBatchDate(first.job_date);
-            setCustomerId(first.customer_contact_id);
-            setCustomerName(first.customer_name ?? first.mobile);
-            setJobTypeId(first.job_type_id);
-            setReceiveMannerId(first.job_receive_manner_id);
+            form.reset({
+                batch_date:        first.job_date,
+                customer_id:       first.customer_contact_id,
+                customer_name:     first.customer_name ?? first.mobile,
+                job_type_id:       first.job_type_id,
+                receive_manner_id: first.job_receive_manner_id,
+            });
             setRows(editRows.map(r => ({
                 localId:                  crypto.randomUUID(),
                 id:                       r.id,
@@ -148,6 +99,7 @@ export const NewBatchJobForm = forwardRef<NewBatchJobFormHandle, Props>(({
                 isDeletable:              r.transaction_count <= 1,
             })));
         } else {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             handleReset();
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -156,7 +108,7 @@ export const NewBatchJobForm = forwardRef<NewBatchJobFormHandle, Props>(({
     const addRow = () => {
         const nextOffset = seqOffset + 1;
         setSeqOffset(nextOffset);
-        setRows(prev => [...prev, blankRow(docSequence, nextOffset)]);
+        setRows(prev => [...prev, blankBatchRow(docSequence, nextOffset)]);
     };
 
     const removeRow = (localId: string) => {
@@ -168,140 +120,8 @@ export const NewBatchJobForm = forwardRef<NewBatchJobFormHandle, Props>(({
         setRows(prev => prev.map(r => r.localId === localId ? { ...r, ...patch } : r));
     };
 
-    const isFormValid = useMemo(() => {
-        if (!customerId || !jobTypeId || !receiveMannerId) return false;
-        if (rows.length === 0) return false;
-        if (rows.some(r => !r.product_brand_model_id || r.quantity < 1)) return false;
-        return true;
-    }, [customerId, jobTypeId, receiveMannerId, rows]);
-
-    const initialStatus = jobStatuses.find(s => s.is_initial);
-
-    const executeSave = async () => {
-        if (!branchId || !dbName || !schema) {
-            toast.error(MESSAGES.ERROR_JOB_CREATE_FAILED);
-            return;
-        }
-        setSubmitting(true);
-        try {
-            if (editBatchNo) {
-                const originalIds = new Set((editRows ?? []).map(r => r.id));
-                const currentIds  = new Set(rows.filter(r => r.id).map(r => r.id!));
-                const deletedJobIds = [...originalIds].filter(id => !currentIds.has(id));
-                const addedJobs    = rows.filter(r => !r.id).map(r => ({
-                    job_no: r.job_no, product_brand_model_id: r.product_brand_model_id,
-                    serial_no: r.serial_no || null, problem_reported: r.problem_reported,
-                    warranty_card_no: r.warranty_card_no || null,
-                    job_receive_condition_id: r.job_receive_condition_id, remarks: r.remarks || null,
-                    quantity: r.quantity,
-                }));
-                const updatedJobs = rows.filter(r => r.id).map(r => ({
-                    id: r.id!, product_brand_model_id: r.product_brand_model_id,
-                    serial_no: r.serial_no || null, problem_reported: r.problem_reported,
-                    warranty_card_no: r.warranty_card_no || null,
-                    job_receive_condition_id: r.job_receive_condition_id, remarks: r.remarks || null,
-                    quantity: r.quantity,
-                }));
-
-                const payload = encodeURIComponent(JSON.stringify({
-                    batch_no: editBatchNo,
-                    sharedData: {
-                        branch_id: branchId, batch_date: batchDate,
-                        customer_contact_id: customerId, job_type_id: jobTypeId,
-                        job_receive_manner_id: receiveMannerId,
-                        performed_by_user_id: currentUser?.id ?? null,
-                    },
-                    addedJobs, updatedJobs, deletedJobIds,
-                    job_doc_sequence_id:   addedJobs.length > 0 ? (docSequence?.id ?? null) : null,
-                    job_doc_sequence_next: addedJobs.length > 0 ? (docSequence ? docSequence.next_number + addedJobs.length : null) : null,
-                }));
-
-                await apolloClient.mutate({
-                    mutation: GRAPHQL_MAP.updateJobBatch,
-                    variables: { db_name: dbName, schema, value: payload },
-                });
-
-                for (const row of addedJobs) {
-                    const files = pendingFiles[row.job_no] ?? [];
-                    for (const { file, about } of files) {
-                        // job_id for newly added jobs comes from server — skip image for now
-                        // images for new rows in edit mode can be added after save via view
-                        void file; void about;
-                    }
-                }
-                toast.success(`Batch #${editBatchNo} updated`);
-            } else {
-                const payload = encodeURIComponent(JSON.stringify({
-                    sharedData: {
-                        branch_id: branchId, batch_date: batchDate,
-                        customer_contact_id: customerId, job_type_id: jobTypeId,
-                        job_receive_manner_id: receiveMannerId,
-                        job_status_id: initialStatus?.id ?? null,
-                        performed_by_user_id: currentUser?.id ?? null,
-                        job_doc_sequence_id:   docSequence?.id ?? null,
-                        job_doc_sequence_next: docSequence ? docSequence.next_number + rows.length : null,
-                    },
-                    jobs: rows.map(r => ({
-                        job_no: r.job_no, product_brand_model_id: r.product_brand_model_id,
-                        serial_no: r.serial_no || null, problem_reported: r.problem_reported,
-                        warranty_card_no: r.warranty_card_no || null,
-                        job_receive_condition_id: r.job_receive_condition_id, remarks: r.remarks || null,
-                        quantity: r.quantity,
-                    })),
-                }));
-
-                const result = await apolloClient.mutate({
-                    mutation: GRAPHQL_MAP.createJobBatch,
-                    variables: { db_name: dbName, schema, value: payload },
-                });
-                const data = result.data as { createJobBatch?: { batch_no: number; job_ids: number[] } };
-                const batchNo  = data?.createJobBatch?.batch_no;
-                const jobIds   = data?.createJobBatch?.job_ids ?? [];
-
-                await Promise.all(
-                    rows.map(async (row, idx) => {
-                        const jobId = jobIds[idx];
-                        if (!jobId) return;
-                        for (const { file, about } of (pendingFiles[row.localId] ?? [])) {
-                            try {
-                                await uploadJobFile(dbName, schema, jobId, about, file);
-                            } catch (err: unknown) {
-                                toast.error(`Upload failed for "${about}": ${(err as Error).message}`);
-                            }
-                        }
-                    })
-                );
-
-                toast.success(`Batch #${batchNo} created with ${rows.length} job${rows.length !== 1 ? "s" : ""}`);
-            }
-            onSuccess();
-        } catch {
-            toast.error(editBatchNo ? "Failed to update batch" : MESSAGES.ERROR_JOB_CREATE_FAILED);
-        } finally {
-            setSubmitting(false);
-        }
-    };
-
-    const handleSubmit = async () => {
-        if (!branchId)       { toast.error("Branch is not selected globally."); return; }
-        if (!customerId)     { toast.error(MESSAGES.ERROR_JOB_CUSTOMER_REQUIRED); return; }
-        if (!jobTypeId)      { toast.error(MESSAGES.ERROR_JOB_TYPE_REQUIRED); return; }
-        if (!receiveMannerId){ toast.error(MESSAGES.ERROR_JOB_RECEIVE_MANNER_REQUIRED); return; }
-        await executeSave();
-    };
-
-    useEffect(() => {
-        onStatusChange({ isValid: isFormValid, isSubmitting: submitting });
-    }, [isFormValid, submitting, onStatusChange]);
-
-    useImperativeHandle(ref, () => ({
-        submit:       () => { void handleSubmit(); },
-        reset:        handleReset,
-        isSubmitting: submitting,
-        isValid:      isFormValid,
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }), [submitting, isFormValid]);
-
+    
+    
     if (!branchId) {
         return (
             <div className="flex flex-col items-center justify-center py-20 bg-[var(--cl-surface-2)]/30 rounded-xl border-2 border-dashed border-[var(--cl-border)] text-center">
@@ -333,46 +153,37 @@ export const NewBatchJobForm = forwardRef<NewBatchJobFormHandle, Props>(({
 
                     <div className="space-y-1.5 md:col-span-3 lg:col-span-3 xl:col-span-3">
                         <Label className={labelCls}>Batch No</Label>
-                        <Input
-                            readOnly
-                            className="bg-[var(--cl-surface-2)] font-mono text-[var(--cl-accent)] font-bold cursor-not-allowed opacity-80"
-                            value={editBatchNo ? `#${editBatchNo}` : "Auto"}
-                        />
+                        <Input readOnly className="bg-[var(--cl-surface-2)] font-mono text-[var(--cl-accent)] font-bold cursor-not-allowed opacity-80" value={editBatchNo ? `#${editBatchNo}` : "Auto"} />
                     </div>
 
                     <div className="space-y-1.5 md:col-span-3 lg:col-span-3 xl:col-span-3">
                         <Label className={labelCls}>Batch Date</Label>
-                        <Input
-                            type="date"
-                            className="bg-[var(--cl-surface-2)]"
-                            value={batchDate}
-                            onChange={e => setBatchDate(e.target.value)}
-                        />
+                        <Input type="date" className="bg-[var(--cl-surface-2)]" {...form.register("batch_date")} />
                     </div>
 
                     <div className="space-y-1.5 md:col-span-6 lg:col-span-6 xl:col-span-6">
                         <Label className={labelCls}>Customer <span className="text-red-500">*</span></Label>
                         <CustomerInput
-                            customerId={customerId}
-                            customerName={customerName}
+                            customerId={watch("customer_id") ?? null}
+                            customerName={watch("customer_name") ?? ""}
                             customerTypes={customerTypes}
                             states={masterStates}
-                            onChange={name => { setCustomerName(name); if (!name.trim()) setCustomerId(null); }}
-                            onClear={() => { setCustomerId(null); setCustomerName(""); }}
-                            onSelect={(c: CustomerSearchRow) => { setCustomerId(c.id); setCustomerName(c.full_name ?? c.mobile); }}
+                            onChange={name => { setValue("customer_name", name, { shouldValidate: false }); if (!name.trim()) setValue("customer_id", undefined as unknown as number, { shouldValidate: true }); }}
+                            onClear={() => { setValue("customer_id", undefined as unknown as number, { shouldValidate: true }); setValue("customer_name", "", { shouldValidate: false }); }}
+                            onSelect={(c: CustomerSearchRow) => { setValue("customer_id", c.id, { shouldValidate: true }); setValue("customer_name", c.full_name ?? c.mobile, { shouldValidate: false }); }}
                         />
                     </div>
 
                     <div className="space-y-1.5 md:col-span-3 lg:col-span-6 xl:col-span-6">
                         <Label className={labelCls}>Job Type <span className="text-red-500">*</span></Label>
                         <select
-                            className={`w-full h-9 rounded-md border text-sm px-2 bg-[var(--cl-surface-2)] text-[var(--cl-text)] ${!jobTypeId ? "border-red-400" : "border-[var(--cl-border)]"}`}
-                            value={jobTypeId ?? ""}
+                            className={`w-full h-9 rounded-md border text-sm px-2 bg-[var(--cl-surface-2)] text-[var(--cl-text)] ${!watch("job_type_id") ? "border-red-400" : "border-[var(--cl-border)]"}`}
+                            value={watch("job_type_id") ?? ""}
                             onChange={e => {
-                                const newId = e.target.value ? Number(e.target.value) : null;
+                                const newId = e.target.value ? Number(e.target.value) : (undefined as unknown as number);
                                 const code  = jobTypes.find(t => t.id === newId)?.code;
                                 if (code !== "UNDER_WARRANTY") setRows(prev => prev.map(r => ({ ...r, warranty_card_no: "" })));
-                                setJobTypeId(newId);
+                                setValue("job_type_id", newId, { shouldValidate: true });
                             }}
                         >
                             <option value="">Select…</option>
@@ -383,9 +194,9 @@ export const NewBatchJobForm = forwardRef<NewBatchJobFormHandle, Props>(({
                     <div className="space-y-1.5 md:col-span-3 lg:col-span-6 xl:col-span-6">
                         <Label className={labelCls}>Receive Manner <span className="text-red-500">*</span></Label>
                         <select
-                            className={`w-full h-9 rounded-md border text-sm px-2 bg-[var(--cl-surface-2)] text-[var(--cl-text)] ${!receiveMannerId ? "border-red-400" : "border-[var(--cl-border)]"}`}
-                            value={receiveMannerId ?? ""}
-                            onChange={e => setReceiveMannerId(e.target.value ? Number(e.target.value) : null)}
+                            className={`w-full h-9 rounded-md border text-sm px-2 bg-[var(--cl-surface-2)] text-[var(--cl-text)] ${!watch("receive_manner_id") ? "border-red-400" : "border-[var(--cl-border)]"}`}
+                            value={watch("receive_manner_id") ?? ""}
+                            onChange={e => setValue("receive_manner_id", e.target.value ? Number(e.target.value) : (undefined as unknown as number), { shouldValidate: true })}
                         >
                             <option value="">Select…</option>
                             {receiveMannners.filter(r => r.is_active).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
@@ -415,9 +226,7 @@ export const NewBatchJobForm = forwardRef<NewBatchJobFormHandle, Props>(({
                                         <span className="text-[10px] font-black uppercase bg-[var(--cl-accent)] text-white px-2 py-0.5 rounded-full">
                                             Job #{idx + 1}
                                         </span>
-                                        <span className="font-mono text-xs text-[var(--cl-accent)] font-bold">
-                                            {row.job_no}
-                                        </span>
+                                        <span className="font-mono text-xs text-[var(--cl-accent)] font-bold">{row.job_no}</span>
                                     </div>
                                     {rows.length > 1 && row.isDeletable && (
                                         <Button
@@ -431,7 +240,6 @@ export const NewBatchJobForm = forwardRef<NewBatchJobFormHandle, Props>(({
                                 </div>
 
                                 <CardContent className="grid grid-cols-1 md:grid-cols-6 lg:grid-cols-12 gap-4 items-center">
-                                    {/* Row 1: Product / Model and Qty */}
                                     <div className="md:col-span-6 lg:col-span-9">
                                         <Label className={labelCls}>Product / Model <span className="text-red-500">*</span></Label>
                                         <div className="flex items-center gap-2">
@@ -467,23 +275,16 @@ export const NewBatchJobForm = forwardRef<NewBatchJobFormHandle, Props>(({
                                     <div className="space-y-1.5 md:col-span-6 lg:col-span-3">
                                         <Label className={labelCls}>Qty <span className="text-red-500">*</span></Label>
                                         <Input
-                                            type="number"
-                                            min={1}
+                                            type="number" min={1}
                                             className={`bg-[var(--cl-surface-2)] ${row.quantity < 1 ? "border-red-400" : ""}`}
                                             value={row.quantity}
                                             onChange={e => updateRow(row.localId, { quantity: Math.max(1, Number(e.target.value)) })}
                                         />
                                     </div>
 
-                                    {/* Row 2: Serial No, Condition, Warranty */}
                                     <div className="space-y-1.5 md:col-span-6 lg:col-span-4">
                                         <Label className={labelCls}>Serial No</Label>
-                                        <Input
-                                            className="bg-[var(--cl-surface-2)]"
-                                            placeholder="Optional…"
-                                            value={row.serial_no}
-                                            onChange={e => updateRow(row.localId, { serial_no: e.target.value })}
-                                        />
+                                        <Input className="bg-[var(--cl-surface-2)]" placeholder="Optional…" value={row.serial_no} onChange={e => updateRow(row.localId, { serial_no: e.target.value })} />
                                     </div>
 
                                     <div className="space-y-1.5 md:col-span-6 lg:col-span-4">
@@ -503,46 +304,29 @@ export const NewBatchJobForm = forwardRef<NewBatchJobFormHandle, Props>(({
                                     <div className="space-y-1.5 md:col-span-6 lg:col-span-4">
                                         <Label className={labelCls}>Warranty Card No</Label>
                                         <Input
-                                            className="bg-[var(--cl-surface-2)]"
-                                            disabled={!isWarranty}
+                                            className="bg-[var(--cl-surface-2)]" disabled={!isWarranty}
                                             placeholder={isWarranty ? "Card number…" : "N/A"}
                                             value={row.warranty_card_no}
                                             onChange={e => updateRow(row.localId, { warranty_card_no: e.target.value })}
                                         />
                                     </div>
 
-                                    {/* Row 3: Problem & Remarks */}
                                     <div className="space-y-1.5 md:col-span-6 lg:col-span-6">
                                         <Label className={labelCls}>Problem Reported</Label>
-                                        <Textarea
-                                            rows={2}
-                                            className="bg-[var(--cl-surface-2)] resize-none"
-                                            placeholder="Describe the problem…"
-                                            value={row.problem_reported}
-                                            onChange={e => updateRow(row.localId, { problem_reported: e.target.value })}
-                                        />
+                                        <Textarea rows={2} className="bg-[var(--cl-surface-2)] resize-none" placeholder="Describe the problem…" value={row.problem_reported} onChange={e => updateRow(row.localId, { problem_reported: e.target.value })} />
                                     </div>
 
                                     <div className="space-y-1.5 md:col-span-6 lg:col-span-6">
                                         <Label className={labelCls}>Remarks</Label>
-                                        <Textarea
-                                            rows={2}
-                                            className="bg-[var(--cl-surface-2)] resize-none"
-                                            placeholder="Optional remarks…"
-                                            value={row.remarks}
-                                            onChange={e => updateRow(row.localId, { remarks: e.target.value })}
-                                        />
+                                        <Textarea rows={2} className="bg-[var(--cl-surface-2)] resize-none" placeholder="Optional remarks…" value={row.remarks} onChange={e => updateRow(row.localId, { remarks: e.target.value })} />
                                     </div>
 
-                                    {/* Row 4: Attachments */}
                                     <div className="space-y-1.5 md:col-span-12 lg:col-span-12">
                                         <Label className={labelCls}>Attachments</Label>
                                         <div className="bg-[var(--cl-surface-2)]/30 rounded-lg p-2 border border-dashed border-[var(--cl-border)]">
                                             {row.id
                                                 ? <JobImageUpload jobId={row.id} />
-                                                : <JobImageUpload
-                                                    onPendingChange={files => setPendingFiles(prev => ({ ...prev, [row.localId]: files }))}
-                                                  />
+                                                : <JobImageUpload onPendingChange={files => setPendingFiles(prev => ({ ...prev, [row.localId]: files }))} />
                                             }
                                         </div>
                                     </div>
@@ -566,7 +350,7 @@ export const NewBatchJobForm = forwardRef<NewBatchJobFormHandle, Props>(({
                 <span className="text-xs text-[var(--cl-text-muted)]">
                     {rows.length} job{rows.length !== 1 ? "s" : ""} in this batch
                 </span>
-                {submitting && (
+                {isSubmitting && (
                     <span className="flex items-center gap-1.5 text-xs text-[var(--cl-text-muted)] ml-2">
                         <Loader2 className="h-3.5 w-3.5 animate-spin" /> Saving…
                     </span>
@@ -579,8 +363,9 @@ export const NewBatchJobForm = forwardRef<NewBatchJobFormHandle, Props>(({
                 onOpenChange={setShowAddModel}
                 onSuccess={onRefreshModels}
             />
-        </motion.div>
-    );
-});
 
-NewBatchJobForm.displayName = "NewBatchJobForm";
+            
+        </motion.div>
+    )
+;
+}

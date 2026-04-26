@@ -8,7 +8,7 @@ import {
     Dialog,
     DialogContent,
     DialogTitle,
-    DialogDescription,
+    // DialogDescription,
 } from "@/components/ui/dialog";
 import type { JobDetailType } from "../../../types/job";
 import { Badge } from "@/components/ui/badge";

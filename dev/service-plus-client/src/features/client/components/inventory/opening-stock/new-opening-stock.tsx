@@ -1,4 +1,7 @@
-import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
@@ -19,12 +22,21 @@ import type { StockTransactionTypeRow } from "@/features/client/types/purchase";
 import type { OpeningStockLineFormItemType, OpeningStockListItem, OpeningStockType } from "@/features/client/types/stock-opening-balance";
 import { emptyOpeningStockLine } from "@/features/client/types/stock-opening-balance";
 
+import { IsValidReporter } from "@/features/client/components/is-valid-reporter";
 import { LineAddDeleteActions } from "../line-add-delete-actions";
 import { PartCodeInput } from "../part-code-input";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type GenericQueryData<T> = { genericQuery: T[] | null };
+
+const formSchema = z.object({
+    entry_date: z.string().min(1, "Entry date is required"),
+    ref_no:     z.string().optional(),
+    remarks:    z.string().optional(),
+});
+
+type FormValues = z.infer<typeof formSchema>;
 
 type Props = {
     branchId:        number | null;
@@ -33,14 +45,8 @@ type Props = {
     onStatusChange:  (status: { isSubmitting: boolean; isValid: boolean }) => void;
     onSuccess:       () => void;
     selectedBrandId: number | null;
+    submitTrigger:   number;
     txnTypes:        StockTransactionTypeRow[];
-};
-
-export type NewOpeningStockHandle = {
-    isSubmitting: boolean;
-    isValid:      boolean;
-    reset:        () => void;
-    submit:       () => void;
 };
 
 // ─── CSS ──────────────────────────────────────────────────────────────────────
@@ -57,25 +63,24 @@ function today(): string {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export const NewOpeningStock = forwardRef<NewOpeningStockHandle, Props>(({
-    branchId, brandName, editEntry, onStatusChange, onSuccess, selectedBrandId, txnTypes,
-}, ref) => {
+export function NewOpeningStock({
+    branchId, brandName, editEntry, onStatusChange, onSuccess, selectedBrandId, submitTrigger, txnTypes,
+}: Props) {
     const dbName = useAppSelector(selectDbName);
     const schema = useAppSelector(selectSchema);
 
-    // Header fields
-    const [entryDate, setEntryDate] = useState(today());
-    const [refNo,     setRefNo]     = useState("");
-    const [remarks,   setRemarks]   = useState("");
+    const form = useForm<FormValues>({
+        defaultValues: { entry_date: today(), ref_no: "", remarks: "" },
+        mode: "onChange",
+        resolver: zodResolver(formSchema) as any,
+    });
+    const { register, formState: { isValid, isSubmitting }, reset } = form;
 
     // Lines
     const [lines, setLines] = useState<OpeningStockLineFormItemType[]>([emptyOpeningStockLine(selectedBrandId)]);
-
-    // Edit tracking
     const [originalLineIds, setOriginalLineIds] = useState<number[]>([]);
 
-    // Submit state
-    const [submitting, setSubmitting] = useState(false);
+    const linesValid = lines.length > 0 && lines.every(l => !!l.part_id && l.qty > 0);
 
     const partInputRefs = useRef<(HTMLInputElement | null)[]>([]);
     const qtyInputRefs  = useRef<(HTMLInputElement | null)[]>([]);
@@ -98,9 +103,16 @@ export const NewOpeningStock = forwardRef<NewOpeningStockHandle, Props>(({
             setMaxTableHeight(window.innerHeight - top - summaryHeight - 8 - 14);
         }
         recalc();
-        window.addEventListener('resize', recalc);
-        return () => window.removeEventListener('resize', recalc);
+        window.addEventListener("resize", recalc);
+        return () => window.removeEventListener("resize", recalc);
     }, [lines.length]);
+
+    // Submit trigger
+    useEffect(() => {
+        if (!submitTrigger) return;
+        void form.handleSubmit(executeSave)();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [submitTrigger]);
 
     // Populate form when editing
     useEffect(() => {
@@ -124,9 +136,11 @@ export const NewOpeningStock = forwardRef<NewOpeningStockHandle, Props>(({
         }).then(res => {
             const detail = res.data?.genericQuery?.[0];
             if (!detail) return;
-            setEntryDate(detail.entry_date.slice(0, 10));
-            setRefNo(detail.ref_no ?? "");
-            setRemarks(detail.remarks ?? "");
+            reset({
+                entry_date: detail.entry_date.slice(0, 10),
+                ref_no:     detail.ref_no ?? "",
+                remarks:    detail.remarks ?? "",
+            });
             const loaded = (detail.lines ?? []).map(l => ({
                 _key:      crypto.randomUUID(),
                 brand_id:  selectedBrandId,
@@ -143,17 +157,9 @@ export const NewOpeningStock = forwardRef<NewOpeningStockHandle, Props>(({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [editEntry, dbName, schema]);
 
-    // Validation
-    const isFormValid =
-        !!entryDate &&
-        lines.length > 0 &&
-        lines.every(l => !!l.part_id && l.qty > 0);
-
     // Reset
     const handleReset = () => {
-        setEntryDate(today());
-        setRefNo("");
-        setRemarks("");
+        reset({ entry_date: today(), ref_no: "", remarks: "" });
         setLines([emptyOpeningStockLine(selectedBrandId)]);
         setOriginalLineIds([]);
     };
@@ -176,17 +182,11 @@ export const NewOpeningStock = forwardRef<NewOpeningStockHandle, Props>(({
     };
 
     // Save
-    const handleSubmit = async () => {
-        if (!branchId)     { toast.error("Branch is not selected globally."); return; }
-        if (!entryDate)    { toast.error(MESSAGES.ERROR_OPENING_STOCK_DATE_REQUIRED); return; }
-        if (lines.some(l => !l.part_id || l.qty <= 0)) {
+    const executeSave = async (values: FormValues) => {
+        if (!linesValid) {
             toast.error(MESSAGES.ERROR_OPENING_STOCK_LINE_FIELDS_REQUIRED);
             return;
         }
-        await executeSave();
-    };
-
-    const executeSave = async () => {
         const openingBalTypeId = txnTypes.find(t => t.code === "OPENING")?.id;
         if (!openingBalTypeId) {
             toast.error(MESSAGES.ERROR_OPENING_STOCK_TXN_TYPE_MISSING);
@@ -211,18 +211,17 @@ export const NewOpeningStock = forwardRef<NewOpeningStockHandle, Props>(({
                     part_id:                   line.part_id,
                     qty:                       line.qty,
                     stock_transaction_type_id: openingBalTypeId,
-                    transaction_date:          entryDate,
+                    transaction_date:          values.entry_date,
                 }],
             }],
         }));
 
         const headerFields = {
-            entry_date: entryDate,
-            ref_no:     refNo.trim() || null,
-            remarks:    remarks.trim() || null,
+            entry_date: values.entry_date,
+            ref_no:     values.ref_no?.trim() || null,
+            remarks:    values.remarks?.trim() || null,
         };
 
-        setSubmitting(true);
         try {
             if (editEntry) {
                 const payload = graphQlUtils.buildGenericUpdateValue({
@@ -262,26 +261,12 @@ export const NewOpeningStock = forwardRef<NewOpeningStockHandle, Props>(({
                 });
                 toast.success(MESSAGES.SUCCESS_OPENING_STOCK_CREATED);
             }
+            handleReset();
             onSuccess();
         } catch {
             toast.error(editEntry ? MESSAGES.ERROR_OPENING_STOCK_UPDATE_FAILED : MESSAGES.ERROR_OPENING_STOCK_CREATE_FAILED);
-        } finally {
-            setSubmitting(false);
         }
     };
-
-    // Sync status with parent
-    useEffect(() => {
-        onStatusChange({ isSubmitting: submitting, isValid: isFormValid });
-    }, [isFormValid, submitting, onStatusChange]);
-
-    // Expose to parent
-    useImperativeHandle(ref, () => ({
-        isSubmitting: submitting,
-        isValid:      isFormValid,
-        reset:        handleReset,
-        submit:       () => { void handleSubmit(); },
-    }), [handleSubmit, handleReset, submitting, isFormValid]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // ── Render ────────────────────────────────────────────────────────────────
 
@@ -292,6 +277,12 @@ export const NewOpeningStock = forwardRef<NewOpeningStockHandle, Props>(({
             exit={{ opacity: 0, y: -10 }}
             initial={{ opacity: 0, y: 10 }}
         >
+            <IsValidReporter
+                isSubmitting={isSubmitting}
+                isValid={isValid && linesValid}
+                onStatusChange={onStatusChange}
+            />
+
             {!branchId ? (
                 <div className="flex flex-col items-center justify-center py-20 rounded-xl border-2 border-dashed border-[var(--cl-border)] bg-[var(--cl-surface-2)]/30 text-center">
                     <div className="mb-4 rounded-full bg-[var(--cl-accent)]/5 p-5">
@@ -320,10 +311,9 @@ export const NewOpeningStock = forwardRef<NewOpeningStockHandle, Props>(({
                                         Entry Date <span className="ml-0.5 text-red-500">*</span>
                                     </Label>
                                     <Input
-                                        className={`bg-[var(--cl-surface-2)] ${!entryDate ? "border-red-500 ring-red-500/10 focus:border-red-500" : ""}`}
+                                        {...register("entry_date")}
+                                        className={`bg-[var(--cl-surface-2)] ${!form.watch("entry_date") ? "border-red-500 ring-red-500/10 focus:border-red-500" : ""}`}
                                         type="date"
-                                        value={entryDate}
-                                        onChange={e => setEntryDate(e.target.value)}
                                     />
                                 </div>
 
@@ -333,10 +323,9 @@ export const NewOpeningStock = forwardRef<NewOpeningStockHandle, Props>(({
                                         Ref No
                                     </Label>
                                     <Input
+                                        {...register("ref_no")}
                                         className="bg-[var(--cl-surface-2)]"
                                         placeholder="Optional reference"
-                                        value={refNo}
-                                        onChange={e => setRefNo(e.target.value)}
                                     />
                                 </div>
 
@@ -346,10 +335,9 @@ export const NewOpeningStock = forwardRef<NewOpeningStockHandle, Props>(({
                                         Remarks
                                     </Label>
                                     <Input
+                                        {...register("remarks")}
                                         className="bg-[var(--cl-surface-2)]"
                                         placeholder="Optional..."
-                                        value={remarks}
-                                        onChange={e => setRemarks(e.target.value)}
                                     />
                                 </div>
                             </div>
@@ -485,6 +473,4 @@ export const NewOpeningStock = forwardRef<NewOpeningStockHandle, Props>(({
             )}
         </motion.div>
     );
-});
-
-NewOpeningStock.displayName = "NewOpeningStock";
+}

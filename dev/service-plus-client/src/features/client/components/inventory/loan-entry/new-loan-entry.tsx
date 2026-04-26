@@ -1,4 +1,7 @@
-import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
@@ -21,6 +24,7 @@ import type { LoanLineFormItem, StockLoanWithLines } from "@/features/client/typ
 import { emptyLoanLine } from "@/features/client/types/stock-loan";
 import { LineAddDeleteActions } from "../line-add-delete-actions";
 import { PartCodeInput } from "../part-code-input";
+import { IsValidReporter } from "@/features/client/components/is-valid-reporter";
 import { cn } from "@/lib/utils";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -28,21 +32,25 @@ import { cn } from "@/lib/utils";
 type GenericQueryData<T> = { genericQuery: T[] | null };
 
 type Props = {
-    branchId: number | null;
-    brandName?: string;
-    editLoan?: StockLoanWithLines | null;
-    onStatusChange: (status: { isSubmitting: boolean; isValid: boolean }) => void;
-    onSuccess: () => void;
+    branchId:        number | null;
+    brandName?:      string;
+    editLoan?:       StockLoanWithLines | null;
+    onStatusChange:  (status: { isSubmitting: boolean; isValid: boolean }) => void;
+    onSuccess:       () => void;
     selectedBrandId: number | null;
-    txnTypes: StockTransactionTypeRow[];
+    submitTrigger:   number;
+    txnTypes:        StockTransactionTypeRow[];
 };
 
-export type NewLoanEntryHandle = {
-    isSubmitting: boolean;
-    isValid: boolean;
-    reset: () => void;
-    submit: () => void;
-};
+// ─── Schema ───────────────────────────────────────────────────────────────────
+
+const formSchema = z.object({
+    loan_date: z.string().min(1, MESSAGES.ERROR_LOAN_DATE_REQUIRED),
+    ref_no:    z.string().optional().default(""),
+    remarks:   z.string().optional().default(""),
+});
+
+type FormValues = z.infer<typeof formSchema>;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -58,25 +66,25 @@ const inputCls = "h-8 border-[var(--cl-border)] bg-[var(--cl-surface)] text-sm p
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export const NewLoanEntry = forwardRef<NewLoanEntryHandle, Props>(({
-    branchId, brandName, editLoan, onStatusChange, onSuccess, selectedBrandId, txnTypes,
-}, ref) => {
+export function NewLoanEntry({
+    branchId, brandName, editLoan, onStatusChange, onSuccess, selectedBrandId, submitTrigger, txnTypes,
+}: Props) {
     const dbName = useAppSelector(selectDbName);
     const schema = useAppSelector(selectSchema);
 
-    // Header fields
-    const [loanDate, setLoanDate] = useState(today());
-    const [refNo, setRefNo] = useState("");
-    const [remarks, setRemarks] = useState("");
+    const form = useForm<FormValues>({
+        defaultValues: { loan_date: today(), ref_no: "", remarks: "" },
+        mode:          "onChange",
+        resolver:      zodResolver(formSchema) as any,
+    });
+
+    const { formState: { isValid, isSubmitting }, register } = form;
 
     // Lines
     const [lines, setLines] = useState<LoanLineFormItem[]>([emptyLoanLine(selectedBrandId)]);
 
     // Edit mode
     const [originalLineIds, setOriginalLineIds] = useState<number[]>([]);
-
-    // Submit
-    const [submitting, setSubmitting] = useState(false);
 
     const partInputRefs = useRef<(HTMLInputElement | null)[]>([]);
     const qtyInputRefs = useRef<(HTMLInputElement | null)[]>([]);
@@ -125,9 +133,11 @@ export const NewLoanEntry = forwardRef<NewLoanEntryHandle, Props>(({
         }).then(res => {
             const detail = res.data?.genericQuery?.[0];
             if (!detail) return;
-            setLoanDate(detail.loan_date.slice(0, 10));
-            setRefNo(detail.ref_no ?? "");
-            setRemarks(detail.remarks ?? "");
+            form.reset({
+                loan_date: detail.loan_date.slice(0, 10),
+                ref_no:    detail.ref_no ?? "",
+                remarks:   detail.remarks ?? "",
+            });
             const loadedLines = (detail.lines ?? []).map(l => ({
                 _key: crypto.randomUUID(),
                 brand_id: selectedBrandId,
@@ -163,65 +173,54 @@ export const NewLoanEntry = forwardRef<NewLoanEntryHandle, Props>(({
     };
 
     // Validation
-    const isFormValid =
-        !!loanDate &&
-        lines.length > 0 &&
-        lines.every(l => !!l.part_id && l.qty > 0 && !!l.loan_to.trim() && (l.dr_cr === "D" || l.dr_cr === "C"));
+    // const isFormValid =
+    //     !!loanDate &&
+    //     lines.length > 0 &&
+    //     lines.every(l => !!l.part_id && l.qty > 0 && !!l.loan_to.trim() && (l.dr_cr === "D" || l.dr_cr === "C"));
 
-    // Reset
     const handleReset = () => {
-        setLoanDate(today());
-        setRefNo("");
-        setRemarks("");
+        form.reset({ loan_date: today(), ref_no: "", remarks: "" });
         setLines([emptyLoanLine(selectedBrandId)]);
         setOriginalLineIds([]);
     };
 
-    const handleSubmit = async () => {
-        if (!branchId) { toast.error("Branch is not selected globally."); return; }
-        if (!loanDate) { toast.error(MESSAGES.ERROR_LOAN_DATE_REQUIRED); return; }
-        if (lines.some(l => !l.part_id || l.qty <= 0 || !l.loan_to.trim() || (l.dr_cr !== "D" && l.dr_cr !== "C"))) {
-            toast.error(MESSAGES.ERROR_LOAN_LINE_FIELDS_REQUIRED);
-            return;
-        }
-        await executeSave();
-    };
+    const linesValid = lines.length > 0 && lines.every(l => !!l.part_id && l.qty > 0 && !!l.loan_to.trim() && (l.dr_cr === "D" || l.dr_cr === "C"));
 
-    const executeSave = async () => {
-        const loanInTypeId = txnTypes.find(t => t.code === "LOAN_IN")?.id;
+    const executeSave = async (values: FormValues) => {
+        const loanInTypeId  = txnTypes.find(t => t.code === "LOAN_IN")?.id;
         const loanOutTypeId = txnTypes.find(t => t.code === "LOAN_OUT")?.id;
         if (!branchId || !dbName || !schema) {
             toast.error(MESSAGES.ERROR_LOAN_CREATE_FAILED);
             return;
         }
+        if (!linesValid) { toast.error(MESSAGES.ERROR_LOAN_LINE_FIELDS_REQUIRED); return; }
 
         const linePayload = lines.map(line => ({
-            dr_cr: line.dr_cr,
+            dr_cr:   line.dr_cr,
             loan_to: line.loan_to.trim(),
             part_id: line.part_id,
-            qty: line.qty,
+            qty:     line.qty,
             remarks: line.remarks?.trim() || null,
             xDetails: [{
-                fkeyName: "stock_loan_line_id",
+                fkeyName:  "stock_loan_line_id",
                 tableName: "stock_transaction",
                 xData: [{
-                    branch_id: branchId,
-                    dr_cr: line.dr_cr,
-                    part_id: line.part_id,
-                    qty: line.qty,
+                    branch_id:                 branchId,
+                    dr_cr:                     line.dr_cr,
+                    part_id:                   line.part_id,
+                    qty:                       line.qty,
                     stock_transaction_type_id: line.dr_cr === "D" ? loanInTypeId : loanOutTypeId,
-                    transaction_date: loanDate,
+                    transaction_date:          values.loan_date,
                 }],
             }],
         }));
 
         const headerFields = {
-            loan_date: loanDate,
-            ref_no: refNo.trim() || null,
-            remarks: remarks.trim() || null,
+            loan_date: values.loan_date,
+            ref_no:    values.ref_no?.trim() || null,
+            remarks:   values.remarks?.trim() || null,
         };
 
-        setSubmitting(true);
         try {
             if (editLoan) {
                 const payload = graphQlUtils.buildGenericUpdateValue({
@@ -261,26 +260,19 @@ export const NewLoanEntry = forwardRef<NewLoanEntryHandle, Props>(({
                 });
                 toast.success(MESSAGES.SUCCESS_LOAN_CREATED);
             }
+            handleReset();
             onSuccess();
         } catch {
             toast.error(editLoan ? MESSAGES.ERROR_LOAN_UPDATE_FAILED : MESSAGES.ERROR_LOAN_CREATE_FAILED);
-        } finally {
-            setSubmitting(false);
         }
     };
 
-    // Sync status with parent
+    // Trigger submit from parent
     useEffect(() => {
-        onStatusChange({ isSubmitting: submitting, isValid: isFormValid });
-    }, [isFormValid, submitting, onStatusChange]);
-
-    // Expose actions to parent
-    useImperativeHandle(ref, () => ({
-        isSubmitting: submitting,
-        isValid: isFormValid,
-        reset: handleReset,
-        submit: () => { void handleSubmit(); },
-    }), [handleSubmit, handleReset, submitting, isFormValid]); // eslint-disable-line react-hooks/exhaustive-deps
+        if (!submitTrigger) return;
+        void form.handleSubmit(executeSave)();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [submitTrigger]);
 
     return (
         <motion.div
@@ -316,12 +308,7 @@ export const NewLoanEntry = forwardRef<NewLoanEntryHandle, Props>(({
                                     <Label className="text-xs font-extrabold text-[var(--cl-text)] uppercase tracking-widest">
                                         Loan Date <span className="text-red-500 ml-0.5">*</span>
                                     </Label>
-                                    <Input
-                                        className={`bg-[var(--cl-surface-2)] ${!loanDate ? "border-red-500 focus:border-red-500 ring-red-500/10" : ""}`}
-                                        type="date"
-                                        value={loanDate}
-                                        onChange={e => setLoanDate(e.target.value)}
-                                    />
+                                    <Input className="bg-[var(--cl-surface-2)]" type="date" {...register("loan_date")} />
                                 </div>
 
                                 {/* Ref No */}
@@ -329,12 +316,7 @@ export const NewLoanEntry = forwardRef<NewLoanEntryHandle, Props>(({
                                     <Label className="text-xs font-extrabold text-[var(--cl-text)] uppercase tracking-widest">
                                         Ref No
                                     </Label>
-                                    <Input
-                                        className="bg-[var(--cl-surface-2)]"
-                                        placeholder="Optional reference"
-                                        value={refNo}
-                                        onChange={e => setRefNo(e.target.value)}
-                                    />
+                                    <Input className="bg-[var(--cl-surface-2)]" placeholder="Optional reference" {...register("ref_no")} />
                                 </div>
 
                                 {/* Remarks */}
@@ -342,12 +324,7 @@ export const NewLoanEntry = forwardRef<NewLoanEntryHandle, Props>(({
                                     <Label className="text-xs font-extrabold text-[var(--cl-text)] uppercase tracking-widest">
                                         Remarks
                                     </Label>
-                                    <Input
-                                        className="bg-[var(--cl-surface-2)]"
-                                        placeholder="Optional..."
-                                        value={remarks}
-                                        onChange={e => setRemarks(e.target.value)}
-                                    />
+                                    <Input className="bg-[var(--cl-surface-2)]" placeholder="Optional..." {...register("remarks")} />
                                 </div>
                             </div>{/* end grid */}
                         </CardContent>
@@ -524,8 +501,8 @@ export const NewLoanEntry = forwardRef<NewLoanEntryHandle, Props>(({
                     </div>
                 </>
             )}
+
+            <IsValidReporter isValid={isValid && linesValid} isSubmitting={isSubmitting} onStatusChange={onStatusChange} />
         </motion.div>
     );
-});
-
-NewLoanEntry.displayName = "NewLoanEntry";
+}

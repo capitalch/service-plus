@@ -1,4 +1,5 @@
-import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { IsValidReporter } from "@/features/client/components/is-valid-reporter";
 import { Loader2, Plus, ShieldCheck, ShieldOff } from "lucide-react";
 import { LineAddDeleteActions } from "../line-add-delete-actions";
 import { toast } from "sonner";
@@ -39,15 +40,9 @@ type Props = {
     onStatusChange: (status: { isSubmitting: boolean; isValid: boolean }) => void;
     onSuccess: () => void;
     selectedBrandId: number | null;
+    submitTrigger: number;
     txnTypes: StockTransactionTypeRow[];
     vendors: VendorType[];
-};
-
-export type NewPurchaseInvoiceHandle = {
-    submit: () => void;
-    reset: () => void;
-    isSubmitting: boolean;
-    isValid: boolean;
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -102,9 +97,9 @@ const inputCls = "h-7 border-[var(--cl-border)] bg-[var(--cl-surface)] text-sm p
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
-    branchId, brandName, editInvoice, isIgst, isReturn, onIsIgstChange, onIsReturnChange, onStatusChange, onSuccess, selectedBrandId, txnTypes, vendors,
-}, ref) => {
+export function NewPurchaseInvoice({
+    branchId, brandName, editInvoice, isIgst, isReturn, onIsIgstChange, onIsReturnChange, onStatusChange, onSuccess, selectedBrandId, submitTrigger, txnTypes, vendors,
+}: Props) {
     const dbName                = useAppSelector(selectDbName);
     const schema                = useAppSelector(selectSchema);
     const isGstRegistered       = useAppSelector(selectIsGstRegistered);
@@ -605,18 +600,12 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
         await executeSave();
     };
 
-    // Sync status with parent
+    // Trigger submit from parent
     useEffect(() => {
-        onStatusChange({ isValid: isFormValid, isSubmitting: submitting });
-    }, [isFormValid, submitting, onStatusChange]);
-
-    // Expose actions to parent
-    useImperativeHandle(ref, () => ({
-        submit: () => { void handleSubmit(); },
-        reset: handleReset,
-        isSubmitting: submitting,
-        isValid: isFormValid,
-    }), [handleSubmit, handleReset, submitting, isFormValid]);
+        if (!submitTrigger) return;
+        void handleSubmit();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [submitTrigger]);
 
     return (
         <motion.div
@@ -625,6 +614,7 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
             exit={{ opacity: 0, y: -10 }}
             className="flex min-h-fit md:min-h-0 md:flex-1 flex-col gap-2 pb-0 md:overflow-hidden"
         >
+            <IsValidReporter isSubmitting={submitting} isValid={isFormValid} onStatusChange={onStatusChange} />
             {!branchId ? (
                 <div className="flex flex-col items-center justify-center py-20 bg-[var(--cl-surface-2)]/30 rounded-xl border-2 border-dashed border-[var(--cl-border)] text-center">
                     <div className="bg-[var(--cl-accent)]/5 p-5 rounded-full mb-4">
@@ -1001,4 +991,4 @@ export const NewPurchaseInvoice = forwardRef<NewPurchaseInvoiceHandle, Props>(({
             )}
         </motion.div>
     );
-});
+}
