@@ -1,7 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
+import { useFormContext } from "react-hook-form";
 import { Loader2, Plus } from "lucide-react";
 import { LineAddDeleteActions } from "../line-add-delete-actions";
 import { toast } from "sonner";
@@ -20,11 +18,10 @@ import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectDefaultGstRate, selectEffectiveGstStateCode, selectIsGstRegistered, selectSchema } from "@/store/context-slice";
-import type { StockTransactionTypeRow } from "@/features/client/types/purchase";
 import type { SalesInvoiceType, SalesLineFormItem, DocumentSequenceRow, CustomerSearchRow } from "@/features/client/types/sales";
 import type { CustomerTypeOption, StateOption } from "@/features/client/types/customer";
+import type { SalesInvoiceFormValues } from "./sales-invoice-schema";
 
-import { IsValidReporter } from "@/features/client/components/is-valid-reporter";
 import { PartCodeInput } from "../part-code-input";
 import { CustomerInput } from "../customer-input";
 
@@ -32,36 +29,34 @@ import { CustomerInput } from "../customer-input";
 
 type GenericQueryData<T> = { genericQuery: T[] | null };
 
-const formSchema = z.object({
-    invoice_date: z.string().min(1, "Invoice date is required"),
-    remarks:      z.string().optional(),
-});
-
-type FormValues = z.infer<typeof formSchema>;
-
 type Props = {
-    branchId:           number | null;
-    txnTypes:           StockTransactionTypeRow[];
-    docSequence:        DocumentSequenceRow | null;
-    onSuccess:          () => void;
-    onStatusChange:     (status: { isValid: boolean; isSubmitting: boolean }) => void;
-    isIgst:             boolean;
-    setIsIgst:          (v: boolean) => void;
-    isReturn:           boolean;
-    onIsReturnChange:   (v: boolean) => void;
-    selectedBrandId:    number | null;
-    brandName?:         string;
-    editInvoice?:       SalesInvoiceType | null;
-    customerTypes:      CustomerTypeOption[];
-    masterStates:       StateOption[];
-    submitTrigger:      number;
+    branchId:             number | null;
+    docSequence:          DocumentSequenceRow | null;
+    isIgst:               boolean;
+    setIsIgst:            (v: boolean) => void;
+    isReturn:             boolean;
+    onIsReturnChange:     (v: boolean) => void;
+    selectedBrandId:      number | null;
+    brandName?:           string;
+    editInvoice?:         SalesInvoiceType | null;
+    customerTypes:        CustomerTypeOption[];
+    masterStates:         StateOption[];
+    customerId:           number | null;
+    setCustomerId:        (v: number | null) => void;
+    customerName:         string;
+    setCustomerName:      (v: string) => void;
+    customerGstin:        string;
+    setCustomerGstin:     (v: string) => void;
+    customerStateCode:    string;
+    setCustomerStateCode: (v: string) => void;
+    lines:                SalesLineFormItem[];
+    setLines:             React.Dispatch<React.SetStateAction<SalesLineFormItem[]>>;
+    originalLineIds:      number[];
+    setOriginalLineIds:   React.Dispatch<React.SetStateAction<number[]>>;
+    onLinesValidChange:   (v: boolean) => void;
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function today(): string {
-    return new Date().toISOString().slice(0, 10);
-}
 
 function emptyLine(brandId: number | null = null): SalesLineFormItem {
     return {
@@ -113,10 +108,16 @@ const inputCls = "h-7 border-[var(--cl-border)] bg-[var(--cl-surface)] text-sm p
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function NewSalesInvoice({
-    branchId, txnTypes, docSequence,
-    onSuccess, onStatusChange, isIgst, setIsIgst, isReturn, onIsReturnChange,
+    branchId, docSequence,
+    isIgst, setIsIgst, isReturn, onIsReturnChange,
     selectedBrandId, brandName, editInvoice,
-    customerTypes, masterStates, submitTrigger,
+    customerTypes, masterStates,
+    customerId, setCustomerId,
+    customerName, setCustomerName,
+    customerGstin, setCustomerGstin,
+    customerStateCode, setCustomerStateCode,
+    lines, setLines, originalLineIds, setOriginalLineIds,
+    onLinesValidChange,
 }: Props) {
     const dbName                = useAppSelector(selectDbName);
     const schema                = useAppSelector(selectSchema);
@@ -124,22 +125,8 @@ export function NewSalesInvoice({
     const defaultGstRate        = useAppSelector(selectDefaultGstRate);
     const effectiveGstStateCode = useAppSelector(selectEffectiveGstStateCode);
 
-    const form = useForm<FormValues>({
-        defaultValues: { invoice_date: today(), remarks: "" },
-        mode: "onChange",
-        resolver: zodResolver(formSchema) as any,
-    });
-    const { register, formState: { isValid, isSubmitting }, reset } = form;
-
-    // Customer fields (driven by CustomerInput / SearchableCombobox externally)
-    const [customerId,        setCustomerId]        = useState<number | null>(null);
-    const [customerName,      setCustomerName]      = useState("");
-    const [customerGstin,     setCustomerGstin]     = useState("");
-    const [customerStateCode, setCustomerStateCode] = useState("");
-
-    // Line items
-    const [lines, setLines] = useState<SalesLineFormItem[]>([emptyLine(selectedBrandId)]);
-    const [originalLineIds, setOriginalLineIds] = useState<number[]>([]);
+    const form = useFormContext<SalesInvoiceFormValues>();
+    const { register, formState: { isSubmitting } } = form;
 
     const linesValid = useMemo(() => {
         if (lines.length === 0) return false;
@@ -150,11 +137,8 @@ export function NewSalesInvoice({
         });
     }, [lines]);
 
-    const headerValid = isValid && !!customerName.trim() && !!customerStateCode && !!selectedBrandId;
-    const overallValid = headerValid && linesValid;
-
-    const partInputRefs   = useRef<(HTMLInputElement | null)[]>([]);
-    const hsnInputRefs    = useRef<(HTMLInputElement | null)[]>([]);
+    const partInputRefs    = useRef<(HTMLInputElement | null)[]>([]);
+    const hsnInputRefs     = useRef<(HTMLInputElement | null)[]>([]);
     const scrollWrapperRef = useRef<HTMLDivElement>(null);
     const summaryRef       = useRef<HTMLDivElement>(null);
 
@@ -164,7 +148,7 @@ export function NewSalesInvoice({
         function recalc() {
             const el = scrollWrapperRef.current;
             if (!el) return;
-            const top = el.getBoundingClientRect().top;
+            const top           = el.getBoundingClientRect().top;
             const summaryHeight = summaryRef.current?.getBoundingClientRect().height ?? 0;
             // 14px = clearance from ClientLayout; 8px = gap between table and summary
             setMaxTableHeight(window.innerHeight - top - summaryHeight - 8 - 14);
@@ -174,21 +158,13 @@ export function NewSalesInvoice({
         return () => window.removeEventListener("resize", recalc);
     }, []);
 
-    // Submit trigger
     useEffect(() => {
-        if (!submitTrigger) return;
-        void form.handleSubmit(executeSave)();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [submitTrigger]);
+        onLinesValidChange(linesValid);
+    }, [linesValid, onLinesValidChange]);
 
     // Populate form when editInvoice changes
     useEffect(() => {
-        if (!editInvoice) {
-            handleReset();
-            setOriginalLineIds([]);
-            return;
-        }
-        if (!dbName || !schema) return;
+        if (!editInvoice || !dbName || !schema) return;
         apolloClient.query<GenericQueryData<SalesInvoiceType & { lines: SalesLineFormItem[] }>>({
             fetchPolicy: "network-only",
             query: GRAPHQL_MAP.genericQuery,
@@ -196,7 +172,7 @@ export function NewSalesInvoice({
                 db_name: dbName,
                 schema,
                 value: graphQlUtils.buildGenericQueryValue({
-                    sqlId: SQL_MAP.GET_SALES_INVOICE_DETAIL,
+                    sqlId:   SQL_MAP.GET_SALES_INVOICE_DETAIL,
                     sqlArgs: { id: editInvoice.id },
                 }),
             },
@@ -207,33 +183,29 @@ export function NewSalesInvoice({
             setCustomerName(detail.customer_name ?? "");
             setCustomerGstin(detail.customer_gstin ?? "");
             setCustomerStateCode(detail.customer_state_code ?? "");
-            reset({ invoice_date: detail.invoice_date, remarks: detail.remarks ?? "" });
+            form.reset({ invoice_date: detail.invoice_date, remarks: detail.remarks ?? "" });
             onIsReturnChange(Boolean(detail.is_return));
             const newIsIgst = !!detail.customer_state_code && !!effectiveGstStateCode
                 && detail.customer_state_code !== effectiveGstStateCode;
             setIsIgst(newIsIgst);
-            const loadedLines = ((detail as any).lines ?? []).map((l: any) => {
-                const igstAmt = Number(l.igst_amount ?? 0);
-                const cgstAmt = Number(l.cgst_amount ?? 0);
-                return {
-                    _key:             crypto.randomUUID(),
-                    part_id:          l.part_id,
-                    brand_id:         selectedBrandId,
-                    part_code:        l.part_code,
-                    part_name:        l.part_name,
-                    uom:              "",
-                    hsn_code:         l.hsn_code ?? "",
-                    quantity:         Number(l.quantity),
-                    unit_price:       Number(l.unit_price),
-                    gst_rate:         Number(l.gst_rate ?? 0),
-                    aggregate_amount: Number(l.aggregate_amount ?? l.taxable_amount ?? 0),
-                    cgst_amount:      cgstAmt,
-                    sgst_amount:      Number(l.sgst_amount ?? 0),
-                    igst_amount:      igstAmt,
-                    total_amount:     Number(l.total_amount ?? 0),
-                    remarks:          l.remarks ?? "",
-                } as SalesLineFormItem;
-            });
+            const loadedLines = ((detail as any).lines ?? []).map((l: any) => ({
+                _key:             crypto.randomUUID(),
+                part_id:          l.part_id,
+                brand_id:         selectedBrandId,
+                part_code:        l.part_code,
+                part_name:        l.part_name,
+                uom:              "",
+                hsn_code:         l.hsn_code ?? "",
+                quantity:         Number(l.quantity),
+                unit_price:       Number(l.unit_price),
+                gst_rate:         Number(l.gst_rate ?? 0),
+                aggregate_amount: Number(l.aggregate_amount ?? l.taxable_amount ?? 0),
+                cgst_amount:      Number(l.cgst_amount ?? 0),
+                sgst_amount:      Number(l.sgst_amount ?? 0),
+                igst_amount:      Number(l.igst_amount ?? 0),
+                total_amount:     Number(l.total_amount ?? 0),
+                remarks:          l.remarks ?? "",
+            } as SalesLineFormItem));
             setLines(loadedLines);
             setOriginalLineIds(((detail as any).lines ?? []).map((l: any) => l.id));
         }).catch(() => toast.error(MESSAGES.ERROR_SALES_LOAD_FAILED));
@@ -251,7 +223,7 @@ export function NewSalesInvoice({
         setLines(prev => prev.map((l, i) => {
             if (i !== idx) return l;
             const next = { ...l, ...patch };
-            const c = calcLine(next, isIgst);
+            const c    = calcLine(next, isIgst);
             return {
                 ...next,
                 aggregate_amount: c.aggregate,
@@ -294,7 +266,7 @@ export function NewSalesInvoice({
     const totals = useMemo(() => {
         let quantity = 0, aggregate = 0, cgst = 0, sgst = 0, igst = 0;
         for (const l of lines) {
-            const c = calcLine(l, isIgst);
+            const c    = calcLine(l, isIgst);
             quantity  += l.quantity;
             aggregate += c.aggregate;
             cgst      += c.cgstAmt;
@@ -303,148 +275,6 @@ export function NewSalesInvoice({
         }
         return { quantity, aggregate, cgst, sgst, igst, total_tax: cgst + sgst + igst, total: aggregate + cgst + sgst + igst };
     }, [lines, isIgst]);
-
-    // Reset
-    const handleReset = () => {
-        reset({ invoice_date: today(), remarks: "" });
-        setCustomerId(null);
-        setCustomerName("");
-        setCustomerGstin("");
-        setCustomerStateCode("");
-        onIsReturnChange(false);
-        setLines([emptyLine(selectedBrandId)]);
-        setOriginalLineIds([]);
-    };
-
-    // Save
-    const executeSave = async (values: FormValues) => {
-        if (!linesValid) {
-            toast.error(MESSAGES.ERROR_SALES_LINE_FIELDS_REQUIRED);
-            return;
-        }
-        if (!customerName.trim()) {
-            toast.error(MESSAGES.ERROR_SALES_CUSTOMER_REQUIRED);
-            return;
-        }
-        if (!customerStateCode) {
-            toast.error("Customer state is required.");
-            return;
-        }
-
-        const salesTypeId  = txnTypes.find(t => t.code === "SALES")?.id;
-        const returnTypeId = txnTypes.find(t => t.code === "SALE_RETURN")?.id;
-        if (isReturn && !returnTypeId) {
-            toast.error("Sale Return transaction type not found. Please contact admin.");
-            return;
-        }
-        if (!salesTypeId || !branchId || !dbName || !schema) {
-            toast.error(MESSAGES.ERROR_SALES_CREATE_FAILED);
-            return;
-        }
-
-        const txnTypeId = isReturn ? returnTypeId! : salesTypeId;
-        const drCr      = isReturn ? "D" : "C";
-
-        const linePayload = lines.map(line => {
-            const c = calcLine(line, isIgst);
-            return {
-                part_id:          line.part_id,
-                item_description: line.part_name,
-                hsn_code:         line.hsn_code,
-                quantity:         line.quantity,
-                unit_price:       line.unit_price,
-                aggregate_amount: c.aggregate,
-                gst_rate:         line.gst_rate,
-                cgst_amount:      c.cgstAmt,
-                sgst_amount:      c.sgstAmt,
-                igst_amount:      c.igstAmt,
-                total_amount:     c.total,
-                remarks:          line.remarks.trim() || null,
-                xDetails: [
-                    {
-                        tableName: "stock_transaction",
-                        fkeyName:  "sales_line_id",
-                        xData: [{
-                            branch_id:                  branchId,
-                            part_id:                    line.part_id,
-                            qty:                        line.quantity,
-                            unit_cost:                  line.unit_price,
-                            dr_cr:                      drCr,
-                            transaction_date:           values.invoice_date,
-                            stock_transaction_type_id:  txnTypeId,
-                        }],
-                    },
-                ],
-            };
-        });
-
-        const headerFields = {
-            customer_contact_id: customerId ?? null,
-            customer_name:       customerName.trim(),
-            customer_gstin:      customerGstin.trim() || null,
-            customer_state_code: customerStateCode,
-            invoice_date:        values.invoice_date,
-            aggregate_amount:    totals.aggregate,
-            cgst_amount:         totals.cgst,
-            sgst_amount:         totals.sgst,
-            igst_amount:         totals.igst,
-            total_tax:           totals.total_tax,
-            total_amount:        totals.total,
-            brand_id:            selectedBrandId,
-            remarks:             values.remarks?.trim() || null,
-            is_return:           isReturn,
-        };
-
-        try {
-            if (editInvoice) {
-                const payload = graphQlUtils.buildGenericUpdateValue({
-                    tableName: "sales_invoice",
-                    xData: {
-                        id: editInvoice.id,
-                        ...headerFields,
-                        xDetails: {
-                            tableName:  "sales_invoice_line",
-                            fkeyName:   "sales_invoice_id",
-                            deletedIds: originalLineIds,
-                            xData:      linePayload,
-                        },
-                    },
-                });
-                await apolloClient.mutate({
-                    mutation: GRAPHQL_MAP.genericUpdate,
-                    variables: { db_name: dbName, schema, value: payload },
-                });
-                toast.success(MESSAGES.SUCCESS_SALES_UPDATED);
-            } else {
-                const invoiceNo = docSequence ? buildInvoiceNo(docSequence) : "";
-                const sqlObject = {
-                    tableName: "sales_invoice",
-                    doc_sequence_id:   docSequence?.id ?? null,
-                    doc_sequence_next: docSequence ? (docSequence.next_number + 1) : null,
-                    xData: {
-                        branch_id:   branchId,
-                        invoice_no:  invoiceNo,
-                        ...headerFields,
-                        xDetails: {
-                            tableName: "sales_invoice_line",
-                            fkeyName:  "sales_invoice_id",
-                            xData:     linePayload,
-                        },
-                    },
-                };
-                const encoded = encodeURIComponent(JSON.stringify(sqlObject));
-                await apolloClient.mutate({
-                    mutation: GRAPHQL_MAP.createSalesInvoice,
-                    variables: { db_name: dbName, schema, value: encoded },
-                });
-                toast.success(MESSAGES.SUCCESS_SALES_CREATED);
-            }
-            handleReset();
-            onSuccess();
-        } catch {
-            toast.error(editInvoice ? MESSAGES.ERROR_SALES_UPDATE_FAILED : MESSAGES.ERROR_SALES_CREATE_FAILED);
-        }
-    };
 
     const invoiceDate = form.watch("invoice_date");
 
@@ -455,12 +285,6 @@ export function NewSalesInvoice({
             exit={{ opacity: 0, y: -10 }}
             className="flex min-h-fit md:min-h-0 md:flex-1 flex-col gap-2 pb-0 md:overflow-hidden"
         >
-            <IsValidReporter
-                isSubmitting={isSubmitting}
-                isValid={overallValid}
-                onStatusChange={onStatusChange}
-            />
-
             {!branchId ? (
                 <div className="flex flex-col items-center justify-center py-20 bg-[var(--cl-surface-2)]/30 rounded-xl border-2 border-dashed border-[var(--cl-border)] text-center">
                     <div className="bg-[var(--cl-accent)]/5 p-5 rounded-full mb-4">
@@ -588,7 +412,6 @@ export function NewSalesInvoice({
                                     placeholder="Optional…"
                                 />
                             </div>
-
                         </CardContent>
                     </Card>
 
@@ -654,14 +477,14 @@ export function NewSalesInvoice({
                                                                 ? defaultGstRate
                                                                 : masterGstRate;
                                                             updateLine(idx, {
-                                                                part_id:   part.id,
-                                                                brand_id:  part.brand_id,
-                                                                part_code: part.part_code,
-                                                                part_name: part.part_name,
-                                                                uom:       part.uom,
-                                                                hsn_code:  part.hsn_code ?? "",
+                                                                part_id:    part.id,
+                                                                brand_id:   part.brand_id,
+                                                                part_code:  part.part_code,
+                                                                part_name:  part.part_name,
+                                                                uom:        part.uom,
+                                                                hsn_code:   part.hsn_code ?? "",
                                                                 unit_price: Number(part.mrp ?? part.cost_price ?? 0),
-                                                                gst_rate:  effectiveGstRate,
+                                                                gst_rate:   effectiveGstRate,
                                                             });
                                                         }}
                                                         onTabToNext={() => hsnInputRefs.current[idx]?.focus()}
@@ -725,11 +548,9 @@ export function NewSalesInvoice({
 
                                                 {!isIgst ? (
                                                     <>
-                                                        {/* CGST Amt */}
                                                         <td className={`${tdClass} px-2 text-right pt-1 font-mono tabular-nums text-[var(--cl-text-muted)] bg-[var(--cl-surface-2)]/40`}>
                                                             {formatNumber(c.cgstAmt)}
                                                         </td>
-                                                        {/* SGST Amt */}
                                                         <td className={`${tdClass} px-2 text-right pt-1 font-mono tabular-nums text-[var(--cl-text-muted)] bg-[var(--cl-surface-2)]/40`}>
                                                             {formatNumber(c.sgstAmt)}
                                                         </td>

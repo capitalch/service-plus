@@ -1,7 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
+import { useFormContext } from "react-hook-form";
 import { ArrowRightLeft } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
@@ -29,39 +27,26 @@ import type { StockBranchTransferType, BranchTransferLineFormItem } from "@/feat
 import { emptyTransferLine } from "@/features/client/types/branch-transfer";
 import type { Branch } from "@/types/db-schema-service";
 
-import { IsValidReporter } from "@/features/client/components/is-valid-reporter";
 import { PartCodeInput } from "../part-code-input";
 import { LineAddDeleteActions } from "../line-add-delete-actions";
+import type { BranchTransferFormValues } from "./branch-transfer-schema";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type GenericQueryData<T> = { genericQuery: T[] | null };
 
-const formSchema = z.object({
-    transfer_date: z.string().min(1, "Date is required"),
-    to_branch_id:  z.string().min(1, "Destination branch is required"),
-    ref_no:        z.string().optional(),
-    remarks:       z.string().optional(),
-});
-
-type FormValues = z.infer<typeof formSchema>;
-
 type Props = {
-    branchId:        number | null;
-    onSuccess:       () => void;
-    onStatusChange:  (status: { isValid: boolean; isSubmitting: boolean }) => void;
-    selectedBrandId: number | null;
-    brandName?:      string;
-    editTransfer?:   StockBranchTransferType | null;
-    branches:        Branch[];
-    submitTrigger:   number;
+    branchId:           number | null;
+    branches:           Branch[];
+    brandName?:         string;
+    editTransfer?:      StockBranchTransferType | null;
+    lines:              BranchTransferLineFormItem[];
+    onLinesValidChange: (v: boolean) => void;
+    originalLineIds:    number[];
+    selectedBrandId:    number | null;
+    setLines:           React.Dispatch<React.SetStateAction<BranchTransferLineFormItem[]>>;
+    setOriginalLineIds: React.Dispatch<React.SetStateAction<number[]>>;
 };
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function today(): string {
-    return new Date().toISOString().slice(0, 10);
-}
 
 // ─── CSS ──────────────────────────────────────────────────────────────────────
 
@@ -72,23 +57,14 @@ const inputCls = "h-8 border-[var(--cl-border)] bg-[var(--cl-surface)] text-sm p
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function NewBranchTransfer({
-    branchId, onSuccess, onStatusChange, selectedBrandId, brandName, editTransfer, branches, submitTrigger,
+    branchId, branches, brandName, editTransfer, lines, onLinesValidChange,
+    originalLineIds, selectedBrandId, setLines, setOriginalLineIds,
 }: Props) {
     const dbName = useAppSelector(selectDbName);
     const schema = useAppSelector(selectSchema);
 
-    const form = useForm<FormValues>({
-        defaultValues: { transfer_date: today(), to_branch_id: "", ref_no: "", remarks: "" },
-        mode: "onChange",
-        resolver: zodResolver(formSchema) as any,
-    });
-    const { register, formState: { isValid, isSubmitting }, reset, setValue, watch } = form;
-
-    // Lines
-    const [lines, setLines] = useState<BranchTransferLineFormItem[]>([emptyTransferLine(selectedBrandId)]);
-    const [originalLineIds, setOriginalLineIds] = useState<number[]>([]);
-
-    const linesValid = lines.length > 0 && lines.every(l => !!l.part_id && l.qty > 0);
+    const form = useFormContext<BranchTransferFormValues>();
+    const { register, setValue, watch } = form;
 
     const partInputRefs = useRef<(HTMLInputElement | null)[]>([]);
     const qtyInputRefs  = useRef<(HTMLInputElement | null)[]>([]);
@@ -107,7 +83,6 @@ export function NewBranchTransfer({
             if (!el) return;
             const top = el.getBoundingClientRect().top;
             const summaryHeight = summaryRef.current?.getBoundingClientRect().height ?? 0;
-            // 14px layout gap; 8px = gap between table and summary
             setMaxTableHeight(window.innerHeight - top - summaryHeight - 8 - 14);
         }
         recalc();
@@ -118,21 +93,9 @@ export function NewBranchTransfer({
     // Filter destination branches (cannot transfer to self)
     const destinationBranches = branches.filter(b => b.id !== branchId);
 
-    // Submit trigger
-    useEffect(() => {
-        if (!submitTrigger) return;
-        void form.handleSubmit(executeSave)();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [submitTrigger]);
-
     // Populate form on edit
     useEffect(() => {
-        if (!editTransfer) {
-            handleReset();
-            setOriginalLineIds([]);
-            return;
-        }
-        if (!dbName || !schema) return;
+        if (!editTransfer || !dbName || !schema) return;
         apolloClient.query<GenericQueryData<StockBranchTransferType & { lines: import("@/features/client/types/branch-transfer").StockBranchTransferLineType[] }>>({
             fetchPolicy: "network-only",
             query: GRAPHQL_MAP.genericQuery,
@@ -147,7 +110,7 @@ export function NewBranchTransfer({
         }).then(res => {
             const detail = res.data?.genericQuery?.[0];
             if (!detail) return;
-            reset({
+            form.reset({
                 transfer_date: detail.transfer_date.slice(0, 10),
                 to_branch_id:  String(detail.to_branch_id),
                 ref_no:        detail.ref_no ?? "",
@@ -185,123 +148,12 @@ export function NewBranchTransfer({
         setLines(prev => prev.length === 1 ? prev : prev.filter((_, i) => i !== idx));
     };
 
-    // Reset
-    const handleReset = () => {
-        reset({ transfer_date: today(), to_branch_id: "", ref_no: "", remarks: "" });
-        setLines([emptyTransferLine(selectedBrandId)]);
-        setOriginalLineIds([]);
-    };
+    const linesValid = lines.length > 0 && lines.every(l => !!l.part_id && l.qty > 0);
 
-    // Save
-    const executeSave = async (values: FormValues) => {
-        if (!linesValid) {
-            toast.error(MESSAGES.ERROR_TRANSFER_LINE_FIELDS_REQUIRED);
-            return;
-        }
-        if (!branchId || !values.to_branch_id || !dbName || !schema) {
-            toast.error(MESSAGES.ERROR_TRANSFER_CREATE_FAILED);
-            return;
-        }
-
-        try {
-            // Fetch txn types
-            const txnRes = await apolloClient.query<GenericQueryData<{ id: number; code: string }>>({
-                query: GRAPHQL_MAP.genericQuery,
-                variables: {
-                    db_name: dbName,
-                    schema,
-                    value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_STOCK_TRANSACTION_TYPES }),
-                },
-            });
-            const tTypes = txnRes.data?.genericQuery ?? [];
-            const outType = tTypes.find(t => t.code === "BRANCH_TRANSFER_OUT")?.id;
-            const inType  = tTypes.find(t => t.code === "BRANCH_TRANSFER_IN")?.id;
-
-            if (!outType || !inType) {
-                toast.error("Required stock transaction types (BRANCH_TRANSFER_IN/OUT) not found.");
-                return;
-            }
-
-            const linePayload = lines.map(line => ({
-                part_id: line.part_id,
-                qty:     line.qty,
-                remarks: line.remarks?.trim() || null,
-                xDetails: [{
-                    tableName: "stock_transaction",
-                    fkeyName:  "stock_branch_transfer_line_id",
-                    xData: [
-                        {
-                            branch_id:                 branchId,
-                            part_id:                   line.part_id,
-                            qty:                       line.qty,
-                            dr_cr:                     "C",
-                            transaction_date:          values.transfer_date,
-                            stock_transaction_type_id: outType,
-                        },
-                        {
-                            branch_id:                 Number(values.to_branch_id),
-                            part_id:                   line.part_id,
-                            qty:                       line.qty,
-                            dr_cr:                     "D",
-                            transaction_date:          values.transfer_date,
-                            stock_transaction_type_id: inType,
-                        },
-                    ],
-                }],
-            }));
-
-            const headerFields = {
-                transfer_date:  values.transfer_date,
-                from_branch_id: branchId,
-                to_branch_id:   Number(values.to_branch_id),
-                ref_no:         values.ref_no?.trim() || null,
-                remarks:        values.remarks?.trim() || null,
-            };
-
-            if (editTransfer) {
-                const payload = graphQlUtils.buildGenericUpdateValue({
-                    tableName: "stock_branch_transfer",
-                    xData: {
-                        id: editTransfer.id,
-                        ...headerFields,
-                        xDetails: {
-                            tableName:  "stock_branch_transfer_line",
-                            fkeyName:   "stock_branch_transfer_id",
-                            deletedIds: originalLineIds,
-                            xData:      linePayload,
-                        },
-                    },
-                });
-                await apolloClient.mutate({
-                    mutation:  GRAPHQL_MAP.genericUpdate,
-                    variables: { db_name: dbName, schema, value: payload },
-                });
-                toast.success(MESSAGES.SUCCESS_TRANSFER_UPDATED);
-            } else {
-                const payload = graphQlUtils.buildGenericUpdateValue({
-                    tableName: "stock_branch_transfer",
-                    xData: {
-                        ...headerFields,
-                        xDetails: {
-                            tableName: "stock_branch_transfer_line",
-                            fkeyName:  "stock_branch_transfer_id",
-                            xData:     linePayload,
-                        },
-                    },
-                });
-                await apolloClient.mutate({
-                    mutation:  GRAPHQL_MAP.genericUpdate,
-                    variables: { db_name: dbName, schema, value: payload },
-                });
-                toast.success(MESSAGES.SUCCESS_TRANSFER_CREATED);
-            }
-            handleReset();
-            onSuccess();
-        } catch (err) {
-            console.error(err);
-            toast.error(editTransfer ? MESSAGES.ERROR_TRANSFER_UPDATE_FAILED : MESSAGES.ERROR_TRANSFER_CREATE_FAILED);
-        }
-    };
+    useEffect(() => {
+        onLinesValidChange(linesValid);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [linesValid]);
 
     const transferDate = watch("transfer_date");
     const toBranchId   = watch("to_branch_id");
@@ -313,12 +165,6 @@ export function NewBranchTransfer({
             exit={{ opacity: 0, y: -10 }}
             className="flex min-h-fit md:min-h-0 md:flex-1 flex-col gap-2 pb-0 md:overflow-hidden"
         >
-            <IsValidReporter
-                isSubmitting={isSubmitting}
-                isValid={isValid && linesValid}
-                onStatusChange={onStatusChange}
-            />
-
             {!branchId ? (
                 <div className="flex flex-col items-center justify-center py-20 bg-[var(--cl-surface-2)]/30 rounded-xl border-2 border-dashed border-[var(--cl-border)] text-center">
                     <div className="bg-[var(--cl-accent)]/5 p-5 rounded-full mb-4">

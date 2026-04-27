@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { IsValidReporter } from "@/features/client/components/is-valid-reporter";
+import { useFormContext } from "react-hook-form";
 import { Loader2, X } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
+import { type PartUsedFormValues } from "./part-used-schema";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,69 +19,19 @@ import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectSchema } from "@/store/context-slice";
-import type { StockTransactionTypeRow } from "@/features/client/types/purchase";
+// import type { StockTransactionTypeRow } from "@/features/client/types/purchase";
 import type { BrandOption } from "@/features/client/types/model";
 import { PartCodeInput } from "../../inventory/part-code-input";
 import { LineAddDeleteActions } from "../../inventory/line-add-delete-actions";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+import { type JobSearchRow, type ExistingLine, type NewLine, getEmptyPartUsedLine } from "./part-used-schema";
+
 type GenericQueryData<T> = { genericQuery: T[] | null };
-
-type JobSearchRow = {
-    id:              number;
-    job_no:          string;
-    job_date:        string;
-    branch_id:       number;
-    is_closed:       boolean;
-    customer_name:   string;
-    mobile:          string;
-    job_status_name: string;
-};
-
-type ExistingLine = {
-    id:        number;
-    part_id:   number;
-    part_code: string;
-    part_name: string;
-    uom:       string;
-    quantity:  number;
-    remarks:   string | null;
-};
-
-type NewLine = {
-    _key:      string;
-    brand_id:  number | null;
-    part_id:   number | null;
-    part_code: string;
-    part_name: string;
-    uom:       string;
-    quantity:  number;
-    remarks:   string;
-};
-
-type Props = {
-    branchId:       number | null;
-    submitTrigger:  number;
-    txnTypes:       StockTransactionTypeRow[];
-    onSuccess:      () => void;
-    onStatusChange: (s: { isValid: boolean; isSubmitting: boolean }) => void;
-};
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function emptyLine(): NewLine {
-    return {
-        _key:      crypto.randomUUID(),
-        brand_id:  null,
-        part_id:   null,
-        part_code: "",
-        part_name: "",
-        uom:       "",
-        quantity:  1,
-        remarks:   "",
-    };
-}
 
 const thClass = "sticky top-0 z-20 text-xs font-extrabold uppercase tracking-widest text-[var(--cl-text)] py-2 px-2 text-left border-b border-[var(--cl-border)] bg-zinc-200/60 dark:bg-zinc-800/60";
 const tdClass = "p-0.5 border-b border-[var(--cl-border)]";
@@ -88,9 +39,18 @@ const inputCls = "h-7 border-[var(--cl-border)] bg-[var(--cl-surface)] text-sm p
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
+type Props = {
+    branchId:       number | null;
+    onLinesValidChange: (isValid: boolean) => void;
+    onLinesChange: (lines: NewLine[]) => void;
+    onDeletedIdsChange: (ids: number[]) => void;
+    onJobSelect: (job: JobSearchRow | null) => void;
+};
+
 export function NewPartUsedForm({
-    branchId, submitTrigger, txnTypes, onSuccess, onStatusChange,
+    branchId, onLinesValidChange, onLinesChange, onDeletedIdsChange, onJobSelect,
 }: Props) {
+    const form = useFormContext<PartUsedFormValues>();
     const dbName = useAppSelector(selectDbName);
     const schema = useAppSelector(selectSchema);
 
@@ -101,9 +61,8 @@ export function NewPartUsedForm({
     const [jobSearching,   setJobSearching]   = useState(false);
     const [existingLines,  setExistingLines]  = useState<ExistingLine[]>([]);
     const [deletedIds,     setDeletedIds]     = useState<number[]>([]);
-    const [newLines,       setNewLines]       = useState<NewLine[]>([emptyLine()]);
+    const [newLines,       setNewLines]       = useState<NewLine[]>([getEmptyPartUsedLine()]);
     const [loadingExist,   setLoadingExist]   = useState(false);
-    const [submitting,     setSubmitting]     = useState(false);
 
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -175,26 +134,37 @@ export function NewPartUsedForm({
 
     const handleJobSelect = (job: JobSearchRow | null) => {
         setSelectedJob(job);
+        onJobSelect(job);
         setDeletedIds([]);
+        onDeletedIdsChange([]);
         setExistingLines([]);
-        setNewLines([emptyLine()]);
-        if (job) void loadExistingLines(job.id);
+        setNewLines([getEmptyPartUsedLine()]);
+        onLinesChange([getEmptyPartUsedLine()]);
+        if (job) {
+            form.setValue("job_id", job.id, { shouldValidate: true });
+            void loadExistingLines(job.id);
+        } else {
+            form.setValue("job_id", 0, { shouldValidate: true });
+        }
     };
 
     const updateNewLine = (idx: number, patch: Partial<NewLine>) => {
-        setNewLines(prev => prev.map((l, i) => i === idx ? { ...l, ...patch } : l));
+        setNewLines(prev => {
+            const next = prev.map((l, i) => i === idx ? { ...l, ...patch } : l);
+            return next;
+        });
     };
 
     const insertNewLine = (idx: number) => {
         setNewLines(prev => {
             const next = [...prev];
-            next.splice(idx + 1, 0, emptyLine());
+            next.splice(idx + 1, 0, getEmptyPartUsedLine());
             return next;
         });
     };
 
     const removeNewLine = (idx: number) => {
-        setNewLines(prev => prev.length === 1 ? [emptyLine()] : prev.filter((_, i) => i !== idx));
+        setNewLines(prev => prev.length === 1 ? [getEmptyPartUsedLine()] : prev.filter((_, i) => i !== idx));
     };
 
     const markExistingDeleted = (id: number) => {
@@ -202,81 +172,13 @@ export function NewPartUsedForm({
         setExistingLines(prev => prev.filter(l => l.id !== id));
     };
 
-    const isValid = (
-        !!selectedJob &&
-        (newLines.some(l => l.part_id && l.quantity > 0) || deletedIds.length > 0)
-    );
-
-    const handleSubmit = async () => {
-        if (!selectedJob || !branchId || !dbName || !schema) return;
-        if (!isValid) {
-            toast.error(!selectedJob ? MESSAGES.ERROR_PART_USED_JOB_REQUIRED : MESSAGES.ERROR_PART_USED_LINES_REQUIRED);
-            return;
-        }
-
-        const consumeTypeId = txnTypes.find(t => t.code === "JOB_CONSUME")?.id;
-        if (!consumeTypeId) {
-            toast.error(MESSAGES.ERROR_PART_USED_SAVE_FAILED);
-            return;
-        }
-
-        const validNewLines = newLines.filter(l => l.part_id && l.quantity > 0);
-
-        const xData = validNewLines.map(line => ({
-            job_id:   selectedJob.id,
-            part_id:  line.part_id,
-            quantity: line.quantity,
-            remarks:  line.remarks.trim() || null,
-            xDetails: {
-                tableName: "stock_transaction",
-                fkeyName:  "job_part_used_id",
-                xData: {
-                    branch_id:                 branchId,
-                    part_id:                   line.part_id,
-                    quantity:                  line.quantity,
-                    dr_cr:                     "C",
-                    transaction_date:          selectedJob.job_date,
-                    stock_transaction_type_id: consumeTypeId,
-                    remarks:                   line.remarks.trim() || null,
-                },
-            },
-        }));
-
-        const payload = graphQlUtils.buildGenericUpdateValue({
-            tableName:  "job_part_used",
-            deletedIds: deletedIds.length > 0 ? deletedIds : undefined,
-            xData:      xData,
-        });
-
-        setSubmitting(true);
-        try {
-            await apolloClient.mutate({
-                mutation:  GRAPHQL_MAP.genericUpdate,
-                variables: { db_name: dbName, schema, value: payload },
-            });
-            toast.success(MESSAGES.SUCCESS_PART_USED_SAVED);
-            onSuccess();
-        } catch {
-            toast.error(MESSAGES.ERROR_PART_USED_SAVE_FAILED);
-        } finally {
-            setSubmitting(false);
-        }
-    };
-
-    // const handleReset = () => {
-    //     setSelectedJob(null);
-    //     setJobQuery("");
-    //     setJobOptions([]);
-    //     setExistingLines([]);
-    //     setDeletedIds([]);
-    //     setNewLines([emptyLine()]);
-    // };
-
     useEffect(() => {
-        if (!submitTrigger) return;
-        void handleSubmit();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [submitTrigger]);
+        const linesValid = newLines.some(l => l.part_id && l.quantity > 0) || deletedIds.length > 0;
+        onLinesValidChange(linesValid);
+        onLinesChange(newLines);
+        onDeletedIdsChange(deletedIds);
+    }, [newLines, deletedIds, onLinesValidChange, onLinesChange, onDeletedIdsChange]);
+
 
     return (
         <motion.div
@@ -285,7 +187,6 @@ export function NewPartUsedForm({
             initial={{ opacity: 0, y: 10 }}
             transition={{ duration: 0.2 }}
         >
-            <IsValidReporter isSubmitting={submitting} isValid={isValid} onStatusChange={onStatusChange} />
             {!branchId ? (
                 <div className="flex flex-col items-center justify-center py-20 rounded-xl border-2 border-dashed border-[var(--cl-border)] text-center">
                     <p className="text-sm font-semibold text-[var(--cl-text)]">No Branch Selected</p>
@@ -487,7 +388,6 @@ export function NewPartUsedForm({
                                 <span className="font-mono font-semibold text-red-500">{deletedIds.length}</span>
                             </div>
                         )}
-                        {submitting && <Loader2 className="ml-auto h-4 w-4 animate-spin text-[var(--cl-accent)]" />}
                     </div>
                 </>
             )}

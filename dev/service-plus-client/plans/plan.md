@@ -162,7 +162,7 @@ Each step is a single form unit. Complete, verify (`npx tsc --noEmit`), then pro
 
 ---
 
-### Step 4 — Loan Entry Form
+### Step 4 — Loan Entry Form ✅ DONE
 
 **Files:** `new-loan-entry.tsx` + `loan-entry-section.tsx`
 
@@ -191,7 +191,7 @@ Each step is a single form unit. Complete, verify (`npx tsc --noEmit`), then pro
 
 ---
 
-### Step 5 — Branch Transfer Form
+### Step 5 — Branch Transfer Form ✅ DONE
 
 **Files:** `new-branch-transfer.tsx` + `branch-transfer-section.tsx`
 
@@ -214,7 +214,7 @@ Each step is a single form unit. Complete, verify (`npx tsc --noEmit`), then pro
 
 ---
 
-### Step 6 — Stock Adjustment Form
+### Step 6 — Stock Adjustment Form ✅ DONE
 
 **Files:** `new-stock-adjustment.tsx` + `stock-adjustment-section.tsx`
 
@@ -235,7 +235,7 @@ Each step is a single form unit. Complete, verify (`npx tsc --noEmit`), then pro
 
 ---
 
-### Step 7 — Opening Stock Form
+### Step 7 — Opening Stock Form ✅ DONE
 
 **Files:** `new-opening-stock.tsx` + `opening-stock-section.tsx`
 
@@ -256,7 +256,7 @@ Each step is a single form unit. Complete, verify (`npx tsc --noEmit`), then pro
 
 ---
 
-### Step 8 — Sales Invoice Form
+### Step 8 — Sales Invoice Form ✅ DONE
 
 **Files:** `new-sales-invoice.tsx` + `sales-entry-section.tsx`
 
@@ -285,7 +285,7 @@ Each step is a single form unit. Complete, verify (`npx tsc --noEmit`), then pro
 
 ---
 
-### Step 9 — Purchase Invoice Form
+### Step 9 — Purchase Invoice Form ✅ DONE
 
 **Files:** `new-purchase-invoice.tsx` + `purchase-entry-section.tsx`
 
@@ -316,7 +316,7 @@ Each step is a single form unit. Complete, verify (`npx tsc --noEmit`), then pro
 
 ---
 
-### Step 10 — Part Used Form
+### Step 10 — Part Used Form ✅ DONE
 
 **Files:** `new-part-used-form.tsx` + `part-used-section.tsx`
 
@@ -341,7 +341,7 @@ Each step is a single form unit. Complete, verify (`npx tsc --noEmit`), then pro
 
 ---
 
-### Step 11 — Update Job Section (inline form, no child)
+### Step 11 — Update Job Section (inline form, no child) ✅ DONE
 
 **File:** `update-job-section.tsx`
 
@@ -360,7 +360,7 @@ Each step is a single form unit. Complete, verify (`npx tsc --noEmit`), then pro
 
 ---
 
-### Step 12 — Deliver Job Section (inline form, no child)
+### Step 12 — Deliver Job Section (inline form, no child) ✅ DONE
 
 **File:** `deliver-job-section.tsx`
 

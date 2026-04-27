@@ -51,6 +51,22 @@ export async function deleteJobFile(
     }
 }
 
+export async function deleteJobFiles(
+    dbName: string,
+    schema: string,
+    jobId: number,
+): Promise<void> {
+    const res = await fetch(`${getApiBaseUrl()}/api/images/${dbName}/${schema}/job/${jobId}`, {
+        method: "DELETE",
+        headers: getAuthHeaders(),
+    });
+
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({ detail: "Delete failed" }));
+        throw new Error(err.detail || "Delete files failed");
+    }
+}
+
 export async function getUploadConfig(): Promise<{ upload_max_size_kb: number }> {
     const res = await fetch(`${getApiBaseUrl()}/api/images/config`, {
         headers: getAuthHeaders(),

@@ -16,7 +16,7 @@ export const singleJobFormSchema = z.object({
     problem_reported:     z.string().optional().default(""),
     warranty_card_no:     z.string().optional().default(""),
     remarks:              z.string().optional().default(""),
-    attachments:          z.array(z.any()).optional().default([]),
+
 });
 
 export type SingleJobFormValues = z.infer<typeof singleJobFormSchema>;
@@ -37,10 +37,8 @@ export function getSingleJobDefaultValues(): SingleJobFormValues {
         problem_reported:     "",
         warranty_card_no:     "",
         remarks:              "",
-        attachments:          [],
+
     };
 }
 
-export function buildJobNo(prefix: string, separator: string, nextNumber: number, padding: number): string {
-    return `${prefix}${separator}${String(nextNumber).padStart(padding, "0")}`;
-}
+

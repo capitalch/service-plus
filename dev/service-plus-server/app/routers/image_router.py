@@ -144,3 +144,30 @@ async def delete_image(
         logger.info("Deleted file: %s", file_path)
 
     return {"deleted": image_id}
+
+
+@router.delete("/{db_name}/{schema}/job/{job_id}")
+async def delete_job_images(
+    db_name: str,
+    schema: str,
+    job_id: int,
+    _current_user: dict = Depends(get_current_user),
+):
+    """Delete all image/document files and DB records for a job."""
+    rows = await exec_sql(
+        db_name=db_name,
+        schema=schema,
+        sql=SqlStore.DELETE_JOB_IMAGE_DOCS_BY_JOB,
+        sql_args={"job_id": job_id},
+    )
+
+    deleted_count = 0
+    for row in rows:
+        url: str = row["url"] if isinstance(row, dict) else row[1]
+        file_path = Path(url)
+        if file_path.exists():
+            file_path.unlink()
+            logger.info("Deleted job file: %s", file_path)
+        deleted_count += 1
+
+    return {"deleted": deleted_count}

@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import {ArrowLeft, CheckCircle2,
     ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon,
     Loader2, Plus, RefreshCw, Save, Search, Trash2, Wand2, X} from "lucide-react";
@@ -24,6 +26,11 @@ import { useAppSelector } from "@/store/hooks";
 import type { JobDetailType, JobLookupRow } from "@/features/client/types/job";
 import type { DocumentSequenceRow } from "@/features/client/types/sales";
 import type { JobInvoiceFormLine, JobInvoiceLineType, JobInvoiceType } from "@/features/client/types/job-invoice";
+import {
+    readyForDeliverySchema,
+    getReadyForDeliveryDefaultValues,
+    type ReadyForDeliveryFormValues,
+} from "./ready-for-delivery-schema";
 
 // ─── Local types ──────────────────────────────────────────────────────────────
 
@@ -72,10 +79,6 @@ const thClass = "sticky top-0 z-20 text-xs font-semibold uppercase tracking-wide
 const tdClass = "p-3 text-sm text-[var(--cl-text)] border-b border-[var(--cl-border)]";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function today(): string {
-    return new Date().toISOString().slice(0, 10);
-}
 
 function round2(n: number): number {
     return Math.round(n * 100) / 100;
@@ -166,13 +169,16 @@ export const ReadyForDeliverySection = () => {
     // const [selectedRow,      setSelectedRow]      = useState<ReadyJobRow | null>(null);
     const [selectedJob,      setSelectedJob]      = useState<JobDetailType | null>(null);
     const [existingInvoice,  setExistingInvoice]  = useState<JobInvoiceType | null>(null);
-    const [invoiceDate,      setInvoiceDate]      = useState(today());
-    const [supplyStateCode,  setSupplyStateCode]  = useState("");
     const [isIgst,           setIsIgst]           = useState(false);
     const [lines,            setLines]            = useState<JobInvoiceFormLine[]>([emptyFormLine()]);
     const [loadingDetail,    setLoadingDetail]    = useState(false);
     const [loadingParts,     setLoadingParts]     = useState(false);
-    const [submitting,       setSubmitting]       = useState(false);
+
+    const form = useForm<ReadyForDeliveryFormValues>({
+        defaultValues: getReadyForDeliveryDefaultValues(),
+        mode:          "onChange",
+        resolver:      zodResolver(readyForDeliverySchema) as any,
+    });
 
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const scrollRef   = useRef<HTMLDivElement>(null);
@@ -230,7 +236,7 @@ export const ReadyForDeliverySection = () => {
             setReadyStatusId(readyStatus?.id ?? null);
 
             const defaultStateCode = ci?.gst_state_code ?? effectiveStateCode ?? "";
-            setSupplyStateCode(defaultStateCode);
+            form.setValue("supply_state_code", defaultStateCode, { shouldValidate: true });
 
             setMetaLoaded(true);
         }).catch(() => toast.error(MESSAGES.ERROR_JOB_INVOICE_LOAD_FAILED));
@@ -311,14 +317,15 @@ export const ReadyForDeliverySection = () => {
             setExistingInvoice(invoice);
 
             if (invoice) {
-                setInvoiceDate(invoice.invoice_date.slice(0, 10));
-                setSupplyStateCode(invoice.supply_state_code ?? "");
+                form.reset({
+                    invoice_date:      invoice.invoice_date.slice(0, 10),
+                    supply_state_code: invoice.supply_state_code ?? "",
+                });
                 const hasIgst = (invoice.lines ?? []).some(l => l.igst_rate > 0);
                 setIsIgst(hasIgst);
                 setLines(invoice.lines?.length ? invoice.lines.map(dbLineToFormLine) : [emptyFormLine()]);
             } else {
-                setInvoiceDate(today());
-                setSupplyStateCode(companyInfo?.gst_state_code ?? effectiveStateCode ?? "");
+                form.reset(getReadyForDeliveryDefaultValues(companyInfo?.gst_state_code ?? effectiveStateCode ?? ""));
                 setIsIgst(false);
                 setLines([emptyFormLine()]);
             }
@@ -390,18 +397,13 @@ export const ReadyForDeliverySection = () => {
     }, [lines, isIgst]);
 
     // ── Save ─────────────────────────────────────────────────────────────────
-    async function handleSave() {
+    async function executeSave(values: ReadyForDeliveryFormValues) {
         if (!selectedJob || !dbName || !schema) return;
-        if (!lines.some(l => l.description.trim())) {
-            toast.error(MESSAGES.ERROR_JOB_INVOICE_LINE_REQUIRED);
-            return;
-        }
         if (!readyStatusId) {
             toast.error("Ready for Delivery status not configured. Check job status codes.");
             return;
         }
 
-        setSubmitting(true);
         try {
             const linePayloads = lines.filter(l => l.description.trim()).map(l => buildLinePayload(l, isIgst));
             const isNew = !existingInvoice;
@@ -411,7 +413,6 @@ export const ReadyForDeliverySection = () => {
             if (isNew) {
                 if (!docSequence?.id) {
                     toast.error("JINV document sequence not configured.");
-                    setSubmitting(false);
                     return;
                 }
                 const invoiceNo = buildInvoiceNo(docSequence);
@@ -421,8 +422,8 @@ export const ReadyForDeliverySection = () => {
                         job_id:            selectedJob.id,
                         company_id:        companyInfo?.id ?? null,
                         invoice_no:        invoiceNo,
-                        invoice_date:      invoiceDate,
-                        supply_state_code: supplyStateCode,
+                        invoice_date:      values.invoice_date,
+                        supply_state_code: values.supply_state_code,
                         taxable_amount:    totals.taxable,
                         cgst_amount:       totals.cgst,
                         sgst_amount:       totals.sgst,
@@ -450,8 +451,8 @@ export const ReadyForDeliverySection = () => {
                     tableName: "job_invoice",
                     xData: {
                         id:                existingInvoice.id,
-                        invoice_date:      invoiceDate,
-                        supply_state_code: supplyStateCode,
+                        invoice_date:      values.invoice_date,
+                        supply_state_code: values.supply_state_code,
                         taxable_amount:    totals.taxable,
                         cgst_amount:       totals.cgst,
                         sgst_amount:       totals.sgst,
@@ -476,10 +477,10 @@ export const ReadyForDeliverySection = () => {
             if (branchId) void loadData(branchId, fromDate, toDate, searchQ, page);
         } catch {
             toast.error(MESSAGES.ERROR_JOB_INVOICE_SAVE_FAILED);
-        } finally {
-            setSubmitting(false);
         }
     }
+
+    const linesValid = useMemo(() => lines.some(l => l.description.trim()), [lines]);
 
     const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
@@ -487,7 +488,7 @@ export const ReadyForDeliverySection = () => {
 
     if (subView === "invoice" && selectedJob) {
         const invoiceNo = existingInvoice?.invoice_no ?? (docSequence ? buildInvoiceNo(docSequence) : "—");
-        const canSave   = lines.some(l => l.description.trim()) && !submitting && !!readyStatusId;
+        const canSave   = form.formState.isValid && linesValid && !form.formState.isSubmitting && !!readyStatusId;
 
         return (
             <motion.div

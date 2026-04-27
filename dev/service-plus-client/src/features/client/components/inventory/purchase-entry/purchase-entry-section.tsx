@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { FormProvider, useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import {CheckCircle2, Eye, FileDown, FileSpreadsheet, FileText, Loader2, MoreHorizontal, Pencil, RefreshCw, RotateCcw, Search, Trash2, XCircle, ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon, X} from "lucide-react";
 import { ViewModeToggle, type ViewMode } from "@/features/client/components/inventory/view-mode-toggle";
 import { utils, writeFile } from "xlsx";
@@ -36,7 +38,8 @@ import type { VendorType } from "@/features/client/types/vendor";
 import type { PurchaseInvoiceType, PurchaseLineType, StockTransactionTypeRow } from "@/features/client/types/purchase";
 import { ViewPurchaseInvoiceDialog } from "./view-purchase-invoice-dialog";
 import { PurchaseInvoicePdfPreviewDialog } from "./purchase-invoice-pdf-preview-dialog";
-import { NewPurchaseInvoice } from "./new-purchase-invoice";
+import { NewPurchaseInvoice, type PurchaseInvoiceHandle } from "./new-purchase-invoice";
+import { purchaseInvoiceSchema, type PurchaseInvoiceFormValues, getPurchaseInvoiceDefaultValues } from "./purchase-invoice-schema";
 import { Save } from "lucide-react";
 import type { BrandOption } from "@/features/client/types/model";
 import { BrandSelect } from "@/features/client/components/inventory/brand-select";
@@ -106,12 +109,32 @@ export const PurchaseEntrySection = () => {
     const [isReturn,     setIsReturn]     = useState(false);
 
     // Form coordination
-    const [submitTrigger, setSubmitTrigger] = useState(0);
-    const [newFormValid, setNewFormValid] = useState(false);
-    const [submitting,   setSubmitting]   = useState(false);
+    const [resetKey,          setResetKey]          = useState(0);
+    const [linesValid,        setLinesValid]        = useState(false);
+    const [invoiceExists,     setInvoiceExists]     = useState(false);
+    const [checkingDuplicate, setCheckingDuplicate] = useState(false);
 
+    const childRef = useRef<PurchaseInvoiceHandle>(null);
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const scrollWrapperRef = useRef<HTMLDivElement>(null);
+
+    const form = useForm<PurchaseInvoiceFormValues>({
+        defaultValues: getPurchaseInvoiceDefaultValues(),
+        mode:          "onChange",
+        resolver:      zodResolver(purchaseInvoiceSchema) as any,
+    });
+
+    const canSave = form.formState.isValid && !!selectedBrand && !invoiceExists && !checkingDuplicate && linesValid;
+
+    const handleReset = () => {
+        form.reset(getPurchaseInvoiceDefaultValues());
+        setEditInvoice(null);
+        setIsReturn(false);
+        setLinesValid(false);
+        setInvoiceExists(false);
+        setCheckingDuplicate(false);
+        setResetKey(k => k + 1);
+    };
 
     // Dynamic height calculation for the data grid
     const [maxHeight, setMaxHeight] = useState<number>(0);
@@ -503,8 +526,8 @@ export const PurchaseEntrySection = () => {
                     mode={mode}
                     isEditing={!!editInvoice}
                     disableNew={!!editInvoice}
-                    onNewClick={() => { setEditInvoice(null); setIsReturn(false); setMode("new"); }}
-                    onViewClick={() => { setMode("view"); if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, page); }}
+                    onNewClick={() => { handleReset(); setMode("new"); }}
+                    onViewClick={() => { handleReset(); setMode("view"); if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, page); }}
                 />
 
                 {/* Brand */}
@@ -557,48 +580,52 @@ export const PurchaseEntrySection = () => {
                     <Button
                         className="h-8 gap-1.5 px-3 text-xs font-extrabold uppercase tracking-widest text-[var(--cl-text)]"
                         variant="ghost"
-                        onClick={() => { setEditInvoice(null); }}
-                        disabled={submitting}
+                        onClick={handleReset}
+                        disabled={form.formState.isSubmitting}
                     >
-                        <RefreshCw className={`h-3.5 w-3.5 ${submitting ? 'animate-spin' : ''}`} />
+                        <RefreshCw className={`h-3.5 w-3.5 ${form.formState.isSubmitting ? 'animate-spin' : ''}`} />
                         Reset
                     </Button>
                     <Button
                         className="h-8 gap-1.5 px-4 text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm font-extrabold uppercase tracking-widest transition-all disabled:opacity-30 disabled:bg-slate-300 disabled:text-slate-600 disabled:shadow-none disabled:cursor-not-allowed"
-                        onClick={() => setSubmitTrigger(t => t + 1)}
-                        disabled={!newFormValid || submitting}
+                        onClick={() => { childRef.current?.triggerSave(); }}
+                        disabled={!canSave || form.formState.isSubmitting}
                     >
-                        {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                        {form.formState.isSubmitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
                         Save Invoice
                     </Button>
                 </div>
             </div>
 
             {mode === 'new' ? (
-                    <NewPurchaseInvoice
-                        branchId={branchId}
-                        txnTypes={txnTypes}
-                        vendors={vendors}
-                        submitTrigger={submitTrigger}
-                        onSuccess={() => {
-                            if (editInvoice) {
-                                setEditInvoice(null);
-                                setMode('view');
-                                if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, 1);
-                            }
-                        }}
-                        onStatusChange={(status) => {
-                            setNewFormValid(status.isValid);
-                            setSubmitting(status.isSubmitting);
-                        }}
-                        isIgst={isIgst}
-                        isReturn={isReturn}
-                        onIsIgstChange={setIsIgst}
-                        onIsReturnChange={setIsReturn}
-                        selectedBrandId={selectedBrand ? Number(selectedBrand) : null}
-                        brandName={brands.find(b => String(b.id) === selectedBrand)?.name}
-                        editInvoice={editInvoice}
-                    />
+                    <FormProvider {...form}>
+                        <NewPurchaseInvoice
+                            key={resetKey}
+                            ref={childRef}
+                            branchId={branchId}
+                            txnTypes={txnTypes}
+                            vendors={vendors}
+                            isIgst={isIgst}
+                            isReturn={isReturn}
+                            onIsIgstChange={setIsIgst}
+                            onIsReturnChange={setIsReturn}
+                            selectedBrandId={selectedBrand ? Number(selectedBrand) : null}
+                            brandName={brands.find(b => String(b.id) === selectedBrand)?.name}
+                            editInvoice={editInvoice}
+                            onLinesValidChange={setLinesValid}
+                            onDupStateChange={({ invoiceExists: ie, checkingDuplicate: cd }) => {
+                                setInvoiceExists(ie);
+                                setCheckingDuplicate(cd);
+                            }}
+                            onSaveSuccess={() => {
+                                if (editInvoice) {
+                                    setEditInvoice(null);
+                                    setMode("view");
+                                    if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, 1);
+                                }
+                            }}
+                        />
+                    </FormProvider>
             ) : (
                 <>
                     {/* Toolbar - Compacted */}

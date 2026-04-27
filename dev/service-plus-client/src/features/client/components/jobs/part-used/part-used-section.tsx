@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useForm, FormProvider } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import {ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon,
     Loader2, RefreshCw, RotateCcw, Save, Search, Trash2, X} from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
+import { partUsedFormSchema, type PartUsedFormValues, getPartUsedDefaultValues, type JobSearchRow, type NewLine, getEmptyPartUsedLine } from "./part-used-schema";
 
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -71,6 +74,12 @@ export const PartUsedSection = () => {
     const globalBranch = useAppSelector(selectCurrentBranch);
     const branchId     = globalBranch?.id ?? null;
 
+    const form = useForm<PartUsedFormValues>({
+        defaultValues: getPartUsedDefaultValues(),
+        mode: "onChange",
+        resolver: zodResolver(partUsedFormSchema) as any,
+    });
+
     const { from: defaultFrom, to: defaultTo } = currentMonthRange();
 
     const [mode, setMode] = useState<ViewMode>("new");
@@ -97,9 +106,11 @@ export const PartUsedSection = () => {
     const [deleting,   setDeleting]   = useState(false);
 
     // Form
-    const [submitTrigger, setSubmitTrigger] = useState(0);
-    const [formValid,   setFormValid]   = useState(false);
-    const [submitting,  setSubmitting]  = useState(false);
+    const [resetKey,   setResetKey]   = useState(0);
+    const [linesValid, setLinesValid] = useState(false);
+    const [newLines, setNewLines] = useState<NewLine[]>([]);
+    const [deletedIds, setDeletedIds] = useState<number[]>([]);
+    const [selectedJob, setSelectedJob] = useState<JobSearchRow | null>(null);
 
     const debounceRef      = useRef<ReturnType<typeof setTimeout> | null>(null);
     const scrollWrapperRef = useRef<HTMLDivElement>(null);
@@ -215,6 +226,67 @@ export const PartUsedSection = () => {
         finally { setDeleting(false); }
     };
 
+    const handleReset = () => {
+        form.reset(getPartUsedDefaultValues());
+        setLinesValid(false);
+        setNewLines([]);
+        setDeletedIds([]);
+        setSelectedJob(null);
+        setResetKey(k => k + 1);
+    };
+
+    const executeSave = async (values: PartUsedFormValues) => {
+        if (!branchId || !dbName || !schema || !selectedJob) return;
+
+        const consumeTypeId = txnTypes.find(t => t.code === "JOB_CONSUME")?.id;
+        if (!consumeTypeId) {
+            toast.error(MESSAGES.ERROR_PART_USED_SAVE_FAILED);
+            return;
+        }
+
+        const validNewLines = newLines.filter(l => l.part_id && l.quantity > 0);
+
+        const xData = validNewLines.map(line => ({
+            job_id:   values.job_id,
+            part_id:  line.part_id,
+            quantity: line.quantity,
+            remarks:  line.remarks?.trim() || null,
+            xDetails: {
+                tableName: "stock_transaction",
+                fkeyName:  "job_part_used_id",
+                xData: {
+                    branch_id:                 branchId,
+                    part_id:                   line.part_id,
+                    quantity:                  line.quantity,
+                    dr_cr:                     "C",
+                    transaction_date:          selectedJob.job_date,
+                    stock_transaction_type_id: consumeTypeId,
+                    remarks:                   line.remarks?.trim() || null,
+                },
+            },
+        }));
+
+        const payload = graphQlUtils.buildGenericUpdateValue({
+            tableName:  "job_part_used",
+            deletedIds: deletedIds.length > 0 ? deletedIds : undefined,
+            xData:      xData,
+        });
+
+        try {
+            await apolloClient.mutate({
+                mutation:  GRAPHQL_MAP.genericUpdate,
+                variables: { db_name: dbName, schema, value: payload },
+            });
+            toast.success(MESSAGES.SUCCESS_PART_USED_SAVED);
+            handleReset();
+            setMode("view");
+            if (selectedBranch) void loadData(Number(selectedBranch), fromDate, toDate, searchQ, 1);
+        } catch {
+            toast.error(MESSAGES.ERROR_PART_USED_SAVE_FAILED);
+        }
+    };
+
+
     const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
     return (
@@ -249,49 +321,49 @@ export const PartUsedSection = () => {
                 <ViewModeToggle
                     isEditing={false}
                     mode={mode}
-                    onNewClick={() => setMode("new")}
+                    onNewClick={() => { handleReset(); setMode("new"); }}
                     onViewClick={() => {
+                        handleReset();
                         setMode("view");
                         if (selectedBranch) void loadData(Number(selectedBranch), fromDate, toDate, searchQ, page);
                     }}
                 />
 
-                <div className={`flex items-center gap-2 ${mode !== "new" ? "hidden md:flex md:invisible pointer-events-none" : ""}`}>
-                    <Button
-                        className="h-8 gap-1.5 px-3 text-xs font-extrabold uppercase tracking-widest text-[var(--cl-text)]"
-                        disabled={submitting}
-                        variant="ghost"
-                        onClick={() => {}}
-                    >
-                        <RefreshCw className={`h-3.5 w-3.5 ${submitting ? "animate-spin" : ""}`} />
-                        Reset
-                    </Button>
-                    <Button
-                        className="h-8 gap-1.5 px-4 text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm font-extrabold uppercase tracking-widest transition-all disabled:opacity-30 disabled:bg-slate-300 disabled:text-slate-600 disabled:shadow-none disabled:cursor-not-allowed"
-                        disabled={!formValid || submitting}
-                        onClick={() => setSubmitTrigger(t => t + 1)}
-                    >
-                        {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-                        Save
-                    </Button>
-                </div>
+                    <div className={`flex items-center gap-2 ${mode !== "new" ? "hidden md:flex md:invisible pointer-events-none" : ""}`}>
+                        <Button
+                            className="h-8 gap-1.5 px-3 text-xs font-extrabold uppercase tracking-widest text-[var(--cl-text)]"
+                            disabled={form.formState.isSubmitting}
+                            variant="ghost"
+                            onClick={handleReset}
+                        >
+                            <RefreshCw className={`h-3.5 w-3.5 ${form.formState.isSubmitting ? "animate-spin" : ""}`} />
+                            Reset
+                        </Button>
+                        <Button
+                            className="h-8 gap-1.5 px-4 text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm font-extrabold uppercase tracking-widest transition-all disabled:opacity-30 disabled:bg-slate-300 disabled:text-slate-600 disabled:shadow-none disabled:cursor-not-allowed"
+                            disabled={!form.formState.isValid || !linesValid || form.formState.isSubmitting}
+                            onClick={form.handleSubmit(executeSave)}
+                        >
+                            {form.formState.isSubmitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                            Save
+                        </Button>
+                    </div>
+
+
             </div>
 
             {mode === "new" ? (
                 <div className="flex-1 overflow-y-auto">
-                    <NewPartUsedForm
-                        branchId={branchId}
-                        submitTrigger={submitTrigger}
-                        txnTypes={txnTypes}
-                        onSuccess={() => {
-                            setMode("view");
-                            if (selectedBranch) void loadData(Number(selectedBranch), fromDate, toDate, searchQ, 1);
-                        }}
-                        onStatusChange={s => {
-                            setFormValid(s.isValid);
-                            setSubmitting(s.isSubmitting);
-                        }}
-                    />
+                    <FormProvider {...form}>
+                        <NewPartUsedForm
+                            key={resetKey}
+                            branchId={branchId}
+                            onLinesValidChange={setLinesValid}
+                            onLinesChange={setNewLines}
+                            onDeletedIdsChange={setDeletedIds}
+                            onJobSelect={setSelectedJob}
+                        />
+                    </FormProvider>
                 </div>
             ) : (
                 <>

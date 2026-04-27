@@ -3,6 +3,8 @@ import {FileText, Loader2, MoreHorizontal, Pencil, RefreshCw, Save, Search, Tras
 import { ViewModeToggle, type ViewMode } from "@/features/client/components/inventory/view-mode-toggle";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
+import { FormProvider, useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -33,14 +35,14 @@ import { selectCurrentBranch, selectSchema } from "@/store/context-slice";
 import type { BrandOption } from "@/features/client/types/model";
 import { BrandSelect } from "@/features/client/components/inventory/brand-select";
 import type { StockTransactionTypeRow } from "@/features/client/types/purchase";
-import type { StockLoanType } from "@/features/client/types/stock-loan";
+import type { LoanLineFormItem, StockLoanType } from "@/features/client/types/stock-loan";
+import { emptyLoanLine } from "@/features/client/types/stock-loan";
+import { loanEntryFormSchema, type LoanEntryFormValues, getLoanEntryDefaultValues } from "./loan-entry-schema";
 import { NewLoanEntry } from "./new-loan-entry";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type GenericQueryData<T> = { genericQuery: T[] | null };
-
-// ViewMode is imported from view-mode-toggle
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -89,21 +91,27 @@ export const LoanEntrySection = () => {
     // Edit state
     const [editLoan, setEditLoan] = useState<StockLoanType | null>(null);
 
-    // Form coordination
-    const [submitTrigger, setSubmitTrigger] = useState(0);
-    const [newFormValid,  setNewFormValid]  = useState(false);
-    const [submitting,    setSubmitting]    = useState(false);
+    // Lines lifted from child
+    const selectedBrandId = selectedBrand ? Number(selectedBrand) : null;
+    const [lines,           setLines]           = useState<LoanLineFormItem[]>([emptyLoanLine(selectedBrandId)]);
+    const [originalLineIds, setOriginalLineIds] = useState<number[]>([]);
+    const [linesValid,      setLinesValid]      = useState(false);
+
+    // Form
+    const form = useForm<LoanEntryFormValues>({
+        defaultValues: getLoanEntryDefaultValues(),
+        mode:          "onChange",
+        resolver:      zodResolver(loanEntryFormSchema) as any,
+    });
 
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const scrollWrapperRef = useRef<HTMLDivElement>(null);
 
-    // Dynamic height calculation for the data grid
     const [maxHeight, setMaxHeight] = useState<number>(0);
 
     const recalc = useCallback(() => {
         if (scrollWrapperRef.current) {
             const rect = scrollWrapperRef.current.getBoundingClientRect();
-            // Leave space for pagination (approx 48px) and some margin
             const availableHeight = window.innerHeight - rect.top - 60;
             setMaxHeight(Math.max(200, availableHeight));
         }
@@ -111,7 +119,6 @@ export const LoanEntrySection = () => {
 
     useEffect(() => {
         if (mode === "view") {
-            // Slight delay to ensure DOM is ready
             const timer = setTimeout(recalc, 100);
             window.addEventListener("resize", recalc);
             return () => {
@@ -119,7 +126,7 @@ export const LoanEntrySection = () => {
                 window.removeEventListener("resize", recalc);
             };
         }
-    }, [mode, recalc, loans.length]); // Also recalc on data load
+    }, [mode, recalc, loans.length]);
 
     // Load brands and txnTypes on mount
     useEffect(() => {
@@ -200,7 +207,6 @@ export const LoanEntrySection = () => {
         }
     }, [dbName, schema]);
 
-    // Re-fetch when filters or branch change
     useEffect(() => {
         if (mode !== "view" || !branchId) return;
         void loadData(Number(branchId), fromDate, toDate, searchQ, page);
@@ -218,6 +224,98 @@ export const LoanEntrySection = () => {
             setPage(1);
             setSearchQ(value);
         }, DEBOUNCE_MS);
+    };
+
+    const handleReset = () => {
+        form.reset(getLoanEntryDefaultValues());
+        setLines([emptyLoanLine(selectedBrandId)]);
+        setOriginalLineIds([]);
+        setEditLoan(null);
+    };
+
+    const executeSave = async (values: LoanEntryFormValues) => {
+        const loanInTypeId  = txnTypes.find(t => t.code === "LOAN_IN")?.id;
+        const loanOutTypeId = txnTypes.find(t => t.code === "LOAN_OUT")?.id;
+        if (!branchId || !dbName || !schema) {
+            toast.error(MESSAGES.ERROR_LOAN_CREATE_FAILED);
+            return;
+        }
+        if (!linesValid) { toast.error(MESSAGES.ERROR_LOAN_LINE_FIELDS_REQUIRED); return; }
+
+        const linePayload = lines.map(line => ({
+            dr_cr:   line.dr_cr,
+            loan_to: line.loan_to.trim(),
+            part_id: line.part_id,
+            qty:     line.qty,
+            remarks: line.remarks?.trim() || null,
+            xDetails: [{
+                fkeyName:  "stock_loan_line_id",
+                tableName: "stock_transaction",
+                xData: [{
+                    branch_id:                 branchId,
+                    dr_cr:                     line.dr_cr,
+                    part_id:                   line.part_id,
+                    qty:                       line.qty,
+                    stock_transaction_type_id: line.dr_cr === "D" ? loanInTypeId : loanOutTypeId,
+                    transaction_date:          values.loan_date,
+                }],
+            }],
+        }));
+
+        const headerFields = {
+            loan_date: values.loan_date,
+            ref_no:    values.ref_no?.trim() || null,
+            remarks:   values.remarks?.trim() || null,
+        };
+
+        try {
+            if (editLoan) {
+                const payload = graphQlUtils.buildGenericUpdateValue({
+                    tableName: "stock_loan",
+                    xData: {
+                        id: editLoan.id,
+                        ...headerFields,
+                        xDetails: {
+                            deletedIds: originalLineIds,
+                            fkeyName: "stock_loan_id",
+                            tableName: "stock_loan_line",
+                            xData: linePayload,
+                        },
+                    },
+                });
+                await apolloClient.mutate({
+                    mutation: GRAPHQL_MAP.genericUpdate,
+                    variables: { db_name: dbName, schema, value: payload },
+                });
+                toast.success(MESSAGES.SUCCESS_LOAN_UPDATED);
+                setEditLoan(null);
+                setMode("view");
+                if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, 1);
+            } else {
+                const payload = graphQlUtils.buildGenericUpdateValue({
+                    tableName: "stock_loan",
+                    xData: {
+                        branch_id: branchId,
+                        ...headerFields,
+                        xDetails: {
+                            fkeyName: "stock_loan_id",
+                            tableName: "stock_loan_line",
+                            xData: linePayload,
+                        },
+                    },
+                });
+                await apolloClient.mutate({
+                    mutation: GRAPHQL_MAP.genericUpdate,
+                    variables: { db_name: dbName, schema, value: payload },
+                });
+                toast.success(MESSAGES.SUCCESS_LOAN_CREATED);
+            }
+            form.reset(getLoanEntryDefaultValues());
+            setLines([emptyLoanLine(selectedBrandId)]);
+            setOriginalLineIds([]);
+        } catch {
+            toast.error(editLoan ? MESSAGES.ERROR_LOAN_UPDATE_FAILED : MESSAGES.ERROR_LOAN_CREATE_FAILED);
+        }
     };
 
     // Delete
@@ -287,7 +385,7 @@ export const LoanEntrySection = () => {
                 <ViewModeToggle
                     mode={mode}
                     isEditing={!!editLoan}
-                    onNewClick={() => { setEditLoan(null); setMode("new"); }}
+                    onNewClick={() => handleReset()}
                     onViewClick={() => { setMode("view"); if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, page); }}
                 />
 
@@ -306,44 +404,39 @@ export const LoanEntrySection = () => {
                 <div className={`flex items-center gap-2 ${mode !== "new" ? "hidden md:flex md:invisible pointer-events-none" : ""}`}>
                     <Button
                         className="h-8 gap-1.5 px-3 text-xs font-extrabold uppercase tracking-widest text-[var(--cl-text)]"
-                        disabled={submitting}
+                        disabled={form.formState.isSubmitting}
                         variant="ghost"
-                        onClick={() => { setEditLoan(null); }}
+                        onClick={handleReset}
                     >
-                        <RefreshCw className={`h-3.5 w-3.5 ${submitting ? "animate-spin" : ""}`} />
+                        <RefreshCw className={`h-3.5 w-3.5 ${form.formState.isSubmitting ? "animate-spin" : ""}`} />
                         Reset
                     </Button>
                     <Button
                         className="h-8 gap-1.5 px-4 text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm font-extrabold uppercase tracking-widest transition-all disabled:opacity-30 disabled:bg-slate-300 disabled:text-slate-600 disabled:shadow-none disabled:cursor-not-allowed"
-                        disabled={!newFormValid || submitting}
-                        onClick={() => setSubmitTrigger(t => t + 1)}
+                        disabled={!form.formState.isValid || !linesValid || form.formState.isSubmitting}
+                        onClick={form.handleSubmit(executeSave)}
                     >
-                        {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                        {form.formState.isSubmitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
                         Save
                     </Button>
                 </div>
             </div>
 
             {mode === "new" ? (
-                <NewLoanEntry
-                    branchId={branchId}
-                    brandName={brands.find(b => String(b.id) === selectedBrand)?.name}
-                    editLoan={editLoan as any}
-                    selectedBrandId={selectedBrand ? Number(selectedBrand) : null}
-                    submitTrigger={submitTrigger}
-                    txnTypes={txnTypes}
-                    onStatusChange={status => {
-                        setNewFormValid(status.isValid);
-                        setSubmitting(status.isSubmitting);
-                    }}
-                    onSuccess={() => {
-                        if (editLoan) {
-                            setEditLoan(null);
-                            setMode("view");
-                            if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, 1);
-                        }
-                    }}
-                />
+                <FormProvider {...form}>
+                    <NewLoanEntry
+                        branchId={branchId}
+                        brandName={brands.find(b => String(b.id) === selectedBrand)?.name}
+                        editLoan={editLoan as any}
+                        lines={lines}
+                        onLinesValidChange={setLinesValid}
+                        originalLineIds={originalLineIds}
+                        selectedBrandId={selectedBrandId}
+                        setLines={setLines}
+                        setOriginalLineIds={setOriginalLineIds}
+                        txnTypes={txnTypes}
+                    />
+                </FormProvider>
             ) : (
                 <>
                     {/* Toolbar */}
@@ -496,7 +589,7 @@ export const LoanEntrySection = () => {
                             )}
                         </div>
 
-                        {/* Summary footer — always pinned at bottom */}
+                        {/* Summary footer */}
                         {loans.length > 0 && (
                             <div className="border-t border-[var(--cl-border)] bg-[var(--cl-surface-2)]">
                                 <table className="min-w-full border-collapse">

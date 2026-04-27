@@ -3,6 +3,8 @@ import {FileText, Loader2, MoreHorizontal, Pencil, RefreshCw, Search, Trash2, Ch
 import { ViewModeToggle, type ViewMode } from "@/features/client/components/inventory/view-mode-toggle";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
+import { FormProvider, useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -31,13 +33,13 @@ import { selectCurrentBranch, selectSchema } from "@/store/context-slice";
 import type { StockTransactionTypeRow } from "@/features/client/types/purchase";
 import type { BrandOption } from "@/features/client/types/model";
 import { BrandSelect } from "@/features/client/components/inventory/brand-select";
-import type { StockAdjustmentType } from "@/features/client/types/stock-adjustment";
+import type { StockAdjustmentLineFormItem, StockAdjustmentType } from "@/features/client/types/stock-adjustment";
+import { emptyAdjustmentLine } from "@/features/client/types/stock-adjustment";
+import { stockAdjFormSchema, type StockAdjFormValues, getStockAdjDefaultValues } from "./stock-adjustment-schema";
 import { NewStockAdjustment } from "./new-stock-adjustment";
 import { Save } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-
-// ViewMode is imported from view-mode-toggle
 
 type GenericQueryData<T> = { genericQuery: T[] | null };
 
@@ -88,21 +90,27 @@ export const StockAdjustmentSection = () => {
     // Edit state
     const [editAdjustment, setEditAdjustment] = useState<StockAdjustmentType | null>(null);
 
-    // Form coordination
-    const [submitTrigger, setSubmitTrigger] = useState(0);
-    const [newFormValid,  setNewFormValid]  = useState(false);
-    const [submitting,    setSubmitting]    = useState(false);
+    // Lines lifted from child
+    const selectedBrandId = selectedBrand ? Number(selectedBrand) : null;
+    const [lines,           setLines]           = useState<StockAdjustmentLineFormItem[]>([emptyAdjustmentLine(selectedBrandId)]);
+    const [originalLineIds, setOriginalLineIds] = useState<number[]>([]);
+    const [linesValid,      setLinesValid]      = useState(false);
+
+    // Form
+    const form = useForm<StockAdjFormValues>({
+        defaultValues: getStockAdjDefaultValues(),
+        mode:          "onChange",
+        resolver:      zodResolver(stockAdjFormSchema) as any,
+    });
 
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const scrollWrapperRef = useRef<HTMLDivElement>(null);
 
-    // Dynamic height calculation for the data grid
     const [maxHeight, setMaxHeight] = useState<number>(0);
 
     const recalc = useCallback(() => {
         if (scrollWrapperRef.current) {
             const rect = scrollWrapperRef.current.getBoundingClientRect();
-            // Leave space for pagination (approx 48px) and some margin
             const availableHeight = window.innerHeight - rect.top - 60;
             setMaxHeight(Math.max(200, availableHeight));
         }
@@ -110,7 +118,6 @@ export const StockAdjustmentSection = () => {
 
     useEffect(() => {
         if (mode === "view") {
-            // Slight delay to ensure DOM is ready
             const timer = setTimeout(recalc, 100);
             window.addEventListener("resize", recalc);
             return () => {
@@ -118,7 +125,7 @@ export const StockAdjustmentSection = () => {
                 window.removeEventListener("resize", recalc);
             };
         }
-    }, [mode, recalc, adjustments.length]); // Also recalc on data load
+    }, [mode, recalc, adjustments.length]);
 
     // Load brands and txnTypes on mount
     useEffect(() => {
@@ -199,7 +206,6 @@ export const StockAdjustmentSection = () => {
         }
     }, [dbName, schema]);
 
-    // Re-fetch when filters or branch change
     useEffect(() => {
         if (mode !== "view" || !branchId) return;
         void loadData(Number(branchId), fromDate, toDate, searchQ, page);
@@ -217,6 +223,102 @@ export const StockAdjustmentSection = () => {
     const handleFilterChange = (setter: (v: string) => void) => (v: string) => {
         setter(v);
         setPage(1);
+    };
+
+    const handleReset = () => {
+        form.reset(getStockAdjDefaultValues());
+        setLines([emptyAdjustmentLine(selectedBrandId)]);
+        setOriginalLineIds([]);
+        setEditAdjustment(null);
+    };
+
+    // Save
+    const executeSave = async (values: StockAdjFormValues) => {
+        if (!linesValid) {
+            toast.error(MESSAGES.ERROR_ADJUSTMENT_LINE_FIELDS_REQUIRED);
+            return;
+        }
+        const adjustmentInTypeId  = txnTypes.find(t => t.code === "ADJUSTMENT_IN")?.id;
+        const adjustmentOutTypeId = txnTypes.find(t => t.code === "ADJUSTMENT_OUT")?.id;
+        if (!branchId || !dbName || !schema) {
+            toast.error(MESSAGES.ERROR_ADJUSTMENT_CREATE_FAILED);
+            return;
+        }
+
+        const linePayload = lines.map(line => ({
+            part_id: line.part_id,
+            dr_cr:   line.dr_cr,
+            qty:     line.qty,
+            remarks: line.remarks?.trim() || null,
+            xDetails: [{
+                tableName: "stock_transaction",
+                fkeyName:  "stock_adjustment_line_id",
+                xData: [{
+                    branch_id:                 branchId,
+                    part_id:                   line.part_id,
+                    qty:                       line.qty,
+                    dr_cr:                     line.dr_cr,
+                    transaction_date:          values.adjustment_date,
+                    stock_transaction_type_id: line.dr_cr === "D" ? adjustmentInTypeId : adjustmentOutTypeId,
+                }],
+            }],
+        }));
+
+        const headerFields = {
+            adjustment_date:   values.adjustment_date,
+            adjustment_reason: values.adjustment_reason.trim(),
+            ref_no:            values.ref_no?.trim() || null,
+            remarks:           values.remarks?.trim() || null,
+        };
+
+        try {
+            if (editAdjustment) {
+                const payload = graphQlUtils.buildGenericUpdateValue({
+                    tableName: "stock_adjustment",
+                    xData: {
+                        id: editAdjustment.id,
+                        ...headerFields,
+                        xDetails: {
+                            tableName:  "stock_adjustment_line",
+                            fkeyName:   "stock_adjustment_id",
+                            deletedIds: originalLineIds,
+                            xData:      linePayload,
+                        },
+                    },
+                });
+                await apolloClient.mutate({
+                    mutation:  GRAPHQL_MAP.genericUpdate,
+                    variables: { db_name: dbName, schema, value: payload },
+                });
+                toast.success(MESSAGES.SUCCESS_ADJUSTMENT_UPDATED);
+                setEditAdjustment(null);
+                setMode("view");
+                if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, 1);
+            } else {
+                const payload = graphQlUtils.buildGenericUpdateValue({
+                    tableName: "stock_adjustment",
+                    xData: {
+                        branch_id: branchId,
+                        ...headerFields,
+                        xDetails: {
+                            tableName: "stock_adjustment_line",
+                            fkeyName:  "stock_adjustment_id",
+                            xData:     linePayload,
+                        },
+                    },
+                });
+                await apolloClient.mutate({
+                    mutation:  GRAPHQL_MAP.genericUpdate,
+                    variables: { db_name: dbName, schema, value: payload },
+                });
+                toast.success(MESSAGES.SUCCESS_ADJUSTMENT_CREATED);
+            }
+            form.reset(getStockAdjDefaultValues());
+            setLines([emptyAdjustmentLine(selectedBrandId)]);
+            setOriginalLineIds([]);
+        } catch {
+            toast.error(editAdjustment ? MESSAGES.ERROR_ADJUSTMENT_UPDATE_FAILED : MESSAGES.ERROR_ADJUSTMENT_CREATE_FAILED);
+        }
     };
 
     // Delete
@@ -286,7 +388,7 @@ export const StockAdjustmentSection = () => {
                 <ViewModeToggle
                     mode={mode}
                     isEditing={!!editAdjustment}
-                    onNewClick={() => { setEditAdjustment(null); setMode("new"); }}
+                    onNewClick={handleReset}
                     onViewClick={() => { setMode("view"); if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, page); }}
                 />
 
@@ -305,44 +407,38 @@ export const StockAdjustmentSection = () => {
                 <div className={`flex items-center gap-2 ${mode !== 'new' ? 'hidden md:flex md:invisible pointer-events-none' : ''}`}>
                     <Button
                         className="h-8 gap-1.5 px-3 text-xs font-extrabold uppercase tracking-widest text-[var(--cl-text)]"
-                        disabled={submitting}
+                        disabled={form.formState.isSubmitting}
                         variant="ghost"
-                        onClick={() => { setEditAdjustment(null); }}
+                        onClick={handleReset}
                     >
-                        <RefreshCw className={`h-3.5 w-3.5 ${submitting ? 'animate-spin' : ''}`} />
+                        <RefreshCw className={`h-3.5 w-3.5 ${form.formState.isSubmitting ? 'animate-spin' : ''}`} />
                         Reset
                     </Button>
                     <Button
                         className="h-8 gap-1.5 px-4 text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm font-extrabold uppercase tracking-widest transition-all disabled:opacity-30 disabled:bg-slate-300 disabled:text-slate-600 disabled:shadow-none disabled:cursor-not-allowed"
-                        disabled={!newFormValid || submitting}
-                        onClick={() => setSubmitTrigger(t => t + 1)}
+                        disabled={!form.formState.isValid || !linesValid || form.formState.isSubmitting}
+                        onClick={form.handleSubmit(executeSave)}
                     >
-                        {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                        {form.formState.isSubmitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
                         Save
                     </Button>
                 </div>
             </div>
 
             {mode === 'new' ? (
-                <NewStockAdjustment
-                    branchId={branchId}
-                    txnTypes={txnTypes}
-                    submitTrigger={submitTrigger}
-                    onSuccess={() => {
-                        if (editAdjustment) {
-                            setEditAdjustment(null);
-                            setMode('view');
-                            if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, 1);
-                        }
-                    }}
-                    onStatusChange={status => {
-                        setNewFormValid(status.isValid);
-                        setSubmitting(status.isSubmitting);
-                    }}
-                    selectedBrandId={selectedBrand ? Number(selectedBrand) : null}
-                    brandName={brands.find(b => String(b.id) === selectedBrand)?.name}
-                    editAdjustment={editAdjustment}
-                />
+                <FormProvider {...form}>
+                    <NewStockAdjustment
+                        branchId={branchId}
+                        brandName={brands.find(b => String(b.id) === selectedBrand)?.name}
+                        editAdjustment={editAdjustment}
+                        lines={lines}
+                        onLinesValidChange={setLinesValid}
+                        originalLineIds={originalLineIds}
+                        selectedBrandId={selectedBrandId}
+                        setLines={setLines}
+                        setOriginalLineIds={setOriginalLineIds}
+                    />
+                </FormProvider>
             ) : (
                 <>
                     {/* Toolbar */}
@@ -501,7 +597,7 @@ export const StockAdjustmentSection = () => {
                             )}
                         </div>
 
-                        {/* Summary footer — always pinned at bottom */}
+                        {/* Summary footer */}
                         {adjustments.length > 0 && (
                             <div className="border-t border-[var(--cl-border)] bg-[var(--cl-surface-2)]">
                                 <table className="min-w-full border-collapse">

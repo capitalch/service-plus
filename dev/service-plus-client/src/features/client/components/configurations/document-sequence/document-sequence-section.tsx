@@ -22,15 +22,9 @@ import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
-import { selectSchema } from "@/store/context-slice";
+import { selectCurrentBranch, selectSchema } from "@/store/context-slice";
 
 // ─── Types & Schema ───────────────────────────────────────────────────────────
-
-type BranchType = {
-    id: number;
-    name: string;
-    code: string;
-};
 
 type SequenceRow = {
     document_type_id: number;
@@ -69,9 +63,8 @@ type GenericQueryData<T> = {
 export const DocumentSequenceSection = () => {
     const dbName = useAppSelector(selectDbName);
     const schema = useAppSelector(selectSchema);
+    const currentBranch = useAppSelector(selectCurrentBranch);
 
-    const [branches,      setBranches]      = useState<BranchType[]>([]);
-    const [selectedBranch, setSelectedBranch] = useState<string>("");
     const [loading,       setLoading]       = useState(false);
     const [submitting,    setSubmitting]    = useState(false);
 
@@ -88,35 +81,7 @@ export const DocumentSequenceSection = () => {
 
     const { formState: { errors } } = form;
 
-    // 1. Fetch Branches on mount
-    useEffect(() => {
-        if (!dbName || !schema) return;
-
-        const fetchBranches = async () => {
-            try {
-                const res = await apolloClient.query<GenericQueryData<BranchType>>({
-                    fetchPolicy: "network-only",
-                    query: GRAPHQL_MAP.genericQuery,
-                    variables: {
-                        db_name: dbName,
-                        schema,
-                        value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_ALL_BRANCHES }),
-                    },
-                });
-                const fetchedBranches = res.data?.genericQuery ?? [];
-                setBranches(fetchedBranches);
-                if (fetchedBranches.length > 0) {
-                    setSelectedBranch(String(fetchedBranches[0].id));
-                }
-            } catch {
-                toast.error(MESSAGES.ERROR_BRANCH_LOAD_FAILED);
-            }
-        };
-
-        void fetchBranches();
-    }, [dbName, schema]);
-
-    // 2. Fetch Sequences when branch changes
+    // 1. Load sequences when branch changes
     const loadSequences = async (branchId: number) => {
         if (!dbName || !schema) return;
         setLoading(true);
@@ -154,17 +119,19 @@ export const DocumentSequenceSection = () => {
     };
 
     useEffect(() => {
-        if (selectedBranch) {
-            void loadSequences(Number(selectedBranch));
+        if (currentBranch?.id) {
+            void loadSequences(currentBranch.id);
+        } else {
+            form.reset({ sequences: [] });
         }
-    }, [selectedBranch]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [currentBranch?.id, dbName, schema]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // 3. Submit
     async function onSubmit(data: SequencesFormType) {
-        if (!dbName || !schema || !selectedBranch) return;
+        if (!dbName || !schema || !currentBranch?.id) return;
         setSubmitting(true);
         try {
-            const branchId = Number(selectedBranch);
+            const branchId = currentBranch.id;
             
             // Build the array of xData for genericUpdate
             const xDataArray = data.sequences.map(seq => {
@@ -203,7 +170,7 @@ export const DocumentSequenceSection = () => {
         }
     }
 
-    const submitDisabled = Object.keys(errors).length > 0 || submitting || loading || !selectedBranch;
+    const submitDisabled = Object.keys(errors).length > 0 || submitting || loading || !currentBranch?.id;
 
     // ── Render ─────────────────────────────────────────────────────────────────
 
@@ -223,28 +190,9 @@ export const DocumentSequenceSection = () => {
                     <div>
                         <h2 className="text-base font-semibold text-[var(--cl-text)]">Numbering / Auto Series</h2>
                         <p className="text-xs text-[var(--cl-text-muted)]">
-                            Configure document sequence prefixes and padding per branch
+                            Configure document sequence prefixes and padding for <b>{currentBranch?.name || "selected branch"}</b>
                         </p>
                     </div>
-                </div>
-
-                <div className="w-full sm:w-64">
-                    <Select
-                        disabled={branches.length === 0 || loading}
-                        value={selectedBranch}
-                        onValueChange={setSelectedBranch}
-                    >
-                        <SelectTrigger>
-                            <SelectValue placeholder="Select a branch" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {branches.map((b) => (
-                                <SelectItem key={b.id} value={String(b.id)}>
-                                    {b.name} ({b.code})
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
                 </div>
             </div>
 

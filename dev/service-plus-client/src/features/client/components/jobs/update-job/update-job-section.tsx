@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import {ArrowLeft, Briefcase,
     ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon,
     Loader2, Pencil, RefreshCw, Save, Search, X} from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
+import { updateJobFormSchema, type UpdateJobFormValues, getUpdateJobDefaultValues } from "./update-job-schema";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -80,20 +83,15 @@ export const UpdateJobSection = () => {
     const [technicians, setTechnicians] = useState<TechnicianRow[]>([]);
     const [metaLoaded,  setMetaLoaded]  = useState(false);
 
-    // ── Form state ──────────────────────────────────────────────────────────
+    // ── Form state ────────────────────────────────────────────────────────────
     const [selectedJob,      setSelectedJob]      = useState<JobDetailType | null>(null);
     const [loadingDetail,    setLoadingDetail]    = useState(false);
-    const [jobStatusId,      setJobStatusId]      = useState("");
-    const [technicianId,     setTechnicianId]     = useState("");
-    const [diagnosis,        setDiagnosis]        = useState("");
-    const [workDone,         setWorkDone]         = useState("");
-    const [amount,           setAmount]           = useState("");
-    const [deliveryDate,     setDeliveryDate]     = useState("");
-    const [isClosed,         setIsClosed]         = useState(false);
-    const [isFinal,          setIsFinal]          = useState(false);
-    const [remarks,          setRemarks]          = useState("");
-    const [transactionNotes, setTransactionNotes] = useState("");
-    const [submitting,       setSubmitting]       = useState(false);
+
+    const form = useForm<UpdateJobFormValues>({
+        defaultValues: getUpdateJobDefaultValues(),
+        mode: "onChange",
+        resolver: zodResolver(updateJobFormSchema) as any,
+    });
 
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const scrollRef   = useRef<HTMLDivElement>(null);
@@ -202,16 +200,18 @@ export const UpdateJobSection = () => {
             const job = res.data?.genericQuery?.[0] ?? null;
             if (!job) { toast.error(MESSAGES.ERROR_JOB_LOAD_FAILED); return; }
             setSelectedJob(job);
-            setJobStatusId(String(job.job_status_id));
-            setTechnicianId(job.technician_id ? String(job.technician_id) : "");
-            setDiagnosis(job.diagnosis ?? "");
-            setWorkDone(job.work_done ?? "");
-            setAmount(job.amount != null ? String(job.amount) : "");
-            setDeliveryDate(job.delivery_date ?? "");
-            setIsClosed(job.is_closed);
-            setIsFinal(job.is_final);
-            setRemarks(job.remarks ?? "");
-            setTransactionNotes("");
+            form.reset({
+                job_status_id: String(job.job_status_id),
+                technician_id: job.technician_id ? String(job.technician_id) : "",
+                diagnosis: job.diagnosis ?? "",
+                work_done: job.work_done ?? "",
+                amount: job.amount != null ? String(job.amount) : "",
+                delivery_date: job.delivery_date ?? "",
+                is_closed: job.is_closed,
+                is_final: job.is_final,
+                remarks: job.remarks ?? "",
+                transaction_notes: "",
+            });
             setSubView("form");
         } catch {
             toast.error(MESSAGES.ERROR_JOB_LOAD_FAILED);
@@ -225,26 +225,25 @@ export const UpdateJobSection = () => {
         setSelectedJob(null);
     }
 
-    async function handleSave() {
+    async function handleSave(values: UpdateJobFormValues) {
         if (!selectedJob || !dbName || !schema) return;
-        setSubmitting(true);
         try {
             const payload = encodeObj({
                 job_id:               selectedJob.id,
                 last_transaction_id:  selectedJob.last_transaction_id,
                 performed_by_user_id: currentUser?.id ?? null,
-                transaction_notes:    transactionNotes || "",
+                transaction_notes:    values.transaction_notes || "",
                 xData: {
                     id:            selectedJob.id,
-                    job_status_id: Number(jobStatusId),
-                    technician_id: technicianId ? Number(technicianId) : null,
-                    diagnosis:     diagnosis || null,
-                    work_done:     workDone || null,
-                    amount:        amount !== "" ? Number(amount) : null,
-                    delivery_date: deliveryDate || null,
-                    is_closed:     isClosed,
-                    is_final:      isFinal,
-                    remarks:       remarks || null,
+                    job_status_id: Number(values.job_status_id),
+                    technician_id: values.technician_id ? Number(values.technician_id) : null,
+                    diagnosis:     values.diagnosis || null,
+                    work_done:     values.work_done || null,
+                    amount:        values.amount !== "" ? Number(values.amount) : null,
+                    delivery_date: values.delivery_date || null,
+                    is_closed:     values.is_closed,
+                    is_final:      values.is_final,
+                    remarks:       values.remarks || null,
                 },
             });
             await apolloClient.mutate({
@@ -257,8 +256,6 @@ export const UpdateJobSection = () => {
             if (branchId) void loadData(branchId, fromDate, toDate, searchQ, page, showClosed);
         } catch {
             toast.error(MESSAGES.ERROR_JOB_UPDATE_FAILED);
-        } finally {
-            setSubmitting(false);
         }
     }
 
@@ -278,7 +275,7 @@ export const UpdateJobSection = () => {
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-[var(--cl-border)] bg-[var(--cl-surface)] px-4 py-2">
                     <Button
                         className="h-8 gap-1.5 px-3 text-xs"
-                        disabled={submitting}
+                        disabled={form.formState.isSubmitting}
                         variant="ghost"
                         onClick={handleBack}
                     >
@@ -290,14 +287,15 @@ export const UpdateJobSection = () => {
                         <span className="text-sm font-medium text-[var(--cl-text)]">{selectedJob.customer_name}</span>
                     </div>
                     <div className="flex-1" />
-                    <Button
-                        className="h-8 gap-1.5 px-4 text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm font-extrabold uppercase tracking-widest disabled:opacity-30 disabled:bg-slate-300 disabled:text-slate-600 disabled:cursor-not-allowed"
-                        disabled={!jobStatusId || submitting}
-                        onClick={() => void handleSave()}
-                    >
-                        {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-                        Save Update
-                    </Button>
+                     <Button
+                         className="h-8 gap-1.5 px-4 text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm font-extrabold uppercase tracking-widest disabled:opacity-30 disabled:bg-slate-300 disabled:text-slate-600 disabled:cursor-not-allowed"
+                         disabled={!form.formState.isValid || form.formState.isSubmitting}
+                         onClick={() => void form.handleSubmit(handleSave)()}
+                     >
+                         {form.formState.isSubmitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                         Save Update
+                     </Button>
+
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-4 space-y-5">
@@ -329,125 +327,137 @@ export const UpdateJobSection = () => {
 
                     {/* Job Status + Technician */}
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                        <div>
-                            <Label className="mb-1.5 block text-sm font-medium text-[var(--cl-text)]">
-                                Job Status <span className="text-red-500">*</span>
-                            </Label>
-                            <Select value={jobStatusId} onValueChange={setJobStatusId}>
-                                <SelectTrigger className="h-9 border-[var(--cl-border)] bg-[var(--cl-surface)] text-sm">
-                                    <SelectValue placeholder="Select status" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {jobStatuses.map(s => (
-                                        <SelectItem key={s.id} value={String(s.id)}>{s.name}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div>
-                            <Label className="mb-1.5 block text-sm font-medium text-[var(--cl-text)]">Technician</Label>
-                            <Select value={technicianId} onValueChange={setTechnicianId}>
-                                <SelectTrigger className="h-9 border-[var(--cl-border)] bg-[var(--cl-surface)] text-sm">
-                                    <SelectValue placeholder="Select technician" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {technicians.map(t => (
-                                        <SelectItem key={t.id} value={String(t.id)}>{t.name}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
+                         <div>
+                             <Label className="mb-1.5 block text-sm font-medium text-[var(--cl-text)]">
+                                 Job Status <span className="text-red-500">*</span>
+                             </Label>
+                             <Select 
+                                value={form.watch("job_status_id")} 
+                                onValueChange={v => form.setValue("job_status_id", v, { shouldValidate: true })}
+                            >
+                                 <SelectTrigger className="h-9 border-[var(--cl-border)] bg-[var(--cl-surface)] text-sm">
+                                     <SelectValue placeholder="Select status" />
+                                 </SelectTrigger>
+                                 <SelectContent>
+                                     {jobStatuses.map(s => (
+                                         <SelectItem key={s.id} value={String(s.id)}>{s.name}</SelectItem>
+                                     ))}
+                                 </SelectContent>
+                             </Select>
+                         </div>
+                         <div>
+                             <Label className="mb-1.5 block text-sm font-medium text-[var(--cl-text)]">Technician</Label>
+                             <Select 
+                                value={form.watch("technician_id")} 
+                                onValueChange={v => form.setValue("technician_id", v, { shouldValidate: true })}
+                            >
+                                 <SelectTrigger className="h-9 border-[var(--cl-border)] bg-[var(--cl-surface)] text-sm">
+                                     <SelectValue placeholder="Select technician" />
+                                 </SelectTrigger>
+                                 <SelectContent>
+                                     {technicians.map(t => (
+                                         <SelectItem key={t.id} value={String(t.id)}>{t.name}</SelectItem>
+                                     ))}
+                                 </SelectContent>
+                             </Select>
+                         </div>
+
                     </div>
 
-                    {/* Diagnosis */}
-                    <div>
-                        <Label className="mb-1.5 block text-sm font-medium text-[var(--cl-text)]" htmlFor="uj-diagnosis">Diagnosis</Label>
-                        <Textarea
-                            className="min-h-[72px] border-[var(--cl-border)] bg-[var(--cl-surface)] text-sm"
-                            id="uj-diagnosis"
-                            placeholder="Technical diagnosis…"
-                            value={diagnosis}
-                            onChange={e => setDiagnosis(e.target.value)}
-                        />
-                    </div>
+                     {/* Diagnosis */}
+                     <div>
+                         <Label className="mb-1.5 block text-sm font-medium text-[var(--cl-text)]" htmlFor="uj-diagnosis">Diagnosis</Label>
+                         <Textarea
+                             className="min-h-[72px] border-[var(--cl-border)] bg-[var(--cl-surface)] text-sm"
+                             id="uj-diagnosis"
+                             placeholder="Technical diagnosis…"
+                             {...form.register("diagnosis")}
+                         />
+                     </div>
+                     {/* Work Done */}
+                     <div>
+                         <Label className="mb-1.5 block text-sm font-medium text-[var(--cl-text)]" htmlFor="uj-work-done">Work Done</Label>
+                         <Textarea
+                             className="min-h-[72px] border-[var(--cl-border)] bg-[var(--cl-surface)] text-sm"
+                             id="uj-work-done"
+                             placeholder="Work performed…"
+                             {...form.register("work_done")}
+                         />
+                     </div>
 
-                    {/* Work Done */}
-                    <div>
-                        <Label className="mb-1.5 block text-sm font-medium text-[var(--cl-text)]" htmlFor="uj-work-done">Work Done</Label>
-                        <Textarea
-                            className="min-h-[72px] border-[var(--cl-border)] bg-[var(--cl-surface)] text-sm"
-                            id="uj-work-done"
-                            placeholder="Work performed…"
-                            value={workDone}
-                            onChange={e => setWorkDone(e.target.value)}
-                        />
-                    </div>
 
-                    {/* Amount + Delivery Date */}
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                        <div>
-                            <Label className="mb-1.5 block text-sm font-medium text-[var(--cl-text)]" htmlFor="uj-amount">Amount</Label>
-                            <Input
-                                className="h-9 border-[var(--cl-border)] bg-[var(--cl-surface)] text-sm"
-                                id="uj-amount"
-                                min="0"
-                                placeholder="0.00"
-                                step="0.01"
-                                type="number"
-                                value={amount}
-                                onChange={e => setAmount(e.target.value)}
+                     {/* Amount + Delivery Date */}
+                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                         <div>
+                             <Label className="mb-1.5 block text-sm font-medium text-[var(--cl-text)]" htmlFor="uj-amount">Amount</Label>
+                             <Input
+                                 className="h-9 border-[var(--cl-border)] bg-[var(--cl-surface)] text-sm"
+                                 id="uj-amount"
+                                 min="0"
+                                 placeholder="0.00"
+                                 step="0.01"
+                                 type="number"
+                                 {...form.register("amount")}
+                             />
+                         </div>
+                         <div>
+                             <Label className="mb-1.5 block text-sm font-medium text-[var(--cl-text)]" htmlFor="uj-delivery-date">Delivery Date</Label>
+                             <Input
+                                 className="h-9 border-[var(--cl-border)] bg-[var(--cl-surface)] text-sm"
+                                 id="uj-delivery-date"
+                                 type="date"
+                                 {...form.register("delivery_date")}
+                             />
+                         </div>
+                     </div>
+
+
+                     {/* Is Closed + Is Final */}
+                     <div className="flex flex-wrap items-center gap-6">
+                         <div className="flex items-center gap-2">
+                             <Switch 
+                                checked={form.watch("is_closed")} 
+                                id="uj-is-closed" 
+                                onCheckedChange={v => form.setValue("is_closed", v, { shouldValidate: true })} 
                             />
-                        </div>
-                        <div>
-                            <Label className="mb-1.5 block text-sm font-medium text-[var(--cl-text)]" htmlFor="uj-delivery-date">Delivery Date</Label>
-                            <Input
-                                className="h-9 border-[var(--cl-border)] bg-[var(--cl-surface)] text-sm"
-                                id="uj-delivery-date"
-                                type="date"
-                                value={deliveryDate}
-                                onChange={e => setDeliveryDate(e.target.value)}
+                             <Label className="text-sm text-[var(--cl-text)] cursor-pointer" htmlFor="uj-is-closed">Closed</Label>
+                         </div>
+                         <div className="flex items-center gap-2">
+                             <Switch 
+                                checked={form.watch("is_final")} 
+                                id="uj-is-final" 
+                                onCheckedChange={v => form.setValue("is_final", v, { shouldValidate: true })} 
                             />
-                        </div>
-                    </div>
+                             <Label className="text-sm text-[var(--cl-text)] cursor-pointer" htmlFor="uj-is-final">Final</Label>
+                         </div>
+                     </div>
 
-                    {/* Is Closed + Is Final */}
-                    <div className="flex flex-wrap items-center gap-6">
-                        <div className="flex items-center gap-2">
-                            <Switch checked={isClosed} id="uj-is-closed" onCheckedChange={setIsClosed} />
-                            <Label className="text-sm text-[var(--cl-text)] cursor-pointer" htmlFor="uj-is-closed">Closed</Label>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <Switch checked={isFinal} id="uj-is-final" onCheckedChange={setIsFinal} />
-                            <Label className="text-sm text-[var(--cl-text)] cursor-pointer" htmlFor="uj-is-final">Final</Label>
-                        </div>
-                    </div>
 
-                    {/* Remarks */}
-                    <div>
-                        <Label className="mb-1.5 block text-sm font-medium text-[var(--cl-text)]" htmlFor="uj-remarks">Remarks</Label>
-                        <Textarea
-                            className="min-h-[60px] border-[var(--cl-border)] bg-[var(--cl-surface)] text-sm"
-                            id="uj-remarks"
-                            placeholder="Optional remarks…"
-                            value={remarks}
-                            onChange={e => setRemarks(e.target.value)}
-                        />
-                    </div>
+                     {/* Remarks */}
+                     <div>
+                         <Label className="mb-1.5 block text-sm font-medium text-[var(--cl-text)]" htmlFor="uj-remarks">Remarks</Label>
+                         <Textarea
+                             className="min-h-[60px] border-[var(--cl-border)] bg-[var(--cl-surface)] text-sm"
+                             id="uj-remarks"
+                             placeholder="Optional remarks…"
+                             {...form.register("remarks")}
+                         />
+                     </div>
+                     {/* Transaction Notes */}
+                     <div>
+                         <Label className="mb-1.5 block text-sm font-medium text-[var(--cl-text)]" htmlFor="uj-txn-notes">
+                             Transaction Notes
+                             <span className="ml-1.5 text-[10px] font-normal normal-case text-[var(--cl-text-muted)]">(recorded in job history)</span>
+                         </Label>
+                         <Textarea
+                             className="min-h-[60px] border-[var(--cl-border)] bg-[var(--cl-surface)] text-sm"
+                             id="uj-txn-notes"
+                             placeholder="Notes for this update…"
+                             {...form.register("transaction_notes")}
+                         />
+                     </div>
 
-                    {/* Transaction Notes */}
-                    <div>
-                        <Label className="mb-1.5 block text-sm font-medium text-[var(--cl-text)]" htmlFor="uj-txn-notes">
-                            Transaction Notes
-                            <span className="ml-1.5 text-[10px] font-normal normal-case text-[var(--cl-text-muted)]">(recorded in job history)</span>
-                        </Label>
-                        <Textarea
-                            className="min-h-[60px] border-[var(--cl-border)] bg-[var(--cl-surface)] text-sm"
-                            id="uj-txn-notes"
-                            placeholder="Notes for this update…"
-                            value={transactionNotes}
-                            onChange={e => setTransactionNotes(e.target.value)}
-                        />
-                    </div>
+
                 </div>
             </motion.div>
         );

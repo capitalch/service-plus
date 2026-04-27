@@ -7,7 +7,7 @@ import { PartUsedSection } from "../components/jobs/part-used/part-used-section"
 import { ReadyForDeliverySection } from "../components/jobs/ready-for-delivery-section";
 import { ReceiptsSection } from "../components/jobs/receipts/receipts-section";
 import { SingleJobSection } from "../components/jobs/single-job/single-job-section";
-import { UpdateJobSection } from "../components/jobs/update-job-section";
+import { UpdateJobSection } from "../components/jobs/update-job/update-job-section";
 
 // ─── Coming Soon placeholder ──────────────────────────────────────────────────
 

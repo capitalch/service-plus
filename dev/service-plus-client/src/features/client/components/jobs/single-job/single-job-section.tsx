@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {Briefcase, ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon, Eye,
-    Loader2, MoreHorizontal, Pencil, Printer, RefreshCw, Save, Search, Trash2, X} from "lucide-react";
+    Images, Loader2, MoreHorizontal, Paperclip, Pencil, Printer, RefreshCw, Save, Search, Trash2, X} from "lucide-react";
 import { SingleJobViewModal } from "./single-job-view-modal";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
@@ -8,9 +8,8 @@ import { motion } from "framer-motion";
 
 import { useForm, FormProvider } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { singleJobFormSchema, type SingleJobFormValues, getSingleJobDefaultValues, buildJobNo } from "./single-job-schema";
-import { uploadJobFile } from "@/lib/image-service";
-import { selectCurrentUser } from "@/features/auth/store/auth-slice";
+import { singleJobFormSchema, type SingleJobFormValues, getSingleJobDefaultValues } from "./single-job-schema";
+import { deleteJobFiles } from "@/lib/image-service";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -29,7 +28,7 @@ import { apolloClient } from "@/lib/apollo-client";
 import { encodeObj, graphQlUtils } from "@/lib/graphql-utils";
 
 import { useAppSelector } from "@/store/hooks";
-import { selectDbName } from "@/features/auth/store/auth-slice";
+import { selectCurrentUser, selectDbName } from "@/features/auth/store/auth-slice";
 import { selectCurrentBranch, selectSchema } from "@/store/context-slice";
 import type { DocumentSequenceRow } from "@/features/client/types/sales";
 import type { JobDetailType, JobListRow, JobLookupRow, ModelRow, TechnicianRow } from "@/features/client/types/job";
@@ -37,6 +36,7 @@ import type { CustomerTypeOption, StateOption } from "@/features/client/types/cu
 import type { BrandOption, ProductOption } from "@/features/client/types/model";
 
 import { NewSingleJobForm } from "./new-single-job-form";
+import { JobAttachDialog } from "./job-attach-dialog";
 import { getJobSheetBlobUrl, type CompanyInfoType } from "./single-job-sheet-pdf";
 import { PdfPreviewModal } from "@/components/shared/pdf-preview-modal";
 
@@ -100,6 +100,11 @@ export const SingleJobSection = () => {
     const [pdfFilename, setPdfFilename] = useState<string>("Job-Sheet.pdf");
     const [showPdfModal, setShowPdfModal] = useState(false);
 
+    // Attach Files dialog
+    const [attachJobId,  setAttachJobId]  = useState<number | null>(null);
+    const [attachJobNo,  setAttachJobNo]  = useState<string>("");
+    const [attachMode,   setAttachMode]   = useState<"attach" | "view">("attach");
+
     // Form
     const [submitting, setSubmitting] = useState(false);
     const currentUser = useAppSelector(selectCurrentUser);
@@ -113,11 +118,6 @@ export const SingleJobSection = () => {
     const executeSave = async (values: SingleJobFormValues) => {
         if (!branchId || !dbName || !schema) {
             toast.error(MESSAGES.ERROR_JOB_CREATE_FAILED);
-            return;
-        }
-        const pendingAttachments = values.attachments || [];
-        if (pendingAttachments.some((f: { about: string }) => !f.about.trim())) {
-            toast.error("Please fill in the 'About' field for all attachments.");
             return;
         }
         setSubmitting(true);
@@ -148,47 +148,32 @@ export const SingleJobSection = () => {
                 });
                 toast.success(MESSAGES.SUCCESS_JOB_UPDATED);
             } else {
-                const jobSequence = docSequences.find(s => s.document_type_code === "JOB") ?? null;
                 const receivedStatusId = jobStatuses.find(s => s.code === "RECEIVED")?.id ?? null;
-                const jobNo = jobSequence ? buildJobNo(jobSequence.prefix, jobSequence.separator, jobSequence.next_number, jobSequence.padding) : "";
                 const sqlObject = {
                     tableName:         "job",
-                    doc_sequence_id:   jobSequence?.id ?? null,
-                    doc_sequence_next: jobSequence ? (jobSequence.next_number + 1) : null,
                     xData: {
                         branch_id:                branchId,
-                        job_no:                   jobNo,
                         job_date:                 values.job_date,
                         customer_contact_id:      values.customer_id,
                         job_type_id:              values.job_type_id,
                         job_receive_manner_id:    values.receive_manner_id,
-                        job_receive_condition_id: values.receive_condition_id ?? null,
+                        job_receive_condition_id: values.receive_condition_id || null,
                         job_status_id:            receivedStatusId,
-                        product_brand_model_id:   values.model_id ?? null,
+                        product_brand_model_id:   values.model_id || null,
                         serial_no:                values.serial_no?.trim() || null,
                         quantity:                 values.quantity,
-                        problem_reported:         values.problem_reported?.trim() ?? "",
+                        problem_reported:         values.problem_reported?.trim() || null,
                         warranty_card_no:         values.warranty_card_no?.trim() || null,
                         remarks:                  values.remarks?.trim() || null,
-                        performed_by_user_id:     currentUser?.id ?? null,
+                        performed_by_user_id:     currentUser?.id || null,
                         address_snapshot:         values.address_snapshot?.trim() || null,
                     },
                 };
                 const encoded  = encodeURIComponent(JSON.stringify(sqlObject));
-                const result   = await apolloClient.mutate({
+                await apolloClient.mutate({
                     mutation:  GRAPHQL_MAP.createSingleJob,
                     variables: { db_name: dbName, schema, value: encoded },
                 });
-                const newJobId = (result.data as { createSingleJob?: number })?.createSingleJob;
-                if (newJobId && pendingAttachments.length > 0) {
-                    for (const { file, about } of pendingAttachments) {
-                        try {
-                            await uploadJobFile(dbName, schema, newJobId, about, file);
-                        } catch (err: unknown) {
-                            toast.error(`Upload failed for "${about}": ${(err as Error).message}`);
-                        }
-                    }
-                }
                 toast.success(MESSAGES.SUCCESS_JOB_CREATED);
             }
             form.reset(getSingleJobDefaultValues());
@@ -206,7 +191,6 @@ export const SingleJobSection = () => {
             setSubmitting(false);
         }
     };
-
 
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const scrollWrapperRef = useRef<HTMLDivElement>(null);
@@ -391,6 +375,15 @@ export const SingleJobSection = () => {
         if (!deleteId || !dbName || !schema) return;
         setDeleting(true);
         try {
+            // Delete attached files first if any exist
+            const fileCount = jobs.find(j => j.id === deleteId)?.file_count ?? 0;
+            if (fileCount > 0) {
+                try {
+                    await deleteJobFiles(dbName, schema, deleteId);
+                } catch (err: unknown) {
+                    console.warn(`Failed to delete files for job ${deleteId}: ${(err as Error).message}`);
+                }
+            }
             const payload = encodeObj({ tableName: "job", deletedIds: [deleteId] });
             await apolloClient.mutate({
                 mutation: GRAPHQL_MAP.genericUpdate,
@@ -718,6 +711,30 @@ export const SingleJobSection = () => {
                                                                     <span>Print PDF</span>
                                                                 </DropdownMenuItem>
                                                                 <DropdownMenuItem
+                                                                    className="flex items-center gap-2 cursor-pointer text-violet-500 focus:bg-violet-500/10 focus:text-violet-600 font-semibold"
+                                                                    onClick={() => { setAttachJobId(job.id); setAttachJobNo(job.job_no); setAttachMode("attach"); }}
+                                                                >
+                                                                    <Paperclip className="h-4 w-4" />
+                                                                    <span>Attach Files</span>
+                                                                </DropdownMenuItem>
+                                                                <DropdownMenuItem
+                                                                    className={`flex items-center gap-2 cursor-pointer font-semibold ${
+                                                                        job.file_count > 0
+                                                                            ? "text-teal-500 focus:bg-teal-500/10 focus:text-teal-600"
+                                                                            : "text-[var(--cl-text-muted)] opacity-50 cursor-not-allowed"
+                                                                    }`}
+                                                                    disabled={job.file_count === 0}
+                                                                    onClick={() => { if (job.file_count > 0) { setAttachJobId(job.id); setAttachJobNo(job.job_no); setAttachMode("view"); } }}
+                                                                >
+                                                                    <Images className="h-4 w-4" />
+                                                                    <span>View Attachments</span>
+                                                                    {job.file_count > 0 && (
+                                                                        <span className="ml-auto text-[10px] font-mono bg-teal-500/10 text-teal-600 rounded px-1.5 py-0.5">
+                                                                            {job.file_count}
+                                                                        </span>
+                                                                    )}
+                                                                </DropdownMenuItem>
+                                                                <DropdownMenuItem
                                                                     className="flex items-center gap-2 cursor-pointer text-red-500 focus:bg-red-500/10 focus:text-red-600 font-semibold"
                                                                     onClick={() => setDeleteId(job.id)}
                                                                 >
@@ -782,6 +799,13 @@ export const SingleJobSection = () => {
                         job={viewJob}
                         onClose={() => setViewJob(null)}
                         onPrint={handlePrintFromView}
+                    />
+
+                    <JobAttachDialog
+                        jobId={attachJobId}
+                        jobNo={attachJobNo}
+                        mode={attachMode}
+                        onClose={() => { setAttachJobId(null); setAttachJobNo(""); setAttachMode("attach"); }}
                     />
 
                     <PdfPreviewModal

@@ -691,6 +691,15 @@ class SqlStore:
         ORDER BY dt.id
     """
 
+    CLAIM_NEXT_JOB_NUMBER = """
+        UPDATE document_sequence 
+        SET next_number = next_number + 1 
+        WHERE document_type_id = (SELECT id FROM document_type WHERE code = 'JOB')
+          AND branch_id = %(branch_id)s
+        RETURNING prefix, (next_number - 1) AS assigned_number, padding, separator;
+    """
+
+
     # ── Document Types ────────────────────────────────────────────────────────
 
     CHECK_DOCUMENT_TYPE_CODE_EXISTS = """
@@ -3073,7 +3082,8 @@ class SqlStore:
             cc.mobile,
             jt.name      AS job_type_name,
             js.name      AS job_status_name,
-            t.name       AS technician_name
+            t.name       AS technician_name,
+            (SELECT COUNT(*) FROM job_image_document jid WHERE jid.job_id = j.id) AS file_count
         FROM job j
         JOIN customer_contact cc ON cc.id = j.customer_contact_id
         JOIN job_type          jt ON jt.id = j.job_type_id
@@ -3129,6 +3139,12 @@ class SqlStore:
         DELETE FROM job_image_doc
         WHERE id = %(id)s
         RETURNING url
+    """
+
+    DELETE_JOB_IMAGE_DOCS_BY_JOB = """
+        DELETE FROM job_image_doc
+        WHERE job_id = %(job_id)s
+        RETURNING id, url
     """
 
     GET_JOB_BATCHES_PAGED = """

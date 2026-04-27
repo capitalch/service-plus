@@ -1,7 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
+import { useFormContext } from "react-hook-form";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
@@ -24,39 +22,25 @@ import type { LoanLineFormItem, StockLoanWithLines } from "@/features/client/typ
 import { emptyLoanLine } from "@/features/client/types/stock-loan";
 import { LineAddDeleteActions } from "../line-add-delete-actions";
 import { PartCodeInput } from "../part-code-input";
-import { IsValidReporter } from "@/features/client/components/is-valid-reporter";
 import { cn } from "@/lib/utils";
+import type { LoanEntryFormValues } from "./loan-entry-schema";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type GenericQueryData<T> = { genericQuery: T[] | null };
 
 type Props = {
-    branchId:        number | null;
-    brandName?:      string;
-    editLoan?:       StockLoanWithLines | null;
-    onStatusChange:  (status: { isSubmitting: boolean; isValid: boolean }) => void;
-    onSuccess:       () => void;
-    selectedBrandId: number | null;
-    submitTrigger:   number;
-    txnTypes:        StockTransactionTypeRow[];
+    branchId:           number | null;
+    brandName?:         string;
+    editLoan?:          StockLoanWithLines | null;
+    lines:              LoanLineFormItem[];
+    onLinesValidChange: (v: boolean) => void;
+    originalLineIds:    number[];
+    selectedBrandId:    number | null;
+    setLines:           React.Dispatch<React.SetStateAction<LoanLineFormItem[]>>;
+    setOriginalLineIds: React.Dispatch<React.SetStateAction<number[]>>;
+    txnTypes:           StockTransactionTypeRow[];
 };
-
-// ─── Schema ───────────────────────────────────────────────────────────────────
-
-const formSchema = z.object({
-    loan_date: z.string().min(1, MESSAGES.ERROR_LOAN_DATE_REQUIRED),
-    ref_no:    z.string().optional().default(""),
-    remarks:   z.string().optional().default(""),
-});
-
-type FormValues = z.infer<typeof formSchema>;
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function today(): string {
-    return new Date().toISOString().slice(0, 10);
-}
 
 // ─── CSS ──────────────────────────────────────────────────────────────────────
 
@@ -67,27 +51,17 @@ const inputCls = "h-8 border-[var(--cl-border)] bg-[var(--cl-surface)] text-sm p
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function NewLoanEntry({
-    branchId, brandName, editLoan, onStatusChange, onSuccess, selectedBrandId, submitTrigger, txnTypes,
+    branchId, brandName, editLoan, lines, onLinesValidChange, originalLineIds,
+    selectedBrandId, setLines, setOriginalLineIds, txnTypes: _txnTypes,
 }: Props) {
     const dbName = useAppSelector(selectDbName);
     const schema = useAppSelector(selectSchema);
 
-    const form = useForm<FormValues>({
-        defaultValues: { loan_date: today(), ref_no: "", remarks: "" },
-        mode:          "onChange",
-        resolver:      zodResolver(formSchema) as any,
-    });
-
-    const { formState: { isValid, isSubmitting }, register } = form;
-
-    // Lines
-    const [lines, setLines] = useState<LoanLineFormItem[]>([emptyLoanLine(selectedBrandId)]);
-
-    // Edit mode
-    const [originalLineIds, setOriginalLineIds] = useState<number[]>([]);
+    const form = useFormContext<LoanEntryFormValues>();
+    const { register } = form;
 
     const partInputRefs = useRef<(HTMLInputElement | null)[]>([]);
-    const qtyInputRefs = useRef<(HTMLInputElement | null)[]>([]);
+    const qtyInputRefs  = useRef<(HTMLInputElement | null)[]>([]);
 
     const scrollWrapperRef = useRef<HTMLDivElement>(null);
     const summaryRef       = useRef<HTMLDivElement>(null);
@@ -103,7 +77,6 @@ export function NewLoanEntry({
             if (!el) return;
             const top = el.getBoundingClientRect().top;
             const summaryHeight = summaryRef.current?.getBoundingClientRect().height ?? 0;
-            // 14px layout gap; 8px = gap between table and summary
             setMaxTableHeight(window.innerHeight - top - summaryHeight - 8 - 14);
         }
         recalc();
@@ -113,12 +86,7 @@ export function NewLoanEntry({
 
     // Populate form on edit
     useEffect(() => {
-        if (!editLoan) {
-            handleReset();
-            setOriginalLineIds([]);
-            return;
-        }
-        if (!dbName || !schema) return;
+        if (!editLoan || !dbName || !schema) return;
         apolloClient.query<GenericQueryData<StockLoanWithLines>>({
             fetchPolicy: "network-only",
             query: GRAPHQL_MAP.genericQuery,
@@ -139,20 +107,20 @@ export function NewLoanEntry({
                 remarks:   detail.remarks ?? "",
             });
             const loadedLines = (detail.lines ?? []).map(l => ({
-                _key: crypto.randomUUID(),
-                brand_id: selectedBrandId,
-                dr_cr: l.dr_cr as "D" | "C",
-                loan_to: l.loan_to ?? "",
+                _key:      crypto.randomUUID(),
+                brand_id:  selectedBrandId,
+                dr_cr:     l.dr_cr as "D" | "C",
+                loan_to:   l.loan_to ?? "",
                 part_code: l.part_code,
-                part_id: l.part_id,
+                part_id:   l.part_id,
                 part_name: l.part_name,
-                qty: Number(l.qty),
-                remarks: l.remarks ?? "",
+                qty:       Number(l.qty),
+                remarks:   l.remarks ?? "",
             }));
             setLines(loadedLines);
             setOriginalLineIds((detail.lines ?? []).map(l => l.id));
         }).catch(() => toast.error(MESSAGES.ERROR_LOAN_LOAD_FAILED));
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [editLoan, dbName, schema]);
 
     // Line mutations
@@ -172,107 +140,14 @@ export function NewLoanEntry({
         setLines(prev => prev.map((l, i) => i !== idx ? l : { ...l, ...patch }));
     };
 
-    // Validation
-    // const isFormValid =
-    //     !!loanDate &&
-    //     lines.length > 0 &&
-    //     lines.every(l => !!l.part_id && l.qty > 0 && !!l.loan_to.trim() && (l.dr_cr === "D" || l.dr_cr === "C"));
+    const linesValid = lines.length > 0 && lines.every(
+        l => !!l.part_id && l.qty > 0 && !!l.loan_to.trim() && (l.dr_cr === "D" || l.dr_cr === "C")
+    );
 
-    const handleReset = () => {
-        form.reset({ loan_date: today(), ref_no: "", remarks: "" });
-        setLines([emptyLoanLine(selectedBrandId)]);
-        setOriginalLineIds([]);
-    };
-
-    const linesValid = lines.length > 0 && lines.every(l => !!l.part_id && l.qty > 0 && !!l.loan_to.trim() && (l.dr_cr === "D" || l.dr_cr === "C"));
-
-    const executeSave = async (values: FormValues) => {
-        const loanInTypeId  = txnTypes.find(t => t.code === "LOAN_IN")?.id;
-        const loanOutTypeId = txnTypes.find(t => t.code === "LOAN_OUT")?.id;
-        if (!branchId || !dbName || !schema) {
-            toast.error(MESSAGES.ERROR_LOAN_CREATE_FAILED);
-            return;
-        }
-        if (!linesValid) { toast.error(MESSAGES.ERROR_LOAN_LINE_FIELDS_REQUIRED); return; }
-
-        const linePayload = lines.map(line => ({
-            dr_cr:   line.dr_cr,
-            loan_to: line.loan_to.trim(),
-            part_id: line.part_id,
-            qty:     line.qty,
-            remarks: line.remarks?.trim() || null,
-            xDetails: [{
-                fkeyName:  "stock_loan_line_id",
-                tableName: "stock_transaction",
-                xData: [{
-                    branch_id:                 branchId,
-                    dr_cr:                     line.dr_cr,
-                    part_id:                   line.part_id,
-                    qty:                       line.qty,
-                    stock_transaction_type_id: line.dr_cr === "D" ? loanInTypeId : loanOutTypeId,
-                    transaction_date:          values.loan_date,
-                }],
-            }],
-        }));
-
-        const headerFields = {
-            loan_date: values.loan_date,
-            ref_no:    values.ref_no?.trim() || null,
-            remarks:   values.remarks?.trim() || null,
-        };
-
-        try {
-            if (editLoan) {
-                const payload = graphQlUtils.buildGenericUpdateValue({
-                    tableName: "stock_loan",
-                    xData: {
-                        id: editLoan.id,
-                        ...headerFields,
-                        xDetails: {
-                            deletedIds: originalLineIds,
-                            fkeyName: "stock_loan_id",
-                            tableName: "stock_loan_line",
-                            xData: linePayload,
-                        },
-                    },
-                });
-                await apolloClient.mutate({
-                    mutation: GRAPHQL_MAP.genericUpdate,
-                    variables: { db_name: dbName, schema, value: payload },
-                });
-                toast.success(MESSAGES.SUCCESS_LOAN_UPDATED);
-            } else {
-                const payload = graphQlUtils.buildGenericUpdateValue({
-                    tableName: "stock_loan",
-                    xData: {
-                        branch_id: branchId,
-                        ...headerFields,
-                        xDetails: {
-                            fkeyName: "stock_loan_id",
-                            tableName: "stock_loan_line",
-                            xData: linePayload,
-                        },
-                    },
-                });
-                await apolloClient.mutate({
-                    mutation: GRAPHQL_MAP.genericUpdate,
-                    variables: { db_name: dbName, schema, value: payload },
-                });
-                toast.success(MESSAGES.SUCCESS_LOAN_CREATED);
-            }
-            handleReset();
-            onSuccess();
-        } catch {
-            toast.error(editLoan ? MESSAGES.ERROR_LOAN_UPDATE_FAILED : MESSAGES.ERROR_LOAN_CREATE_FAILED);
-        }
-    };
-
-    // Trigger submit from parent
     useEffect(() => {
-        if (!submitTrigger) return;
-        void form.handleSubmit(executeSave)();
+        onLinesValidChange(linesValid);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [submitTrigger]);
+    }, [linesValid]);
 
     return (
         <motion.div
@@ -348,7 +223,6 @@ export function NewLoanEntry({
                                     <div className={hdrCellCls}>Part <span className="text-red-500 ml-0.5">*</span></div>
                                     <div className={hdrCellCls}>Loan To <span className="text-red-500 ml-0.5">*</span></div>
                                     <div className={cn(hdrCellCls, 'justify-center')}>IN / OUT <span className="text-red-500 ml-0.5">*</span></div>
-                                    {/* <div className={`${hdrCellCls} justify-end px-3`}>Qty <span className="text-red-500 ml-0.5">*</span></div> */}
                                     <div className={cn(hdrCellCls, 'justify-end px-3')}>Qty <span className="text-red-500 ml-0.5">*</span></div>
                                     <div className={hdrCellCls}>Line Remarks</div>
                                     <div className={hdrCellCls} />
@@ -501,8 +375,6 @@ export function NewLoanEntry({
                     </div>
                 </>
             )}
-
-            <IsValidReporter isValid={isValid && linesValid} isSubmitting={isSubmitting} onStatusChange={onStatusChange} />
         </motion.div>
     );
 }

@@ -87,10 +87,6 @@ function ConfigurationsExplorer() {
                 <TreeItem icon={Settings2}    label="App Settings" />
                 <TreeItem icon={Hash}         label="Numbering / Auto Series" />
             </div>
-            <CollapsibleGroup label="Print Templates">
-                <TreeItem icon={PrinterCheck} label="Job Slip" />
-                <TreeItem icon={FileText}     label="Receipt Layouts" />
-            </CollapsibleGroup>
         </div>
     );
 }

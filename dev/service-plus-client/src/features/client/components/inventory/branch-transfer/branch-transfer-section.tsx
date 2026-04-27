@@ -3,6 +3,8 @@ import {FileText, Loader2, MoreHorizontal, Pencil, RefreshCw, Save, Search, Tras
 import { ViewModeToggle, type ViewMode } from "@/features/client/components/inventory/view-mode-toggle";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
+import { FormProvider, useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -32,12 +34,13 @@ import { selectCurrentBranch, selectSchema } from "@/store/context-slice";
 import type { BrandOption } from "@/features/client/types/model";
 import { BrandSelect } from "@/features/client/components/inventory/brand-select";
 import type { Branch } from "@/types/db-schema-service";
-import type { StockBranchTransferType } from "@/features/client/types/branch-transfer";
+import type { BranchTransferLineFormItem, StockBranchTransferType } from "@/features/client/types/branch-transfer";
+import { emptyTransferLine } from "@/features/client/types/branch-transfer";
+import { branchTransferFormSchema, type BranchTransferFormValues, getBranchTransferDefaultValues } from "./branch-transfer-schema";
 import { NewBranchTransfer } from "./new-branch-transfer";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-// ViewMode is imported from view-mode-toggle
 type GenericQueryData<T> = { genericQuery: T[] | null };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -87,21 +90,27 @@ export const BranchTransferSection = () => {
     // Edit state
     const [editTransfer, setEditTransfer] = useState<StockBranchTransferType | null>(null);
 
-    // Form coordination
-    const [submitTrigger, setSubmitTrigger] = useState(0);
-    const [newFormValid,  setNewFormValid]  = useState(false);
-    const [submitting,    setSubmitting]    = useState(false);
+    // Lines lifted from child
+    const selectedBrandId = selectedBrand ? Number(selectedBrand) : null;
+    const [lines,           setLines]           = useState<BranchTransferLineFormItem[]>([emptyTransferLine(selectedBrandId)]);
+    const [originalLineIds, setOriginalLineIds] = useState<number[]>([]);
+    const [linesValid,      setLinesValid]      = useState(false);
+
+    // Form
+    const form = useForm<BranchTransferFormValues>({
+        defaultValues: getBranchTransferDefaultValues(),
+        mode:          "onChange",
+        resolver:      zodResolver(branchTransferFormSchema) as any,
+    });
 
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const scrollWrapperRef = useRef<HTMLDivElement>(null);
 
-    // Dynamic height calculation for the data grid
     const [maxHeight, setMaxHeight] = useState<number>(0);
 
     const recalc = useCallback(() => {
         if (scrollWrapperRef.current) {
             const rect = scrollWrapperRef.current.getBoundingClientRect();
-            // Leave space for pagination (approx 48px) and some margin
             const availableHeight = window.innerHeight - rect.top - 60;
             setMaxHeight(Math.max(200, availableHeight));
         }
@@ -109,7 +118,6 @@ export const BranchTransferSection = () => {
 
     useEffect(() => {
         if (mode === "view") {
-            // Slight delay to ensure DOM is ready
             const timer = setTimeout(recalc, 100);
             window.addEventListener("resize", recalc);
             return () => {
@@ -117,7 +125,7 @@ export const BranchTransferSection = () => {
                 window.removeEventListener("resize", recalc);
             };
         }
-    }, [mode, recalc, transfers.length]); // Also recalc on data load
+    }, [mode, recalc, transfers.length]);
 
     // Load brands and branches on mount
     useEffect(() => {
@@ -140,7 +148,7 @@ export const BranchTransferSection = () => {
                         variables: {
                             db_name: dbName,
                             schema,
-                            value: graphQlUtils.buildGenericQueryValue({ 
+                            value: graphQlUtils.buildGenericQueryValue({
                                 sqlId: SQL_MAP.GET_ALL_BRANCHES,
                                 sqlArgs: { is_active: true }
                             }),
@@ -201,7 +209,6 @@ export const BranchTransferSection = () => {
         }
     }, [dbName, schema]);
 
-    // Re-fetch when filters or branch change
     useEffect(() => {
         if (mode !== "view" || !branchId) return;
         void loadData(Number(branchId), fromDate, toDate, searchQ, page);
@@ -219,6 +226,127 @@ export const BranchTransferSection = () => {
     const handleFilterChange = (setter: (v: string) => void) => (v: string) => {
         setter(v);
         setPage(1);
+    };
+
+    const handleReset = () => {
+        form.reset(getBranchTransferDefaultValues());
+        setLines([emptyTransferLine(selectedBrandId)]);
+        setOriginalLineIds([]);
+        setEditTransfer(null);
+    };
+
+    // Save
+    const executeSave = async (values: BranchTransferFormValues) => {
+        if (!linesValid) {
+            toast.error(MESSAGES.ERROR_TRANSFER_LINE_FIELDS_REQUIRED);
+            return;
+        }
+        if (!branchId || !values.to_branch_id || !dbName || !schema) {
+            toast.error(MESSAGES.ERROR_TRANSFER_CREATE_FAILED);
+            return;
+        }
+
+        try {
+            const txnRes = await apolloClient.query<GenericQueryData<{ id: number; code: string }>>({
+                query: GRAPHQL_MAP.genericQuery,
+                variables: {
+                    db_name: dbName,
+                    schema,
+                    value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_STOCK_TRANSACTION_TYPES }),
+                },
+            });
+            const tTypes = txnRes.data?.genericQuery ?? [];
+            const outType = tTypes.find(t => t.code === "BRANCH_TRANSFER_OUT")?.id;
+            const inType  = tTypes.find(t => t.code === "BRANCH_TRANSFER_IN")?.id;
+
+            if (!outType || !inType) {
+                toast.error("Required stock transaction types (BRANCH_TRANSFER_IN/OUT) not found.");
+                return;
+            }
+
+            const linePayload = lines.map(line => ({
+                part_id: line.part_id,
+                qty:     line.qty,
+                remarks: line.remarks?.trim() || null,
+                xDetails: [{
+                    tableName: "stock_transaction",
+                    fkeyName:  "stock_branch_transfer_line_id",
+                    xData: [
+                        {
+                            branch_id:                 branchId,
+                            part_id:                   line.part_id,
+                            qty:                       line.qty,
+                            dr_cr:                     "C",
+                            transaction_date:          values.transfer_date,
+                            stock_transaction_type_id: outType,
+                        },
+                        {
+                            branch_id:                 Number(values.to_branch_id),
+                            part_id:                   line.part_id,
+                            qty:                       line.qty,
+                            dr_cr:                     "D",
+                            transaction_date:          values.transfer_date,
+                            stock_transaction_type_id: inType,
+                        },
+                    ],
+                }],
+            }));
+
+            const headerFields = {
+                transfer_date:  values.transfer_date,
+                from_branch_id: branchId,
+                to_branch_id:   Number(values.to_branch_id),
+                ref_no:         values.ref_no?.trim() || null,
+                remarks:        values.remarks?.trim() || null,
+            };
+
+            if (editTransfer) {
+                const payload = graphQlUtils.buildGenericUpdateValue({
+                    tableName: "stock_branch_transfer",
+                    xData: {
+                        id: editTransfer.id,
+                        ...headerFields,
+                        xDetails: {
+                            tableName:  "stock_branch_transfer_line",
+                            fkeyName:   "stock_branch_transfer_id",
+                            deletedIds: originalLineIds,
+                            xData:      linePayload,
+                        },
+                    },
+                });
+                await apolloClient.mutate({
+                    mutation:  GRAPHQL_MAP.genericUpdate,
+                    variables: { db_name: dbName, schema, value: payload },
+                });
+                toast.success(MESSAGES.SUCCESS_TRANSFER_UPDATED);
+                setEditTransfer(null);
+                setMode("view");
+                if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, 1);
+            } else {
+                const payload = graphQlUtils.buildGenericUpdateValue({
+                    tableName: "stock_branch_transfer",
+                    xData: {
+                        ...headerFields,
+                        xDetails: {
+                            tableName: "stock_branch_transfer_line",
+                            fkeyName:  "stock_branch_transfer_id",
+                            xData:     linePayload,
+                        },
+                    },
+                });
+                await apolloClient.mutate({
+                    mutation:  GRAPHQL_MAP.genericUpdate,
+                    variables: { db_name: dbName, schema, value: payload },
+                });
+                toast.success(MESSAGES.SUCCESS_TRANSFER_CREATED);
+            }
+            form.reset(getBranchTransferDefaultValues());
+            setLines([emptyTransferLine(selectedBrandId)]);
+            setOriginalLineIds([]);
+        } catch (err) {
+            console.error(err);
+            toast.error(editTransfer ? MESSAGES.ERROR_TRANSFER_UPDATE_FAILED : MESSAGES.ERROR_TRANSFER_CREATE_FAILED);
+        }
     };
 
     // Delete
@@ -286,7 +414,7 @@ export const BranchTransferSection = () => {
                 <ViewModeToggle
                     mode={mode}
                     isEditing={!!editTransfer}
-                    onNewClick={() => { setEditTransfer(null); setMode("new"); }}
+                    onNewClick={handleReset}
                     onViewClick={() => { setMode("view"); if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, page); }}
                 />
 
@@ -305,44 +433,39 @@ export const BranchTransferSection = () => {
                 <div className={`flex items-center gap-2 ${mode !== 'new' ? 'hidden md:flex md:invisible pointer-events-none' : ''}`}>
                     <Button
                         className="h-8 gap-1.5 px-3 text-xs font-extrabold uppercase tracking-widest text-[var(--cl-text)]"
-                        disabled={submitting}
+                        disabled={form.formState.isSubmitting}
                         variant="ghost"
-                        onClick={() => { setEditTransfer(null); }}
+                        onClick={handleReset}
                     >
-                        <RefreshCw className={`h-3.5 w-3.5 ${submitting ? 'animate-spin' : ''}`} />
+                        <RefreshCw className={`h-3.5 w-3.5 ${form.formState.isSubmitting ? 'animate-spin' : ''}`} />
                         Reset
                     </Button>
                     <Button
                         className="h-8 gap-1.5 px-4 text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm font-extrabold uppercase tracking-widest transition-all disabled:opacity-30 disabled:bg-slate-300 disabled:text-slate-600 disabled:shadow-none disabled:cursor-not-allowed"
-                        disabled={!newFormValid || submitting}
-                        onClick={() => setSubmitTrigger(t => t + 1)}
+                        disabled={!form.formState.isValid || !linesValid || form.formState.isSubmitting}
+                        onClick={form.handleSubmit(executeSave)}
                     >
-                        {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                        {form.formState.isSubmitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
                         Save
                     </Button>
                 </div>
             </div>
 
             {mode === 'new' ? (
-                <NewBranchTransfer
-                    branchId={branchId}
-                    branches={branches}
-                    submitTrigger={submitTrigger}
-                    onSuccess={() => {
-                        if (editTransfer) {
-                            setEditTransfer(null);
-                            setMode('view');
-                            if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, 1);
-                        }
-                    }}
-                    onStatusChange={status => {
-                        setNewFormValid(status.isValid);
-                        setSubmitting(status.isSubmitting);
-                    }}
-                    selectedBrandId={selectedBrand ? Number(selectedBrand) : null}
-                    brandName={brands.find(b => String(b.id) === selectedBrand)?.name}
-                    editTransfer={editTransfer}
-                />
+                <FormProvider {...form}>
+                    <NewBranchTransfer
+                        branchId={branchId}
+                        branches={branches}
+                        brandName={brands.find(b => String(b.id) === selectedBrand)?.name}
+                        editTransfer={editTransfer}
+                        lines={lines}
+                        onLinesValidChange={setLinesValid}
+                        originalLineIds={originalLineIds}
+                        selectedBrandId={selectedBrandId}
+                        setLines={setLines}
+                        setOriginalLineIds={setOriginalLineIds}
+                    />
+                </FormProvider>
             ) : (
                 <>
                     {/* Toolbar */}
@@ -501,7 +624,7 @@ export const BranchTransferSection = () => {
                             )}
                         </div>
 
-                        {/* Summary footer — always pinned at bottom */}
+                        {/* Summary footer */}
                         {transfers.length > 0 && (
                             <div className="border-t border-[var(--cl-border)] bg-[var(--cl-surface-2)]">
                                 <table className="min-w-full border-collapse">

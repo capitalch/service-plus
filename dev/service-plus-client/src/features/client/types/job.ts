@@ -3,6 +3,7 @@ export type JobListRow = {
     job_no:            string;
     job_date:          string;
     customer_name:     string | null;
+    file_count:        number;
     mobile:            string;
     job_type_name:     string;
     job_status_name:   string;

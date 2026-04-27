@@ -1,4 +1,5 @@
 import json
+from psycopg.rows import dict_row
 import re
 import secrets
 from datetime import datetime
@@ -17,6 +18,7 @@ from app.db.psycopg_driver import (
     exec_sql_dml,
     exec_sql_object,
     get_service_db_connection,
+    process_data,
 )
 from app.db.sql_store import SqlStore
 from app.db.sql_bu import SqlBu
@@ -812,13 +814,11 @@ async def resolve_create_sales_invoice_helper(db_name: str, schema: str = "publi
 async def resolve_create_single_job_helper(db_name: str, schema: str = "public", value: str = "") -> Any:
     """
     Create a single job and atomically insert an initial job_transaction + increment document sequence.
-
+    
     The `value` JSON must contain:
       - tableName: "job"
-      - doc_sequence_id   (int): ID of the document_sequence row to increment.
-      - doc_sequence_next (int): The new next_number value (current + 1).
       - performed_by_user_id (int): User ID for the initial job_transaction.
-      - xData: job fields (performed_by_user_id is stripped before DB insert).
+      - xData: job fields.
     """
     if not value:
         raise ValidationException(
@@ -835,37 +835,59 @@ async def resolve_create_single_job_helper(db_name: str, schema: str = "public",
             extensions={"detail": AppMessages.INVALID_JSON_OBJECT},
         )
 
-    doc_sequence_id   = payload.pop("doc_sequence_id", None)
-    doc_sequence_next = payload.pop("doc_sequence_next", None)
-    performed_by      = payload.get("xData", {}).pop("performed_by_user_id", None)
-    initial_status_id = payload.get("xData", {}).get("job_status_id")
+    # Ignore client-provided sequence info
+    payload.pop("doc_sequence_id", None)
+    payload.pop("doc_sequence_next", None)
+    
+    x_data = payload.get("xData", {})
+    performed_by = x_data.pop("performed_by_user_id", None)
+    initial_status_id = x_data.get("job_status_id")
+    branch_id = x_data.get("branch_id")
+    
+    if not branch_id:
+        raise ValidationException(
+            message=AppMessages.REQUIRED_FIELD_MISSING,
+            extensions={"field": "branch_id"},
+        )
 
     db_name_arg = db_name if db_name else None
     schema_name = schema or "public"
 
-    job_id = await exec_sql_object(db_name_arg, schema_name, payload)
-    logger.info("Single job created with id=%s", job_id)
+    async with get_service_db_connection(db_name_arg) as conn:
+        async with conn.cursor(row_factory=dict_row) as cur:
+            await cur.execute(
+                pgsql.SQL("SET search_path TO {}").format(pgsql.Identifier(schema_name))
+            )
 
-    # Insert initial job_transaction
-    if performed_by is not None:
-        txn_object = {
-            "tableName": "job_transaction",
-            "xData": {
-                "job_id":               job_id,
-                "status_id":            initial_status_id,
-                "performed_by_user_id": performed_by,
-            },
-        }
-        await exec_sql_object(db_name_arg, schema_name, txn_object)
-        logger.debug("Initial job_transaction inserted for job_id=%s", job_id)
+            # 1. Claim next sequence number atomically
+            seq_rows = await cur.execute(
+                SqlStore.CLAIM_NEXT_JOB_NUMBER,
+                {"branch_id": branch_id}
+            )
+            seq = await cur.fetchone()
+            if not seq:
+                raise ValidationException(
+                    message=AppMessages.RESOURCE_NOT_FOUND,
+                    extensions={"detail": "Job sequence not configured for this branch"},
+                )
 
-    if doc_sequence_id is not None and doc_sequence_next is not None:
-        seq_object = {
-            "tableName": "document_sequence",
-            "xData": {"id": doc_sequence_id, "next_number": doc_sequence_next},
-        }
-        await exec_sql_object(db_name_arg, schema_name, seq_object)
-        logger.debug("Document sequence %s incremented to %s", doc_sequence_id, doc_sequence_next)
+            # 2. Format job number
+            job_no = f"{seq['prefix']}{seq['separator']}{str(seq['assigned_number']).zfill(seq['padding'])}"
+            x_data["job_no"] = job_no
+
+            # 3. Insert the job
+            job_id = await process_data(x_data, cur, "job", None, None)
+            logger.info("Single job created with id=%s, job_no=%s", job_id, job_no)
+
+            # 4. Insert initial job_transaction
+            if performed_by is not None:
+                txn_data = {
+                    "job_id":               job_id,
+                    "status_id":            initial_status_id,
+                    "performed_by_user_id": performed_by,
+                }
+                await process_data(txn_data, cur, "job_transaction", None, None)
+                logger.debug("Initial job_transaction inserted for job_id=%s", job_id)
 
     return job_id
 

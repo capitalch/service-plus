@@ -22,7 +22,7 @@ import { selectSchema } from "@/store/context-slice";
 import type { CustomerSearchRow } from "@/features/client/types/sales";
 import type { JobDetailType, JobLookupRow, ModelRow, TechnicianRow } from "@/features/client/types/job";
 import { CustomerInput } from "@/features/client/components/inventory/customer-input";
-import { JobImageUpload } from "./job-image-upload";
+
 import { SearchableCombobox } from "@/components/ui/searchable-combobox";
 import { AddModelDialog } from "@/features/client/components/masters/model/add-model-dialog";
 import { Button } from "@/components/ui/button";
@@ -231,7 +231,7 @@ export function NewSingleJobForm({
                                 <select
                                     className="w-full h-9 rounded-md border border-[var(--cl-border)] text-sm px-2 bg-[var(--cl-surface-2)] text-[var(--cl-text)]"
                                     value={watch("receive_condition_id") ?? ""}
-                                    onChange={e => setValue("receive_condition_id", e.target.value ? Number(e.target.value) : null, { shouldValidate: false })}
+                                    onChange={e => setValue("receive_condition_id", e.target.value ? Number(e.target.value) : undefined, { shouldValidate: false })}
                                 >
                                     <option value="">None</option>
                                     {receiveConditions.filter(r => r.is_active).map(r => (
@@ -326,14 +326,6 @@ export function NewSingleJobForm({
                                 />
                             </div>
 
-                            {/* Attachments */}
-                            <div className="space-y-1.5 md:col-span-12 lg:col-span-12">
-                                <Label className={labelCls}>Attachments</Label>
-                                {editJob
-                                    ? <JobImageUpload jobId={editJob.id} />
-                                    : <JobImageUpload onPendingChange={a => form.setValue("attachments", a, { shouldValidate: true })} />
-                                }
-                            </div>
 
                         </CardContent>
                     </Card>

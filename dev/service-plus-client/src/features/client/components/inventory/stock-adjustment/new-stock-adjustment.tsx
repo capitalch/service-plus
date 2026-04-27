@@ -1,7 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
+import { useFormContext } from "react-hook-form";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
@@ -18,43 +16,28 @@ import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectSchema } from "@/store/context-slice";
-import type { StockTransactionTypeRow } from "@/features/client/types/purchase";
 import type { StockAdjustmentLineFormItem, StockAdjustmentType } from "@/features/client/types/stock-adjustment";
 import { emptyAdjustmentLine } from "@/features/client/types/stock-adjustment";
 
-import { IsValidReporter } from "@/features/client/components/is-valid-reporter";
 import { PartCodeInput } from "../part-code-input";
 import { LineAddDeleteActions } from "../line-add-delete-actions";
+import type { StockAdjFormValues } from "./stock-adjustment-schema";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type GenericQueryData<T> = { genericQuery: T[] | null };
 
-const formSchema = z.object({
-    adjustment_date:   z.string().min(1, "Date is required"),
-    adjustment_reason: z.string().min(1, "Reason is required"),
-    ref_no:            z.string().optional(),
-    remarks:           z.string().optional(),
-});
-
-type FormValues = z.infer<typeof formSchema>;
-
 type Props = {
-    branchId:        number | null;
-    txnTypes:        StockTransactionTypeRow[];
-    onSuccess:       () => void;
-    onStatusChange:  (status: { isValid: boolean; isSubmitting: boolean }) => void;
-    selectedBrandId: number | null;
-    brandName?:      string;
-    editAdjustment?: StockAdjustmentType | null;
-    submitTrigger:   number;
+    branchId:           number | null;
+    brandName?:         string;
+    editAdjustment?:    StockAdjustmentType | null;
+    lines:              StockAdjustmentLineFormItem[];
+    onLinesValidChange: (v: boolean) => void;
+    originalLineIds:    number[];
+    selectedBrandId:    number | null;
+    setLines:           React.Dispatch<React.SetStateAction<StockAdjustmentLineFormItem[]>>;
+    setOriginalLineIds: React.Dispatch<React.SetStateAction<number[]>>;
 };
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function today(): string {
-    return new Date().toISOString().slice(0, 10);
-}
 
 // ─── CSS ──────────────────────────────────────────────────────────────────────
 
@@ -65,25 +48,14 @@ const inputCls = "h-7 border-[var(--cl-border)] bg-[var(--cl-surface)] text-sm p
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function NewStockAdjustment({
-    branchId, txnTypes, onSuccess, onStatusChange, selectedBrandId, brandName, editAdjustment, submitTrigger,
+    branchId, brandName, editAdjustment, lines, onLinesValidChange,
+    originalLineIds, selectedBrandId, setLines, setOriginalLineIds,
 }: Props) {
     const dbName = useAppSelector(selectDbName);
     const schema = useAppSelector(selectSchema);
 
-    const form = useForm<FormValues>({
-        defaultValues: { adjustment_date: today(), adjustment_reason: "", ref_no: "", remarks: "" },
-        mode: "onChange",
-        resolver: zodResolver(formSchema) as any,
-    });
-    const { register, formState: { isValid, isSubmitting }, reset, watch } = form;
-
-    // Lines
-    const [lines, setLines] = useState<StockAdjustmentLineFormItem[]>([emptyAdjustmentLine(selectedBrandId)]);
-    const [originalLineIds, setOriginalLineIds] = useState<number[]>([]);
-
-    const linesValid =
-        lines.length > 0 &&
-        lines.every(l => !!l.part_id && l.qty > 0 && (l.dr_cr === "D" || l.dr_cr === "C"));
+    const form = useFormContext<StockAdjFormValues>();
+    const { register, watch } = form;
 
     const partInputRefs    = useRef<(HTMLInputElement | null)[]>([]);
     const qtyInputRefs     = useRef<(HTMLInputElement | null)[]>([]);
@@ -98,7 +70,6 @@ export function NewStockAdjustment({
             if (!el) return;
             const top = el.getBoundingClientRect().top;
             const summaryHeight = summaryRef.current?.getBoundingClientRect().height ?? 0;
-            // 14px = clearance from ClientLayout; 8px = gap between table and summary
             setMaxTableHeight(window.innerHeight - top - summaryHeight - 8 - 14);
         }
         recalc();
@@ -106,21 +77,9 @@ export function NewStockAdjustment({
         return () => window.removeEventListener("resize", recalc);
     }, []);
 
-    // Submit trigger
-    useEffect(() => {
-        if (!submitTrigger) return;
-        void form.handleSubmit(executeSave)();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [submitTrigger]);
-
     // Populate form on edit
     useEffect(() => {
-        if (!editAdjustment) {
-            handleReset();
-            setOriginalLineIds([]);
-            return;
-        }
-        if (!dbName || !schema) return;
+        if (!editAdjustment || !dbName || !schema) return;
         apolloClient.query<GenericQueryData<StockAdjustmentType & { lines: import("@/features/client/types/stock-adjustment").StockAdjustmentLineType[] }>>({
             fetchPolicy: "network-only",
             query: GRAPHQL_MAP.genericQuery,
@@ -135,7 +94,7 @@ export function NewStockAdjustment({
         }).then(res => {
             const detail = res.data?.genericQuery?.[0];
             if (!detail) return;
-            reset({
+            form.reset({
                 adjustment_date:   detail.adjustment_date,
                 adjustment_reason: detail.adjustment_reason,
                 ref_no:            detail.ref_no ?? "",
@@ -174,97 +133,14 @@ export function NewStockAdjustment({
         setLines(prev => prev.length === 1 ? prev : prev.filter((_, i) => i !== idx));
     };
 
-    // Reset
-    const handleReset = () => {
-        reset({ adjustment_date: today(), adjustment_reason: "", ref_no: "", remarks: "" });
-        setLines([emptyAdjustmentLine(selectedBrandId)]);
-        setOriginalLineIds([]);
-    };
+    const linesValid =
+        lines.length > 0 &&
+        lines.every(l => !!l.part_id && l.qty > 0 && (l.dr_cr === "D" || l.dr_cr === "C"));
 
-    // Save
-    const executeSave = async (values: FormValues) => {
-        if (!linesValid) {
-            toast.error(MESSAGES.ERROR_ADJUSTMENT_LINE_FIELDS_REQUIRED);
-            return;
-        }
-        const adjustmentInTypeId  = txnTypes.find(t => t.code === "ADJUSTMENT_IN")?.id;
-        const adjustmentOutTypeId = txnTypes.find(t => t.code === "ADJUSTMENT_OUT")?.id;
-        if (!branchId || !dbName || !schema) {
-            toast.error(MESSAGES.ERROR_ADJUSTMENT_CREATE_FAILED);
-            return;
-        }
-
-        const linePayload = lines.map(line => ({
-            part_id: line.part_id,
-            dr_cr:   line.dr_cr,
-            qty:     line.qty,
-            remarks: line.remarks?.trim() || null,
-            xDetails: [{
-                tableName: "stock_transaction",
-                fkeyName:  "stock_adjustment_line_id",
-                xData: [{
-                    branch_id:                 branchId,
-                    part_id:                   line.part_id,
-                    qty:                       line.qty,
-                    dr_cr:                     line.dr_cr,
-                    transaction_date:          values.adjustment_date,
-                    stock_transaction_type_id: line.dr_cr === "D" ? adjustmentInTypeId : adjustmentOutTypeId,
-                }],
-            }],
-        }));
-
-        const headerFields = {
-            adjustment_date:   values.adjustment_date,
-            adjustment_reason: values.adjustment_reason.trim(),
-            ref_no:            values.ref_no?.trim() || null,
-            remarks:           values.remarks?.trim() || null,
-        };
-
-        try {
-            if (editAdjustment) {
-                const payload = graphQlUtils.buildGenericUpdateValue({
-                    tableName: "stock_adjustment",
-                    xData: {
-                        id: editAdjustment.id,
-                        ...headerFields,
-                        xDetails: {
-                            tableName:  "stock_adjustment_line",
-                            fkeyName:   "stock_adjustment_id",
-                            deletedIds: originalLineIds,
-                            xData:      linePayload,
-                        },
-                    },
-                });
-                await apolloClient.mutate({
-                    mutation:  GRAPHQL_MAP.genericUpdate,
-                    variables: { db_name: dbName, schema, value: payload },
-                });
-                toast.success(MESSAGES.SUCCESS_ADJUSTMENT_UPDATED);
-            } else {
-                const payload = graphQlUtils.buildGenericUpdateValue({
-                    tableName: "stock_adjustment",
-                    xData: {
-                        branch_id: branchId,
-                        ...headerFields,
-                        xDetails: {
-                            tableName: "stock_adjustment_line",
-                            fkeyName:  "stock_adjustment_id",
-                            xData:     linePayload,
-                        },
-                    },
-                });
-                await apolloClient.mutate({
-                    mutation:  GRAPHQL_MAP.genericUpdate,
-                    variables: { db_name: dbName, schema, value: payload },
-                });
-                toast.success(MESSAGES.SUCCESS_ADJUSTMENT_CREATED);
-            }
-            handleReset();
-            onSuccess();
-        } catch {
-            toast.error(editAdjustment ? MESSAGES.ERROR_ADJUSTMENT_UPDATE_FAILED : MESSAGES.ERROR_ADJUSTMENT_CREATE_FAILED);
-        }
-    };
+    useEffect(() => {
+        onLinesValidChange(linesValid);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [linesValid]);
 
     const adjustmentDate   = watch("adjustment_date");
     const adjustmentReason = watch("adjustment_reason");
@@ -276,12 +152,6 @@ export function NewStockAdjustment({
             exit={{ opacity: 0, y: -10 }}
             className="flex min-h-fit md:min-h-0 md:flex-1 flex-col gap-2 pb-0 md:overflow-hidden"
         >
-            <IsValidReporter
-                isSubmitting={isSubmitting}
-                isValid={isValid && linesValid}
-                onStatusChange={onStatusChange}
-            />
-
             {!branchId ? (
                 <div className="flex flex-col items-center justify-center py-20 bg-[var(--cl-surface-2)]/30 rounded-xl border-2 border-dashed border-[var(--cl-border)] text-center">
                     <div className="bg-[var(--cl-accent)]/5 p-5 rounded-full mb-4">

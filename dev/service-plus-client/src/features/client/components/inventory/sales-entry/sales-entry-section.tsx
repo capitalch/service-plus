@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { FormProvider, useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import {CheckCircle2, Eye, FileDown, FileSpreadsheet, FileText, Loader2,
     MoreHorizontal, Pencil, RefreshCw, RotateCcw, Save, Search, Trash2, XCircle, ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon, X} from "lucide-react";
 import { ViewModeToggle, type ViewMode } from "@/features/client/components/inventory/view-mode-toggle";
@@ -34,10 +36,11 @@ import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectCurrentBranch, selectSchema, selectCompanyName, selectIsGstRegistered } from "@/store/context-slice";
 import type { BrandOption } from "@/features/client/types/model";
 import { BrandSelect } from "@/features/client/components/inventory/brand-select";
-import type { SalesInvoiceType, SalesLineType, DocumentSequenceRow } from "@/features/client/types/sales";
+import type { SalesInvoiceType, SalesLineFormItem, SalesLineType, DocumentSequenceRow } from "@/features/client/types/sales";
 import type { StockTransactionTypeRow } from "@/features/client/types/purchase";
 import type { CustomerTypeOption, StateOption } from "@/features/client/types/customer";
 import type { BranchType } from "@/features/client/components/masters/branch/branch";
+import { salesInvoiceSchema, getSalesInvoiceDefaultValues, type SalesInvoiceFormValues } from "./sales-invoice-schema";
 
 import { NewSalesInvoice } from "./new-sales-invoice";
 import { ViewSalesInvoiceDialog } from "./view-sales-invoice-dialog";
@@ -45,7 +48,6 @@ import { SalesInvoicePdfPreviewDialog } from "./sales-invoice-pdf-preview-dialog
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-// ViewMode is imported from view-mode-toggle
 type GenericQueryData<T> = { genericQuery: T[] | null };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -56,13 +58,47 @@ const DEBOUNCE_MS = 1200;
 const thClass = "sticky top-0 z-20 text-xs font-semibold uppercase tracking-wide text-[var(--cl-text-muted)] p-3 text-left border-b border-[var(--cl-border)] bg-[var(--cl-surface-2)]";
 const tdClass = "p-3 text-sm text-[var(--cl-text)] border-b border-[var(--cl-border)]";
 
+function emptyLine(brandId: number | null = null): SalesLineFormItem {
+    return {
+        _key:             crypto.randomUUID(),
+        part_id:          null,
+        brand_id:         brandId,
+        part_code:        "",
+        part_name:        "",
+        uom:              "",
+        hsn_code:         "",
+        quantity:         1,
+        unit_price:       0,
+        gst_rate:         0,
+        aggregate_amount: 0,
+        cgst_amount:      0,
+        sgst_amount:      0,
+        igst_amount:      0,
+        total_amount:     0,
+        remarks:          "",
+    };
+}
+
+function calcLine(l: SalesLineFormItem, isIgst: boolean) {
+    const aggregate = l.quantity * l.unit_price;
+    const gst       = l.gst_rate;
+    const cgstAmt   = isIgst ? 0 : aggregate * (gst / 2) / 100;
+    const sgstAmt   = isIgst ? 0 : aggregate * (gst / 2) / 100;
+    const igstAmt   = isIgst ? aggregate * gst / 100 : 0;
+    return { aggregate, cgstAmt, sgstAmt, igstAmt, total: aggregate + cgstAmt + sgstAmt + igstAmt };
+}
+
+function buildInvoiceNo(seq: DocumentSequenceRow): string {
+    return `${seq.prefix}${seq.separator}${String(seq.next_number).padStart(seq.padding, "0")}`;
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export const SalesEntrySection = () => {
-    const dbName     = useAppSelector(selectDbName);
-    const schema     = useAppSelector(selectSchema);
-    const globalBranch = useAppSelector(selectCurrentBranch);
-    const branchId   = globalBranch?.id ?? null;
+    const dbName          = useAppSelector(selectDbName);
+    const schema          = useAppSelector(selectSchema);
+    const globalBranch    = useAppSelector(selectCurrentBranch);
+    const branchId        = globalBranch?.id ?? null;
     const companyName     = useAppSelector(selectCompanyName) || "Service Plus";
     const isGstRegistered = useAppSelector(selectIsGstRegistered);
 
@@ -102,21 +138,33 @@ export const SalesEntrySection = () => {
     const [isIgst,      setIsIgst]      = useState(false);
     const [isReturn,    setIsReturn]    = useState(false);
 
-    // Form
-    const [submitTrigger, setSubmitTrigger] = useState(0);
-    const [newFormValid, setNewFormValid] = useState(false);
-    const [submitting,   setSubmitting]  = useState(false);
+    // Lifted form state
+    const [customerId,        setCustomerId]        = useState<number | null>(null);
+    const [customerName,      setCustomerName]      = useState("");
+    const [customerGstin,     setCustomerGstin]     = useState("");
+    const [customerStateCode, setCustomerStateCode] = useState("");
+    const [lines,             setLines]             = useState<SalesLineFormItem[]>([emptyLine(null)]);
+    const [originalLineIds,   setOriginalLineIds]   = useState<number[]>([]);
+    const [linesValid,        setLinesValid]        = useState(false);
 
-    const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const selectedBrandId = selectedBrand ? Number(selectedBrand) : null;
+
+    const form = useForm<SalesInvoiceFormValues>({
+        defaultValues: getSalesInvoiceDefaultValues(),
+        mode:          "onChange",
+        resolver:      zodResolver(salesInvoiceSchema) as any,
+    });
+
+    const canSave = form.formState.isValid && !!customerName.trim() && !!customerStateCode && !!selectedBrand && linesValid;
+
+    const debounceRef     = useRef<ReturnType<typeof setTimeout> | null>(null);
     const scrollWrapperRef = useRef<HTMLDivElement>(null);
 
-    // Dynamic height calculation for the data grid
     const [maxHeight, setMaxHeight] = useState<number>(0);
 
     const recalc = useCallback(() => {
         if (scrollWrapperRef.current) {
-            const rect = scrollWrapperRef.current.getBoundingClientRect();
-            // Leave space for pagination (approx 48px) and some margin
+            const rect            = scrollWrapperRef.current.getBoundingClientRect();
             const availableHeight = window.innerHeight - rect.top - 60;
             setMaxHeight(Math.max(200, availableHeight));
         }
@@ -124,7 +172,6 @@ export const SalesEntrySection = () => {
 
     useEffect(() => {
         if (mode === "view") {
-            // Slight delay to ensure DOM is ready
             const timer = setTimeout(recalc, 100);
             window.addEventListener("resize", recalc);
             return () => {
@@ -132,7 +179,7 @@ export const SalesEntrySection = () => {
                 window.removeEventListener("resize", recalc);
             };
         }
-    }, [mode, recalc, invoices.length]); // Also recalc on data load
+    }, [mode, recalc, invoices.length]);
 
     // Derive active docSequence for SINV
     const sinvSequence = docSequences.find(
@@ -213,7 +260,7 @@ export const SalesEntrySection = () => {
             variables: {
                 db_name: dbName, schema,
                 value: graphQlUtils.buildGenericQueryValue({
-                    sqlId: SQL_MAP.GET_DOCUMENT_SEQUENCES,
+                    sqlId:   SQL_MAP.GET_DOCUMENT_SEQUENCES,
                     sqlArgs: { branch_id: branchId },
                 }),
             },
@@ -282,6 +329,176 @@ export const SalesEntrySection = () => {
         setPage(1);
     };
 
+    const handleReset = () => {
+        form.reset(getSalesInvoiceDefaultValues());
+        setCustomerId(null);
+        setCustomerName("");
+        setCustomerGstin("");
+        setCustomerStateCode("");
+        setIsReturn(false);
+        setLines([emptyLine(selectedBrandId)]);
+        setOriginalLineIds([]);
+        setEditInvoice(null);
+    };
+
+    const executeSave = async (values: SalesInvoiceFormValues) => {
+        if (!customerName.trim()) {
+            toast.error(MESSAGES.ERROR_SALES_CUSTOMER_REQUIRED);
+            return;
+        }
+        if (!customerStateCode) {
+            toast.error("Customer state is required.");
+            return;
+        }
+        if (!linesValid) {
+            toast.error(MESSAGES.ERROR_SALES_LINE_FIELDS_REQUIRED);
+            return;
+        }
+
+        const salesTypeId  = txnTypes.find(t => t.code === "SALES")?.id;
+        const returnTypeId = txnTypes.find(t => t.code === "SALE_RETURN")?.id;
+        if (isReturn && !returnTypeId) {
+            toast.error("Sale Return transaction type not found. Please contact admin.");
+            return;
+        }
+        if (!salesTypeId || !branchId || !dbName || !schema) {
+            toast.error(MESSAGES.ERROR_SALES_CREATE_FAILED);
+            return;
+        }
+
+        const txnTypeId = isReturn ? returnTypeId! : salesTypeId;
+        const drCr      = isReturn ? "D" : "C";
+
+        // Compute totals
+        let aggTotal = 0, cgstTotal = 0, sgstTotal = 0, igstTotal = 0;
+        for (const l of lines) {
+            const c = calcLine(l, isIgst);
+            aggTotal  += c.aggregate;
+            cgstTotal += c.cgstAmt;
+            sgstTotal += c.sgstAmt;
+            igstTotal += c.igstAmt;
+        }
+        const totalTax   = cgstTotal + sgstTotal + igstTotal;
+        const grandTotal = aggTotal + totalTax;
+
+        const linePayload = lines.map(line => {
+            const c = calcLine(line, isIgst);
+            return {
+                part_id:          line.part_id,
+                item_description: line.part_name,
+                hsn_code:         line.hsn_code,
+                quantity:         line.quantity,
+                unit_price:       line.unit_price,
+                aggregate_amount: c.aggregate,
+                gst_rate:         line.gst_rate,
+                cgst_amount:      c.cgstAmt,
+                sgst_amount:      c.sgstAmt,
+                igst_amount:      c.igstAmt,
+                total_amount:     c.total,
+                remarks:          line.remarks.trim() || null,
+                xDetails: [
+                    {
+                        tableName: "stock_transaction",
+                        fkeyName:  "sales_line_id",
+                        xData: [{
+                            branch_id:                 branchId,
+                            part_id:                   line.part_id,
+                            qty:                       line.quantity,
+                            unit_cost:                 line.unit_price,
+                            dr_cr:                     drCr,
+                            transaction_date:          values.invoice_date,
+                            stock_transaction_type_id: txnTypeId,
+                        }],
+                    },
+                ],
+            };
+        });
+
+        const headerFields = {
+            customer_contact_id: customerId ?? null,
+            customer_name:       customerName.trim(),
+            customer_gstin:      customerGstin.trim() || null,
+            customer_state_code: customerStateCode,
+            invoice_date:        values.invoice_date,
+            aggregate_amount:    aggTotal,
+            cgst_amount:         cgstTotal,
+            sgst_amount:         sgstTotal,
+            igst_amount:         igstTotal,
+            total_tax:           totalTax,
+            total_amount:        grandTotal,
+            brand_id:            selectedBrandId,
+            remarks:             values.remarks?.trim() || null,
+            is_return:           isReturn,
+        };
+
+        try {
+            if (editInvoice) {
+                const payload = graphQlUtils.buildGenericUpdateValue({
+                    tableName: "sales_invoice",
+                    xData: {
+                        id: editInvoice.id,
+                        ...headerFields,
+                        xDetails: {
+                            tableName:  "sales_invoice_line",
+                            fkeyName:   "sales_invoice_id",
+                            deletedIds: originalLineIds,
+                            xData:      linePayload,
+                        },
+                    },
+                });
+                await apolloClient.mutate({
+                    mutation:  GRAPHQL_MAP.genericUpdate,
+                    variables: { db_name: dbName, schema, value: payload },
+                });
+                toast.success(MESSAGES.SUCCESS_SALES_UPDATED);
+                handleReset();
+                setMode("view");
+                if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, 1);
+            } else {
+                const docSequence = sinvSequence;
+                const invoiceNo   = docSequence ? buildInvoiceNo(docSequence) : "";
+                const sqlObject   = {
+                    tableName:         "sales_invoice",
+                    doc_sequence_id:   docSequence?.id ?? null,
+                    doc_sequence_next: docSequence ? (docSequence.next_number + 1) : null,
+                    xData: {
+                        branch_id:  branchId,
+                        invoice_no: invoiceNo,
+                        ...headerFields,
+                        xDetails: {
+                            tableName: "sales_invoice_line",
+                            fkeyName:  "sales_invoice_id",
+                            xData:     linePayload,
+                        },
+                    },
+                };
+                const encoded = encodeURIComponent(JSON.stringify(sqlObject));
+                await apolloClient.mutate({
+                    mutation:  GRAPHQL_MAP.createSalesInvoice,
+                    variables: { db_name: dbName, schema, value: encoded },
+                });
+                toast.success(MESSAGES.SUCCESS_SALES_CREATED);
+                handleReset();
+                // Refresh doc sequence after create
+                if (dbName && schema && branchId) {
+                    apolloClient.query<GenericQueryData<DocumentSequenceRow>>({
+                        fetchPolicy: "network-only",
+                        query: GRAPHQL_MAP.genericQuery,
+                        variables: {
+                            db_name: dbName, schema,
+                            value: graphQlUtils.buildGenericQueryValue({
+                                sqlId:   SQL_MAP.GET_DOCUMENT_SEQUENCES,
+                                sqlArgs: { branch_id: branchId },
+                            }),
+                        },
+                    }).then(res => setDocSequences(res.data?.genericQuery ?? [])).catch(() => {});
+                }
+            }
+        } catch {
+            toast.error(editInvoice ? MESSAGES.ERROR_SALES_UPDATE_FAILED : MESSAGES.ERROR_SALES_CREATE_FAILED);
+        }
+    };
+
     // Delete — uses genericUpdate with deletedIds (cascade handles lines + stock_transactions)
     const handleDelete = async () => {
         if (!deleteId || !dbName || !schema) return;
@@ -289,7 +506,7 @@ export const SalesEntrySection = () => {
         try {
             const payload = encodeObj({ tableName: "sales_invoice", deletedIds: [deleteId] });
             await apolloClient.mutate({
-                mutation: GRAPHQL_MAP.genericUpdate,
+                mutation:  GRAPHQL_MAP.genericUpdate,
                 variables: { db_name: dbName, schema, value: payload },
             });
             toast.success(MESSAGES.SUCCESS_SALES_DELETED);
@@ -312,14 +529,14 @@ export const SalesEntrySection = () => {
                 variables: {
                     db_name: dbName, schema,
                     value: graphQlUtils.buildGenericQueryValue({
-                        sqlId: SQL_MAP.GET_SALES_INVOICE_DETAIL,
+                        sqlId:   SQL_MAP.GET_SALES_INVOICE_DETAIL,
                         sqlArgs: { id: inv.id },
                     }),
                 },
             });
             const detail = res.data?.genericQuery?.[0];
             if (!detail) { toast.error(MESSAGES.ERROR_SALES_LOAD_FAILED); return; }
-            const lines = detail.lines ?? [];
+            const invLines = detail.lines ?? [];
             const sheetData = [
                 ["Invoice No",   detail.invoice_no],
                 ["Date",         detail.invoice_date],
@@ -333,7 +550,7 @@ export const SalesEntrySection = () => {
                 ["Total",        Number(detail.total_amount)],
                 [],
                 ["#", "Part Code", "Part Name", "HSN", "Qty", "Unit Price", "GST%", "CGST", "SGST", "IGST", "Total"],
-                ...lines.map((l, i) => [
+                ...invLines.map((l, i) => [
                     i + 1, l.part_code, l.part_name, l.hsn_code,
                     Number(l.quantity), Number(l.unit_price), Number(l.gst_rate),
                     Number(l.cgst_amount), Number(l.sgst_amount), Number(l.igst_amount),
@@ -358,10 +575,10 @@ export const SalesEntrySection = () => {
         const dateRangeStr = `Date: ${fromDate} to ${toDate}`;
         const totals = invoices.reduce((acc, inv) => {
             acc.aggregate += Number(inv.aggregate_amount);
-            acc.cgst += Number(inv.cgst_amount);
-            acc.sgst += Number(inv.sgst_amount);
-            acc.igst += Number(inv.igst_amount);
-            acc.total += Number(inv.total_amount);
+            acc.cgst      += Number(inv.cgst_amount);
+            acc.sgst      += Number(inv.sgst_amount);
+            acc.igst      += Number(inv.igst_amount);
+            acc.total     += Number(inv.total_amount);
             return acc;
         }, { aggregate: 0, cgst: 0, sgst: 0, igst: 0, total: 0 });
         const sheetData = [
@@ -385,7 +602,7 @@ export const SalesEntrySection = () => {
 
     const handleDownloadAllPdf = () => {
         if (invoices.length === 0) { toast.warning("No data to export"); return; }
-        const doc = new jsPDF();
+        const doc          = new jsPDF();
         const branchName   = globalBranch?.name || "All Branches";
         const dateRangeStr = `Date: ${fromDate} to ${toDate}`;
         doc.setFontSize(16);
@@ -395,10 +612,10 @@ export const SalesEntrySection = () => {
         doc.text(dateRangeStr, 14, 28);
         const totals = invoices.reduce((acc, inv) => {
             acc.aggregate += Number(inv.aggregate_amount);
-            acc.cgst += Number(inv.cgst_amount);
-            acc.sgst += Number(inv.sgst_amount);
-            acc.igst += Number(inv.igst_amount);
-            acc.total += Number(inv.total_amount);
+            acc.cgst      += Number(inv.cgst_amount);
+            acc.sgst      += Number(inv.sgst_amount);
+            acc.igst      += Number(inv.igst_amount);
+            acc.total     += Number(inv.total_amount);
             return acc;
         }, { aggregate: 0, cgst: 0, sgst: 0, igst: 0, total: 0 });
         autoTable(doc, {
@@ -482,8 +699,8 @@ export const SalesEntrySection = () => {
                 <ViewModeToggle
                     mode={mode}
                     isEditing={!!editInvoice}
-                    onNewClick={() => { setEditInvoice(null); setIsReturn(false); setMode("new"); }}
-                    onViewClick={() => { setEditInvoice(null); setIsReturn(false); setMode("view"); if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, page); }}
+                    onNewClick={() => { handleReset(); setMode("new"); }}
+                    onViewClick={() => { handleReset(); setMode("view"); if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, page); }}
                 />
 
                 {/* Brand */}
@@ -535,66 +752,53 @@ export const SalesEntrySection = () => {
                 <div className={`flex items-center gap-2 ${mode !== "new" ? "hidden md:flex md:invisible pointer-events-none" : ""}`}>
                     <Button
                         className="h-8 gap-1.5 px-3 text-xs font-extrabold uppercase tracking-widest text-[var(--cl-text)]"
-                        disabled={submitting}
+                        disabled={form.formState.isSubmitting}
                         variant="ghost"
-                        onClick={() => { setEditInvoice(null); }}
+                        onClick={handleReset}
                     >
-                        <RefreshCw className={`h-3.5 w-3.5 ${submitting ? "animate-spin" : ""}`} />
+                        <RefreshCw className={`h-3.5 w-3.5 ${form.formState.isSubmitting ? "animate-spin" : ""}`} />
                         Reset
                     </Button>
                     <Button
                         className="h-8 gap-1.5 px-4 text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm font-extrabold uppercase tracking-widest transition-all disabled:opacity-30 disabled:bg-slate-300 disabled:text-slate-600 disabled:shadow-none disabled:cursor-not-allowed"
-                        disabled={!newFormValid || submitting}
-                        onClick={() => setSubmitTrigger(t => t + 1)}
+                        disabled={!canSave || form.formState.isSubmitting}
+                        onClick={form.handleSubmit(executeSave)}
                     >
-                        {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                        {form.formState.isSubmitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
                         Save Invoice
                     </Button>
                 </div>
             </div>
 
             {mode === "new" ? (
-                <NewSalesInvoice
-                    branchId={branchId}
-                    txnTypes={txnTypes}
-                    docSequence={editInvoice ? null : sinvSequence}
-                    submitTrigger={submitTrigger}
-                    onSuccess={() => {
-                        if (editInvoice) {
-                            setEditInvoice(null);
-                            setMode("view");
-                            if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, 1);
-                        } else {
-                            // Refresh doc sequence after create
-                            if (dbName && schema && branchId) {
-                                apolloClient.query<GenericQueryData<DocumentSequenceRow>>({
-                                    fetchPolicy: "network-only",
-                                    query: GRAPHQL_MAP.genericQuery,
-                                    variables: {
-                                        db_name: dbName, schema,
-                                        value: graphQlUtils.buildGenericQueryValue({
-                                            sqlId: SQL_MAP.GET_DOCUMENT_SEQUENCES,
-                                            sqlArgs: { branch_id: branchId },
-                                        }),
-                                    },
-                                }).then(res => setDocSequences(res.data?.genericQuery ?? [])).catch(() => {});
-                            }
-                        }
-                    }}
-                    onStatusChange={status => {
-                        setNewFormValid(status.isValid);
-                        setSubmitting(status.isSubmitting);
-                    }}
-                    isIgst={isIgst}
-                    setIsIgst={setIsIgst}
-                    isReturn={isReturn}
-                    onIsReturnChange={setIsReturn}
-                    selectedBrandId={selectedBrand ? Number(selectedBrand) : null}
-                    brandName={brands.find(b => String(b.id) === selectedBrand)?.name}
-                    editInvoice={editInvoice}
-                    customerTypes={customerTypes}
-                    masterStates={masterStates}
-                />
+                <FormProvider {...form}>
+                    <NewSalesInvoice
+                        branchId={branchId}
+                        docSequence={editInvoice ? null : sinvSequence}
+                        isIgst={isIgst}
+                        setIsIgst={setIsIgst}
+                        isReturn={isReturn}
+                        onIsReturnChange={setIsReturn}
+                        selectedBrandId={selectedBrandId}
+                        brandName={brands.find(b => String(b.id) === selectedBrand)?.name}
+                        editInvoice={editInvoice}
+                        customerTypes={customerTypes}
+                        masterStates={masterStates}
+                        customerId={customerId}
+                        setCustomerId={setCustomerId}
+                        customerName={customerName}
+                        setCustomerName={setCustomerName}
+                        customerGstin={customerGstin}
+                        setCustomerGstin={setCustomerGstin}
+                        customerStateCode={customerStateCode}
+                        setCustomerStateCode={setCustomerStateCode}
+                        lines={lines}
+                        setLines={setLines}
+                        originalLineIds={originalLineIds}
+                        setOriginalLineIds={setOriginalLineIds}
+                        onLinesValidChange={setLinesValid}
+                    />
+                </FormProvider>
             ) : (
                 <>
                     {/* Toolbar */}

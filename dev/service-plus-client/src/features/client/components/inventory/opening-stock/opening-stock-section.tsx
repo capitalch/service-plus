@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { FormProvider, useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import {FileText, Loader2, MoreHorizontal, Pencil, RefreshCw, Save, Search, Trash2, X} from "lucide-react";
 import { ViewModeToggle, type ViewMode } from "@/features/client/components/inventory/view-mode-toggle";
 import { toast } from "sonner";
@@ -32,7 +34,9 @@ import { selectCurrentBranch, selectSchema } from "@/store/context-slice";
 import type { BrandOption } from "@/features/client/types/model";
 import { BrandSelect } from "@/features/client/components/inventory/brand-select";
 import type { StockTransactionTypeRow } from "@/features/client/types/purchase";
-import type { OpeningStockListItem } from "@/features/client/types/stock-opening-balance";
+import type { OpeningStockLineFormItemType, OpeningStockListItem } from "@/features/client/types/stock-opening-balance";
+import { emptyOpeningStockLine } from "@/features/client/types/stock-opening-balance";
+import { openingStockSchema, type OpeningStockFormValues, getOpeningStockDefaultValues } from "./opening-stock-schema";
 import { NewOpeningStock } from "./new-opening-stock";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -82,21 +86,27 @@ export const OpeningStockSection = () => {
     // Edit state
     const [editEntry, setEditEntry] = useState<OpeningStockListItem | null>(null);
 
-    // Form coordination
-    const [submitTrigger, setSubmitTrigger] = useState(0);
-    const [formValid,  setFormValid]        = useState(false);
-    const [submitting, setSubmitting]       = useState(false);
+    // Lines lifted from child
+    const selectedBrandId = selectedBrand ? Number(selectedBrand) : null;
+    const [lines,           setLines]           = useState<OpeningStockLineFormItemType[]>([emptyOpeningStockLine(selectedBrandId)]);
+    const [originalLineIds, setOriginalLineIds] = useState<number[]>([]);
+    const [linesValid,      setLinesValid]      = useState(false);
+
+    // Form
+    const form = useForm<OpeningStockFormValues>({
+        defaultValues: getOpeningStockDefaultValues(),
+        mode:          "onChange",
+        resolver:      zodResolver(openingStockSchema) as any,
+    });
 
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const scrollWrapperRef = useRef<HTMLDivElement>(null);
 
-    // Dynamic height calculation for the data grid
     const [maxHeight, setMaxHeight] = useState<number>(0);
 
     const recalc = useCallback(() => {
         if (scrollWrapperRef.current) {
             const rect = scrollWrapperRef.current.getBoundingClientRect();
-            // Leave space for pagination (approx 48px) and some margin
             const availableHeight = window.innerHeight - rect.top - 60;
             setMaxHeight(Math.max(200, availableHeight));
         }
@@ -104,7 +114,6 @@ export const OpeningStockSection = () => {
 
     useEffect(() => {
         if (mode === "view") {
-            // Slight delay to ensure DOM is ready
             const timer = setTimeout(recalc, 100);
             window.addEventListener("resize", recalc);
             return () => {
@@ -112,7 +121,7 @@ export const OpeningStockSection = () => {
                 window.removeEventListener("resize", recalc);
             };
         }
-    }, [mode, recalc, entries.length]); // Also recalc on data load
+    }, [mode, recalc, entries.length]);
 
     // Load brands and txnTypes on mount
     useEffect(() => {
@@ -199,11 +208,6 @@ export const OpeningStockSection = () => {
         void loadData(Number(branchId), searchQ, page);
     }, [branchId, searchQ, page, mode, loadData]);
 
-    // const handleFilterChange = (setter: (v: string) => void) => (v: string) => {
-    //     setter(v);
-    //     setPage(1);
-    // };
-
     const handleSearchChange = (value: string) => {
         setSearch(value);
         if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -211,6 +215,103 @@ export const OpeningStockSection = () => {
             setPage(1);
             setSearchQ(value);
         }, DEBOUNCE_MS);
+    };
+
+    const handleReset = () => {
+        form.reset(getOpeningStockDefaultValues());
+        setLines([emptyOpeningStockLine(selectedBrandId)]);
+        setOriginalLineIds([]);
+        setEditEntry(null);
+    };
+
+    const executeSave = async (values: OpeningStockFormValues) => {
+        if (!linesValid) {
+            toast.error(MESSAGES.ERROR_OPENING_STOCK_LINE_FIELDS_REQUIRED);
+            return;
+        }
+        const openingBalTypeId = txnTypes.find(t => t.code === "OPENING")?.id;
+        if (!openingBalTypeId) {
+            toast.error(MESSAGES.ERROR_OPENING_STOCK_TXN_TYPE_MISSING);
+            return;
+        }
+        if (!branchId || !dbName || !schema) {
+            toast.error(MESSAGES.ERROR_OPENING_STOCK_CREATE_FAILED);
+            return;
+        }
+
+        const linePayload = lines.map(line => ({
+            part_id:   line.part_id,
+            qty:       line.qty,
+            remarks:   line.remarks.trim() || null,
+            unit_cost: line.unit_cost > 0 ? line.unit_cost : null,
+            xDetails: [{
+                fkeyName:  "stock_opening_balance_line_id",
+                tableName: "stock_transaction",
+                xData: [{
+                    branch_id:                 branchId,
+                    dr_cr:                     "D",
+                    part_id:                   line.part_id,
+                    qty:                       line.qty,
+                    stock_transaction_type_id: openingBalTypeId,
+                    transaction_date:          values.entry_date,
+                }],
+            }],
+        }));
+
+        const headerFields = {
+            entry_date: values.entry_date,
+            ref_no:     values.ref_no?.trim() || null,
+            remarks:    values.remarks?.trim() || null,
+        };
+
+        try {
+            if (editEntry) {
+                const payload = graphQlUtils.buildGenericUpdateValue({
+                    tableName: "stock_opening_balance",
+                    xData: {
+                        id: editEntry.id,
+                        ...headerFields,
+                        xDetails: {
+                            deletedIds: originalLineIds,
+                            fkeyName:   "stock_opening_balance_id",
+                            tableName:  "stock_opening_balance_line",
+                            xData:      linePayload,
+                        },
+                    },
+                });
+                await apolloClient.mutate({
+                    mutation:  GRAPHQL_MAP.genericUpdate,
+                    variables: { db_name: dbName, schema, value: payload },
+                });
+                toast.success(MESSAGES.SUCCESS_OPENING_STOCK_UPDATED);
+                setMode("view");
+                if (branchId) void loadData(Number(branchId), searchQ, 1);
+            } else {
+                const payload = graphQlUtils.buildGenericUpdateValue({
+                    tableName: "stock_opening_balance",
+                    xData: {
+                        branch_id: branchId,
+                        ...headerFields,
+                        xDetails: {
+                            fkeyName:  "stock_opening_balance_id",
+                            tableName: "stock_opening_balance_line",
+                            xData:     linePayload,
+                        },
+                    },
+                });
+                await apolloClient.mutate({
+                    mutation:  GRAPHQL_MAP.genericUpdate,
+                    variables: { db_name: dbName, schema, value: payload },
+                });
+                toast.success(MESSAGES.SUCCESS_OPENING_STOCK_CREATED);
+            }
+            form.reset(getOpeningStockDefaultValues());
+            setLines([emptyOpeningStockLine(selectedBrandId)]);
+            setOriginalLineIds([]);
+            setEditEntry(null);
+        } catch {
+            toast.error(editEntry ? MESSAGES.ERROR_OPENING_STOCK_UPDATE_FAILED : MESSAGES.ERROR_OPENING_STOCK_CREATE_FAILED);
+        }
     };
 
     // Delete
@@ -280,7 +381,7 @@ export const OpeningStockSection = () => {
                 <ViewModeToggle
                     mode={mode}
                     isEditing={!!editEntry}
-                    onNewClick={() => { setEditEntry(null); setMode("new"); }}
+                    onNewClick={() => { handleReset(); setMode("new"); }}
                     onViewClick={() => { setMode("view"); if (branchId) void loadData(Number(branchId), searchQ, page); }}
                 />
 
@@ -299,44 +400,38 @@ export const OpeningStockSection = () => {
                 <div className={`flex items-center gap-2 ${mode !== "new" ? "hidden md:flex md:invisible pointer-events-none" : ""}`}>
                     <Button
                         className="h-8 gap-1.5 px-3 text-xs font-extrabold uppercase tracking-widest text-[var(--cl-text)]"
-                        disabled={submitting}
+                        disabled={form.formState.isSubmitting}
                         variant="ghost"
-                        onClick={() => { setEditEntry(null); }}
+                        onClick={handleReset}
                     >
-                        <RefreshCw className={`h-3.5 w-3.5 ${submitting ? "animate-spin" : ""}`} />
+                        <RefreshCw className={`h-3.5 w-3.5 ${form.formState.isSubmitting ? "animate-spin" : ""}`} />
                         Reset
                     </Button>
                     <Button
                         className="h-8 gap-1.5 px-4 text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm font-extrabold uppercase tracking-widest transition-all disabled:opacity-30 disabled:bg-slate-300 disabled:text-slate-600 disabled:shadow-none disabled:cursor-not-allowed"
-                        disabled={!formValid || submitting}
-                        onClick={() => setSubmitTrigger(t => t + 1)}
+                        disabled={!form.formState.isValid || !linesValid || form.formState.isSubmitting}
+                        onClick={form.handleSubmit(executeSave)}
                     >
-                        {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                        {form.formState.isSubmitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
                         Save
                     </Button>
                 </div>
             </div>
 
             {mode === "new" ? (
-                <NewOpeningStock
-                    branchId={branchId}
-                    brandName={brands.find(b => String(b.id) === selectedBrand)?.name}
-                    editEntry={editEntry}
-                    selectedBrandId={selectedBrand ? Number(selectedBrand) : null}
-                    submitTrigger={submitTrigger}
-                    txnTypes={txnTypes}
-                    onStatusChange={status => {
-                        setFormValid(status.isValid);
-                        setSubmitting(status.isSubmitting);
-                    }}
-                    onSuccess={() => {
-                        if (editEntry) {
-                            setEditEntry(null);
-                            setMode("view");
-                            if (branchId) void loadData(Number(branchId), searchQ, 1);
-                        }
-                    }}
-                />
+                <FormProvider {...form}>
+                    <NewOpeningStock
+                        branchId={branchId}
+                        brandName={brands.find(b => String(b.id) === selectedBrand)?.name}
+                        editEntry={editEntry}
+                        lines={lines}
+                        onLinesValidChange={setLinesValid}
+                        originalLineIds={originalLineIds}
+                        selectedBrandId={selectedBrandId}
+                        setLines={setLines}
+                        setOriginalLineIds={setOriginalLineIds}
+                    />
+                </FormProvider>
             ) : (
                 <>
                     {/* Toolbar */}

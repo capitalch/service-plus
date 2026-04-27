@@ -1,4 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { deliverJobSchema, type DeliverJobFormValues, getDeliverJobDefaultValues } from "./deliver-job-schema";
 import {ArrowLeft,
     ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon,
     Loader2, RefreshCw, Search, Truck, X} from "lucide-react";
@@ -95,10 +98,6 @@ const tdClass = "p-3 text-sm text-[var(--cl-text)] border-b border-[var(--cl-bor
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function today(): string {
-    return new Date().toISOString().slice(0, 10);
-}
-
 function fmtCurrency(n: number | null | undefined): string {
     if (n == null) return "—";
     return `₹${Number(n).toFixed(2)}`;
@@ -132,19 +131,14 @@ export const DeliverJobSection = () => {
     const [metaLoaded,        setMetaLoaded]        = useState(false);
 
     // ── Delivery view state ─────────────────────────────────────────────────
-    const [detail,         setDetail]         = useState<JobDeliveryDetail | null>(null);
-    const [loadingDetail,  setLoadingDetail]  = useState(false);
-    const [submitting,     setSubmitting]     = useState(false);
+    const [detail,        setDetail]        = useState<JobDeliveryDetail | null>(null);
+    const [loadingDetail, setLoadingDetail] = useState(false);
 
-    // Delivery form fields
-    const [deliveryDate,        setDeliveryDate]        = useState(today());
-    const [deliveryMannerName,  setDeliveryMannerName]  = useState("");
-    const [transactionNotes,    setTransactionNotes]    = useState("");
-    const [paymentDate,         setPaymentDate]         = useState(today());
-    const [paymentMode,         setPaymentMode]         = useState("Cash");
-    const [paymentAmount,       setPaymentAmount]       = useState("0");
-    const [paymentReferenceNo,  setPaymentReferenceNo]  = useState("");
-    const [paymentRemarks,      setPaymentRemarks]      = useState("");
+    const form = useForm<DeliverJobFormValues>({
+        defaultValues: getDeliverJobDefaultValues(),
+        mode:          "onChange",
+        resolver:      zodResolver(deliverJobSchema) as any,
+    });
 
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const scrollRef   = useRef<HTMLDivElement>(null);
@@ -253,14 +247,7 @@ export const DeliverJobSection = () => {
             // Pre-fill payment amount = invoice_total − already paid
             const alreadyPaid = (d.payments ?? []).reduce((s, p) => s + Number(p.amount), 0);
             const balance     = Math.max(0, Number(d.invoice_total ?? 0) - alreadyPaid);
-            setPaymentAmount(balance > 0 ? balance.toFixed(2) : "0");
-            setDeliveryDate(today());
-            setDeliveryMannerName("");
-            setTransactionNotes("");
-            setPaymentDate(today());
-            setPaymentMode("Cash");
-            setPaymentReferenceNo("");
-            setPaymentRemarks("");
+            form.reset(getDeliverJobDefaultValues(balance > 0 ? balance : 0));
 
             setSubView("delivery");
         } catch {
@@ -276,41 +263,34 @@ export const DeliverJobSection = () => {
     }
 
     // ── Deliver & Close ─────────────────────────────────────────────────────
-    async function handleDeliver() {
+    async function executeSave(values: DeliverJobFormValues) {
         if (!detail || !dbName || !schema || !deliveredStatusId) return;
-
-        setSubmitting(true);
         try {
-            const amount = parseFloat(paymentAmount) || 0;
             const payload: Record<string, unknown> = {
                 job_id:               detail.id,
                 last_transaction_id:  detail.last_transaction_id,
                 performed_by_user_id: currentUser?.id ?? null,
                 delivered_status_id:  deliveredStatusId,
-                delivery_date:        deliveryDate,
-                delivery_manner_name: deliveryMannerName,
-                transaction_notes:    transactionNotes,
+                delivery_date:        values.delivery_date,
+                delivery_manner_name: values.delivery_manner,
+                transaction_notes:    values.transaction_notes,
                 payment: {
-                    payment_date: paymentDate,
-                    payment_mode: paymentMode,
-                    amount,
-                    reference_no: paymentReferenceNo,
-                    remarks:      paymentRemarks,
+                    payment_date: values.payment_date,
+                    payment_mode: values.payment_mode,
+                    amount:       values.payment_amount,
+                    reference_no: values.payment_reference,
+                    remarks:      values.payment_remarks,
                 },
             };
-
             await apolloClient.mutate({
                 mutation:  GRAPHQL_MAP.deliverJob,
                 variables: { db_name: dbName, schema, value: encodeObj(payload) },
             });
-
             toast.success(MESSAGES.SUCCESS_JOB_DELIVERED);
             handleBack();
             if (branchId) void loadData(branchId, fromDate, toDate, searchQ, page);
         } catch {
             toast.error(MESSAGES.ERROR_JOB_DELIVER_FAILED);
-        } finally {
-            setSubmitting(false);
         }
     }
 
@@ -321,9 +301,9 @@ export const DeliverJobSection = () => {
     if (subView === "delivery" && detail) {
         const alreadyPaid  = (detail.payments ?? []).reduce((s, p) => s + Number(p.amount), 0);
         const balance      = Math.max(0, Number(detail.invoice_total ?? 0) - alreadyPaid);
-        const payAmt       = parseFloat(paymentAmount) || 0;
+        const payAmt       = Number(form.watch("payment_amount")) || 0;
         const needsPayment = balance > 0 && payAmt === 0;
-        const canDeliver   = !!deliveryDate && !needsPayment && !submitting && !!deliveredStatusId;
+        const canDeliver   = form.formState.isValid && !needsPayment && !form.formState.isSubmitting && !!deliveredStatusId;
 
         return (
             <motion.div
@@ -336,7 +316,7 @@ export const DeliverJobSection = () => {
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-[var(--cl-border)] bg-[var(--cl-surface)] px-4 py-2">
                     <Button
                         className="h-8 gap-1.5 px-3 text-xs"
-                        disabled={submitting}
+                        disabled={form.formState.isSubmitting}
                         variant="ghost"
                         onClick={handleBack}
                     >
@@ -351,9 +331,9 @@ export const DeliverJobSection = () => {
                     <Button
                         className="h-8 gap-1.5 px-4 text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm font-extrabold uppercase tracking-widest disabled:opacity-30 disabled:bg-slate-300 disabled:text-slate-600 disabled:cursor-not-allowed"
                         disabled={!canDeliver}
-                        onClick={() => void handleDeliver()}
+                        onClick={() => void form.handleSubmit(executeSave)()}
                     >
-                        {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Truck className="h-3.5 w-3.5" />}
+                        {form.formState.isSubmitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Truck className="h-3.5 w-3.5" />}
                         Deliver &amp; Close Job
                     </Button>
                 </div>
@@ -469,13 +449,12 @@ export const DeliverJobSection = () => {
                                     className="h-9 border-[var(--cl-border)] bg-[var(--cl-surface)] text-sm"
                                     id="dj-delivery-date"
                                     type="date"
-                                    value={deliveryDate}
-                                    onChange={e => setDeliveryDate(e.target.value)}
+                                    {...form.register("delivery_date")}
                                 />
                             </div>
                             <div>
                                 <Label className="mb-1.5 block text-sm font-medium text-[var(--cl-text)]">Delivery Manner</Label>
-                                <Select value={deliveryMannerName} onValueChange={setDeliveryMannerName}>
+                                <Select value={form.watch("delivery_manner")} onValueChange={v => form.setValue("delivery_manner", v, { shouldValidate: true })}>
                                     <SelectTrigger className="h-9 border-[var(--cl-border)] bg-[var(--cl-surface)] text-sm">
                                         <SelectValue placeholder="Select manner" />
                                     </SelectTrigger>
@@ -495,8 +474,7 @@ export const DeliverJobSection = () => {
                                     id="dj-txn-notes"
                                     placeholder="Optional notes…"
                                     rows={1}
-                                    value={transactionNotes}
-                                    onChange={e => setTransactionNotes(e.target.value)}
+                                    {...form.register("transaction_notes")}
                                 />
                             </div>
                         </div>
@@ -515,13 +493,12 @@ export const DeliverJobSection = () => {
                                     className="h-9 border-[var(--cl-border)] bg-[var(--cl-surface)] text-sm"
                                     id="dj-pay-date"
                                     type="date"
-                                    value={paymentDate}
-                                    onChange={e => setPaymentDate(e.target.value)}
+                                    {...form.register("payment_date")}
                                 />
                             </div>
                             <div>
                                 <Label className="mb-1.5 block text-sm font-medium text-[var(--cl-text)]">Payment Mode</Label>
-                                <Select value={paymentMode} onValueChange={setPaymentMode}>
+                                <Select value={form.watch("payment_mode")} onValueChange={v => form.setValue("payment_mode", v, { shouldValidate: true })}>
                                     <SelectTrigger className="h-9 border-[var(--cl-border)] bg-[var(--cl-surface)] text-sm">
                                         <SelectValue />
                                     </SelectTrigger>
@@ -542,8 +519,7 @@ export const DeliverJobSection = () => {
                                     min="0"
                                     step="0.01"
                                     type="number"
-                                    value={paymentAmount}
-                                    onChange={e => setPaymentAmount(e.target.value)}
+                                    {...form.register("payment_amount")}
                                 />
                             </div>
                             <div>
@@ -554,8 +530,7 @@ export const DeliverJobSection = () => {
                                     className="h-9 border-[var(--cl-border)] bg-[var(--cl-surface)] text-sm"
                                     id="dj-ref-no"
                                     placeholder="Optional"
-                                    value={paymentReferenceNo}
-                                    onChange={e => setPaymentReferenceNo(e.target.value)}
+                                    {...form.register("payment_reference")}
                                 />
                             </div>
                             <div>
@@ -566,8 +541,7 @@ export const DeliverJobSection = () => {
                                     className="h-9 border-[var(--cl-border)] bg-[var(--cl-surface)] text-sm"
                                     id="dj-remarks"
                                     placeholder="Optional"
-                                    value={paymentRemarks}
-                                    onChange={e => setPaymentRemarks(e.target.value)}
+                                    {...form.register("payment_remarks")}
                                 />
                             </div>
                         </div>
