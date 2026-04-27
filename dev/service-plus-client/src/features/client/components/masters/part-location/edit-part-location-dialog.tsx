@@ -73,8 +73,6 @@ export const EditPartLocationDialog = ({
 }: EditPartLocationDialogPropsType) => {
     const [checkingLocation, setCheckingLocation] = useState(false);
     const [locationTaken,    setLocationTaken]    = useState<boolean | null>(null);
-    const [submitting,       setSubmitting]       = useState(false);
-
     const dbName = useAppSelector(selectDbName);
     const schema = useAppSelector(selectSchema);
 
@@ -139,7 +137,6 @@ export const EditPartLocationDialog = ({
 
     async function onSubmit(data: EditPartLocationFormType) {
         if (!dbName || !schema) return;
-        setSubmitting(true);
         try {
             await apolloClient.mutate({
                 mutation: GRAPHQL_MAP.genericUpdate,

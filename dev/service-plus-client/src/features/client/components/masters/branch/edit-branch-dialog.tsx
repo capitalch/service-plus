@@ -89,8 +89,6 @@ export const EditBranchDialog = ({
     const [checkingName, setCheckingName] = useState(false);
     const [nameTaken, setNameTaken] = useState<boolean | null>(null);
     const [states, setStates] = useState<StateType[]>([]);
-    const [submitting, setSubmitting] = useState(false);
-
     const dbName = useAppSelector(selectDbName);
     const schema = useAppSelector(selectSchema);
 
@@ -175,7 +173,6 @@ export const EditBranchDialog = ({
 
     async function onSubmit(data: EditBranchFormType) {
         if (!dbName || !schema) return;
-        setSubmitting(true);
         try {
             await apolloClient.mutate({
                 mutation: GRAPHQL_MAP.genericUpdate,

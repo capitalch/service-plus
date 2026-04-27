@@ -1,10 +1,10 @@
 import { ClientLayout, useClientSelection } from "../components/client-layout";
 import { BatchJobSection } from "../components/jobs/batch-job/batch-job-section";
-import { DeliverJobSection } from "../components/jobs/deliver-job-section";
+import { DeliverJobSection } from "../components/jobs/deliver-job/deliver-job-section";
 import { JobListSection } from "../components/jobs/job-list-section";
 import { OpeningJobSection } from "../components/jobs/opening-job/opening-job-section";
 import { PartUsedSection } from "../components/jobs/part-used/part-used-section";
-import { ReadyForDeliverySection } from "../components/jobs/ready-for-delivery-section";
+import { ReadyForDeliverySection } from "../components/jobs/ready-for-delivery/ready-for-delivery-section";
 import { ReceiptsSection } from "../components/jobs/receipts/receipts-section";
 import { SingleJobSection } from "../components/jobs/single-job/single-job-section";
 import { UpdateJobSection } from "../components/jobs/update-job/update-job-section";

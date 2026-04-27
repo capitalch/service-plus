@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -63,8 +63,6 @@ export const EditAppSettingDialog = ({
     open,
     record,
 }: EditAppSettingDialogProps) => {
-    const [submitting, setSubmitting] = useState(false);
-
     const dbName = useAppSelector(selectDbName);
     const schema = useAppSelector(selectSchema);
 
@@ -90,7 +88,6 @@ export const EditAppSettingDialog = ({
 
     async function onSubmit(data: FormType) {
         if (!dbName || !schema) return;
-        setSubmitting(true);
         try {
             await apolloClient.mutate({
                 mutation: GRAPHQL_MAP.genericUpdate,

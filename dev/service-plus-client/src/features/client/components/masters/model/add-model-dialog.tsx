@@ -67,8 +67,6 @@ export const AddModelDialog = ({
 }: AddModelDialogPropsType) => {
     const [checkingModel, setCheckingModel] = useState(false);
     const [modelTaken,    setModelTaken]    = useState<boolean | null>(null);
-    const [submitting,    setSubmitting]    = useState(false);
-
     const dbName  = useAppSelector(selectDbName);
     const schema_ = useAppSelector(selectSchema);
 
@@ -94,7 +92,6 @@ export const AddModelDialog = ({
         if (!open) {
             setCheckingModel(false);
             setModelTaken(null);
-            setSubmitting(false);
             form.reset();
         }
     }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -131,7 +128,6 @@ export const AddModelDialog = ({
 
     async function onSubmit(data: FormType) {
         if (!dbName || !schema_) return;
-        setSubmitting(true);
         try {
             await apolloClient.mutate({
                 mutation: GRAPHQL_MAP.genericUpdate,

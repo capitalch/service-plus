@@ -68,8 +68,6 @@ export const AddFinancialYearDialog = ({
     const [checkingId,      setCheckingId]      = useState(false);
     const [checkingOverlap, setCheckingOverlap] = useState(false);
     const [idTaken,         setIdTaken]         = useState<boolean | null>(null);
-    const [submitting,      setSubmitting]      = useState(false);
-
     const dbName = useAppSelector(selectDbName);
     const schema = useAppSelector(selectSchema);
 
@@ -91,7 +89,6 @@ export const AddFinancialYearDialog = ({
             setCheckingId(false);
             setCheckingOverlap(false);
             setIdTaken(null);
-            setSubmitting(false);
             form.reset();
         }
     }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -163,7 +160,6 @@ export const AddFinancialYearDialog = ({
 
     async function onSubmit(data: AddFyFormType) {
         if (!dbName || !schema) return;
-        setSubmitting(true);
         try {
             await apolloClient.mutate({
                 mutation: GRAPHQL_MAP.genericUpdate,

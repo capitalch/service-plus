@@ -243,10 +243,10 @@ export interface DocumentSequence {
   id: number;
   document_type_id: number;
   branch_id: number;
-  prefix: string;
+  prefix: string | null;
   next_number: number;
   padding: number;
-  separator: string;
+  separator: string | null;
   created_at: Date;
   updated_at: Date;
 }
@@ -254,17 +254,17 @@ export interface DocumentSequenceInput {
   id: number;
   document_type_id: number;
   branch_id: number;
-  prefix: string;
-  next_number?: number;
+  prefix?: string | null;
+  next_number: number;
   padding?: number;
-  separator?: string;
+  separator?: string | null;
   created_at?: Date;
   updated_at?: Date;
 }
 const document_sequence = {
   tableName: 'document_sequence',
   columns: ['id', 'document_type_id', 'branch_id', 'prefix', 'next_number', 'padding', 'separator', 'created_at', 'updated_at'],
-  requiredForInsert: ['id', 'document_type_id', 'branch_id', 'prefix'],
+  requiredForInsert: ['id', 'document_type_id', 'branch_id', 'next_number'],
   primaryKey: 'id',
   foreignKeys: {
     document_type_id: { table: 'document_type', column: 'id', $type: null as unknown as DocumentType },
@@ -278,7 +278,7 @@ const document_sequence = {
 export interface DocumentType {
   id: number;
   code: string;
-  prefix: string;
+  prefix: string | null;
   name: string;
   description: string | null;
   is_system: boolean;
@@ -286,7 +286,7 @@ export interface DocumentType {
 export interface DocumentTypeInput {
   id: number;
   code: string;
-  prefix: string;
+  prefix?: string | null;
   name: string;
   description?: string | null;
   is_system: boolean;
@@ -294,7 +294,7 @@ export interface DocumentTypeInput {
 const document_type = {
   tableName: 'document_type',
   columns: ['id', 'code', 'prefix', 'name', 'description', 'is_system'],
-  requiredForInsert: ['id', 'code', 'prefix', 'name', 'is_system'],
+  requiredForInsert: ['id', 'code', 'name', 'is_system'],
   primaryKey: 'id',
   foreignKeys: {},
   $type: null as unknown as DocumentType,

@@ -66,8 +66,6 @@ export const DocumentSequenceSection = () => {
     const currentBranch = useAppSelector(selectCurrentBranch);
 
     const [loading,       setLoading]       = useState(false);
-    const [submitting,    setSubmitting]    = useState(false);
-
     const form = useForm<SequencesFormType>({
         defaultValues: { sequences: [] },
         mode: "onChange",
@@ -129,7 +127,6 @@ export const DocumentSequenceSection = () => {
     // 3. Submit
     async function onSubmit(data: SequencesFormType) {
         if (!dbName || !schema || !currentBranch?.id) return;
-        setSubmitting(true);
         try {
             const branchId = currentBranch.id;
             

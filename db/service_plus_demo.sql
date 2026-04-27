@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict EXVawd56hPxgpNJG3ikiUdzWrgkOY9lbWeyf6OkNfn8Qyz3dsjFdIqbh3gMomXT
+\restrict kbfNnqV2NM6AWzNlhp01QyM3As5H960iQTnbhndqlWwUh4d1zjFkb3rw3Hgh6qX
 
 -- Dumped from database version 14.6
 -- Dumped by pg_dump version 17.9 (Ubuntu 17.9-0ubuntu0.25.10.1)
@@ -285,10 +285,10 @@ CREATE TABLE demo1.document_sequence (
     id bigint NOT NULL,
     document_type_id smallint NOT NULL,
     branch_id bigint NOT NULL,
-    prefix text NOT NULL,
-    next_number integer DEFAULT 1 NOT NULL,
-    padding smallint DEFAULT 5 NOT NULL,
-    separator text DEFAULT '/'::text NOT NULL,
+    prefix text,
+    next_number bigint NOT NULL,
+    padding smallint DEFAULT 0 NOT NULL,
+    separator text,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL
 );
@@ -317,7 +317,7 @@ ALTER TABLE demo1.document_sequence ALTER COLUMN id ADD GENERATED ALWAYS AS IDEN
 CREATE TABLE demo1.document_type (
     id smallint NOT NULL,
     code text NOT NULL,
-    prefix text NOT NULL,
+    prefix text,
     name text NOT NULL,
     description text,
     is_system boolean NOT NULL,
@@ -3414,5 +3414,5 @@ ALTER TABLE ONLY security.user_bu_role
 -- PostgreSQL database dump complete
 --
 
-\unrestrict EXVawd56hPxgpNJG3ikiUdzWrgkOY9lbWeyf6OkNfn8Qyz3dsjFdIqbh3gMomXT
+\unrestrict kbfNnqV2NM6AWzNlhp01QyM3As5H960iQTnbhndqlWwUh4d1zjFkb3rw3Hgh6qX
 

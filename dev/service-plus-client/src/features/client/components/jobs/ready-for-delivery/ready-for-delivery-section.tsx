@@ -501,7 +501,7 @@ export const ReadyForDeliverySection = () => {
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-[var(--cl-border)] bg-[var(--cl-surface)] px-4 py-2">
                     <Button
                         className="h-8 gap-1.5 px-3 text-xs"
-                        disabled={submitting}
+                        disabled={form.formState.isSubmitting}
                         variant="ghost"
                         onClick={handleBack}
                     >
@@ -516,9 +516,9 @@ export const ReadyForDeliverySection = () => {
                     <Button
                         className="h-8 gap-1.5 px-4 text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm font-extrabold uppercase tracking-widest disabled:opacity-30 disabled:bg-slate-300 disabled:text-slate-600 disabled:cursor-not-allowed"
                         disabled={!canSave}
-                        onClick={() => void handleSave()}
+                        onClick={() => void form.handleSubmit(executeSave)()}
                     >
-                        {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                        {form.formState.isSubmitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
                         Save Invoice &amp; Mark Ready
                     </Button>
                 </div>
@@ -569,13 +569,12 @@ export const ReadyForDeliverySection = () => {
                                 className="h-9 border-[var(--cl-border)] bg-[var(--cl-surface)] text-sm"
                                 id="rfd-inv-date"
                                 type="date"
-                                value={invoiceDate}
-                                onChange={e => setInvoiceDate(e.target.value)}
+                                {...form.register("invoice_date")}
                             />
                         </div>
                         <div>
                             <Label className="mb-1.5 block text-sm font-medium text-[var(--cl-text)]">Supply State</Label>
-                            <Select value={supplyStateCode} onValueChange={setSupplyStateCode}>
+                            <Select value={form.watch("supply_state_code")} onValueChange={v => form.setValue("supply_state_code", v, { shouldValidate: true })}>
                                 <SelectTrigger className="h-9 border-[var(--cl-border)] bg-[var(--cl-surface)] text-sm">
                                     <SelectValue placeholder="Select state" />
                                 </SelectTrigger>
@@ -602,7 +601,7 @@ export const ReadyForDeliverySection = () => {
                             <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--cl-text-muted)]">Invoice Lines</p>
                             <Button
                                 className="h-7 gap-1.5 px-2.5 text-xs"
-                                disabled={loadingParts || submitting}
+                                disabled={loadingParts || form.formState.isSubmitting}
                                 size="sm"
                                 variant="outline"
                                 onClick={() => void handleAutoPopulate()}

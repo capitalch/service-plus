@@ -56,8 +56,6 @@ export const EditLookupDialog = ({
 }: EditLookupDialogPropsType) => {
     const [checkingCode, setCheckingCode] = useState(false);
     const [codeTaken,    setCodeTaken]    = useState<boolean | null>(null);
-    const [submitting,   setSubmitting]   = useState(false);
-
     const dbName = useAppSelector(selectDbName);
     const schema = useAppSelector(selectSchema);
 
@@ -136,7 +134,6 @@ export const EditLookupDialog = ({
 
     async function onSubmit(data: FormType) {
         if (!dbName || !schema) return;
-        setSubmitting(true);
         try {
             const xData: Record<string, unknown> = {
                 id:   record.id,

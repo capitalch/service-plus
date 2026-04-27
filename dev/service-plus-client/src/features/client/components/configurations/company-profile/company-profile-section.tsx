@@ -81,8 +81,6 @@ export const CompanyProfileSection = () => {
     const [existingId,  setExistingId]  = useState<number | null>(null);
     const [loading,     setLoading]     = useState(true);
     const [states,      setStates]      = useState<StateType[]>([]);
-    const [submitting,  setSubmitting]  = useState(false);
-
     const dbName = useAppSelector(selectDbName);
     const schema = useAppSelector(selectSchema);
 
@@ -164,7 +162,6 @@ export const CompanyProfileSection = () => {
 
     async function onSubmit(data: CompanyInfoFormType) {
         if (!dbName || !schema) return;
-        setSubmitting(true);
         try {
             const xData: Record<string, unknown> = {
                 company_name:  data.company_name,

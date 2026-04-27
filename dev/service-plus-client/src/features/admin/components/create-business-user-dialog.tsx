@@ -116,7 +116,6 @@ export const CreateBusinessUserDialog = ({
     const [roleError, setRoleError]               = useState<string>("");
     const [selectedBuIds, setSelectedBuIds]       = useState<number[]>([]);
     const [selectedRoleId, setSelectedRoleId]     = useState<string>("");
-    const [submitting, setSubmitting]             = useState(false);
     const [usernameTaken, setUsernameTaken]       = useState<boolean | null>(null);
 
     const form = useForm<CreateBusinessUserFormType>({
@@ -296,7 +295,6 @@ export const CreateBusinessUserDialog = ({
             setRoleError("");
             setSelectedBuIds([]);
             setSelectedRoleId("");
-            setSubmitting(false);
             setUsernameTaken(null);
             form.reset({ email: "", full_name: "", mobile: "", username: "" });
         }
@@ -322,7 +320,6 @@ export const CreateBusinessUserDialog = ({
             return;
         }
 
-        setSubmitting(true);
         try {
             // Step 1: Create business user
             const createResult = await apolloClient.mutate<CreateBusinessUserMutationDataType>({

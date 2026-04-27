@@ -83,8 +83,6 @@ export const EditVendorDialog = ({
 }: EditVendorDialogPropsType) => {
     const [checkingName, setCheckingName] = useState(false);
     const [nameTaken,    setNameTaken]    = useState<boolean | null>(null);
-    const [submitting,   setSubmitting]   = useState(false);
-
     const dbName = useAppSelector(selectDbName);
     const schema = useAppSelector(selectSchema);
 
@@ -160,7 +158,6 @@ export const EditVendorDialog = ({
 
     async function onSubmit(data: EditVendorFormType) {
         if (!dbName || !schema) return;
-        setSubmitting(true);
         try {
             await apolloClient.mutate({
                 mutation: GRAPHQL_MAP.genericUpdate,

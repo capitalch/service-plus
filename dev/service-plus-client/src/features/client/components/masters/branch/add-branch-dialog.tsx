@@ -93,8 +93,6 @@ export const AddBranchDialog = ({
     const [codeTaken,    setCodeTaken]    = useState<boolean | null>(null);
     const [nameTaken,    setNameTaken]    = useState<boolean | null>(null);
     const [states,       setStates]       = useState<StateType[]>([]);
-    const [submitting,   setSubmitting]   = useState(false);
-
     const dbName = useAppSelector(selectDbName);
     const schema = useAppSelector(selectSchema);
 
@@ -146,7 +144,6 @@ export const AddBranchDialog = ({
             setCodeTaken(null);
             setNameTaken(null);
             setStates([]);
-            setSubmitting(false);
             form.reset();
         }
     }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -209,7 +206,6 @@ export const AddBranchDialog = ({
 
     async function onSubmit(data: AddBranchFormType) {
         if (!dbName || !schema) return;
-        setSubmitting(true);
         try {
             await apolloClient.mutate({
                 mutation: GRAPHQL_MAP.genericUpdate,

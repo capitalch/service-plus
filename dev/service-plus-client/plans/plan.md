@@ -390,7 +390,7 @@ z.object({
 
 ---
 
-### Step 13 — Ready for Delivery Section (inline form, no child)
+### Step 13 — Ready for Delivery Section (inline form, no child) ✅ DONE
 
 **File:** `ready-for-delivery-section.tsx`
 
@@ -409,7 +409,7 @@ z.object({
 
 ---
 
-### Step 14 — Set Part Location Dialog
+### Step 14 — Set Part Location Dialog ✅ DONE
 
 **File:** `set-part-location-dialog.tsx`
 
@@ -428,7 +428,7 @@ z.object({
 
 ---
 
-### Step 15 — Set Location for Selected Dialog
+### Step 15 — Set Location for Selected Dialog ✅ DONE
 
 **File:** `set-location-for-selected-dialog.tsx`
 
@@ -445,7 +445,7 @@ z.object({
 
 ---
 
-### Step 16 — Associate BU Role Dialog
+### Step 16 — Associate BU Role Dialog ✅ DONE
 
 **File:** `associate-bu-role-dialog.tsx`
 

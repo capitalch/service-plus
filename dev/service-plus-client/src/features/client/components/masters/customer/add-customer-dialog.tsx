@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -76,8 +76,6 @@ export const AddCustomerDialog = ({
     open,
     states,
 }: AddCustomerDialogPropsType) => {
-    const [submitting, setSubmitting] = useState(false);
-
     const dbName = useAppSelector(selectDbName);
     const schema = useAppSelector(selectSchema);
 
@@ -106,14 +104,12 @@ export const AddCustomerDialog = ({
     // Reset on close
     useEffect(() => {
         if (!open) {
-            setSubmitting(false);
             form.reset();
         }
     }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
     async function onSubmit(data: AddCustomerFormType) {
         if (!dbName || !schema) return;
-        setSubmitting(true);
         try {
             await apolloClient.mutate({
                 mutation: GRAPHQL_MAP.genericUpdate,

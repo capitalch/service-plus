@@ -694,7 +694,7 @@ class SqlStore:
     CLAIM_NEXT_JOB_NUMBER = """
         UPDATE document_sequence 
         SET next_number = next_number + 1 
-        WHERE document_type_id = (SELECT id FROM document_type WHERE code = 'JOB')
+        WHERE document_type_id = (SELECT id FROM document_type WHERE code = 'JOB_SHEET')
           AND branch_id = %(branch_id)s
         RETURNING prefix, (next_number - 1) AS assigned_number, padding, separator;
     """

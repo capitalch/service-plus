@@ -872,7 +872,7 @@ async def resolve_create_single_job_helper(db_name: str, schema: str = "public",
                 )
 
             # 2. Format job number
-            job_no = f"{seq['prefix']}{seq['separator']}{str(seq['assigned_number']).zfill(seq['padding'])}"
+            job_no = f"{seq['prefix'] or ''}{seq['separator'] or ''}{str(seq['assigned_number']).zfill(seq['padding'])}"
             x_data["job_no"] = job_no
 
             # 3. Insert the job

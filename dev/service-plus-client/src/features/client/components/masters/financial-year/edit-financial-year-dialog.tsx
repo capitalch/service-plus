@@ -64,7 +64,6 @@ export const EditFinancialYearDialog = ({
     open,
 }: EditFinancialYearDialogPropsType) => {
     const [checkingOverlap, setCheckingOverlap] = useState(false);
-    const [submitting,      setSubmitting]      = useState(false);
 
     const dbName = useAppSelector(selectDbName);
     const schema = useAppSelector(selectSchema);
@@ -116,7 +115,6 @@ export const EditFinancialYearDialog = ({
 
     async function onSubmit(data: EditFyFormType) {
         if (!dbName || !schema) return;
-        setSubmitting(true);
         try {
             await apolloClient.mutate({
                 mutation: GRAPHQL_MAP.genericUpdate,

@@ -73,8 +73,6 @@ export const AddStateDialog = ({
     const [checkingName, setCheckingName] = useState(false);
     const [codeTaken,    setCodeTaken]    = useState<boolean | null>(null);
     const [nameTaken,    setNameTaken]    = useState<boolean | null>(null);
-    const [submitting,   setSubmitting]   = useState(false);
-
     const dbName = useAppSelector(selectDbName);
     const schema = useAppSelector(selectSchema);
 
@@ -103,7 +101,6 @@ export const AddStateDialog = ({
             setCheckingName(false);
             setCodeTaken(null);
             setNameTaken(null);
-            setSubmitting(false);
             form.reset();
         }
     }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -166,7 +163,6 @@ export const AddStateDialog = ({
 
     async function onSubmit(data: AddStateFormType) {
         if (!dbName || !schema) return;
-        setSubmitting(true);
         try {
             await apolloClient.mutate({
                 mutation: GRAPHQL_MAP.genericUpdate,

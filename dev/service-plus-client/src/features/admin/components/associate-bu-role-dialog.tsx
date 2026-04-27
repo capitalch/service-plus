@@ -1,4 +1,7 @@
 import { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { toast } from "sonner";
 import { Loader2Icon } from "lucide-react";
 
@@ -43,6 +46,11 @@ type GenericQueryDataType = {
     genericQuery: BusinessUnitType[] | RoleType[] | null;
 };
 
+const associateBuRoleSchema = z.object({
+    role_id: z.string().min(1),
+});
+type AssociateBuRoleFormValues = z.infer<typeof associateBuRoleSchema>;
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export const AssociateBuRoleDialog = ({
@@ -56,10 +64,14 @@ export const AssociateBuRoleDialog = ({
     const businessUnits  = useAppSelector(selectBusinessUnits);
     const roles          = useAppSelector(selectRoles);
 
-    const [loadingData, setLoadingData]     = useState(false);
+    const form = useForm<AssociateBuRoleFormValues>({
+        defaultValues: { role_id: "" },
+        mode:          "onChange",
+        resolver:      zodResolver(associateBuRoleSchema),
+    });
+
+    const [loadingData,   setLoadingData]   = useState(false);
     const [selectedBuIds, setSelectedBuIds] = useState<number[]>([]);
-    const [selectedRoleId, setSelectedRoleId] = useState<string>("");
-    const [submitting, setSubmitting]        = useState(false);
 
     // Load BUs and roles on open
     useEffect(() => {
@@ -72,7 +84,7 @@ export const AssociateBuRoleDialog = ({
             // Pre-fill selections from user
             if (user) {
                 setSelectedBuIds(user.bu_ids ?? []);
-                setSelectedRoleId(user.role_id ? String(user.role_id) : "");
+                form.setValue("role_id", user.role_id ? String(user.role_id) : "", { shouldValidate: true });
             }
             return;
         }
@@ -130,7 +142,7 @@ export const AssociateBuRoleDialog = ({
             setLoadingData(false);
             if (user) {
                 setSelectedBuIds(user.bu_ids ?? []);
-                setSelectedRoleId(user.role_id ? String(user.role_id) : "");
+                form.setValue("role_id", user.role_id ? String(user.role_id) : "", { shouldValidate: true });
             }
         });
     }, [open, dbName]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -139,9 +151,9 @@ export const AssociateBuRoleDialog = ({
     useEffect(() => {
         if (!open) {
             setSelectedBuIds([]);
-            setSelectedRoleId("");
+            form.reset();
         }
-    }, [open]);
+    }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
     if (!user) return null;
 
@@ -151,9 +163,8 @@ export const AssociateBuRoleDialog = ({
         );
     }
 
-    async function handleSubmit() {
+    async function executeSave(values: AssociateBuRoleFormValues) {
         if (!user || !dbName) return;
-        setSubmitting(true);
         try {
             await apolloClient.mutate({
                 mutation: GRAPHQL_MAP.setUserBuRole,
@@ -161,8 +172,8 @@ export const AssociateBuRoleDialog = ({
                     db_name: dbName,
                     schema: "security",
                     value: encodeObj({
-                        bu_ids: selectedBuIds,
-                        role_id: selectedRoleId ? Number(selectedRoleId) : null,
+                        bu_ids:  selectedBuIds,
+                        role_id: Number(values.role_id),
                         user_id: user.id,
                     }),
                 },
@@ -172,15 +183,8 @@ export const AssociateBuRoleDialog = ({
             onOpenChange(false);
         } catch {
             toast.error(MESSAGES.ERROR_UNKNOWN);
-        } finally {
-            setSubmitting(false);
         }
     }
-
-    const submitDisabled =
-        submitting ||
-        loadingData ||
-        (selectedBuIds.length > 0 && !selectedRoleId);
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -212,7 +216,7 @@ export const AssociateBuRoleDialog = ({
                                         <div className="flex items-center gap-2" key={bu.id}>
                                             <Checkbox
                                                 checked={selectedBuIds.includes(bu.id)}
-                                                disabled={submitting || !bu.is_active}
+                                                disabled={form.formState.isSubmitting || !bu.is_active}
                                                 id={`bu-${bu.id}`}
                                                 onCheckedChange={() => handleBuToggle(bu.id)}
                                             />
@@ -237,9 +241,9 @@ export const AssociateBuRoleDialog = ({
                                 Role{selectedBuIds.length > 0 && <span className="text-red-500"> *</span>}
                             </Label>
                             <Select
-                                disabled={submitting}
-                                value={selectedRoleId}
-                                onValueChange={setSelectedRoleId}
+                                disabled={form.formState.isSubmitting}
+                                value={form.watch("role_id")}
+                                onValueChange={v => form.setValue("role_id", v, { shouldValidate: true })}
                             >
                                 <SelectTrigger id="role_select">
                                     <SelectValue placeholder="Select a role" />
@@ -252,7 +256,7 @@ export const AssociateBuRoleDialog = ({
                                     ))}
                                 </SelectContent>
                             </Select>
-                            {selectedBuIds.length > 0 && !selectedRoleId && (
+                            {selectedBuIds.length > 0 && !form.watch("role_id") && (
                                 <p className="text-xs text-red-500">Role is required when BUs are selected.</p>
                             )}
                         </div>
@@ -261,7 +265,7 @@ export const AssociateBuRoleDialog = ({
 
                 <DialogFooter>
                     <Button
-                        disabled={submitting}
+                        disabled={form.formState.isSubmitting}
                         type="button"
                         variant="ghost"
                         onClick={() => onOpenChange(false)}
@@ -270,11 +274,11 @@ export const AssociateBuRoleDialog = ({
                     </Button>
                     <Button
                         className="bg-teal-600 text-white hover:bg-teal-700 disabled:opacity-50"
-                        disabled={submitDisabled}
+                        disabled={!form.formState.isValid || selectedBuIds.length === 0 || form.formState.isSubmitting || loadingData}
                         type="button"
-                        onClick={handleSubmit}
+                        onClick={() => void form.handleSubmit(executeSave)()}
                     >
-                        {submitting ? (
+                        {form.formState.isSubmitting ? (
                             <>
                                 <Loader2Icon className="mr-1.5 h-3.5 w-3.5 animate-spin" />
                                 Saving...

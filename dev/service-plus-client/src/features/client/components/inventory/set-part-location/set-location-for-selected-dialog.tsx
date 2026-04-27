@@ -1,4 +1,7 @@
 import { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -48,6 +51,13 @@ function today(): string {
 const thCls = "text-xs font-semibold uppercase tracking-wide text-[var(--cl-text-muted)] px-2 py-1.5 text-left border-b border-[var(--cl-border)] bg-[var(--cl-surface-3)]";
 const tdCls = "px-2 py-1.5 border-b border-[var(--cl-border)] text-sm";
 
+const setLocationForSelectedSchema = z.object({
+    txn_date: z.string().min(1),
+    ref_no:   z.string().optional(),
+    remarks:  z.string().optional(),
+});
+type SetLocationForSelectedFormValues = z.infer<typeof setLocationForSelectedSchema>;
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export const SetLocationForSelectedDialog = ({ locations, onOpenChange, onSuccess, open, parts }: Props) => {
@@ -55,23 +65,22 @@ export const SetLocationForSelectedDialog = ({ locations, onOpenChange, onSucces
     const schema        = useAppSelector(selectSchema);
     const currentBranch = useAppSelector(selectCurrentBranch);
 
-    const [locationId,    setLocationId]    = useState<number>(0);
+    const form = useForm<SetLocationForSelectedFormValues>({
+        defaultValues: { txn_date: today(), ref_no: "", remarks: "" },
+        mode:          "onChange",
+        resolver:      zodResolver(setLocationForSelectedSchema),
+    });
+
+    const [locationId,     setLocationId]     = useState<number>(0);
     const [rowLocationIds, setRowLocationIds] = useState<Record<number, number>>({});
-    const [txnDate,       setTxnDate]       = useState(today());
-    const [refNo,         setRefNo]         = useState("");
-    const [remarks,       setRemarks]       = useState("");
-    const [submitting,    setSubmitting]    = useState(false);
 
     useEffect(() => {
         if (!open) {
+            form.reset({ txn_date: today(), ref_no: "", remarks: "" });
             setLocationId(0);
             setRowLocationIds({});
-            setTxnDate(today());
-            setRefNo("");
-            setRemarks("");
-            setSubmitting(false);
         }
-    }, [open]);
+    }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // When global location changes, apply to all rows
     useEffect(() => {
@@ -87,11 +96,9 @@ export const SetLocationForSelectedDialog = ({ locations, onOpenChange, onSucces
     }
 
     const allRowsHaveLocation = parts.length > 0 && parts.every(p => (rowLocationIds[p.part_id] ?? 0) > 0);
-    const canSave = allRowsHaveLocation && txnDate.length > 0 && !submitting;
 
-    async function handleSubmit() {
-        if (!canSave || !dbName || !schema || !currentBranch) return;
-        setSubmitting(true);
+    async function executeSave(values: SetLocationForSelectedFormValues) {
+        if (!dbName || !schema || !currentBranch) return;
         try {
             await apolloClient.mutate({
                 mutation: GRAPHQL_MAP.genericUpdateScript,
@@ -104,9 +111,9 @@ export const SetLocationForSelectedDialog = ({ locations, onOpenChange, onSucces
                             branch_id:        currentBranch.id,
                             location_ids:     parts.map(p => rowLocationIds[p.part_id]),
                             part_ids:         parts.map(p => p.part_id),
-                            ref_no:           refNo   || "",
-                            remarks:          remarks || "",
-                            transaction_date: txnDate,
+                            ref_no:           values.ref_no   || "",
+                            remarks:          values.remarks || "",
+                            transaction_date: values.txn_date,
                         },
                     }),
                 },
@@ -116,8 +123,6 @@ export const SetLocationForSelectedDialog = ({ locations, onOpenChange, onSucces
             onOpenChange(false);
         } catch {
             toast.error(MESSAGES.ERROR_SET_PART_LOCATIONS_FAILED);
-        } finally {
-            setSubmitting(false);
         }
     }
 
@@ -140,8 +145,7 @@ export const SetLocationForSelectedDialog = ({ locations, onOpenChange, onSucces
                             <Input
                                 id="slfs_date"
                                 type="date"
-                                value={txnDate}
-                                onChange={(e) => setTxnDate(e.target.value)}
+                                {...form.register("txn_date")}
                             />
                         </div>
                         <div className="flex flex-col gap-1.5">
@@ -150,8 +154,7 @@ export const SetLocationForSelectedDialog = ({ locations, onOpenChange, onSucces
                                 autoComplete="off"
                                 id="slfs_refno"
                                 placeholder="Optional"
-                                value={refNo}
-                                onChange={(e) => setRefNo(e.target.value)}
+                                {...form.register("ref_no")}
                             />
                         </div>
                         <div className="flex flex-col gap-1.5">
@@ -160,8 +163,7 @@ export const SetLocationForSelectedDialog = ({ locations, onOpenChange, onSucces
                                 autoComplete="off"
                                 id="slfs_remarks"
                                 placeholder="Optional"
-                                value={remarks}
-                                onChange={(e) => setRemarks(e.target.value)}
+                                {...form.register("remarks")}
                             />
                         </div>
                         <div className="flex flex-col gap-1.5">
@@ -234,7 +236,7 @@ export const SetLocationForSelectedDialog = ({ locations, onOpenChange, onSucces
 
                 <DialogFooter className="pt-2">
                     <Button
-                        disabled={submitting}
+                        disabled={form.formState.isSubmitting}
                         type="button"
                         variant="ghost"
                         onClick={() => onOpenChange(false)}
@@ -243,11 +245,11 @@ export const SetLocationForSelectedDialog = ({ locations, onOpenChange, onSucces
                     </Button>
                     <Button
                         className="bg-teal-600 text-white hover:bg-teal-700 disabled:opacity-50"
-                        disabled={!canSave}
+                        disabled={!form.formState.isValid || !allRowsHaveLocation || form.formState.isSubmitting}
                         type="button"
-                        onClick={handleSubmit}
+                        onClick={() => void form.handleSubmit(executeSave)()}
                     >
-                        {submitting ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : null}
+                        {form.formState.isSubmitting ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : null}
                         Save
                     </Button>
                 </DialogFooter>

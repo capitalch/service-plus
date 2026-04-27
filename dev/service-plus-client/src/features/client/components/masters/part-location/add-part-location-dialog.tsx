@@ -60,8 +60,6 @@ export const AddPartLocationDialog = ({
 }: AddPartLocationDialogPropsType) => {
     const [checkingLocation, setCheckingLocation] = useState(false);
     const [locationTaken,    setLocationTaken]    = useState<boolean | null>(null);
-    const [submitting,       setSubmitting]       = useState(false);
-
     const dbName        = useAppSelector(selectDbName);
     const schema        = useAppSelector(selectSchema);
     const currentBranch = useAppSelector(selectCurrentBranch);
@@ -81,7 +79,6 @@ export const AddPartLocationDialog = ({
         if (!open) {
             setCheckingLocation(false);
             setLocationTaken(null);
-            setSubmitting(false);
             form.reset();
         }
     }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -119,7 +116,6 @@ export const AddPartLocationDialog = ({
 
     async function onSubmit(data: AddPartLocationFormType) {
         if (!dbName || !schema || !currentBranch) return;
-        setSubmitting(true);
         try {
             await apolloClient.mutate({
                 mutation: GRAPHQL_MAP.genericUpdate,

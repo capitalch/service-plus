@@ -69,8 +69,6 @@ export const EditStateDialog = ({
 }: EditStateDialogPropsType) => {
     const [checkingName, setCheckingName] = useState(false);
     const [nameTaken,    setNameTaken]    = useState<boolean | null>(null);
-    const [submitting,   setSubmitting]   = useState(false);
-
     const dbName = useAppSelector(selectDbName);
     const schema = useAppSelector(selectSchema);
 
@@ -126,7 +124,6 @@ export const EditStateDialog = ({
 
     async function onSubmit(data: EditStateFormType) {
         if (!dbName || !schema) return;
-        setSubmitting(true);
         try {
             await apolloClient.mutate({
                 mutation: GRAPHQL_MAP.genericUpdate,

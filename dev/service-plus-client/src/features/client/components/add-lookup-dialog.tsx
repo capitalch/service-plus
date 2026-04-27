@@ -54,8 +54,6 @@ export const AddLookupDialog = ({
 }: AddLookupDialogPropsType) => {
     const [checkingCode, setCheckingCode] = useState(false);
     const [codeTaken,    setCodeTaken]    = useState<boolean | null>(null);
-    const [submitting,   setSubmitting]   = useState(false);
-
     const dbName = useAppSelector(selectDbName);
     const schema = useAppSelector(selectSchema);
 
@@ -94,7 +92,6 @@ export const AddLookupDialog = ({
         if (!open) {
             setCheckingCode(false);
             setCodeTaken(null);
-            setSubmitting(false);
             form.reset();
         }
     }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -129,7 +126,6 @@ export const AddLookupDialog = ({
 
     async function onSubmit(data: FormType) {
         if (!dbName || !schema) return;
-        setSubmitting(true);
         try {
             const xData: Record<string, unknown> = {
                 code: data.code,

@@ -80,8 +80,6 @@ export const AddVendorDialog = ({
 }: AddVendorDialogPropsType) => {
     const [checkingName, setCheckingName] = useState(false);
     const [nameTaken,    setNameTaken]    = useState<boolean | null>(null);
-    const [submitting,   setSubmitting]   = useState(false);
-
     const dbName = useAppSelector(selectDbName);
     const schema = useAppSelector(selectSchema);
 
@@ -112,7 +110,6 @@ export const AddVendorDialog = ({
         if (!open) {
             setCheckingName(false);
             setNameTaken(null);
-            setSubmitting(false);
             form.reset();
         }
     }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -147,7 +144,6 @@ export const AddVendorDialog = ({
 
     async function onSubmit(data: AddVendorFormType) {
         if (!dbName || !schema) return;
-        setSubmitting(true);
         try {
             await apolloClient.mutate({
                 mutation: GRAPHQL_MAP.genericUpdate,

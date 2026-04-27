@@ -1,4 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { Loader2, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -60,6 +63,13 @@ function today(): string {
 
 const thCls = "text-xs font-semibold uppercase tracking-wide text-[var(--cl-text-muted)] px-2 py-1.5 text-left border-b border-[var(--cl-border)] bg-[var(--cl-surface-3)]";
 const tdCls = "px-2 py-1 border-b border-[var(--cl-border)] text-sm align-top";
+
+const setPartLocationSchema = z.object({
+    txn_date: z.string().min(1),
+    ref_no:   z.string().optional(),
+    remarks:  z.string().optional(),
+});
+type SetPartLocationFormValues = z.infer<typeof setPartLocationSchema>;
 
 // ─── Row component (isolates debounce per row) ────────────────────────────────
 
@@ -191,27 +201,23 @@ export const SetPartLocationDialog = ({ locations, onOpenChange, onSuccess, open
     const schema        = useAppSelector(selectSchema);
     const currentBranch = useAppSelector(selectCurrentBranch);
 
-    // Header state
-    const [txnDate,    setTxnDate]    = useState(today());
-    const [refNo,      setRefNo]      = useState("");
-    const [remarks,    setRemarks]    = useState("");
-    const [applyToAll, setApplyToAll] = useState<number>(0);
+    const form = useForm<SetPartLocationFormValues>({
+        defaultValues: { txn_date: today(), ref_no: "", remarks: "" },
+        mode:          "onChange",
+        resolver:      zodResolver(setPartLocationSchema),
+    });
 
-    // Lines state
+    const [applyToAll, setApplyToAll] = useState<number>(0);
     const [lines,      setLines]      = useState<SetLocationLineType[]>([emptyLine()]);
-    const [submitting, setSubmitting] = useState(false);
 
     // Reset on close
     useEffect(() => {
         if (!open) {
-            setTxnDate(today());
-            setRefNo("");
-            setRemarks("");
+            form.reset({ txn_date: today(), ref_no: "", remarks: "" });
             setApplyToAll(0);
             setLines([emptyLine()]);
-            setSubmitting(false);
         }
-    }, [open]);
+    }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
     function handleUpdate(key: string, patch: Partial<SetLocationLineType>) {
         setLines(prev => prev.map(l => l._key === key ? { ...l, ...patch } : l));
@@ -232,15 +238,13 @@ export const SetPartLocationDialog = ({ locations, onOpenChange, onSuccess, open
 
     const allPartCodes = lines.map(l => l.part_code);
 
-    const canSave =
-        !submitting &&
-        txnDate.length > 0 &&
-        lines.length > 0 &&
-        lines.every(l => !l.validating && !l.error && l.part_id !== null && l.location_id !== null);
+    const linesValid = useMemo(
+        () => lines.length > 0 && lines.every(l => !l.validating && !l.error && l.part_id !== null && l.location_id !== null),
+        [lines],
+    );
 
-    async function handleSubmit() {
-        if (!canSave || !dbName || !schema || !currentBranch) return;
-        setSubmitting(true);
+    async function executeSave(values: SetPartLocationFormValues) {
+        if (!dbName || !schema || !currentBranch) return;
         try {
             await apolloClient.mutate({
                 mutation: GRAPHQL_MAP.genericUpdateScript,
@@ -253,9 +257,9 @@ export const SetPartLocationDialog = ({ locations, onOpenChange, onSuccess, open
                             branch_id:        currentBranch.id,
                             location_ids:     lines.map(l => l.location_id),
                             part_ids:         lines.map(l => l.part_id),
-                            ref_no:           refNo   || "",
-                            remarks:          remarks || "",
-                            transaction_date: txnDate,
+                            ref_no:           values.ref_no   || "",
+                            remarks:          values.remarks || "",
+                            transaction_date: values.txn_date,
                         },
                     }),
                 },
@@ -265,8 +269,6 @@ export const SetPartLocationDialog = ({ locations, onOpenChange, onSuccess, open
             onOpenChange(false);
         } catch {
             toast.error(MESSAGES.ERROR_SET_PART_LOCATIONS_FAILED);
-        } finally {
-            setSubmitting(false);
         }
     }
 
@@ -289,8 +291,7 @@ export const SetPartLocationDialog = ({ locations, onOpenChange, onSuccess, open
                             <Input
                                 id="spl_date"
                                 type="date"
-                                value={txnDate}
-                                onChange={(e) => setTxnDate(e.target.value)}
+                                {...form.register("txn_date")}
                             />
                         </div>
                         <div className="flex flex-col gap-1.5">
@@ -299,8 +300,7 @@ export const SetPartLocationDialog = ({ locations, onOpenChange, onSuccess, open
                                 autoComplete="off"
                                 id="spl_refno"
                                 placeholder="Optional"
-                                value={refNo}
-                                onChange={(e) => setRefNo(e.target.value)}
+                                {...form.register("ref_no")}
                             />
                         </div>
                         <div className="col-span-2 flex flex-col gap-1.5">
@@ -309,8 +309,7 @@ export const SetPartLocationDialog = ({ locations, onOpenChange, onSuccess, open
                                 autoComplete="off"
                                 id="spl_remarks"
                                 placeholder="Optional"
-                                value={remarks}
-                                onChange={(e) => setRemarks(e.target.value)}
+                                {...form.register("remarks")}
                             />
                         </div>
                     </div>
@@ -381,7 +380,7 @@ export const SetPartLocationDialog = ({ locations, onOpenChange, onSuccess, open
 
                 <DialogFooter className="pt-2">
                     <Button
-                        disabled={submitting}
+                        disabled={form.formState.isSubmitting}
                         type="button"
                         variant="ghost"
                         onClick={() => onOpenChange(false)}
@@ -390,11 +389,11 @@ export const SetPartLocationDialog = ({ locations, onOpenChange, onSuccess, open
                     </Button>
                     <Button
                         className="bg-teal-600 text-white hover:bg-teal-700 disabled:opacity-50"
-                        disabled={!canSave}
+                        disabled={!form.formState.isValid || !linesValid || form.formState.isSubmitting}
                         type="button"
-                        onClick={handleSubmit}
+                        onClick={() => void form.handleSubmit(executeSave)()}
                     >
-                        {submitting ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : null}
+                        {form.formState.isSubmitting ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : null}
                         Save
                     </Button>
                 </DialogFooter>
