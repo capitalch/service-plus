@@ -1,5 +1,6 @@
+import { z } from "zod";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useFormContext } from "react-hook-form";
+import { useFormContext, useFieldArray } from "react-hook-form";
 import { Loader2, Plus } from "lucide-react";
 import { LineAddDeleteActions } from "../line-add-delete-actions";
 import { toast } from "sonner";
@@ -18,9 +19,10 @@ import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectDefaultGstRate, selectEffectiveGstStateCode, selectIsGstRegistered, selectSchema } from "@/store/context-slice";
-import type { SalesInvoiceType, SalesLineFormItem, DocumentSequenceRow, CustomerSearchRow } from "@/features/client/types/sales";
+import type { SalesInvoiceType, DocumentSequenceRow, CustomerSearchRow } from "@/features/client/types/sales";
 import type { CustomerTypeOption, StateOption } from "@/features/client/types/customer";
-import type { SalesInvoiceFormValues } from "./sales-invoice-schema";
+import { type SalesInvoiceFormValues, getInitialSalesLine } from "./sales-invoice-schema";
+import type { SalesLineFormItem } from "./sales-invoice-schema";
 
 import { PartCodeInput } from "../part-code-input";
 import { CustomerInput } from "../customer-input";
@@ -49,37 +51,11 @@ type Props = {
     setCustomerGstin:     (v: string) => void;
     customerStateCode:    string;
     setCustomerStateCode: (v: string) => void;
-    lines:                SalesLineFormItem[];
-    setLines:             React.Dispatch<React.SetStateAction<SalesLineFormItem[]>>;
-    originalLineIds:      number[];
-    setOriginalLineIds:   React.Dispatch<React.SetStateAction<number[]>>;
-    onLinesValidChange:   (v: boolean) => void;
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function emptyLine(brandId: number | null = null): SalesLineFormItem {
-    return {
-        _key:             crypto.randomUUID(),
-        part_id:          null,
-        brand_id:         brandId,
-        part_code:        "",
-        part_name:        "",
-        uom:              "",
-        hsn_code:         "",
-        quantity:         1,
-        unit_price:       0,
-        gst_rate:         0,
-        aggregate_amount: 0,
-        cgst_amount:      0,
-        sgst_amount:      0,
-        igst_amount:      0,
-        total_amount:     0,
-        remarks:          "",
-    };
-}
-
-function calcLine(l: SalesLineFormItem, isIgst: boolean) {
+function calcLine(l: z.infer<typeof import("./sales-invoice-schema").salesLineSchema>, isIgst: boolean) {
     const aggregate = l.quantity * l.unit_price;
     const gst       = l.gst_rate;
     const cgstAmt   = isIgst ? 0 : aggregate * (gst / 2) / 100;
@@ -116,8 +92,6 @@ export function NewSalesInvoice({
     customerName, setCustomerName,
     customerGstin, setCustomerGstin,
     customerStateCode, setCustomerStateCode,
-    lines, setLines, originalLineIds, setOriginalLineIds,
-    onLinesValidChange,
 }: Props) {
     const dbName                = useAppSelector(selectDbName);
     const schema                = useAppSelector(selectSchema);
@@ -126,16 +100,14 @@ export function NewSalesInvoice({
     const effectiveGstStateCode = useAppSelector(selectEffectiveGstStateCode);
 
     const form = useFormContext<SalesInvoiceFormValues>();
-    const { register, formState: { isSubmitting } } = form;
+    const { register, setValue, formState: { isSubmitting } } = form;
 
-    const linesValid = useMemo(() => {
-        if (lines.length === 0) return false;
-        return lines.every(l => {
-            if (!l.part_id || l.quantity <= 0) return false;
-            if ((l.unit_price > 0 || l.gst_rate > 0) && !l.hsn_code.trim()) return false;
-            return true;
-        });
-    }, [lines]);
+    const { fields, remove, insert } = useFieldArray({
+        control: form.control,
+        name: "lines",
+    });
+
+    const lines = form.watch("lines") ?? [];
 
     const partInputRefs    = useRef<(HTMLInputElement | null)[]>([]);
     const hsnInputRefs     = useRef<(HTMLInputElement | null)[]>([]);
@@ -158,10 +130,6 @@ export function NewSalesInvoice({
         return () => window.removeEventListener("resize", recalc);
     }, []);
 
-    useEffect(() => {
-        onLinesValidChange(linesValid);
-    }, [linesValid, onLinesValidChange]);
-
     // Populate form when editInvoice changes
     useEffect(() => {
         if (!editInvoice || !dbName || !schema) return;
@@ -183,7 +151,6 @@ export function NewSalesInvoice({
             setCustomerName(detail.customer_name ?? "");
             setCustomerGstin(detail.customer_gstin ?? "");
             setCustomerStateCode(detail.customer_state_code ?? "");
-            form.reset({ invoice_date: detail.invoice_date, remarks: detail.remarks ?? "" });
             onIsReturnChange(Boolean(detail.is_return));
             const newIsIgst = !!detail.customer_state_code && !!effectiveGstStateCode
                 && detail.customer_state_code !== effectiveGstStateCode;
@@ -206,8 +173,13 @@ export function NewSalesInvoice({
                 total_amount:     Number(l.total_amount ?? 0),
                 remarks:          l.remarks ?? "",
             } as SalesLineFormItem));
-            setLines(loadedLines);
-            setOriginalLineIds(((detail as any).lines ?? []).map((l: any) => l.id));
+            const originalIds = ((detail as any).lines ?? []).map((l: any) => l.id);
+            form.reset({
+                invoice_date: detail.invoice_date,
+                remarks: detail.remarks ?? "",
+                lines: loadedLines,
+                originalLineIds: originalIds,
+            });
         }).catch(() => toast.error(MESSAGES.ERROR_SALES_LOAD_FAILED));
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [editInvoice, dbName, schema]);
@@ -218,26 +190,10 @@ export function NewSalesInvoice({
         setIsIgst(customerStateCode !== effectiveGstStateCode);
     }, [customerStateCode, effectiveGstStateCode, setIsIgst]);
 
-    // Line mutations
-    const updateLine = (idx: number, patch: Partial<SalesLineFormItem>) => {
-        setLines(prev => prev.map((l, i) => {
-            if (i !== idx) return l;
-            const next = { ...l, ...patch };
-            const c    = calcLine(next, isIgst);
-            return {
-                ...next,
-                aggregate_amount: c.aggregate,
-                cgst_amount:      c.cgstAmt,
-                sgst_amount:      c.sgstAmt,
-                igst_amount:      c.igstAmt,
-                total_amount:     c.total,
-            };
-        }));
-    };
-
     // Recalc amounts when isIgst changes
     useEffect(() => {
-        setLines(prev => prev.map(l => {
+        const currentLines = form.getValues("lines") ?? [];
+        const recalculated = currentLines.map(l => {
             const c = calcLine(l, isIgst);
             return {
                 ...l,
@@ -247,19 +203,34 @@ export function NewSalesInvoice({
                 igst_amount:      c.igstAmt,
                 total_amount:     c.total,
             };
-        }));
+        });
+        form.setValue("lines", recalculated);
     }, [isIgst]);
 
     const insertLine = (idx: number) => {
-        setLines(prev => {
-            const next = [...prev];
-            next.splice(idx + 1, 0, emptyLine(selectedBrandId));
-            return next;
-        });
+        insert(idx + 1, getInitialSalesLine(selectedBrandId));
     };
 
     const removeLine = (idx: number) => {
-        setLines(prev => prev.length === 1 ? prev : prev.filter((_, i) => i !== idx));
+        const currentLines = form.getValues("lines") ?? [];
+        if (currentLines.length > 1) {
+            remove(idx);
+        }
+    };
+
+    const updateLine = (idx: number, patch: Partial<SalesLineFormItem>) => {
+        const currentLine = lines[idx];
+        if (!currentLine) return;
+        const next = { ...currentLine, ...patch };
+        const c = calcLine(next, isIgst);
+        setValue(`lines.${idx}`, {
+            ...next,
+            aggregate_amount: c.aggregate,
+            cgst_amount: c.cgstAmt,
+            sgst_amount: c.sgstAmt,
+            igst_amount: c.igstAmt,
+            total_amount: c.total,
+        });
     };
 
     // Totals
@@ -449,10 +420,12 @@ export function NewSalesInvoice({
                                     </tr>
                                 </thead>
                                 <tbody className="bg-[var(--cl-surface)]">
-                                    {lines.map((line, idx) => {
+                                    {fields.map((field, idx) => {
+                                        const line = lines[idx];
+                                        if (!line) return null;
                                         const c = calcLine(line, isIgst);
                                         return (
-                                            <tr key={line._key} className="hover:bg-[var(--cl-surface-2)]/30 group transition-colors">
+                                            <tr key={field.id} className="hover:bg-[var(--cl-surface-2)]/30 group transition-colors">
                                                 <td className={`${tdClass} pl-4 text-xs font-medium text-[var(--cl-text-muted)]`}>{idx + 1}</td>
 
                                                 {/* Part */}
@@ -582,7 +555,7 @@ export function NewSalesInvoice({
                                                         <LineAddDeleteActions
                                                             onAdd={() => insertLine(idx)}
                                                             onDelete={() => removeLine(idx)}
-                                                            disableDelete={lines.length === 1}
+                                                            disableDelete={fields.length === 1}
                                                         />
                                                     </div>
                                                 </td>
@@ -592,7 +565,7 @@ export function NewSalesInvoice({
                                 </tbody>
                             </table>
                         </div>
-                        {lines.length === 0 && (
+                        {fields.length === 0 && (
                             <div className="py-12 text-center text-[var(--cl-text-muted)] text-sm italic">
                                 No line items added yet. Click the "+" icon to insert a row.
                             </div>
@@ -603,7 +576,7 @@ export function NewSalesInvoice({
                     <div ref={summaryRef} className={`rounded-lg border px-4 py-2.5 flex flex-wrap items-center gap-x-6 gap-y-1 justify-end ${isReturn ? "border-red-500/30 bg-red-500/5" : "border-[var(--cl-border)] bg-[var(--cl-surface-2)]/40"}`}>
                         <div className="flex items-center gap-1.5">
                             <span className="text-[10px] font-black uppercase tracking-[0.1em] text-[var(--cl-text-muted)]">Lines</span>
-                            <span className="font-bold tabular-nums text-sm text-[var(--cl-text)]">{lines.length}</span>
+                            <span className="font-bold tabular-nums text-sm text-[var(--cl-text)]">{fields.length}</span>
                         </div>
                         <div className="flex items-center gap-1.5">
                             <span className="text-[10px] font-black uppercase tracking-[0.1em] text-[var(--cl-text-muted)]">Qty</span>

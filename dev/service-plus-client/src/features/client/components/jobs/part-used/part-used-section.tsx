@@ -5,7 +5,7 @@ import {ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon,
     Loader2, RefreshCw, RotateCcw, Save, Search, Trash2, X} from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
-import { partUsedFormSchema, type PartUsedFormValues, getPartUsedDefaultValues, type JobSearchRow, type NewLine, getEmptyPartUsedLine } from "./part-used-schema";
+import { partUsedFormSchema, type PartUsedFormValues, getPartUsedDefaultValues, type JobSearchRow } from "./part-used-schema";
 
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -108,8 +108,6 @@ export const PartUsedSection = () => {
     // Form
     const [resetKey,   setResetKey]   = useState(0);
     const [linesValid, setLinesValid] = useState(false);
-    const [newLines, setNewLines] = useState<NewLine[]>([]);
-    const [deletedIds, setDeletedIds] = useState<number[]>([]);
     const [selectedJob, setSelectedJob] = useState<JobSearchRow | null>(null);
 
     const debounceRef      = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -229,8 +227,6 @@ export const PartUsedSection = () => {
     const handleReset = () => {
         form.reset(getPartUsedDefaultValues());
         setLinesValid(false);
-        setNewLines([]);
-        setDeletedIds([]);
         setSelectedJob(null);
         setResetKey(k => k + 1);
     };
@@ -244,6 +240,8 @@ export const PartUsedSection = () => {
             return;
         }
 
+        const newLines = values.newLines ?? [];
+        const deletedIds = values.deletedIds ?? [];
         const validNewLines = newLines.filter(l => l.part_id && l.quantity > 0);
 
         const xData = validNewLines.map(line => ({
@@ -359,9 +357,8 @@ export const PartUsedSection = () => {
                             key={resetKey}
                             branchId={branchId}
                             onLinesValidChange={setLinesValid}
-                            onLinesChange={setNewLines}
-                            onDeletedIdsChange={setDeletedIds}
                             onJobSelect={setSelectedJob}
+                            form={form}
                         />
                     </FormProvider>
                 </div>

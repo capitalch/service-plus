@@ -201,8 +201,6 @@ export const EditBranchDialog = ({
             onOpenChange(false);
         } catch {
             toast.error(MESSAGES.ERROR_BRANCH_UPDATE_FAILED);
-        } finally {
-            setSubmitting(false);
         }
     }
 
@@ -210,7 +208,7 @@ export const EditBranchDialog = ({
         checkingName ||
         Object.keys(errors).length > 0 ||
         nameTaken === true ||
-        submitting;
+        form.formState.isSubmitting;
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -374,7 +372,7 @@ export const EditBranchDialog = ({
 
                     <DialogFooter className="pt-2">
                         <Button
-                            disabled={submitting}
+                            disabled={form.formState.isSubmitting}
                             type="button"
                             variant="ghost"
                             onClick={() => onOpenChange(false)}
@@ -386,7 +384,7 @@ export const EditBranchDialog = ({
                             disabled={submitDisabled}
                             type="submit"
                         >
-                            {submitting ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : null}
+                            {form.formState.isSubmitting ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : null}
                             Save Changes
                         </Button>
                     </DialogFooter>

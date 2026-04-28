@@ -186,8 +186,6 @@ export const AddStateDialog = ({
             onOpenChange(false);
         } catch {
             toast.error(MESSAGES.ERROR_STATE_CREATE_FAILED);
-        } finally {
-            setSubmitting(false);
         }
     }
 
@@ -197,7 +195,7 @@ export const AddStateDialog = ({
         Object.keys(errors).length > 0 ||
         codeTaken === true ||
         nameTaken === true ||
-        submitting;
+        form.formState.isSubmitting;
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -302,7 +300,7 @@ export const AddStateDialog = ({
 
                     <DialogFooter className="pt-2">
                         <Button
-                            disabled={submitting}
+                            disabled={form.formState.isSubmitting}
                             type="button"
                             variant="ghost"
                             onClick={() => onOpenChange(false)}
@@ -314,7 +312,7 @@ export const AddStateDialog = ({
                             disabled={submitDisabled}
                             type="submit"
                         >
-                            {submitting ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : null}
+                            {form.formState.isSubmitting ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : null}
                             Add State
                         </Button>
                     </DialogFooter>

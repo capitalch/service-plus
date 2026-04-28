@@ -187,6 +187,7 @@ export const SQL_MAP = {
     GET_JOB_LIST_PAGED:                   "GET_JOB_LIST_PAGED",
     GET_JOB_DETAIL:                       "GET_JOB_DETAIL",
     GET_JOB_IMAGE_DOCS:                   "GET_JOB_IMAGE_DOCS",
+    GET_LATEST_JOB:                       "GET_LATEST_JOB",
     // Update Job
     GET_OPEN_JOBS_COUNT:                  "GET_OPEN_JOBS_COUNT",
     GET_OPEN_JOBS_PAGED:                  "GET_OPEN_JOBS_PAGED",

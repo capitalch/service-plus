@@ -30,7 +30,6 @@ import { encodeObj, graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectCurrentUser, selectDbName } from "@/features/auth/store/auth-slice";
 import { selectCurrentBranch, selectSchema } from "@/store/context-slice";
-import type { DocumentSequenceRow } from "@/features/client/types/sales";
 import type { JobDetailType, JobListRow, JobLookupRow, ModelRow, TechnicianRow } from "@/features/client/types/job";
 import type { CustomerTypeOption, StateOption } from "@/features/client/types/customer";
 import type { BrandOption, ProductOption } from "@/features/client/types/model";
@@ -78,10 +77,7 @@ export const SingleJobSection = () => {
     const [products, setProducts] = useState<ProductOption[]>([]);
     const [customerTypes, setCustomerTypes] = useState<CustomerTypeOption[]>([]);
     const [masterStates, setMasterStates] = useState<StateOption[]>([]);
-    const [docSequences, setDocSequences] = useState<DocumentSequenceRow[]>([]);
     const [companyInfo, setCompanyInfo] = useState<CompanyInfoType | null>(null);
-
-    // Data
     const [jobs, setJobs] = useState<JobListRow[]>([]);
     const [total, setTotal] = useState(0);
     const [page, setPage] = useState(1);
@@ -182,8 +178,6 @@ export const SingleJobSection = () => {
                 setEditJob(null);
                 setMode("view");
                 if (branchId) void loadData(Number(branchId), searchQ, 1);
-            } else {
-                refreshDocSequences();
             }
         } catch {
             toast.error(editJob ? MESSAGES.ERROR_JOB_UPDATE_FAILED : MESSAGES.ERROR_JOB_CREATE_FAILED);
@@ -306,22 +300,6 @@ export const SingleJobSection = () => {
         void fetchMeta();
     }, [dbName, schema, branchId]);
 
-    // Load doc sequences when branchId available
-    useEffect(() => {
-        if (!dbName || !schema || !branchId) return;
-        apolloClient.query<GenericQueryData<DocumentSequenceRow>>({
-            fetchPolicy: "network-only",
-            query: GRAPHQL_MAP.genericQuery,
-            variables: {
-                db_name: dbName, schema,
-                value: graphQlUtils.buildGenericQueryValue({
-                    sqlId: SQL_MAP.GET_DOCUMENT_SEQUENCES,
-                    sqlArgs: { branch_id: branchId },
-                }),
-            },
-        }).then(res => setDocSequences(res.data?.genericQuery ?? [])).catch(() => { });
-    }, [dbName, schema, branchId]);
-
     const loadData = useCallback(async (bId: number, q: string, pg: number) => {
         if (!dbName || !schema) return;
         setLoading(true);
@@ -361,9 +339,15 @@ export const SingleJobSection = () => {
     }, [dbName, schema]);
 
     useEffect(() => {
-        if (!branchId || mode !== "view") return;
-        void loadData(Number(branchId), searchQ, page);
-    }, [branchId, searchQ, page, loadData, mode]);
+        if (!branchId) return;
+        if (mode === "view") {
+            void loadData(Number(branchId), searchQ, page);
+        }
+        // Also load data in new mode for quick info
+        if (mode === "new" && jobs.length === 0) {
+            void loadData(Number(branchId), "", 1);
+        }
+    }, [branchId, mode, loadData]);
 
     const handleSearchChange = (value: string) => {
         setSearch(value);
@@ -397,21 +381,6 @@ export const SingleJobSection = () => {
         } finally {
             setDeleting(false);
         }
-    };
-
-    const refreshDocSequences = () => {
-        if (!dbName || !schema || !branchId) return;
-        apolloClient.query<GenericQueryData<DocumentSequenceRow>>({
-            fetchPolicy: "network-only",
-            query: GRAPHQL_MAP.genericQuery,
-            variables: {
-                db_name: dbName, schema,
-                value: graphQlUtils.buildGenericQueryValue({
-                    sqlId: SQL_MAP.GET_DOCUMENT_SEQUENCES,
-                    sqlArgs: { branch_id: branchId },
-                }),
-            },
-        }).then(res => setDocSequences(res.data?.genericQuery ?? [])).catch(() => { });
     };
 
     const handleViewJob = async (job: JobListRow) => {
@@ -566,7 +535,10 @@ export const SingleJobSection = () => {
                         masterStates={masterStates}
                         editJob={editJob}
                         onRefreshModels={refreshModels}
-                    />
+                        onViewJob={(j: JobListRow) => void handleViewJob(j)}
+                        onPrintPdf={(j: JobListRow) => void handlePrintPdf(j)}
+                        onAttachFiles={(jobNo: string, jobId: number) => { setAttachJobId(jobId); setAttachJobNo(jobNo); setAttachMode("attach"); }}
+                        />
                     </FormProvider>
                 </div>
             ) : (

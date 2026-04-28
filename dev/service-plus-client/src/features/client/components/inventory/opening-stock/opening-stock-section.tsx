@@ -34,9 +34,8 @@ import { selectCurrentBranch, selectSchema } from "@/store/context-slice";
 import type { BrandOption } from "@/features/client/types/model";
 import { BrandSelect } from "@/features/client/components/inventory/brand-select";
 import type { StockTransactionTypeRow } from "@/features/client/types/purchase";
-import type { OpeningStockLineFormItemType, OpeningStockListItem } from "@/features/client/types/stock-opening-balance";
-import { emptyOpeningStockLine } from "@/features/client/types/stock-opening-balance";
-import { openingStockSchema, type OpeningStockFormValues, getOpeningStockDefaultValues } from "./opening-stock-schema";
+import type { OpeningStockListItem } from "@/features/client/types/stock-opening-balance";
+import { openingStockSchema, type OpeningStockFormValues, getOpeningStockDefaultValues, getInitialOpeningStockLine } from "./opening-stock-schema";
 import { NewOpeningStock } from "./new-opening-stock";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -88,7 +87,6 @@ export const OpeningStockSection = () => {
 
     // Lines lifted from child
     const selectedBrandId = selectedBrand ? Number(selectedBrand) : null;
-    const [lines,           setLines]           = useState<OpeningStockLineFormItemType[]>([emptyOpeningStockLine(selectedBrandId)]);
     const [originalLineIds, setOriginalLineIds] = useState<number[]>([]);
     const [linesValid,      setLinesValid]      = useState(false);
 
@@ -218,8 +216,7 @@ export const OpeningStockSection = () => {
     };
 
     const handleReset = () => {
-        form.reset(getOpeningStockDefaultValues());
-        setLines([emptyOpeningStockLine(selectedBrandId)]);
+        form.reset({ ...getOpeningStockDefaultValues(), lines: [getInitialOpeningStockLine(selectedBrandId)] });
         setOriginalLineIds([]);
         setEditEntry(null);
     };
@@ -239,7 +236,7 @@ export const OpeningStockSection = () => {
             return;
         }
 
-        const linePayload = lines.map(line => ({
+        const linePayload = (values.lines ?? []).map(line => ({
             part_id:   line.part_id,
             qty:       line.qty,
             remarks:   line.remarks.trim() || null,
@@ -305,8 +302,7 @@ export const OpeningStockSection = () => {
                 });
                 toast.success(MESSAGES.SUCCESS_OPENING_STOCK_CREATED);
             }
-            form.reset(getOpeningStockDefaultValues());
-            setLines([emptyOpeningStockLine(selectedBrandId)]);
+            form.reset({ ...getOpeningStockDefaultValues(), lines: [getInitialOpeningStockLine(selectedBrandId)] });
             setOriginalLineIds([]);
             setEditEntry(null);
         } catch {
@@ -424,12 +420,10 @@ export const OpeningStockSection = () => {
                         branchId={branchId}
                         brandName={brands.find(b => String(b.id) === selectedBrand)?.name}
                         editEntry={editEntry}
-                        lines={lines}
                         onLinesValidChange={setLinesValid}
-                        originalLineIds={originalLineIds}
                         selectedBrandId={selectedBrandId}
-                        setLines={setLines}
                         setOriginalLineIds={setOriginalLineIds}
+                        form={form}
                     />
                 </FormProvider>
             ) : (

@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import { useFormContext } from "react-hook-form";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useFormContext, useFieldArray } from "react-hook-form";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
@@ -17,13 +17,11 @@ import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectSchema } from "@/store/context-slice";
 
-import type { StockTransactionTypeRow } from "@/features/client/types/purchase";
-import type { LoanLineFormItem, StockLoanWithLines } from "@/features/client/types/stock-loan";
-import { emptyLoanLine } from "@/features/client/types/stock-loan";
+import type { StockLoanWithLines } from "@/features/client/types/stock-loan";
 import { LineAddDeleteActions } from "../line-add-delete-actions";
 import { PartCodeInput } from "../part-code-input";
 import { cn } from "@/lib/utils";
-import type { LoanEntryFormValues } from "./loan-entry-schema";
+import { getInitialLoanLine, type LoanEntryFormValues } from "./loan-entry-schema";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -33,13 +31,9 @@ type Props = {
     branchId:           number | null;
     brandName?:         string;
     editLoan?:          StockLoanWithLines | null;
-    lines:              LoanLineFormItem[];
     onLinesValidChange: (v: boolean) => void;
-    originalLineIds:    number[];
     selectedBrandId:    number | null;
-    setLines:           React.Dispatch<React.SetStateAction<LoanLineFormItem[]>>;
     setOriginalLineIds: React.Dispatch<React.SetStateAction<number[]>>;
-    txnTypes:           StockTransactionTypeRow[];
 };
 
 // ─── CSS ──────────────────────────────────────────────────────────────────────
@@ -51,18 +45,23 @@ const inputCls = "h-8 border-[var(--cl-border)] bg-[var(--cl-surface)] text-sm p
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function NewLoanEntry({
-    branchId, brandName, editLoan, lines, onLinesValidChange, originalLineIds,
-    selectedBrandId, setLines, setOriginalLineIds, txnTypes: _txnTypes,
+    branchId, brandName, editLoan, onLinesValidChange, selectedBrandId, setOriginalLineIds,
 }: Props) {
     const dbName = useAppSelector(selectDbName);
     const schema = useAppSelector(selectSchema);
 
     const form = useFormContext<LoanEntryFormValues>();
-    const { register } = form;
+    const { register, control, setValue, watch, setFocus } = form;
 
-    const partInputRefs = useRef<(HTMLInputElement | null)[]>([]);
-    const qtyInputRefs  = useRef<(HTMLInputElement | null)[]>([]);
+    const { fields, remove, insert } = useFieldArray({
+        control,
+        name: "lines",
+    });
 
+    const rawLines = watch("lines");
+    const formLines = useMemo(() => rawLines ?? [], [rawLines]);
+
+    const partInputRefs    = useRef<(HTMLInputElement | null)[]>([]);
     const scrollWrapperRef = useRef<HTMLDivElement>(null);
     const summaryRef       = useRef<HTMLDivElement>(null);
     const [maxTableHeight, setMaxTableHeight] = useState<number | undefined>(undefined);
@@ -82,7 +81,8 @@ export function NewLoanEntry({
         recalc();
         window.addEventListener('resize', recalc);
         return () => window.removeEventListener('resize', recalc);
-    }, [lines.length]);
+    }, [fields.length]);
+
 
     // Populate form on edit
     useEffect(() => {
@@ -101,11 +101,6 @@ export function NewLoanEntry({
         }).then(res => {
             const detail = res.data?.genericQuery?.[0];
             if (!detail) return;
-            form.reset({
-                loan_date: detail.loan_date.slice(0, 10),
-                ref_no:    detail.ref_no ?? "",
-                remarks:   detail.remarks ?? "",
-            });
             const loadedLines = (detail.lines ?? []).map(l => ({
                 _key:      crypto.randomUUID(),
                 brand_id:  selectedBrandId,
@@ -117,37 +112,24 @@ export function NewLoanEntry({
                 qty:       Number(l.qty),
                 remarks:   l.remarks ?? "",
             }));
-            setLines(loadedLines);
+            form.reset({
+                loan_date: detail.loan_date.slice(0, 10),
+                ref_no:    detail.ref_no ?? "",
+                remarks:   detail.remarks ?? "",
+                lines:     loadedLines.length > 0 ? loadedLines : [getInitialLoanLine(selectedBrandId)],
+            });
             setOriginalLineIds((detail.lines ?? []).map(l => l.id));
         }).catch(() => toast.error(MESSAGES.ERROR_LOAN_LOAD_FAILED));
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [editLoan, dbName, schema]);
 
-    // Line mutations
-    const insertLine = (idx: number) => {
-        setLines(prev => {
-            const next = [...prev];
-            next.splice(idx + 1, 0, emptyLoanLine(selectedBrandId));
-            return next;
-        });
-    };
-
-    const removeLine = (idx: number) => {
-        setLines(prev => prev.length === 1 ? prev : prev.filter((_, i) => i !== idx));
-    };
-
-    const updateLine = (idx: number, patch: Partial<LoanLineFormItem>) => {
-        setLines(prev => prev.map((l, i) => i !== idx ? l : { ...l, ...patch }));
-    };
-
-    const linesValid = lines.length > 0 && lines.every(
-        l => !!l.part_id && l.qty > 0 && !!l.loan_to.trim() && (l.dr_cr === "D" || l.dr_cr === "C")
-    );
-
+    // Lines validity
     useEffect(() => {
-        onLinesValidChange(linesValid);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [linesValid]);
+        const valid = fields.length > 0 && formLines.every(
+            l => !!l.part_id && (l.qty ?? 0) > 0 && !!l.loan_to?.trim() && (l.dr_cr === "D" || l.dr_cr === "C")
+        );
+        onLinesValidChange(valid);
+    }, [fields.length, formLines, onLinesValidChange]);
 
     return (
         <motion.div
@@ -229,9 +211,11 @@ export function NewLoanEntry({
                                 </div>
 
                                 {/* Data rows */}
-                                {lines.map((line, idx) => (
+                                {fields.map((field, idx) => {
+                                    const line = watch(`lines.${idx}`);
+                                    return (
                                     <div
-                                        key={line._key}
+                                        key={field.id}
                                         className={`grid ${COLS} group transition-colors hover:bg-[var(--cl-surface-2)]/30 border-b border-[var(--cl-border)]`}
                                     >
                                         {/* # */}
@@ -243,37 +227,42 @@ export function NewLoanEntry({
                                         <div className="p-1 border-r border-[var(--cl-border)]/30">
                                             <PartCodeInput
                                                 ref={el => { partInputRefs.current[idx] = el; }}
-                                                brandId={line.brand_id}
+                                                brandId={line?.brand_id}
                                                 brandName={brandName}
-                                                partCode={line.part_code}
-                                                partId={line.part_id}
-                                                partName={line.part_name}
+                                                partCode={line?.part_code ?? ""}
+                                                partId={line?.part_id ?? null}
+                                                partName={line?.part_name ?? ""}
                                                 selectedBrandId={selectedBrandId}
                                                 onChange={code => {
-                                                    const patch: Partial<LoanLineFormItem> = { part_code: code };
-                                                    if (!code.trim()) { patch.part_id = null; patch.part_name = ""; }
-                                                    updateLine(idx, patch);
+                                                    if (!code.trim()) {
+                                                        setValue(`lines.${idx}.part_code`, "");
+                                                        setValue(`lines.${idx}.part_id`, null);
+                                                        setValue(`lines.${idx}.part_name`, "");
+                                                    } else {
+                                                        setValue(`lines.${idx}.part_code`, code);
+                                                    }
                                                 }}
-                                                onClear={() => updateLine(idx, { part_code: "", part_id: null, part_name: "" })}
+                                                onClear={() => {
+                                                    setValue(`lines.${idx}.part_code`, "");
+                                                    setValue(`lines.${idx}.part_id`, null);
+                                                    setValue(`lines.${idx}.part_name`, "");
+                                                }}
                                                 onSelect={part => {
-                                                    updateLine(idx, {
-                                                        brand_id:  part.brand_id,
-                                                        part_code: part.part_code,
-                                                        part_id:   part.id,
-                                                        part_name: part.part_name,
-                                                    });
+                                                    setValue(`lines.${idx}.brand_id`, part.brand_id);
+                                                    setValue(`lines.${idx}.part_code`, part.part_code);
+                                                    setValue(`lines.${idx}.part_id`, part.id);
+                                                    setValue(`lines.${idx}.part_name`, part.part_name);
                                                 }}
-                                                onTabToNext={() => qtyInputRefs.current[idx]?.focus()}
+                                                onTabToNext={() => setFocus(`lines.${idx}.qty`)}
                                             />
                                         </div>
 
                                         {/* Loan To */}
                                         <div className="p-1 border-r border-[var(--cl-border)]/30">
                                             <Input
-                                                className={`${inputCls} bg-transparent border-transparent hover:border-[var(--cl-border)] focus:bg-[var(--cl-surface)] ${!line.loan_to.trim() ? "border-red-500 focus:border-red-500 ring-red-500/10" : ""}`}
+                                                className={`${inputCls} bg-transparent border-transparent hover:border-[var(--cl-border)] focus:bg-[var(--cl-surface)] ${!line?.loan_to?.trim() ? "border-red-500 focus:border-red-500 ring-red-500/10" : ""}`}
                                                 placeholder="Technician / Agency"
-                                                value={line.loan_to}
-                                                onChange={e => updateLine(idx, { loan_to: e.target.value })}
+                                                {...register(`lines.${idx}.loan_to`)}
                                             />
                                         </div>
 
@@ -281,9 +270,9 @@ export function NewLoanEntry({
                                         <div className="flex items-center justify-center gap-1 px-2 py-1.5 border-r border-[var(--cl-border)]/30">
                                             <button
                                                 type="button"
-                                                onClick={() => updateLine(idx, { dr_cr: "D" })}
+                                                onClick={() => setValue(`lines.${idx}.dr_cr`, "D")}
                                                 className={`flex-1 rounded px-2 py-1 text-xs font-bold transition-all cursor-pointer ${
-                                                    line.dr_cr === "D"
+                                                    line?.dr_cr === "D"
                                                         ? "bg-emerald-600 text-white shadow"
                                                         : "bg-[var(--cl-surface-2)] text-[var(--cl-text-muted)] hover:bg-emerald-600/20"
                                                 }`}
@@ -292,9 +281,9 @@ export function NewLoanEntry({
                                             </button>
                                             <button
                                                 type="button"
-                                                onClick={() => updateLine(idx, { dr_cr: "C" })}
+                                                onClick={() => setValue(`lines.${idx}.dr_cr`, "C")}
                                                 className={`flex-1 rounded px-2 py-1 text-xs font-bold transition-all cursor-pointer ${
-                                                    line.dr_cr === "C"
+                                                    line?.dr_cr === "C"
                                                         ? "bg-red-500 text-white shadow"
                                                         : "bg-[var(--cl-surface-2)] text-[var(--cl-text-muted)] hover:bg-red-500/20"
                                                 }`}
@@ -306,13 +295,11 @@ export function NewLoanEntry({
                                         {/* Qty */}
                                         <div className="p-1 border-r border-[var(--cl-border)]/30">
                                             <Input
-                                                ref={el => { qtyInputRefs.current[idx] = el; }}
-                                                className={`${inputCls} bg-transparent border-transparent hover:border-[var(--cl-border)] focus:bg-[var(--cl-surface)] text-right px-3 ${line.qty <= 0 ? "border-red-500 focus:border-red-500 ring-red-500/10 shadow-[0_0_0_1px_rgba(239,68,68,0.2)]" : ""}`}
+                                                className={`${inputCls} bg-transparent border-transparent hover:border-[var(--cl-border)] focus:bg-[var(--cl-surface)] text-right px-3 ${(line?.qty ?? 0) <= 0 ? "border-red-500 focus:border-red-500 ring-red-500/10 shadow-[0_0_0_1px_rgba(239,68,68,0.2)]" : ""}`}
                                                 min={0}
                                                 step="0.01"
                                                 type="number"
-                                                value={line.qty}
-                                                onChange={e => updateLine(idx, { qty: Number(e.target.value) })}
+                                                {...register(`lines.${idx}.qty`, { valueAsNumber: true })}
                                                 onFocus={e => e.target.select()}
                                             />
                                         </div>
@@ -322,23 +309,23 @@ export function NewLoanEntry({
                                             <Input
                                                 className={`${inputCls} bg-transparent border-transparent hover:border-[var(--cl-border)] focus:bg-[var(--cl-surface)]`}
                                                 placeholder="Optional..."
-                                                value={line.remarks ?? ""}
-                                                onChange={e => updateLine(idx, { remarks: e.target.value })}
+                                                {...register(`lines.${idx}.remarks`)}
                                             />
                                         </div>
 
                                         {/* Actions */}
                                         <div className="flex items-center justify-center gap-0.5 px-2 bg-[var(--cl-surface-2)]/5">
                                             <LineAddDeleteActions
-                                                disableDelete={lines.length === 1}
-                                                onAdd={() => insertLine(idx)}
-                                                onDelete={() => removeLine(idx)}
+                                                disableDelete={fields.length === 1}
+                                                onAdd={() => insert(idx + 1, getInitialLoanLine(selectedBrandId))}
+                                                onDelete={() => { if (fields.length > 1) remove(idx); }}
                                             />
                                         </div>
                                     </div>
-                                ))}
+                                    );
+                                })}
 
-                                {lines.length === 0 && (
+                                {fields.length === 0 && (
                                     <div className="py-12 text-center text-[var(--cl-text-muted)] text-sm italic">
                                         No line items added yet. Click the "+" icon to insert a row.
                                     </div>
@@ -351,25 +338,25 @@ export function NewLoanEntry({
                     <div ref={summaryRef} className="rounded-lg border border-[var(--cl-border)] bg-[var(--cl-surface-2)]/40 px-4 py-2.5 flex flex-wrap items-center gap-x-6 gap-y-1 justify-end">
                         <div className="flex items-center gap-1.5">
                             <span className="text-[10px] font-black uppercase tracking-widest text-[var(--cl-text-muted)]">Lines</span>
-                            <span className="font-mono font-semibold text-sm text-[var(--cl-text)]">{lines.length}</span>
+                            <span className="font-mono font-semibold text-sm text-[var(--cl-text)]">{fields.length}</span>
                         </div>
                         <div className="flex items-center gap-1.5">
                             <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600">IN</span>
                             <span className="font-mono font-semibold text-sm text-[var(--cl-text)]">
-                                {lines.filter(l => l.dr_cr === "D").reduce((s, l) => s + l.qty, 0)}
+                                {formLines.filter(l => l.dr_cr === "D").reduce((s, l) => s + (l.qty ?? 0), 0)}
                             </span>
                         </div>
                         <div className="flex items-center gap-1.5">
                             <span className="text-[10px] font-black uppercase tracking-widest text-red-500">OUT</span>
                             <span className="font-mono font-semibold text-sm text-[var(--cl-text)]">
-                                {lines.filter(l => l.dr_cr === "C").reduce((s, l) => s + l.qty, 0)}
+                                {formLines.filter(l => l.dr_cr === "C").reduce((s, l) => s + (l.qty ?? 0), 0)}
                             </span>
                         </div>
                         <div className="flex items-center gap-1.5 border-l border-[var(--cl-border)] pl-4">
                             <span className="text-[10px] font-black uppercase tracking-widest text-[var(--cl-text-muted)]">Net</span>
                             <span className="font-mono font-black text-base text-[var(--cl-accent)]">
-                                {lines.filter(l => l.dr_cr === "D").reduce((s, l) => s + l.qty, 0) -
-                                    lines.filter(l => l.dr_cr === "C").reduce((s, l) => s + l.qty, 0)}
+                                {formLines.filter(l => l.dr_cr === "D").reduce((s, l) => s + (l.qty ?? 0), 0) -
+                                    formLines.filter(l => l.dr_cr === "C").reduce((s, l) => s + (l.qty ?? 0), 0)}
                             </span>
                         </div>
                     </div>

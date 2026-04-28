@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import { useFormContext } from "react-hook-form";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useFormContext, useFieldArray } from "react-hook-form";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
@@ -16,12 +16,11 @@ import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectSchema } from "@/store/context-slice";
-import type { OpeningStockLineFormItemType, OpeningStockListItem, OpeningStockType } from "@/features/client/types/stock-opening-balance";
-import { emptyOpeningStockLine } from "@/features/client/types/stock-opening-balance";
+import type { OpeningStockListItem, OpeningStockType } from "@/features/client/types/stock-opening-balance";
 
 import { LineAddDeleteActions } from "../line-add-delete-actions";
 import { PartCodeInput } from "../part-code-input";
-import type { OpeningStockFormValues } from "./opening-stock-schema";
+import { getInitialOpeningStockLine, type OpeningStockFormValues } from "./opening-stock-schema";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -31,12 +30,10 @@ type Props = {
     branchId:           number | null;
     brandName?:         string;
     editEntry?:         OpeningStockListItem | null;
-    lines:              OpeningStockLineFormItemType[];
     onLinesValidChange: (v: boolean) => void;
-    originalLineIds:    number[];
     selectedBrandId:    number | null;
-    setLines:           React.Dispatch<React.SetStateAction<OpeningStockLineFormItemType[]>>;
     setOriginalLineIds: React.Dispatch<React.SetStateAction<number[]>>;
+    form:              ReturnType<typeof useFormContext<OpeningStockFormValues>>;
 };
 
 // ─── CSS ──────────────────────────────────────────────────────────────────────
@@ -48,24 +45,30 @@ const inputCls = "h-7 border-[var(--cl-border)] bg-[var(--cl-surface)] text-sm p
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function NewOpeningStock({
-    branchId, brandName, editEntry, lines, onLinesValidChange, originalLineIds,
-    selectedBrandId, setLines, setOriginalLineIds,
+    branchId, brandName, editEntry, onLinesValidChange,
+    selectedBrandId, setOriginalLineIds, form,
 }: Props) {
     const dbName = useAppSelector(selectDbName);
     const schema = useAppSelector(selectSchema);
 
-    const form = useFormContext<OpeningStockFormValues>();
-    const { register } = form;
+    const { control, register, setValue, watch, setFocus } = useFormContext<OpeningStockFormValues>();
 
-    const linesValid = lines.length > 0 && lines.every(l => !!l.part_id && l.qty > 0);
+    const { fields, append, remove } = useFieldArray({
+        control,
+        name: "lines",
+    });
+
+    // Summary calculations - use useMemo to prevent recalculation on every render
+    const rawLines = watch("lines");
+    const formLines = useMemo(() => rawLines ?? [], [rawLines]);
+    const totalQty = useMemo(() => formLines.reduce((s, l) => s + (l.qty ?? 0), 0), [formLines]);
+    const totalValue = useMemo(() => formLines.reduce((s, l) => s + ((l.qty ?? 0) * (l.unit_cost ?? 0)), 0), [formLines]);
 
     useEffect(() => {
-        onLinesValidChange(linesValid);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [linesValid]);
+        onLinesValidChange(fields.length > 0 && formLines.every(l => !!l.part_id && (l.qty ?? 0) > 0));
+    }, [fields.length, formLines, onLinesValidChange]);
 
     const partInputRefs = useRef<(HTMLInputElement | null)[]>([]);
-    const qtyInputRefs  = useRef<(HTMLInputElement | null)[]>([]);
 
     const scrollWrapperRef = useRef<HTMLDivElement>(null);
     const summaryRef       = useRef<HTMLDivElement>(null);
@@ -86,7 +89,7 @@ export function NewOpeningStock({
         recalc();
         window.addEventListener("resize", recalc);
         return () => window.removeEventListener("resize", recalc);
-    }, [lines.length]);
+    }, [fields.length]);
 
     // Populate form when editing
     useEffect(() => {
@@ -105,11 +108,6 @@ export function NewOpeningStock({
         }).then(res => {
             const detail = res.data?.genericQuery?.[0];
             if (!detail) return;
-            form.reset({
-                entry_date: detail.entry_date.slice(0, 10),
-                ref_no:     detail.ref_no ?? "",
-                remarks:    detail.remarks ?? "",
-            });
             const loaded = (detail.lines ?? []).map(l => ({
                 _key:      crypto.randomUUID(),
                 brand_id:  selectedBrandId,
@@ -120,27 +118,24 @@ export function NewOpeningStock({
                 remarks:   l.remarks ?? "",
                 unit_cost: Number(l.unit_cost ?? 0),
             }));
-            setLines(loaded.length > 0 ? loaded : [emptyOpeningStockLine(selectedBrandId)]);
+            form.reset({
+                entry_date: detail.entry_date.slice(0, 10),
+                ref_no:     detail.ref_no ?? "",
+                remarks:    detail.remarks ?? "",
+                lines:     loaded.length > 0 ? loaded : [getInitialOpeningStockLine(selectedBrandId)],
+            });
             setOriginalLineIds((detail.lines ?? []).map(l => l.id));
         }).catch(() => toast.error(MESSAGES.ERROR_OPENING_STOCK_LOAD_FAILED));
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [editEntry, dbName, schema]);
 
     // Line mutations
-    const insertLine = (idx: number) => {
-        setLines(prev => {
-            const next = [...prev];
-            next.splice(idx + 1, 0, emptyOpeningStockLine(selectedBrandId));
-            return next;
-        });
+    const handleAddLine = () => {
+        append(getInitialOpeningStockLine(selectedBrandId));
     };
 
-    const removeLine = (idx: number) => {
-        setLines(prev => prev.length === 1 ? prev : prev.filter((_, i) => i !== idx));
-    };
-
-    const updateLine = (idx: number, patch: Partial<OpeningStockLineFormItemType>) => {
-        setLines(prev => prev.map((l, i) => i !== idx ? l : { ...l, ...patch }));
+    const handleRemoveLine = (idx: number) => {
+        if (fields.length > 1) remove(idx);
     };
 
     // ── Render ────────────────────────────────────────────────────────────────
@@ -235,46 +230,54 @@ export function NewOpeningStock({
                                     </tr>
                                 </thead>
                                 <tbody className="bg-[var(--cl-surface)]">
-                                    {lines.map((line, idx) => (
-                                        <tr key={line._key} className="group transition-colors hover:bg-[var(--cl-surface-2)]/30">
+                                    {fields.map((field, idx) => {
+                                        const line = watch(`lines.${idx}`);
+                                        return (
+                                        <tr key={field.id} className="group transition-colors hover:bg-[var(--cl-surface-2)]/30">
                                             <td className={`${tdClass} pl-4 text-xs font-medium text-[var(--cl-text-muted)]`}>{idx + 1}</td>
 
                                             {/* Part */}
                                             <td className={tdClass}>
                                                 <PartCodeInput
                                                     ref={el => { partInputRefs.current[idx] = el; }}
-                                                    brandId={line.brand_id}
+                                                    brandId={line?.brand_id}
                                                     brandName={brandName}
-                                                    partCode={line.part_code}
-                                                    partId={line.part_id}
-                                                    partName={line.part_name}
+                                                    partCode={line?.part_code ?? ""}
+                                                    partId={line?.part_id ?? null}
+                                                    partName={line?.part_name ?? ""}
                                                     selectedBrandId={selectedBrandId}
                                                     onChange={code => {
-                                                        const patch: Partial<OpeningStockLineFormItemType> = { part_code: code };
-                                                        if (!code.trim()) { patch.part_id = null; patch.part_name = ""; }
-                                                        updateLine(idx, patch);
+                                                        if (!code.trim()) { 
+                                                            setValue(`lines.${idx}.part_code`, "");
+                                                            setValue(`lines.${idx}.part_id`, null);
+                                                            setValue(`lines.${idx}.part_name`, "");
+                                                        } else {
+                                                            setValue(`lines.${idx}.part_code`, code);
+                                                        }
                                                     }}
-                                                    onClear={() => updateLine(idx, { part_code: "", part_id: null, part_name: "" })}
-                                                    onSelect={part => updateLine(idx, {
-                                                        brand_id:  part.brand_id,
-                                                        part_code: part.part_code,
-                                                        part_id:   part.id,
-                                                        part_name: part.part_name,
-                                                    })}
-                                                    onTabToNext={() => qtyInputRefs.current[idx]?.focus()}
+                                                    onClear={() => {
+                                                        setValue(`lines.${idx}.part_code`, "");
+                                                        setValue(`lines.${idx}.part_id`, null);
+                                                        setValue(`lines.${idx}.part_name`, "");
+                                                    }}
+                                                    onSelect={part => {
+                                                        setValue(`lines.${idx}.brand_id`, part.brand_id);
+                                                        setValue(`lines.${idx}.part_code`, part.part_code);
+                                                        setValue(`lines.${idx}.part_id`, part.id);
+                                                        setValue(`lines.${idx}.part_name`, part.part_name);
+                                                    }}
+                                                    onTabToNext={() => setFocus(`lines.${idx + 1}.qty`)}
                                                 />
                                             </td>
 
                                             {/* Qty */}
                                             <td className={tdClass}>
                                                 <Input
-                                                    ref={el => { qtyInputRefs.current[idx] = el; }}
-                                                    className={`${inputCls} border-transparent bg-transparent text-right hover:border-[var(--cl-border)] focus:bg-[var(--cl-surface)] ${line.qty <= 0 ? "border-red-500 ring-red-500/10 shadow-[0_0_0_1px_rgba(239,68,68,0.2)] focus:border-red-500" : ""}`}
+                                                    className={`${inputCls} border-transparent bg-transparent text-right hover:border-[var(--cl-border)] focus:bg-[var(--cl-surface)] ${(line?.qty ?? 0) <= 0 ? "border-red-500 ring-red-500/10 shadow-[0_0_0_1px_rgba(239,68,68,0.2)] focus:border-red-500" : ""}`}
                                                     min={0}
                                                     step="0.001"
                                                     type="number"
-                                                    value={line.qty}
-                                                    onChange={e => updateLine(idx, { qty: Number(e.target.value) })}
+                                                    {...register(`lines.${idx}.qty`, { valueAsNumber: true })}
                                                     onFocus={e => e.target.select()}
                                                 />
                                             </td>
@@ -286,8 +289,7 @@ export function NewOpeningStock({
                                                     min={0}
                                                     step="0.01"
                                                     type="number"
-                                                    value={line.unit_cost}
-                                                    onChange={e => updateLine(idx, { unit_cost: Number(e.target.value) })}
+                                                    {...register(`lines.${idx}.unit_cost`, { valueAsNumber: true })}
                                                     onFocus={e => e.target.select()}
                                                 />
                                             </td>
@@ -297,8 +299,7 @@ export function NewOpeningStock({
                                                 <Input
                                                     className={`${inputCls} border-transparent bg-transparent hover:border-[var(--cl-border)] focus:bg-[var(--cl-surface)]`}
                                                     placeholder="Optional..."
-                                                    value={line.remarks}
-                                                    onChange={e => updateLine(idx, { remarks: e.target.value })}
+                                                    {...register(`lines.${idx}.remarks`)}
                                                 />
                                             </td>
 
@@ -306,14 +307,14 @@ export function NewOpeningStock({
                                             <td className={`${tdClass} text-left`}>
                                                 <div className="flex items-center justify-start gap-0.5 px-2">
                                                     <LineAddDeleteActions
-                                                        disableDelete={lines.length === 1}
-                                                        onAdd={() => insertLine(idx)}
-                                                        onDelete={() => removeLine(idx)}
+                                                        disableDelete={fields.length === 1}
+                                                        onAdd={handleAddLine}
+                                                        onDelete={() => handleRemoveLine(idx)}
                                                     />
                                                 </div>
                                             </td>
                                         </tr>
-                                    ))}
+                                    );})}
                                 </tbody>
                             </table>
                         </div>
@@ -323,18 +324,18 @@ export function NewOpeningStock({
                     <div ref={summaryRef} className="flex flex-wrap items-center justify-end gap-x-6 gap-y-1 rounded-lg border border-[var(--cl-border)] bg-[var(--cl-surface-2)]/40 px-4 py-2.5">
                         <div className="flex items-center gap-1.5">
                             <span className="text-[10px] font-black uppercase tracking-widest text-[var(--cl-text-muted)]">Lines</span>
-                            <span className="font-mono text-sm font-semibold text-[var(--cl-text)]">{lines.length}</span>
+                            <span className="font-mono text-sm font-semibold text-[var(--cl-text)]">{fields.length}</span>
                         </div>
                         <div className="flex items-center gap-1.5">
                             <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600">Total Qty</span>
                             <span className="font-mono text-sm font-semibold text-[var(--cl-text)]">
-                                {lines.reduce((s, l) => s + l.qty, 0).toFixed(3)}
+                                {totalQty.toFixed(3)}
                             </span>
                         </div>
                         <div className="flex items-center gap-1.5 border-l border-[var(--cl-border)] pl-4">
                             <span className="text-[10px] font-black uppercase tracking-widest text-[var(--cl-text-muted)]">Total Value</span>
                             <span className="font-mono text-base font-black text-[var(--cl-accent)]">
-                                {lines.reduce((s, l) => s + l.qty * l.unit_cost, 0).toFixed(2)}
+                                {totalValue.toFixed(2)}
                             </span>
                         </div>
                     </div>

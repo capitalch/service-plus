@@ -169,12 +169,10 @@ export const AddTechnicianDialog = ({
             onOpenChange(false);
         } catch {
             toast.error(MESSAGES.ERROR_TECHNICIAN_CREATE_FAILED);
-        } finally {
-            setSubmitting(false);
         }
     }
 
-    const submitDisabled = checkingCode || codeTaken === true || Object.keys(errors).length > 0 || submitting;
+    const submitDisabled = checkingCode || codeTaken === true || Object.keys(errors).length > 0 || form.formState.isSubmitting;
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -299,7 +297,7 @@ export const AddTechnicianDialog = ({
 
                     <DialogFooter className="pt-2">
                         <Button
-                            disabled={submitting}
+                            disabled={form.formState.isSubmitting}
                             type="button"
                             variant="ghost"
                             onClick={() => onOpenChange(false)}
@@ -311,7 +309,7 @@ export const AddTechnicianDialog = ({
                             disabled={submitDisabled}
                             type="submit"
                         >
-                            {submitting ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : null}
+                            {form.formState.isSubmitting ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : null}
                             Add Technician
                         </Button>
                     </DialogFooter>

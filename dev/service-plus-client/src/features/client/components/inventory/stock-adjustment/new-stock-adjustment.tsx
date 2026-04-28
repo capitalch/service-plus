@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useFormContext } from "react-hook-form";
+import { useFormContext, useFieldArray } from "react-hook-form";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
@@ -16,12 +16,11 @@ import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectSchema } from "@/store/context-slice";
-import type { StockAdjustmentLineFormItem, StockAdjustmentType } from "@/features/client/types/stock-adjustment";
-import { emptyAdjustmentLine } from "@/features/client/types/stock-adjustment";
+import type { StockAdjustmentType } from "@/features/client/types/stock-adjustment";
 
 import { PartCodeInput } from "../part-code-input";
 import { LineAddDeleteActions } from "../line-add-delete-actions";
-import type { StockAdjFormValues } from "./stock-adjustment-schema";
+import { getInitialLine, type StockAdjFormValues } from "./stock-adjustment-schema";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -31,11 +30,8 @@ type Props = {
     branchId:           number | null;
     brandName?:         string;
     editAdjustment?:    StockAdjustmentType | null;
-    lines:              StockAdjustmentLineFormItem[];
     onLinesValidChange: (v: boolean) => void;
-    originalLineIds:    number[];
     selectedBrandId:    number | null;
-    setLines:           React.Dispatch<React.SetStateAction<StockAdjustmentLineFormItem[]>>;
     setOriginalLineIds: React.Dispatch<React.SetStateAction<number[]>>;
 };
 
@@ -48,14 +44,19 @@ const inputCls = "h-7 border-[var(--cl-border)] bg-[var(--cl-surface)] text-sm p
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function NewStockAdjustment({
-    branchId, brandName, editAdjustment, lines, onLinesValidChange,
-    originalLineIds, selectedBrandId, setLines, setOriginalLineIds,
+    branchId, brandName, editAdjustment, onLinesValidChange,
+    selectedBrandId, setOriginalLineIds,
 }: Props) {
     const dbName = useAppSelector(selectDbName);
     const schema = useAppSelector(selectSchema);
 
     const form = useFormContext<StockAdjFormValues>();
     const { register, watch } = form;
+
+    const { fields, remove, insert, update } = useFieldArray({
+        control: form.control,
+        name: "lines",
+    });
 
     const partInputRefs    = useRef<(HTMLInputElement | null)[]>([]);
     const qtyInputRefs     = useRef<(HTMLInputElement | null)[]>([]);
@@ -94,48 +95,46 @@ export function NewStockAdjustment({
         }).then(res => {
             const detail = res.data?.genericQuery?.[0];
             if (!detail) return;
-            form.reset({
-                adjustment_date:   detail.adjustment_date,
-                adjustment_reason: detail.adjustment_reason,
-                ref_no:            detail.ref_no ?? "",
-                remarks:           detail.remarks ?? "",
-            });
             const loadedLines = (detail.lines ?? []).map(l => ({
                 _key:      crypto.randomUUID(),
                 part_id:   l.part_id,
                 brand_id:  selectedBrandId,
                 part_code: l.part_code,
                 part_name: l.part_name,
+                uom:       "",
                 dr_cr:     l.dr_cr as "D" | "C",
                 qty:       Number(l.qty),
                 remarks:   l.remarks ?? "",
             }));
-            setLines(loadedLines);
+            form.reset({
+                adjustment_date:   detail.adjustment_date,
+                adjustment_reason: detail.adjustment_reason,
+                ref_no:            detail.ref_no ?? "",
+                remarks:           detail.remarks ?? "",
+                lines:             loadedLines,
+            });
             setOriginalLineIds((detail.lines ?? []).map(l => l.id));
         }).catch(() => toast.error(MESSAGES.ERROR_ADJUSTMENT_LOAD_FAILED));
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [editAdjustment, dbName, schema]);
 
     // Line mutations
-    const updateLine = (idx: number, patch: Partial<StockAdjustmentLineFormItem>) => {
-        setLines(prev => prev.map((l, i) => i !== idx ? l : { ...l, ...patch }));
+    const updateLine = (idx: number, patch: Partial<StockAdjFormValues["lines"][number]>) => {
+        const current = form.getValues(`lines.${idx}`);
+        update(idx, { ...current, ...patch });
     };
 
     const insertLine = (idx: number) => {
-        setLines(prev => {
-            const next = [...prev];
-            next.splice(idx + 1, 0, emptyAdjustmentLine(selectedBrandId));
-            return next;
-        });
+        insert(idx + 1, getInitialLine(selectedBrandId));
     };
 
     const removeLine = (idx: number) => {
-        setLines(prev => prev.length === 1 ? prev : prev.filter((_, i) => i !== idx));
+        if (fields.length > 1) remove(idx);
     };
 
     const linesValid =
-        lines.length > 0 &&
-        lines.every(l => !!l.part_id && l.qty > 0 && (l.dr_cr === "D" || l.dr_cr === "C"));
+        fields.length > 0 &&
+        fields.every(l => !!l.part_id && l.qty > 0 && (l.dr_cr === "D" || l.dr_cr === "C"));
 
     useEffect(() => {
         onLinesValidChange(linesValid);
@@ -247,8 +246,8 @@ export function NewStockAdjustment({
                                     </tr>
                                 </thead>
                                 <tbody className="bg-[var(--cl-surface)]">
-                                    {lines.map((line, idx) => (
-                                        <tr key={line._key} className="hover:bg-[var(--cl-surface-2)]/30 group transition-colors">
+                                    {fields.map((line, idx) => (
+                                        <tr key={line.id} className="hover:bg-[var(--cl-surface-2)]/30 group transition-colors">
                                             <td className={`${tdClass} pl-4 text-xs font-medium text-[var(--cl-text-muted)]`}>{idx + 1}</td>
 
                                             {/* Part */}
@@ -262,7 +261,7 @@ export function NewStockAdjustment({
                                                     selectedBrandId={selectedBrandId}
                                                     brandName={brandName}
                                                     onChange={code => {
-                                                        const patch: Partial<StockAdjustmentLineFormItem> = { part_code: code };
+                                                        const patch: Partial<StockAdjFormValues["lines"][number]> = { part_code: code };
                                                         if (!code.trim()) { patch.part_id = null; patch.part_name = ""; }
                                                         updateLine(idx, patch);
                                                     }}
@@ -337,7 +336,7 @@ export function NewStockAdjustment({
                                                     <LineAddDeleteActions
                                                         onAdd={() => insertLine(idx)}
                                                         onDelete={() => removeLine(idx)}
-                                                        disableDelete={lines.length === 1}
+                                                        disableDelete={fields.length === 1}
                                                     />
                                                 </div>
                                             </td>
@@ -346,7 +345,7 @@ export function NewStockAdjustment({
                                 </tbody>
                             </table>
                         </div>
-                        {lines.length === 0 && (
+                        {fields.length === 0 && (
                             <div className="py-12 text-center text-[var(--cl-text-muted)] text-sm italic">
                                 No line items added yet. Click the "+" icon to insert a row.
                             </div>
@@ -357,25 +356,25 @@ export function NewStockAdjustment({
                     <div ref={summaryRef} className="rounded-lg border border-[var(--cl-border)] bg-[var(--cl-surface-2)]/40 px-4 py-2.5 flex flex-wrap items-center gap-x-6 gap-y-1 justify-end">
                         <div className="flex items-center gap-1.5">
                             <span className="text-[10px] font-black uppercase tracking-widest text-[var(--cl-text-muted)]">Lines</span>
-                            <span className="font-mono font-semibold text-sm text-[var(--cl-text)]">{lines.length}</span>
+                            <span className="font-mono font-semibold text-sm text-[var(--cl-text)]">{fields.length}</span>
                         </div>
                         <div className="flex items-center gap-1.5">
                             <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600">IN</span>
                             <span className="font-mono font-semibold text-sm text-[var(--cl-text)]">
-                                {lines.filter(l => l.dr_cr === "D").reduce((s, l) => s + l.qty, 0)}
+                                {fields.filter(l => l.dr_cr === "D").reduce((s, l) => s + l.qty, 0)}
                             </span>
                         </div>
                         <div className="flex items-center gap-1.5">
                             <span className="text-[10px] font-black uppercase tracking-widest text-red-500">OUT</span>
                             <span className="font-mono font-semibold text-sm text-[var(--cl-text)]">
-                                {lines.filter(l => l.dr_cr === "C").reduce((s, l) => s + l.qty, 0)}
+                                {fields.filter(l => l.dr_cr === "C").reduce((s, l) => s + l.qty, 0)}
                             </span>
                         </div>
                         <div className="flex items-center gap-1.5 border-l border-[var(--cl-border)] pl-4">
                             <span className="text-[10px] font-black uppercase tracking-widest text-[var(--cl-text-muted)]">Net</span>
                             <span className="font-mono font-black text-base text-[var(--cl-accent)]">
-                                {lines.filter(l => l.dr_cr === "D").reduce((s, l) => s + l.qty, 0) -
-                                 lines.filter(l => l.dr_cr === "C").reduce((s, l) => s + l.qty, 0)}
+                                {fields.filter(l => l.dr_cr === "D").reduce((s, l) => s + l.qty, 0) -
+                                 fields.filter(l => l.dr_cr === "C").reduce((s, l) => s + l.qty, 0)}
                             </span>
                         </div>
                     </div>

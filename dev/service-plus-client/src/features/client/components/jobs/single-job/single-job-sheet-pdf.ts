@@ -93,14 +93,24 @@ function buildSingleJobSheetDoc(job: JobDetailType, companyInfo: CompanyInfoType
 
     y = (doc as any).lastAutoTable.finalY + 5;
 
-    // ── Problem Reported ──────────────────────────────────────────────────────
+    // ── Problem Reported & Remarks ───────────────────────────────────────────
+    const hasRemarks = job.remarks && job.remarks.trim().length > 0;
+    const halfWidth = (pageWidth - 30) / 2;
+
     doc.setFontSize(9);
     doc.setFont("helvetica", "bold");
     doc.text("Problem Reported:", 15, y);
+    if (hasRemarks) {
+        doc.text("Remarks:", pageWidth / 2, y);
+    }
     y += 5;
     doc.setFont("helvetica", "normal");
-    const splitProblem = doc.splitTextToSize(job.problem_reported || "—", pageWidth - 30);
+    const splitProblem = doc.splitTextToSize(job.problem_reported || "—", halfWidth);
     doc.text(splitProblem, 15, y);
+    if (hasRemarks) {
+        const splitRemarks = doc.splitTextToSize(job.remarks!, halfWidth);
+        doc.text(splitRemarks, pageWidth / 2, y);
+    }
 
     // ── Signatures (anchored to bottom of half-A4 area) ──────────────────────
     const sigY = HALF_A4_BOTTOM;

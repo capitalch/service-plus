@@ -33,8 +33,7 @@ import { selectCurrentBranch, selectSchema } from "@/store/context-slice";
 import type { StockTransactionTypeRow } from "@/features/client/types/purchase";
 import type { BrandOption } from "@/features/client/types/model";
 import { BrandSelect } from "@/features/client/components/inventory/brand-select";
-import type { StockAdjustmentLineFormItem, StockAdjustmentType } from "@/features/client/types/stock-adjustment";
-import { emptyAdjustmentLine } from "@/features/client/types/stock-adjustment";
+import type { StockAdjustmentType } from "@/features/client/types/stock-adjustment";
 import { stockAdjFormSchema, type StockAdjFormValues, getStockAdjDefaultValues } from "./stock-adjustment-schema";
 import { NewStockAdjustment } from "./new-stock-adjustment";
 import { Save } from "lucide-react";
@@ -90,9 +89,7 @@ export const StockAdjustmentSection = () => {
     // Edit state
     const [editAdjustment, setEditAdjustment] = useState<StockAdjustmentType | null>(null);
 
-    // Lines lifted from child
     const selectedBrandId = selectedBrand ? Number(selectedBrand) : null;
-    const [lines,           setLines]           = useState<StockAdjustmentLineFormItem[]>([emptyAdjustmentLine(selectedBrandId)]);
     const [originalLineIds, setOriginalLineIds] = useState<number[]>([]);
     const [linesValid,      setLinesValid]      = useState(false);
 
@@ -227,7 +224,6 @@ export const StockAdjustmentSection = () => {
 
     const handleReset = () => {
         form.reset(getStockAdjDefaultValues());
-        setLines([emptyAdjustmentLine(selectedBrandId)]);
         setOriginalLineIds([]);
         setEditAdjustment(null);
     };
@@ -245,6 +241,7 @@ export const StockAdjustmentSection = () => {
             return;
         }
 
+        const lines = form.getValues("lines");
         const linePayload = lines.map(line => ({
             part_id: line.part_id,
             dr_cr:   line.dr_cr,
@@ -314,7 +311,6 @@ export const StockAdjustmentSection = () => {
                 toast.success(MESSAGES.SUCCESS_ADJUSTMENT_CREATED);
             }
             form.reset(getStockAdjDefaultValues());
-            setLines([emptyAdjustmentLine(selectedBrandId)]);
             setOriginalLineIds([]);
         } catch {
             toast.error(editAdjustment ? MESSAGES.ERROR_ADJUSTMENT_UPDATE_FAILED : MESSAGES.ERROR_ADJUSTMENT_CREATE_FAILED);
@@ -431,11 +427,8 @@ export const StockAdjustmentSection = () => {
                         branchId={branchId}
                         brandName={brands.find(b => String(b.id) === selectedBrand)?.name}
                         editAdjustment={editAdjustment}
-                        lines={lines}
                         onLinesValidChange={setLinesValid}
-                        originalLineIds={originalLineIds}
                         selectedBrandId={selectedBrandId}
-                        setLines={setLines}
                         setOriginalLineIds={setOriginalLineIds}
                     />
                 </FormProvider>

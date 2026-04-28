@@ -1,5 +1,5 @@
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
-import { useFormContext } from "react-hook-form";
+import { useFormContext, useFieldArray } from "react-hook-form";
 import { Loader2, Plus, ShieldCheck, ShieldOff } from "lucide-react";
 import { LineAddDeleteActions } from "../line-add-delete-actions";
 import { toast } from "sonner";
@@ -116,8 +116,12 @@ export const NewPurchaseInvoice = forwardRef<PurchaseInvoiceHandle, Props>(
         const invoiceNo   = form.watch("invoice_no");
         const invoiceDate = form.watch("invoice_date");
 
+        const { fields, remove, insert, replace, update } = useFieldArray({
+            control: form.control,
+            name: "lines",
+        });
+
         // Line items
-        const [lines,           setLines]           = useState<PurchaseLineFormItem[]>([emptyLine(selectedBrandId)]);
         const [originalLineIds, setOriginalLineIds] = useState<number[]>([]);
 
         // Physical invoice check fields
@@ -177,8 +181,6 @@ export const NewPurchaseInvoice = forwardRef<PurchaseInvoiceHandle, Props>(
         // Populate form when editInvoice changes
         useEffect(() => {
             if (!editInvoice) {
-                form.reset(getPurchaseInvoiceDefaultValues());
-                setLines([emptyLine(selectedBrandId)]);
                 setOriginalLineIds([]);
                 setPhysicalTotal(0);
                 setPhysicalQty(0);
@@ -205,19 +207,6 @@ export const NewPurchaseInvoice = forwardRef<PurchaseInvoiceHandle, Props>(
             }).then(res => {
                 const detail = res.data?.genericQuery?.[0];
                 if (!detail) return;
-                form.reset({
-                    vendor_id:    detail.supplier_id,
-                    invoice_no:   detail.invoice_no,
-                    invoice_date: detail.invoice_date,
-                    remarks:      detail.remarks ?? "",
-                });
-                onIsReturnChange(Boolean(detail.is_return));
-                setPhysicalTotal(0);
-                setPhysicalQty(0);
-                setPhysicalCgst(0);
-                setPhysicalSgst(0);
-                setPhysicalIgst(0);
-                setInvoiceExists(false);
                 const loadedLines = (detail.lines ?? []).map(l => ({
                     _key:             crypto.randomUUID(),
                     part_id:          l.part_id,
@@ -238,7 +227,20 @@ export const NewPurchaseInvoice = forwardRef<PurchaseInvoiceHandle, Props>(
                     _orig_cost_price: Number(l.unit_price),
                     _orig_gst_rate:   Number(l.gst_rate),
                 }));
-                setLines(loadedLines);
+                form.reset({
+                    vendor_id:    detail.supplier_id,
+                    invoice_no:   detail.invoice_no,
+                    invoice_date: detail.invoice_date,
+                    remarks:      detail.remarks ?? "",
+                    lines:        loadedLines,
+                });
+                onIsReturnChange(Boolean(detail.is_return));
+                setPhysicalTotal(0);
+                setPhysicalQty(0);
+                setPhysicalCgst(0);
+                setPhysicalSgst(0);
+                setPhysicalIgst(0);
+                setInvoiceExists(false);
                 setOriginalLineIds((detail.lines ?? []).map(l => l.id));
             }).catch(() => toast.error(MESSAGES.ERROR_PURCHASE_LOAD_FAILED));
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -285,14 +287,14 @@ export const NewPurchaseInvoice = forwardRef<PurchaseInvoiceHandle, Props>(
 
         // Report lines validity to section
         const linesValid = useMemo(() => {
-            if (lines.length === 0) return false;
-            return lines.every(l => {
+            if (fields.length === 0) return false;
+            return fields.every(l => {
                 if (!l.part_id || l.quantity <= 0) return false;
                 const isGstApplicable = l.unit_price > 0 || l.gst_rate > 0;
                 if (isGstApplicable && !l.hsn_code.trim()) return false;
                 return true;
             });
-        }, [lines]);
+        }, [fields]);
 
         useEffect(() => {
             onLinesValidChange(linesValid);
@@ -305,51 +307,44 @@ export const NewPurchaseInvoice = forwardRef<PurchaseInvoiceHandle, Props>(
 
         // Line mutations
         const updateLine = (idx: number, patch: Partial<PurchaseLineFormItem>) => {
-            setLines(prev => prev.map((l, i) => {
-                if (i !== idx) return l;
-                const next = { ...l, ...patch };
-                if ("gst_rate" in patch) {
-                    if (isIgst) {
-                        next.igst_rate = next.gst_rate;
-                        next.cgst_rate = 0;
-                        next.sgst_rate = 0;
-                    } else {
-                        next.igst_rate = 0;
-                        next.cgst_rate = next.gst_rate / 2;
-                        next.sgst_rate = next.gst_rate / 2;
-                    }
+            const current = form.getValues(`lines.${idx}`);
+            const next = { ...current, ...patch };
+            if ("gst_rate" in patch) {
+                if (isIgst) {
+                    next.igst_rate = next.gst_rate;
+                    next.cgst_rate = 0;
+                    next.sgst_rate = 0;
+                } else {
+                    next.igst_rate = 0;
+                    next.cgst_rate = next.gst_rate / 2;
+                    next.sgst_rate = next.gst_rate / 2;
                 }
-                return next;
-            }));
+            }
+            update(idx, next);
         };
 
         // Recalc rates when isIgst changes
         useEffect(() => {
-            setLines(prev => prev.map(l => {
-                if (isIgst) {
-                    return { ...l, igst_rate: l.gst_rate, cgst_rate: 0, sgst_rate: 0 };
-                } else {
-                    return { ...l, igst_rate: 0, cgst_rate: l.gst_rate / 2, sgst_rate: l.gst_rate / 2 };
-                }
-            }));
+            if (!fields.length) return;
+            replace(fields.map(l => isIgst
+                ? { ...l, igst_rate: l.gst_rate, cgst_rate: 0, sgst_rate: 0 }
+                : { ...l, igst_rate: 0, cgst_rate: l.gst_rate / 2, sgst_rate: l.gst_rate / 2 }
+            ));
+        // eslint-disable-next-line react-hooks/exhaustive-deps
         }, [isIgst]);
 
         const insertLine = (idx: number) => {
-            setLines(prev => {
-                const next = [...prev];
-                next.splice(idx + 1, 0, emptyLine(selectedBrandId));
-                return next;
-            });
+            insert(idx + 1, emptyLine(selectedBrandId));
         };
 
         const removeLine = (idx: number) => {
-            setLines(prev => prev.length === 1 ? prev : prev.filter((_, i) => i !== idx));
+            if (fields.length > 1) remove(idx);
         };
 
         // Totals
         const totals = useMemo(() => {
             let quantity = 0, aggregate = 0, cgst = 0, sgst = 0, igst = 0;
-            for (const l of lines) {
+            for (const l of fields) {
                 const c  = calcLine(l);
                 quantity  += l.quantity;
                 aggregate += c.aggregate;
@@ -358,7 +353,7 @@ export const NewPurchaseInvoice = forwardRef<PurchaseInvoiceHandle, Props>(
                 igst      += c.igstAmt;
             }
             return { quantity, aggregate, cgst, sgst, igst, total_tax: cgst + sgst + igst, total: aggregate + cgst + sgst + igst };
-        }, [lines]);
+        }, [fields]);
 
         const physicalValidation = useMemo(() => {
             const check = (p: number, c: number, pct: number, minAbs?: number) => {
@@ -381,6 +376,7 @@ export const NewPurchaseInvoice = forwardRef<PurchaseInvoiceHandle, Props>(
         // executeSave: fires the actual DB mutation
         const executeSave = async () => {
             const { vendor_id, invoice_no, invoice_date, remarks } = form.getValues();
+            const lines           = form.getValues("lines");
             const purchaseTypeId  = txnTypes.find(t => t.code === "PURCHASE")?.id;
             const returnTypeId    = txnTypes.find(t => t.code === "PURCHASE_RETURN")?.id;
             const warrantyTypeId  = txnTypes.find(t => t.code === "WARRANTY_IN")?.id;
@@ -493,7 +489,6 @@ export const NewPurchaseInvoice = forwardRef<PurchaseInvoiceHandle, Props>(
                 setShowPhysicalCheckModal(false);
                 setMasterDiffLines([]);
                 form.reset(getPurchaseInvoiceDefaultValues());
-                setLines([emptyLine(selectedBrandId)]);
                 setOriginalLineIds([]);
                 setPhysicalTotal(0);
                 setPhysicalQty(0);
@@ -515,6 +510,7 @@ export const NewPurchaseInvoice = forwardRef<PurchaseInvoiceHandle, Props>(
                 toast.error(MESSAGES.ERROR_PURCHASE_PHYSICAL_CHECK_FAILED);
                 return;
             }
+            const lines = form.getValues("lines");
             const diffLines = lines.filter(line => {
                 if (!line.part_id) return false;
                 const hsnConflict   = line._orig_hsn_code   != null && line.hsn_code.trim() !== "" && line.hsn_code.trim() !== line._orig_hsn_code;
@@ -533,6 +529,7 @@ export const NewPurchaseInvoice = forwardRef<PurchaseInvoiceHandle, Props>(
         // triggerSave: validates then opens physical check modal
         const triggerSave = async () => {
             const { vendor_id, invoice_no, invoice_date } = form.getValues();
+            const lines = form.getValues("lines");
             if (!branchId) { toast.error("Branch is not selected globally."); return; }
             if (!vendor_id) { toast.error(MESSAGES.ERROR_PURCHASE_SUPPLIER_REQUIRED); return; }
             if (!invoice_no.trim()) { toast.error(MESSAGES.ERROR_PURCHASE_INVOICE_NO_REQUIRED); return; }
@@ -681,10 +678,10 @@ export const NewPurchaseInvoice = forwardRef<PurchaseInvoiceHandle, Props>(
                                         </tr>
                                     </thead>
                                     <tbody className="bg-[var(--cl-surface)]">
-                                        {lines.map((line, idx) => {
+                                        {fields.map((line, idx) => {
                                             const c = calcLine(line);
                                             return (
-                                                <tr key={line._key} className="hover:bg-[var(--cl-surface-2)]/30 group transition-colors">
+                                                <tr key={line.id} className="hover:bg-[var(--cl-surface-2)]/30 group transition-colors">
                                                     <td className={`${tdClass} pl-4 text-xs font-medium text-[var(--cl-text-muted)]`}>{idx + 1}</td>
 
                                                     {/* Part */}
@@ -839,7 +836,7 @@ export const NewPurchaseInvoice = forwardRef<PurchaseInvoiceHandle, Props>(
                                                             <LineAddDeleteActions
                                                                 onAdd={() => insertLine(idx)}
                                                                 onDelete={() => removeLine(idx)}
-                                                                disableDelete={lines.length === 1}
+                                                                disableDelete={fields.length === 1}
                                                             />
                                                         </div>
                                                     </td>
@@ -849,7 +846,7 @@ export const NewPurchaseInvoice = forwardRef<PurchaseInvoiceHandle, Props>(
                                     </tbody>
                                 </table>
                             </div>
-                            {lines.length === 0 && (
+                            {fields.length === 0 && (
                                 <div className="py-12 text-center text-[var(--cl-text-muted)] text-sm italic">
                                     No line items added yet. Click the "+" icon to insert a row.
                                 </div>
@@ -860,7 +857,7 @@ export const NewPurchaseInvoice = forwardRef<PurchaseInvoiceHandle, Props>(
                         <div ref={summaryRef} className={`rounded-lg border px-4 py-2.5 flex flex-wrap items-center gap-x-6 gap-y-1 justify-end ${isReturn ? "border-red-500/30 bg-red-500/5" : "border-[var(--cl-border)] bg-[var(--cl-surface-2)]/40"}`}>
                             <div className="flex items-center gap-1.5">
                                 <span className="text-[10px] font-black uppercase tracking-widest text-[var(--cl-text-muted)]">Lines</span>
-                                <span className="font-mono font-semibold text-sm text-[var(--cl-text)]">{lines.length}</span>
+                                <span className="font-mono font-semibold text-sm text-[var(--cl-text)]">{fields.length}</span>
                             </div>
                             <div className="flex items-center gap-1.5">
                                 <span className="text-[10px] font-black uppercase tracking-widest text-[var(--cl-text-muted)]">Qty</span>

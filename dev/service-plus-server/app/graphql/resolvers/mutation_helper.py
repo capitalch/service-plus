@@ -834,10 +834,6 @@ async def resolve_create_single_job_helper(db_name: str, schema: str = "public",
             message=AppMessages.INVALID_INPUT,
             extensions={"detail": AppMessages.INVALID_JSON_OBJECT},
         )
-
-    # Ignore client-provided sequence info
-    payload.pop("doc_sequence_id", None)
-    payload.pop("doc_sequence_next", None)
     
     x_data = payload.get("xData", {})
     performed_by = x_data.pop("performed_by_user_id", None)

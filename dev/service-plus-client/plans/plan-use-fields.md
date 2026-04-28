@@ -60,7 +60,7 @@ const { fields, append, remove } = useFieldArray({
 
 ---
 
-# STEP 1: Batch Job
+# STEP 1: Batch Job ✅ DONE
 
 **Forms:** `batch-job/batch-job-schema.ts`, `batch-job/batch-job-section.tsx`, `batch-job/new-batch-job-form.tsx`
 
@@ -158,7 +158,7 @@ const isValid = await form.trigger("rows");
 
 ---
 
-# STEP 2: Opening Stock
+# STEP 2: Opening Stock ✅ DONE
 
 **Forms:** `opening-stock/opening-stock-schema.ts`, `opening-stock/opening-stock-section.tsx`, `opening-stock/new-opening-stock.tsx`
 
@@ -200,7 +200,7 @@ Can use `watch("lines")` + useEffect to recalculate.
 
 ---
 
-# STEP 3: Branch Transfer
+# STEP 3: Branch Transfer ✅ DONE
 
 **Forms:** `branch-transfer/branch-transfer-schema.ts`, `branch-transfer/branch-transfer-section.tsx`, `branch-transfer/new-branch-transfer.tsx`
 
@@ -236,7 +236,7 @@ lines: z.array(transferLineSchema).min(1, "At least one item required"),
 
 ---
 
-# STEP 4: Part Used
+# STEP 4: Part Used ✅ Done
 
 **Forms:** `part-used/part-used-schema.ts`, `part-used/part-used-section.tsx`, `part-used/new-part-used-form.tsx`
 
@@ -285,7 +285,7 @@ const { fields: newLineFields, append: appendNewLine, remove: removeNewLine } =
 
 ---
 
-# STEP 5: Sales Invoice
+# STEP 5: Sales Invoice ✅ Done
 
 **Forms:** `sales-entry/sales-invoice-schema.ts`, `sales-entry/sales-entry-section.tsx`, `sales-entry/new-sales-invoice.tsx`
 
@@ -350,7 +350,7 @@ Watch changes and recalculate in useEffect:
 
 ---
 
-# STEP 6: Purchase Invoice
+# STEP 6: Purchase Invoice ✅ Done
 
 **Forms:** `purchase-entry/purchase-invoice-schema.ts`, `purchase-entry/purchase-entry-section.tsx`, `purchase-entry/new-purchase-invoice.tsx`
 
@@ -420,7 +420,7 @@ setValue(`lines.${index}.unit_price`, newValue ? 0 : currentValue);
 
 ---
 
-# STEP 7: Stock Adjustment
+# STEP 7: Stock Adjustment ✅ Done
 
 **Forms:** `stock-adjustment/stock-adjustment-schema.ts`, `stock-adjustment/stock-adjustment-section.tsx`, `stock-adjustment/new-stock-adjustment.tsx`
 
@@ -476,7 +476,7 @@ onSelect={(part) => {
 
 ---
 
-# STEP 8: Loan Entry
+# STEP 8: Loan Entry ✅ DONE
 
 **Forms:** `loan-entry/loan-entry-schema.ts`, `loan-entry/loan-entry-section.tsx`, `loan-entry/new-loan-entry.tsx`
 

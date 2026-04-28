@@ -35,9 +35,8 @@ import { selectCurrentBranch, selectSchema } from "@/store/context-slice";
 import type { BrandOption } from "@/features/client/types/model";
 import { BrandSelect } from "@/features/client/components/inventory/brand-select";
 import type { StockTransactionTypeRow } from "@/features/client/types/purchase";
-import type { LoanLineFormItem, StockLoanType } from "@/features/client/types/stock-loan";
-import { emptyLoanLine } from "@/features/client/types/stock-loan";
-import { loanEntryFormSchema, type LoanEntryFormValues, getLoanEntryDefaultValues } from "./loan-entry-schema";
+import type { StockLoanType } from "@/features/client/types/stock-loan";
+import { loanEntryFormSchema, type LoanEntryFormValues, getLoanEntryDefaultValues, getInitialLoanLine } from "./loan-entry-schema";
 import { NewLoanEntry } from "./new-loan-entry";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -93,7 +92,6 @@ export const LoanEntrySection = () => {
 
     // Lines lifted from child
     const selectedBrandId = selectedBrand ? Number(selectedBrand) : null;
-    const [lines,           setLines]           = useState<LoanLineFormItem[]>([emptyLoanLine(selectedBrandId)]);
     const [originalLineIds, setOriginalLineIds] = useState<number[]>([]);
     const [linesValid,      setLinesValid]      = useState(false);
 
@@ -227,8 +225,7 @@ export const LoanEntrySection = () => {
     };
 
     const handleReset = () => {
-        form.reset(getLoanEntryDefaultValues());
-        setLines([emptyLoanLine(selectedBrandId)]);
+        form.reset({ ...getLoanEntryDefaultValues(), lines: [getInitialLoanLine(selectedBrandId)] });
         setOriginalLineIds([]);
         setEditLoan(null);
     };
@@ -242,7 +239,7 @@ export const LoanEntrySection = () => {
         }
         if (!linesValid) { toast.error(MESSAGES.ERROR_LOAN_LINE_FIELDS_REQUIRED); return; }
 
-        const linePayload = lines.map(line => ({
+        const linePayload = values.lines.map(line => ({
             dr_cr:   line.dr_cr,
             loan_to: line.loan_to.trim(),
             part_id: line.part_id,
@@ -310,8 +307,7 @@ export const LoanEntrySection = () => {
                 });
                 toast.success(MESSAGES.SUCCESS_LOAN_CREATED);
             }
-            form.reset(getLoanEntryDefaultValues());
-            setLines([emptyLoanLine(selectedBrandId)]);
+            form.reset({ ...getLoanEntryDefaultValues(), lines: [getInitialLoanLine(selectedBrandId)] });
             setOriginalLineIds([]);
         } catch {
             toast.error(editLoan ? MESSAGES.ERROR_LOAN_UPDATE_FAILED : MESSAGES.ERROR_LOAN_CREATE_FAILED);
@@ -428,13 +424,9 @@ export const LoanEntrySection = () => {
                         branchId={branchId}
                         brandName={brands.find(b => String(b.id) === selectedBrand)?.name}
                         editLoan={editLoan as any}
-                        lines={lines}
                         onLinesValidChange={setLinesValid}
-                        originalLineIds={originalLineIds}
                         selectedBrandId={selectedBrandId}
-                        setLines={setLines}
                         setOriginalLineIds={setOriginalLineIds}
-                        txnTypes={txnTypes}
                     />
                 </FormProvider>
             ) : (

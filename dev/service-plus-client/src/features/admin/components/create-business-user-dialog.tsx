@@ -374,14 +374,12 @@ export const CreateBusinessUserDialog = ({
             onOpenChange(false);
         } catch {
             toast.error(MESSAGES.ERROR_BUSINESS_USER_CREATE_FAILED);
-        } finally {
-            setSubmitting(false);
         }
     }
 
     const submitDisabled =
         loadingDropdowns ||
-        submitting ||
+        form.formState.isSubmitting ||
         checkingEmail ||
         checkingUsername ||
         Object.keys(errors).length > 0 ||
@@ -413,7 +411,7 @@ export const CreateBusinessUserDialog = ({
                         </Label>
                         <Input
                             autoComplete="off"
-                            disabled={submitting}
+                            disabled={form.formState.isSubmitting}
                             id="full_name"
                             placeholder="e.g. John Smith"
                             {...form.register("full_name")}
@@ -430,7 +428,7 @@ export const CreateBusinessUserDialog = ({
                             <Input
                                 autoComplete="off"
                                 className="pr-8"
-                                disabled={submitting}
+                                disabled={form.formState.isSubmitting}
                                 id="username"
                                 placeholder="e.g. johnsmith"
                                 {...form.register("username")}
@@ -454,7 +452,7 @@ export const CreateBusinessUserDialog = ({
                             <Input
                                 autoComplete="off"
                                 className="pr-8"
-                                disabled={submitting}
+                                disabled={form.formState.isSubmitting}
                                 id="email"
                                 placeholder="user@example.com"
                                 type="email"
@@ -475,7 +473,7 @@ export const CreateBusinessUserDialog = ({
                         <Label htmlFor="mobile">Mobile</Label>
                         <Input
                             autoComplete="off"
-                            disabled={submitting}
+                            disabled={form.formState.isSubmitting}
                             id="mobile"
                             placeholder="+91 98765 43210"
                             type="tel"
@@ -502,7 +500,7 @@ export const CreateBusinessUserDialog = ({
                                     <div className="flex items-center gap-2" key={bu.id}>
                                         <Checkbox
                                             checked={selectedBuIds.includes(bu.id)}
-                                            disabled={submitting || !bu.is_active}
+                                            disabled={form.formState.isSubmitting || !bu.is_active}
                                             id={`create-bu-${bu.id}`}
                                             onCheckedChange={() => handleBuToggle(bu.id)}
                                         />
@@ -528,7 +526,7 @@ export const CreateBusinessUserDialog = ({
                             Role <span className="text-red-500">*</span>
                         </Label>
                         <Select
-                            disabled={submitting || loadingDropdowns}
+                            disabled={form.formState.isSubmitting || loadingDropdowns}
                             value={selectedRoleId}
                             onValueChange={(val) => { setSelectedRoleId(val); setRoleError(""); }}
                         >
@@ -548,7 +546,7 @@ export const CreateBusinessUserDialog = ({
 
                     <DialogFooter className="pt-2">
                         <Button
-                            disabled={submitting}
+                            disabled={form.formState.isSubmitting}
                             type="button"
                             variant="ghost"
                             onClick={() => onOpenChange(false)}
@@ -560,7 +558,7 @@ export const CreateBusinessUserDialog = ({
                             disabled={submitDisabled}
                             type="submit"
                         >
-                            {submitting ? (
+                            {form.formState.isSubmitting ? (
                                 <>
                                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                                     Adding...

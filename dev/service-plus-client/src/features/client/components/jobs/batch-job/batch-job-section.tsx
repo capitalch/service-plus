@@ -19,14 +19,14 @@ import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectCurrentBranch, selectSchema } from "@/store/context-slice";
 import type { DocumentSequenceRow } from "@/features/client/types/sales";
-import type { BatchJobRow, JobBatchDetailRow, JobBatchListRow, JobLookupRow, ModelRow } from "@/features/client/types/job";
+import type { JobBatchDetailRow, JobBatchListRow, JobLookupRow, ModelRow } from "@/features/client/types/job";
 import type { CustomerTypeOption, StateOption } from "@/features/client/types/customer";
 import type { BrandOption, ProductOption } from "@/features/client/types/model";
 
 import { NewBatchJobForm } from "./new-batch-job-form";
 import { FormProvider, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { batchJobFormSchema, type BatchJobFormValues, getBatchJobDefaultValues, blankBatchRow } from "./batch-job-schema";
+import { batchJobFormSchema, type BatchJobFormValues, getBatchJobDefaultValues, getInitialBatchJobRow } from "./batch-job-schema";
 import { selectCurrentUser } from "@/features/auth/store/auth-slice";
 import { uploadJobFile } from "@/lib/image-service";
 import { type StagedFile } from "@/features/client/components/jobs/single-job/job-image-upload";
@@ -93,7 +93,6 @@ export const BatchJobSection = () => {
 
     // Form
     const [submitting, setSubmitting] = useState(false);
-    const [rows, setRows] = useState<BatchJobRow[]>([]);
     const [pendingFiles, setPendingFiles] = useState<Record<string, StagedFile[]>>({});
 
     const form = useForm<BatchJobFormValues>({
@@ -101,13 +100,13 @@ export const BatchJobSection = () => {
         mode: "onChange",
         resolver: zodResolver(batchJobFormSchema) as any, // eslint-disable-line @typescript-eslint/no-explicit-any
     });
-    
+
+    const rows = form.watch("rows") ?? [];
     const rowsValid = rows.length > 0 && rows.every(r => !!r.product_brand_model_id && r.quantity >= 1);
     
     function handleReset() {
-        form.reset(getBatchJobDefaultValues());
+        form.reset({ ...getBatchJobDefaultValues(), rows: [getInitialBatchJobRow(jobSequence, 0)] });
         setPendingFiles({});
-        setRows([blankBatchRow(jobSequence, 0)]);
     }
 
 
@@ -117,19 +116,20 @@ export const BatchJobSection = () => {
             toast.error(MESSAGES.ERROR_JOB_CREATE_FAILED);
             return;
         }
+        const formRows = values.rows ?? [];
         try {
             if (editBatchNo) {
                 const originalIds   = new Set((editRows ?? []).map(r => r.id));
-                const currentIds    = new Set(rows.filter(r => r.id).map(r => r.id!));
+                const currentIds    = new Set(formRows.filter(r => r.id).map(r => r.id!));
                 const deletedJobIds = [...originalIds].filter(id => !currentIds.has(id));
-                const addedJobs     = rows.filter(r => !r.id).map(r => ({
+                const addedJobs     = formRows.filter(r => !r.id).map(r => ({
                     job_no: r.job_no, product_brand_model_id: r.product_brand_model_id,
                     serial_no: r.serial_no || null, problem_reported: r.problem_reported,
                     warranty_card_no: r.warranty_card_no || null,
                     job_receive_condition_id: r.job_receive_condition_id, remarks: r.remarks || null,
                     quantity: r.quantity,
                 }));
-                const updatedJobs   = rows.filter(r => r.id).map(r => ({
+                const updatedJobs   = formRows.filter(r => r.id).map(r => ({
                     id: r.id!, product_brand_model_id: r.product_brand_model_id,
                     serial_no: r.serial_no || null, problem_reported: r.problem_reported,
                     warranty_card_no: r.warranty_card_no || null,
@@ -164,9 +164,9 @@ export const BatchJobSection = () => {
                         job_status_id: jobStatuses.find(s => s.is_initial)?.id ?? null,
                         performed_by_user_id: currentUser?.id ?? null,
                         job_doc_sequence_id:   jobSequence?.id ?? null,
-                        job_doc_sequence_next: jobSequence ? jobSequence.next_number + rows.length : null,
+                        job_doc_sequence_next: jobSequence ? jobSequence.next_number + formRows.length : null,
                     },
-                    jobs: rows.map(r => ({
+                    jobs: formRows.map(r => ({
                         job_no: r.job_no, product_brand_model_id: r.product_brand_model_id,
                         serial_no: r.serial_no || null, problem_reported: r.problem_reported,
                         warranty_card_no: r.warranty_card_no || null,
@@ -184,7 +184,7 @@ export const BatchJobSection = () => {
                 const jobIds  = data?.createJobBatch?.job_ids ?? [];
 
                 await Promise.all(
-                    rows.map(async (row, idx) => {
+                    formRows.map(async (row, idx) => {
                         const jobId = jobIds[idx];
                         if (!jobId) return;
                         for (const { file, about } of (pendingFiles[row.localId] ?? [])) {
@@ -196,7 +196,7 @@ export const BatchJobSection = () => {
                         }
                     })
                 );
-                toast.success(`Batch #${batchNo} created with ${rows.length} job${rows.length !== 1 ? "s" : ""}`);
+                toast.success(`Batch #${batchNo} created with ${formRows.length} job${formRows.length !== 1 ? "s" : ""}`);
             }
             handleReset();
             setMode("view");
@@ -428,9 +428,7 @@ export const BatchJobSection = () => {
                             editBatchNo={editBatchNo}
                             editRows={editRows}
                             onRefreshModels={refreshModels}
-                            rows={rows}
-                            setRows={setRows}
-                            
+                            form={form}
                             setPendingFiles={setPendingFiles}
                         />
                     </FormProvider>

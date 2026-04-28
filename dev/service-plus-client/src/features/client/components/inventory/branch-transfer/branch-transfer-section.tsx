@@ -34,9 +34,8 @@ import { selectCurrentBranch, selectSchema } from "@/store/context-slice";
 import type { BrandOption } from "@/features/client/types/model";
 import { BrandSelect } from "@/features/client/components/inventory/brand-select";
 import type { Branch } from "@/types/db-schema-service";
-import type { BranchTransferLineFormItem, StockBranchTransferType } from "@/features/client/types/branch-transfer";
-import { emptyTransferLine } from "@/features/client/types/branch-transfer";
-import { branchTransferFormSchema, type BranchTransferFormValues, getBranchTransferDefaultValues } from "./branch-transfer-schema";
+import type { StockBranchTransferType } from "@/features/client/types/branch-transfer";
+import { branchTransferFormSchema, type BranchTransferFormValues, getBranchTransferDefaultValues, getInitialTransferLine } from "./branch-transfer-schema";
 import { NewBranchTransfer } from "./new-branch-transfer";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -92,7 +91,6 @@ export const BranchTransferSection = () => {
 
     // Lines lifted from child
     const selectedBrandId = selectedBrand ? Number(selectedBrand) : null;
-    const [lines,           setLines]           = useState<BranchTransferLineFormItem[]>([emptyTransferLine(selectedBrandId)]);
     const [originalLineIds, setOriginalLineIds] = useState<number[]>([]);
     const [linesValid,      setLinesValid]      = useState(false);
 
@@ -229,8 +227,7 @@ export const BranchTransferSection = () => {
     };
 
     const handleReset = () => {
-        form.reset(getBranchTransferDefaultValues());
-        setLines([emptyTransferLine(selectedBrandId)]);
+        form.reset({ ...getBranchTransferDefaultValues(), lines: [getInitialTransferLine(selectedBrandId)] });
         setOriginalLineIds([]);
         setEditTransfer(null);
     };
@@ -264,7 +261,7 @@ export const BranchTransferSection = () => {
                 return;
             }
 
-            const linePayload = lines.map(line => ({
+            const linePayload = (values.lines ?? []).map(line => ({
                 part_id: line.part_id,
                 qty:     line.qty,
                 remarks: line.remarks?.trim() || null,
@@ -340,8 +337,7 @@ export const BranchTransferSection = () => {
                 });
                 toast.success(MESSAGES.SUCCESS_TRANSFER_CREATED);
             }
-            form.reset(getBranchTransferDefaultValues());
-            setLines([emptyTransferLine(selectedBrandId)]);
+            form.reset({ ...getBranchTransferDefaultValues(), lines: [getInitialTransferLine(selectedBrandId)] });
             setOriginalLineIds([]);
         } catch (err) {
             console.error(err);
@@ -458,12 +454,10 @@ export const BranchTransferSection = () => {
                         branches={branches}
                         brandName={brands.find(b => String(b.id) === selectedBrand)?.name}
                         editTransfer={editTransfer}
-                        lines={lines}
                         onLinesValidChange={setLinesValid}
-                        originalLineIds={originalLineIds}
                         selectedBrandId={selectedBrandId}
-                        setLines={setLines}
                         setOriginalLineIds={setOriginalLineIds}
+                        form={form}
                     />
                 </FormProvider>
             ) : (

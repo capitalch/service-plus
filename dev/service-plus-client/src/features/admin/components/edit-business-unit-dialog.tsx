@@ -108,8 +108,6 @@ export const EditBusinessUnitDialog = ({
             onOpenChange(false);
         } catch {
             toast.error(MESSAGES.ERROR_BU_UPDATE_FAILED);
-        } finally {
-            setSubmitting(false);
         }
     }
 
@@ -145,7 +143,7 @@ export const EditBusinessUnitDialog = ({
                         </Label>
                         <Input
                             autoComplete="off"
-                            disabled={submitting}
+                            disabled={form.formState.isSubmitting}
                             id="edit_bu_name"
                             placeholder="e.g. Main Workshop"
                             {...form.register("name")}
@@ -155,7 +153,7 @@ export const EditBusinessUnitDialog = ({
 
                     <DialogFooter className="pt-2">
                         <Button
-                            disabled={submitting}
+                            disabled={form.formState.isSubmitting}
                             type="button"
                             variant="ghost"
                             onClick={() => onOpenChange(false)}
@@ -164,10 +162,10 @@ export const EditBusinessUnitDialog = ({
                         </Button>
                         <Button
                             className="bg-teal-600 text-white hover:bg-teal-700"
-                            disabled={submitting || Object.keys(errors).length > 0}
+                            disabled={form.formState.isSubmitting || Object.keys(errors).length > 0}
                             type="submit"
                         >
-                            {submitting ? (
+                            {form.formState.isSubmitting ? (
                                 <>
                                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                                     Saving...

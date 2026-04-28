@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useFormContext } from "react-hook-form";
+import { useFormContext, useFieldArray } from "react-hook-form";
 import { Loader2, Plus, Trash2 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 
@@ -14,11 +14,11 @@ import { CustomerInput } from "@/features/client/components/inventory/customer-i
 import { JobImageUpload, type StagedFile } from "@/features/client/components/jobs/single-job/job-image-upload";
 
 import type { CustomerSearchRow, DocumentSequenceRow } from "@/features/client/types/sales";
-import type { BatchJobRow, JobBatchDetailRow, JobLookupRow, ModelRow } from "@/features/client/types/job";
+import type { JobBatchDetailRow, JobLookupRow, ModelRow } from "@/features/client/types/job";
 import type { BrandOption, ProductOption } from "@/features/client/types/model";
 import type { CustomerTypeOption, StateOption } from "@/features/client/types/customer";
 
-import { type BatchJobFormValues, blankBatchRow, getBatchJobDefaultValues } from "./batch-job-schema";
+import { type BatchJobFormValues, getInitialBatchJobRow } from "./batch-job-schema";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -36,8 +36,7 @@ type Props = {
     editBatchNo?:      number | null;
     editRows?:         JobBatchDetailRow[];
     onRefreshModels:   () => void;
-    rows:              BatchJobRow[];
-    setRows:           React.Dispatch<React.SetStateAction<BatchJobRow[]>>;
+    form:              ReturnType<typeof useFormContext<BatchJobFormValues>>;
     setPendingFiles:   React.Dispatch<React.SetStateAction<Record<string, StagedFile[]>>>;
 };
 
@@ -53,28 +52,21 @@ export function NewBatchJobForm({
     branchId, docSequence, jobTypes, receiveMannners, receiveConditions,
     models, brands, products, customerTypes, masterStates,
     editBatchNo, editRows,
-    onRefreshModels, rows, setRows, setPendingFiles,
+    onRefreshModels, form, setPendingFiles,
 }: Props) {
 
-    // Job rows stay as useState — they're not standard form fields
     const [showAddModel, setShowAddModel] = useState(false);
-    const [seqOffset,    setSeqOffset]    = useState(0);
 
-    const form = useFormContext<BatchJobFormValues>();
+    const { control, formState: { isSubmitting }, setValue, watch, register } = useFormContext<BatchJobFormValues>();
 
-    const { formState: { isSubmitting }, setValue, watch } = form;
+    const { fields, append, remove } = useFieldArray({
+        control,
+        name: "rows",
+    });
 
     const jobTypeId  = watch("job_type_id");
     const isWarranty = jobTypes.find(t => t.id === jobTypeId)?.code === "UNDER_WARRANTY";
 
-    function handleReset() {
-        form.reset(getBatchJobDefaultValues());
-        setSeqOffset(0);
-        setPendingFiles({});
-        setRows([blankBatchRow(docSequence, 0)]);
-    }
-
-    // Initialise / reset rows on edit change
     useEffect(() => {
         if (editBatchNo && editRows && editRows.length > 0) {
             const first = editRows[0];
@@ -84,44 +76,40 @@ export function NewBatchJobForm({
                 customer_name:     first.customer_name ?? first.mobile,
                 job_type_id:       first.job_type_id,
                 receive_manner_id: first.job_receive_manner_id,
+                rows: editRows.map(r => ({
+                    id:                       r.id,
+                    localId:                  crypto.randomUUID(),
+                    job_no:                   r.job_no,
+                    product_brand_model_id:   r.product_brand_model_id ?? null,
+                    serial_no:                r.serial_no ?? "",
+                    problem_reported:        r.problem_reported ?? "",
+                    warranty_card_no:        r.warranty_card_no ?? "",
+                    job_receive_condition_id: r.job_receive_condition_id ?? null,
+                    remarks:                  r.remarks ?? "",
+                    quantity:                 r.quantity ?? 1,
+                    isDeletable:              r.transaction_count <= 1,
+                })),
             });
-            setRows(editRows.map(r => ({
-                localId:                  crypto.randomUUID(),
-                id:                       r.id,
-                job_no:                   r.job_no,
-                product_brand_model_id:   r.product_brand_model_id ?? null,
-                serial_no:                r.serial_no ?? "",
-                problem_reported:         r.problem_reported ?? "",
-                warranty_card_no:         r.warranty_card_no ?? "",
-                job_receive_condition_id: r.job_receive_condition_id ?? null,
-                remarks:                  r.remarks ?? "",
-                quantity:                 r.quantity ?? 1,
-                isDeletable:              r.transaction_count <= 1,
-            })));
-        } else {
-            // eslint-disable-next-line react-hooks/set-state-in-effect
-            handleReset();
+        } else if (!editBatchNo && fields.length === 0) {
+            append(getInitialBatchJobRow(docSequence, 0));
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [editBatchNo, editRows, docSequence]);
+    }, [editBatchNo, editRows]);
 
-    const addRow = () => {
-        const nextOffset = seqOffset + 1;
-        setSeqOffset(nextOffset);
-        setRows(prev => [...prev, blankBatchRow(docSequence, nextOffset)]);
+    const handleAddRow = () => {
+        const currentLength = fields.length;
+        append(getInitialBatchJobRow(docSequence, currentLength));
     };
 
-    const removeRow = (localId: string) => {
-        setRows(prev => prev.filter(r => r.localId !== localId));
-        setPendingFiles(prev => { const n = { ...prev }; delete n[localId]; return n; });
+    const handleRemoveRow = (index: number) => {
+        if (fields.length > 1) {
+            const row = fields[index];
+            remove(index);
+            setPendingFiles(prev => { const n = { ...prev }; if (row?.localId) delete n[row.localId]; return n; });
+        }
     };
 
-    const updateRow = (localId: string, patch: Partial<BatchJobRow>) => {
-        setRows(prev => prev.map(r => r.localId === localId ? { ...r, ...patch } : r));
-    };
 
-    
-    
     if (!branchId) {
         return (
             <div className="flex flex-col items-center justify-center py-20 bg-[var(--cl-surface-2)]/30 rounded-xl border-2 border-dashed border-[var(--cl-border)] text-center">
@@ -182,7 +170,9 @@ export function NewBatchJobForm({
                             onChange={e => {
                                 const newId = e.target.value ? Number(e.target.value) : (undefined as unknown as number);
                                 const code  = jobTypes.find(t => t.id === newId)?.code;
-                                if (code !== "UNDER_WARRANTY") setRows(prev => prev.map(r => ({ ...r, warranty_card_no: "" })));
+                                if (code !== "UNDER_WARRANTY") {
+                                    fields.forEach((_, idx) => setValue(`rows.${idx}.warranty_card_no`, ""));
+                                }
                                 setValue("job_type_id", newId, { shouldValidate: true });
                             }}
                         >
@@ -211,9 +201,9 @@ export function NewBatchJobForm({
             </p>
             <div className="flex flex-col gap-4">
                 <AnimatePresence initial={false}>
-                    {rows.map((row, idx) => (
+                    {fields.map((field, idx) => (
                         <motion.div
-                            key={row.localId}
+                            key={field.id}
                             initial={{ opacity: 0, scale: 0.95, y: 20 }}
                             animate={{ opacity: 1, scale: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.95, y: -20 }}
@@ -226,13 +216,13 @@ export function NewBatchJobForm({
                                         <span className="text-[10px] font-black uppercase bg-[var(--cl-accent)] text-white px-2 py-0.5 rounded-full">
                                             Job #{idx + 1}
                                         </span>
-                                        <span className="font-mono text-xs text-[var(--cl-accent)] font-bold">{row.job_no}</span>
+                                        <span className="font-mono text-xs text-[var(--cl-accent)] font-bold">{watch(`rows.${idx}.job_no`)}</span>
                                     </div>
-                                    {rows.length > 1 && row.isDeletable && (
+                                    {fields.length > 1 && watch(`rows.${idx}.isDeletable`) && (
                                         <Button
                                             type="button" size="icon" variant="ghost"
                                             className="h-7 w-7 text-red-500 hover:bg-red-50 hover:text-red-600"
-                                            onClick={() => removeRow(row.localId)}
+                                            onClick={() => handleRemoveRow(idx)}
                                         >
                                             <Trash2 className="h-4 w-4" />
                                         </Button>
@@ -248,11 +238,11 @@ export function NewBatchJobForm({
                                                     label=""
                                                     placeholder="Search brand, product or model…"
                                                     items={models.filter(m => m.is_active)}
-                                                    selectedValue={row.product_brand_model_id?.toString() ?? ""}
+                                                    selectedValue={watch(`rows.${idx}.product_brand_model_id`)?.toString() ?? ""}
                                                     getDisplayValue={m => `${m.brand_name} — ${m.product_name} — ${m.model_name}`}
                                                     getFilterKey={m => `${m.brand_name} ${m.product_name} ${m.model_name}`}
                                                     getIdentifier={m => m.id.toString()}
-                                                    onSelect={m => updateRow(row.localId, { product_brand_model_id: m ? m.id : null })}
+                                                    onSelect={m => setValue(`rows.${idx}.product_brand_model_id`, m ? m.id : null)}
                                                     renderItem={m => (
                                                         <div className="flex flex-col gap-0.5">
                                                             <span className="font-semibold">{m.brand_name}</span>
@@ -276,23 +266,21 @@ export function NewBatchJobForm({
                                         <Label className={labelCls}>Qty <span className="text-red-500">*</span></Label>
                                         <Input
                                             type="number" min={1}
-                                            className={`bg-[var(--cl-surface-2)] ${row.quantity < 1 ? "border-red-400" : ""}`}
-                                            value={row.quantity}
-                                            onChange={e => updateRow(row.localId, { quantity: Math.max(1, Number(e.target.value)) })}
+                                            className={`bg-[var(--cl-surface-2)] ${(watch(`rows.${idx}.quantity`) ?? 0) < 1 ? "border-red-400" : ""}`}
+                                            {...register(`rows.${idx}.quantity`, { valueAsNumber: true })}
                                         />
                                     </div>
 
                                     <div className="space-y-1.5 md:col-span-6 lg:col-span-4">
                                         <Label className={labelCls}>Serial No</Label>
-                                        <Input className="bg-[var(--cl-surface-2)]" placeholder="Optional…" value={row.serial_no} onChange={e => updateRow(row.localId, { serial_no: e.target.value })} />
+                                        <Input className="bg-[var(--cl-surface-2)]" placeholder="Optional…" {...register(`rows.${idx}.serial_no`)} />
                                     </div>
 
                                     <div className="space-y-1.5 md:col-span-6 lg:col-span-4">
                                         <Label className={labelCls}>Receive Condition</Label>
                                         <select
                                             className="w-full h-9 rounded-md border border-[var(--cl-border)] text-sm px-2 bg-[var(--cl-surface-2)] text-[var(--cl-text)]"
-                                            value={row.job_receive_condition_id ?? ""}
-                                            onChange={e => updateRow(row.localId, { job_receive_condition_id: e.target.value ? Number(e.target.value) : null })}
+                                            {...register(`rows.${idx}.job_receive_condition_id`, { valueAsNumber: true })}
                                         >
                                             <option value="">None</option>
                                             {receiveConditions.filter(c => c.is_active).map(c => (
@@ -306,27 +294,26 @@ export function NewBatchJobForm({
                                         <Input
                                             className="bg-[var(--cl-surface-2)]" disabled={!isWarranty}
                                             placeholder={isWarranty ? "Card number…" : "N/A"}
-                                            value={row.warranty_card_no}
-                                            onChange={e => updateRow(row.localId, { warranty_card_no: e.target.value })}
+                                            {...register(`rows.${idx}.warranty_card_no`)}
                                         />
                                     </div>
 
                                     <div className="space-y-1.5 md:col-span-6 lg:col-span-6">
                                         <Label className={labelCls}>Problem Reported</Label>
-                                        <Textarea rows={2} className="bg-[var(--cl-surface-2)] resize-none" placeholder="Describe the problem…" value={row.problem_reported} onChange={e => updateRow(row.localId, { problem_reported: e.target.value })} />
+                                        <Textarea rows={2} className="bg-[var(--cl-surface-2)] resize-none" placeholder="Describe the problem…" {...register(`rows.${idx}.problem_reported`)} />
                                     </div>
 
                                     <div className="space-y-1.5 md:col-span-6 lg:col-span-6">
                                         <Label className={labelCls}>Remarks</Label>
-                                        <Textarea rows={2} className="bg-[var(--cl-surface-2)] resize-none" placeholder="Optional remarks…" value={row.remarks} onChange={e => updateRow(row.localId, { remarks: e.target.value })} />
+                                        <Textarea rows={2} className="bg-[var(--cl-surface-2)] resize-none" placeholder="Optional remarks…" {...register(`rows.${idx}.remarks`)} />
                                     </div>
 
                                     <div className="space-y-1.5 md:col-span-12 lg:col-span-12">
                                         <Label className={labelCls}>Attachments</Label>
                                         <div className="bg-[var(--cl-surface-2)]/30 rounded-lg p-2 border border-dashed border-[var(--cl-border)]">
-                                            {row.id
-                                                ? <JobImageUpload jobId={row.id} />
-                                                : <JobImageUpload onPendingChange={files => setPendingFiles(prev => ({ ...prev, [row.localId]: files }))} />
+                                            {watch(`rows.${idx}.id`)
+                                                ? <JobImageUpload jobId={watch(`rows.${idx}.id`)!} />
+                                                : <JobImageUpload onPendingChange={files => setPendingFiles(prev => ({ ...prev, [field.localId]: files }))} />
                                             }
                                         </div>
                                     </div>
@@ -342,13 +329,13 @@ export function NewBatchJobForm({
                 <Button
                     type="button" variant="outline" size="default"
                     className="gap-2 text-sm font-semibold border-2 border-dashed border-[var(--cl-accent)]/30 text-[var(--cl-accent)] hover:bg-[var(--cl-accent)]/5 hover:border-[var(--cl-accent)]"
-                    onClick={addRow}
+                    onClick={handleAddRow}
                 >
                     <Plus className="h-4 w-4" />
                     Add Another Job
                 </Button>
                 <span className="text-xs text-[var(--cl-text-muted)]">
-                    {rows.length} job{rows.length !== 1 ? "s" : ""} in this batch
+                    {fields.length} job{fields.length !== 1 ? "s" : ""} in this batch
                 </span>
                 {isSubmitting && (
                     <span className="flex items-center gap-1.5 text-xs text-[var(--cl-text-muted)] ml-2">

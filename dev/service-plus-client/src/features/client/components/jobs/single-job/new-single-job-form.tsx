@@ -20,7 +20,7 @@ import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectSchema } from "@/store/context-slice";
 import type { CustomerSearchRow } from "@/features/client/types/sales";
-import type { JobDetailType, JobLookupRow, ModelRow, TechnicianRow } from "@/features/client/types/job";
+import type { JobDetailType, JobListRow, JobLookupRow, ModelRow, TechnicianRow } from "@/features/client/types/job";
 import { CustomerInput } from "@/features/client/components/inventory/customer-input";
 
 import { SearchableCombobox } from "@/components/ui/searchable-combobox";
@@ -28,6 +28,8 @@ import { AddModelDialog } from "@/features/client/components/masters/model/add-m
 import { Button } from "@/components/ui/button";
 import type { CustomerTypeOption, StateOption } from "@/features/client/types/customer";
 import type { BrandOption, ProductOption } from "@/features/client/types/model";
+import { SingleJobQuickInfoCard } from "./single-job-quick-info-card";
+import { Eye, Printer, Paperclip, FileText } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -47,6 +49,9 @@ type Props = {
     masterStates:      StateOption[];
     editJob?:          JobDetailType | null;
     onRefreshModels:   () => void;
+    onViewJob?:        (job: JobListRow) => void;
+    onPrintPdf?:       (job: JobListRow) => void;
+    onAttachFiles?:    (jobNo: string, jobId: number) => void;
 };
 
 const labelCls = "text-xs font-extrabold text-[var(--cl-text)] uppercase tracking-widest";
@@ -55,7 +60,7 @@ const labelCls = "text-xs font-extrabold text-[var(--cl-text)] uppercase trackin
 
 export function NewSingleJobForm({
     branchId, jobStatuses, jobTypes, receiveMannners, receiveConditions, models, brands, products, customerTypes, masterStates, editJob,
-    onRefreshModels,
+    onRefreshModels, onViewJob, onPrintPdf, onAttachFiles,
 }: Props) {
     const dbName      = useAppSelector(selectDbName);
     const schema      = useAppSelector(selectSchema);
@@ -113,9 +118,6 @@ export function NewSingleJobForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [editJob, dbName, schema]);
 
-    
-    // const hasAttachmentError = (form.watch("attachments") || []).some((f: { about: string }) => !f.about.trim());
-
     return (
         <motion.div
             initial={{ opacity: 0, y: 10 }}
@@ -135,11 +137,22 @@ export function NewSingleJobForm({
                 </div>
             ) : (
                 <>
-                    <p className="text-[10px] font-black uppercase tracking-[0.15em] text-[var(--cl-text-muted)]">
-                        Job Details
-                    </p>
-                    <Card className="border-[var(--cl-border)] shadow-md bg-[var(--cl-surface)] !overflow-visible">
-                        <CardContent className="pt-2 grid grid-cols-1 md:grid-cols-6 lg:grid-cols-12 gap-x-3 gap-y-3 !overflow-visible">
+                    <div className="flex items-start gap-3 flex-col md:flex-row">
+                        <div className="flex items-start gap-3 flex-1">
+                            <p className="text-[10px] font-black uppercase tracking-[0.15em] text-[var(--cl-text-muted)] pt-2">
+                                Job Details
+                            </p>
+
+                            {/* Quick Info Card - Last Job (right of label) */}
+                            <SingleJobQuickInfoCard
+                                onView={onViewJob}
+                                onPrint={onPrintPdf}
+                                onAttach={onAttachFiles}
+                            />
+                        </div>
+
+                        <Card className="border-[var(--cl-border)] shadow-md bg-[var(--cl-surface)] !overflow-visible flex-1">
+                            <CardContent className="pt-2 grid grid-cols-1 md:grid-cols-6 lg:grid-cols-12 gap-x-3 gap-y-3 !overflow-visible">
 
                             {/* Row 1: Job No, Date, Customer, Manner */}
                             <div className="space-y-1.5 md:col-span-6 lg:col-span-6 xl:col-span-3">
@@ -327,8 +340,9 @@ export function NewSingleJobForm({
                             </div>
 
 
-                        </CardContent>
-                    </Card>
+</CardContent>
+                        </Card>
+                    </div>
 
                     {isSubmitting && (
                         <div className="flex items-center justify-center gap-2 py-2 text-sm text-[var(--cl-text-muted)]">

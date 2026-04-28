@@ -109,7 +109,7 @@ export const SingleJobViewModal = ({ isOpen, job, onClose, onPrint }: JobViewMod
                     <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
                         
                         {/* Section: Client & Service (8/12) */}
-                        <div className="md:col-span-8 space-y-4">
+                        <div className="md:col-span-8 flex flex-col gap-4">
                             <SectionCard title="Client Info" icon={User}>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
                                     <InfoRow label="Name" value={job.customer_name} highlight icon={User} />
@@ -121,32 +121,35 @@ export const SingleJobViewModal = ({ isOpen, job, onClose, onPrint }: JobViewMod
                             </SectionCard>
 
                             <SectionCard title="Service Parameters" icon={Clock}>
-                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                    <div className="p-2.5 rounded-xl bg-blue-50/50 dark:bg-blue-500/5 border border-blue-100/50 dark:border-blue-500/10 flex items-center gap-3">
-                                        <div className="h-7 w-7 rounded-lg bg-blue-500 text-white flex items-center justify-center shrink-0">
-                                            <Clock className="h-3.5 w-3.5" />
+                                <div className="space-y-3">
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                        <div className="p-2.5 rounded-xl bg-blue-50/50 dark:bg-blue-500/5 border border-blue-100/50 dark:border-blue-500/10 flex items-center gap-3">
+                                            <div className="h-7 w-7 rounded-lg bg-blue-500 text-white flex items-center justify-center shrink-0">
+                                                <Clock className="h-3.5 w-3.5" />
+                                            </div>
+                                            <InfoRow label="Job Type" value={job.job_type_name} />
                                         </div>
-                                        <InfoRow label="Job Type" value={job.job_type_name} />
-                                    </div>
-                                    <div className="p-2.5 rounded-xl bg-indigo-50/50 dark:bg-indigo-500/5 border border-indigo-100/50 dark:border-indigo-500/10 flex items-center gap-3">
-                                        <div className="h-7 w-7 rounded-lg bg-indigo-500 text-white flex items-center justify-center shrink-0">
-                                            <Info className="h-3.5 w-3.5" />
+                                        <div className="p-2.5 rounded-xl bg-indigo-50/50 dark:bg-indigo-500/5 border border-indigo-100/50 dark:border-indigo-500/10 flex items-center gap-3">
+                                            <div className="h-7 w-7 rounded-lg bg-indigo-500 text-white flex items-center justify-center shrink-0">
+                                                <Info className="h-3.5 w-3.5" />
+                                            </div>
+                                            <InfoRow label="Manner" value={job.job_receive_manner_name} />
                                         </div>
-                                        <InfoRow label="Manner" value={job.job_receive_manner_name} />
-                                    </div>
-                                    <div className="p-2.5 rounded-xl bg-emerald-50/50 dark:bg-emerald-500/5 border border-emerald-100/50 dark:border-emerald-500/10 flex items-center gap-3">
-                                        <div className="h-7 w-7 rounded-lg bg-emerald-500 text-white flex items-center justify-center shrink-0">
-                                            <CheckCircle2 className="h-3.5 w-3.5" />
+                                        <div className="p-2.5 rounded-xl bg-emerald-50/50 dark:bg-emerald-500/5 border border-emerald-100/50 dark:border-emerald-500/10 flex items-center gap-3">
+                                            <div className="h-7 w-7 rounded-lg bg-emerald-500 text-white flex items-center justify-center shrink-0">
+                                                <CheckCircle2 className="h-3.5 w-3.5" />
+                                            </div>
+                                            <InfoRow label="Condition" value={job.job_receive_condition_name} />
                                         </div>
-                                        <InfoRow label="Condition" value={job.job_receive_condition_name} />
                                     </div>
+                                    <InfoRow label="Remarks" value={job.remarks} icon={AlertCircle} />
                                 </div>
                             </SectionCard>
                         </div>
 
                         {/* Section: Product (4/12) */}
-                        <div className="md:col-span-4 space-y-4">
-                            <SectionCard title="Device Details" icon={Smartphone}>
+                        <div className="md:col-span-4 flex flex-col gap-4">
+                            <SectionCard title="Device Details" icon={Smartphone} className="flex-1">
                                 <div className="space-y-4">
                                     <InfoRow label="Brand / Model" value={`${job.brand_name} ${job.model_name}`} highlight />
                                     <div className="grid grid-cols-2 gap-2">

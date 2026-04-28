@@ -200,12 +200,10 @@ export const CompanyProfileSection = () => {
             toast.success(MESSAGES.SUCCESS_COMPANY_PROFILE_SAVED);
         } catch {
             toast.error(MESSAGES.ERROR_COMPANY_PROFILE_SAVE_FAILED);
-        } finally {
-            setSubmitting(false);
         }
     }
 
-    const submitDisabled = Object.keys(errors).length > 0 || submitting || loading;
+    const submitDisabled = Object.keys(errors).length > 0 || form.formState.isSubmitting || loading;
 
     // ── Render ─────────────────────────────────────────────────────────────────
 
@@ -381,7 +379,7 @@ export const CompanyProfileSection = () => {
                         disabled={submitDisabled}
                         type="submit"
                     >
-                        {submitting
+                        {form.formState.isSubmitting
                             ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
                             : <Save className="mr-1.5 h-4 w-4" />
                         }

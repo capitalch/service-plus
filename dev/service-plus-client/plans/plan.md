@@ -464,7 +464,7 @@ z.object({
 
 ---
 
-### Step 17 — Clean up `submitting` state in already-migrated dialogs
+### Step 17 — Clean up `submitting` state in already-migrated dialogs ✅ DONE
 
 **Files (all already use `useForm`):**
 - `add-branch-dialog.tsx` / `edit-branch-dialog.tsx`

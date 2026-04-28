@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import { useFormContext } from "react-hook-form";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useFormContext, useFieldArray } from "react-hook-form";
 import { ArrowRightLeft } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
@@ -23,13 +23,12 @@ import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectSchema } from "@/store/context-slice";
-import type { StockBranchTransferType, BranchTransferLineFormItem } from "@/features/client/types/branch-transfer";
-import { emptyTransferLine } from "@/features/client/types/branch-transfer";
+import type { StockBranchTransferType } from "@/features/client/types/branch-transfer";
 import type { Branch } from "@/types/db-schema-service";
 
 import { PartCodeInput } from "../part-code-input";
 import { LineAddDeleteActions } from "../line-add-delete-actions";
-import type { BranchTransferFormValues } from "./branch-transfer-schema";
+import { getInitialTransferLine, type BranchTransferFormValues } from "./branch-transfer-schema";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -40,12 +39,10 @@ type Props = {
     branches:           Branch[];
     brandName?:         string;
     editTransfer?:      StockBranchTransferType | null;
-    lines:              BranchTransferLineFormItem[];
     onLinesValidChange: (v: boolean) => void;
-    originalLineIds:    number[];
     selectedBrandId:    number | null;
-    setLines:           React.Dispatch<React.SetStateAction<BranchTransferLineFormItem[]>>;
     setOriginalLineIds: React.Dispatch<React.SetStateAction<number[]>>;
+    form:              ReturnType<typeof useFormContext<BranchTransferFormValues>>;
 };
 
 // ─── CSS ──────────────────────────────────────────────────────────────────────
@@ -57,17 +54,29 @@ const inputCls = "h-8 border-[var(--cl-border)] bg-[var(--cl-surface)] text-sm p
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function NewBranchTransfer({
-    branchId, branches, brandName, editTransfer, lines, onLinesValidChange,
-    originalLineIds, selectedBrandId, setLines, setOriginalLineIds,
+    branchId, branches, brandName, editTransfer, onLinesValidChange,
+    selectedBrandId, setOriginalLineIds, form,
 }: Props) {
     const dbName = useAppSelector(selectDbName);
     const schema = useAppSelector(selectSchema);
 
-    const form = useFormContext<BranchTransferFormValues>();
-    const { register, setValue, watch } = form;
+    const { control, register, setValue, watch, setFocus } = useFormContext<BranchTransferFormValues>();
+
+    const { fields, append, remove } = useFieldArray({
+        control,
+        name: "lines",
+    });
+
+    // Summary calculations
+    const rawLines = watch("lines");
+    const formLines = useMemo(() => rawLines ?? [], [rawLines]);
+    const totalQty = useMemo(() => formLines.reduce((s, l) => s + (l.qty ?? 0), 0), [formLines]);
+
+    useEffect(() => {
+        onLinesValidChange(fields.length > 0 && formLines.every(l => !!l.part_id && (l.qty ?? 0) > 0));
+    }, [fields.length, formLines, onLinesValidChange]);
 
     const partInputRefs = useRef<(HTMLInputElement | null)[]>([]);
-    const qtyInputRefs  = useRef<(HTMLInputElement | null)[]>([]);
 
     const scrollWrapperRef = useRef<HTMLDivElement>(null);
     const summaryRef       = useRef<HTMLDivElement>(null);
@@ -88,7 +97,7 @@ export function NewBranchTransfer({
         recalc();
         window.addEventListener("resize", recalc);
         return () => window.removeEventListener("resize", recalc);
-    }, [lines.length]);
+    }, [fields.length]);
 
     // Filter destination branches (cannot transfer to self)
     const destinationBranches = branches.filter(b => b.id !== branchId);
@@ -110,12 +119,6 @@ export function NewBranchTransfer({
         }).then(res => {
             const detail = res.data?.genericQuery?.[0];
             if (!detail) return;
-            form.reset({
-                transfer_date: detail.transfer_date.slice(0, 10),
-                to_branch_id:  String(detail.to_branch_id),
-                ref_no:        detail.ref_no ?? "",
-                remarks:       detail.remarks ?? "",
-            });
             const loadedLines = (detail.lines ?? []).map(l => ({
                 _key:      crypto.randomUUID(),
                 part_id:   l.part_id,
@@ -125,35 +128,26 @@ export function NewBranchTransfer({
                 qty:       Number(l.qty),
                 remarks:   l.remarks ?? "",
             }));
-            setLines(loadedLines);
+            form.reset({
+                transfer_date: detail.transfer_date.slice(0, 10),
+                to_branch_id:  String(detail.to_branch_id),
+                ref_no:        detail.ref_no ?? "",
+                remarks:       detail.remarks ?? "",
+                lines:         loadedLines.length > 0 ? loadedLines : [getInitialTransferLine(selectedBrandId)],
+            });
             setOriginalLineIds((detail.lines ?? []).map(l => l.id));
         }).catch(() => toast.error(MESSAGES.ERROR_TRANSFER_LOAD_FAILED));
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [editTransfer, dbName, schema]);
 
     // Line mutations
-    const updateLine = (idx: number, patch: Partial<BranchTransferLineFormItem>) => {
-        setLines(prev => prev.map((l, i) => i !== idx ? l : { ...l, ...patch }));
+    const handleAddLine = () => {
+        append(getInitialTransferLine(selectedBrandId));
     };
 
-    const insertLine = (idx: number) => {
-        setLines(prev => {
-            const next = [...prev];
-            next.splice(idx + 1, 0, emptyTransferLine(selectedBrandId));
-            return next;
-        });
+    const handleRemoveLine = (idx: number) => {
+        if (fields.length > 1) remove(idx);
     };
-
-    const removeLine = (idx: number) => {
-        setLines(prev => prev.length === 1 ? prev : prev.filter((_, i) => i !== idx));
-    };
-
-    const linesValid = lines.length > 0 && lines.every(l => !!l.part_id && l.qty > 0);
-
-    useEffect(() => {
-        onLinesValidChange(linesValid);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [linesValid]);
 
     const transferDate = watch("transfer_date");
     const toBranchId   = watch("to_branch_id");
@@ -268,9 +262,11 @@ export function NewBranchTransfer({
                                 </div>
 
                                 {/* Data rows */}
-                                {lines.map((line, idx) => (
+                                {fields.map((field, idx) => {
+                                    const line = watch(`lines.${idx}`);
+                                    return (
                                     <div
-                                        key={line._key}
+                                        key={field.id}
                                         className={`grid ${COLS} group transition-colors hover:bg-[var(--cl-surface-2)]/30 border-b border-[var(--cl-border)]`}
                                     >
                                         {/* # */}
@@ -282,40 +278,44 @@ export function NewBranchTransfer({
                                         <div className="p-1 border-r border-[var(--cl-border)]/30">
                                             <PartCodeInput
                                                 ref={el => { partInputRefs.current[idx] = el; }}
-                                                brandId={line.brand_id}
+                                                brandId={line?.brand_id}
                                                 brandName={brandName}
-                                                partCode={line.part_code}
-                                                partId={line.part_id}
-                                                partName={line.part_name}
+                                                partCode={line?.part_code ?? ""}
+                                                partId={line?.part_id ?? null}
+                                                partName={line?.part_name ?? ""}
                                                 selectedBrandId={selectedBrandId}
                                                 onChange={code => {
-                                                    const patch: Partial<BranchTransferLineFormItem> = { part_code: code };
-                                                    if (!code.trim()) { patch.part_id = null; patch.part_name = ""; }
-                                                    updateLine(idx, patch);
+                                                    if (!code.trim()) { 
+                                                        setValue(`lines.${idx}.part_code`, "");
+                                                        setValue(`lines.${idx}.part_id`, null);
+                                                        setValue(`lines.${idx}.part_name`, "");
+                                                    } else {
+                                                        setValue(`lines.${idx}.part_code`, code);
+                                                    }
                                                 }}
-                                                onClear={() => updateLine(idx, { part_code: "", part_id: null, part_name: "" })}
+                                                onClear={() => {
+                                                    setValue(`lines.${idx}.part_code`, "");
+                                                    setValue(`lines.${idx}.part_id`, null);
+                                                    setValue(`lines.${idx}.part_name`, "");
+                                                }}
                                                 onSelect={part => {
-                                                    updateLine(idx, {
-                                                        brand_id:  part.brand_id,
-                                                        part_code: part.part_code,
-                                                        part_id:   part.id,
-                                                        part_name: part.part_name,
-                                                    });
+                                                    setValue(`lines.${idx}.brand_id`, part.brand_id);
+                                                    setValue(`lines.${idx}.part_code`, part.part_code);
+                                                    setValue(`lines.${idx}.part_id`, part.id);
+                                                    setValue(`lines.${idx}.part_name`, part.part_name);
                                                 }}
-                                                onTabToNext={() => qtyInputRefs.current[idx]?.focus()}
+                                                onTabToNext={() => setFocus(`lines.${idx}.qty`)}
                                             />
                                         </div>
 
                                         {/* Qty */}
                                         <div className="p-1 border-r border-[var(--cl-border)]/30">
                                             <Input
-                                                ref={el => { qtyInputRefs.current[idx] = el; }}
-                                                className={`${inputCls} bg-transparent border-transparent hover:border-[var(--cl-border)] focus:bg-[var(--cl-surface)] text-right px-3 ${line.qty <= 0 ? "border-red-500 focus:border-red-500 ring-red-500/10 shadow-[0_0_0_1px_rgba(239,68,68,0.2)]" : ""}`}
+                                                className={`${inputCls} bg-transparent border-transparent hover:border-[var(--cl-border)] focus:bg-[var(--cl-surface)] text-right px-3 ${(line?.qty ?? 0) <= 0 ? "border-red-500 focus:border-red-500 ring-red-500/10 shadow-[0_0_0_1px_rgba(239,68,68,0.2)]" : ""}`}
                                                 min={0}
                                                 step="0.01"
                                                 type="number"
-                                                value={line.qty}
-                                                onChange={e => updateLine(idx, { qty: Number(e.target.value) })}
+                                                {...register(`lines.${idx}.qty`, { valueAsNumber: true })}
                                                 onFocus={e => e.target.select()}
                                             />
                                         </div>
@@ -325,23 +325,22 @@ export function NewBranchTransfer({
                                             <Input
                                                 className={`${inputCls} bg-transparent border-transparent hover:border-[var(--cl-border)] focus:bg-[var(--cl-surface)]`}
                                                 placeholder="Optional line remark..."
-                                                value={line.remarks ?? ""}
-                                                onChange={e => updateLine(idx, { remarks: e.target.value })}
+                                                {...register(`lines.${idx}.remarks`)}
                                             />
                                         </div>
 
                                         {/* Actions */}
                                         <div className="flex items-center justify-center gap-0.5 px-2 bg-[var(--cl-surface-2)]/5">
                                             <LineAddDeleteActions
-                                                disableDelete={lines.length === 1}
-                                                onAdd={() => insertLine(idx)}
-                                                onDelete={() => removeLine(idx)}
+                                                disableDelete={fields.length === 1}
+                                                onAdd={handleAddLine}
+                                                onDelete={() => handleRemoveLine(idx)}
                                             />
                                         </div>
                                     </div>
-                                ))}
+                                );})}
 
-                                {lines.length === 0 && (
+                                {fields.length === 0 && (
                                     <div className="py-12 text-center text-[var(--cl-text-muted)] text-sm italic">
                                         No line items added yet. Click the "+" icon to insert a row.
                                     </div>
@@ -354,12 +353,12 @@ export function NewBranchTransfer({
                     <div ref={summaryRef} className="rounded-lg border border-[var(--cl-border)] bg-[var(--cl-surface-2)]/40 px-4 py-2.5 flex flex-wrap items-center gap-x-6 gap-y-1 justify-end">
                         <div className="flex items-center gap-1.5">
                             <span className="text-[10px] font-black uppercase tracking-widest text-[var(--cl-text-muted)]">Lines</span>
-                            <span className="font-mono font-semibold text-sm text-[var(--cl-text)]">{lines.length}</span>
+                            <span className="font-mono font-semibold text-sm text-[var(--cl-text)]">{fields.length}</span>
                         </div>
                         <div className="flex items-center gap-1.5 border-l border-[var(--cl-border)] pl-4">
                             <span className="text-[10px] font-black uppercase tracking-widest text-[var(--cl-text-muted)]">Total Qty</span>
                             <span className="font-mono font-black text-base text-[var(--cl-accent)]">
-                                {lines.reduce((s, l) => s + l.qty, 0)}
+                                {totalQty}
                             </span>
                         </div>
                     </div>

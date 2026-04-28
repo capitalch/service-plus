@@ -162,12 +162,10 @@ export const DocumentSequenceSection = () => {
             await loadSequences(branchId);
         } catch {
             toast.error(MESSAGES.ERROR_DOCUMENT_SEQUENCE_SAVE_FAILED);
-        } finally {
-            setSubmitting(false);
         }
     }
 
-    const submitDisabled = Object.keys(errors).length > 0 || submitting || loading || !currentBranch?.id;
+    const submitDisabled = Object.keys(errors).length > 0 || form.formState.isSubmitting || loading || !currentBranch?.id;
 
     // ── Render ─────────────────────────────────────────────────────────────────
 
@@ -274,7 +272,7 @@ export const DocumentSequenceSection = () => {
                             disabled={submitDisabled}
                             type="submit"
                         >
-                            {submitting
+                            {form.formState.isSubmitting
                                 ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
                                 : <Save className="mr-1.5 h-4 w-4" />
                             }

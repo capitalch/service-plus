@@ -1,15 +1,12 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { useFormContext } from "react-hook-form";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useFormContext, useFieldArray } from "react-hook-form";
 import { Loader2, X } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
-import { type PartUsedFormValues } from "./part-used-schema";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-// import { Label } from "@/components/ui/label";
 import { SearchableCombobox } from "@/components/ui/searchable-combobox";
-
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { MESSAGES } from "@/constants/messages";
@@ -19,14 +16,11 @@ import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectSchema } from "@/store/context-slice";
-// import type { StockTransactionTypeRow } from "@/features/client/types/purchase";
 import type { BrandOption } from "@/features/client/types/model";
 import { PartCodeInput } from "../../inventory/part-code-input";
 import { LineAddDeleteActions } from "../../inventory/line-add-delete-actions";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-import { type JobSearchRow, type ExistingLine, type NewLine, getEmptyPartUsedLine } from "./part-used-schema";
+import { type PartUsedFormValues, type JobSearchRow, type ExistingLine, getInitialPartUsedLine } from "./part-used-schema";
 
 type GenericQueryData<T> = { genericQuery: T[] | null };
 
@@ -40,19 +34,24 @@ const inputCls = "h-7 border-[var(--cl-border)] bg-[var(--cl-surface)] text-sm p
 // ─── Component ────────────────────────────────────────────────────────────────
 
 type Props = {
-    branchId:       number | null;
+    branchId:           number | null;
     onLinesValidChange: (isValid: boolean) => void;
-    onLinesChange: (lines: NewLine[]) => void;
-    onDeletedIdsChange: (ids: number[]) => void;
-    onJobSelect: (job: JobSearchRow | null) => void;
+    onJobSelect:        (job: JobSearchRow | null) => void;
+    form:               ReturnType<typeof useFormContext<PartUsedFormValues>>;
 };
 
 export function NewPartUsedForm({
-    branchId, onLinesValidChange, onLinesChange, onDeletedIdsChange, onJobSelect,
+    branchId, onLinesValidChange, onJobSelect, form,
 }: Props) {
-    const form = useFormContext<PartUsedFormValues>();
     const dbName = useAppSelector(selectDbName);
     const schema = useAppSelector(selectSchema);
+
+    const { control, register, setValue, watch } = useFormContext<PartUsedFormValues>();
+
+    const { fields, append, remove } = useFieldArray({
+        control,
+        name: "newLines",
+    });
 
     const [selectedJob,    setSelectedJob]    = useState<JobSearchRow | null>(null);
     const [jobQuery,       setJobQuery]       = useState("");
@@ -60,11 +59,21 @@ export function NewPartUsedForm({
     const [brands,         setBrands]         = useState<BrandOption[]>([]);
     const [jobSearching,   setJobSearching]   = useState(false);
     const [existingLines,  setExistingLines]  = useState<ExistingLine[]>([]);
-    const [deletedIds,     setDeletedIds]     = useState<number[]>([]);
-    const [newLines,       setNewLines]       = useState<NewLine[]>([getEmptyPartUsedLine()]);
     const [loadingExist,   setLoadingExist]   = useState(false);
 
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    // Summary calculations
+    const rawLines = watch("newLines");
+    const formLines = useMemo(() => rawLines ?? [], [rawLines]);
+    const newLinesCount = useMemo(() => formLines.filter(l => l.part_id).length, [formLines]);
+
+    const watchDeletedIds = watch("deletedIds") ?? [];
+
+    useEffect(() => {
+        const linesValid = formLines.some(l => l.part_id && (l.quantity ?? 0) > 0) || watchDeletedIds.length > 0;
+        onLinesValidChange(linesValid);
+    }, [formLines, watchDeletedIds.length, onLinesValidChange]);
 
     // Fetch Metadata
     useEffect(() => {
@@ -135,11 +144,8 @@ export function NewPartUsedForm({
     const handleJobSelect = (job: JobSearchRow | null) => {
         setSelectedJob(job);
         onJobSelect(job);
-        setDeletedIds([]);
-        onDeletedIdsChange([]);
         setExistingLines([]);
-        setNewLines([getEmptyPartUsedLine()]);
-        onLinesChange([getEmptyPartUsedLine()]);
+        form.reset({ ...form.getValues(), newLines: [getInitialPartUsedLine()], deletedIds: [] });
         if (job) {
             form.setValue("job_id", job.id, { shouldValidate: true });
             void loadExistingLines(job.id);
@@ -148,36 +154,31 @@ export function NewPartUsedForm({
         }
     };
 
-    const updateNewLine = (idx: number, patch: Partial<NewLine>) => {
-        setNewLines(prev => {
-            const next = prev.map((l, i) => i === idx ? { ...l, ...patch } : l);
-            return next;
-        });
+    // Line mutations using useFieldArray
+    const handleAddLine = () => {
+        append(getInitialPartUsedLine());
     };
 
-    const insertNewLine = (idx: number) => {
-        setNewLines(prev => {
-            const next = [...prev];
-            next.splice(idx + 1, 0, getEmptyPartUsedLine());
-            return next;
-        });
-    };
-
-    const removeNewLine = (idx: number) => {
-        setNewLines(prev => prev.length === 1 ? [getEmptyPartUsedLine()] : prev.filter((_, i) => i !== idx));
+    const handleRemoveLine = (idx: number) => {
+        if (fields.length > 1) {
+            remove(idx);
+        } else {
+            // If it's the last line, just clear it
+            setValue(`newLines.${idx}.part_id`, null);
+            setValue(`newLines.${idx}.brand_id`, null);
+            setValue(`newLines.${idx}.part_code`, "");
+            setValue(`newLines.${idx}.part_name`, "");
+            setValue(`newLines.${idx}.uom`, "");
+            setValue(`newLines.${idx}.quantity`, 1);
+            setValue(`newLines.${idx}.remarks`, "");
+        }
     };
 
     const markExistingDeleted = (id: number) => {
-        setDeletedIds(prev => [...prev, id]);
+        const currentIds = form.getValues("deletedIds") ?? [];
+        form.setValue("deletedIds", [...currentIds, id]);
         setExistingLines(prev => prev.filter(l => l.id !== id));
     };
-
-    useEffect(() => {
-        const linesValid = newLines.some(l => l.part_id && l.quantity > 0) || deletedIds.length > 0;
-        onLinesValidChange(linesValid);
-        onLinesChange(newLines);
-        onDeletedIdsChange(deletedIds);
-    }, [newLines, deletedIds, onLinesValidChange, onLinesChange, onDeletedIdsChange]);
 
 
     return (
@@ -299,13 +300,20 @@ export function NewPartUsedForm({
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {newLines.map((line, idx) => (
-                                        <tr key={line._key} className="hover:bg-[var(--cl-surface-2)]/30">
+                                    {fields.map((field, idx) => {
+                                        const line = watch(`newLines.${idx}`);
+                                        return (
+                                        <tr key={field.id} className="hover:bg-[var(--cl-surface-2)]/30">
                                             <td className={`${tdClass} pl-3 text-xs text-[var(--cl-text-muted)]`}>{idx + 1}</td>
                                             <td className={tdClass}>
                                                 <Select
-                                                    value={line.brand_id ? String(line.brand_id) : ""}
-                                                    onValueChange={v => updateNewLine(idx, { brand_id: Number(v), part_code: "", part_id: null, part_name: "" })}
+                                                    value={line?.brand_id ? String(line.brand_id) : ""}
+                                                    onValueChange={v => {
+                                                        setValue(`newLines.${idx}.brand_id`, Number(v));
+                                                        setValue(`newLines.${idx}.part_code`, "");
+                                                        setValue(`newLines.${idx}.part_id`, null);
+                                                        setValue(`newLines.${idx}.part_name`, "");
+                                                    }}
                                                 >
                                                     <SelectTrigger className="h-7 text-xs bg-transparent border-[var(--cl-border)]">
                                                         <SelectValue placeholder="Select Brand" />
@@ -319,36 +327,43 @@ export function NewPartUsedForm({
                                             </td>
                                             <td className={tdClass}>
                                                 <PartCodeInput
-                                                    brandId={line.brand_id}
-                                                    partCode={line.part_code}
-                                                    partId={line.part_id}
-                                                    partName={line.part_name}
-                                                    selectedBrandId={line.brand_id}
-                                                    brandName={brands.find(b => b.id === line.brand_id)?.name}
+                                                    brandId={line?.brand_id}
+                                                    partCode={line?.part_code ?? ""}
+                                                    partId={line?.part_id ?? null}
+                                                    partName={line?.part_name ?? ""}
+                                                    selectedBrandId={line?.brand_id ?? null}
+                                                    brandName={brands.find(b => b.id === line?.brand_id)?.name}
                                                     onChange={code => {
-                                                        const patch: Partial<NewLine> = { part_code: code };
-                                                        if (!code.trim()) { patch.part_id = null; patch.part_name = ""; }
-                                                        updateNewLine(idx, patch);
+                                                        if (!code.trim()) { 
+                                                            setValue(`newLines.${idx}.part_code`, "");
+                                                            setValue(`newLines.${idx}.part_id`, null);
+                                                            setValue(`newLines.${idx}.part_name`, "");
+                                                        } else {
+                                                            setValue(`newLines.${idx}.part_code`, code);
+                                                        }
                                                     }}
-                                                    onClear={() => updateNewLine(idx, { part_code: "", part_id: null, part_name: "" })}
-                                                    onSelect={part => updateNewLine(idx, {
-                                                        part_id:   part.id,
-                                                        part_code: part.part_code,
-                                                        part_name: part.part_name,
-                                                        uom:       part.uom,
-                                                        brand_id:  part.brand_id,
-                                                    })}
+                                                    onClear={() => {
+                                                        setValue(`newLines.${idx}.part_code`, "");
+                                                        setValue(`newLines.${idx}.part_id`, null);
+                                                        setValue(`newLines.${idx}.part_name`, "");
+                                                    }}
+                                                    onSelect={part => {
+                                                        setValue(`newLines.${idx}.part_id`, part.id);
+                                                        setValue(`newLines.${idx}.part_code`, part.part_code);
+                                                        setValue(`newLines.${idx}.part_name`, part.part_name);
+                                                        setValue(`newLines.${idx}.uom`, part.uom);
+                                                        setValue(`newLines.${idx}.brand_id`, part.brand_id);
+                                                    }}
                                                 />
                                             </td>
-                                            <td className={`${tdClass} px-2 text-sm text-[var(--cl-text-muted)]`}>{line.part_name}</td>
+                                            <td className={`${tdClass} px-2 text-sm text-[var(--cl-text-muted)]`}>{line?.part_name}</td>
                                             <td className={tdClass}>
                                                 <Input
-                                                    className={`${inputCls} text-right ${line.quantity <= 0 ? "border-red-500" : ""}`}
+                                                    className={`${inputCls} text-right ${(line?.quantity ?? 0) <= 0 ? "border-red-500" : ""}`}
                                                     min={0.01}
                                                     step="0.01"
                                                     type="number"
-                                                    value={line.quantity}
-                                                    onChange={e => updateNewLine(idx, { quantity: Number(e.target.value) })}
+                                                    {...register(`newLines.${idx}.quantity`, { valueAsNumber: true })}
                                                     onFocus={e => e.target.select()}
                                                 />
                                             </td>
@@ -356,21 +371,20 @@ export function NewPartUsedForm({
                                                 <Input
                                                     className={inputCls}
                                                     placeholder="Remarks…"
-                                                    value={line.remarks}
-                                                    onChange={e => updateNewLine(idx, { remarks: e.target.value })}
+                                                    {...register(`newLines.${idx}.remarks`)}
                                                 />
                                             </td>
                                             <td className={`${tdClass} px-1`}>
                                                 <div className="flex items-center justify-start gap-0.5">
                                                     <LineAddDeleteActions
-                                                        onAdd={() => insertNewLine(idx)}
-                                                        onDelete={() => removeNewLine(idx)}
+                                                        onAdd={handleAddLine}
+                                                        onDelete={() => handleRemoveLine(idx)}
                                                         disableDelete={false}
                                                     />
                                                 </div>
                                             </td>
                                         </tr>
-                                    ))}
+                                    );})}
                                 </tbody>
                             </table>
                         </div>
@@ -380,12 +394,12 @@ export function NewPartUsedForm({
                     <div className="flex items-center gap-4 rounded-lg border border-[var(--cl-border)] bg-[var(--cl-surface-2)]/40 px-4 py-2 text-xs">
                         <div className="flex items-center gap-1.5">
                             <span className="font-black uppercase tracking-widest text-[var(--cl-text-muted)]">New Lines</span>
-                            <span className="font-mono font-semibold text-[var(--cl-text)]">{newLines.filter(l => l.part_id).length}</span>
+                            <span className="font-mono font-semibold text-[var(--cl-text)]">{newLinesCount}</span>
                         </div>
-                        {deletedIds.length > 0 && (
+                        {watchDeletedIds.length > 0 && (
                             <div className="flex items-center gap-1.5">
                                 <span className="font-black uppercase tracking-widest text-red-500">Removed</span>
-                                <span className="font-mono font-semibold text-red-500">{deletedIds.length}</span>
+                                <span className="font-mono font-semibold text-red-500">{watchDeletedIds.length}</span>
                             </div>
                         )}
                     </div>

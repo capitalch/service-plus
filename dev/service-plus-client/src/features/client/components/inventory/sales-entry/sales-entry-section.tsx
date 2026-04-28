@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { z } from "zod";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FormProvider, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {CheckCircle2, Eye, FileDown, FileSpreadsheet, FileText, Loader2,
@@ -36,11 +37,12 @@ import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectCurrentBranch, selectSchema, selectCompanyName, selectIsGstRegistered } from "@/store/context-slice";
 import type { BrandOption } from "@/features/client/types/model";
 import { BrandSelect } from "@/features/client/components/inventory/brand-select";
-import type { SalesInvoiceType, SalesLineFormItem, SalesLineType, DocumentSequenceRow } from "@/features/client/types/sales";
+import type { SalesInvoiceType, SalesLineType, DocumentSequenceRow } from "@/features/client/types/sales";
 import type { StockTransactionTypeRow } from "@/features/client/types/purchase";
 import type { CustomerTypeOption, StateOption } from "@/features/client/types/customer";
 import type { BranchType } from "@/features/client/components/masters/branch/branch";
-import { salesInvoiceSchema, getSalesInvoiceDefaultValues, type SalesInvoiceFormValues } from "./sales-invoice-schema";
+import { salesInvoiceSchema, salesLineSchema, getSalesInvoiceDefaultValues, getInitialSalesLine } from "./sales-invoice-schema";
+import type { SalesInvoiceFormValues } from "./sales-invoice-schema";
 
 import { NewSalesInvoice } from "./new-sales-invoice";
 import { ViewSalesInvoiceDialog } from "./view-sales-invoice-dialog";
@@ -58,28 +60,7 @@ const DEBOUNCE_MS = 1200;
 const thClass = "sticky top-0 z-20 text-xs font-semibold uppercase tracking-wide text-[var(--cl-text-muted)] p-3 text-left border-b border-[var(--cl-border)] bg-[var(--cl-surface-2)]";
 const tdClass = "p-3 text-sm text-[var(--cl-text)] border-b border-[var(--cl-border)]";
 
-function emptyLine(brandId: number | null = null): SalesLineFormItem {
-    return {
-        _key:             crypto.randomUUID(),
-        part_id:          null,
-        brand_id:         brandId,
-        part_code:        "",
-        part_name:        "",
-        uom:              "",
-        hsn_code:         "",
-        quantity:         1,
-        unit_price:       0,
-        gst_rate:         0,
-        aggregate_amount: 0,
-        cgst_amount:      0,
-        sgst_amount:      0,
-        igst_amount:      0,
-        total_amount:     0,
-        remarks:          "",
-    };
-}
-
-function calcLine(l: SalesLineFormItem, isIgst: boolean) {
+function calcLine(l: z.infer<typeof salesLineSchema>, isIgst: boolean) {
     const aggregate = l.quantity * l.unit_price;
     const gst       = l.gst_rate;
     const cgstAmt   = isIgst ? 0 : aggregate * (gst / 2) / 100;
@@ -143,19 +124,29 @@ export const SalesEntrySection = () => {
     const [customerName,      setCustomerName]      = useState("");
     const [customerGstin,     setCustomerGstin]     = useState("");
     const [customerStateCode, setCustomerStateCode] = useState("");
-    const [lines,             setLines]             = useState<SalesLineFormItem[]>([emptyLine(null)]);
-    const [originalLineIds,   setOriginalLineIds]   = useState<number[]>([]);
-    const [linesValid,        setLinesValid]        = useState(false);
 
     const selectedBrandId = selectedBrand ? Number(selectedBrand) : null;
 
     const form = useForm<SalesInvoiceFormValues>({
-        defaultValues: getSalesInvoiceDefaultValues(),
+        defaultValues: {
+            ...getSalesInvoiceDefaultValues(),
+            lines: [getInitialSalesLine(selectedBrandId)],
+        },
         mode:          "onChange",
         resolver:      zodResolver(salesInvoiceSchema) as any,
     });
 
-    const canSave = form.formState.isValid && !!customerName.trim() && !!customerStateCode && !!selectedBrand && linesValid;
+    const lines = form.watch("lines") ?? [];
+
+    const canSave = useMemo(() => {
+        if (!customerName.trim() || !customerStateCode || !selectedBrand) return false;
+        if (lines.length === 0) return false;
+        return lines.every(l => {
+            if (!l.part_id || l.quantity <= 0) return false;
+            if ((l.unit_price > 0 || l.gst_rate > 0) && !l.hsn_code.trim()) return false;
+            return true;
+        });
+    }, [lines, customerName, customerStateCode, selectedBrand]);
 
     const debounceRef     = useRef<ReturnType<typeof setTimeout> | null>(null);
     const scrollWrapperRef = useRef<HTMLDivElement>(null);
@@ -330,14 +321,15 @@ export const SalesEntrySection = () => {
     };
 
     const handleReset = () => {
-        form.reset(getSalesInvoiceDefaultValues());
+        form.reset({
+            ...getSalesInvoiceDefaultValues(),
+            lines: [getInitialSalesLine(selectedBrandId)],
+        });
         setCustomerId(null);
         setCustomerName("");
         setCustomerGstin("");
         setCustomerStateCode("");
         setIsReturn(false);
-        setLines([emptyLine(selectedBrandId)]);
-        setOriginalLineIds([]);
         setEditInvoice(null);
     };
 
@@ -348,10 +340,6 @@ export const SalesEntrySection = () => {
         }
         if (!customerStateCode) {
             toast.error("Customer state is required.");
-            return;
-        }
-        if (!linesValid) {
-            toast.error(MESSAGES.ERROR_SALES_LINE_FIELDS_REQUIRED);
             return;
         }
 
@@ -366,12 +354,14 @@ export const SalesEntrySection = () => {
             return;
         }
 
+        const formLines = form.getValues("lines") ?? [];
+        const formOriginalLineIds = form.getValues("originalLineIds") ?? [];
         const txnTypeId = isReturn ? returnTypeId! : salesTypeId;
         const drCr      = isReturn ? "D" : "C";
 
         // Compute totals
         let aggTotal = 0, cgstTotal = 0, sgstTotal = 0, igstTotal = 0;
-        for (const l of lines) {
+        for (const l of formLines) {
             const c = calcLine(l, isIgst);
             aggTotal  += c.aggregate;
             cgstTotal += c.cgstAmt;
@@ -381,7 +371,7 @@ export const SalesEntrySection = () => {
         const totalTax   = cgstTotal + sgstTotal + igstTotal;
         const grandTotal = aggTotal + totalTax;
 
-        const linePayload = lines.map(line => {
+        const linePayload = formLines.map(line => {
             const c = calcLine(line, isIgst);
             return {
                 part_id:          line.part_id,
@@ -441,7 +431,7 @@ export const SalesEntrySection = () => {
                         xDetails: {
                             tableName:  "sales_invoice_line",
                             fkeyName:   "sales_invoice_id",
-                            deletedIds: originalLineIds,
+                            deletedIds: formOriginalLineIds,
                             xData:      linePayload,
                         },
                     },
@@ -792,11 +782,6 @@ export const SalesEntrySection = () => {
                         setCustomerGstin={setCustomerGstin}
                         customerStateCode={customerStateCode}
                         setCustomerStateCode={setCustomerStateCode}
-                        lines={lines}
-                        setLines={setLines}
-                        originalLineIds={originalLineIds}
-                        setOriginalLineIds={setOriginalLineIds}
-                        onLinesValidChange={setLinesValid}
                     />
                 </FormProvider>
             ) : (
