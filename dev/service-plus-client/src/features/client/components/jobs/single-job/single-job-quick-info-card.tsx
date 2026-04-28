@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Eye, Printer, Paperclip, FileText, Loader2 } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import type { JobListRow } from "@/features/client/types/job";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { SQL_MAP } from "@/constants/sql-map";
@@ -57,14 +57,10 @@ export function SingleJobQuickInfoCard({ onView, onPrint, onAttach }: QuickInfoC
 
     if (loading) {
         return (
-            <Card className="border-[var(--cl-accent)]/30 shadow-md bg-gradient-to-br from-[var(--cl-surface)] to-[var(--cl-accent)]/5 !overflow-visible">
-                <CardContent className="p-2 flex items-center gap-3">
-                    <div className="flex items-center gap-2 text-xs text-[var(--cl-text-muted)]">
-                        <Loader2 className="h-3 w-3 animate-spin" />
-                        Loading...
-                    </div>
-                </CardContent>
-            </Card>
+            <div className="w-full rounded-xl border border-[var(--cl-border)] bg-[var(--cl-surface-2)] px-4 py-3 flex items-center gap-2 text-xs text-[var(--cl-text-muted)]">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Loading last job…
+            </div>
         );
     }
 
@@ -73,46 +69,57 @@ export function SingleJobQuickInfoCard({ onView, onPrint, onAttach }: QuickInfoC
     }
 
     return (
-        <Card className="border-[var(--cl-accent)]/30 shadow-md bg-gradient-to-br from-[var(--cl-surface)] to-[var(--cl-accent)]/5 !overflow-visible">
-            <CardContent className="p-2 flex items-center gap-3">
-                <div>
-                    <span className="text-[9px] font-black uppercase tracking-widest text-[var(--cl-accent)]">Last Job</span>
-                    <div className="font-mono text-sm font-bold text-[var(--cl-text)]">{job.job_no}</div>
+        <div className="w-full rounded-xl border border-[var(--cl-border)] bg-gradient-to-r from-[var(--cl-surface-2)] to-[var(--cl-surface)] shadow-sm">
+            <div className="flex flex-col md:flex-row items-center justify-between px-4 py-2.5 gap-3">
+                {/* Left: label + job info */}
+                <div className="flex items-center gap-3 min-w-0">
+                    <div className="flex flex-col shrink-0">
+                        <span className="text-[9px] font-black uppercase tracking-widest text-[var(--cl-accent)] mb-0.5">Last Job</span>
+                        <span className="font-mono text-sm font-bold text-[var(--cl-text)]">{job.job_no}</span>
+                    </div>
+                    <div className="h-8 w-px bg-[var(--cl-border)] shrink-0" />
+                    <div className="flex flex-col gap-0.5 min-w-0">
+                        <span className="text-xs font-medium text-[var(--cl-text)] truncate max-w-[220px]">{job.device_details || "—"}</span>
+                        <span className="text-[11px] text-[var(--cl-text-muted)] truncate max-w-[220px]">{job.customer_name || "—"}</span>
+                    </div>
+                    {job.file_count > 0 && (
+                        <span className="flex items-center gap-1 text-[10px] font-bold text-teal-600 bg-teal-50 dark:bg-teal-950/30 px-2 py-0.5 rounded-full border border-teal-200 dark:border-teal-800/30 shrink-0">
+                            <FileText className="h-3 w-3" />
+                            {job.file_count}
+                        </span>
+                    )}
                 </div>
-                <div className="min-w-0 flex-1 max-w-[120px]">
-                    <div className="text-xs text-[var(--cl-text-muted)] truncate">{job.device_details || "—"}</div>
-                    <div className="text-xs text-[var(--cl-text-muted)] truncate">{job.customer_name || "—"}</div>
-                </div>
-                {job.file_count > 0 && (
-                    <span className="flex items-center gap-1 text-[10px] font-bold text-teal-600 bg-teal-50 dark:bg-teal-950/30 px-2 py-0.5 rounded-full shrink-0">
-                        <FileText className="h-3 w-3" />
-                        {job.file_count}
-                    </span>
-                )}
-                <div className="flex items-center gap-1 shrink-0">
-                    <button
+                {/* Right: action buttons */}
+                <div className="flex items-center gap-1.5 shrink-0">
+                    <Button
                         type="button"
-                        className="flex items-center justify-center gap-1 h-7 px-2 text-[10px] font-bold uppercase tracking-wider bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400 rounded-md hover:bg-blue-100 dark:hover:bg-blue-950/50 transition-colors"
+                        size="sm"
+                        className="h-7 px-3 text-[11px] font-semibold bg-blue-500 hover:bg-blue-600 text-white"
                         onClick={() => onView?.(job)}
                     >
-                        <Eye className="h-3 w-3" />
-                    </button>
-                    <button
+                        <Eye className="h-3.5 w-3.5 mr-1.5" />
+                        View
+                    </Button>
+                    <Button
                         type="button"
-                        className="flex items-center justify-center gap-1 h-7 px-2 text-[10px] font-bold uppercase tracking-wider bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 rounded-md hover:bg-indigo-100 dark:hover:bg-indigo-950/50 transition-colors"
+                        size="sm"
+                        className="h-7 px-3 text-[11px] font-semibold bg-indigo-500 hover:bg-indigo-600 text-white"
                         onClick={() => onPrint?.(job)}
                     >
-                        <Printer className="h-3 w-3" />
-                    </button>
-                    <button
+                        <Printer className="h-3.5 w-3.5 mr-1.5" />
+                        Print
+                    </Button>
+                    <Button
                         type="button"
-                        className="flex items-center justify-center gap-1 h-7 px-2 text-[10px] font-bold uppercase tracking-wider bg-violet-50 dark:bg-violet-950/30 text-violet-600 dark:text-violet-400 rounded-md hover:bg-violet-100 dark:hover:bg-violet-950/50 transition-colors"
+                        size="sm"
+                        className="h-7 px-3 text-[11px] font-semibold bg-violet-500 hover:bg-violet-600 text-white"
                         onClick={() => onAttach?.(job.job_no, job.id)}
                     >
-                        <Paperclip className="h-3 w-3" />
-                    </button>
+                        <Paperclip className="h-3.5 w-3.5 mr-1.5" />
+                        Attach
+                    </Button>
                 </div>
-            </CardContent>
-        </Card>
+            </div>
+        </div>
     );
 }

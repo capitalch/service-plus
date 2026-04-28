@@ -205,7 +205,7 @@ export const JobImageUpload = ({ jobId, onPendingChange, readOnly = false }: Pro
         }
     };
 
-    const isUploadDisabled = pendingFiles.length === 0 || pendingFiles.some((f) => !f.about.trim() || f.isUploading);
+    const isUploadDisabled = pendingFiles.length === 0 || pendingFiles.some((f) => f.isUploading);
     const hasExistingFiles = uploadedFiles.length > 0;
 
     return (
@@ -262,8 +262,9 @@ export const JobImageUpload = ({ jobId, onPendingChange, readOnly = false }: Pro
                                 size="sm"
                                 disabled={isUploadDisabled}
                                 onClick={handleUploadAll}
-                                className="bg-[var(--cl-accent)] text-white hover:bg-[var(--cl-accent)]/90 h-7 text-xs px-3 shadow-sm"
+                                className="bg-blue-600 hover:bg-blue-700 text-white h-7 text-xs px-2 shadow-sm font-bold"
                             >
+                                <CloudUpload className="w-3 h-3 mr-1.5" />
                                 Upload Now
                             </Button>
                         )}

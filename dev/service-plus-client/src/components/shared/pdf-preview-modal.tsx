@@ -24,7 +24,7 @@ export const PdfPreviewModal = ({ isOpen, onClose, pdfUrl, title = "PDF Preview"
     };
 
     return (
-        <Dialog open={isOpen} onOpenChange={onClose}>
+        <Dialog open={isOpen} onOpenChange={() => {}}>
             <DialogContent
                 aria-describedby={undefined}
                 showCloseButton={false}

@@ -59,7 +59,12 @@ export const SingleJobViewModal = ({ isOpen, job, onClose, onPrint }: JobViewMod
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent aria-describedby={undefined} className="w-[95vw] sm:max-w-4xl p-0 overflow-hidden bg-background border-none shadow-2xl rounded-[1.5rem] flex flex-col max-h-[92vh]">
+            <DialogContent
+                aria-describedby={undefined}
+                className="w-[95vw] sm:max-w-4xl p-0 overflow-hidden bg-background border-none shadow-2xl rounded-[1.5rem] flex flex-col max-h-[92vh]"
+                onInteractOutside={e => e.preventDefault()}
+                onEscapeKeyDown={e => e.preventDefault()}
+            >
                 <DialogTitle className="sr-only">Job Details: #{job.job_no}</DialogTitle>
                 {/* Compact Premium Header */}
                 <div className="relative bg-white dark:bg-zinc-950 px-6 py-5 md:px-8 md:py-6 border-b text-foreground overflow-hidden shrink-0">

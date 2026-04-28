@@ -21,6 +21,8 @@ export const JobAttachDialog = ({ jobId, jobNo, mode = "attach", onClose }: Prop
             <DialogContent
                 aria-describedby={undefined}
                 className="sm:max-w-2xl bg-white dark:bg-zinc-950 text-[var(--cl-text)] shadow-2xl border border-[var(--cl-border)]"
+                onInteractOutside={e => e.preventDefault()}
+                onEscapeKeyDown={e => e.preventDefault()}
             >
                 <DialogHeader>
                     <DialogTitle className="text-base font-semibold">

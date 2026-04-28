@@ -1,7 +1,7 @@
 # QA round
 - Jobs
 	- Single Job
-		- Quick info card
+								- Quick info card
 								- Remove date filter
 								- Search to include all items
 								- View list to include product, brand, model.

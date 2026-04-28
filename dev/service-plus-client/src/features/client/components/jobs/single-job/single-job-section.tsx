@@ -792,6 +792,32 @@ export const SingleJobSection = () => {
                     />
                 </>
             )}
+
+            {/* Shared dialogs - visible in both new and view modes */}
+            <SingleJobViewModal
+                isOpen={viewJob !== null}
+                job={viewJob}
+                onClose={() => setViewJob(null)}
+                onPrint={handlePrintFromView}
+            />
+
+            <JobAttachDialog
+                jobId={attachJobId}
+                jobNo={attachJobNo}
+                mode={attachMode}
+                onClose={() => { setAttachJobId(null); setAttachJobNo(""); setAttachMode("attach"); }}
+            />
+
+            <PdfPreviewModal
+                isOpen={showPdfModal}
+                pdfUrl={pdfPreviewUrl}
+                title={`Job Sheet #${viewJob?.job_no || ""}`}
+                filename={pdfFilename}
+                onClose={() => {
+                    setShowPdfModal(false);
+                    setPdfPreviewUrl(null);
+                }}
+            />
         </motion.div>
     );
 };
