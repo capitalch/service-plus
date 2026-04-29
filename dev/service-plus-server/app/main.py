@@ -76,9 +76,10 @@ app.include_router(auth_router)
 app.include_router(base_router)
 app.include_router(image_router)
 
-# Serve uploaded files
-os.makedirs(settings.upload_base_dir, exist_ok=True)
-app.mount("/uploads", StaticFiles(directory=settings.upload_base_dir), name="uploads")
+# Serve uploaded files from dev/uploads/ (parent of the server folder)
+_upload_root = Path(__file__).parent.parent.parent / settings.upload_base_dir
+os.makedirs(_upload_root, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=str(_upload_root)), name="uploads")
 
 # Mount GraphQL application
 graphql_app = create_graphql_app()

@@ -51,6 +51,7 @@ type Props = {
     onViewJob?: (job: JobListRow) => void;
     onPrintPdf?: (job: JobListRow) => void;
     onAttachFiles?: (jobNo: string, jobId: number) => void;
+    refreshTrigger?: number;
 };
 
 const labelCls = "text-xs font-extrabold text-[var(--cl-text)] uppercase tracking-widest";
@@ -59,7 +60,7 @@ const labelCls = "text-xs font-extrabold text-[var(--cl-text)] uppercase trackin
 
 export function NewSingleJobForm({
     branchId, jobStatuses, jobTypes, receiveMannners, receiveConditions, models, brands, products, customerTypes, masterStates, editJob,
-    onRefreshModels, onViewJob, onPrintPdf, onAttachFiles,
+    onRefreshModels, onViewJob, onPrintPdf, onAttachFiles, refreshTrigger,
 }: Props) {
     const dbName = useAppSelector(selectDbName);
     const schema = useAppSelector(selectSchema);
@@ -140,6 +141,7 @@ export function NewSingleJobForm({
                         onView={onViewJob}
                         onPrint={onPrintPdf}
                         onAttach={onAttachFiles}
+                        refreshTrigger={refreshTrigger}
                     />
 
                     <div className="flex items-start gap-3 flex-col">

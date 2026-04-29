@@ -1,5 +1,6 @@
 # QA round
 - Jobs
+	- Separate file server
 	- Single Job
 								- Quick info card
 								- Remove date filter
@@ -8,7 +9,12 @@
 								- Search debounce be 1200
 								- Check new save
 								- Check edit save
-		- File upload
+								- Check when new job is created, then QIC is updated
+							- File upload
+								- Quick info card is not updated with latest no of files, when files added or deleted
+								- put navigation to job no's in quick info card
+								- As per job no
+								- In a different folder
 								- Search working
 								- Delete job
 								- Check batch_no functionality. null or 0

@@ -5,15 +5,16 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type Props = {
-    jobId:   number | null;
-    jobNo:   string;
-    mode?:   "attach" | "view";
-    onClose: () => void;
+    jobId:          number | null;
+    jobNo:          string;
+    mode?:          "attach" | "view";
+    onClose:        () => void;
+    onFilesChanged?: (count: number) => void;
 };
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export const JobAttachDialog = ({ jobId, jobNo, mode = "attach", onClose }: Props) => {
+export const JobAttachDialog = ({ jobId, jobNo, mode = "attach", onClose, onFilesChanged }: Props) => {
     const title = mode === "view" ? "Attachments" : "Attach Files";
 
     return (
@@ -37,7 +38,7 @@ export const JobAttachDialog = ({ jobId, jobNo, mode = "attach", onClose }: Prop
 
                 <div className="max-h-[60vh] overflow-y-auto">
                     {jobId !== null && (
-                        <JobImageUpload jobId={jobId} />
+                        <JobImageUpload jobId={jobId} jobNo={jobNo} onFileCountChange={onFilesChanged} />
                     )}
                 </div>
 

@@ -20,6 +20,9 @@ router = APIRouter(prefix="/api/images", tags=["images"])
 
 _MAX_BYTES = settings.upload_max_size_kb * 1024
 
+# Root upload folder: parent of the server folder, name taken from config
+_UPLOAD_ROOT = Path(__file__).parent.parent.parent.parent / settings.upload_base_dir
+
 
 @router.get("/config")
 async def get_upload_config():
@@ -33,6 +36,17 @@ def _derive_stem(about: str, epoch_ms: int) -> str:
     stem = re.sub(r"[^a-z0-9]", "_", about.strip().lower())
     stem = re.sub(r"_+", "_", stem).strip("_")
     return f"{stem}_{epoch_ms}"
+
+
+def _safe_job_no(job_no: str) -> str:
+    slug = re.sub(r"[^a-z0-9]", "_", job_no.strip().lower())
+    return re.sub(r"_+", "_", slug).strip("_")
+
+
+def _url_to_path(url: str) -> Path:
+    """Convert a stored rel_url (uploads/…) to an absolute filesystem path."""
+    relative = "/".join(url.split("/")[1:])  # strip leading "uploads/"
+    return _UPLOAD_ROOT / relative
 
 
 def _compress_to_webp(data: bytes) -> bytes:
@@ -67,6 +81,7 @@ async def upload_images(
     db_name: str = Form(...),
     schema: str = Form(...),
     job_id: int = Form(...),
+    job_no: str = Form(...),
     about: str = Form(...),
     files: List[UploadFile] = None,
     _current_user: dict = Depends(get_current_user),
@@ -80,8 +95,9 @@ async def upload_images(
     results = []
     epoch_ms = int(time.time() * 1000)
     stem = _derive_stem(about, epoch_ms)
+    folder = _safe_job_no(job_no)
 
-    dest_dir = Path(settings.upload_base_dir) / db_name / "files" / str(job_id)
+    dest_dir = _UPLOAD_ROOT / db_name / "files" / folder
     dest_dir.mkdir(parents=True, exist_ok=True)
 
     for file in files:
@@ -92,7 +108,7 @@ async def upload_images(
             webp_data = _compress_to_webp(data)
             filename = f"{stem}.webp"
             dest_dir.joinpath(filename).write_bytes(webp_data)
-            rel_url = f"uploads/{db_name}/files/{job_id}/{filename}"
+            rel_url = f"uploads/{db_name}/files/{folder}/{filename}"
         elif content_type == "application/pdf":
             if len(data) > _MAX_BYTES:
                 raise HTTPException(
@@ -101,7 +117,7 @@ async def upload_images(
                 )
             filename = f"{stem}.pdf"
             dest_dir.joinpath(filename).write_bytes(data)
-            rel_url = f"uploads/{db_name}/files/{job_id}/{filename}"
+            rel_url = f"uploads/{db_name}/files/{folder}/{filename}"
         else:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -114,7 +130,7 @@ async def upload_images(
         }
         record_id = await exec_sql_object(db_name, schema, sql_object)
         results.append({"id": record_id, "url": rel_url, "about": about.strip()})
-        logger.info("Uploaded job file: job_id=%s url=%s", job_id, rel_url)
+        logger.info("Uploaded job file: job_no=%s url=%s", job_no, rel_url)
 
     return results
 
@@ -138,7 +154,7 @@ async def delete_image(
 
     url: str = rows[0]["url"] if isinstance(rows[0], dict) else rows[0][0]
 
-    file_path = Path(url)
+    file_path = _url_to_path(url)
     if file_path.exists():
         file_path.unlink()
         logger.info("Deleted file: %s", file_path)
@@ -164,7 +180,7 @@ async def delete_job_images(
     deleted_count = 0
     for row in rows:
         url: str = row["url"] if isinstance(row, dict) else row[1]
-        file_path = Path(url)
+        file_path = _url_to_path(url)
         if file_path.exists():
             file_path.unlink()
             logger.info("Deleted job file: %s", file_path)

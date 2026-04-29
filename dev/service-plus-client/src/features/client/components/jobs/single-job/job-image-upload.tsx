@@ -19,6 +19,53 @@ import { selectSchema } from "@/store/context-slice";
 
 type GenericQueryData<T> = { genericQuery: T[] | null };
 
+async function compressImage(file: File, maxSizeKb: number): Promise<File> {
+    const maxBytes = maxSizeKb * 1024;
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        const url = URL.createObjectURL(file);
+
+        img.onload = () => {
+            URL.revokeObjectURL(url);
+            const canvas = document.createElement("canvas");
+            const ctx = canvas.getContext("2d");
+            if (!ctx) { reject(new Error("Canvas not supported")); return; }
+
+            let scale = 1.0;
+            let quality = 0.85;
+
+            const attempt = () => {
+                canvas.width  = Math.round(img.width  * scale);
+                canvas.height = Math.round(img.height * scale);
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+                canvas.toBlob(blob => {
+                    if (!blob) { reject(new Error("Compression failed")); return; }
+                    if (blob.size <= maxBytes) {
+                        resolve(new File([blob], file.name, { type: blob.type, lastModified: Date.now() }));
+                    } else if (quality > 0.3) {
+                        quality = Math.round((quality - 0.1) * 10) / 10;
+                        attempt();
+                    } else if (scale > 0.3) {
+                        scale   *= 0.75;
+                        quality  = 0.7;
+                        attempt();
+                    } else {
+                        // Best effort — accept whatever we have
+                        resolve(new File([blob], file.name, { type: blob.type, lastModified: Date.now() }));
+                    }
+                }, "image/jpeg", quality);
+            };
+
+            attempt();
+        };
+
+        img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("Failed to load image")); };
+        img.src = url;
+    });
+}
+
 export type StagedFile = {
     id: string;
     file: File;
@@ -29,11 +76,13 @@ export type StagedFile = {
 
 type Props = {
     jobId?: number; // Optional. If not provided, acts as a staging area for new job creation.
+    jobNo?: string;
     onPendingChange?: (files: StagedFile[]) => void;
+    onFileCountChange?: (count: number) => void;
     readOnly?: boolean;
 };
 
-export const JobImageUpload = ({ jobId, onPendingChange, readOnly = false }: Props) => {
+export const JobImageUpload = ({ jobId, jobNo = "", onPendingChange, onFileCountChange, readOnly = false }: Props) => {
     const dbName = useAppSelector(selectDbName);
     const schema = useAppSelector(selectSchema);
 
@@ -89,6 +138,10 @@ export const JobImageUpload = ({ jobId, onPendingChange, readOnly = false }: Pro
         }
     }, [fetchFiles, fetchConfigOnly, jobId]);
 
+    // Notify parent whenever the uploaded file count changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    useEffect(() => { onFileCountChange?.(uploadedFiles.length); }, [uploadedFiles.length]);
+
     // Cleanup object URLs on unmount
     useEffect(() => {
         return () => {
@@ -99,24 +152,38 @@ export const JobImageUpload = ({ jobId, onPendingChange, readOnly = false }: Pro
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    const onDrop = useCallback((acceptedFiles: File[]) => {
-        const filtered = acceptedFiles.filter(file => {
-            if (file.size > maxSizeKb * 1024) {
-                toast.error(`File "${file.name}" exceeds the ${maxSizeKb}KB limit.`);
-                return false;
-            }
-            return true;
-        });
+    const onDrop = useCallback(async (acceptedFiles: File[]) => {
+        const processed: File[] = [];
 
-        const newPending = filtered.map((file) => ({
+        for (const file of acceptedFiles) {
+            if (file.size > maxSizeKb * 1024) {
+                if (file.type.startsWith("image/")) {
+                    try {
+                        const before = (file.size / 1024).toFixed(0);
+                        const compressed = await compressImage(file, maxSizeKb);
+                        const after = (compressed.size / 1024).toFixed(0);
+                        toast.info(`"${file.name}" compressed ${before}KB → ${after}KB`);
+                        processed.push(compressed);
+                    } catch {
+                        toast.error(`Could not compress "${file.name}". Please reduce the file size manually.`);
+                    }
+                } else {
+                    toast.error(`File "${file.name}" exceeds the ${maxSizeKb}KB limit.`);
+                }
+            } else {
+                processed.push(file);
+            }
+        }
+
+        const newPending = processed.map(file => ({
             id: Math.random().toString(36).substring(7),
             file,
             preview: URL.createObjectURL(file),
             about: "",
             isUploading: false,
         }));
-        
-        setPendingFiles((prev) => {
+
+        setPendingFiles(prev => {
             const updated = [...prev, ...newPending];
             if (onPendingChange) onPendingChange(updated);
             return updated;
@@ -169,7 +236,7 @@ export const JobImageUpload = ({ jobId, onPendingChange, readOnly = false }: Pro
             });
 
             try {
-                const uploaded = await uploadJobFile(dbName, schema, jobId, pFile.about.trim(), pFile.file);
+                const uploaded = await uploadJobFile(dbName, schema, jobId, jobNo, pFile.about.trim(), pFile.file);
                 setUploadedFiles((prev) => [...prev, uploaded]);
                 setPendingFiles((prev) => {
                     const updated = prev.filter((f) => f.id !== pFile.id);
@@ -200,8 +267,8 @@ export const JobImageUpload = ({ jobId, onPendingChange, readOnly = false }: Pro
             await deleteJobFile(dbName, schema, imageId);
             setUploadedFiles((prev) => prev.filter((f) => f.id !== imageId));
             toast.success("File deleted successfully.");
-        } catch {
-            toast.error("Failed to delete file.");
+        } catch (err: any) {
+            toast.error(err?.message ?? "Failed to delete file.");
         }
     };
 
@@ -304,7 +371,7 @@ export const JobImageUpload = ({ jobId, onPendingChange, readOnly = false }: Pro
                                                 type="button"
                                                 onClick={() => removePending(pf.id)}
                                                 disabled={pf.isUploading}
-                                                className="shrink-0 p-1 rounded-full text-[var(--cl-text-muted)]/70 hover:bg-red-500/10 hover:text-red-500 transition-colors disabled:opacity-50 -mt-0.5 -mr-0.5"
+                                                className="shrink-0 p-1 rounded-full text-[var(--cl-text-muted)]/70 hover:bg-red-500/10 hover:text-red-500 transition-colors disabled:opacity-50 -mt-0.5 -mr-0.5 cursor-pointer"
                                             >
                                                 <X className="w-3.5 h-3.5" />
                                             </button>
@@ -399,7 +466,7 @@ export const JobImageUpload = ({ jobId, onPendingChange, readOnly = false }: Pro
                                                     e.preventDefault();
                                                     handleDelete(file.id);
                                                 }}
-                                                className="absolute top-2 right-2 p-1.5 rounded-full bg-black/40 text-white backdrop-blur-md opacity-0 group-hover:opacity-100 -translate-y-2 group-hover:translate-y-0 transition-all duration-300 hover:bg-rose-500 hover:scale-110 shadow-sm"
+                                                className="absolute top-2 right-2 p-1.5 rounded-full bg-black/40 text-white backdrop-blur-md opacity-0 group-hover:opacity-100 -translate-y-2 group-hover:translate-y-0 transition-all duration-300 hover:bg-rose-500 hover:scale-110 shadow-sm cursor-pointer"
                                                 title="Delete file"
                                             >
                                                 <Trash2 className="w-3.5 h-3.5" />

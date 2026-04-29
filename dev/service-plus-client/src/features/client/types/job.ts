@@ -50,6 +50,7 @@ export type JobDetailType = {
     product_name:                string | null;
     address_snapshot:            string | null;
     branch_code:                 string | null;
+    file_count?:                 number;
 };
 
 export type JobLookupRow = {

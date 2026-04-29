@@ -10,6 +10,7 @@ export async function uploadJobFile(
     dbName: string,
     schema: string,
     jobId: number,
+    jobNo: string,
     about: string,
     file: File,
 ): Promise<JobFileRow> {
@@ -17,6 +18,7 @@ export async function uploadJobFile(
     form.append("db_name", dbName);
     form.append("schema", schema);
     form.append("job_id", String(jobId));
+    form.append("job_no", jobNo);
     form.append("about", about);
     form.append("files", file);
 
@@ -46,6 +48,9 @@ export async function deleteJobFile(
     });
 
     if (!res.ok) {
+        if (res.status === 401 || res.status === 403) {
+            throw new Error("Session expired. Please logout and login again.");
+        }
         const err = await res.json().catch(() => ({ detail: "Delete failed" }));
         throw new Error(err.detail || "Delete failed");
     }
@@ -62,7 +67,10 @@ export async function deleteJobFiles(
     });
 
     if (!res.ok) {
-        const err = await res.json().catch(() => ({ detail: "Delete failed" }));
+        if (res.status === 401 || res.status === 403) {
+            throw new Error("Session expired. Please logout and login again.");
+        }
+        const err = await res.json().catch(() => ({ detail: "Delete files failed" }));
         throw new Error(err.detail || "Delete files failed");
     }
 }

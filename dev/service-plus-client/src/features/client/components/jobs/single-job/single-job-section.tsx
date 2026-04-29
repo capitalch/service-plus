@@ -101,6 +101,9 @@ export const SingleJobSection = () => {
     const [attachJobNo,  setAttachJobNo]  = useState<string>("");
     const [attachMode,   setAttachMode]   = useState<"attach" | "view">("attach");
 
+    // Quick info card refresh key — increment to trigger re-fetch
+    const [quickInfoKey, setQuickInfoKey] = useState(0);
+
     // Form
     const [submitting, setSubmitting] = useState(false);
     const currentUser = useAppSelector(selectCurrentUser);
@@ -171,6 +174,7 @@ export const SingleJobSection = () => {
                     variables: { db_name: dbName, schema, value: encoded },
                 });
                 toast.success(MESSAGES.SUCCESS_JOB_CREATED);
+                setQuickInfoKey(k => k + 1);
             }
             form.reset(getSingleJobDefaultValues());
             // call onSuccess manually
@@ -538,6 +542,7 @@ export const SingleJobSection = () => {
                         onViewJob={(j: JobListRow) => void handleViewJob(j)}
                         onPrintPdf={(j: JobListRow) => void handlePrintPdf(j)}
                         onAttachFiles={(jobNo: string, jobId: number) => { setAttachJobId(jobId); setAttachJobNo(jobNo); setAttachMode("attach"); }}
+                        refreshTrigger={quickInfoKey}
                         />
                     </FormProvider>
                 </div>
@@ -690,23 +695,6 @@ export const SingleJobSection = () => {
                                                                     <span>Attach Files</span>
                                                                 </DropdownMenuItem>
                                                                 <DropdownMenuItem
-                                                                    className={`flex items-center gap-2 cursor-pointer font-semibold ${
-                                                                        job.file_count > 0
-                                                                            ? "text-teal-500 focus:bg-teal-500/10 focus:text-teal-600"
-                                                                            : "text-[var(--cl-text-muted)] opacity-50 cursor-not-allowed"
-                                                                    }`}
-                                                                    disabled={job.file_count === 0}
-                                                                    onClick={() => { if (job.file_count > 0) { setAttachJobId(job.id); setAttachJobNo(job.job_no); setAttachMode("view"); } }}
-                                                                >
-                                                                    <Images className="h-4 w-4" />
-                                                                    <span>View Attachments</span>
-                                                                    {job.file_count > 0 && (
-                                                                        <span className="ml-auto text-[10px] font-mono bg-teal-500/10 text-teal-600 rounded px-1.5 py-0.5">
-                                                                            {job.file_count}
-                                                                        </span>
-                                                                    )}
-                                                                </DropdownMenuItem>
-                                                                <DropdownMenuItem
                                                                     className="flex items-center gap-2 cursor-pointer text-red-500 focus:bg-red-500/10 focus:text-red-600 font-semibold"
                                                                     onClick={() => setDeleteId(job.id)}
                                                                 >
@@ -777,7 +765,8 @@ export const SingleJobSection = () => {
                         jobId={attachJobId}
                         jobNo={attachJobNo}
                         mode={attachMode}
-                        onClose={() => { setAttachJobId(null); setAttachJobNo(""); setAttachMode("attach"); }}
+                        onFilesChanged={() => setQuickInfoKey(k => k + 1)}
+                        onClose={() => { setAttachJobId(null); setAttachJobNo(""); setAttachMode("attach"); setQuickInfoKey(k => k + 1); }}
                     />
 
                     <PdfPreviewModal
@@ -805,6 +794,7 @@ export const SingleJobSection = () => {
                 jobId={attachJobId}
                 jobNo={attachJobNo}
                 mode={attachMode}
+                onFilesChanged={() => setQuickInfoKey(k => k + 1)}
                 onClose={() => { setAttachJobId(null); setAttachJobNo(""); setAttachMode("attach"); }}
             />
 
