@@ -803,7 +803,7 @@ class SqlBu:
         ON CONFLICT (id) DO NOTHING;
 
         INSERT INTO document_type (id, code, prefix, name, description, is_system) VALUES
-            (1, 'JOB_SHEET',               'JS',  'Job Sheet',               'Service job intake and tracking document',              true),
+            (1, 'JOB_SHEET',               null,  'Job Sheet',               'Service job intake and tracking document',              true),
             (2, 'SERVICE_INVOICE',         'SI',  'Service Invoice',         'Service invoice issued to customer',                    true),
             (3, 'MONEY_RECEIPT',           'MR',  'Money Receipt',           'Receipt issued against payment received from customer',  true),
             (4, 'SALES_INVOICE',           'SAL', 'Sales Invoice',           'Sales invoice issued to customer',                      true),

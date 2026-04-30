@@ -1,6 +1,7 @@
 """
 Custom exceptions and error messages for the application.
 """
+import traceback
 from typing import Any, Dict, Optional
 from graphql import GraphQLError
 
@@ -296,7 +297,6 @@ def format_graphql_error(error: GraphQLError, debug: bool = False) -> Dict[str, 
 
     # Include stack trace in debug mode
     if debug and error.original_error:
-        import traceback
         if "extensions" not in formatted_error:
             formatted_error["extensions"] = {}
         formatted_error["extensions"]["exception"] = {

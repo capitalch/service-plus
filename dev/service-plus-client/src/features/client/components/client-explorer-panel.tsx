@@ -3,7 +3,7 @@ import type { ComponentType } from "react";
 import {
     BarChart3, BookOpen, Building2, Camera, ChevronDown, ChevronRight,
     ClipboardList, DollarSign, FileText, Globe, Hash,
-    LayoutDashboard, MapPin, Package, PlusCircle, PrinterCheck, Receipt,
+    LayoutDashboard, MapPin, Package, PlusCircle, Receipt,
     RefreshCcw, RotateCcw, Settings2, ShoppingCart,
     Tag, TrendingUp, Truck, User, UserCog, Users, Wrench,
 } from "lucide-react";

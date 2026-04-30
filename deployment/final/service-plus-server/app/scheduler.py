@@ -10,9 +10,10 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from app.db.psycopg_driver import exec_sql
 from app.db.sql_store import SqlStore
+from app.exceptions import DatabaseException
 from app.logger import logger
 
-_scheduler: AsyncIOScheduler | None = None
+_scheduler: dict[str, AsyncIOScheduler | None] = {"instance": None}
 
 _GET_ACTIVE_CLIENTS = """
     SELECT db_name FROM public.client WHERE is_active = true AND db_name IS NOT NULL
@@ -35,7 +36,7 @@ async def generate_snapshot_for_client(db_name: str, schema: str, year: int, mon
         count = len(rows) if isinstance(rows, list) else (rows or 0)
         logger.info("Snapshot %d/%d → %s/%s: %d rows", year, month, db_name, schema, count)
         return count
-    except Exception as exc:
+    except DatabaseException as exc:
         logger.error("Snapshot failed for %s/%s: %s", db_name, schema, exc)
         return 0
 
@@ -53,7 +54,7 @@ async def run_monthly_snapshot() -> None:
 
     try:
         client_rows = await exec_sql(db_name=None, schema="public", sql=_GET_ACTIVE_CLIENTS)
-    except Exception as exc:
+    except DatabaseException as exc:
         logger.error("Failed to fetch active clients for snapshot: %s", exc)
         return
 
@@ -61,8 +62,9 @@ async def run_monthly_snapshot() -> None:
     for client in client_rows:
         db_name: str = client["db_name"]
         try:
-            schema_rows = await exec_sql(db_name=db_name, schema="security", sql=_GET_ACTIVE_SCHEMAS)
-        except Exception as exc:
+            schema_rows = await exec_sql(db_name=db_name,
+                schema="security", sql=_GET_ACTIVE_SCHEMAS)
+        except DatabaseException as exc:
             logger.error("Failed to fetch schemas for %s: %s", db_name, exc)
             continue
 
@@ -74,9 +76,9 @@ async def run_monthly_snapshot() -> None:
 
 
 def start_scheduler() -> None:
-    global _scheduler
-    _scheduler = AsyncIOScheduler()
-    _scheduler.add_job(
+    """Initialize and start the background scheduler for monthly tasks."""
+    _scheduler["instance"] = AsyncIOScheduler()
+    _scheduler["instance"].add_job(
         run_monthly_snapshot,
         trigger="cron",
         day=1,
@@ -85,12 +87,13 @@ def start_scheduler() -> None:
         id="monthly_stock_snapshot",
         replace_existing=True,
     )
-    _scheduler.start()
+    _scheduler["instance"].start()
     logger.info("Stock snapshot scheduler started (runs on 1st of each month at 00:05)")
 
 
 def stop_scheduler() -> None:
-    global _scheduler
-    if _scheduler and _scheduler.running:
-        _scheduler.shutdown(wait=False)
+    """Safely shut down the running scheduler if it exists."""
+    instance = _scheduler["instance"]
+    if instance and instance.running:
+        instance.shutdown(wait=False)
         logger.info("Stock snapshot scheduler stopped")

@@ -189,7 +189,7 @@ export const BatchJobSection = () => {
                         if (!jobId) return;
                         for (const { file, about } of (pendingFiles[row.localId] ?? [])) {
                             try {
-                                await uploadJobFile(dbName, schema, jobId, about, file);
+                                await uploadJobFile(dbName, schema, jobId, row.job_no, about, file);
                             } catch (err: unknown) {
                                 toast.error(`Upload failed for "${about}": ${(err as Error).message}`);
                             }

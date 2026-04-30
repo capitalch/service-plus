@@ -42,7 +42,6 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> dict:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=str(exc),
-            # headers={"WWW-Authenticate": "Bearer"},
         ) from None
 
     user_id_raw: str | None = payload.get("sub")

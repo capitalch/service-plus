@@ -4,7 +4,7 @@ Centralized SQL store for the entire application.
 All SQL strings (application, admin, auth, and super-admin) live here in a
 single class — SqlStore.  Sections are ordered alphabetically.
 """
-from psycopg import sql as pgsql
+# from psycopg import sql as pgsql
 
 
 class SqlStore:
@@ -690,6 +690,15 @@ class SqlStore:
         LEFT JOIN document_sequence ds ON ds.document_type_id = dt.id AND ds.branch_id = (table "p_branch_id")
         ORDER BY dt.id
     """
+
+    CLAIM_NEXT_JOB_NUMBER = """
+        UPDATE document_sequence 
+        SET next_number = next_number + 1 
+        WHERE document_type_id = (SELECT id FROM document_type WHERE code = 'JOB_SHEET')
+          AND branch_id = %(branch_id)s
+        RETURNING prefix, (next_number - 1) AS assigned_number, padding, separator;
+    """
+
 
     # ── Document Types ────────────────────────────────────────────────────────
 
@@ -1484,7 +1493,7 @@ class SqlStore:
         LIMIT  (table "p_limit")
         OFFSET (table "p_offset")
     """
-    
+
     GET_PART_BY_CODE = """
         with
             "p_code"     as (values(%(code)s::text)),
@@ -2963,10 +2972,10 @@ class SqlStore:
            OR LOWER(j.job_no)       LIKE '%%' || LOWER((table "p_search")) || '%%'
            OR LOWER(cc.mobile)      LIKE '%%' || LOWER((table "p_search")) || '%%'
            OR LOWER(cc.full_name)   LIKE '%%' || LOWER((table "p_search")) || '%%')
-        ORDER BY j.job_date DESC, j.job_no
-        LIMIT  (table "p_limit")
-        OFFSET (table "p_offset")
-    """
+         ORDER BY j.job_date DESC, j.id DESC
+         LIMIT  (table "p_limit")
+         OFFSET (table "p_offset")
+     """
 
     GET_JOBS_COUNT = """
         with
@@ -2977,12 +2986,19 @@ class SqlStore:
         SELECT COUNT(*) AS total
         FROM job j
         JOIN customer_contact cc ON cc.id = j.customer_contact_id
+        LEFT JOIN product_brand_model pbm ON pbm.id = j.product_brand_model_id
+        LEFT JOIN brand            b   ON b.id   = pbm.brand_id
+        LEFT JOIN product          p   ON p.id   = pbm.product_id
         WHERE j.branch_id = (table "p_branch_id")
           AND j.job_date BETWEEN (table "p_from_date") AND (table "p_to_date")
           AND ((table "p_search") = ''
            OR LOWER(j.job_no)       LIKE '%%' || LOWER((table "p_search")) || '%%'
            OR LOWER(cc.mobile)      LIKE '%%' || LOWER((table "p_search")) || '%%'
-           OR LOWER(cc.full_name)   LIKE '%%' || LOWER((table "p_search")) || '%%')
+           OR LOWER(cc.full_name)   LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(p.name)         LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(b.name)         LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(pbm.model_name) LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(j.serial_no)    LIKE '%%' || LOWER((table "p_search")) || '%%')
     """
 
     GET_JOBS_PAGED = """
@@ -3001,21 +3017,30 @@ class SqlStore:
             j.amount,
             cc.full_name  AS customer_name,
             cc.mobile,
+            TRIM(CONCAT_WS(' ', p.name, b.name, pbm.model_name, j.serial_no)) AS device_details,
             jt.name       AS job_type_name,
             js.name       AS job_status_name,
-            t.name        AS technician_name
+            t.name        AS technician_name,
+            (SELECT COUNT(*) FROM job_image_doc jid WHERE jid.job_id = j.id) AS file_count
         FROM job j
         JOIN customer_contact cc ON cc.id = j.customer_contact_id
         JOIN job_type          jt ON jt.id = j.job_type_id
         JOIN job_status        js ON js.id = j.job_status_id
         LEFT JOIN technician   t  ON t.id  = j.technician_id
+        LEFT JOIN product_brand_model pbm ON pbm.id = j.product_brand_model_id
+        LEFT JOIN brand            b   ON b.id   = pbm.brand_id
+        LEFT JOIN product          p   ON p.id   = pbm.product_id
         WHERE j.branch_id = (table "p_branch_id")
           AND j.job_date BETWEEN (table "p_from_date") AND (table "p_to_date")
           AND ((table "p_search") = ''
            OR LOWER(j.job_no)       LIKE '%%' || LOWER((table "p_search")) || '%%'
            OR LOWER(cc.mobile)      LIKE '%%' || LOWER((table "p_search")) || '%%'
-           OR LOWER(cc.full_name)   LIKE '%%' || LOWER((table "p_search")) || '%%')
-        ORDER BY j.job_date DESC, j.job_no
+           OR LOWER(cc.full_name)   LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(p.name)         LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(b.name)         LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(pbm.model_name) LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(j.serial_no)    LIKE '%%' || LOWER((table "p_search")) || '%%')
+        ORDER BY j.job_date DESC, j.id DESC
         LIMIT  (table "p_limit")
         OFFSET (table "p_offset")
     """
@@ -3058,7 +3083,8 @@ class SqlStore:
             cc.mobile,
             jt.name      AS job_type_name,
             js.name      AS job_status_name,
-            t.name       AS technician_name
+            t.name       AS technician_name,
+            (SELECT COUNT(*) FROM job_image_doc jid WHERE jid.job_id = j.id) AS file_count
         FROM job j
         JOIN customer_contact cc ON cc.id = j.customer_contact_id
         JOIN job_type          jt ON jt.id = j.job_type_id
@@ -3071,7 +3097,7 @@ class SqlStore:
            OR LOWER(j.job_no)     LIKE '%%' || LOWER((table "p_search")) || '%%'
            OR LOWER(cc.mobile)    LIKE '%%' || LOWER((table "p_search")) || '%%'
            OR LOWER(cc.full_name) LIKE '%%' || LOWER((table "p_search")) || '%%')
-        ORDER BY j.job_date DESC, j.job_no
+        ORDER BY j.job_date DESC, j.id DESC
         LIMIT  (table "p_limit")
         OFFSET (table "p_offset")
     """
@@ -3089,7 +3115,8 @@ class SqlStore:
             t.name        AS technician_name,
             pbm.model_name,
             b.name        AS brand_name,
-            p.name        AS product_name
+            p.name        AS product_name,
+            (SELECT COUNT(*) FROM job_image_doc jid WHERE jid.job_id = j.id) AS file_count
         FROM job j
         JOIN customer_contact      cc  ON cc.id  = j.customer_contact_id
         JOIN job_type              jt  ON jt.id  = j.job_type_id
@@ -3114,6 +3141,26 @@ class SqlStore:
         DELETE FROM job_image_doc
         WHERE id = %(id)s
         RETURNING url
+    """
+
+    GET_JOB_IMAGE_DOCS_BY_JOB = """
+        SELECT jid.id, jid.url, j.job_no
+        FROM job_image_doc jid
+        JOIN job j ON j.id = jid.job_id
+        WHERE jid.job_id = %(job_id)s
+        LIMIT 1
+    """
+
+    COUNT_JOB_IMAGE_DOCS_BY_JOB = """
+        SELECT COUNT(*) AS count
+        FROM job_image_doc
+        WHERE job_id = %(job_id)s
+    """
+
+    DELETE_JOB_IMAGE_DOCS_BY_JOB = """
+        DELETE FROM job_image_doc
+        WHERE job_id = %(job_id)s
+        RETURNING id, url
     """
 
     GET_JOB_BATCHES_PAGED = """
@@ -3206,7 +3253,7 @@ class SqlStore:
            OR LOWER(j.job_no)     LIKE '%%' || LOWER((table "p_search")) || '%%'
            OR LOWER(cc.mobile)    LIKE '%%' || LOWER((table "p_search")) || '%%'
            OR LOWER(cc.full_name) LIKE '%%' || LOWER((table "p_search")) || '%%')
-        ORDER BY j.job_date DESC, j.job_no
+        ORDER BY j.job_date DESC, j.id DESC
         LIMIT (table "p_limit")
     """
 
@@ -3343,7 +3390,7 @@ class SqlStore:
            OR  LOWER(j.job_no::text) LIKE '%%' || LOWER((table "p_search")) || '%%'
            OR  LOWER(cc.mobile)      LIKE '%%' || LOWER((table "p_search")) || '%%'
            OR  LOWER(cc.full_name)   LIKE '%%' || LOWER((table "p_search")) || '%%')
-        ORDER BY j.job_date DESC, j.job_no
+        ORDER BY j.job_date DESC, j.id DESC
         LIMIT  (table "p_limit")
         OFFSET (table "p_offset")
     """
@@ -3438,7 +3485,7 @@ class SqlStore:
            OR  LOWER(j.job_no::text) LIKE '%%' || LOWER((table "p_search")) || '%%'
            OR  LOWER(cc.mobile)      LIKE '%%' || LOWER((table "p_search")) || '%%'
            OR  LOWER(cc.full_name)   LIKE '%%' || LOWER((table "p_search")) || '%%')
-        ORDER BY j.job_date DESC, j.job_no
+        ORDER BY j.job_date DESC, j.id DESC
         LIMIT  (table "p_limit")
         OFFSET (table "p_offset")
     """

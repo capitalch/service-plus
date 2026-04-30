@@ -1,5 +1,32 @@
 import { getApiBaseUrl } from "./utils";
 import type { JobFileRow } from "@/features/client/types/job";
+import { refreshAccessToken } from "@/lib/auth-service";
+
+async function refreshIfNeeded(): Promise<string | null> {
+    const token = localStorage.getItem("accessToken");
+    if (!token) return null;
+
+    try {
+        const payload = JSON.parse(atob(token.split(".")[1]));
+        const exp = payload.exp;
+        const now = Math.floor(Date.now() / 1000);
+        const timeLeft = exp - now;
+
+        // Refresh if less than 5 minutes left
+        if (timeLeft < 300) {
+            const refreshToken = localStorage.getItem("refreshToken");
+            if (!refreshToken) return null;
+
+            const res = await refreshAccessToken(refreshToken);
+            localStorage.setItem("accessToken", res.accessToken);
+            localStorage.setItem("refreshToken", res.refreshToken);
+            return res.accessToken;
+        }
+        return token;
+    } catch {
+        return token;
+    }
+}
 
 function getAuthHeaders(): Record<string, string> {
     const token = localStorage.getItem("accessToken");
@@ -14,6 +41,9 @@ export async function uploadJobFile(
     about: string,
     file: File,
 ): Promise<JobFileRow> {
+    const token = await refreshIfNeeded();
+    const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+
     const form = new FormData();
     form.append("db_name", dbName);
     form.append("schema", schema);
@@ -24,7 +54,7 @@ export async function uploadJobFile(
 
     const res = await fetch(`${getApiBaseUrl()}/api/images/upload`, {
         method: "POST",
-        headers: getAuthHeaders(),
+        headers: headers as HeadersInit,
         body: form,
     });
 
@@ -42,6 +72,8 @@ export async function deleteJobFile(
     schema: string,
     imageId: number,
 ): Promise<void> {
+    await refreshIfNeeded();
+
     const res = await fetch(`${getApiBaseUrl()}/api/images/${dbName}/${schema}/${imageId}`, {
         method: "DELETE",
         headers: getAuthHeaders(),
@@ -61,6 +93,8 @@ export async function deleteJobFiles(
     schema: string,
     jobId: number,
 ): Promise<void> {
+    await refreshIfNeeded();
+
     const res = await fetch(`${getApiBaseUrl()}/api/images/${dbName}/${schema}/job/${jobId}`, {
         method: "DELETE",
         headers: getAuthHeaders(),

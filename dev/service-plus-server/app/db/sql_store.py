@@ -4,7 +4,7 @@ Centralized SQL store for the entire application.
 All SQL strings (application, admin, auth, and super-admin) live here in a
 single class — SqlStore.  Sections are ordered alphabetically.
 """
-from psycopg import sql as pgsql
+# from psycopg import sql as pgsql
 
 
 class SqlStore:
@@ -1493,7 +1493,7 @@ class SqlStore:
         LIMIT  (table "p_limit")
         OFFSET (table "p_offset")
     """
-    
+
     GET_PART_BY_CODE = """
         with
             "p_code"     as (values(%(code)s::text)),
@@ -3141,6 +3141,20 @@ class SqlStore:
         DELETE FROM job_image_doc
         WHERE id = %(id)s
         RETURNING url
+    """
+
+    GET_JOB_IMAGE_DOCS_BY_JOB = """
+        SELECT jid.id, jid.url, j.job_no
+        FROM job_image_doc jid
+        JOIN job j ON j.id = jid.job_id
+        WHERE jid.job_id = %(job_id)s
+        LIMIT 1
+    """
+
+    COUNT_JOB_IMAGE_DOCS_BY_JOB = """
+        SELECT COUNT(*) AS count
+        FROM job_image_doc
+        WHERE job_id = %(job_id)s
     """
 
     DELETE_JOB_IMAGE_DOCS_BY_JOB = """

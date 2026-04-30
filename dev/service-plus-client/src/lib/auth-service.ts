@@ -53,6 +53,7 @@ export type BuContextType = {
 
 export type LoginResponseType = {
     accessToken: string;
+    refreshToken: string;
     accessRights?: string[] | null | [];
     availableBus?: BuContextType[];
     dbName?: string | null;
@@ -148,6 +149,20 @@ export async function setNewPassword(token: string, newPassword: string): Promis
 export async function validateResetToken(token: string): Promise<ValidateResetTokenResponseType> {
     try {
         const response = await axiosInstance.post('/api/auth/validate-reset-token', { token });
+        return response.data;
+    } catch (err) {
+        throw extractApiError(err);
+    }
+}
+
+export type RefreshTokenType = {
+    accessToken: string;
+    refreshToken: string;
+};
+
+export async function refreshAccessToken(refreshToken: string): Promise<RefreshTokenType> {
+    try {
+        const response = await axiosInstance.post('/api/auth/refresh', { refreshToken });
         return response.data;
     } catch (err) {
         throw extractApiError(err);

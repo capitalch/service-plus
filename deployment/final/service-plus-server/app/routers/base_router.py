@@ -2,6 +2,7 @@
 Base router for non-GraphQL endpoints.
 """
 from fastapi import APIRouter
+import smtplib
 from app.config import settings
 from app.core.email import send_email
 from app.exceptions import AppMessages
@@ -43,6 +44,6 @@ async def test_email():
         )
         logger.info("Test email sent to %s", AppMessages.EMAIL_TEST_RECIPIENT)
         return {"status": "ok", "message": AppMessages.EMAIL_TEST_SENT}
-    except Exception as exc:
+    except (smtplib.SMTPException, OSError, RuntimeError) as exc:
         logger.error("Test email failed: %s", exc)
         return {"status": "error", "message": AppMessages.EMAIL_TEST_FAILED, "detail": str(exc)}

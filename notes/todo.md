@@ -1,6 +1,9 @@
 # QA round
 - Jobs
 	- Separate file server
+		- Create local server and Test it locally
+		- Create cloudjiffy server
+		- Deploy cloudjiffy server
 	- Single Job
 								- Quick info card
 								- Remove date filter

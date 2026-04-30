@@ -6,6 +6,16 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { SQL_MAP } from "@/constants/sql-map";
 import { apolloClient } from "@/lib/apollo-client";
@@ -90,6 +100,8 @@ export const JobImageUpload = ({ jobId, jobNo = "", onPendingChange, onFileCount
     const [pendingFiles, setPendingFiles] = useState<StagedFile[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [maxSizeKb, setMaxSizeKb] = useState<number>(500);
+    const [deleteTarget, setDeleteTarget] = useState<{ id: number; about: string } | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     const fetchFiles = useCallback(async () => {
         if (!jobId || !dbName || !schema) return;
@@ -109,7 +121,7 @@ export const JobImageUpload = ({ jobId, jobNo = "", onPendingChange, onFileCount
                         }),
                     },
                 }),
-                getUploadConfig()
+                getUploadConfig(),
             ]);
             
             setUploadedFiles(filesRes.data?.genericQuery || []);
@@ -260,15 +272,18 @@ export const JobImageUpload = ({ jobId, jobNo = "", onPendingChange, onFileCount
         }
     };
 
-    const handleDelete = async (imageId: number) => {
-        if (!dbName || !schema) return;
-        if (!confirm("Are you sure you want to delete this file?")) return;
+    const confirmDelete = async () => {
+        if (!deleteTarget || !dbName || !schema) return;
+        setIsDeleting(true);
         try {
-            await deleteJobFile(dbName, schema, imageId);
-            setUploadedFiles((prev) => prev.filter((f) => f.id !== imageId));
+            await deleteJobFile(dbName, schema, deleteTarget.id);
+            setUploadedFiles((prev) => prev.filter((f) => f.id !== deleteTarget.id));
             toast.success("File deleted successfully.");
         } catch (err: any) {
             toast.error(err?.message ?? "Failed to delete file.");
+        } finally {
+            setIsDeleting(false);
+            setDeleteTarget(null);
         }
     };
 
@@ -276,6 +291,7 @@ export const JobImageUpload = ({ jobId, jobNo = "", onPendingChange, onFileCount
     const hasExistingFiles = uploadedFiles.length > 0;
 
     return (
+        <>
         <div className="flex flex-col gap-5 mt-2 bg-[var(--cl-surface)] p-4 rounded-xl border border-[var(--cl-border)] shadow-sm">
             {/* Dropzone */}
             {!readOnly && (
@@ -337,7 +353,7 @@ export const JobImageUpload = ({ jobId, jobNo = "", onPendingChange, onFileCount
                         )}
                     </div>
                     
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <AnimatePresence>
                             {pendingFiles.map((pf) => (
                                 <motion.div
@@ -464,7 +480,7 @@ export const JobImageUpload = ({ jobId, jobNo = "", onPendingChange, onFileCount
                                                 type="button"
                                                 onClick={(e) => {
                                                     e.preventDefault();
-                                                    handleDelete(file.id);
+                                                    setDeleteTarget({ id: file.id, about: file.about });
                                                 }}
                                                 className="absolute top-2 right-2 p-1.5 rounded-full bg-black/40 text-white backdrop-blur-md opacity-0 group-hover:opacity-100 -translate-y-2 group-hover:translate-y-0 transition-all duration-300 hover:bg-rose-500 hover:scale-110 shadow-sm cursor-pointer"
                                                 title="Delete file"
@@ -480,5 +496,40 @@ export const JobImageUpload = ({ jobId, jobNo = "", onPendingChange, onFileCount
                 </div>
             )}
         </div>
+
+        <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && !isDeleting && setDeleteTarget(null)}>
+            <AlertDialogContent className="max-w-sm">
+                <AlertDialogHeader>
+                    <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+                        <Trash2 className="h-5 w-5" />
+                        Delete File
+                    </AlertDialogTitle>
+                    <AlertDialogDescription>
+                        Are you sure you want to delete{" "}
+                        <span className="font-medium text-foreground">"{deleteTarget?.about}"</span>?
+                        <br />
+                        This action cannot be undone.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                        onClick={confirmDelete}
+                        disabled={isDeleting}
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                        {isDeleting ? (
+                            <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Deleting...
+                            </>
+                        ) : (
+                            "Delete"
+                        )}
+                    </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+        </>
     );
 };

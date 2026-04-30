@@ -3,6 +3,7 @@ apscheduler
 ariadne
 bcrypt
 fastapi
+httpx>=0.27.0
 mcp[cli]
 openpyxl
 pandas

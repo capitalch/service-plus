@@ -64,6 +64,8 @@ class LoginResponse(BaseModel):
 
     access_token: str = Field(
         alias="accessToken", description="JWT access token")
+    refresh_token: str = Field(
+        alias="refreshToken", description="JWT refresh token")
     access_rights: list[str] = Field(
         alias="accessRights", description="List of access rights/permissions")
     
@@ -80,3 +82,20 @@ class LoginResponse(BaseModel):
     username: str = Field(description="User's username")
     user_type: str = Field(
         alias="userType", description="User type (e.g., 'S' for Super Admin)")
+
+
+class RefreshTokenRequest(BaseModel):
+    """Request body for POST /api/auth/refresh."""
+
+    refresh_token: str = Field(alias="refreshToken", description="JWT refresh token")
+
+
+class RefreshTokenResponse(BaseModel):
+    """Response for POST /api/auth/refresh."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    access_token: str = Field(
+        alias="accessToken", description="New JWT access token")
+    refresh_token: str = Field(
+        alias="refreshToken", description="New JWT refresh token")

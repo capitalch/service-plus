@@ -20,6 +20,9 @@ cd ~/path/to/your/project
 python3 -m venv env
 source env/bin/activate
 
+# service-plus-file-server
+	Libs: fastapi uvicorn[standard] python-multipart Pillow pydantic-settings
+
 
 ## Sharing data between kubuntu and windows machine
 

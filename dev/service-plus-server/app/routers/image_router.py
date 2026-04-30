@@ -1,79 +1,69 @@
-"""
-REST endpoints for job image/document upload and delete.
-"""
-import re
-import time
-from pathlib import Path
-from typing import List
-
+"""REST endpoints for job image/document upload and delete — proxy to file server."""
+import warnings
+from typing import Any
+import httpx
 from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile, status
-from PIL import Image
-import io
+from fastapi.responses import StreamingResponse
 
 from app.config import settings
 from app.core.dependencies import get_current_user
 from app.db.psycopg_driver import exec_sql, exec_sql_object
 from app.db.sql_store import SqlStore
+from app.exceptions import DatabaseException
 from app.logger import logger
+from app.services.file_client import FileClient
+
+# Suppress Pydantic warning about "schema" parameter shadowing BaseModel.schema
+warnings.filterwarnings("ignore", message='Field name "schema".*shadows an attribute')
+
+
 
 router = APIRouter(prefix="/api/images", tags=["images"])
+uploads_router = APIRouter(tags=["uploads"])
 
-_MAX_BYTES = settings.upload_max_size_kb * 1024
+_file_client = FileClient(settings.file_server_url, settings.file_server_api_key)
 
-# Root upload folder: parent of the server folder, name taken from config
-_UPLOAD_ROOT = Path(__file__).parent.parent.parent.parent / settings.upload_base_dir
+
+def _file_server_error(e: Exception, operation: str) -> HTTPException:
+    """Build an HTTPException from a file server call failure."""
+    if isinstance(e, httpx.HTTPStatusError):
+        logger.error(
+            "File server %s error %d: %s",
+            operation, e.response.status_code, e.response.text,
+        )
+        if e.response.status_code == 401:
+            return HTTPException(
+                status_code=500, detail="File server API key misconfiguration",
+            )
+        if e.response.status_code == 422:
+            return HTTPException(status_code=422, detail=e.response.text)
+        return HTTPException(status_code=502, detail="File server returned an error")
+    if isinstance(e, httpx.ConnectError):
+        logger.error(
+            "File server %s failed — unreachable at %s: %s",
+            operation, settings.file_server_url, e,
+        )
+        return HTTPException(
+            status_code=502,
+            detail=f"File server unreachable at {settings.file_server_url}",
+        )
+    if isinstance(e, httpx.TimeoutException):
+        logger.error("File server %s timed out: %s", operation, e)
+        return HTTPException(status_code=504, detail="File server timed out")
+    logger.error("Unexpected error during file server %s: %s", operation, e)
+    return HTTPException(
+        status_code=500, detail="Internal error communicating with file server",
+    )
 
 
 @router.get("/config")
-async def get_upload_config():
-    """Get upload configuration."""
-    return {
-        "upload_max_size_kb": settings.upload_max_size_kb,
-    }
-
-
-def _derive_stem(about: str, epoch_ms: int) -> str:
-    stem = re.sub(r"[^a-z0-9]", "_", about.strip().lower())
-    stem = re.sub(r"_+", "_", stem).strip("_")
-    return f"{stem}_{epoch_ms}"
-
-
-def _safe_job_no(job_no: str) -> str:
-    slug = re.sub(r"[^a-z0-9]", "_", job_no.strip().lower())
-    return re.sub(r"_+", "_", slug).strip("_")
-
-
-def _url_to_path(url: str) -> Path:
-    """Convert a stored rel_url (uploads/…) to an absolute filesystem path."""
-    relative = "/".join(url.split("/")[1:])  # strip leading "uploads/"
-    return _UPLOAD_ROOT / relative
-
-
-def _compress_to_webp(data: bytes) -> bytes:
-    img = Image.open(io.BytesIO(data))
-    if img.mode not in ("RGB", "RGBA"):
-        img = img.convert("RGB")
-
-    quality = 85
-    buf = io.BytesIO()
-    img.save(buf, format="WEBP", quality=quality)
-
-    if len(buf.getvalue()) <= _MAX_BYTES:
-        return buf.getvalue()
-
-    lo, hi = 50, 95
-    while lo < hi:
-        mid = (lo + hi) // 2
-        buf = io.BytesIO()
-        img.save(buf, format="WEBP", quality=mid)
-        if len(buf.getvalue()) <= _MAX_BYTES:
-            lo = mid + 1
-        else:
-            hi = mid - 1
-
-    buf = io.BytesIO()
-    img.save(buf, format="WEBP", quality=lo)
-    return buf.getvalue()
+async def get_upload_config(_current_user: dict[str, Any] =
+    Depends(get_current_user)) -> dict[str, Any]:
+    """Get upload configuration from file server."""
+    try:
+        return await _file_client.get_config()
+    except Exception as e:
+        raise _file_server_error(e, "get_config") from e
 
 
 @router.post("/upload")
@@ -83,54 +73,49 @@ async def upload_images(
     job_id: int = Form(...),
     job_no: str = Form(...),
     about: str = Form(...),
-    files: List[UploadFile] = None,
-    _current_user: dict = Depends(get_current_user),
-):
+    files: list[UploadFile] | None = None,
+    _current_user: dict[str, Any] = Depends(get_current_user),
+) -> list[dict[str, Any]]:
+    """Upload files via file server, then store DB records."""
     if not about.strip():
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="'about' is required")
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="'about' is required",
+        )
 
     if not files:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="No files provided")
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="No files provided",
+        )
 
-    results = []
-    epoch_ms = int(time.time() * 1000)
-    stem = _derive_stem(about, epoch_ms)
-    folder = _safe_job_no(job_no)
+    form_data: dict[str, Any] = {
+        "db_name": db_name,
+        "job_id": job_id,
+        "job_no": job_no,
+        "about": about.strip(),
+    }
 
-    dest_dir = _UPLOAD_ROOT / db_name / "files" / folder
-    dest_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        file_server_results = await _file_client.upload(form_data, files)
+    except Exception as e:
+        raise _file_server_error(e, "upload") from e
 
-    for file in files:
-        data = await file.read()
-        content_type = file.content_type or ""
+    results: list[dict[str, Any]] = []
+    for file_info in file_server_results:
+        rel_url: str = file_info["url"]
+        file_about: str = file_info["about"]
 
-        if content_type.startswith("image/"):
-            webp_data = _compress_to_webp(data)
-            filename = f"{stem}.webp"
-            dest_dir.joinpath(filename).write_bytes(webp_data)
-            rel_url = f"uploads/{db_name}/files/{folder}/{filename}"
-        elif content_type == "application/pdf":
-            if len(data) > _MAX_BYTES:
-                raise HTTPException(
-                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                    detail=f"PDF exceeds {settings.upload_max_size_kb} KB limit",
-                )
-            filename = f"{stem}.pdf"
-            dest_dir.joinpath(filename).write_bytes(data)
-            rel_url = f"uploads/{db_name}/files/{folder}/{filename}"
-        else:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail=f"Unsupported file type: {content_type}",
-            )
-
-        sql_object = {
+        sql_object: dict[str, Any] = {
             "tableName": "job_image_doc",
-            "xData": {"job_id": job_id, "url": rel_url, "about": about.strip()},
+            "xData": {"job_id": job_id, "url": rel_url, "about": file_about},
         }
-        record_id = await exec_sql_object(db_name, schema, sql_object)
-        results.append({"id": record_id, "url": rel_url, "about": about.strip()})
-        logger.info("Uploaded job file: job_no=%s url=%s", job_no, rel_url)
+        try:
+            record_id = await exec_sql_object(db_name, schema, sql_object)
+            results.append({"id": record_id, "url": rel_url, "about": file_about})
+            logger.info("Uploaded job file: job_no=%s url=%s", job_no, rel_url)
+        except DatabaseException as e:
+            logger.error("Failed to store DB record for url=%s: %s", rel_url, e)
 
     return results
 
@@ -140,8 +125,9 @@ async def delete_image(
     db_name: str,
     schema: str,
     image_id: int,
-    _current_user: dict = Depends(get_current_user),
-):
+    _current_user: dict[str, Any] = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Delete a single image: remove from file server, then from DB."""
     rows = await exec_sql(
         db_name=db_name,
         schema=schema,
@@ -150,14 +136,18 @@ async def delete_image(
     )
 
     if not rows:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Image record not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Image record not found",
+        )
 
     url: str = rows[0]["url"] if isinstance(rows[0], dict) else rows[0][0]
 
-    file_path = _url_to_path(url)
-    if file_path.exists():
-        file_path.unlink()
-        logger.info("Deleted file: %s", file_path)
+    try:
+        await _file_client.delete_by_url(url)
+        logger.info("Deleted file from file server: %s", url)
+    except Exception as e:
+        raise _file_server_error(e, "delete") from e
 
     return {"deleted": image_id}
 
@@ -167,23 +157,61 @@ async def delete_job_images(
     db_name: str,
     schema: str,
     job_id: int,
-    _current_user: dict = Depends(get_current_user),
-):
+    _current_user: dict[str, Any] = Depends(get_current_user),
+) -> dict[str, Any]:
     """Delete all image/document files and DB records for a job."""
-    rows = await exec_sql(
+    deleted_rows = await exec_sql(
         db_name=db_name,
         schema=schema,
         sql=SqlStore.DELETE_JOB_IMAGE_DOCS_BY_JOB,
         sql_args={"job_id": job_id},
     )
 
-    deleted_count = 0
-    for row in rows:
-        url: str = row["url"] if isinstance(row, dict) else row[1]
-        file_path = _url_to_path(url)
-        if file_path.exists():
-            file_path.unlink()
-            logger.info("Deleted job file: %s", file_path)
-        deleted_count += 1
+    if not deleted_rows:
+        return {"deleted": 0}
+
+    deleted_count = len(deleted_rows)
+
+    job_rows = await exec_sql(
+        db_name=db_name,
+        schema=schema,
+        sql="SELECT job_no FROM job WHERE id = %(job_id)s",
+        sql_args={"job_id": job_id},
+    )
+
+    if job_rows:
+        job_no: str = job_rows[0].get("job_no") if isinstance(job_rows[0], dict) else job_rows[0][0]
+        try:
+            await _file_client.delete_job_files(db_name, job_no)
+            logger.info(
+                "Deleted %d file(s) from file server for job %s",
+                deleted_count, job_id,
+            )
+        except Exception as e:
+            raise _file_server_error(e, "delete_job_files") from e
 
     return {"deleted": deleted_count}
+
+
+@uploads_router.get("/uploads/{path:path}")
+async def serve_uploads(path: str) -> StreamingResponse:
+    """Proxy file serve requests to the file server."""
+    try:
+        resp = await _file_client.get_file(f"uploads/{path}")
+        if resp.status_code == 404:
+            raise HTTPException(status_code=404, detail="File not found")
+        if resp.status_code == 401:
+            raise HTTPException(
+                status_code=500, detail="File server configuration error",
+            )
+
+        content_type: str = resp.headers.get("content-type", "application/octet-stream")
+        return StreamingResponse(
+            content=resp.iter_bytes(),
+            media_type=content_type,
+            headers={
+                "Content-Disposition": resp.headers.get("content-disposition", ""),
+            },
+        )
+    except httpx.ConnectError as e:
+        raise HTTPException(status_code=502, detail="File server unreachable") from e

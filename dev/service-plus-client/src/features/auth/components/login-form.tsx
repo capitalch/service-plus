@@ -68,7 +68,7 @@ export const LoginForm = ({ onForgotPassword }: LoginFormProps) => {
         username:          result.username,
       };
 
-      dispatch(setCredentials({ user, token: result.accessToken, clientId: data.clientId }));
+      dispatch(setCredentials({ user, token: result.accessToken, refreshToken: result.refreshToken, clientId: data.clientId }));
 
       // Initialise context slice
       const buses = result.availableBus ?? [];

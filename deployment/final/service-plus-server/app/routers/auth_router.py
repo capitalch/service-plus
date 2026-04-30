@@ -12,6 +12,8 @@ from app.schemas.auth_schema import (
     ClientResponse,
     LoginRequest,
     LoginResponse,
+    RefreshTokenRequest,
+    RefreshTokenResponse,
     SetPasswordRequest,
     SetPasswordResponse,
     ValidateResetTokenRequest,
@@ -20,6 +22,7 @@ from app.schemas.auth_schema import (
 from app.routers.auth_router_helper import (
     get_clients_helper,
     login_helper,
+    refresh_token_helper,
     set_password_helper,
     validate_reset_token_helper,
 )
@@ -57,3 +60,10 @@ async def validate_reset_token(body: ValidateResetTokenRequest) -> ValidateReset
     """Validate a password reset token and return user info."""
     logger.debug("Validate-reset-token endpoint called")
     return await validate_reset_token_helper(body.token)
+
+
+@router.post("/refresh", response_model=RefreshTokenResponse)
+async def refresh(body: RefreshTokenRequest) -> RefreshTokenResponse:
+    """Refresh an access token using a valid refresh token."""
+    logger.debug("Token refresh endpoint called")
+    return await refresh_token_helper(body)

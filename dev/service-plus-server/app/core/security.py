@@ -100,9 +100,9 @@ def decode_token(token: str) -> dict:
             token, settings.secret_key, algorithms=[settings.algorithm]
         )
         return payload
-    except jwt.ExpiredSignatureError:
+    except jwt.ExpiredSignatureError as e:
         logger.warning("JWT token has expired")
-        raise AuthorizationException(AppMessages.TOKEN_EXPIRED)
+        raise AuthorizationException(AppMessages.TOKEN_EXPIRED) from e
     except jwt.InvalidTokenError as e:
         logger.warning("Invalid JWT token: %s", e)
-        raise AuthorizationException(AppMessages.TOKEN_INVALID)
+        raise AuthorizationException(AppMessages.TOKEN_INVALID) from e

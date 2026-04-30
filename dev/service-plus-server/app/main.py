@@ -2,13 +2,11 @@
 FastAPI application entry point.
 """
 
-import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from app.config import settings
 from app.core.audit_log import audit_logger
 from app.exceptions import AppMessages
@@ -16,7 +14,7 @@ from app.graphql.schema import create_graphql_app
 from app.logger import logger, configure_for_uvicorn
 from app.routers.auth_router import router as auth_router
 from app.routers.base_router import router as base_router
-from app.routers.image_router import router as image_router
+from app.routers.image_router import router as image_router, uploads_router as uploads_router
 from app.scheduler import start_scheduler, stop_scheduler
 
 
@@ -75,11 +73,9 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(base_router)
 app.include_router(image_router)
+app.include_router(uploads_router)
 
-# Serve uploaded files from dev/uploads/ (parent of the server folder)
-_upload_root = Path(__file__).parent.parent.parent / settings.upload_base_dir
-os.makedirs(_upload_root, exist_ok=True)
-app.mount("/uploads", StaticFiles(directory=str(_upload_root)), name="uploads")
+# Serve uploaded files via file server proxy (see uploads_router in image_router.py)
 
 # Mount GraphQL application
 graphql_app = create_graphql_app()

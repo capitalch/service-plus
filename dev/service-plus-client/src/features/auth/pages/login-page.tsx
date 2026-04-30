@@ -19,6 +19,7 @@ export const LoginPage = () => {
     dispatch(setCredentials({
       clientId: 'test',
       token: 'test-token',
+      refreshToken: 'test-refresh-token',
       user: { email: 'super.admin@serviceplus.io', userType: 'S', username: 'S' },
     }));
     navigate(ROUTES.superAdmin.root);
