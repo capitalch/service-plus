@@ -1,4 +1,8 @@
-## Successful Deployment effort in April 2026 for trace-plus-server
+## Deployment of service-plus-file-server
+- new env in cloudjiffy, named as service-plus-file-server, docker image of python, then at top dropdown select 3.14.3-slim-bookworm
+
+
+## Successful Deployment in April 2026 for service-plus-server
 
 # 1 stage: started with python:3.14.3-slim-bookworm
 	- this is selected by selecting docker image of python, then at top dropdown select 3.14.3-slim-bookworm. This is debian
