@@ -22,6 +22,12 @@ app.add_middleware(
 app.include_router(files_router)
 
 
+@app.get("/test")
+async def test_route():
+    """Simple test route."""
+    return {"message": "File server is running"}
+
+
 if __name__ == "__main__":
     uvicorn.run(
         "app.main:app",

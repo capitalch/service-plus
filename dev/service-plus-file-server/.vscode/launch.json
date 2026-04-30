@@ -13,7 +13,7 @@
       ],
       "cwd": "${workspaceFolder}",
       "envFile": "${workspaceFolder}/.env",
-      "python": "/home/sushant/projects/service-plus/env/bin/python",
+      "python": "/home/sushant/projects/service-plus/env/bin/python3.14",
       "justMyCode": true
     }
   ]
