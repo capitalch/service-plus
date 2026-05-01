@@ -347,10 +347,7 @@ export const SingleJobSection = () => {
         if (mode === "view") {
             void loadData(Number(branchId), searchQ, page);
         }
-        // Also load data in new mode for quick info
-        if (mode === "new" && jobs.length === 0) {
-            void loadData(Number(branchId), "", 1);
-        }
+
     }, [branchId, mode, loadData]);
 
     const handleSearchChange = (value: string) => {
@@ -753,32 +750,7 @@ export const SingleJobSection = () => {
                         </DialogContent>
                     </Dialog>
 
-                    {/* View Job Modal */}
-                    <SingleJobViewModal
-                        isOpen={viewJob !== null}
-                        job={viewJob}
-                        onClose={() => setViewJob(null)}
-                        onPrint={handlePrintFromView}
-                    />
 
-                    <JobAttachDialog
-                        jobId={attachJobId}
-                        jobNo={attachJobNo}
-                        mode={attachMode}
-                        onFilesChanged={() => setQuickInfoKey(k => k + 1)}
-                        onClose={() => { setAttachJobId(null); setAttachJobNo(""); setAttachMode("attach"); setQuickInfoKey(k => k + 1); }}
-                    />
-
-                    <PdfPreviewModal
-                        isOpen={showPdfModal}
-                        pdfUrl={pdfPreviewUrl}
-                        title={`Job Sheet #${viewJob?.job_no || ""}`}
-                        filename={pdfFilename}
-                        onClose={() => {
-                            setShowPdfModal(false);
-                            setPdfPreviewUrl(null);
-                        }}
-                    />
                 </>
             )}
 

@@ -40,6 +40,9 @@ export async function uploadJobFile(
     jobNo: string,
     about: string,
     file: File,
+    clientCode: string,
+    buCode: string,
+    branchCode: string,
 ): Promise<JobFileRow> {
     const token = await refreshIfNeeded();
     const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
@@ -51,6 +54,10 @@ export async function uploadJobFile(
     form.append("job_no", jobNo);
     form.append("about", about);
     form.append("files", file);
+    // NEW: Hierarchy fields for folder structure
+    form.append("client_code", clientCode);
+    form.append("bu_code", buCode);
+    form.append("branch_code", branchCode);
 
     const res = await fetch(`${getApiBaseUrl()}/api/images/upload`, {
         method: "POST",

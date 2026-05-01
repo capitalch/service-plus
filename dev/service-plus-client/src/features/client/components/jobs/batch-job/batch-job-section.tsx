@@ -16,8 +16,8 @@ import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
 import { currentFinancialYearRange } from "@/lib/utils";
 import { useAppSelector } from "@/store/hooks";
-import { selectDbName } from "@/features/auth/store/auth-slice";
-import { selectCurrentBranch, selectSchema } from "@/store/context-slice";
+import { selectClientCode, selectDbName } from "@/features/auth/store/auth-slice";
+import { selectCurrentBranch, selectCurrentBu, selectSchema } from "@/store/context-slice";
 import type { DocumentSequenceRow } from "@/features/client/types/sales";
 import type { JobBatchDetailRow, JobBatchListRow, JobLookupRow, ModelRow } from "@/features/client/types/job";
 import type { CustomerTypeOption, StateOption } from "@/features/client/types/customer";
@@ -51,6 +51,10 @@ export const BatchJobSection = () => {
     const globalBranch = useAppSelector(selectCurrentBranch);
     const currentUser  = useAppSelector(selectCurrentUser);
     const branchId     = globalBranch?.id ?? null;
+    const clientCode   = useAppSelector(selectClientCode) ?? "";
+    const currentBu    = useAppSelector(selectCurrentBu);
+    const buCode       = currentBu?.code ?? "";
+    const branchCode   = globalBranch?.code ?? "";
 
     const { from: defaultFrom, to: defaultTo } = currentFinancialYearRange();
 
@@ -189,7 +193,7 @@ export const BatchJobSection = () => {
                         if (!jobId) return;
                         for (const { file, about } of (pendingFiles[row.localId] ?? [])) {
                             try {
-                                await uploadJobFile(dbName, schema, jobId, row.job_no, about, file);
+                                await uploadJobFile(dbName, schema, jobId, row.job_no, about, file, clientCode, buCode, branchCode);
                             } catch (err: unknown) {
                                 toast.error(`Upload failed for "${about}": ${(err as Error).message}`);
                             }

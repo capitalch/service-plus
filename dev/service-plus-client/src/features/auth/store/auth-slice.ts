@@ -65,6 +65,9 @@ export const authSlice = createSlice({
             localStorage.setItem('refreshToken', refreshToken);
             localStorage.setItem('selectedClientId', clientId);
             localStorage.setItem('user', JSON.stringify(user));
+            if (user.clientCode) {
+                localStorage.setItem('clientCode', user.clientCode);
+            }
         },
 
         setSessionMode: (state, action: PayloadAction<'admin' | 'client'>) => {
@@ -103,6 +106,7 @@ export const authSlice = createSlice({
             localStorage.removeItem('selectedClientId');
             localStorage.removeItem('sessionMode');
             localStorage.removeItem('user');
+            localStorage.removeItem('clientCode');
         },
 
         /**
@@ -141,6 +145,7 @@ export const selectIsAuthenticated  = (state: { auth: AuthState }) => state.auth
 export const selectLastUsedBranchId = (state: { auth: AuthState }) => state.auth.user?.lastUsedBranchId ?? null;
 export const selectLastUsedBuId     = (state: { auth: AuthState }) => state.auth.user?.lastUsedBuId ?? null;
 export const selectRefreshToken     = (state: { auth: AuthState }) => state.auth.refreshToken;
+export const selectClientCode       = (state: { auth: AuthState }) => state.auth.user?.clientCode ?? localStorage.getItem('clientCode') ?? null;
 export const selectSelectedClientId = (state: { auth: AuthState }) => state.auth.selectedClientId;
 export const selectSessionMode      = (state: { auth: AuthState }) => state.auth.sessionMode;
 

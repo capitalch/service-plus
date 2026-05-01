@@ -1,6 +1,12 @@
-# Advice needed for upload file destination
-- At present files are uploaded to relative path code created with settings in config.py (upload_base_dir). This works fine.
-- When the server changes, so file urls point to different location and becomes unaccessible. 
-- Suggest a robust solution to this.
-- One option might be to use a secured file server at cloud with the base url set in config.py. Authentication can be fixed authentication by existing server's image_router.
+# Plan for files upload location at server
+- At present when the user uploads a file from job-image-upload.tsx it is uploaded using a file server in folder service-plus-file-server
+- At file server the files are stored in the folder defined by BASE_DIR in .env file. That is fine. It defines the root folder where files are stored.
+- I now want the following hierarchy of folders at the file server
+    - base folder (BASE_DIR)
+        - client code
+            - bu code
+                - branch code
+                    - job no (snake format)
+                        - filename (snake format).ext where actual file is stored
+
 

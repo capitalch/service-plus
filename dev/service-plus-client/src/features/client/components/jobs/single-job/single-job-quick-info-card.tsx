@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { ChevronLeftIcon, ChevronRightIcon, ChevronsLeftIcon, ChevronsRightIcon, Eye, Printer, Paperclip, FileText, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { JobListRow } from "@/features/client/types/job";
@@ -35,7 +35,7 @@ export function SingleJobQuickInfoCard({ onView, onPrint, onAttach, refreshTrigg
     const [canGoOlder, setCanGoOlder] = useState(false);
 
     const isLatestJob = currentJob !== null && currentJob.id === latestJobId;
-    const isAtNewest = currentOffset === 0;
+    const isAtLatest = currentOffset === 0;
     const isAtOldest = !canGoOlder;
 
     const fetchJob = useCallback(async (offset: number, isNavigation = false) => {
@@ -107,12 +107,40 @@ export function SingleJobQuickInfoCard({ onView, onPrint, onAttach, refreshTrigg
         }
     }, [dbName, schema, branchId]);
 
+    const fetchJobRef = useRef(fetchJob);
     useEffect(() => {
-        void fetchLatest();
-    }, [fetchLatest, refreshTrigger]);
+        fetchJobRef.current = fetchJob;
+    }, [fetchJob]);
 
-    const navigateNewer = async () => {
-        if (isAtNewest || navLoading) return;
+    const fetchLatestRef = useRef(fetchLatest);
+    useEffect(() => {
+        fetchLatestRef.current = fetchLatest;
+    }, [fetchLatest]);
+
+    const currentOffsetRef = useRef(currentOffset);
+    useEffect(() => {
+        currentOffsetRef.current = currentOffset;
+    }, [currentOffset]);
+
+    useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        void fetchLatest();
+    }, [fetchLatest]);
+
+    useEffect(() => {
+        if (refreshTrigger === 0) return;
+        if (currentOffsetRef.current === 0) {
+            void fetchLatestRef.current();
+        } else {
+            const offset = currentOffsetRef.current;
+            void fetchJobRef.current(offset, false).then(job => {
+                if (job) setCurrentJob(job);
+            });
+        }
+    }, [refreshTrigger]);
+
+    const navigateLater = async () => {
+        if (isAtLatest || navLoading) return;
         const newOffset = currentOffset - 1;
         const job = await fetchJob(newOffset, true);
         if (job) {
@@ -141,8 +169,8 @@ export function SingleJobQuickInfoCard({ onView, onPrint, onAttach, refreshTrigg
         }
     };
 
-    const navigateToNewest = async () => {
-        if (navLoading || isAtNewest) return;
+    const navigateToLatest = async () => {
+        if (navLoading || isAtLatest) return;
         const job = await fetchJob(0, true);
         setCurrentJob(job);
         setLatestJobId(job?.id ?? null);
@@ -195,14 +223,17 @@ export function SingleJobQuickInfoCard({ onView, onPrint, onAttach, refreshTrigg
                         <span className="font-mono text-base font-bold text-[var(--cl-text)] tracking-tight">
                             {currentJob.job_no}
                         </span>
-                        {isLatestJob && (
+                        {isLatestJob ? (
                             <span className="inline-flex items-center text-[9px] font-bold uppercase tracking-widest text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30 px-1.5 py-0.5 rounded border border-emerald-200 dark:border-emerald-800/30">
-                                Newest
+                                Latest
                             </span>
-                        )}
-                        {isAtOldest && !isLatestJob && (
+                        ) : isAtOldest ? (
                             <span className="inline-flex items-center text-[9px] font-bold uppercase tracking-widest text-amber-600 bg-amber-50 dark:bg-amber-950/30 px-1.5 py-0.5 rounded border border-amber-200 dark:border-amber-800/30">
                                 Oldest
+                            </span>
+                        ) : (
+                            <span className="inline-flex items-center text-[9px] font-bold uppercase tracking-widest text-blue-600 bg-blue-50 dark:bg-blue-950/30 px-1.5 py-0.5 rounded border border-blue-200 dark:border-blue-800/30">
+                                Position {currentOffset + 1}
                             </span>
                         )}
                         <span className="text-xs text-[var(--cl-text-muted)] font-medium tabular-nums">
@@ -249,15 +280,15 @@ export function SingleJobQuickInfoCard({ onView, onPrint, onAttach, refreshTrigg
                         />
                         <NavButton
                             icon={<ChevronRightIcon className="h-3.5 w-3.5" />}
-                            title="Newer job"
-                            disabled={isAtNewest || navLoading}
-                            onClick={navigateNewer}
+                            title="Later job"
+                            disabled={isAtLatest || navLoading}
+                            onClick={navigateLater}
                         />
                         <NavButton
                             icon={<ChevronsRightIcon className="h-3.5 w-3.5" />}
-                            title="Go to newest job"
-                            disabled={isAtNewest || navLoading}
-                            onClick={navigateToNewest}
+                            title="Go to latest job"
+                            disabled={isAtLatest || navLoading}
+                            onClick={navigateToLatest}
                         />
                         {navLoading && <Loader2 className="h-3 w-3 animate-spin text-[var(--cl-text-muted)] ml-0.5 shrink-0" />}
                     </div>

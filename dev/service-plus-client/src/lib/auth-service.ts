@@ -73,6 +73,7 @@ export type SearchClientsResponseType = ClientType[];
 export type UserInstanceType = {
     accessRights?: string[] | null | [];
     availableBus?: BuContextType[];
+    clientCode?: string;
     dbName?: string | null;
     email: string;
     fullName?: string;

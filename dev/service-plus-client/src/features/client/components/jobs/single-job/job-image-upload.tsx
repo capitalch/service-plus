@@ -1,3 +1,5 @@
+/* eslint-disable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
+
 import { useState, useCallback, useEffect } from "react";
 import { useDropzone } from "react-dropzone";
 import { motion, AnimatePresence } from "framer-motion";
@@ -24,8 +26,8 @@ import { uploadJobFile, deleteJobFile, getUploadConfig } from "@/lib/image-servi
 import { getApiBaseUrl } from "@/lib/utils";
 import type { JobFileRow } from "@/features/client/types/job";
 import { useAppSelector } from "@/store/hooks";
-import { selectDbName } from "@/features/auth/store/auth-slice";
-import { selectSchema } from "@/store/context-slice";
+import { selectDbName, selectClientCode } from "@/features/auth/store/auth-slice";
+import { selectSchema, selectCurrentBu, selectCurrentBranch } from "@/store/context-slice";
 
 type GenericQueryData<T> = { genericQuery: T[] | null };
 
@@ -95,6 +97,11 @@ type Props = {
 export const JobImageUpload = ({ jobId, jobNo = "", onPendingChange, onFileCountChange, readOnly = false }: Props) => {
     const dbName = useAppSelector(selectDbName);
     const schema = useAppSelector(selectSchema);
+    const clientCode = useAppSelector(selectClientCode) ?? "";
+    const currentBu = useAppSelector(selectCurrentBu);
+    const currentBranch = useAppSelector(selectCurrentBranch);
+    const buCode = currentBu?.code ?? "";
+    const branchCode = currentBranch?.code ?? "";
 
     const [uploadedFiles, setUploadedFiles] = useState<JobFileRow[]>([]);
     const [pendingFiles, setPendingFiles] = useState<StagedFile[]>([]);
@@ -142,16 +149,23 @@ export const JobImageUpload = ({ jobId, jobNo = "", onPendingChange, onFileCount
         }
     }, []);
 
+    const [shouldFetch, setShouldFetch] = useState(true);
+
     useEffect(() => {
-        if (jobId) {
+        if (jobId && shouldFetch) {
             void fetchFiles();
-        } else {
+            setShouldFetch(false);
+        } else if (!jobId) {
             void fetchConfigOnly();
         }
-    }, [fetchFiles, fetchConfigOnly, jobId]);
+    }, [jobId, shouldFetch]);
+
+    // Reset shouldFetch when jobId changes
+    useEffect(() => {
+        setShouldFetch(true);
+    }, [jobId]);
 
     // Notify parent whenever the uploaded file count changes
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     useEffect(() => { onFileCountChange?.(uploadedFiles.length); }, [uploadedFiles.length]);
 
     // Cleanup object URLs on unmount
@@ -161,7 +175,6 @@ export const JobImageUpload = ({ jobId, jobNo = "", onPendingChange, onFileCount
                 if (pf.preview.startsWith("blob:")) URL.revokeObjectURL(pf.preview);
             });
         };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const onDrop = useCallback(async (acceptedFiles: File[]) => {
@@ -248,7 +261,7 @@ export const JobImageUpload = ({ jobId, jobNo = "", onPendingChange, onFileCount
             });
 
             try {
-                const uploaded = await uploadJobFile(dbName, schema, jobId, jobNo, pFile.about.trim(), pFile.file);
+                const uploaded = await uploadJobFile(dbName, schema, jobId, jobNo, pFile.about.trim(), pFile.file, clientCode, buCode, branchCode);
                 setUploadedFiles((prev) => [...prev, uploaded]);
                 setPendingFiles((prev) => {
                     const updated = prev.filter((f) => f.id !== pFile.id);
@@ -256,8 +269,8 @@ export const JobImageUpload = ({ jobId, jobNo = "", onPendingChange, onFileCount
                     return updated;
                 });
                 if (pFile.preview.startsWith("blob:")) URL.revokeObjectURL(pFile.preview);
-            } catch (err: any) {
-                toast.error(`Upload failed for ${pFile.file.name}: ${err.message}`);
+            } catch (err: unknown) {
+                toast.error(`Upload failed for ${pFile.file.name}: ${(err as Error).message}`);
                 setPendingFiles((prev) => {
                     const updated = prev.map((f) => (f.id === pFile.id ? { ...f, isUploading: false } : f));
                     if (onPendingChange) onPendingChange(updated);
@@ -279,8 +292,8 @@ export const JobImageUpload = ({ jobId, jobNo = "", onPendingChange, onFileCount
             await deleteJobFile(dbName, schema, deleteTarget.id);
             setUploadedFiles((prev) => prev.filter((f) => f.id !== deleteTarget.id));
             toast.success("File deleted successfully.");
-        } catch (err: any) {
-            toast.error(err?.message ?? "Failed to delete file.");
+        } catch (err: unknown) {
+            toast.error((err as Error)?.message ?? "Failed to delete file.");
         } finally {
             setIsDeleting(false);
             setDeleteTarget(null);
