@@ -27,8 +27,9 @@ def verify_api_key(x_api_key: str = Header(...)) -> str:
     return x_api_key
 
 
-def _safe_job_no(job_no: str) -> str:
-    slug = re.sub(r"[^a-z0-9]", "_", job_no.strip().lower())
+def _to_snake_case(s: str) -> str:
+    """Convert string to snake_case."""
+    slug = re.sub(r"[^a-z0-9]", "_", s.lower())
     return re.sub(r"_+", "_", slug).strip("_")
 
 
@@ -101,13 +102,15 @@ async def get_config(_api_key: str = Depends(verify_api_key)) -> dict[str, int]:
 
 @router.post("/upload")
 async def upload_files(
-    db_name: str = Form(...),
+    client_code: str = Form(...),
+    bu_code: str = Form(...),
+    branch_code: str = Form(...),
     job_no: str = Form(...),
     about: str = Form(...),
     files: list[UploadFile] | None = None,
     _api_key: str = Depends(verify_api_key),
 ) -> list[dict[str, str]]:
-    """Upload one or more files. Returns [{url, about}]."""
+    """Upload files with hierarchical folder structure."""
     if not about.strip():
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -123,34 +126,40 @@ async def upload_files(
     results: list[dict[str, str]] = []
     epoch_ms = int(time.time() * 1000)
     stem = _derive_stem(about, epoch_ms)
-    folder = _safe_job_no(job_no)
 
-    dest_dir = _BASE_DIR / db_name / "files" / folder
+    client_snake = _to_snake_case(client_code)
+    bu_snake = _to_snake_case(bu_code)
+    branch_snake = _to_snake_case(branch_code)
+    job_no_snake = _to_snake_case(job_no)
+
+    dest_dir = _BASE_DIR / client_snake / bu_snake / branch_snake / job_no_snake
     dest_dir.mkdir(parents=True, exist_ok=True)
 
     for file in files:
         data = await file.read()
         content_type = file.content_type or ""
 
+        orig_stem = Path(file.filename).stem if file.filename else "file"
+        file_stem_snake = _to_snake_case(orig_stem)
+        filename = f"{file_stem_snake}{_get_image_ext(file.filename, content_type)}"
+
         if content_type.startswith("image/"):
             if len(data) <= _MAX_BYTES:
-                ext = _get_image_ext(file.filename, content_type)
-                filename = f"{stem}{ext}"
                 dest_dir.joinpath(filename).write_bytes(data)
             else:
                 webp_data = _compress_to_webp(data)
-                filename = f"{stem}.webp"
+                filename = f"{file_stem_snake}.webp"
                 dest_dir.joinpath(filename).write_bytes(webp_data)
-            rel_url = f"uploads/{db_name}/files/{folder}/{filename}"
+            rel_url = f"uploads/{client_snake}/{bu_snake}/{branch_snake}/{job_no_snake}/{filename}"
         elif content_type == "application/pdf":
             if len(data) > _MAX_BYTES:
                 raise HTTPException(
                     status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                     detail=f"PDF exceeds {file_settings.upload_max_size_kb} KB limit",
                 )
-            filename = f"{stem}.pdf"
+            filename = f"{file_stem_snake}.pdf"
             dest_dir.joinpath(filename).write_bytes(data)
-            rel_url = f"uploads/{db_name}/files/{folder}/{filename}"
+            rel_url = f"uploads/{client_snake}/{bu_snake}/{branch_snake}/{job_no_snake}/{filename}"
         else:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -184,15 +193,21 @@ async def delete_by_url(
     return {"deleted": True}
 
 
-@router.delete("/{db_name}/job/{job_no}")
+@router.delete("/delete-job")
 async def delete_job_files(
-    db_name: str,
-    job_no: str,
+    client_code: str = Form(...),
+    bu_code: str = Form(...),
+    branch_code: str = Form(...),
+    job_no: str = Form(...),
     _api_key: str = Depends(verify_api_key),
 ) -> dict[str, int]:
-    """Delete all files in a job folder."""
-    folder = _safe_job_no(job_no)
-    job_dir = _BASE_DIR / db_name / "files" / folder
+    """Delete all files in a job folder using hierarchy."""
+    client_snake = _to_snake_case(client_code)
+    bu_snake = _to_snake_case(bu_code)
+    branch_snake = _to_snake_case(branch_code)
+    job_no_snake = _to_snake_case(job_no)
+
+    job_dir = _BASE_DIR / client_snake / bu_snake / branch_snake / job_no_snake
     resolved = _resolve_path(str(job_dir.relative_to(_BASE_DIR)))
 
     deleted_count = 0

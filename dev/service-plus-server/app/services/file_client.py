@@ -86,14 +86,26 @@ class FileClient:
                 e.response.status_code, e.response.text)
             raise
 
-    async def delete_job_files(self, db_name: str, job_no: str) -> dict[str, Any]:
-        """Delete all files for a job on the file server."""
-        url = f"{self.base_url}/files/{db_name}/job/{job_no}"
+    async def delete_job_files(
+        self, client_code: str, bu_code: str, branch_code: str, job_no: str
+    ) -> dict[str, Any]:
+        """Delete all files for a job on the file server using hierarchy."""
+        url = f"{self.base_url}/files/delete-job"
         logger.info("FileClient delete_job_files → %s", url)
 
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
-                resp = await client.request("DELETE", url, headers=self.headers)
+                resp = await client.request(
+                    "DELETE",
+                    url,
+                    headers={**self.headers, "Content-Type": "application/x-www-form-urlencoded"},
+                    data={
+                        "client_code": client_code,
+                        "bu_code": bu_code,
+                        "branch_code": branch_code,
+                        "job_no": job_no,
+                    },
+                )
                 resp.raise_for_status()
                 return resp.json()
         except httpx.ConnectError as e:

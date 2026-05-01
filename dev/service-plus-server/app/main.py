@@ -14,7 +14,7 @@ from app.graphql.schema import create_graphql_app
 from app.logger import logger, configure_for_uvicorn
 from app.routers.auth_router import router as auth_router
 from app.routers.base_router import router as base_router
-from app.routers.image_router import router as image_router, uploads_router as uploads_router
+from app.routers.image_router import router as image_router
 from app.scheduler import start_scheduler, stop_scheduler
 
 
@@ -73,9 +73,6 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(base_router)
 app.include_router(image_router)
-app.include_router(uploads_router)
-
-# Serve uploaded files via file server proxy (see uploads_router in image_router.py)
 
 # Mount GraphQL application
 graphql_app = create_graphql_app()

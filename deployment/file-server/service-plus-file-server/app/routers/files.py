@@ -12,8 +12,6 @@ from PIL import Image
 from app.config import file_settings
 
 router = APIRouter(prefix="/files", tags=["files"])
-# Also handle /api/images prefix for backward compatibility
-api_router = APIRouter(prefix="/api/images", tags=["images"])
 
 _MAX_BYTES = file_settings.upload_max_size_kb * 1024
 _BASE_DIR = Path(file_settings.base_dir)
@@ -27,11 +25,6 @@ def verify_api_key(x_api_key: str = Header(...)) -> str:
             detail="Invalid API key",
         )
     return x_api_key
-
-
-def _safe_job_no(job_no: str) -> str:
-    slug = re.sub(r"[^a-z0-9]", "_", job_no.strip().lower())
-    return re.sub(r"_+", "_", slug).strip("_")
 
 
 def _to_snake_case(s: str) -> str:
@@ -109,16 +102,15 @@ async def get_config(_api_key: str = Depends(verify_api_key)) -> dict[str, int]:
 
 @router.post("/upload")
 async def upload_files(
-    db_name: str = Form(...),
-    job_no: str = Form(...),
-    about: str = Form(...),
     client_code: str = Form(...),
     bu_code: str = Form(...),
     branch_code: str = Form(...),
+    job_no: str = Form(...),
+    about: str = Form(...),
     files: list[UploadFile] | None = None,
     _api_key: str = Depends(verify_api_key),
 ) -> list[dict[str, str]]:
-    """Upload one or more files. Returns [{url, about}]."""
+    """Upload files with hierarchical folder structure."""
     if not about.strip():
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -134,12 +126,12 @@ async def upload_files(
     results: list[dict[str, str]] = []
     epoch_ms = int(time.time() * 1000)
     stem = _derive_stem(about, epoch_ms)
-    job_no_snake = _to_snake_case(job_no)
+
     client_snake = _to_snake_case(client_code)
     bu_snake = _to_snake_case(bu_code)
     branch_snake = _to_snake_case(branch_code)
+    job_no_snake = _to_snake_case(job_no)
 
-    # NEW: Hierarchical folder structure
     dest_dir = _BASE_DIR / client_snake / bu_snake / branch_snake / job_no_snake
     dest_dir.mkdir(parents=True, exist_ok=True)
 
@@ -147,7 +139,6 @@ async def upload_files(
         data = await file.read()
         content_type = file.content_type or ""
 
-        # Convert filename to snake_case
         orig_stem = Path(file.filename).stem if file.filename else "file"
         file_stem_snake = _to_snake_case(orig_stem)
         filename = f"{file_stem_snake}{_get_image_ext(file.filename, content_type)}"
@@ -202,30 +193,22 @@ async def delete_by_url(
     return {"deleted": True}
 
 
-@router.delete("/{db_name}/job/{job_no}")
+@router.delete("/delete-job")
 async def delete_job_files(
-    db_name: str,
-    job_no: str,
     client_code: str = Form(...),
     bu_code: str = Form(...),
     branch_code: str = Form(...),
+    job_no: str = Form(...),
     _api_key: str = Depends(verify_api_key),
 ) -> dict[str, int]:
-    """Delete all files in a job folder using new hierarchy."""
-    job_no_snake = _to_snake_case(job_no)
+    """Delete all files in a job folder using hierarchy."""
     client_snake = _to_snake_case(client_code)
     bu_snake = _to_snake_case(bu_code)
     branch_snake = _to_snake_case(branch_code)
+    job_no_snake = _to_snake_case(job_no)
 
-    # NEW: Hierarchical path
     job_dir = _BASE_DIR / client_snake / bu_snake / branch_snake / job_no_snake
     resolved = _resolve_path(str(job_dir.relative_to(_BASE_DIR)))
-
-    # Fall back to old path format if not found
-    if not resolved.exists():
-        folder = _safe_job_no(job_no)
-        job_dir_old = _BASE_DIR / db_name / "files" / folder
-        resolved = _resolve_path(str(job_dir_old.relative_to(_BASE_DIR)))
 
     deleted_count = 0
     if resolved.exists() and resolved.is_dir():
@@ -243,16 +226,6 @@ async def serve_file(path: str, _api_key: str = Depends(verify_api_key)) -> Stre
     relative = "/".join(path.split("/")[1:]) if path.startswith("uploads/") else path
     file_path = _resolve_path(relative)
 
-    # Fall back to old path format if not found (backward compatibility)
-    if not file_path.exists() or not file_path.is_file():
-        # Try old format: {db_name}/files/{job_no}/{filename}
-        parts = relative.split("/")
-        if len(parts) >= 4:
-            # New format: client_code/bu_code/branch_code/job_no/filename
-            # Old format would be: db_name/files/job_no/filename
-            old_relative = f"{parts[0]}/files/{parts[-2]}/{parts[-1]}"
-            file_path = _resolve_path(old_relative)
-
     if not file_path.exists() or not file_path.is_file():
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
 
@@ -265,53 +238,3 @@ async def serve_file(path: str, _api_key: str = Depends(verify_api_key)) -> Stre
         media_type=content_type,
         headers={"Content-Disposition": f"inline; filename={file_path.name}"},
     )
-
-
-# ─── API Images Router (backward compatibility) ────────────────────────────
-
-@api_router.post("/upload")
-async def api_upload_files(
-    db_name: str = Form(...),
-    job_no: str = Form(...),
-    about: str = Form(...),
-    client_code: str = Form(...),
-    bu_code: str = Form(...),
-    branch_code: str = Form(...),
-    files: list[UploadFile] | None = None,
-    _api_key: str = Depends(verify_api_key),
-) -> list[dict[str, str]]:
-    """Upload one or more files via /api/images/upload (backward compatibility)."""
-    return await upload_files(db_name, job_no, about, client_code, bu_code, branch_code, files, _api_key)
-
-
-@api_router.delete("/{db_name}/{schema}/{image_id}")
-async def api_delete_file(
-    db_name: str,
-    schema: str,
-    image_id: int,
-    _api_key: str = Depends(verify_api_key),
-) -> dict[str, bool]:
-    """Delete a single file by ID via /api/images/{db_name}/{schema}/{image_id}."""
-    # This would need to lookup file by ID from DB - for now return success
-    return {"deleted": True}
-
-
-@api_router.delete("/{db_name}/{schema}/job/{job_id}")
-async def api_delete_job_files(
-    db_name: str,
-    schema: str,
-    job_id: int,
-    client_code: str = Form(...),
-    bu_code: str = Form(...),
-    branch_code: str = Form(...),
-    _api_key: str = Depends(verify_api_key),
-) -> dict[str, int]:
-    """Delete all files for a job via /api/images/{db_name}/{schema}/job/{job_id}."""
-    # Need to get job_no from DB - for now return 0
-    return {"deleted": 0}
-
-
-@api_router.get("/config")
-async def api_get_config(_api_key: str = Depends(verify_api_key)) -> dict[str, int]:
-    """Return upload configuration via /api/images/config."""
-    return await get_config(_api_key)

@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import file_settings
-from app.routers.files import router as files_router, api_router
+from app.routers.files import router as files_router
 
 app = FastAPI(
     title="Service Plus File Server",
@@ -20,7 +20,6 @@ app.add_middleware(
 )
 
 app.include_router(files_router)
-app.include_router(api_router)
 
 
 @app.get("/test")
