@@ -95,6 +95,7 @@ async def login_helper(body: LoginRequest) -> LoginResponse:
         )
         raise AuthorizationException(AppMessages.INVALID_CREDENTIALS)
     db_name: str | None = client_rows[0]["db_name"]
+    client_code: str | None = client_rows[0].get("code")
     if not db_name:
         await audit_logger.log(
             action=AuditAction.LOGIN_FAILED,
@@ -184,6 +185,7 @@ async def login_helper(body: LoginRequest) -> LoginResponse:
         refresh_token=refresh_token,
         access_rights=user["access_rights"] or [],
         available_bus=available_bus,
+        client_code=client_code,
         db_name=db_name,
         email=user["email"],
         full_name=user["full_name"],

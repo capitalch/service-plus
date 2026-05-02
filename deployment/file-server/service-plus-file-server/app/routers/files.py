@@ -5,7 +5,7 @@ import time
 from pathlib import Path
 
 import mimetypes
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, Form, Header, status
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, Form, Header, status
 from fastapi.responses import StreamingResponse
 from PIL import Image
 
@@ -31,12 +31,6 @@ def _to_snake_case(s: str) -> str:
     """Convert string to snake_case."""
     slug = re.sub(r"[^a-z0-9]", "_", s.lower())
     return re.sub(r"_+", "_", slug).strip("_")
-
-
-def _derive_stem(about: str, epoch_ms: int) -> str:
-    stem = re.sub(r"[^a-z0-9]", "_", about.strip().lower())
-    stem = re.sub(r"_+", "_", stem).strip("_")
-    return f"{stem}_{epoch_ms}"
 
 
 def _get_image_ext(filename: str | None, content_type: str) -> str:
@@ -107,7 +101,7 @@ async def upload_files(
     branch_code: str = Form(...),
     job_no: str = Form(...),
     about: str = Form(...),
-    files: list[UploadFile] | None = None,
+    files: list[UploadFile] | None = File(None),
     _api_key: str = Depends(verify_api_key),
 ) -> list[dict[str, str]]:
     """Upload files with hierarchical folder structure."""
@@ -125,7 +119,6 @@ async def upload_files(
 
     results: list[dict[str, str]] = []
     epoch_ms = int(time.time() * 1000)
-    stem = _derive_stem(about, epoch_ms)
 
     client_snake = _to_snake_case(client_code)
     bu_snake = _to_snake_case(bu_code)
@@ -141,14 +134,13 @@ async def upload_files(
 
         orig_stem = Path(file.filename).stem if file.filename else "file"
         file_stem_snake = _to_snake_case(orig_stem)
-        filename = f"{file_stem_snake}{_get_image_ext(file.filename, content_type)}"
-
         if content_type.startswith("image/"):
             if len(data) <= _MAX_BYTES:
+                filename = f"{file_stem_snake}_{epoch_ms}{_get_image_ext(file.filename, content_type)}"
                 dest_dir.joinpath(filename).write_bytes(data)
             else:
                 webp_data = _compress_to_webp(data)
-                filename = f"{file_stem_snake}.webp"
+                filename = f"{file_stem_snake}_{epoch_ms}.webp"
                 dest_dir.joinpath(filename).write_bytes(webp_data)
             rel_url = f"uploads/{client_snake}/{bu_snake}/{branch_snake}/{job_no_snake}/{filename}"
         elif content_type == "application/pdf":
@@ -157,7 +149,7 @@ async def upload_files(
                     status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                     detail=f"PDF exceeds {file_settings.upload_max_size_kb} KB limit",
                 )
-            filename = f"{file_stem_snake}.pdf"
+            filename = f"{file_stem_snake}_{epoch_ms}.pdf"
             dest_dir.joinpath(filename).write_bytes(data)
             rel_url = f"uploads/{client_snake}/{bu_snake}/{branch_snake}/{job_no_snake}/{filename}"
         else:

@@ -24,7 +24,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, s
 files: list[UploadFile] | None = File(None),
 ```
 
-**`deployment/file-server/service-plus-file-server/app/routers/files.py`** — line 8, 110 (and sync to `dev/service-plus-file-server/app/routers/files.py`):
+**`dev/service-plus-file-server/app/routers/files.py`** — line 8, 110:
 ```python
 # Add to import:
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, Form, Header, status
@@ -35,37 +35,9 @@ files: list[UploadFile] | None = File(None),
 
 ---
 
-### 2. Fix Missing `config.py` in Deployment File Server
+### 2. Remove Dead Code & Fix Filename Uniqueness
 
-**CREATE: `deployment/file-server/service-plus-file-server/app/config.py`** — copy from `dev/service-plus-file-server/app/config.py`:
-```python
-"""File server configuration using Pydantic Settings."""
-from pathlib import Path
-from pydantic_settings import BaseSettings, SettingsConfigDict
-
-class FileServerSettings(BaseSettings):
-    host: str = "0.0.0.0"
-    port: int = 9000
-    file_server_api_key: str
-    base_dir: str
-    upload_max_size_kb: int = 100
-    model_config = SettingsConfigDict(
-        env_file=str(Path(__file__).resolve().parent.parent / ".env"),
-        env_file_encoding="utf-8",
-        case_sensitive=False,
-        extra="ignore",
-    )
-
-file_settings = FileServerSettings()
-```
-
-Also verify a `.env` file exists alongside the deployment file server with `FILE_SERVER_API_KEY` and `BASE_DIR` set.
-
----
-
-### 3. Remove Dead Code & Fix Filename Uniqueness
-
-In **both** `files.py` (dev and deployment), the `_derive_stem()` function is called but its result (`stem`) is never used. Remove it and repurpose `epoch_ms` for filename uniqueness:
+In `dev/service-plus-file-server/app/routers/files.py`, the `_derive_stem()` function is called but its result (`stem`) is never used. Remove it and repurpose `epoch_ms` for filename uniqueness:
 
 **Remove:**
 ```python
@@ -93,7 +65,7 @@ filename = f"{file_stem_snake}_{epoch_ms}.pdf"
 
 ---
 
-### 4. Fix File Serving — Add Proxy Route in Main Server
+### 3. Fix File Serving — Add Proxy Route in Main Server
 
 The client constructs `${getApiBaseUrl()}/${file.url}` (e.g., `http://localhost:8000/uploads/…`) but the main server has no `/uploads/` route. Add a streaming proxy in **`image_router.py`** (under the existing `/api/images` prefix → full path: `/api/images/uploads/{path}`):
 
@@ -126,7 +98,7 @@ const fullUrl = `${getApiBaseUrl()}/api/images/${file.url}`;
 
 ---
 
-### 5. Fix `clientCode` — Empty String Causes Wrong Folder Structure
+### 4. Fix `clientCode` — Empty String Causes Wrong Folder Structure
 
 **Problem**: `LoginResponse` does not include `clientCode`. Client's `selectClientCode` falls back to `""`. The file server skips the client level → wrong folder. The delete operation fetches `client_code` from the `job` table → mismatch with upload path.
 
@@ -144,9 +116,7 @@ If the clients table has no `code` column, use `db_name` as the client folder id
 
 | File | Action | Reason |
 |------|--------|--------|
-| `deployment/file-server/.../app/config.py` | CREATE | Deployment file server won't start without it |
-| `deployment/file-server/.../app/routers/files.py` | MODIFY | Fix `File()`, remove dead code, add epoch_ms to filename |
-| `dev/service-plus-file-server/app/routers/files.py` | MODIFY | Same fixes (keep in sync) |
+| `dev/service-plus-file-server/app/routers/files.py` | MODIFY | Fix `File()`, remove dead code, add epoch_ms to filename |
 | `dev/service-plus-server/app/routers/image_router.py` | MODIFY | Fix `File()`, add file serving proxy route |
 | `dev/service-plus-client/src/features/client/components/jobs/single-job/job-image-upload.tsx` | MODIFY | Fix `fullUrl` to use `/api/images/${file.url}` |
 | `dev/service-plus-server/app/schemas/auth_schema.py` | MODIFY | Add `client_code` to `LoginResponse` |
@@ -159,11 +129,10 @@ If the clients table has no `code` column, use `db_name` as the client folder id
 
 ## Implementation Order
 
-1. Create `config.py` for deployment file server
-2. Fix `File()` + remove dead code + add epoch_ms to filename in both `files.py` — **fixes 422**
-3. Fix `File()` in `image_router.py` + add file serving proxy route
-4. Fix `fullUrl` in `job-image-upload.tsx`
-5. Fix `clientCode` in server login response + client type
+1. Fix `File()` + remove dead code + add epoch_ms to filename in `dev/service-plus-file-server/app/routers/files.py` — **fixes 422**
+2. Fix `File()` in `image_router.py` + add file serving proxy route
+3. Fix `fullUrl` in `job-image-upload.tsx`
+4. Fix `clientCode` in server login response + client type
 
 ---
 

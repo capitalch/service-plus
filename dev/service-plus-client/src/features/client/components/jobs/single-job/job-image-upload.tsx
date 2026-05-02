@@ -446,7 +446,7 @@ export const JobImageUpload = ({ jobId, jobNo = "", onPendingChange, onFileCount
                         <AnimatePresence>
                             {uploadedFiles.map((file) => {
                                 const isPdf = file.url.toLowerCase().endsWith(".pdf");
-                                const fullUrl = `${getApiBaseUrl()}/${file.url}`;
+                                const fullUrl = `${getApiBaseUrl()}/api/images/${file.url}`;
 
                                 return (
                                     <motion.div

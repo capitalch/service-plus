@@ -56,6 +56,7 @@ export const LoginForm = ({ onForgotPassword }: LoginFormProps) => {
       const result = await loginUser(data);
       const user: UserInstanceType = {
         availableBus:      result.availableBus,
+        clientCode:        result.clientCode,
         dbName:            result.dbName,
         email:             result.email,
         fullName:          result.fullName,

@@ -2,7 +2,9 @@
 from typing import Any
 
 import httpx
-from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from fastapi.responses import StreamingResponse
+
 
 from app.config import settings
 from app.core.dependencies import get_current_user
@@ -49,6 +51,22 @@ def _file_server_error(e: Exception, operation: str) -> HTTPException:
     )
 
 
+@router.get("/uploads/{path:path}")
+async def serve_image_file(path: str) -> StreamingResponse:
+    """Proxy file serving from file server. No auth required — paths are unguessable."""
+    try:
+        response = await _file_client.get_file(f"uploads/{path}")
+        if response.status_code == 404:
+            raise HTTPException(status_code=404, detail="File not found")
+        response.raise_for_status()
+        content_type = response.headers.get("content-type", "application/octet-stream")
+        return StreamingResponse(iter([response.content]), media_type=content_type)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise _file_server_error(e, "serve_file") from e
+
+
 @router.get("/config")
 async def get_upload_config(_current_user: dict[str, Any] =
     Depends(get_current_user)) -> dict[str, Any]:
@@ -69,7 +87,7 @@ async def upload_images(
     bu_code: str = Form(...),
     branch_code: str = Form(...),
     about: str = Form(...),
-    files: list[UploadFile] | None = None,
+    files: list[UploadFile] | None = File(None),
     _current_user: dict[str, Any] = Depends(get_current_user),
 ) -> list[dict[str, Any]]:
     """Upload files via file server, then store DB records."""

@@ -1,9 +1,23 @@
 ## Deployment of service-plus-file-server
-- new env in cloudjiffy, named as service-plus-file-server, docker image of python, then at top dropdown select 3.14.3-slim-bookworm
-apt update
-pip install --upgrade pip
-pip install fastapi uvicorn[standard] python-multipart Pillow pydantic-settings
+# 1 new env in cloudjiffy, named as service-plus-file-server, docker image of python, then at top dropdown select 3.14.3-slim-bookworm
+  apt update
+  pip install --upgrade pip
+  pip install fastapi uvicorn[standard] python-multipart Pillow pydantic-settings
+# 2 create a new folder named as app, in the root. (/app). Heare all code witll stay
+# 3 upload service-plus-file-server.zip in the /app folder and unzip
+# 4 Create this startup.sh and upload in /app. Because --host 0.0.0.0 outside sites can call this. 127.0.0.1 will enable only current container to call this
+  #!/bin/bash
+  export APP_ENV=production/app/
+  cd /app/service-plus-file-server && uvicorn app.main:app --host 0.0.0.0 --port 9000 --reload
+# 5 At command entry point of cloudjiffy write this line
+  /app/startup.sh
+# 6: Map endpoint
+  - Add a new endpoint which mapsthe port 9000 to a public port. The url becomes something like node270118-service-plus-file-server.cloudjiffy.net:11047
+  - This the url where file server is running
+  - Note the IP, like 192.168.15.85 here, which will be used by internal applications of cloudjiffy. External apps will use the above url.
 
+
+  
 ## Successful Deployment in April 2026 for service-plus-server
 
 # 1 stage: started with python:3.14.3-slim-bookworm

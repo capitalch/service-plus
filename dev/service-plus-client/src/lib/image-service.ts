@@ -54,7 +54,6 @@ export async function uploadJobFile(
     form.append("job_no", jobNo);
     form.append("about", about);
     form.append("files", file);
-    // NEW: Hierarchy fields for folder structure
     form.append("client_code", clientCode);
     form.append("bu_code", buCode);
     form.append("branch_code", branchCode);

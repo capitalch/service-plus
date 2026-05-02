@@ -56,6 +56,7 @@ export type LoginResponseType = {
     refreshToken: string;
     accessRights?: string[] | null | [];
     availableBus?: BuContextType[];
+    clientCode?: string;
     dbName?: string | null;
     email: string;
     fullName?: string;

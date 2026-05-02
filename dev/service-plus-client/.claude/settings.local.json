@@ -21,7 +21,10 @@
       "Bash(find:*)",
       "Bash(xargs basename:*)",
       "Read(//home/sushant/projects/service-plus/dev/deployment/final/service-plus-server/**)",
-      "Read(//home/sushant/projects/service-plus/dev/deployment/final/service-plus-server/app/**)"
+      "Read(//home/sushant/projects/service-plus/dev/deployment/final/service-plus-server/app/**)",
+      "Bash(pip3 show *)",
+      "Bash(/home/sushant/projects/service-plus/env/bin/pip show *)",
+      "Bash(/home/sushant/projects/service-plus/env/bin/python *)"
     ]
   }
 }

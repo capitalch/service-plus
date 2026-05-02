@@ -538,7 +538,7 @@ class SqlStore:
     GET_CLIENT_DB_NAME = """
         with "p_client_id" as (values(%(client_id)s::int))
         -- with "p_client_id" as (values(1::int)) -- Test line
-        SELECT db_name
+        SELECT db_name, code
         FROM public.client
         WHERE id = (table "p_client_id")
           AND is_active = true
