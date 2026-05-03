@@ -538,7 +538,7 @@ class SqlStore:
     GET_CLIENT_DB_NAME = """
         with "p_client_id" as (values(%(client_id)s::int))
         -- with "p_client_id" as (values(1::int)) -- Test line
-        SELECT db_name
+        SELECT db_name, code
         FROM public.client
         WHERE id = (table "p_client_id")
           AND is_active = true
@@ -698,7 +698,6 @@ class SqlStore:
           AND branch_id = %(branch_id)s
         RETURNING prefix, (next_number - 1) AS assigned_number, padding, separator;
     """
-
 
     # ── Document Types ────────────────────────────────────────────────────────
 
@@ -1885,7 +1884,6 @@ class SqlStore:
         LIMIT  (table "p_limit")
         OFFSET (table "p_offset")
     """
-
 
     # ── Consumption (Parts Usage) ─────────────────────────────────────────────
 

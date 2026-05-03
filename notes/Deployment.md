@@ -3,18 +3,21 @@
   apt update
   pip install --upgrade pip
   pip install fastapi uvicorn[standard] python-multipart Pillow pydantic-settings
-# 2 create a new folder named as app, in the root. (/app). Heare all code witll stay
+# 2 create a new folder named as app, in the root. (/app). Heare all code will stay
 # 3 upload service-plus-file-server.zip in the /app folder and unzip
-# 4 Create this startup.sh and upload in /app. Because --host 0.0.0.0 outside sites can call this. 127.0.0.1 will enable only current container to call this
+# 4 Create this startup.sh and upload in /app. Use --host 0.0.0.0, because then outside sites can call this. 127.0.0.1 will enable only current container to call this
   #!/bin/bash
   export APP_ENV=production/app/
   cd /app/service-plus-file-server && uvicorn app.main:app --host 0.0.0.0 --port 9000 --reload
 # 5 At command entry point of cloudjiffy write this line
   /app/startup.sh
 # 6: Map endpoint
-  - Add a new endpoint which mapsthe port 9000 to a public port. The url becomes something like node270118-service-plus-file-server.cloudjiffy.net:11047
-  - This the url where file server is running
-  - Note the IP, like 192.168.15.85 here, which will be used by internal applications of cloudjiffy. External apps will use the above url.
+  - Add a new endpoint which maps the port 9000 to a public port. The url becomes something like node270118-service-plus-file-server.cloudjiffy.net:11047
+  - This is the url where file server is running
+  - Note the IP, like 192.168.15.85 here, which will be used by internal applications of cloudjiffy. External apps will use the above url
+  - Map endpoint is only required when your local service-plus-server points to cloudjiffy service-plus-file-server, otherwise not
+# 7: script deploy
+- The .full-deploy.sh does full zip, upload and extraction at server automated
 
 
   

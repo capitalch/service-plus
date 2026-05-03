@@ -1,9 +1,12 @@
 """REST endpoints for job image/document upload and delete — proxy to file server."""
-import warnings
+
 from typing import Any
+
 import httpx
-from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile, status
+import os
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from fastapi.responses import StreamingResponse
+
 
 from app.config import settings
 from app.core.dependencies import get_current_user
@@ -13,15 +16,15 @@ from app.exceptions import DatabaseException
 from app.logger import logger
 from app.services.file_client import FileClient
 
-# Suppress Pydantic warning about "schema" parameter shadowing BaseModel.schema
-warnings.filterwarnings("ignore", message='Field name "schema".*shadows an attribute')
-
-
-
 router = APIRouter(prefix="/api/images", tags=["images"])
-uploads_router = APIRouter(tags=["uploads"])
 
-_file_client = FileClient(settings.file_server_url, settings.file_server_api_key)
+_APP_ENV: str = os.environ.get("APP_ENV", "development")
+_file_server_url = (
+    settings.file_server_url_development
+    if _APP_ENV == "development"
+    else settings.file_server_url_production
+)
+_file_client = FileClient(_file_server_url, settings.file_server_api_key)
 
 
 def _file_server_error(e: Exception, operation: str) -> HTTPException:
@@ -29,11 +32,14 @@ def _file_server_error(e: Exception, operation: str) -> HTTPException:
     if isinstance(e, httpx.HTTPStatusError):
         logger.error(
             "File server %s error %d: %s",
-            operation, e.response.status_code, e.response.text,
+            operation,
+            e.response.status_code,
+            e.response.text,
         )
         if e.response.status_code == 401:
             return HTTPException(
-                status_code=500, detail="File server API key misconfiguration",
+                status_code=500,
+                detail="File server API key misconfiguration",
             )
         if e.response.status_code == 422:
             return HTTPException(status_code=422, detail=e.response.text)
@@ -41,24 +47,44 @@ def _file_server_error(e: Exception, operation: str) -> HTTPException:
     if isinstance(e, httpx.ConnectError):
         logger.error(
             "File server %s failed — unreachable at %s: %s",
-            operation, settings.file_server_url, e,
+            operation,
+            _file_server_url,
+            e,
         )
         return HTTPException(
             status_code=502,
-            detail=f"File server unreachable at {settings.file_server_url}",
+            detail=f"File server unreachable at {_file_server_url}",
         )
     if isinstance(e, httpx.TimeoutException):
         logger.error("File server %s timed out: %s", operation, e)
         return HTTPException(status_code=504, detail="File server timed out")
     logger.error("Unexpected error during file server %s: %s", operation, e)
     return HTTPException(
-        status_code=500, detail="Internal error communicating with file server",
+        status_code=500,
+        detail="Internal error communicating with file server",
     )
 
 
+@router.get("/uploads/{path:path}")
+async def serve_image_file(path: str) -> StreamingResponse:
+    """Proxy file serving from file server. No auth required — paths are unguessable."""
+    try:
+        response = await _file_client.get_file(f"uploads/{path}")
+        if response.status_code == 404:
+            raise HTTPException(status_code=404, detail="File not found")
+        response.raise_for_status()
+        content_type = response.headers.get("content-type", "application/octet-stream")
+        return StreamingResponse(iter([response.content]), media_type=content_type)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise _file_server_error(e, "serve_file") from e
+
+
 @router.get("/config")
-async def get_upload_config(_current_user: dict[str, Any] =
-    Depends(get_current_user)) -> dict[str, Any]:
+async def get_upload_config(
+    _current_user: dict[str, Any] = Depends(get_current_user),
+) -> dict[str, Any]:
     """Get upload configuration from file server."""
     try:
         return await _file_client.get_config()
@@ -72,8 +98,11 @@ async def upload_images(
     schema: str = Form(...),
     job_id: int = Form(...),
     job_no: str = Form(...),
+    client_code: str = Form(...),
+    bu_code: str = Form(...),
+    branch_code: str = Form(...),
     about: str = Form(...),
-    files: list[UploadFile] | None = None,
+    files: list[UploadFile] | None = File(None),
     _current_user: dict[str, Any] = Depends(get_current_user),
 ) -> list[dict[str, Any]]:
     """Upload files via file server, then store DB records."""
@@ -90,8 +119,9 @@ async def upload_images(
         )
 
     form_data: dict[str, Any] = {
-        "db_name": db_name,
-        "job_id": job_id,
+        "client_code": client_code,
+        "bu_code": bu_code,
+        "branch_code": branch_code,
         "job_no": job_no,
         "about": about.strip(),
     }
@@ -175,43 +205,31 @@ async def delete_job_images(
     job_rows = await exec_sql(
         db_name=db_name,
         schema=schema,
-        sql="SELECT job_no FROM job WHERE id = %(job_id)s",
+        sql="SELECT job_no, client_code, bu_code, branch_code FROM job WHERE id = %(job_id)s",
         sql_args={"job_id": job_id},
     )
 
     if job_rows:
-        job_no: str = job_rows[0].get("job_no") if isinstance(job_rows[0], dict) else job_rows[0][0]
+        job_data = job_rows[0]
+        job_no = job_data.get("job_no") if isinstance(job_data, dict) else job_data[0]
+        client_code = (
+            job_data.get("client_code") if isinstance(job_data, dict) else job_data[1]
+        )
+        bu_code = job_data.get("bu_code") if isinstance(job_data, dict) else job_data[2]
+        branch_code = (
+            job_data.get("branch_code") if isinstance(job_data, dict) else job_data[3]
+        )
+
         try:
-            await _file_client.delete_job_files(db_name, job_no)
+            await _file_client.delete_job_files(
+                client_code, bu_code, branch_code, job_no
+            )
             logger.info(
                 "Deleted %d file(s) from file server for job %s",
-                deleted_count, job_id,
+                deleted_count,
+                job_id,
             )
         except Exception as e:
             raise _file_server_error(e, "delete_job_files") from e
 
     return {"deleted": deleted_count}
-
-
-@uploads_router.get("/uploads/{path:path}")
-async def serve_uploads(path: str) -> StreamingResponse:
-    """Proxy file serve requests to the file server."""
-    try:
-        resp = await _file_client.get_file(f"uploads/{path}")
-        if resp.status_code == 404:
-            raise HTTPException(status_code=404, detail="File not found")
-        if resp.status_code == 401:
-            raise HTTPException(
-                status_code=500, detail="File server configuration error",
-            )
-
-        content_type: str = resp.headers.get("content-type", "application/octet-stream")
-        return StreamingResponse(
-            content=resp.iter_bytes(),
-            media_type=content_type,
-            headers={
-                "Content-Disposition": resp.headers.get("content-disposition", ""),
-            },
-        )
-    except httpx.ConnectError as e:
-        raise HTTPException(status_code=502, detail="File server unreachable") from e

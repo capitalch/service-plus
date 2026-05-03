@@ -92,7 +92,6 @@ export type JobFileRow = {
 export type BatchJobRow = {
     localId:                  string;         // uuid — React key, not sent to server
     id?:                      number;         // present when editing an existing job
-    job_no:                   string;
     product_brand_model_id:   number | null;
     serial_no:                string;
     problem_reported:         string;
@@ -101,6 +100,19 @@ export type BatchJobRow = {
     remarks:                  string;
     quantity:                 number;
     isDeletable:              boolean;        // false when transaction_count > 1
+};
+
+export type BatchJobQuickInfoRow = {
+    batch_no:      number;
+    batch_date:    string;
+    customer_name: string | null;
+    mobile:        string;
+    job_type_name: string;
+    job_id:        number;
+    job_no:        string;
+    device_details: string | null;
+    serial_no:     string | null;
+    file_count:    number;
 };
 
 export type JobBatchListRow = {

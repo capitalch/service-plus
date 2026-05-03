@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useFormContext, useFieldArray } from "react-hook-form";
-import { Loader2, Plus, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Loader2, Plus, Trash2 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
@@ -11,9 +11,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { SearchableCombobox } from "@/components/ui/searchable-combobox";
 import { AddModelDialog } from "@/features/client/components/masters/model/add-model-dialog";
 import { CustomerInput } from "@/features/client/components/inventory/customer-input";
-import { JobImageUpload, type StagedFile } from "@/features/client/components/jobs/single-job/job-image-upload";
 
-import type { CustomerSearchRow, DocumentSequenceRow } from "@/features/client/types/sales";
+import type { CustomerSearchRow } from "@/features/client/types/sales";
 import type { JobBatchDetailRow, JobLookupRow, ModelRow } from "@/features/client/types/job";
 import type { BrandOption, ProductOption } from "@/features/client/types/model";
 import type { CustomerTypeOption, StateOption } from "@/features/client/types/customer";
@@ -24,7 +23,6 @@ import { type BatchJobFormValues, getInitialBatchJobRow } from "./batch-job-sche
 
 type Props = {
     branchId:          number | null;
-    docSequence:       DocumentSequenceRow | null;
     jobTypes:          JobLookupRow[];
     receiveMannners:   JobLookupRow[];
     receiveConditions: JobLookupRow[];
@@ -37,35 +35,27 @@ type Props = {
     editRows?:         JobBatchDetailRow[];
     onRefreshModels:   () => void;
     form:              ReturnType<typeof useFormContext<BatchJobFormValues>>;
-    setPendingFiles:   React.Dispatch<React.SetStateAction<Record<string, StagedFile[]>>>;
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-
 
 const labelCls = "text-xs font-extrabold text-[var(--cl-text)] uppercase tracking-widest";
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function NewBatchJobForm({
-    branchId, docSequence, jobTypes, receiveMannners, receiveConditions,
+    branchId, jobTypes, receiveMannners, receiveConditions,
     models, brands, products, customerTypes, masterStates,
     editBatchNo, editRows,
-    onRefreshModels, form, setPendingFiles,
+    onRefreshModels, form,
 }: Props) {
 
     const [showAddModel, setShowAddModel] = useState(false);
+    const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
 
     const { control, formState: { isSubmitting }, setValue, watch, register } = useFormContext<BatchJobFormValues>();
 
-    const { fields, append, remove } = useFieldArray({
-        control,
-        name: "rows",
-    });
-
-    const jobTypeId  = watch("job_type_id");
-    const isWarranty = jobTypes.find(t => t.id === jobTypeId)?.code === "UNDER_WARRANTY";
+    const { fields, append, remove } = useFieldArray({ control, name: "rows" });
 
     useEffect(() => {
         if (editBatchNo && editRows && editRows.length > 0) {
@@ -74,41 +64,40 @@ export function NewBatchJobForm({
                 batch_date:        first.job_date,
                 customer_id:       first.customer_contact_id,
                 customer_name:     first.customer_name ?? first.mobile,
-                job_type_id:       first.job_type_id,
                 receive_manner_id: first.job_receive_manner_id,
                 rows: editRows.map(r => ({
                     id:                       r.id,
                     localId:                  crypto.randomUUID(),
-                    job_no:                   r.job_no,
+                    job_type_id:              r.job_type_id,
                     product_brand_model_id:   r.product_brand_model_id ?? null,
                     serial_no:                r.serial_no ?? "",
-                    problem_reported:        r.problem_reported ?? "",
-                    warranty_card_no:        r.warranty_card_no ?? "",
+                    problem_reported:         r.problem_reported ?? "",
+                    warranty_card_no:         r.warranty_card_no ?? "",
                     job_receive_condition_id: r.job_receive_condition_id ?? null,
                     remarks:                  r.remarks ?? "",
                     quantity:                 r.quantity ?? 1,
                     isDeletable:              r.transaction_count <= 1,
                 })),
             });
-        } else if (!editBatchNo && fields.length === 0) {
-            append(getInitialBatchJobRow(docSequence, 0));
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [editBatchNo, editRows]);
 
-    const handleAddRow = () => {
-        const currentLength = fields.length;
-        append(getInitialBatchJobRow(docSequence, currentLength));
+    const toggleExpand = (localId: string) => {
+        setExpandedRows(prev => {
+            const next = new Set(prev);
+            if (next.has(localId)) next.delete(localId); else next.add(localId);
+            return next;
+        });
     };
+
+    const handleAddRow = () => append(getInitialBatchJobRow());
 
     const handleRemoveRow = (index: number) => {
-        if (fields.length > 1) {
-            const row = fields[index];
+        if (fields.length > 2) {
             remove(index);
-            setPendingFiles(prev => { const n = { ...prev }; if (row?.localId) delete n[row.localId]; return n; });
         }
     };
-
 
     if (!branchId) {
         return (
@@ -135,21 +124,21 @@ export function NewBatchJobForm({
                 Batch Details
             </p>
 
-            {/* Shared header card */}
+            {/* Shared header card — single compact row */}
             <Card className="border-[var(--cl-border)] shadow-md bg-[var(--cl-surface)] !overflow-visible">
-                <CardContent className="pt-2 grid grid-cols-1 md:grid-cols-6 lg:grid-cols-12 gap-x-3 gap-y-3 !overflow-visible items-center">
+                <CardContent className="py-2 px-3 flex flex-wrap lg:flex-nowrap items-end gap-2 !overflow-visible">
 
-                    <div className="space-y-1.5 md:col-span-3 lg:col-span-3 xl:col-span-3">
+                    <div className="space-y-0.5 shrink-0">
                         <Label className={labelCls}>Batch No</Label>
-                        <Input readOnly className="bg-[var(--cl-surface-2)] font-mono text-[var(--cl-accent)] font-bold cursor-not-allowed opacity-80" value={editBatchNo ? `#${editBatchNo}` : "Auto"} />
+                        <Input readOnly className="h-8 w-20 bg-[var(--cl-surface-2)] font-mono text-[var(--cl-accent)] font-bold cursor-not-allowed opacity-80 text-xs" value={editBatchNo ? `#${editBatchNo}` : "Auto"} />
                     </div>
 
-                    <div className="space-y-1.5 md:col-span-3 lg:col-span-3 xl:col-span-3">
-                        <Label className={labelCls}>Batch Date</Label>
-                        <Input type="date" className="bg-[var(--cl-surface-2)]" {...form.register("batch_date")} />
+                    <div className="space-y-0.5 shrink-0">
+                        <Label className={labelCls}>Date</Label>
+                        <Input type="date" className="h-8 w-36 bg-[var(--cl-surface-2)] text-xs" {...form.register("batch_date")} />
                     </div>
 
-                    <div className="space-y-1.5 md:col-span-6 lg:col-span-6 xl:col-span-6">
+                    <div className="space-y-0.5 flex-1 min-w-[180px]">
                         <Label className={labelCls}>Customer <span className="text-red-500">*</span></Label>
                         <CustomerInput
                             customerId={watch("customer_id") ?? null}
@@ -162,29 +151,10 @@ export function NewBatchJobForm({
                         />
                     </div>
 
-                    <div className="space-y-1.5 md:col-span-3 lg:col-span-6 xl:col-span-6">
-                        <Label className={labelCls}>Job Type <span className="text-red-500">*</span></Label>
-                        <select
-                            className={`w-full h-9 rounded-md border text-sm px-2 bg-[var(--cl-surface-2)] text-[var(--cl-text)] ${!watch("job_type_id") ? "border-red-400" : "border-[var(--cl-border)]"}`}
-                            value={watch("job_type_id") ?? ""}
-                            onChange={e => {
-                                const newId = e.target.value ? Number(e.target.value) : (undefined as unknown as number);
-                                const code  = jobTypes.find(t => t.id === newId)?.code;
-                                if (code !== "UNDER_WARRANTY") {
-                                    fields.forEach((_, idx) => setValue(`rows.${idx}.warranty_card_no`, ""));
-                                }
-                                setValue("job_type_id", newId, { shouldValidate: true });
-                            }}
-                        >
-                            <option value="">Select…</option>
-                            {jobTypes.filter(j => j.is_active).map(j => <option key={j.id} value={j.id}>{j.name}</option>)}
-                        </select>
-                    </div>
-
-                    <div className="space-y-1.5 md:col-span-3 lg:col-span-6 xl:col-span-6">
+                    <div className="space-y-0.5 shrink-0 w-44">
                         <Label className={labelCls}>Receive Manner <span className="text-red-500">*</span></Label>
                         <select
-                            className={`w-full h-9 rounded-md border text-sm px-2 bg-[var(--cl-surface-2)] text-[var(--cl-text)] ${!watch("receive_manner_id") ? "border-red-400" : "border-[var(--cl-border)]"}`}
+                            className={`w-full h-8 rounded-md border text-xs px-2 bg-[var(--cl-surface-2)] text-[var(--cl-text)] ${!watch("receive_manner_id") ? "border-red-400" : "border-[var(--cl-border)]"}`}
                             value={watch("receive_manner_id") ?? ""}
                             onChange={e => setValue("receive_manner_id", e.target.value ? Number(e.target.value) : (undefined as unknown as number), { shouldValidate: true })}
                         >
@@ -195,48 +165,54 @@ export function NewBatchJobForm({
                 </CardContent>
             </Card>
 
-            {/* Job rows table */}
-            <p className="text-[10px] font-black uppercase tracking-[0.15em] text-[var(--cl-text-muted)]">
-                Jobs in Batch
-            </p>
-            <div className="flex flex-col gap-4">
-                <AnimatePresence initial={false}>
-                    {fields.map((field, idx) => (
-                        <motion.div
-                            key={field.id}
-                            initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                            animate={{ opacity: 1, scale: 1, y: 0 }}
-                            exit={{ opacity: 0, scale: 0.95, y: -20 }}
-                            transition={{ duration: 0.2 }}
-                        >
-                            <Card className="border-[var(--cl-border)] shadow-md bg-[var(--cl-surface)] overflow-hidden hover:shadow-lg transition-shadow border-l-4 border-l-[var(--cl-accent)]">
-                                {/* Card Header */}
-                                <div className="flex items-center justify-between bg-[var(--cl-surface-2)]/50 px-3 pb-2 border-b border-[var(--cl-border)]">
-                                    <div className="flex items-center gap-3">
-                                        <span className="text-[10px] font-black uppercase bg-[var(--cl-accent)] text-white px-2 py-0.5 rounded-full">
-                                            Job #{idx + 1}
-                                        </span>
-                                        <span className="font-mono text-xs text-[var(--cl-accent)] font-bold">{watch(`rows.${idx}.job_no`)}</span>
-                                    </div>
-                                    {fields.length > 1 && watch(`rows.${idx}.isDeletable`) && (
-                                        <Button
-                                            type="button" size="icon" variant="ghost"
-                                            className="h-7 w-7 text-red-500 hover:bg-red-50 hover:text-red-600"
-                                            onClick={() => handleRemoveRow(idx)}
-                                        >
-                                            <Trash2 className="h-4 w-4" />
-                                        </Button>
-                                    )}
-                                </div>
+            {/* Job rows */}
+            <div className="flex items-center justify-between">
+                <p className="text-[10px] font-black uppercase tracking-[0.15em] text-[var(--cl-text-muted)]">
+                    Jobs in Batch
+                </p>
+                {fields.length < 2 && (
+                    <span className="text-xs text-red-500 font-medium">Minimum 2 jobs required</span>
+                )}
+            </div>
 
-                                <CardContent className="grid grid-cols-1 md:grid-cols-6 lg:grid-cols-12 gap-4 items-center">
-                                    <div className="md:col-span-6 lg:col-span-9">
-                                        <Label className={labelCls}>Product / Model <span className="text-red-500">*</span></Label>
-                                        <div className="flex items-center gap-2">
-                                            <div className="flex-1">
+            {/* Column headers */}
+            <div className="hidden md:grid grid-cols-[32px_1fr_130px_100px_100px_60px_40px_32px] gap-x-2 px-3 text-[10px] font-bold uppercase tracking-widest text-[var(--cl-text-muted)]">
+                <span>#</span>
+                <span>Product / Model</span>
+                <span>Job Type</span>
+                <span>Serial No</span>
+                <span>Condition</span>
+                <span>Qty</span>
+                <span></span>
+                <span></span>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+                <AnimatePresence initial={false}>
+                    {fields.map((field, idx) => {
+                        const isExpanded = expandedRows.has(field.localId);
+                        return (
+                            <motion.div
+                                key={field.id}
+                                initial={{ opacity: 0, y: 8 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -8 }}
+                                transition={{ duration: 0.15 }}
+                            >
+                                <Card className="border-[var(--cl-border)] bg-[var(--cl-surface)] border-l-4 border-l-[var(--cl-accent)] overflow-visible">
+                                    {/* Compact single-line row */}
+                                    <div className="grid grid-cols-[32px_1fr] md:grid-cols-[32px_1fr_130px_100px_100px_60px_40px_32px] gap-x-2 items-center px-3 py-2">
+                                        {/* Index badge */}
+                                        <span className="flex items-center justify-center h-5 w-5 rounded-full bg-[var(--cl-accent)]/10 text-[var(--cl-accent)] text-[10px] font-bold shrink-0">
+                                            {idx + 1}
+                                        </span>
+
+                                        {/* Model combobox */}
+                                        <div className="flex items-center gap-1 min-w-0">
+                                            <div className="flex-1 min-w-0">
                                                 <SearchableCombobox<ModelRow>
                                                     label=""
-                                                    placeholder="Search brand, product or model…"
+                                                    placeholder="Brand / Product / Model…"
                                                     items={models.filter(m => m.is_active)}
                                                     selectedValue={watch(`rows.${idx}.product_brand_model_id`)?.toString() ?? ""}
                                                     getDisplayValue={m => `${m.brand_name} — ${m.product_name} — ${m.model_name}`}
@@ -253,89 +229,178 @@ export function NewBatchJobForm({
                                             </div>
                                             <Button
                                                 type="button" size="icon"
-                                                className="h-9 w-9 shrink-0 bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm"
+                                                className="h-7 w-7 shrink-0 bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm"
                                                 title="Add Missing Model"
                                                 onClick={() => setShowAddModel(true)}
                                             >
-                                                <Plus className="h-4 w-4" />
+                                                <Plus className="h-3 w-3" />
                                             </Button>
                                         </div>
-                                    </div>
 
-                                    <div className="space-y-1.5 md:col-span-6 lg:col-span-3">
-                                        <Label className={labelCls}>Qty <span className="text-red-500">*</span></Label>
-                                        <Input
-                                            type="number" min={1}
-                                            className={`bg-[var(--cl-surface-2)] ${(watch(`rows.${idx}.quantity`) ?? 0) < 1 ? "border-red-400" : ""}`}
-                                            {...register(`rows.${idx}.quantity`, { valueAsNumber: true })}
-                                        />
-                                    </div>
-
-                                    <div className="space-y-1.5 md:col-span-6 lg:col-span-4">
-                                        <Label className={labelCls}>Serial No</Label>
-                                        <Input className="bg-[var(--cl-surface-2)]" placeholder="Optional…" {...register(`rows.${idx}.serial_no`)} />
-                                    </div>
-
-                                    <div className="space-y-1.5 md:col-span-6 lg:col-span-4">
-                                        <Label className={labelCls}>Receive Condition</Label>
+                                        {/* Job Type */}
                                         <select
-                                            className="w-full h-9 rounded-md border border-[var(--cl-border)] text-sm px-2 bg-[var(--cl-surface-2)] text-[var(--cl-text)]"
+                                            className={`h-8 w-full rounded-md border text-xs px-1.5 bg-[var(--cl-surface-2)] text-[var(--cl-text)] hidden md:block ${!watch(`rows.${idx}.job_type_id`) ? "border-red-400" : "border-[var(--cl-border)]"}`}
+                                            value={watch(`rows.${idx}.job_type_id`) ?? ""}
+                                            onChange={e => {
+                                                const newId = e.target.value ? Number(e.target.value) : (undefined as unknown as number);
+                                                const code  = jobTypes.find(t => t.id === newId)?.code;
+                                                if (code !== "UNDER_WARRANTY") setValue(`rows.${idx}.warranty_card_no`, "");
+                                                setValue(`rows.${idx}.job_type_id`, newId, { shouldValidate: true });
+                                            }}
+                                        >
+                                            <option value="">Type…</option>
+                                            {jobTypes.filter(j => j.is_active).map(j => <option key={j.id} value={j.id}>{j.name}</option>)}
+                                        </select>
+
+                                        {/* Serial No */}
+                                        <Input
+                                            className="h-8 text-xs bg-[var(--cl-surface-2)] hidden md:block"
+                                            placeholder="Serial…"
+                                            {...register(`rows.${idx}.serial_no`)}
+                                        />
+
+                                        {/* Receive Condition */}
+                                        <select
+                                            className="h-8 w-full rounded-md border border-[var(--cl-border)] text-xs px-1.5 bg-[var(--cl-surface-2)] text-[var(--cl-text)] hidden md:block"
                                             {...register(`rows.${idx}.job_receive_condition_id`, { valueAsNumber: true })}
                                         >
-                                            <option value="">None</option>
+                                            <option value="">Condition…</option>
                                             {receiveConditions.filter(c => c.is_active).map(c => (
                                                 <option key={c.id} value={c.id}>{c.name}</option>
                                             ))}
                                         </select>
-                                    </div>
 
-                                    <div className="space-y-1.5 md:col-span-6 lg:col-span-4">
-                                        <Label className={labelCls}>Warranty Card No</Label>
+                                        {/* Qty */}
                                         <Input
-                                            className="bg-[var(--cl-surface-2)]" disabled={!isWarranty}
-                                            placeholder={isWarranty ? "Card number…" : "N/A"}
-                                            {...register(`rows.${idx}.warranty_card_no`)}
+                                            type="number" min={1}
+                                            className={`h-8 text-xs bg-[var(--cl-surface-2)] hidden md:block ${(watch(`rows.${idx}.quantity`) ?? 0) < 1 ? "border-red-400" : ""}`}
+                                            {...register(`rows.${idx}.quantity`, { valueAsNumber: true })}
                                         />
+
+                                        {/* Expand toggle */}
+                                        <button
+                                            type="button"
+                                            onClick={() => toggleExpand(field.localId)}
+                                            className="flex items-center justify-center h-7 w-7 rounded text-[var(--cl-text-muted)] hover:bg-[var(--cl-accent)]/10 hover:text-[var(--cl-accent)] transition-colors"
+                                            title={isExpanded ? "Collapse" : "Expand"}
+                                        >
+                                            {isExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                                        </button>
+
+                                        {/* Delete */}
+                                        {fields.length > 2 && watch(`rows.${idx}.isDeletable`) ? (
+                                            <Button
+                                                type="button" size="icon" variant="ghost"
+                                                className="h-7 w-7 text-red-400 hover:bg-red-50 hover:text-red-600"
+                                                onClick={() => handleRemoveRow(idx)}
+                                            >
+                                                <Trash2 className="h-3.5 w-3.5" />
+                                            </Button>
+                                        ) : (
+                                            <div className="h-7 w-7" />
+                                        )}
                                     </div>
 
-                                    <div className="space-y-1.5 md:col-span-6 lg:col-span-6">
-                                        <Label className={labelCls}>Problem Reported</Label>
-                                        <Textarea rows={2} className="bg-[var(--cl-surface-2)] resize-none" placeholder="Describe the problem…" {...register(`rows.${idx}.problem_reported`)} />
-                                    </div>
+                                    {/* Expanded area — extra fields + mobile-visible fields */}
+                                    <AnimatePresence initial={false}>
+                                        {isExpanded && (
+                                            <motion.div
+                                                initial={{ height: 0, opacity: 0 }}
+                                                animate={{ height: "auto", opacity: 1 }}
+                                                exit={{ height: 0, opacity: 0 }}
+                                                transition={{ duration: 0.2 }}
+                                                className="overflow-hidden"
+                                            >
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 px-3 pb-3 pt-1 border-t border-[var(--cl-border)]/50">
+                                                    {/* Mobile-only fields (hidden in compact row on md+) */}
+                                                    <div className="space-y-1 md:hidden">
+                                                        <Label className={labelCls}>Job Type <span className="text-red-500">*</span></Label>
+                                                        <select
+                                                            className={`w-full h-8 rounded-md border text-xs px-1.5 bg-[var(--cl-surface-2)] text-[var(--cl-text)] ${!watch(`rows.${idx}.job_type_id`) ? "border-red-400" : "border-[var(--cl-border)]"}`}
+                                                            value={watch(`rows.${idx}.job_type_id`) ?? ""}
+                                                            onChange={e => {
+                                                                const newId = e.target.value ? Number(e.target.value) : (undefined as unknown as number);
+                                                                const code  = jobTypes.find(t => t.id === newId)?.code;
+                                                                if (code !== "UNDER_WARRANTY") setValue(`rows.${idx}.warranty_card_no`, "");
+                                                                setValue(`rows.${idx}.job_type_id`, newId, { shouldValidate: true });
+                                                            }}
+                                                        >
+                                                            <option value="">Select…</option>
+                                                            {jobTypes.filter(j => j.is_active).map(j => <option key={j.id} value={j.id}>{j.name}</option>)}
+                                                        </select>
+                                                    </div>
+                                                    <div className="space-y-1 md:hidden">
+                                                        <Label className={labelCls}>Serial No</Label>
+                                                        <Input className="h-8 text-xs bg-[var(--cl-surface-2)]" placeholder="Optional…" {...register(`rows.${idx}.serial_no`)} />
+                                                    </div>
+                                                    <div className="space-y-1 md:hidden">
+                                                        <Label className={labelCls}>Receive Condition</Label>
+                                                        <select
+                                                            className="w-full h-8 rounded-md border border-[var(--cl-border)] text-xs px-1.5 bg-[var(--cl-surface-2)] text-[var(--cl-text)]"
+                                                            {...register(`rows.${idx}.job_receive_condition_id`, { valueAsNumber: true })}
+                                                        >
+                                                            <option value="">None</option>
+                                                            {receiveConditions.filter(c => c.is_active).map(c => (
+                                                                <option key={c.id} value={c.id}>{c.name}</option>
+                                                            ))}
+                                                        </select>
+                                                    </div>
+                                                    <div className="space-y-1 md:hidden">
+                                                        <Label className={labelCls}>Qty</Label>
+                                                        <Input
+                                                            type="number" min={1}
+                                                            className="h-8 text-xs bg-[var(--cl-surface-2)]"
+                                                            {...register(`rows.${idx}.quantity`, { valueAsNumber: true })}
+                                                        />
+                                                    </div>
 
-                                    <div className="space-y-1.5 md:col-span-6 lg:col-span-6">
-                                        <Label className={labelCls}>Remarks</Label>
-                                        <Textarea rows={2} className="bg-[var(--cl-surface-2)] resize-none" placeholder="Optional remarks…" {...register(`rows.${idx}.remarks`)} />
-                                    </div>
-
-                                    <div className="space-y-1.5 md:col-span-12 lg:col-span-12">
-                                        <Label className={labelCls}>Attachments</Label>
-                                        <div className="bg-[var(--cl-surface-2)]/30 rounded-lg p-2 border border-dashed border-[var(--cl-border)]">
-                                            {watch(`rows.${idx}.id`)
-                                                ? <JobImageUpload jobId={watch(`rows.${idx}.id`)!} />
-                                                : <JobImageUpload onPendingChange={files => setPendingFiles(prev => ({ ...prev, [field.localId]: files }))} />
-                                            }
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        </motion.div>
-                    ))}
+                                                    {/* Always expanded fields */}
+                                                    <div className="space-y-1 sm:col-span-2">
+                                                        <Label className={labelCls}>Problem Reported</Label>
+                                                        <Textarea rows={2} className="bg-[var(--cl-surface-2)] resize-none text-xs" placeholder="Describe the problem…" {...register(`rows.${idx}.problem_reported`)} />
+                                                    </div>
+                                                    <div className="space-y-1">
+                                                        <Label className={labelCls}>Remarks</Label>
+                                                        <Input className="h-8 text-xs bg-[var(--cl-surface-2)]" placeholder="Optional…" {...register(`rows.${idx}.remarks`)} />
+                                                    </div>
+                                                    <div className="space-y-1">
+                                                        <Label className={labelCls}>Warranty Card No</Label>
+                                                        {(() => {
+                                                            const rowIsWarranty = jobTypes.find(t => t.id === watch(`rows.${idx}.job_type_id`))?.code === "UNDER_WARRANTY";
+                                                            return (
+                                                                <Input
+                                                                    className="h-8 text-xs bg-[var(--cl-surface-2)]"
+                                                                    disabled={!rowIsWarranty}
+                                                                    placeholder={rowIsWarranty ? "Card number…" : "N/A"}
+                                                                    {...register(`rows.${idx}.warranty_card_no`)}
+                                                                />
+                                                            );
+                                                        })()}
+                                                    </div>
+                                                </div>
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
+                                </Card>
+                            </motion.div>
+                        );
+                    })}
                 </AnimatePresence>
             </div>
 
             {/* Footer */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 pt-1">
                 <Button
                     type="button" variant="outline" size="default"
                     className="gap-2 text-sm font-semibold border-2 border-dashed border-[var(--cl-accent)]/30 text-[var(--cl-accent)] hover:bg-[var(--cl-accent)]/5 hover:border-[var(--cl-accent)]"
                     onClick={handleAddRow}
                 >
                     <Plus className="h-4 w-4" />
-                    Add Another Job
+                    Add Job
                 </Button>
                 <span className="text-xs text-[var(--cl-text-muted)]">
                     {fields.length} job{fields.length !== 1 ? "s" : ""} in this batch
+                    {fields.length < 2 && <span className="text-red-500 ml-1.5">· min. 2 required</span>}
                 </span>
                 {isSubmitting && (
                     <span className="flex items-center gap-1.5 text-xs text-[var(--cl-text-muted)] ml-2">
@@ -350,9 +415,6 @@ export function NewBatchJobForm({
                 onOpenChange={setShowAddModel}
                 onSuccess={onRefreshModels}
             />
-
-            
         </motion.div>
-    )
-;
+    );
 }

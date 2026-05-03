@@ -3,7 +3,7 @@
 # Define paths for clarity
 CLIENT_DIR="/home/sushant/projects/service-plus/dev/service-plus-client"
 SERVER_DIR="/home/sushant/projects/service-plus/dev/service-plus-server"
-DEPLOY_DIR="/home/sushant/projects/service-plus/deployment/final"
+DEPLOY_DIR="/home/sushant/projects/service-plus/deployment/app-server"
 
 #echo "🚀 Incrementing the version..."
 #pnpm version patch
@@ -49,7 +49,7 @@ REMOTE_USER="268494-638"  # Replace with your actual SSH username
 REMOTE_HOST="gate.cloudjiffy.com"
 PORT="3022"
 REMOTE_DIR="/usr/share/nginx/html"
-ZIP_FILE="/home/sushant/projects/service-plus/deployment/final/final.zip"
+ZIP_FILE="/home/sushant/projects/service-plus/deployment/app-server/final.zip"
 
 echo "📤 Uploading final.zip to CloudJiffy..."
 # Copy the file to the remote directory

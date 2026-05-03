@@ -1,4 +1,5 @@
 """Async HTTP client for communicating with the file server."""
+
 from typing import Any
 
 import httpx
@@ -25,7 +26,9 @@ class FileClient:
             content = await file_obj.read()
             logger.info(
                 "Forwarding file to file server: name=%s, size=%d bytes, type=%s",
-                file_obj.filename, len(content), file_obj.content_type,
+                file_obj.filename,
+                len(content),
+                file_obj.content_type,
             )
             file_list.append(
                 ("files", (file_obj.filename, content, file_obj.content_type))
@@ -34,12 +37,16 @@ class FileClient:
         url = f"{self.base_url}/files/upload"
         logger.info(
             "FileClient upload → %s (form_data keys: %s, files: %d)",
-            url, list(form_data.keys()), len(file_list),
+            url,
+            list(form_data.keys()),
+            len(file_list),
         )
 
         try:
             async with httpx.AsyncClient(timeout=60.0) as client:
-                resp = await client.post(url, headers=self.headers, data=form_data, files=file_list)
+                resp = await client.post(
+                    url, headers=self.headers, data=form_data, files=file_list
+                )
                 logger.info("File server upload response: status=%d", resp.status_code)
                 if resp.status_code >= 400:
                     logger.error("File server upload failed: %s", resp.text)
@@ -52,7 +59,9 @@ class FileClient:
             logger.error("File server upload timed out: %s", e)
             raise
         except httpx.HTTPStatusError as e:
-            logger.error("File server HTTP error %d: %s", e.response.status_code, e.response.text)
+            logger.error(
+                "File server HTTP error %d: %s", e.response.status_code, e.response.text
+            )
             raise
         except Exception as e:
             logger.error("Unexpected error uploading to file server: %s", e)
@@ -82,8 +91,11 @@ class FileClient:
             logger.error("File server delete timed out: %s", e)
             raise
         except httpx.HTTPStatusError as e:
-            logger.error("File server HTTP error on delete %d: %s",
-                e.response.status_code, e.response.text)
+            logger.error(
+                "File server HTTP error on delete %d: %s",
+                e.response.status_code,
+                e.response.text,
+            )
             raise
 
     async def delete_job_files(
@@ -98,7 +110,10 @@ class FileClient:
                 resp = await client.request(
                     "DELETE",
                     url,
-                    headers={**self.headers, "Content-Type": "application/x-www-form-urlencoded"},
+                    headers={
+                        **self.headers,
+                        "Content-Type": "application/x-www-form-urlencoded",
+                    },
                     data={
                         "client_code": client_code,
                         "bu_code": bu_code,
@@ -117,7 +132,8 @@ class FileClient:
         except httpx.HTTPStatusError as e:
             logger.error(
                 "File server HTTP error on job delete %d: %s",
-                e.response.status_code, e.response.text,
+                e.response.status_code,
+                e.response.text,
             )
             raise
 
@@ -138,8 +154,11 @@ class FileClient:
             logger.error("File server config timed out: %s", e)
             raise
         except httpx.HTTPStatusError as e:
-            logger.error("File server HTTP error on config %d: %s",
-                e.response.status_code, e.response.text)
+            logger.error(
+                "File server HTTP error on config %d: %s",
+                e.response.status_code,
+                e.response.text,
+            )
             raise
 
     async def get_file(self, path: str) -> Response:

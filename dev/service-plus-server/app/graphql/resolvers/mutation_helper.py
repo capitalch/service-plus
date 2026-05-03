@@ -47,7 +47,9 @@ def _serialize_row(row: dict) -> dict:
     return {k: v.isoformat() if isinstance(v, datetime) else v for k, v in row.items()}
 
 
-async def resolve_create_admin_user_helper(db_name: str, schema: str, value: str) -> dict:
+async def resolve_create_admin_user_helper(
+    db_name: str, schema: str, value: str
+) -> dict:
     """
     Decode value payload, create an admin user (is_admin=True) with a random unusable
     password, then email a 48-hour reset link so the admin sets their own password.
@@ -57,10 +59,10 @@ async def resolve_create_admin_user_helper(db_name: str, schema: str, value: str
     payload = _decode_value(value, "createAdminUser")
 
     client_id = payload.get("client_id")
-    email     = payload.get("email", "")
+    email = payload.get("email", "")
     full_name = payload.get("full_name", "")
-    mobile    = payload.get("mobile") or None
-    username  = payload.get("username", "")
+    mobile = payload.get("mobile") or None
+    username = payload.get("username", "")
 
     if not email or not full_name or not username:
         raise ValidationException(
@@ -76,24 +78,26 @@ async def resolve_create_admin_user_helper(db_name: str, schema: str, value: str
     sql_object = {
         "tableName": "user",
         "xData": {
-            "email":         email,
-            "full_name":     full_name,
-            "is_active":     True,
-            "is_admin":      True,
-            "mobile":        mobile,
+            "email": email,
+            "full_name": full_name,
+            "is_active": True,
+            "is_admin": True,
+            "mobile": mobile,
             "password_hash": password_hash,
-            "username":      username,
+            "username": username,
         },
     }
     record_id = await exec_sql_object(db_name, schema or "security", sql_object)
     logger.info("Admin user '%s' created with id=%s", username, record_id)
 
     # Generate reset link so admin can set their own password
-    token = create_reset_token({
-        "sub":       str(record_id),
-        "db_name":   db_name,
-        "client_id": client_id,
-    })
+    token = create_reset_token(
+        {
+            "sub": str(record_id),
+            "db_name": db_name,
+            "client_id": client_id,
+        }
+    )
     reset_link = f"{settings.frontend_url}/reset-password?token={token}"
 
     email_sent = False
@@ -145,25 +149,34 @@ async def resolve_create_bu_schema_and_feed_seed_data_helper(
     if not re.match(r"^[a-z0-9_]{3,9}$", code):
         raise ValidationException(
             message=AppMessages.INVALID_INPUT,
-            extensions={"detail": "Code must be 3–9 alphanumeric/underscore characters", "field": "code"},
+            extensions={
+                "detail": "Code must be 3–9 alphanumeric/underscore characters",
+                "field": "code",
+            },
         )
 
     # 3. Validate name format: alphanumeric + spaces, min 3 chars
     if not re.match(r"^[a-zA-Z0-9 ]{3,}$", name):
         raise ValidationException(
             message=AppMessages.INVALID_INPUT,
-            extensions={"detail": "Name must be at least 3 alphanumeric characters", "field": "name"},
+            extensions={
+                "detail": "Name must be at least 3 alphanumeric characters",
+                "field": "name",
+            },
         )
 
     # 4. If id supplied, BU row already exists — skip uniqueness checks and INSERT
     raw_id = payload.get("id")
     if raw_id:
         bu_id = int(raw_id)
-        logger.info("Schema-repair path: using existing BU id=%d for code='%s'", bu_id, code)
+        logger.info(
+            "Schema-repair path: using existing BU id=%d for code='%s'", bu_id, code
+        )
     else:
         # 4a. Check code uniqueness
         rows = await exec_sql(
-            db_name=db_name, schema="security",
+            db_name=db_name,
+            schema="security",
             sql=SqlStore.CHECK_BU_CODE_EXISTS,
             sql_args={"code": code},
         )
@@ -175,7 +188,8 @@ async def resolve_create_bu_schema_and_feed_seed_data_helper(
 
         # 4b. Check name uniqueness
         rows = await exec_sql(
-            db_name=db_name, schema="security",
+            db_name=db_name,
+            schema="security",
             sql=SqlStore.CHECK_BU_NAME_EXISTS,
             sql_args={"name": name},
         )
@@ -188,7 +202,8 @@ async def resolve_create_bu_schema_and_feed_seed_data_helper(
         # 4c. Insert BU row into security.bu
         logger.info("Creating BU '%s' / '%s' in db '%s'", code, name, db_name)
         rows = await exec_sql(
-            db_name=db_name, schema="security",
+            db_name=db_name,
+            schema="security",
             sql=SqlStore.INSERT_BU,
             sql_args={"code": code, "name": name},
         )
@@ -197,21 +212,24 @@ async def resolve_create_bu_schema_and_feed_seed_data_helper(
     # 7. Create schema <code>
     logger.info("Creating schema '%s' in db '%s'", code, db_name)
     await exec_sql(
-        db_name=db_name, schema="security",
+        db_name=db_name,
+        schema="security",
         sql=pgsql.SQL("CREATE SCHEMA IF NOT EXISTS {}").format(pgsql.Identifier(code)),
     )
 
     # 8. Create all BU tables in the new schema
     logger.info("Running BU_SCHEMA_DDL in schema '%s'", code)
     await exec_sql(
-        db_name=db_name, schema=code,
+        db_name=db_name,
+        schema=code,
         sql=SqlBu.BU_SCHEMA_DDL,
     )
 
     # 9. Seed lookup data
     logger.info("Seeding lookup data in schema '%s'", code)
     await exec_sql(
-        db_name=db_name, schema=code,
+        db_name=db_name,
+        schema=code,
         sql=SqlBu.BU_SEED_SQL,
     )
 
@@ -226,7 +244,9 @@ async def resolve_create_bu_schema_and_feed_seed_data_helper(
     return {"code": code, "id": bu_id, "name": name}
 
 
-async def resolve_create_business_user_helper(db_name: str, schema: str, value: str) -> dict:
+async def resolve_create_business_user_helper(
+    db_name: str, schema: str, value: str
+) -> dict:
     """
     Decode value payload, hash a temp password, create a business user (is_admin=False)
     in the specified client database, and email credentials.
@@ -235,10 +255,10 @@ async def resolve_create_business_user_helper(db_name: str, schema: str, value: 
     """
     payload = _decode_value(value, "createBusinessUser")
 
-    email     = payload.get("email", "")
+    email = payload.get("email", "")
     full_name = payload.get("full_name", "")
-    mobile    = payload.get("mobile") or None
-    username  = payload.get("username", "")
+    mobile = payload.get("mobile") or None
+    username = payload.get("username", "")
 
     if not email or not full_name or not username:
         raise ValidationException(
@@ -250,7 +270,8 @@ async def resolve_create_business_user_helper(db_name: str, schema: str, value: 
 
     # Check username uniqueness
     uname_rows = await exec_sql(
-        db_name=db_name, schema=schema_name,
+        db_name=db_name,
+        schema=schema_name,
         sql=SqlStore.CHECK_BUSINESS_USER_USERNAME_EXISTS,
         sql_args={"username": username},
     )
@@ -262,7 +283,8 @@ async def resolve_create_business_user_helper(db_name: str, schema: str, value: 
 
     # Check email uniqueness
     email_rows = await exec_sql(
-        db_name=db_name, schema=schema_name,
+        db_name=db_name,
+        schema=schema_name,
         sql=SqlStore.CHECK_BUSINESS_USER_EMAIL_EXISTS,
         sql_args={"email": email},
     )
@@ -280,13 +302,13 @@ async def resolve_create_business_user_helper(db_name: str, schema: str, value: 
     sql_object = {
         "tableName": "user",
         "xData": {
-            "email":         email,
-            "full_name":     full_name,
-            "is_active":     True,
-            "is_admin":      False,
-            "mobile":        mobile,
+            "email": email,
+            "full_name": full_name,
+            "is_active": True,
+            "is_admin": False,
+            "mobile": mobile,
             "password_hash": password_hash,
-            "username":      username,
+            "username": username,
         },
     }
     record_id = await exec_sql_object(db_name, schema_name, sql_object)
@@ -331,9 +353,9 @@ async def resolve_create_client_helper(db_name: str, schema: str, value: str) ->
     """
     payload = _decode_value(value, "createClient")
 
-    code      = payload.get("code", "")
-    name      = payload.get("name", "")
-    email     = payload.get("email") or None
+    code = payload.get("code", "")
+    name = payload.get("name", "")
+    email = payload.get("email") or None
 
     if not code or not name:
         raise ValidationException(
@@ -341,9 +363,23 @@ async def resolve_create_client_helper(db_name: str, schema: str, value: str) ->
             extensions={"fields": ["code", "name"]},
         )
 
-    xData: dict = {"code": code, "name": name, "is_active": payload.get("is_active", True)}
-    for field in ("address_line1", "address_line2", "city", "country_code",
-                  "email", "gstin", "pan", "phone", "pincode", "state"):
+    xData: dict = {
+        "code": code,
+        "name": name,
+        "is_active": payload.get("is_active", True),
+    }
+    for field in (
+        "address_line1",
+        "address_line2",
+        "city",
+        "country_code",
+        "email",
+        "gstin",
+        "pan",
+        "phone",
+        "pincode",
+        "state",
+    ):
         val = payload.get(field)
         if val:
             xData[field] = val
@@ -373,7 +409,9 @@ async def resolve_create_client_helper(db_name: str, schema: str, value: str) ->
     return {"email_sent": email_sent, "id": record_id}
 
 
-async def resolve_create_service_db_helper(db_name: str, schema: str, value: str) -> dict:
+async def resolve_create_service_db_helper(
+    db_name: str, schema: str, value: str
+) -> dict:
     """
     Decode value payload, create a new PostgreSQL service database with the security
     schema for a client, then record the db_name on the client row.
@@ -382,7 +420,7 @@ async def resolve_create_service_db_helper(db_name: str, schema: str, value: str
     """
     payload = _decode_value(value, "createServiceDb")
 
-    client_id   = payload.get("client_id")
+    client_id = payload.get("client_id")
     new_db_name = payload.get("new_db_name", "")
 
     if not client_id or not new_db_name:
@@ -395,7 +433,10 @@ async def resolve_create_service_db_helper(db_name: str, schema: str, value: str
     if not re.match(r"^service_plus_[a-z0-9_]+$", new_db_name):
         raise ValidationException(
             message=AppMessages.INVALID_INPUT,
-            extensions={"detail": "Database name must match ^service_plus_[a-z0-9_]+$", "field": "new_db_name"},
+            extensions={
+                "detail": "Database name must match ^service_plus_[a-z0-9_]+$",
+                "field": "new_db_name",
+            },
         )
 
     # 2. Check new_db_name uniqueness against pg_database
@@ -446,7 +487,9 @@ async def resolve_create_service_db_helper(db_name: str, schema: str, value: str
     return {"db_name": new_db_name, "id": client_id}
 
 
-async def resolve_feed_bu_seed_data_helper(db_name: str, schema: str, value: str) -> dict:
+async def resolve_feed_bu_seed_data_helper(
+    db_name: str, schema: str, value: str
+) -> dict:
     """
     Feed seed data into an existing BU schema without recreating the schema or tables.
     All INSERTs in BU_SEED_SQL use ON CONFLICT DO NOTHING — fully idempotent.
@@ -466,12 +509,16 @@ async def resolve_feed_bu_seed_data_helper(db_name: str, schema: str, value: str
     if not re.match(r"^[a-z0-9_]{3,9}$", code):
         raise ValidationException(
             message=AppMessages.INVALID_INPUT,
-            extensions={"detail": "Code must be 3–9 alphanumeric/underscore characters", "field": "code"},
+            extensions={
+                "detail": "Code must be 3–9 alphanumeric/underscore characters",
+                "field": "code",
+            },
         )
 
     # Guard: schema must already exist
     rows = await exec_sql(
-        db_name=db_name, schema="security",
+        db_name=db_name,
+        schema="security",
         sql=SqlStore.CHECK_SCHEMA_EXISTS,
         sql_args={"code": code},
     )
@@ -481,9 +528,12 @@ async def resolve_feed_bu_seed_data_helper(db_name: str, schema: str, value: str
             extensions={"detail": f"Schema '{code}' does not exist", "field": "code"},
         )
 
-    logger.info("Seeding lookup data into existing schema '%s' in db '%s'", code, db_name)
+    logger.info(
+        "Seeding lookup data into existing schema '%s' in db '%s'", code, db_name
+    )
     await exec_sql(
-        db_name=db_name, schema=code,
+        db_name=db_name,
+        schema=code,
         sql=SqlBu.BU_SEED_SQL,
     )
 
@@ -496,7 +546,9 @@ async def resolve_feed_bu_seed_data_helper(db_name: str, schema: str, value: str
     return {"code": code}
 
 
-async def resolve_delete_bu_schema_helper(db_name: str, schema: str, value: str) -> dict:
+async def resolve_delete_bu_schema_helper(
+    db_name: str, schema: str, value: str
+) -> dict:
     """
     Drop a BU schema from the database and optionally delete the security.bu row.
 
@@ -506,7 +558,7 @@ async def resolve_delete_bu_schema_helper(db_name: str, schema: str, value: str)
     """
     payload = _decode_value(value, "deleteBuSchema")
 
-    code: str          = (payload.get("code") or "").lower().strip()
+    code: str = (payload.get("code") or "").lower().strip()
     delete_bu_row: bool = bool(payload.get("delete_bu_row", False))
 
     if not code:
@@ -518,21 +570,28 @@ async def resolve_delete_bu_schema_helper(db_name: str, schema: str, value: str)
     if not re.match(r"^[a-z0-9_]{3,9}$", code):
         raise ValidationException(
             message=AppMessages.INVALID_INPUT,
-            extensions={"detail": "Code must be 3–9 alphanumeric/underscore characters", "field": "code"},
+            extensions={
+                "detail": "Code must be 3–9 alphanumeric/underscore characters",
+                "field": "code",
+            },
         )
 
     # Drop schema CASCADE (autocommit DDL)
     logger.info("Dropping schema '%s' in db '%s'", code, db_name)
     await exec_sql_dml(
-        db_name=db_name, schema="security",
-        sql=pgsql.SQL("DROP SCHEMA IF EXISTS {} CASCADE").format(pgsql.Identifier(code)),
+        db_name=db_name,
+        schema="security",
+        sql=pgsql.SQL("DROP SCHEMA IF EXISTS {} CASCADE").format(
+            pgsql.Identifier(code)
+        ),
     )
 
     # Optionally delete the bu row
     if delete_bu_row:
         logger.info("Deleting security.bu row for code='%s'", code)
         await exec_sql(
-            db_name=db_name, schema="security",
+            db_name=db_name,
+            schema="security",
             sql=SqlStore.DELETE_BU_BY_CODE,
             sql_args={"code": code},
         )
@@ -564,7 +623,8 @@ async def resolve_delete_client_helper(db_name: str, schema: str, value: str) ->
 
     # 1. Fetch client row for server-side guard
     client_rows = await exec_sql(
-        db_name=None, schema="public",
+        db_name=None,
+        schema="public",
         sql=SqlStore.GET_CLIENT_BY_ID,
         sql_args={"id": client_id},
     )
@@ -583,13 +643,17 @@ async def resolve_delete_client_helper(db_name: str, schema: str, value: str) ->
     if db_name_val:
         logger.info("Dropping client database: %s", db_name_val)
         await exec_sql_dml(
-            db_name=None, schema="public",
-            sql=pgsql.SQL("DROP DATABASE IF EXISTS {}").format(pgsql.Identifier(db_name_val)),
+            db_name=None,
+            schema="public",
+            sql=pgsql.SQL("DROP DATABASE IF EXISTS {}").format(
+                pgsql.Identifier(db_name_val)
+            ),
         )
 
     # 3. Delete the client row
     await exec_sql(
-        db_name=None, schema="public",
+        db_name=None,
+        schema="public",
         sql=SqlStore.DELETE_CLIENT,
         sql_args={"id": client_id},
     )
@@ -623,12 +687,16 @@ async def resolve_drop_database_helper(db_name: str, schema: str, value: str) ->
     if not re.match(r"^service_plus_[a-z0-9_]+$", target_db):
         raise ValidationException(
             message=AppMessages.INVALID_INPUT,
-            extensions={"detail": "Database name must match ^service_plus_[a-z0-9_]+$", "field": "db_name"},
+            extensions={
+                "detail": "Database name must match ^service_plus_[a-z0-9_]+$",
+                "field": "db_name",
+            },
         )
 
     # 2. Safety check — refuse to drop if still linked to a client
     in_use_rows = await exec_sql(
-        db_name=None, schema="public",
+        db_name=None,
+        schema="public",
         sql=SqlStore.CHECK_CLIENT_DB_NAME_IN_USE,
         sql_args={"db_name": target_db},
     )
@@ -640,7 +708,8 @@ async def resolve_drop_database_helper(db_name: str, schema: str, value: str) ->
 
     # 3. Verify database exists
     exists_rows = await exec_sql(
-        db_name=None, schema="public",
+        db_name=None,
+        schema="public",
         sql=SqlStore.CHECK_DB_NAME_EXISTS,
         sql_args={"db_name": target_db},
     )
@@ -653,7 +722,8 @@ async def resolve_drop_database_helper(db_name: str, schema: str, value: str) ->
     # 4. DROP DATABASE (requires autocommit)
     logger.info("Dropping orphan database: %s", target_db)
     await exec_sql_dml(
-        db_name=None, schema="public",
+        db_name=None,
+        schema="public",
         sql=pgsql.SQL("DROP DATABASE {}").format(pgsql.Identifier(target_db)),
     )
 
@@ -666,7 +736,9 @@ async def resolve_drop_database_helper(db_name: str, schema: str, value: str) ->
     return {"db_name": target_db}
 
 
-async def resolve_mail_business_user_credentials_helper(db_name: str, schema: str, value: str) -> dict:
+async def resolve_mail_business_user_credentials_helper(
+    db_name: str, schema: str, value: str
+) -> dict:
     """
     Decode value payload, generate a new temporary password for the business user,
     update the hash in the database, and email the new credentials.
@@ -686,7 +758,8 @@ async def resolve_mail_business_user_credentials_helper(db_name: str, schema: st
 
     # 1. Fetch business user (is_admin=false guard)
     rows = await exec_sql(
-        db_name=db_name, schema=schema_name,
+        db_name=db_name,
+        schema=schema_name,
         sql=SqlStore.GET_BUSINESS_USER_BY_ID,
         sql_args={"id": id_},
     )
@@ -718,11 +791,14 @@ async def resolve_mail_business_user_credentials_helper(db_name: str, schema: st
         email_sent = True
     except Exception as mail_err:
         email_error = str(mail_err)
-        logger.warning("Failed to send reset link email to %s: %s", user['email'], mail_err)
+        logger.warning(
+            "Failed to send reset link email to %s: %s", user["email"], mail_err
+        )
 
     await audit_logger.log(
         action=AuditAction.MAIL_ADMIN_CREDENTIALS,
-        detail=f"email_sent={email_sent}" + (f", error={email_error}" if email_error else ""),
+        detail=f"email_sent={email_sent}"
+        + (f", error={email_error}" if email_error else ""),
         resource_id=str(id_),
         resource_name=user.get("username", ""),
         resource_type="business_user",
@@ -730,7 +806,9 @@ async def resolve_mail_business_user_credentials_helper(db_name: str, schema: st
     return {"email_error": email_error, "email_sent": email_sent, "id": id_}
 
 
-async def resolve_generic_update_helper(db_name: str, schema: str = "public", value: str = "") -> int | None:
+async def resolve_generic_update_helper(
+    db_name: str, schema: str = "public", value: str = ""
+) -> int | None:
     """
     Decode, validate and execute a generic update SQL object.
     """
@@ -741,7 +819,7 @@ async def resolve_generic_update_helper(db_name: str, schema: str = "public", va
         )
 
     db_name_arg = db_name if db_name else None
-    logger.debug("Updating database entry in: %s", db_name_arg or 'client_db')
+    logger.debug("Updating database entry in: %s", db_name_arg or "client_db")
 
     value_string = unquote(value)
     try:
@@ -760,11 +838,13 @@ async def resolve_generic_update_helper(db_name: str, schema: str = "public", va
 
     record_id = await exec_sql_object(db_name_arg, schema or "public", sql_object)
 
-    logger.debug("Database entry updated in: %s", db_name_arg or 'client_db')
+    logger.debug("Database entry updated in: %s", db_name_arg or "client_db")
     return record_id
 
 
-async def resolve_create_sales_invoice_helper(db_name: str, schema: str = "public", value: str = "") -> Any:
+async def resolve_create_sales_invoice_helper(
+    db_name: str, schema: str = "public", value: str = ""
+) -> Any:
     """
     Create a sales invoice and atomically increment the document sequence.
 
@@ -791,7 +871,7 @@ async def resolve_create_sales_invoice_helper(db_name: str, schema: str = "publi
             extensions={"detail": AppMessages.INVALID_JSON_OBJECT},
         )
 
-    doc_sequence_id   = payload.pop("doc_sequence_id", None)
+    doc_sequence_id = payload.pop("doc_sequence_id", None)
     doc_sequence_next = payload.pop("doc_sequence_next", None)
 
     db_name_arg = db_name if db_name else None
@@ -806,15 +886,19 @@ async def resolve_create_sales_invoice_helper(db_name: str, schema: str = "publi
             "xData": {"id": doc_sequence_id, "next_number": doc_sequence_next},
         }
         await exec_sql_object(db_name_arg, schema_name, seq_object)
-        logger.debug("Document sequence %s incremented to %s", doc_sequence_id, doc_sequence_next)
+        logger.debug(
+            "Document sequence %s incremented to %s", doc_sequence_id, doc_sequence_next
+        )
 
     return record_id
 
 
-async def resolve_create_single_job_helper(db_name: str, schema: str = "public", value: str = "") -> Any:
+async def resolve_create_single_job_helper(
+    db_name: str, schema: str = "public", value: str = ""
+) -> Any:
     """
     Create a single job and atomically insert an initial job_transaction + increment document sequence.
-    
+
     The `value` JSON must contain:
       - tableName: "job"
       - performed_by_user_id (int): User ID for the initial job_transaction.
@@ -834,12 +918,12 @@ async def resolve_create_single_job_helper(db_name: str, schema: str = "public",
             message=AppMessages.INVALID_INPUT,
             extensions={"detail": AppMessages.INVALID_JSON_OBJECT},
         )
-    
+
     x_data = payload.get("xData", {})
     performed_by = x_data.pop("performed_by_user_id", None)
     initial_status_id = x_data.get("job_status_id")
     branch_id = x_data.get("branch_id")
-    
+
     if not branch_id:
         raise ValidationException(
             message=AppMessages.REQUIRED_FIELD_MISSING,
@@ -857,14 +941,15 @@ async def resolve_create_single_job_helper(db_name: str, schema: str = "public",
 
             # 1. Claim next sequence number atomically
             seq_rows = await cur.execute(
-                SqlStore.CLAIM_NEXT_JOB_NUMBER,
-                {"branch_id": branch_id}
+                SqlStore.CLAIM_NEXT_JOB_NUMBER, {"branch_id": branch_id}
             )
             seq = await cur.fetchone()
             if not seq:
                 raise ValidationException(
                     message=AppMessages.RESOURCE_NOT_FOUND,
-                    extensions={"detail": "Job sequence not configured for this branch"},
+                    extensions={
+                        "detail": "Job sequence not configured for this branch"
+                    },
                 )
 
             # 2. Format job number
@@ -878,8 +963,8 @@ async def resolve_create_single_job_helper(db_name: str, schema: str = "public",
             # 4. Insert initial job_transaction
             if performed_by is not None:
                 txn_data = {
-                    "job_id":               job_id,
-                    "status_id":            initial_status_id,
+                    "job_id": job_id,
+                    "status_id": initial_status_id,
                     "performed_by_user_id": performed_by,
                 }
                 await process_data(txn_data, cur, "job_transaction", None, None)
@@ -888,18 +973,20 @@ async def resolve_create_single_job_helper(db_name: str, schema: str = "public",
     return job_id
 
 
-async def resolve_update_job_helper(db_name: str, schema: str = "public", value: str = "") -> Any:
+async def resolve_update_job_helper(
+    db_name: str, schema: str = "public", value: str = ""
+) -> Any:
     payload = _decode_value(value, "updateJob")
 
-    job_id               = payload.pop("job_id")
-    last_transaction_id  = payload.pop("last_transaction_id", None)
-    performed_by         = payload.pop("performed_by_user_id", None)
-    transaction_notes    = payload.pop("transaction_notes", "")
-    x_data               = payload.get("xData", {})
+    job_id = payload.pop("job_id")
+    last_transaction_id = payload.pop("last_transaction_id", None)
+    performed_by = payload.pop("performed_by_user_id", None)
+    transaction_notes = payload.pop("transaction_notes", "")
+    x_data = payload.get("xData", {})
 
     job_status_id = x_data.get("job_status_id")
     technician_id = x_data.get("technician_id")
-    amount        = x_data.get("amount")
+    amount = x_data.get("amount")
 
     db_name_arg = db_name if db_name else None
     schema_name = schema or "public"
@@ -911,8 +998,8 @@ async def resolve_update_job_helper(db_name: str, schema: str = "public", value:
 
     # 2. Insert job_transaction
     txn_data: dict = {
-        "job_id":               job_id,
-        "status_id":            job_status_id,
+        "job_id": job_id,
+        "status_id": job_status_id,
         "performed_by_user_id": performed_by,
     }
     if technician_id is not None:
@@ -940,17 +1027,19 @@ async def resolve_update_job_helper(db_name: str, schema: str = "public", value:
     return new_txn_id
 
 
-async def resolve_deliver_job_helper(db_name: str, schema: str = "public", value: str = "") -> Any:
+async def resolve_deliver_job_helper(
+    db_name: str, schema: str = "public", value: str = ""
+) -> Any:
     payload = _decode_value(value, "deliverJob")
 
-    job_id               = payload.pop("job_id")
-    last_transaction_id  = payload.pop("last_transaction_id", None)
-    performed_by         = payload.pop("performed_by_user_id", None)
-    delivered_status_id  = payload.pop("delivered_status_id")
-    delivery_date        = payload.pop("delivery_date")
+    job_id = payload.pop("job_id")
+    last_transaction_id = payload.pop("last_transaction_id", None)
+    performed_by = payload.pop("performed_by_user_id", None)
+    delivered_status_id = payload.pop("delivered_status_id")
+    delivery_date = payload.pop("delivery_date")
     delivery_manner_name = payload.pop("delivery_manner_name", "")
-    transaction_notes    = payload.pop("transaction_notes", "")
-    payment              = payload.pop("payment", {})
+    transaction_notes = payload.pop("transaction_notes", "")
+    payment = payload.pop("payment", {})
 
     db_name_arg = db_name if db_name else None
     schema_name = schema or "public"
@@ -959,22 +1048,26 @@ async def resolve_deliver_job_helper(db_name: str, schema: str = "public", value
     payment_amount = payment.get("amount", 0) or 0
     if payment_amount > 0:
         payment_data = {
-            "job_id":       job_id,
+            "job_id": job_id,
             "payment_date": payment.get("payment_date"),
             "payment_mode": payment.get("payment_mode", ""),
-            "amount":       payment_amount,
+            "amount": payment_amount,
             "reference_no": payment.get("reference_no", ""),
-            "remarks":      payment.get("remarks", ""),
+            "remarks": payment.get("remarks", ""),
         }
-        await exec_sql_object(db_name_arg, schema_name, {"tableName": "job_payment", "xData": payment_data})
+        await exec_sql_object(
+            db_name_arg,
+            schema_name,
+            {"tableName": "job_payment", "xData": payment_data},
+        )
         logger.info("Payment inserted for job %s, amount=%s", job_id, payment_amount)
 
     # 2. Update job: close it and record delivery
     job_object = {
         "tableName": "job",
         "xData": {
-            "id":            job_id,
-            "is_closed":     True,
+            "id": job_id,
+            "is_closed": True,
             "delivery_date": delivery_date,
             "job_status_id": delivered_status_id,
         },
@@ -984,11 +1077,11 @@ async def resolve_deliver_job_helper(db_name: str, schema: str = "public", value
 
     # 3. Insert job_transaction
     notes_parts = [p for p in [delivery_manner_name, transaction_notes] if p]
-    full_notes  = ". ".join(notes_parts)
+    full_notes = ". ".join(notes_parts)
 
     txn_data: dict = {
-        "job_id":               job_id,
-        "status_id":            delivered_status_id,
+        "job_id": job_id,
+        "status_id": delivered_status_id,
         "performed_by_user_id": performed_by,
     }
     if full_notes:
@@ -996,34 +1089,39 @@ async def resolve_deliver_job_helper(db_name: str, schema: str = "public", value
     if last_transaction_id is not None:
         txn_data["previous_transaction_id"] = last_transaction_id
 
-    new_txn_id = await exec_sql_object(db_name_arg, schema_name, {"tableName": "job_transaction", "xData": txn_data})
+    new_txn_id = await exec_sql_object(
+        db_name_arg, schema_name, {"tableName": "job_transaction", "xData": txn_data}
+    )
     logger.debug("Delivery transaction inserted, id=%s", new_txn_id)
 
     # 4. Update job.last_transaction_id
     if new_txn_id:
-        await exec_sql_object(db_name_arg, schema_name, {
-            "tableName": "job",
-            "xData": {"id": job_id, "last_transaction_id": new_txn_id},
-        })
+        await exec_sql_object(
+            db_name_arg,
+            schema_name,
+            {
+                "tableName": "job",
+                "xData": {"id": job_id, "last_transaction_id": new_txn_id},
+            },
+        )
         logger.debug("job.last_transaction_id updated to %s", new_txn_id)
 
     return new_txn_id
 
 
-async def resolve_create_job_batch_helper(db_name: str, schema: str = "public", value: str = "") -> Any:
+async def resolve_create_job_batch_helper(
+    db_name: str, schema: str = "public", value: str = ""
+) -> Any:
     payload = _decode_value(value, "createJobBatch")
     shared = payload.get("sharedData", {})
-    jobs   = payload.get("jobs", [])
+    jobs = payload.get("jobs", [])
 
-    branch_id             = shared.get("branch_id")
-    batch_date            = shared.get("batch_date")
-    customer_contact_id   = shared.get("customer_contact_id")
-    job_type_id           = shared.get("job_type_id")
+    branch_id = shared.get("branch_id")
+    batch_date = shared.get("batch_date")
+    customer_contact_id = shared.get("customer_contact_id")
     job_receive_manner_id = shared.get("job_receive_manner_id")
-    job_status_id         = shared.get("job_status_id")
-    performed_by          = shared.get("performed_by_user_id")
-    doc_sequence_id       = shared.get("job_doc_sequence_id")
-    doc_sequence_next     = shared.get("job_doc_sequence_next")
+    job_status_id = shared.get("job_status_id")
+    performed_by = shared.get("performed_by_user_id")
 
     db_name_arg = db_name if db_name else None
     schema_name = schema or "public"
@@ -1038,7 +1136,18 @@ async def resolve_create_job_batch_helper(db_name: str, schema: str = "public", 
             logger.info("Assigned batch_no=%s", batch_no)
 
             job_ids = []
+            job_nos = []
             for job in jobs:
+                # Atomically claim the next job number (same as single job)
+                await cur.execute(SqlStore.CLAIM_NEXT_JOB_NUMBER, {"branch_id": branch_id})
+                seq = await cur.fetchone()
+                if not seq:
+                    raise ValidationException(
+                        message="Job sequence not configured for this branch",
+                        extensions={"detail": "No document_sequence row found for JOB_SHEET"},
+                    )
+                job_no = f"{seq['prefix'] or ''}{seq['separator'] or ''}{str(seq['assigned_number']).zfill(seq['padding'])}"
+
                 await cur.execute(
                     "INSERT INTO job"
                     " (branch_id, batch_no, job_no, job_date, customer_contact_id,"
@@ -1047,16 +1156,26 @@ async def resolve_create_job_batch_helper(db_name: str, schema: str = "public", 
                     "  warranty_card_no, job_receive_condition_id, remarks, quantity)"
                     " VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
                     (
-                        branch_id, batch_no, job.get("job_no"), batch_date,
-                        customer_contact_id, job_type_id, job_receive_manner_id, job_status_id,
-                        job.get("product_brand_model_id"), job.get("serial_no"),
-                        job.get("problem_reported"), job.get("warranty_card_no"),
-                        job.get("job_receive_condition_id"), job.get("remarks"),
+                        branch_id,
+                        batch_no,
+                        job_no,
+                        batch_date,
+                        customer_contact_id,
+                        job.get("job_type_id"),
+                        job_receive_manner_id,
+                        job_status_id,
+                        job.get("product_brand_model_id"),
+                        job.get("serial_no"),
+                        job.get("problem_reported"),
+                        job.get("warranty_card_no"),
+                        job.get("job_receive_condition_id"),
+                        job.get("remarks"),
                         job.get("quantity", 1),
                     ),
                 )
                 job_id = (await cur.fetchone())["id"]
                 job_ids.append(job_id)
+                job_nos.append(job_no)
 
                 if performed_by is not None:
                     await cur.execute(
@@ -1065,25 +1184,19 @@ async def resolve_create_job_batch_helper(db_name: str, schema: str = "public", 
                         (job_id, job_status_id, performed_by),
                     )
 
-            if doc_sequence_id is not None and doc_sequence_next is not None:
-                await cur.execute(
-                    "UPDATE document_sequence SET next_number = %s WHERE id = %s",
-                    (doc_sequence_next, doc_sequence_id),
-                )
-
-    logger.info("Job batch created: batch_no=%s, jobs=%s", batch_no, job_ids)
-    return {"batch_no": batch_no, "job_ids": job_ids}
+    logger.info("Job batch created: batch_no=%s, jobs=%s, job_nos=%s", batch_no, job_ids, job_nos)
+    return {"batch_no": batch_no, "job_ids": job_ids, "job_nos": job_nos}
 
 
-async def resolve_update_job_batch_helper(db_name: str, schema: str = "public", value: str = "") -> Any:
-    payload      = _decode_value(value, "updateJobBatch")
-    batch_no     = payload.get("batch_no")
-    shared       = payload.get("sharedData", {})
-    added_jobs   = payload.get("addedJobs", [])
+async def resolve_update_job_batch_helper(
+    db_name: str, schema: str = "public", value: str = ""
+) -> Any:
+    payload = _decode_value(value, "updateJobBatch")
+    batch_no = payload.get("batch_no")
+    shared = payload.get("sharedData", {})
+    added_jobs = payload.get("addedJobs", [])
     updated_jobs = payload.get("updatedJobs", [])
-    deleted_ids  = payload.get("deletedJobIds", [])
-    doc_seq_id   = payload.get("job_doc_sequence_id")
-    doc_seq_next = payload.get("job_doc_sequence_next")
+    deleted_ids = payload.get("deletedJobIds", [])
     performed_by = shared.get("performed_by_user_id")
 
     db_name_arg = db_name if db_name else None
@@ -1096,18 +1209,20 @@ async def resolve_update_job_batch_helper(db_name: str, schema: str = "public", 
             )
 
             await cur.execute(
-                "UPDATE job SET job_date=%s, customer_contact_id=%s, job_type_id=%s,"
+                "UPDATE job SET job_date=%s, customer_contact_id=%s,"
                 " job_receive_manner_id=%s WHERE batch_no=%s",
                 (
-                    shared.get("batch_date"), shared.get("customer_contact_id"),
-                    shared.get("job_type_id"), shared.get("job_receive_manner_id"),
+                    shared.get("batch_date"),
+                    shared.get("customer_contact_id"),
+                    shared.get("job_receive_manner_id"),
                     batch_no,
                 ),
             )
 
             for job_id in deleted_ids:
                 await cur.execute(
-                    "SELECT COUNT(*) AS cnt FROM job_transaction WHERE job_id = %s", (job_id,)
+                    "SELECT COUNT(*) AS cnt FROM job_transaction WHERE job_id = %s",
+                    (job_id,),
                 )
                 row = await cur.fetchone()
                 if row and row["cnt"] > 1:
@@ -1115,19 +1230,25 @@ async def resolve_update_job_batch_helper(db_name: str, schema: str = "public", 
                         message="Cannot delete job with activity",
                         extensions={"job_id": job_id},
                     )
-                await cur.execute("DELETE FROM job_transaction WHERE job_id = %s", (job_id,))
+                await cur.execute(
+                    "DELETE FROM job_transaction WHERE job_id = %s", (job_id,)
+                )
                 await cur.execute("DELETE FROM job WHERE id = %s", (job_id,))
 
             for job in updated_jobs:
                 job_id = job.get("id")
                 await cur.execute(
-                    "UPDATE job SET product_brand_model_id=%s, serial_no=%s,"
+                    "UPDATE job SET job_type_id=%s, product_brand_model_id=%s, serial_no=%s,"
                     " problem_reported=%s, warranty_card_no=%s,"
                     " job_receive_condition_id=%s, remarks=%s, quantity=%s WHERE id=%s",
                     (
-                        job.get("product_brand_model_id"), job.get("serial_no"),
-                        job.get("problem_reported"), job.get("warranty_card_no"),
-                        job.get("job_receive_condition_id"), job.get("remarks"),
+                        job.get("job_type_id"),
+                        job.get("product_brand_model_id"),
+                        job.get("serial_no"),
+                        job.get("problem_reported"),
+                        job.get("warranty_card_no"),
+                        job.get("job_receive_condition_id"),
+                        job.get("remarks"),
                         job.get("quantity", 1),
                         job_id,
                     ),
@@ -1135,12 +1256,24 @@ async def resolve_update_job_batch_helper(db_name: str, schema: str = "public", 
 
             if added_jobs:
                 await cur.execute(
-                    "SELECT job_status_id FROM job WHERE batch_no=%s LIMIT 1", (batch_no,)
+                    "SELECT job_status_id FROM job WHERE batch_no=%s LIMIT 1",
+                    (batch_no,),
                 )
-                status_row    = await cur.fetchone()
+                status_row = await cur.fetchone()
                 job_status_id = status_row["job_status_id"] if status_row else None
+                branch_id = shared.get("branch_id")
 
                 for job in added_jobs:
+                    # Atomically claim the next job number
+                    await cur.execute(SqlStore.CLAIM_NEXT_JOB_NUMBER, {"branch_id": branch_id})
+                    seq = await cur.fetchone()
+                    if not seq:
+                        raise ValidationException(
+                            message="Job sequence not configured for this branch",
+                            extensions={"detail": "No document_sequence row found for JOB_SHEET"},
+                        )
+                    job_no = f"{seq['prefix'] or ''}{seq['separator'] or ''}{str(seq['assigned_number']).zfill(seq['padding'])}"
+
                     await cur.execute(
                         "INSERT INTO job"
                         " (branch_id, batch_no, job_no, job_date, customer_contact_id,"
@@ -1149,13 +1282,20 @@ async def resolve_update_job_batch_helper(db_name: str, schema: str = "public", 
                         "  warranty_card_no, job_receive_condition_id, remarks, quantity)"
                         " VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
                         (
-                            shared.get("branch_id"), batch_no, job.get("job_no"),
-                            shared.get("batch_date"), shared.get("customer_contact_id"),
-                            shared.get("job_type_id"), shared.get("job_receive_manner_id"),
+                            branch_id,
+                            batch_no,
+                            job_no,
+                            shared.get("batch_date"),
+                            shared.get("customer_contact_id"),
+                            job.get("job_type_id"),
+                            shared.get("job_receive_manner_id"),
                             job_status_id,
-                            job.get("product_brand_model_id"), job.get("serial_no"),
-                            job.get("problem_reported"), job.get("warranty_card_no"),
-                            job.get("job_receive_condition_id"), job.get("remarks"),
+                            job.get("product_brand_model_id"),
+                            job.get("serial_no"),
+                            job.get("problem_reported"),
+                            job.get("warranty_card_no"),
+                            job.get("job_receive_condition_id"),
+                            job.get("remarks"),
                             job.get("quantity", 1),
                         ),
                     )
@@ -1167,17 +1307,13 @@ async def resolve_update_job_batch_helper(db_name: str, schema: str = "public", 
                             (new_job_id, job_status_id, performed_by),
                         )
 
-                if doc_seq_id is not None and doc_seq_next is not None:
-                    await cur.execute(
-                        "UPDATE document_sequence SET next_number = %s WHERE id = %s",
-                        (doc_seq_next, doc_seq_id),
-                    )
-
     return {"batch_no": batch_no}
 
 
-async def resolve_delete_job_batch_helper(db_name: str, schema: str = "public", value: str = "") -> Any:
-    payload  = _decode_value(value, "deleteJobBatch")
+async def resolve_delete_job_batch_helper(
+    db_name: str, schema: str = "public", value: str = ""
+) -> Any:
+    payload = _decode_value(value, "deleteJobBatch")
     batch_no = payload.get("batch_no")
 
     db_name_arg = db_name if db_name else None
@@ -1193,7 +1329,8 @@ async def resolve_delete_job_batch_helper(db_name: str, schema: str = "public", 
 
             for job_id in job_ids:
                 await cur.execute(
-                    "SELECT COUNT(*) AS cnt FROM job_transaction WHERE job_id = %s", (job_id,)
+                    "SELECT COUNT(*) AS cnt FROM job_transaction WHERE job_id = %s",
+                    (job_id,),
                 )
                 row = await cur.fetchone()
                 if row and row["cnt"] > 1:
@@ -1211,7 +1348,9 @@ async def resolve_delete_job_batch_helper(db_name: str, schema: str = "public", 
     return {"success": True}
 
 
-async def resolve_generic_update_script_helper(db_name: str, schema: str = "public", value: str = "") -> Any:
+async def resolve_generic_update_script_helper(
+    db_name: str, schema: str = "public", value: str = ""
+) -> Any:
     """
     Execute a pre-defined SQL script from SqlStore with optional named parameters.
 
@@ -1248,13 +1387,15 @@ async def resolve_generic_update_script_helper(db_name: str, schema: str = "publ
     sql_args = payload.get("sql_args") or {}
     db_name_arg = db_name if db_name else None
 
-    logger.debug("Executing script '%s' on: %s", sql_id, db_name_arg or 'client_db')
+    logger.debug("Executing script '%s' on: %s", sql_id, db_name_arg or "client_db")
     result = await exec_sql(db_name_arg, schema or "public", sql, sql_args)
     logger.debug("Script '%s' executed successfully", sql_id)
     return result
 
 
-async def resolve_delete_unused_parts_by_brand_helper(db_name: str, schema: str, value: str) -> dict:
+async def resolve_delete_unused_parts_by_brand_helper(
+    db_name: str, schema: str, value: str
+) -> dict:
     """
     Delete all spare parts for a brand that are not referenced in any
     dependent table (job_part_used, purchase_invoice_line, sales_invoice_line,
@@ -1287,7 +1428,9 @@ async def resolve_delete_unused_parts_by_brand_helper(db_name: str, schema: str,
     return {"deleted_count": deleted_count}
 
 
-async def resolve_import_spare_parts_helper(db_name: str, schema: str = "public", value: str = "") -> dict:
+async def resolve_import_spare_parts_helper(
+    db_name: str, schema: str = "public", value: str = ""
+) -> dict:
     """
     Fast bulk import of spare parts using a single multi-row INSERT.
 
@@ -1308,7 +1451,11 @@ async def resolve_import_spare_parts_helper(db_name: str, schema: str = "public"
         )
 
     db_name_arg = db_name if db_name else None
-    logger.info("Bulk importing %d spare parts into: %s", len(payload), db_name_arg or 'client_db')
+    logger.info(
+        "Bulk importing %d spare parts into: %s",
+        len(payload),
+        db_name_arg or "client_db",
+    )
 
     count = await bulk_insert_records(
         db_name=db_name_arg,
@@ -1321,7 +1468,9 @@ async def resolve_import_spare_parts_helper(db_name: str, schema: str = "public"
     return {"success_count": count}
 
 
-async def resolve_mail_admin_credentials_helper(db_name: str, schema: str, value: str) -> dict:
+async def resolve_mail_admin_credentials_helper(
+    db_name: str, schema: str, value: str
+) -> dict:
     """
     Decode value payload, generate a password-reset JWT, and email the reset link
     to the admin user. No password is changed at this stage.
@@ -1330,7 +1479,7 @@ async def resolve_mail_admin_credentials_helper(db_name: str, schema: str, value
     """
     payload = _decode_value(value, "mailAdminCredentials")
 
-    id_       = payload.get("id")
+    id_ = payload.get("id")
     client_id = payload.get("client_id")
     if not id_:
         raise ValidationException(
@@ -1340,7 +1489,8 @@ async def resolve_mail_admin_credentials_helper(db_name: str, schema: str, value
 
     # 1. Fetch admin user
     rows = await exec_sql(
-        db_name=db_name, schema=schema or "security",
+        db_name=db_name,
+        schema=schema or "security",
         sql=SqlStore.GET_ADMIN_USER_BY_ID,
         sql_args={"id": id_},
     )
@@ -1352,13 +1502,17 @@ async def resolve_mail_admin_credentials_helper(db_name: str, schema: str, value
     user = rows[0]
 
     # 2. Generate reset token (48-hour expiry)
-    token = create_reset_token({
-        "sub":       str(id_),
-        "db_name":   db_name,
-        "client_id": client_id,
-    })
+    token = create_reset_token(
+        {
+            "sub": str(id_),
+            "db_name": db_name,
+            "client_id": client_id,
+        }
+    )
     reset_link = f"{settings.frontend_url}/reset-password?token={token}"
-    logger.info("Password reset link generated for admin user id=%s in %s", id_, db_name)
+    logger.info(
+        "Password reset link generated for admin user id=%s in %s", id_, db_name
+    )
 
     # 3. Email reset link
     email_sent = False
@@ -1375,11 +1529,14 @@ async def resolve_mail_admin_credentials_helper(db_name: str, schema: str, value
         email_sent = True
     except Exception as mail_err:
         email_error = str(mail_err)
-        logger.warning("Failed to send reset link email to %s: %s", user['email'], mail_err)
+        logger.warning(
+            "Failed to send reset link email to %s: %s", user["email"], mail_err
+        )
 
     await audit_logger.log(
         action=AuditAction.MAIL_ADMIN_CREDENTIALS,
-        detail=f"email_sent={email_sent}" + (f", error={email_error}" if email_error else ""),
+        detail=f"email_sent={email_sent}"
+        + (f", error={email_error}" if email_error else ""),
         resource_id=str(id_),
         resource_name=user.get("username", ""),
         resource_type="admin_user",
@@ -1387,7 +1544,9 @@ async def resolve_mail_admin_credentials_helper(db_name: str, schema: str, value
     return {"email_error": email_error, "email_sent": email_sent, "id": id_}
 
 
-async def resolve_set_user_bu_role_helper(db_name: str, schema: str, value: str) -> dict:
+async def resolve_set_user_bu_role_helper(
+    db_name: str, schema: str, value: str
+) -> dict:
     """
     Decode value payload and replace all BU/role associations for a business user.
     Transaction: DELETE all user_bu_role rows for user_id, then INSERT one per bu_id.
@@ -1397,7 +1556,7 @@ async def resolve_set_user_bu_role_helper(db_name: str, schema: str, value: str)
     payload = _decode_value(value, "setUserBuRole")
 
     user_id = payload.get("user_id")
-    bu_ids  = payload.get("bu_ids", [])
+    bu_ids = payload.get("bu_ids", [])
     role_id = payload.get("role_id")
 
     if not user_id:
@@ -1410,7 +1569,8 @@ async def resolve_set_user_bu_role_helper(db_name: str, schema: str, value: str)
 
     # Verify user exists and is a business user
     user_rows = await exec_sql(
-        db_name=db_name, schema=schema_name,
+        db_name=db_name,
+        schema=schema_name,
         sql=SqlStore.GET_BUSINESS_USER_BY_ID,
         sql_args={"id": user_id},
     )

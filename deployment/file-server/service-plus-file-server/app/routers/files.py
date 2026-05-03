@@ -1,20 +1,36 @@
 """File server API endpoints with API key authentication."""
+
 import io
+import os
 import re
 import time
 from pathlib import Path
 
 import mimetypes
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, Form, Header, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    HTTPException,
+    UploadFile,
+    Form,
+    Header,
+    status,
+)
 from fastapi.responses import StreamingResponse
 from PIL import Image
 
 from app.config import file_settings
 
 router = APIRouter(prefix="/files", tags=["files"])
-
+_APP_ENV: str = os.environ.get("APP_ENV", "development")
 _MAX_BYTES = file_settings.upload_max_size_kb * 1024
-_BASE_DIR = Path(file_settings.base_dir)
+
+_BASE_DIR = Path(
+    file_settings.base_dir_development
+    if _APP_ENV == "development"
+    else file_settings.base_dir_production
+)
 
 
 def verify_api_key(x_api_key: str = Header(...)) -> str:
@@ -213,13 +229,17 @@ async def delete_job_files(
 
 
 @router.get("/uploads/{path:path}")
-async def serve_file(path: str, _api_key: str = Depends(verify_api_key)) -> StreamingResponse:
+async def serve_file(
+    path: str, _api_key: str = Depends(verify_api_key)
+) -> StreamingResponse:
     """Serve a file by its stored URL path."""
     relative = "/".join(path.split("/")[1:]) if path.startswith("uploads/") else path
     file_path = _resolve_path(relative)
 
     if not file_path.exists() or not file_path.is_file():
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="File not found"
+        )
 
     content_type, _ = mimetypes.guess_type(str(file_path))
     if content_type is None:

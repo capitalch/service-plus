@@ -1,13 +1,13 @@
 # QA round
 - Jobs
-	- Separate file server
-		- Folder hierarchy as client/bu/branch/job_no
-		- Final deployment of file server with deploy script
-		- Deployment documentation
+						- Separate file server
+								- Folder hierarchy as client/bu/branch/job_no
+								- Final deployment of file server with deploy script
+								- Deployment documentation
 								- Create local server and Test it locally
 								- Create cloudjiffy server
 								- Deploy cloudjiffy server
-	- Single Job
+						- Single Job
 								- the info card does not retain the job-no selected during refresh
 								- Info card should show the no before latest
 								- remove useEffect unnecessary fetches

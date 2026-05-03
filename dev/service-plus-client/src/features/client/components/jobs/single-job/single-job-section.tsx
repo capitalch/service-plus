@@ -634,11 +634,25 @@ export const SingleJobSection = () => {
                                                     {(page - 1) * PAGE_SIZE + idx + 1}
                                                 </td>
                                                 <td className={`${tdClass} whitespace-nowrap`}>{job.job_date}</td>
-                                                <td className={`${tdClass} font-mono font-medium text-[var(--cl-accent)]`}>
-                                                    {job.job_no}
-                                                    {job.is_closed && (
-                                                        <span className="ml-1.5 text-[10px] font-bold text-emerald-600 bg-emerald-100 dark:bg-emerald-950/40 rounded px-1 py-0.5">CLOSED</span>
-                                                    )}
+                                                <td className={tdClass}>
+                                                    <div className="flex flex-col gap-0.5">
+                                                        <div className="font-mono font-medium text-[var(--cl-text)]">
+                                                            {job.job_no}
+                                                            {job.is_closed && (
+                                                                <span className="ml-1.5 text-[10px] font-bold text-emerald-600 bg-emerald-100 dark:bg-emerald-950/40 rounded px-1 py-0.5">CLOSED</span>
+                                                            )}
+                                                        </div>
+                                                        {job.file_count > 0 && (
+                                                            <button
+                                                                type="button"
+                                                                className="flex items-center gap-1 text-[10px] text-blue-600 dark:text-blue-400 font-medium hover:text-blue-700 dark:hover:text-blue-300 cursor-pointer bg-blue-50 dark:bg-blue-950/40 rounded px-1.5 py-0.5 w-fit border-0 transition-colors"
+                                                                onClick={() => { setAttachJobId(job.id); setAttachJobNo(job.job_no); setAttachMode("view"); }}
+                                                            >
+                                                                <Paperclip className="h-2.5 w-2.5" />
+                                                                <span>{job.file_count} File{job.file_count !== 1 ? "s" : ""}</span>
+                                                            </button>
+                                                        )}
+                                                    </div>
                                                 </td>
                                                 <td className={tdClass}>{job.customer_name ?? "—"}</td>
                                                 <td className={`${tdClass} font-mono text-xs`}>{job.mobile}</td>
@@ -762,13 +776,16 @@ export const SingleJobSection = () => {
                 onPrint={handlePrintFromView}
             />
 
-            <JobAttachDialog
-                jobId={attachJobId}
-                jobNo={attachJobNo}
-                mode={attachMode}
-                onFilesChanged={() => setQuickInfoKey(k => k + 1)}
-                onClose={() => { setAttachJobId(null); setAttachJobNo(""); setAttachMode("attach"); }}
-            />
+             <JobAttachDialog
+                 jobId={attachJobId}
+                 jobNo={attachJobNo}
+                 mode={attachMode}
+                 onFilesChanged={() => {
+                     setQuickInfoKey(k => k + 1);
+                     if (branchId) void loadData(Number(branchId), searchQ, page);
+                 }}
+                 onClose={() => { setAttachJobId(null); setAttachJobNo(""); setAttachMode("attach"); }}
+             />
 
             <PdfPreviewModal
                 isOpen={showPdfModal}
