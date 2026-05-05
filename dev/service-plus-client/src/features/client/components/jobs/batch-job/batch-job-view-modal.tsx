@@ -125,7 +125,7 @@ export const BatchJobViewModal = ({ isOpen, batchNo, jobs, loading, onClose, onP
                         )}
                     </div>
 
-                    <DialogFooter className="px-6 py-4 border-t border-[var(--cl-border)]">
+                    <DialogFooter className="px-6 pt-4 pb-6 border-t border-[var(--cl-border)]">
                         <Button variant="outline" onClick={onClose}>Close</Button>
                         <Button
                             className="gap-1.5 bg-indigo-500 hover:bg-indigo-600 text-white"

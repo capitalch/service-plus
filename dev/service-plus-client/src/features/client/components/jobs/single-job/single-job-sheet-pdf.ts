@@ -137,3 +137,130 @@ export function openJobSheetInTab(job: JobDetailType, companyInfo: CompanyInfoTy
     const url = getJobSheetBlobUrl(job, companyInfo);
     window.open(url, "_blank");
 }
+
+// ── Batch Job Sheet ───────────────────────────────────────────────────────────
+
+function buildBatchJobSheetDoc(jobs: JobDetailType[], companyInfo: CompanyInfoType | null): jsPDF {
+    const doc       = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+
+    const batchNo   = jobs[0]?.batch_no ?? 0;
+    const batchDate = jobs[0]?.job_date  ?? "";
+    const customer  = jobs[0]?.customer_name ?? "—";
+    const mobile    = jobs[0]?.mobile ?? "—";
+    const address   = jobs[0]?.address_snapshot ?? "—";
+    const manner    = jobs[0]?.job_receive_manner_name ?? "—";
+
+    doc.setProperties({
+        title:    `Batch-Job-Sheet_${batchNo}`,
+        subject:  "Batch Job Sheet",
+        author:   companyInfo?.company_name ?? "Service Plus",
+        creator:  "Service Plus",
+    });
+
+    // ── Header (2 lines) ──────────────────────────────────────────────────
+    doc.setFontSize(13);
+    doc.setFont("helvetica", "bold");
+    doc.text(companyInfo?.company_name ?? "Electronic Gadgets Repair", pageWidth / 2, 11, { align: "center" });
+
+    doc.setFontSize(7.5);
+    doc.setFont("helvetica", "normal");
+    let y = 16;
+
+    if (companyInfo) {
+        const line1 = [companyInfo.address_line1, companyInfo.address_line2, companyInfo.city, companyInfo.pincode].filter(Boolean).join(", ");
+        const line2 = [companyInfo.phone && `Ph: ${companyInfo.phone}`, companyInfo.email && `Email: ${companyInfo.email}`, companyInfo.gstin && `GSTIN: ${companyInfo.gstin}`].filter(Boolean).join(" | ");
+        doc.text([line1, line2].filter(Boolean).join(" | "), pageWidth / 2, y, { align: "center" });
+        y += 5;
+    }
+
+    // ── Title + Batch Info ─────────────────────────────────────────────────
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "bold");
+    doc.text("BATCH JOB SHEET", pageWidth / 2, y + 1, { align: "center" });
+    y += 6;
+
+    autoTable(doc, {
+        body: [
+            ["Batch No:", `#${batchNo}`,  "Date:",     batchDate],
+            ["Customer:", customer,        "Mobile:",   mobile],
+            ["Address:",  address,          "Manner:",   manner],
+            ["Jobs:",     String(jobs.length)],
+        ],
+        columnStyles: { 0: { cellWidth: 28, fontStyle: "bold" }, 2: { cellWidth: 28, fontStyle: "bold" } },
+        margin:       { left: 15, right: 15 },
+        startY:       y,
+        styles:       { cellPadding: 1.2, fontSize: 7.5, lineColor: [180, 180, 180], lineWidth: 0.3 },
+        theme:        "grid",
+    });
+
+    y = (doc as any).lastAutoTable.finalY + 3;
+
+    // ── Jobs Table ─────────────────────────────────────────────────────────
+    const head = [["#", "Job No", "Date", "Product / Brand / Model", "Job Type", "Qty", "Condition", "Serial No"]];
+
+    const body: (string | number | { content: string; colSpan: number; styles: Record<string, unknown> })[] = [];
+    for (let i = 0; i < jobs.length; i++) {
+        const job = jobs[i]!;
+        body.push([
+            i + 1,
+            job.job_no,
+            job.job_date,
+            [job.product_name, job.brand_name, job.model_name].filter(Boolean).join(" / ") || "—",
+            job.job_type_name,
+            String(job.quantity),
+            job.job_receive_condition_name ?? "—",
+            job.serial_no ?? "—",
+        ]);
+
+        const probRemText = [
+            job.problem_reported?.trim() && job.problem_reported.trim(),
+            job.remarks?.trim()        && job.remarks.trim(),
+        ].filter(Boolean).join(" | ");
+
+        if (probRemText) {
+            body.push([
+                { content: probRemText, colSpan: 8, styles: { fontSize: 6, textColor: [80, 80, 80], cellPadding: 1 } },
+            ]);
+        }
+    }
+
+    autoTable(doc, {
+        head,
+        body,
+        margin:    { left: 15, right: 15 },
+        startY:    y,
+        styles:    { cellPadding: 1.5, fontSize: 7.5, lineColor: [200, 200, 200], lineWidth: 0.2, overflow: "linebreak" },
+        headStyles: { fontSize: 6.5, fontStyle: "bold", fillColor: [240, 240, 240], textColor: [60, 60, 60] },
+        columnStyles: {
+            0: { cellWidth: 8 },
+            1: { cellWidth: 20 },
+            2: { cellWidth: 18 },
+            3: { cellWidth: 52 },
+            4: { cellWidth: 24 },
+            5: { cellWidth: 8 },
+            6: { cellWidth: 24 },
+            7: { cellWidth: 26 },
+        },
+        theme:     "grid",
+    });
+
+    // ── Signatures (placed after table, on same page or last page) ───────
+    const finalY   = (doc as any).lastAutoTable.finalY ?? y;
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const sigY = Math.min(finalY + 10, pageHeight - 10);
+
+    doc.setFontSize(7.5);
+    doc.setDrawColor(180);
+    doc.line(15,             sigY - 4, 60,             sigY - 4);
+    doc.line(pageWidth - 60, sigY - 4, pageWidth - 15, sigY - 4);
+    doc.text("Customer Signature",  15,            sigY);
+    doc.text("Authorized Signatory", pageWidth - 15, sigY, { align: "right" });
+
+    return doc;
+}
+
+export function getBatchJobSheetBlobUrl(jobs: JobDetailType[], companyInfo: CompanyInfoType | null): string {
+    const doc = buildBatchJobSheetDoc(jobs, companyInfo);
+    return String(doc.output("bloburl"));
+}

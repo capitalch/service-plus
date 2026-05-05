@@ -32,7 +32,7 @@ import { BatchJobViewModal } from "./batch-job-view-modal";
 import { FormProvider, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { batchJobFormSchema, type BatchJobFormValues, getBatchJobDefaultValues } from "./batch-job-schema";
-import { getJobSheetBlobUrl, type CompanyInfoType } from "../single-job/single-job-sheet-pdf";
+import { getBatchJobSheetBlobUrl, type CompanyInfoType } from "../single-job/single-job-sheet-pdf";
 import { PdfPreviewModal } from "@/components/shared/pdf-preview-modal";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -411,30 +411,12 @@ export const BatchJobSection = () => {
             toast.error("Company info not available");
             return;
         }
-        if (batchJobs.length === 1) {
-            const url = getJobSheetBlobUrl(batchJobs[0], companyInfo);
-            setPdfPreviewUrl(url);
-            setPdfFilename(`Job-Sheet_${batchJobs[0].job_date}_${batchJobs[0].customer_name || "customer"}.pdf`);
-            setShowPdfModal(true);
-        } else {
-            toast.info(`Generating PDFs for ${batchJobs.length} jobs. Opening them sequentially.`);
-            batchJobs.forEach((job) => {
-                const url = getJobSheetBlobUrl(job, companyInfo);
-                const a = document.createElement("a");
-                a.href = url;
-                a.download = `Job-Sheet_${job.job_date}_${job.job_no}.pdf`;
-                a.click();
-            });
-        }
-    };
-
-    const handlePrintSingleFromView = (job: JobDetailType) => {
-        if (!companyInfo) return;
-        const url = getJobSheetBlobUrl(job, companyInfo);
+        const url = getBatchJobSheetBlobUrl(batchJobs, companyInfo);
         setPdfPreviewUrl(url);
-        setPdfFilename(`Job-Sheet_${job.job_date}_${job.customer_name || "customer"}.pdf`);
+        setPdfFilename(`Batch-Job-Sheet_${batchJobs[0]?.batch_no ?? "batch"}.pdf`);
         setShowPdfModal(true);
     };
+
 
     const groupedBatches = jobs.reduce<BatchGroup[]>((acc, job) => {
         let group = acc.find(g => g.batch_no === job.batch_no);
@@ -785,14 +767,7 @@ export const BatchJobSection = () => {
             loading={viewLoading}
             onClose={() => { setViewBatchNo(null); setViewJobs([]); }}
             onPrintBatch={(detailJobs) => {
-                void apolloClient.query<GenericQueryData<JobDetailType>>({
-                    fetchPolicy: "network-only",
-                    query: GRAPHQL_MAP.genericQuery,
-                    variables: { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_JOB_BATCH_DETAIL, sqlArgs: { batch_no: viewBatchNo } }) },
-                }).then(res => {
-                    const batchJobs = res.data?.genericQuery ?? [];
-                    handlePrintBatch(batchJobs);
-                });
+                handlePrintBatch(detailJobs);
             }}
         />
     </motion.div>
