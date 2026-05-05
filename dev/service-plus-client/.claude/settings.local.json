@@ -25,7 +25,11 @@
       "Bash(pip3 show *)",
       "Bash(/home/sushant/projects/service-plus/env/bin/pip show *)",
       "Bash(/home/sushant/projects/service-plus/env/bin/python *)",
-      "Read(//home/sushant/projects/service-plus/dev/service-plus-server/app/db/**)"
+      "Read(//home/sushant/projects/service-plus/dev/service-plus-server/app/db/**)",
+      "Read(//home/sushant/projects/service-plus/dev/service-plus-server/**)",
+      "Bash(echo \"Exit: $?\")",
+      "Bash(pip show *)",
+      "Bash(pip3 install *)"
     ]
   }
 }

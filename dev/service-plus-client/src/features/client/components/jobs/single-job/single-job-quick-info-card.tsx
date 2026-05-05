@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from "react";
-import { ChevronLeftIcon, ChevronRightIcon, ChevronsLeftIcon, ChevronsRightIcon, Eye, Printer, Paperclip, FileText, Loader2 } from "lucide-react";
+import { ChevronLeftIcon, ChevronRightIcon, ChevronsLeftIcon, ChevronsRightIcon, Eye, Printer, Paperclip, FileText, Loader2, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { JobListRow } from "@/features/client/types/job";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
@@ -14,6 +14,7 @@ type QuickInfoCardProps = {
     onView?: (job: JobListRow) => void;
     onPrint?: (job: JobListRow) => void;
     onAttach?: (jobNo: string, jobId: number) => void;
+    onEdit?: (job: JobListRow) => void;
     refreshTrigger?: number;
 };
 
@@ -21,7 +22,7 @@ type GenericQueryData<T> = { genericQuery: T[] | null };
 
 const JOB_COMMON_ARGS = { search: "", from_date: "2000-01-01", to_date: "3000-12-31", limit: 1 };
 
-export function SingleJobQuickInfoCard({ onView, onPrint, onAttach, refreshTrigger }: QuickInfoCardProps) {
+export function SingleJobQuickInfoCard({ onView, onPrint, onAttach, onEdit, refreshTrigger }: QuickInfoCardProps) {
     const dbName = useAppSelector(selectDbName);
     const schema = useAppSelector(selectSchema);
     const branch = useAppSelector(selectCurrentBranch);
@@ -37,6 +38,7 @@ export function SingleJobQuickInfoCard({ onView, onPrint, onAttach, refreshTrigg
     const isLatestJob = currentJob !== null && currentJob.id === latestJobId;
     const isAtLatest = currentOffset === 0;
     const isAtOldest = !canGoOlder;
+    const isReady = dbName && schema && branchId;
 
     const fetchJob = useCallback(async (offset: number, isNavigation = false) => {
         if (!dbName || !schema || !branchId) return null;
@@ -200,7 +202,7 @@ export function SingleJobQuickInfoCard({ onView, onPrint, onAttach, refreshTrigg
         }
     };
 
-    if (loading) {
+    if (loading || !isReady) {
         return (
             <div className="w-full rounded-xl border border-[var(--cl-border)] bg-[var(--cl-surface-2)] px-4 py-3 flex items-center gap-2 text-xs text-[var(--cl-text-muted)]">
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -251,11 +253,23 @@ export function SingleJobQuickInfoCard({ onView, onPrint, onAttach, refreshTrigg
                             </button>
                         )}
                     </div>
-                    {/* Row 2: Device details • Customer */}
+                    {/* Row 2: Device details */}
                     <div className="flex items-center gap-1.5 mt-1 min-w-0">
                         <span className="text-xs font-medium text-[var(--cl-text)] truncate">
                             {currentJob.device_details || "—"}
                         </span>
+                    </div>
+                    {/* Row 3: Job type • Receive condition • Customer */}
+                    <div className="flex items-center gap-1.5 mt-0.5 min-w-0">
+                        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-[var(--cl-accent)]/10 text-[var(--cl-accent)]">
+                            {currentJob.job_type_name}
+                        </span>
+                        {currentJob.receive_condition_name && (
+                            <>
+                                <span className="text-[10px] text-[var(--cl-text-muted)] shrink-0">•</span>
+                                <span className="text-[10px] text-[var(--cl-text-muted)]">{currentJob.receive_condition_name}</span>
+                            </>
+                        )}
                         <span className="text-[10px] text-[var(--cl-text-muted)] shrink-0">•</span>
                         <span className="text-xs text-[var(--cl-text-muted)] truncate">
                             {currentJob.customer_name || "—"}
@@ -263,39 +277,18 @@ export function SingleJobQuickInfoCard({ onView, onPrint, onAttach, refreshTrigg
                     </div>
                 </div>
 
-                {/* Right: navigator + actions */}
+                {/* Right: actions + navigator */}
                 <div className="flex items-center gap-2 shrink-0">
-                    <div className="flex items-center gap-1 p-1 rounded-lg border border-[var(--cl-border)] bg-[var(--cl-surface)]">
-                        <NavButton
-                            icon={<ChevronsLeftIcon className="h-3.5 w-3.5" />}
-                            title="Go to oldest job"
-                            disabled={isAtOldest || navLoading}
-                            onClick={navigateToOldest}
-                        />
-                        <NavButton
-                            icon={<ChevronLeftIcon className="h-3.5 w-3.5" />}
-                            title="Older job"
-                            disabled={isAtOldest || navLoading}
-                            onClick={navigateOlder}
-                        />
-                        <NavButton
-                            icon={<ChevronRightIcon className="h-3.5 w-3.5" />}
-                            title="Later job"
-                            disabled={isAtLatest || navLoading}
-                            onClick={navigateLater}
-                        />
-                        <NavButton
-                            icon={<ChevronsRightIcon className="h-3.5 w-3.5" />}
-                            title="Go to latest job"
-                            disabled={isAtLatest || navLoading}
-                            onClick={navigateToLatest}
-                        />
-                        {navLoading && <Loader2 className="h-3 w-3 animate-spin text-[var(--cl-text-muted)] ml-0.5 shrink-0" />}
-                    </div>
-
-                    <div className="h-6 w-px bg-[var(--cl-border)] shrink-0" />
-
                     <div className="flex items-center gap-1.5">
+                        <Button
+                            type="button"
+                            size="sm"
+                            className="h-7 px-3 text-[11px] font-semibold bg-amber-500 hover:bg-amber-600 text-white"
+                            onClick={() => onEdit?.(currentJob)}
+                        >
+                            <Pencil className="h-3.5 w-3.5 mr-1.5" />
+                            Edit
+                        </Button>
                         <Button
                             type="button"
                             size="sm"
@@ -324,6 +317,36 @@ export function SingleJobQuickInfoCard({ onView, onPrint, onAttach, refreshTrigg
                             Attach
                         </Button>
                     </div>
+
+                    <div className="h-6 w-px bg-[var(--cl-border)] shrink-0" />
+
+                    <div className="flex items-center gap-1.5 p-1.5 rounded-xl border border-[var(--cl-border)] bg-[var(--cl-surface)] shadow-sm">
+                        <NavButton
+                            icon={<ChevronsLeftIcon className="h-4 w-4" />}
+                            title="Go to oldest job"
+                            disabled={isAtOldest || navLoading}
+                            onClick={navigateToOldest}
+                        />
+                        <NavButton
+                            icon={<ChevronLeftIcon className="h-4 w-4" />}
+                            title="Older job"
+                            disabled={isAtOldest || navLoading}
+                            onClick={navigateOlder}
+                        />
+                        <NavButton
+                            icon={<ChevronRightIcon className="h-4 w-4" />}
+                            title="Later job"
+                            disabled={isAtLatest || navLoading}
+                            onClick={navigateLater}
+                        />
+                        <NavButton
+                            icon={<ChevronsRightIcon className="h-4 w-4" />}
+                            title="Go to latest job"
+                            disabled={isAtLatest || navLoading}
+                            onClick={navigateToLatest}
+                        />
+                        {navLoading && <Loader2 className="h-4 w-4 animate-spin text-[var(--cl-accent)] ml-0.5 shrink-0" />}
+                    </div>
                 </div>
             </div>
         </div>
@@ -344,7 +367,7 @@ function NavButton({ icon, title, disabled, onClick }: NavButtonProps) {
             title={title}
             disabled={disabled}
             onClick={onClick}
-            className="flex items-center justify-center h-7 w-7 rounded-md border border-transparent text-[var(--cl-text-muted)] hover:bg-[var(--cl-accent)]/10 hover:text-[var(--cl-accent)] hover:border-[var(--cl-accent)]/30 transition-all disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-[var(--cl-text-muted)] disabled:hover:border-transparent shrink-0 cursor-pointer"
+            className="flex items-center justify-center h-9 w-9 rounded-lg border border-transparent text-[var(--cl-text-muted)] hover:bg-[var(--cl-accent)] hover:text-white hover:border-[var(--cl-accent)]/30 transition-all disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-[var(--cl-text-muted)] disabled:hover:border-transparent shrink-0 cursor-pointer"
         >
             {icon}
         </button>

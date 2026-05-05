@@ -940,7 +940,7 @@ async def resolve_create_single_job_helper(
             )
 
             # 1. Claim next sequence number atomically
-            seq_rows = await cur.execute(
+            await cur.execute(
                 SqlStore.CLAIM_NEXT_JOB_NUMBER, {"branch_id": branch_id}
             )
             seq = await cur.fetchone()
@@ -1123,6 +1123,12 @@ async def resolve_create_job_batch_helper(
     job_status_id = shared.get("job_status_id")
     performed_by = shared.get("performed_by_user_id")
 
+    if not branch_id:
+        raise ValidationException(
+            message=AppMessages.REQUIRED_FIELD_MISSING,
+            extensions={"field": "branch_id"},
+        )
+
     db_name_arg = db_name if db_name else None
     schema_name = schema or "public"
 
@@ -1131,58 +1137,52 @@ async def resolve_create_job_batch_helper(
             await cur.execute(
                 pgsql.SQL("SET search_path TO {}").format(pgsql.Identifier(schema_name))
             )
-            await cur.execute("SELECT nextval('job_batch_no_seq') AS batch_no")
+            await cur.execute(SqlStore.CLAIM_NEXT_BATCH_NUMBER)
             batch_no = (await cur.fetchone())["batch_no"]
             logger.info("Assigned batch_no=%s", batch_no)
 
             job_ids = []
             job_nos = []
             for job in jobs:
-                # Atomically claim the next job number (same as single job)
                 await cur.execute(SqlStore.CLAIM_NEXT_JOB_NUMBER, {"branch_id": branch_id})
                 seq = await cur.fetchone()
                 if not seq:
                     raise ValidationException(
-                        message="Job sequence not configured for this branch",
-                        extensions={"detail": "No document_sequence row found for JOB_SHEET"},
+                        message=AppMessages.RESOURCE_NOT_FOUND,
+                        extensions={"detail": "Job sequence not configured for this branch"},
                     )
                 job_no = f"{seq['prefix'] or ''}{seq['separator'] or ''}{str(seq['assigned_number']).zfill(seq['padding'])}"
 
-                await cur.execute(
-                    "INSERT INTO job"
-                    " (branch_id, batch_no, job_no, job_date, customer_contact_id,"
-                    "  job_type_id, job_receive_manner_id, job_status_id,"
-                    "  product_brand_model_id, serial_no, problem_reported,"
-                    "  warranty_card_no, job_receive_condition_id, remarks, quantity)"
-                    " VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
-                    (
-                        branch_id,
-                        batch_no,
-                        job_no,
-                        batch_date,
-                        customer_contact_id,
-                        job.get("job_type_id"),
-                        job_receive_manner_id,
-                        job_status_id,
-                        job.get("product_brand_model_id"),
-                        job.get("serial_no"),
-                        job.get("problem_reported"),
-                        job.get("warranty_card_no"),
-                        job.get("job_receive_condition_id"),
-                        job.get("remarks"),
-                        job.get("quantity", 1),
-                    ),
-                )
-                job_id = (await cur.fetchone())["id"]
+                job_data = {
+                    "branch_id": branch_id,
+                    "batch_no": batch_no,
+                    "job_no": job_no,
+                    "job_date": batch_date,
+                    "customer_contact_id": customer_contact_id,
+                    "job_type_id": job.get("job_type_id"),
+                    "job_receive_manner_id": job_receive_manner_id,
+                    "job_status_id": job_status_id,
+                    "product_brand_model_id": job.get("product_brand_model_id"),
+                    "serial_no": job.get("serial_no"),
+                    "problem_reported": job.get("problem_reported"),
+                    "warranty_card_no": job.get("warranty_card_no"),
+                    "job_receive_condition_id": job.get("job_receive_condition_id"),
+                    "remarks": job.get("remarks"),
+                    "quantity": job.get("quantity", 1),
+                }
+                job_id = await process_data(job_data, cur, "job", None, None)
+                logger.info("Batch job created with id=%s, job_no=%s", job_id, job_no)
                 job_ids.append(job_id)
                 job_nos.append(job_no)
 
                 if performed_by is not None:
-                    await cur.execute(
-                        "INSERT INTO job_transaction (job_id, status_id, performed_by_user_id)"
-                        " VALUES (%s, %s, %s)",
-                        (job_id, job_status_id, performed_by),
-                    )
+                    txn_data = {
+                        "job_id": job_id,
+                        "status_id": job_status_id,
+                        "performed_by_user_id": performed_by,
+                    }
+                    await process_data(txn_data, cur, "job_transaction", None, None)
+                    logger.debug("Initial job_transaction inserted for job_id=%s", job_id)
 
     logger.info("Job batch created: batch_no=%s, jobs=%s, job_nos=%s", batch_no, job_ids, job_nos)
     return {"batch_no": batch_no, "job_ids": job_ids, "job_nos": job_nos}

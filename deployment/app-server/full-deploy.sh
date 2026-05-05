@@ -20,7 +20,7 @@ rm -rf "$DEPLOY_DIR/service-plus-server"
 # 1. Build the React client
 echo "📦 Building client..."
 cd "$CLIENT_DIR" || { echo "❌ Error: Client directory not found"; exit 1; }
-npm run build
+pnpm run build
 
 # 2. Prepare deployment directory
 echo "📁 Ensuring deployment folder exists..."

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useFormContext } from "react-hook-form";
 
 import type { SingleJobFormValues } from "./single-job-schema";
-import { Loader2, Plus } from "lucide-react";
+import { Loader2, Paperclip, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 
@@ -49,6 +49,7 @@ type Props = {
     editJob?: JobDetailType | null;
     onRefreshModels: () => void;
     onViewJob?: (job: JobListRow) => void;
+    onEditJob?: (job: JobListRow) => void;
     onPrintPdf?: (job: JobListRow) => void;
     onAttachFiles?: (jobNo: string, jobId: number) => void;
     refreshTrigger?: number;
@@ -60,7 +61,7 @@ const labelCls = "text-xs font-extrabold text-[var(--cl-text)] uppercase trackin
 
 export function NewSingleJobForm({
     branchId, jobStatuses, jobTypes, receiveMannners, receiveConditions, models, brands, products, customerTypes, masterStates, editJob,
-    onRefreshModels, onViewJob, onPrintPdf, onAttachFiles, refreshTrigger,
+    onRefreshModels, onViewJob, onEditJob, onPrintPdf, onAttachFiles, refreshTrigger,
 }: Props) {
     const dbName = useAppSelector(selectDbName);
     const schema = useAppSelector(selectSchema);
@@ -139,15 +140,28 @@ export function NewSingleJobForm({
                 <>
                     <SingleJobQuickInfoCard
                         onView={onViewJob}
+                        onEdit={onEditJob}
                         onPrint={onPrintPdf}
                         onAttach={onAttachFiles}
                         refreshTrigger={refreshTrigger}
                     />
 
                     <div className="flex items-start gap-3 flex-col">
+                    <div className="flex items-center justify-between w-full">
                         <p className="text-[10px] font-black uppercase tracking-[0.15em] text-[var(--cl-text-muted)]">
                             Job Details
                         </p>
+                        {editJob && (
+                            <button
+                                type="button"
+                                className="inline-flex items-center gap-1.5 text-xs font-semibold text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-950/30 px-2.5 py-1 rounded-full border border-violet-200 dark:border-violet-800/30 hover:bg-violet-100 dark:hover:bg-violet-900/40 hover:border-violet-400 dark:hover:border-violet-700 transition-colors cursor-pointer"
+                                onClick={() => onAttachFiles?.(editJob.job_no, editJob.id)}
+                            >
+                                <Paperclip className="h-3.5 w-3.5" />
+                                <span>{(editJob.file_count ?? 0) > 0 ? `${editJob.file_count} File${editJob.file_count !== 1 ? "s" : ""}` : "Attach"}</span>
+                            </button>
+                        )}
+                    </div>
 
                         <Card className="border-[var(--cl-border)] shadow-md bg-[var(--cl-surface)] !overflow-visible flex-1 w-full">
                             <CardContent className="grid grid-cols-1 md:grid-cols-6 lg:grid-cols-12 gap-x-3 gap-y-3 !overflow-visible">

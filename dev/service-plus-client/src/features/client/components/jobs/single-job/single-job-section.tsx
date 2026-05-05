@@ -415,6 +415,11 @@ export const SingleJobSection = () => {
         }
     };
 
+    const handleEditJob = (job: JobListRow) => {
+        setEditJob(job as unknown as JobDetailType);
+        setMode("new");
+    };
+
     const handlePrintFromView = () => {
         if (!viewJob) return;
         const url = getJobSheetBlobUrl(viewJob, companyInfo);
@@ -489,7 +494,7 @@ export const SingleJobSection = () => {
                 <ViewModeToggle
                     mode={mode}
                     isEditing={!!editJob}
-                    onNewClick={() => { setEditJob(null); setMode("new"); }}
+                    onNewClick={() => { setEditJob(null); form.reset(getSingleJobDefaultValues()); setMode("new"); }}
                     onViewClick={() => {
                         setEditJob(null);
                         setMode("view");
@@ -502,7 +507,7 @@ export const SingleJobSection = () => {
                         className="h-8 gap-1.5 px-3 text-xs font-extrabold uppercase tracking-widest text-[var(--cl-text)]"
                         disabled={submitting}
                         variant="ghost"
-                        onClick={() => { setEditJob(null); }}
+                        onClick={() => { setEditJob(null); form.reset(getSingleJobDefaultValues()); }}
                     >
                         <RefreshCw className={`h-3.5 w-3.5 ${submitting ? "animate-spin" : ""}`} />
                         Reset
@@ -537,6 +542,7 @@ export const SingleJobSection = () => {
                         editJob={editJob}
                         onRefreshModels={refreshModels}
                         onViewJob={(j: JobListRow) => void handleViewJob(j)}
+                        onEditJob={(j: JobListRow) => handleEditJob(j)}
                         onPrintPdf={(j: JobListRow) => void handlePrintPdf(j)}
                         onAttachFiles={(jobNo: string, jobId: number) => { setAttachJobId(jobId); setAttachJobNo(jobNo); setAttachMode("attach"); }}
                         refreshTrigger={quickInfoKey}
@@ -780,10 +786,13 @@ export const SingleJobSection = () => {
                  jobId={attachJobId}
                  jobNo={attachJobNo}
                  mode={attachMode}
-                 onFilesChanged={() => {
-                     setQuickInfoKey(k => k + 1);
-                     if (branchId) void loadData(Number(branchId), searchQ, page);
-                 }}
+                  onFilesChanged={(count: number) => {
+                      if (editJob && attachJobId === editJob.id) {
+                          setEditJob(prev => prev ? { ...prev, file_count: count } : null);
+                      }
+                      setQuickInfoKey(k => k + 1);
+                      if (branchId) void loadData(Number(branchId), searchQ, page);
+                  }}
                  onClose={() => { setAttachJobId(null); setAttachJobNo(""); setAttachMode("attach"); }}
              />
 

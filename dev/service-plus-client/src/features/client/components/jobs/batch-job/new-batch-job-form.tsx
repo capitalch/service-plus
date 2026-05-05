@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useFormContext, useFieldArray } from "react-hook-form";
-import { ChevronDown, ChevronUp, Loader2, Plus, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Loader2, Paperclip, Plus, Trash2 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
@@ -34,6 +34,7 @@ type Props = {
     editBatchNo?:      number | null;
     editRows?:         JobBatchDetailRow[];
     onRefreshModels:   () => void;
+    onAttachFiles?:    (jobId: number, jobNo: string, rowIdx?: number) => void;
     form:              ReturnType<typeof useFormContext<BatchJobFormValues>>;
 };
 
@@ -47,7 +48,7 @@ export function NewBatchJobForm({
     branchId, jobTypes, receiveMannners, receiveConditions,
     models, brands, products, customerTypes, masterStates,
     editBatchNo, editRows,
-    onRefreshModels, form,
+    onRefreshModels, onAttachFiles, form,
 }: Props) {
 
     const [showAddModel, setShowAddModel] = useState(false);
@@ -77,6 +78,7 @@ export function NewBatchJobForm({
                     remarks:                  r.remarks ?? "",
                     quantity:                 r.quantity ?? 1,
                     isDeletable:              r.transaction_count <= 1,
+                    file_count:               r.file_count ?? 0,
                 })),
             });
         }
@@ -176,13 +178,14 @@ export function NewBatchJobForm({
             </div>
 
             {/* Column headers */}
-            <div className="hidden md:grid grid-cols-[32px_1fr_130px_100px_100px_60px_40px_32px] gap-x-2 px-3 text-[10px] font-bold uppercase tracking-widest text-[var(--cl-text-muted)]">
+            <div className="hidden md:grid grid-cols-[32px_1fr_130px_100px_100px_60px_70px_32px_32px] gap-x-2 px-3 text-[10px] font-bold uppercase tracking-widest text-[var(--cl-text-muted)]">
                 <span>#</span>
                 <span>Product / Model</span>
                 <span>Job Type</span>
                 <span>Serial No</span>
                 <span>Condition</span>
                 <span>Qty</span>
+                <span></span>
                 <span></span>
                 <span></span>
             </div>
@@ -201,7 +204,7 @@ export function NewBatchJobForm({
                             >
                                 <Card className="border-[var(--cl-border)] bg-[var(--cl-surface)] border-l-4 border-l-[var(--cl-accent)] overflow-visible">
                                     {/* Compact single-line row */}
-                                    <div className="grid grid-cols-[32px_1fr] md:grid-cols-[32px_1fr_130px_100px_100px_60px_40px_32px] gap-x-2 items-center px-3 py-2">
+                                    <div className="grid grid-cols-[32px_1fr] md:grid-cols-[32px_1fr_130px_100px_100px_60px_70px_32px_32px] gap-x-2 items-center px-3 py-2">
                                         {/* Index badge */}
                                         <span className="flex items-center justify-center h-5 w-5 rounded-full bg-[var(--cl-accent)]/10 text-[var(--cl-accent)] text-[10px] font-bold shrink-0">
                                             {idx + 1}
@@ -276,6 +279,21 @@ export function NewBatchJobForm({
                                             className={`h-8 text-xs bg-[var(--cl-surface-2)] hidden md:block ${(watch(`rows.${idx}.quantity`) ?? 0) < 1 ? "border-red-400" : ""}`}
                                             {...register(`rows.${idx}.quantity`, { valueAsNumber: true })}
                                         />
+
+                                        {/* Attach files */}
+                                        {editBatchNo && watch(`rows.${idx}.id`) && (
+                                            <button
+                                                type="button"
+                                                className="inline-flex items-center gap-1 text-[10px] font-semibold text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-950/30 px-1.5 py-0.5 rounded-full border border-violet-200 dark:border-violet-800/30 hover:bg-violet-100 dark:hover:bg-violet-900/40 hover:border-violet-400 dark:hover:border-violet-700 transition-colors cursor-pointer"
+                                                onClick={() => {
+                                                    const jobId = watch(`rows.${idx}.id`);
+                                                    if (jobId && editBatchNo) onAttachFiles?.(jobId, `Batch #${editBatchNo}`, idx);
+                                                }}
+                                            >
+                                                <Paperclip className="h-3 w-3" />
+                                                <span>{(watch(`rows.${idx}.file_count`) ?? 0) > 0 ? `${watch(`rows.${idx}.file_count`)} File${watch(`rows.${idx}.file_count`) !== 1 ? "s" : ""}` : "Attach"}</span>
+                                            </button>
+                                        )}
 
                                         {/* Expand toggle */}
                                         <button

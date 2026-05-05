@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
     Briefcase, ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon,
-    Loader2, Paperclip, Pencil, RefreshCw, Save, Search, Trash2, X,
+    Loader2, MoreHorizontal, Paperclip, Pencil, Printer, RefreshCw, Save, Search, Trash2, X, Eye,
 } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 
 import { ViewModeToggle, type ViewMode } from "@/features/client/components/inventory/view-mode-toggle";
@@ -19,24 +20,35 @@ import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
 import { currentFinancialYearRange } from "@/lib/utils";
 import { useAppSelector } from "@/store/hooks";
-import { selectDbName } from "@/features/auth/store/auth-slice";
+import { selectDbName, selectCurrentUser } from "@/features/auth/store/auth-slice";
 import { selectCurrentBranch, selectSchema } from "@/store/context-slice";
-import type { JobBatchDetailRow, JobBatchListRow, JobLookupRow, ModelRow } from "@/features/client/types/job";
+import type { JobBatchDetailRow, JobDetailType, JobInBatchRow, JobLookupRow, ModelRow } from "@/features/client/types/job";
 import type { CustomerTypeOption, StateOption } from "@/features/client/types/customer";
 import type { BrandOption, ProductOption } from "@/features/client/types/model";
 
 import { NewBatchJobForm } from "./new-batch-job-form";
 import { BatchJobQuickInfoCard } from "./batch-job-quick-info-card";
+import { BatchJobViewModal } from "./batch-job-view-modal";
 import { FormProvider, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { batchJobFormSchema, type BatchJobFormValues, getBatchJobDefaultValues } from "./batch-job-schema";
-import { selectCurrentUser } from "@/features/auth/store/auth-slice";
+import { getJobSheetBlobUrl, type CompanyInfoType } from "../single-job/single-job-sheet-pdf";
+import { PdfPreviewModal } from "@/components/shared/pdf-preview-modal";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type GenericQueryData<T> = { genericQuery: T[] | null };
 
 type PostSaveJob = { jobId: number; jobNo: string };
+
+type BatchGroup = {
+    batch_no:     number;
+    batch_date:   string;
+    customer_name: string | null;
+    mobile:       string;
+    job_count:    number;
+    jobs:         JobInBatchRow[];
+};
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -74,9 +86,10 @@ export const BatchJobSection = () => {
     const [products,          setProducts]          = useState<ProductOption[]>([]);
     const [customerTypes,     setCustomerTypes]     = useState<CustomerTypeOption[]>([]);
     const [masterStates,      setMasterStates]      = useState<StateOption[]>([]);
+    const [companyInfo,       setCompanyInfo]       = useState<CompanyInfoType | null>(null);
 
     // List data
-    const [batches, setBatches] = useState<JobBatchListRow[]>([]);
+    const [jobs,    setJobs]    = useState<JobInBatchRow[]>([]);
     const [total,   setTotal]   = useState(0);
     const [page,    setPage]    = useState(1);
     const [loading, setLoading] = useState(false);
@@ -86,9 +99,28 @@ export const BatchJobSection = () => {
     const [deleteJobCount, setDeleteJobCount] = useState(0);
     const [deleting,       setDeleting]       = useState(false);
 
+    // Delete individual job
+    const [deleteJobId,    setDeleteJobId]    = useState<number | null>(null);
+    const [deleteJobNo,    setDeleteJobNo]    = useState<string>("");
+
+    // Attach files for individual job from list
+    const [attachJobId,    setAttachJobId]    = useState<number | null>(null);
+    const [attachJobNo,    setAttachJobNo]    = useState<string>("");
+    const [attachRowIdx,   setAttachRowIdx]   = useState<number | null>(null);
+
     // Edit
     const [editBatchNo, setEditBatchNo] = useState<number | null>(null);
     const [editRows,    setEditRows]    = useState<JobBatchDetailRow[]>([]);
+
+    // View
+    const [viewBatchNo,  setViewBatchNo]  = useState<number | null>(null);
+    const [viewJobs,     setViewJobs]     = useState<JobDetailType[]>([]);
+    const [viewLoading,  setViewLoading]  = useState(false);
+
+    // PDF Preview
+    const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
+    const [pdfFilename,   setPdfFilename]   = useState<string>("Job-Sheet.pdf");
+    const [showPdfModal,  setShowPdfModal]  = useState(false);
 
     // Post-save file attachment
     const [postSaveJobs,    setPostSaveJobs]    = useState<PostSaveJob[] | null>(null);
@@ -173,7 +205,7 @@ export const BatchJobSection = () => {
                         batch_date:            values.batch_date,
                         customer_contact_id:   values.customer_id,
                         job_receive_manner_id: values.receive_manner_id,
-                        job_status_id:         jobStatuses.find(s => s.is_initial)?.id ?? null,
+                        job_status_id:         jobStatuses.find(s => s.code === "RECEIVED")?.id ?? null,
                         performed_by_user_id:  currentUser?.id ?? null,
                     },
                     jobs: formRows.map(r => ({
@@ -202,8 +234,8 @@ export const BatchJobSection = () => {
                 form.reset(getBatchJobDefaultValues());
 
                 // Show post-save file attachment panel
-                const jobs: PostSaveJob[] = jobIds.map((id, i) => ({ jobId: id, jobNo: jobNos[i] ?? "" }));
-                setPostSaveJobs(jobs);
+                const postJobs: PostSaveJob[] = jobIds.map((id, i) => ({ jobId: id, jobNo: jobNos[i] ?? "" }));
+                setPostSaveJobs(postJobs);
                 setPostSaveBatchNo(batchNo ?? null);
             }
         } catch {
@@ -229,7 +261,7 @@ export const BatchJobSection = () => {
             window.addEventListener("resize", recalc);
             return () => { clearTimeout(timer); window.removeEventListener("resize", recalc); };
         }
-    }, [mode, recalc, batches.length]);
+    }, [mode, recalc, jobs.length]);
 
     const refreshModels = useCallback(async () => {
         if (!dbName || !schema) return;
@@ -247,7 +279,7 @@ export const BatchJobSection = () => {
         if (!dbName || !schema || !branchId) return;
         const fetchMeta = async () => {
             try {
-                const [statusRes, typeRes, mannerRes, condRes, modelRes, brandRes, prodRes, custTypeRes, stateRes] =
+                const [statusRes, typeRes, mannerRes, condRes, modelRes, brandRes, prodRes, custTypeRes, stateRes, compRes] =
                     await Promise.all([
                         apolloClient.query<GenericQueryData<JobLookupRow>>({ fetchPolicy: "network-only", query: GRAPHQL_MAP.genericQuery, variables: { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_JOB_STATUSES }) } }),
                         apolloClient.query<GenericQueryData<JobLookupRow>>({ fetchPolicy: "network-only", query: GRAPHQL_MAP.genericQuery, variables: { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_JOB_TYPES }) } }),
@@ -258,6 +290,7 @@ export const BatchJobSection = () => {
                         apolloClient.query<GenericQueryData<ProductOption>>({ fetchPolicy: "network-only", query: GRAPHQL_MAP.genericQuery, variables: { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_ALL_PRODUCTS }) } }),
                         apolloClient.query<GenericQueryData<CustomerTypeOption>>({ fetchPolicy: "network-only", query: GRAPHQL_MAP.genericQuery, variables: { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_ALL_CUSTOMER_TYPES }) } }),
                         apolloClient.query<GenericQueryData<StateOption>>({ fetchPolicy: "network-only", query: GRAPHQL_MAP.genericQuery, variables: { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_ALL_STATES }) } }),
+                        apolloClient.query<GenericQueryData<CompanyInfoType>>({ fetchPolicy: "network-only", query: GRAPHQL_MAP.genericQuery, variables: { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_COMPANY_INFO }) } }),
                     ]);
                 setJobStatuses(statusRes.data?.genericQuery ?? []);
                 setJobTypes(typeRes.data?.genericQuery ?? []);
@@ -270,6 +303,7 @@ export const BatchJobSection = () => {
                 setMasterStates((stateRes.data?.genericQuery ?? []).map(s => ({
                     id: s.id, code: (s as { gst_state_code?: string }).gst_state_code ?? s.code, name: s.name,
                 })));
+                setCompanyInfo(compRes.data?.genericQuery?.[0] ?? null);
             } catch { toast.error(MESSAGES.ERROR_JOB_LOAD_FAILED); }
         };
         void fetchMeta();
@@ -281,18 +315,18 @@ export const BatchJobSection = () => {
         try {
             const commonArgs = { branch_id: bId, from_date: from, to_date: to, search: q };
             const [dataRes, countRes] = await Promise.all([
-                apolloClient.query<GenericQueryData<JobBatchListRow>>({
+                apolloClient.query<GenericQueryData<JobInBatchRow>>({
                     fetchPolicy: "network-only",
                     query: GRAPHQL_MAP.genericQuery,
-                    variables: { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_JOB_BATCHES_PAGED, sqlArgs: { ...commonArgs, limit: PAGE_SIZE, offset: (pg - 1) * PAGE_SIZE } }) },
+                    variables: { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_JOB_BATCHES_WITH_JOBS_PAGED, sqlArgs: { ...commonArgs, limit: PAGE_SIZE, offset: (pg - 1) * PAGE_SIZE } }) },
                 }),
                 apolloClient.query<GenericQueryData<{ total: number }>>({
                     fetchPolicy: "network-only",
                     query: GRAPHQL_MAP.genericQuery,
-                    variables: { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_JOB_BATCHES_COUNT, sqlArgs: commonArgs }) },
+                    variables: { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_JOB_BATCHES_WITH_JOBS_COUNT, sqlArgs: commonArgs }) },
                 }),
             ]);
-            setBatches(dataRes.data?.genericQuery ?? []);
+            setJobs(dataRes.data?.genericQuery ?? []);
             setTotal(countRes.data?.genericQuery?.[0]?.total ?? 0);
         } catch { toast.error(MESSAGES.ERROR_JOB_LOAD_FAILED); }
         finally { setLoading(false); }
@@ -339,6 +373,87 @@ export const BatchJobSection = () => {
         finally { setDeleting(false); }
     };
 
+    const handleDeleteSingleJob = async () => {
+        if (!deleteJobId || !dbName || !schema) return;
+        try {
+            const payload = encodeURIComponent(JSON.stringify({ tableName: "job", deletedIds: [deleteJobId] }));
+            await apolloClient.mutate({
+                mutation: GRAPHQL_MAP.genericUpdate,
+                variables: { db_name: dbName, schema, value: payload },
+            });
+            toast.success(`Job #${deleteJobNo} deleted`);
+            setDeleteJobId(null);
+            setDeleteJobNo("");
+            if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, page);
+        } catch { toast.error("Failed to delete job"); }
+    };
+
+    const handleViewBatch = async (batchNo: number): Promise<JobDetailType[]> => {
+        if (!dbName || !schema) return [];
+        setViewBatchNo(batchNo);
+        setViewLoading(true);
+        setViewJobs([]);
+        try {
+            const res = await apolloClient.query<GenericQueryData<JobDetailType>>({
+                fetchPolicy: "network-only",
+                query: GRAPHQL_MAP.genericQuery,
+                variables: { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_JOB_BATCH_DETAIL, sqlArgs: { batch_no: batchNo } }) },
+            });
+            const fetched = res.data?.genericQuery ?? [];
+            setViewJobs(fetched);
+            return fetched;
+        } catch { toast.error(MESSAGES.ERROR_JOB_DETAIL_LOAD_FAILED); return []; }
+        finally { setViewLoading(false); }
+    };
+
+    const handlePrintBatch = (batchJobs: JobDetailType[]) => {
+        if (!companyInfo) {
+            toast.error("Company info not available");
+            return;
+        }
+        if (batchJobs.length === 1) {
+            const url = getJobSheetBlobUrl(batchJobs[0], companyInfo);
+            setPdfPreviewUrl(url);
+            setPdfFilename(`Job-Sheet_${batchJobs[0].job_date}_${batchJobs[0].customer_name || "customer"}.pdf`);
+            setShowPdfModal(true);
+        } else {
+            toast.info(`Generating PDFs for ${batchJobs.length} jobs. Opening them sequentially.`);
+            batchJobs.forEach((job) => {
+                const url = getJobSheetBlobUrl(job, companyInfo);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = `Job-Sheet_${job.job_date}_${job.job_no}.pdf`;
+                a.click();
+            });
+        }
+    };
+
+    const handlePrintSingleFromView = (job: JobDetailType) => {
+        if (!companyInfo) return;
+        const url = getJobSheetBlobUrl(job, companyInfo);
+        setPdfPreviewUrl(url);
+        setPdfFilename(`Job-Sheet_${job.job_date}_${job.customer_name || "customer"}.pdf`);
+        setShowPdfModal(true);
+    };
+
+    const groupedBatches = jobs.reduce<BatchGroup[]>((acc, job) => {
+        let group = acc.find(g => g.batch_no === job.batch_no);
+        if (!group) {
+            group = {
+                batch_no: job.batch_no,
+                batch_date: job.job_date,
+                customer_name: job.customer_name,
+                mobile: job.mobile,
+                job_count: 0,
+                jobs: [],
+            };
+            acc.push(group);
+        }
+        group.jobs.push(job);
+        group.job_count = group.jobs.length;
+        return acc;
+    }, []);
+
     const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
     return (
@@ -374,7 +489,7 @@ export const BatchJobSection = () => {
                 <ViewModeToggle
                     mode={mode}
                     isEditing={!!editBatchNo}
-                    onNewClick={() => { setEditBatchNo(null); setEditRows([]); setMode("new"); }}
+                    onNewClick={() => { setEditBatchNo(null); setEditRows([]); handleReset(); setMode("new"); }}
                     onViewClick={() => {
                         setEditBatchNo(null); setEditRows([]); setMode("view");
                         if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, page);
@@ -404,15 +519,24 @@ export const BatchJobSection = () => {
             {mode === "new" ? (
                 <div className="flex-1 overflow-y-auto px-4 pb-6 flex flex-col gap-4">
                     {/* Quick info card */}
-                    {!editBatchNo && (
-                        <BatchJobQuickInfoCard
-                            refreshTrigger={refreshTrigger}
-                            onAttach={jobs => {
-                                setPostSaveJobs(jobs);
-                                setPostSaveBatchNo(null);
-                            }}
-                        />
-                    )}
+                    <BatchJobQuickInfoCard
+                        refreshTrigger={refreshTrigger}
+                        onAttach={postJobs => {
+                            setPostSaveJobs(postJobs);
+                            setPostSaveBatchNo(null);
+                        }}
+                        onAttachJob={(jobId, jobNo) => {
+                            setAttachJobId(jobId);
+                            setAttachJobNo(jobNo);
+                        }}
+                        onEdit={(batchNo) => void handleEdit(batchNo)}
+                        onView={(batchNo) => void handleViewBatch(batchNo)}
+                        onPrint={(batchNo) => {
+                            void handleViewBatch(batchNo).then(fetchedJobs => {
+                                if (fetchedJobs.length > 0) handlePrintBatch(fetchedJobs);
+                            });
+                        }}
+                    />
 
                     <FormProvider {...form}>
                         <NewBatchJobForm
@@ -428,6 +552,7 @@ export const BatchJobSection = () => {
                             editBatchNo={editBatchNo}
                             editRows={editRows}
                             onRefreshModels={refreshModels}
+                            onAttachFiles={(jobId, jobNo, rowIdx) => { setAttachJobId(jobId); setAttachJobNo(jobNo); setAttachRowIdx(rowIdx ?? null); }}
                             form={form}
                         />
                     </FormProvider>
@@ -466,58 +591,52 @@ export const BatchJobSection = () => {
                         <div ref={scrollWrapperRef} className="flex-1 overflow-x-auto overflow-y-auto" style={{ maxHeight: mode === "view" ? maxHeight : undefined }}>
                             {loading ? (
                                 <table className="min-w-full border-collapse">
-                                    <thead><tr className="bg-[var(--cl-surface-2)]">{["#","Batch No","Date","Customer","Mobile","Job Type","# Jobs","Actions"].map(h => <th key={h} className={thClass}>{h}</th>)}</tr></thead>
-                                    <tbody>{Array.from({ length: 8 }).map((_, i) => (<tr key={i} className="animate-pulse">{Array.from({ length: 8 }).map((__, j) => (<td key={j} className={tdClass}><div className="h-4 w-16 rounded bg-[var(--cl-border)]" /></td>))}</tr>))}</tbody>
+                                    <thead><tr className="bg-[var(--cl-surface-2)]">{["#", "Batch", "Date", "Customer", "Mobile", "Device Details", "Job Type", "Status", "Technician", "Amount", "Actions"].map(h => <th key={h} className={thClass}>{h}</th>)}</tr></thead>
+                                    <tbody>{Array.from({ length: 8 }).map((_, i) => (<tr key={i} className="animate-pulse">{Array.from({ length: 11 }).map((__, j) => (<td key={j} className={tdClass}><div className="h-4 w-16 rounded bg-[var(--cl-border)]" /></td>))}</tr>))}</tbody>
                                 </table>
-                            ) : batches.length === 0 ? (
+                            ) : groupedBatches.length === 0 ? (
                                 <div className="flex h-32 items-center justify-center text-sm text-[var(--cl-text-muted)]">No batches found for the selected filters.</div>
                             ) : (
                                 <table className="min-w-full border-collapse">
                                     <thead className="sticky top-0 z-10">
                                         <tr>
-                                            {["#","Batch No","Date","Customer","Mobile","Job Type","# Jobs"].map(h => <th key={h} className={thClass}>{h}</th>)}
+                                            <th className={thClass}>#</th>
+                                            <th className={`${thClass} whitespace-nowrap`}>Date</th>
+                                            <th className={thClass}>Job</th>
+                                            <th className={thClass}>Customer</th>
+                                            <th className={thClass}>Mobile</th>
+                                            <th className={`${thClass} w-[10rem]`}>Device Details</th>
+                                            <th className={thClass}>Job Type</th>
+                                            <th className={thClass}>Status</th>
+                                            <th className={thClass}>Technician</th>
+                                            <th className={`${thClass} text-right`}>Amount</th>
                                             <th className={`${thClass} sticky right-0 z-20 !bg-[var(--cl-surface-2)]`}>Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-[var(--cl-border)] bg-[var(--cl-surface)]">
-                                        {batches.map((b, idx) => (
-                                            <tr key={b.batch_no} className="group transition-colors hover:bg-[var(--cl-accent)]/5">
-                                                <td className={`${tdClass} text-[var(--cl-text-muted)]`}>{(page - 1) * PAGE_SIZE + idx + 1}</td>
-                                                <td className={`${tdClass} font-mono font-medium text-[var(--cl-accent)]`}>#{b.batch_no}</td>
-                                                <td className={tdClass}>{b.batch_date}</td>
-                                                <td className={tdClass}>{b.customer_name ?? "—"}</td>
-                                                <td className={`${tdClass} font-mono text-xs`}>{b.mobile}</td>
-                                                <td className={tdClass}>{b.job_type_name}</td>
-                                                <td className={tdClass}>
-                                                    <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-[var(--cl-accent)]/10 text-[var(--cl-accent)]">
-                                                        {b.job_count}
-                                                    </span>
-                                                </td>
-                                                <td className={`${tdClass} sticky right-0 z-10 bg-[var(--cl-surface)] group-hover:bg-[var(--cl-surface-2)]`}>
-                                                    <div className="flex items-center gap-1">
-                                                        <Button className="h-7 w-7 p-0 text-violet-500 hover:bg-violet-500/10" variant="ghost" title="Attach Files" onClick={() => {
-                                                            if (!dbName || !schema) return;
-                                                            void apolloClient.query({
-                                                                fetchPolicy: "network-only",
-                                                                query: GRAPHQL_MAP.genericQuery,
-                                                                variables: { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_JOB_BATCH_DETAIL, sqlArgs: { batch_no: b.batch_no } }) },
-                                                            }).then(res => {
-                                                                const rows = (res.data as GenericQueryData<{ id: number; job_no: string }>).genericQuery ?? [];
-                                                                setPostSaveJobs(rows.map(r => ({ jobId: r.id, jobNo: r.job_no })));
-                                                                setPostSaveBatchNo(b.batch_no);
-                                                            });
-                                                        }}>
-                                                            <Paperclip className="h-3.5 w-3.5" />
-                                                        </Button>
-                                                        <Button className="h-7 w-7 p-0 text-amber-500 hover:bg-amber-500/10" variant="ghost" title="Edit" onClick={() => void handleEdit(b.batch_no)}>
-                                                            <Pencil className="h-3.5 w-3.5" />
-                                                        </Button>
-                                                        <Button className="h-7 w-7 p-0 text-red-500 hover:bg-red-500/10" variant="ghost" title="Delete" onClick={() => { setDeleteBatchNo(b.batch_no); setDeleteJobCount(b.job_count); }}>
-                                                            <Trash2 className="h-3.5 w-3.5" />
-                                                        </Button>
-                                                    </div>
-                                                </td>
-                                            </tr>
+                                        {groupedBatches.map((batch, groupIdx) => (
+                                            <BatchGroupRow
+                                                key={batch.batch_no}
+                                                batch={batch}
+                                                groupIdx={groupIdx}
+                                                page={page}
+                                                onEdit={() => void handleEdit(batch.batch_no)}
+                                                onView={() => void handleViewBatch(batch.batch_no)}
+                                                 onPrint={() => {
+                                                    if (!dbName || !schema) return;
+                                                    void apolloClient.query<GenericQueryData<JobDetailType>>({
+                                                        fetchPolicy: "network-only",
+                                                        query: GRAPHQL_MAP.genericQuery,
+                                                        variables: { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_JOB_BATCH_DETAIL, sqlArgs: { batch_no: batch.batch_no } }) },
+                                                    }).then(res => {
+                                                        const detailJobs = res.data?.genericQuery ?? [];
+                                                        handlePrintBatch(detailJobs);
+                                                    });
+                                                }}
+                                                onDelete={() => { setDeleteBatchNo(batch.batch_no); setDeleteJobCount(batch.job_count); }}
+                                                onAttachJob={(jobId, jobNo) => { setAttachJobId(jobId); setAttachJobNo(jobNo); }}
+                                                onDeleteJob={(jobId, jobNo) => { setDeleteJobId(jobId); setDeleteJobNo(jobNo); }}
+                                            />
                                         ))}
                                     </tbody>
                                 </table>
@@ -526,7 +645,7 @@ export const BatchJobSection = () => {
 
                         {/* Pagination */}
                         <div className="flex items-center justify-between border-t border-[var(--cl-border)] px-4 py-2">
-                            <span className="text-xs text-[var(--cl-text-muted)]">Page {page} of {totalPages} · {total} records</span>
+                            <span className="text-xs text-[var(--cl-text-muted)]">Page {page} of {totalPages} · {total} batches</span>
                             <div className="flex items-center gap-1">
                                 <Button className="h-7 w-7" disabled={page <= 1 || loading} size="icon" variant="ghost" title="First"    onClick={() => setPage(1)}><ChevronsLeftIcon  className="h-4 w-4" /></Button>
                                 <Button className="h-7 w-7" disabled={page <= 1 || loading} size="icon" variant="ghost" title="Previous" onClick={() => setPage(p => p - 1)}><ChevronLeftIcon  className="h-4 w-4" /></Button>
@@ -538,7 +657,7 @@ export const BatchJobSection = () => {
 
                     {/* Delete Dialog */}
                     <Dialog open={deleteBatchNo !== null} onOpenChange={open => { if (!open && !deleting) setDeleteBatchNo(null); }}>
-                        <DialogContent aria-describedby={undefined} className="sm:max-w-sm !bg-[var(--cl-surface)] text-[var(--cl-text)]">
+                        <DialogContent aria-describedby={undefined} className="sm:max-w-sm bg-white dark:bg-zinc-950 text-[var(--cl-text)]">
                             <DialogHeader><DialogTitle>Delete Batch #{deleteBatchNo}</DialogTitle></DialogHeader>
                             <p className="text-sm text-[var(--cl-text-muted)]">
                                 This will permanently delete all {deleteJobCount} job{deleteJobCount !== 1 ? "s" : ""} in this batch. This action cannot be undone.
@@ -552,8 +671,22 @@ export const BatchJobSection = () => {
                             </DialogFooter>
                         </DialogContent>
                     </Dialog>
-                </>
-            )}
+
+                    {/* Delete Single Job Dialog */}
+                    <Dialog open={deleteJobId !== null} onOpenChange={open => { if (!open) setDeleteJobId(null); }}>
+                        <DialogContent aria-describedby={undefined} className="sm:max-w-sm bg-white dark:bg-zinc-950 text-[var(--cl-text)]">
+                            <DialogHeader><DialogTitle>Delete Job #{deleteJobNo}</DialogTitle></DialogHeader>
+                            <p className="text-sm text-[var(--cl-text-muted)]">
+                                This will permanently delete this job. This action cannot be undone.
+                            </p>
+                            <DialogFooter>
+                                <Button variant="outline" onClick={() => setDeleteJobId(null)}>Cancel</Button>
+                                <Button variant="destructive" onClick={() => void handleDeleteSingleJob()}>
+                                    Delete
+                                </Button>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
 
             {/* Post-save / manual file attachment dialog */}
             <Dialog
@@ -562,7 +695,7 @@ export const BatchJobSection = () => {
             >
                 <DialogContent
                     aria-describedby={undefined}
-                    className="sm:max-w-2xl max-h-[80vh] overflow-y-auto !bg-[var(--cl-surface)] text-[var(--cl-text)]"
+                    className="sm:max-w-2xl max-h-[80vh] overflow-y-auto bg-white dark:bg-zinc-950 text-[var(--cl-text)]"
                 >
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2">
@@ -591,6 +724,191 @@ export const BatchJobSection = () => {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-        </motion.div>
+
+            {/* PDF Preview Modal */}
+            <PdfPreviewModal
+                isOpen={showPdfModal}
+                pdfUrl={pdfPreviewUrl}
+                title={`Job Sheet`}
+                filename={pdfFilename}
+                onClose={() => {
+                    setShowPdfModal(false);
+                    setPdfPreviewUrl(null);
+                }}
+            />
+            </>
+        )}
+
+        {/* Attach Files Dialog */}
+        <Dialog
+            open={attachJobId !== null}
+            onOpenChange={open => { if (!open) { setAttachJobId(null); setAttachJobNo(""); setAttachRowIdx(null); } }}
+        >
+            <DialogContent
+                aria-describedby={undefined}
+                className="sm:max-w-2xl max-h-[80vh] overflow-y-auto bg-white dark:bg-zinc-950 text-[var(--cl-text)]"
+            >
+                <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2">
+                        <Paperclip className="h-4 w-4 text-violet-500" />
+                        Attach Files — Job #{attachJobNo}
+                    </DialogTitle>
+                </DialogHeader>
+
+                <div className="py-2">
+                    {attachJobId !== null && (
+                        <JobImageUpload
+                            jobId={attachJobId}
+                            onFileCountChange={(count: number) => {
+                                if (attachRowIdx !== null) {
+                                    form.setValue(`rows.${attachRowIdx}.file_count`, count);
+                                }
+                                if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, page);
+                            }}
+                        />
+                    )}
+                </div>
+
+                <DialogFooter>
+                    <Button onClick={() => { setAttachJobId(null); setAttachJobNo(""); setAttachRowIdx(null); }}>
+                        Done
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+
+        {/* View Batch Modal */}
+        <BatchJobViewModal
+            isOpen={viewBatchNo !== null}
+            batchNo={viewBatchNo}
+            jobs={viewJobs}
+            loading={viewLoading}
+            onClose={() => { setViewBatchNo(null); setViewJobs([]); }}
+            onPrintBatch={(detailJobs) => {
+                void apolloClient.query<GenericQueryData<JobDetailType>>({
+                    fetchPolicy: "network-only",
+                    query: GRAPHQL_MAP.genericQuery,
+                    variables: { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_JOB_BATCH_DETAIL, sqlArgs: { batch_no: viewBatchNo } }) },
+                }).then(res => {
+                    const batchJobs = res.data?.genericQuery ?? [];
+                    handlePrintBatch(batchJobs);
+                });
+            }}
+        />
+    </motion.div>
     );
 };
+
+// ─── Batch Group Row Component ────────────────────────────────────────────────
+
+type BatchGroupRowProps = {
+    batch: BatchGroup;
+    groupIdx: number;
+    page: number;
+    onEdit: () => void;
+    onView: () => void;
+    onPrint: () => void;
+    onDelete: () => void;
+    onAttachJob: (jobId: number, jobNo: string) => void;
+    onDeleteJob: (jobId: number, jobNo: string) => void;
+};
+
+function BatchGroupRow({ batch, groupIdx, page, onEdit, onView, onPrint, onDelete, onAttachJob, onDeleteJob }: BatchGroupRowProps) {
+    return (
+        <>
+            {/* Batch Header Row */}
+            <tr className="bg-[var(--cl-surface-2)]">
+                <td colSpan={10} className={`${tdClass} font-bold`}>
+                    <div className="flex items-center gap-3">
+                        <span className="font-mono text-sm font-bold text-[var(--cl-accent)]">#{batch.batch_no}</span>
+                        <span className="text-xs text-[var(--cl-text-muted)]">{batch.batch_date}</span>
+                        <span className="text-xs text-[var(--cl-text)]">{batch.customer_name ?? "—"}</span>
+                        <span className="text-xs font-mono text-[var(--cl-text-muted)]">{batch.mobile}</span>
+                        <span className="ml-auto text-xs font-medium px-2 py-0.5 rounded-full bg-[var(--cl-accent)]/10 text-[var(--cl-accent)]">
+                            {batch.job_count} job{batch.job_count !== 1 ? "s" : ""}
+                        </span>
+                    </div>
+                </td>
+                <td className={`${tdClass} sticky right-0 z-20 !bg-[var(--cl-surface-2)] group`}>
+                    <div className="flex items-center justify-center">
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button className="h-8 w-8 p-0 hover:bg-[var(--cl-accent)]/15" variant="ghost">
+                                    <MoreHorizontal className="h-4 w-4" />
+                                    <span className="sr-only">Open menu</span>
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-[160px] bg-white dark:bg-zinc-950 border-[var(--cl-border)] shadow-[0_10px_30px_rgba(0,0,0,0.2)] z-50">
+                                <DropdownMenuItem className="flex items-center gap-2 cursor-pointer text-blue-500 focus:bg-blue-500/10 focus:text-blue-600" onClick={onView}>
+                                    <Eye className="h-4 w-4" />
+                                    <span>View Batch</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem className="flex items-center gap-2 cursor-pointer text-indigo-500 focus:bg-indigo-500/10 focus:text-indigo-600" onClick={onPrint}>
+                                    <Printer className="h-4 w-4" />
+                                    <span>Print PDF</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem className="flex items-center gap-2 cursor-pointer text-amber-500 focus:bg-amber-500/10 focus:text-amber-600" onClick={onEdit}>
+                                    <Pencil className="h-4 w-4" />
+                                    <span>Edit Batch</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem className="flex items-center gap-2 cursor-pointer text-red-500 focus:bg-red-500/10 focus:text-red-600" onClick={onDelete}>
+                                    <Trash2 className="h-4 w-4" />
+                                    <span>Delete Batch</span>
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    </div>
+                </td>
+            </tr>
+
+            {/* Job Rows (indented) */}
+            {batch.jobs.map((job, jobIdx) => (
+                <tr key={job.id} className="group transition-colors hover:bg-[var(--cl-accent)]/5">
+                    <td className={`${tdClass} text-[var(--cl-text-muted)] text-xs`}>
+                        {(page - 1) * PAGE_SIZE + groupIdx + 1}.{jobIdx + 1}
+                    </td>
+                    <td className={`${tdClass} whitespace-nowrap text-xs`}>{job.job_date}</td>
+                    <td className={tdClass}>
+                        <div className="flex flex-col gap-0.5">
+                            <div className="font-mono font-medium text-xs text-[var(--cl-accent)]">
+                                {job.job_no}
+                                {job.is_closed && (
+                                    <span className="ml-1.5 text-[9px] font-bold text-emerald-600 bg-emerald-100 dark:bg-emerald-950/40 rounded px-1 py-0.5">CLOSED</span>
+                                )}
+                            </div>
+                            {job.file_count > 0 && (
+                                <span className="flex items-center gap-1 text-[10px] text-blue-600 dark:text-blue-400 font-medium w-fit bg-blue-50 dark:bg-blue-950/40 rounded px-1.5 py-0.5">
+                                    <Paperclip className="h-2.5 w-2.5" />
+                                    <span>{job.file_count} File{job.file_count !== 1 ? "s" : ""}</span>
+                                </span>
+                            )}
+                        </div>
+                    </td>
+                    <td className={`${tdClass} text-xs`}>{job.customer_name ?? "—"}</td>
+                    <td className={`${tdClass} font-mono text-xs`}>{job.mobile}</td>
+                    <td className={`${tdClass} text-xs`}>{job.device_details ?? "—"}</td>
+                    <td className={`${tdClass} text-xs`}>{job.job_type_name}</td>
+                    <td className={`${tdClass} text-xs`}>
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-[var(--cl-accent)]/10 text-[var(--cl-accent)]">
+                            {job.job_status_name}
+                        </span>
+                    </td>
+                    <td className={`${tdClass} text-xs`}>{job.technician_name ?? "—"}</td>
+                    <td className={`${tdClass} text-right text-xs`}>
+                        {job.amount != null ? `₹${Number(job.amount).toFixed(2)}` : "—"}
+                    </td>
+                    <td className={`${tdClass} sticky right-0 z-10 bg-[var(--cl-surface)] group-hover:bg-[var(--cl-surface-2)]`}>
+                        <div className="flex items-center gap-1 justify-center">
+                            <Button className="h-7 w-7 p-0 text-violet-500 hover:bg-violet-500/10" variant="ghost" title="Attach Files" onClick={() => onAttachJob(job.id, job.job_no)}>
+                                <Paperclip className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button className="h-7 w-7 p-0 text-red-500 hover:bg-red-500/10" variant="ghost" title="Delete Job" onClick={() => onDeleteJob(job.id, job.job_no)}>
+                                <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                        </div>
+                    </td>
+                </tr>
+            ))}
+        </>
+    );
+}

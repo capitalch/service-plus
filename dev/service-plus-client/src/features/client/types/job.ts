@@ -7,6 +7,7 @@ export type JobListRow = {
     mobile:            string;
     job_type_name:     string;
     job_status_name:   string;
+    receive_condition_name: string | null;
     technician_name:   string | null;
     amount:            number | null;
     is_closed:         boolean;
@@ -122,6 +123,10 @@ export type JobBatchListRow = {
     mobile:        string;
     job_type_name: string;
     job_count:     number;
+};
+
+export type JobInBatchRow = JobListRow & {
+    batch_no: number;
 };
 
 export type JobBatchDetailRow = JobDetailType & {

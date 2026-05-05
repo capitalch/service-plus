@@ -13,6 +13,7 @@ export const batchJobRowSchema = z.object({
     remarks:                  z.string().default(""),
     quantity:                 z.number().min(1).default(1),
     isDeletable:              z.boolean().default(true),
+    file_count:               z.number().default(0),
 });
 
 export type BatchJobRowFormValues = z.infer<typeof batchJobRowSchema>;
@@ -40,6 +41,7 @@ export function getInitialBatchJobRow(): BatchJobRowFormValues {
         remarks:                  "",
         quantity:                 1,
         isDeletable:              true,
+        file_count:               0,
     };
 }
 
