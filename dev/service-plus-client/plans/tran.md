@@ -1,13 +1,17 @@
-# Plan for modifying the batch jobs
-- Minimum two jobs are mandatory to create a batch job. If less than 2 jobs are there then there is validation error
-- Follow the same pattern and architecture of single job, except that the batch job will have multiple jobs.
-- Just as in single job, the new entry in Batch jobs will have quick info card at top showing the last batch having information and attached files for each job. Every job in batch job should occupy a single line to show job information
-- Job numbers witll be auto created at server side as in single job, at the time of saving the batch job
-- The customer name should be same for all jobs in a batch job
-- No job no is available at the time of creating a batch job, it will be available after saving the batch job.
-- The UI should be similar to single job form but with the modification that it will have multiple jobs.
-- The file attachment will happen after saving the batch job, using the job numbers received from the server. ReUse the same file attachment component used in single job.
-- The UI needs to be compact and responsive.
-- Clean up existing batch job code at both client side and server side and modify the code if needed
+# Plan for updating Job Search feature
+- Job search at present shows a list of jobs based on search criteria.
+- User should be able to select a job from the list and view its all details including details of all transactions related to that job.
+- The selected job details should be shown in a new tab with back button to return to job search page.
+- In the job search page the search criteria should be preserved when user returns from the job details page.
+- In job detail view, display job details section showing brief details of job like customer name, mobile, device details etc. Also show current job status, device details and all other job details.
+- Add a section showing list of transactions related to the selected job.
+- In the transaction list, clicking on a transaction should open the transaction details in a new tab.
+- The transaction details should be shown in a new tab with back button to return to the job details page.
+- In the job details page the transaction list should be preserved when user returns from the transaction details page.
+- There should be an option to have pdf view of job details along with list of transactions.
+- This pdf can be printed.
+- The overall UI should be good and easy to use.
+- Create client and server side full code in details
+
 
 

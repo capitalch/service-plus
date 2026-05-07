@@ -40,6 +40,8 @@
 		- Aug 2026
 
 # Tracking
+- 06-05-2026
+	- Completed Single Job, Batch Jobs
 - 12-04-2026
 	- Completed deployment
 - 08-04-2026

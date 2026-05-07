@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { ChevronLeftIcon, ChevronRightIcon, ChevronsLeftIcon, ChevronsRightIcon, Eye, Printer, Paperclip, FileText, Loader2, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import type { JobListRow } from "@/features/client/types/job";
+import type { JobSearchRow } from "@/features/client/types/job";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { SQL_MAP } from "@/constants/sql-map";
 import { apolloClient } from "@/lib/apollo-client";
@@ -11,10 +11,10 @@ import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectSchema, selectCurrentBranch } from "@/store/context-slice";
 
 type QuickInfoCardProps = {
-    onView?: (job: JobListRow) => void;
-    onPrint?: (job: JobListRow) => void;
+    onView?: (job: JobSearchRow) => void;
+    onPrint?: (job: JobSearchRow) => void;
     onAttach?: (jobNo: string, jobId: number) => void;
-    onEdit?: (job: JobListRow) => void;
+    onEdit?: (job: JobSearchRow) => void;
     refreshTrigger?: number;
 };
 
@@ -28,7 +28,7 @@ export function SingleJobQuickInfoCard({ onView, onPrint, onAttach, onEdit, refr
     const branch = useAppSelector(selectCurrentBranch);
     const branchId = branch?.id ?? null;
 
-    const [currentJob, setCurrentJob] = useState<JobListRow | null>(null);
+    const [currentJob, setCurrentJob] = useState<JobSearchRow | null>(null);
     const [latestJobId, setLatestJobId] = useState<number | null>(null);
     const [currentOffset, setCurrentOffset] = useState(0);
     const [loading, setLoading] = useState(false);
@@ -45,7 +45,7 @@ export function SingleJobQuickInfoCard({ onView, onPrint, onAttach, onEdit, refr
         if (isNavigation) setNavLoading(true);
         else setLoading(true);
         try {
-            const res = await apolloClient.query<GenericQueryData<JobListRow>>({
+            const res = await apolloClient.query<GenericQueryData<JobSearchRow>>({
                 fetchPolicy: "network-only",
                 query: GRAPHQL_MAP.genericQuery,
                 variables: {
@@ -71,7 +71,7 @@ export function SingleJobQuickInfoCard({ onView, onPrint, onAttach, onEdit, refr
         setLoading(true);
         try {
             const [jobRes, olderRes] = await Promise.all([
-                apolloClient.query<GenericQueryData<JobListRow>>({
+                apolloClient.query<GenericQueryData<JobSearchRow>>({
                     fetchPolicy: "network-only",
                     query: GRAPHQL_MAP.genericQuery,
                     variables: {
@@ -83,7 +83,7 @@ export function SingleJobQuickInfoCard({ onView, onPrint, onAttach, onEdit, refr
                         }),
                     },
                 }),
-                apolloClient.query<GenericQueryData<JobListRow>>({
+                apolloClient.query<GenericQueryData<JobSearchRow>>({
                     fetchPolicy: "network-only",
                     query: GRAPHQL_MAP.genericQuery,
                     variables: {
@@ -188,7 +188,7 @@ export function SingleJobQuickInfoCard({ onView, onPrint, onAttach, onEdit, refr
     const navigateToOldest = async () => {
         if (navLoading || isAtOldest) return;
         let offset = currentOffset + 20;
-        let lastJob: JobListRow | null = null;
+        let lastJob: JobSearchRow | null = null;
         while (true) {
             const result = await fetchJob(offset, true);
             if (!result) break;

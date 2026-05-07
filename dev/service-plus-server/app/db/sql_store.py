@@ -3048,7 +3048,7 @@ class SqlStore:
         OFFSET (table "p_offset")
     """
 
-    GET_JOB_LIST_COUNT = """
+    GET_JOB_SEARCH_COUNT = """
         with
             "p_branch_id"   as (values(%(branch_id)s::bigint)),
             "p_search"      as (values(%(search)s::text)),
@@ -3056,15 +3056,22 @@ class SqlStore:
         SELECT COUNT(*) AS total
         FROM job j
         JOIN customer_contact cc ON cc.id = j.customer_contact_id
+        LEFT JOIN product_brand_model pbm ON pbm.id = j.product_brand_model_id
+        LEFT JOIN brand            b   ON b.id   = pbm.brand_id
+        LEFT JOIN product          p   ON p.id   = pbm.product_id
         WHERE j.branch_id = (table "p_branch_id")
           AND ((table "p_show_closed") IS NULL OR j.is_closed = (table "p_show_closed"))
           AND ((table "p_search") = ''
            OR LOWER(j.job_no)     LIKE '%%' || LOWER((table "p_search")) || '%%'
            OR LOWER(cc.mobile)    LIKE '%%' || LOWER((table "p_search")) || '%%'
-           OR LOWER(cc.full_name) LIKE '%%' || LOWER((table "p_search")) || '%%')
-    """
+           OR LOWER(cc.full_name) LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(p.name)       LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(b.name)       LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(pbm.model_name) LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(j.serial_no)  LIKE '%%' || LOWER((table "p_search")) || '%%')
+     """
 
-    GET_JOB_LIST_PAGED = """
+    GET_JOB_SEARCH_PAGED = """
         with
             "p_branch_id"   as (values(%(branch_id)s::bigint)),
             "p_search"      as (values(%(search)s::text)),
@@ -3077,8 +3084,10 @@ class SqlStore:
             j.job_date,
             j.is_closed,
             j.amount,
+            j.batch_no,
             cc.full_name AS customer_name,
             cc.mobile,
+            TRIM(CONCAT_WS(' ', p.name, b.name, pbm.model_name, j.serial_no)) AS device_details,
             jt.name      AS job_type_name,
             js.name      AS job_status_name,
             t.name       AS technician_name,
@@ -3088,16 +3097,23 @@ class SqlStore:
         JOIN job_type          jt ON jt.id = j.job_type_id
         JOIN job_status        js ON js.id = j.job_status_id
         LEFT JOIN technician   t  ON t.id  = j.technician_id
+        LEFT JOIN product_brand_model pbm ON pbm.id = j.product_brand_model_id
+        LEFT JOIN brand            b   ON b.id   = pbm.brand_id
+        LEFT JOIN product          p   ON p.id   = pbm.product_id
         WHERE j.branch_id = (table "p_branch_id")
           AND ((table "p_show_closed") IS NULL OR j.is_closed = (table "p_show_closed"))
           AND ((table "p_search") = ''
            OR LOWER(j.job_no)     LIKE '%%' || LOWER((table "p_search")) || '%%'
            OR LOWER(cc.mobile)    LIKE '%%' || LOWER((table "p_search")) || '%%'
-           OR LOWER(cc.full_name) LIKE '%%' || LOWER((table "p_search")) || '%%')
-        ORDER BY j.job_date DESC, j.id DESC
-        LIMIT  (table "p_limit")
-        OFFSET (table "p_offset")
-    """
+           OR LOWER(cc.full_name) LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(p.name)       LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(b.name)       LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(pbm.model_name) LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(j.serial_no)  LIKE '%%' || LOWER((table "p_search")) || '%%')
+         ORDER BY j.job_date DESC, j.id DESC
+         LIMIT  (table "p_limit")
+         OFFSET (table "p_offset")
+     """
 
     GET_JOB_DETAIL = """
         with "p_id" as (values(%(id)s::bigint))

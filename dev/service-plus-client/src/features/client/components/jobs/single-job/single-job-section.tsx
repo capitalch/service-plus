@@ -30,7 +30,7 @@ import { encodeObj, graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectCurrentUser, selectDbName } from "@/features/auth/store/auth-slice";
 import { selectCurrentBranch, selectSchema } from "@/store/context-slice";
-import type { JobDetailType, JobListRow, JobLookupRow, ModelRow, TechnicianRow } from "@/features/client/types/job";
+import type { JobDetailType, JobSearchRow, JobLookupRow, ModelRow, TechnicianRow } from "@/features/client/types/job";
 import type { CustomerTypeOption, StateOption } from "@/features/client/types/customer";
 import type { BrandOption, ProductOption } from "@/features/client/types/model";
 
@@ -78,7 +78,7 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
     const [customerTypes, setCustomerTypes] = useState<CustomerTypeOption[]>([]);
     const [masterStates, setMasterStates] = useState<StateOption[]>([]);
     const [companyInfo, setCompanyInfo] = useState<CompanyInfoType | null>(null);
-    const [jobs, setJobs] = useState<JobListRow[]>([]);
+    const [jobs, setJobs] = useState<JobSearchRow[]>([]);
     const [total, setTotal] = useState(0);
     const [page, setPage] = useState(1);
     const [loading, setLoading] = useState(false);
@@ -319,7 +319,7 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
         try {
             const commonArgs = { branch_id: bId, search: q, from_date: "2000-01-01", to_date: "3000-12-31" };
             const [dataRes, countRes] = await Promise.all([
-                apolloClient.query<GenericQueryData<JobListRow>>({
+                apolloClient.query<GenericQueryData<JobSearchRow>>({
                     fetchPolicy: "network-only",
                     query: GRAPHQL_MAP.genericQuery,
                     variables: {
@@ -393,7 +393,7 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
         }
     };
 
-    const handleViewJob = async (job: JobListRow) => {
+    const handleViewJob = async (job: JobSearchRow) => {
         if (!dbName || !schema) return;
         const loadingToast = toast.loading(MESSAGES.INFO_JOB_DETAIL_LOADING);
 
@@ -424,7 +424,7 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
         }
     };
 
-    const handleEditJob = (job: JobListRow) => {
+    const handleEditJob = (job: JobSearchRow) => {
         if (job.batch_no && onNavigateToBatchEdit) {
             onNavigateToBatchEdit(job.batch_no);
             return;
@@ -442,7 +442,7 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
         setShowPdfModal(true);
     };
 
-    const handlePrintPdf = async (job: JobListRow) => {
+    const handlePrintPdf = async (job: JobSearchRow) => {
         if (!dbName || !schema) return;
         const loadingToast = toast.loading(MESSAGES.INFO_JOB_DETAIL_LOADING);
         try {
@@ -555,9 +555,9 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
                         masterStates={masterStates}
                         editJob={editJob}
                         onRefreshModels={refreshModels}
-                        onViewJob={(j: JobListRow) => void handleViewJob(j)}
-                        onEditJob={(j: JobListRow) => handleEditJob(j)}
-                        onPrintPdf={(j: JobListRow) => void handlePrintPdf(j)}
+                        onViewJob={(j: JobSearchRow) => void handleViewJob(j)}
+                        onEditJob={(j: JobSearchRow) => handleEditJob(j)}
+                        onPrintPdf={(j: JobSearchRow) => void handlePrintPdf(j)}
                         onAttachFiles={(jobNo: string, jobId: number) => { setAttachJobId(jobId); setAttachJobNo(jobNo); setAttachMode("attach"); }}
                         refreshTrigger={quickInfoKey}
                         />

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon,
-    ClipboardList, Loader2, MoreHorizontal, RefreshCw, Search, Trash2, X} from "lucide-react";
+    ClipboardList, Loader2, MoreHorizontal, Paperclip, RefreshCw, Search, Trash2, X} from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 
@@ -20,7 +20,8 @@ import { encodeObj, graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectCurrentBranch, selectSchema } from "@/store/context-slice";
-import type { JobListRow } from "@/features/client/types/job";
+import type { JobSearchRow } from "@/features/client/types/job";
+import { JobAttachDialog } from "./single-job/job-attach-dialog";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -37,7 +38,7 @@ const tdClass = "p-3 text-sm text-[var(--cl-text)] border-b border-[var(--cl-bor
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export const JobListSection = () => {
+export const JobSearchSection = () => {
     const dbName       = useAppSelector(selectDbName);
     const schema       = useAppSelector(selectSchema);
     const globalBranch = useAppSelector(selectCurrentBranch);
@@ -47,11 +48,13 @@ export const JobListSection = () => {
     const [searchQ,       setSearchQ]       = useState("");
     const [closedFilter,  setClosedFilter]  = useState<ClosedFilter>(null);
     const [page,          setPage]          = useState(1);
-    const [rows,          setRows]          = useState<JobListRow[]>([]);
+    const [rows,          setRows]          = useState<JobSearchRow[]>([]);
     const [total,         setTotal]         = useState(0);
     const [loading,       setLoading]       = useState(false);
     const [deleteId,      setDeleteId]      = useState<number | null>(null);
     const [deleting,      setDeleting]      = useState(false);
+    const [attachJobId,   setAttachJobId]   = useState<number | null>(null);
+    const [attachJobNo,   setAttachJobNo]   = useState<string>("");
 
     const debounceRef      = useRef<ReturnType<typeof setTimeout> | null>(null);
     const scrollWrapperRef = useRef<HTMLDivElement>(null);
@@ -78,13 +81,13 @@ export const JobListSection = () => {
         try {
             const commonArgs = { branch_id: bId, search: q, show_closed: closed };
             const [dataRes, countRes] = await Promise.all([
-                apolloClient.query<GenericQueryData<JobListRow>>({
+                apolloClient.query<GenericQueryData<JobSearchRow>>({
                     fetchPolicy: "network-only",
                     query: GRAPHQL_MAP.genericQuery,
                     variables: {
                         db_name: dbName, schema,
                         value: graphQlUtils.buildGenericQueryValue({
-                            sqlId: SQL_MAP.GET_JOB_LIST_PAGED,
+                            sqlId: SQL_MAP.GET_JOB_SEARCH_PAGED,
                             sqlArgs: { ...commonArgs, limit: PAGE_SIZE, offset: (pg - 1) * PAGE_SIZE },
                         }),
                     },
@@ -95,7 +98,7 @@ export const JobListSection = () => {
                     variables: {
                         db_name: dbName, schema,
                         value: graphQlUtils.buildGenericQueryValue({
-                            sqlId: SQL_MAP.GET_JOB_LIST_COUNT,
+                            sqlId: SQL_MAP.GET_JOB_SEARCH_COUNT,
                             sqlArgs: commonArgs,
                         }),
                     },
@@ -172,7 +175,7 @@ export const JobListSection = () => {
                     </div>
                     <div className="flex items-baseline gap-2 overflow-hidden">
                         <h1 className="text-lg font-bold text-[var(--cl-text)] truncate">
-                            Job List / Search
+                            Job Search
                         </h1>
                         <span className="text-xs text-[var(--cl-text-muted)] whitespace-nowrap">
                             {loading ? "Loading…" : `(${total})`}
@@ -183,11 +186,11 @@ export const JobListSection = () => {
 
             {/* ── Toolbar ────────────────────────────────────────────────────── */}
             <div className="flex flex-wrap items-center gap-2 px-4 py-2 bg-[var(--cl-surface-2)]/30">
-                <div className="relative flex-1 sm:max-w-xs">
+                <div className="relative flex-1 sm:max-w-md">
                     <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--cl-text-muted)]" />
                     <Input
                         className="h-8 border-[var(--cl-border)] bg-[var(--cl-surface)] pl-8 text-xs"
-                        placeholder="Job no, customer or mobile…"
+                        placeholder="Job no, customer, mobile, product, brand, model or serial…"
                         value={search}
                         onChange={e => handleSearchChange(e.target.value)}
                     />
@@ -245,7 +248,7 @@ export const JobListSection = () => {
                         <table className="min-w-full border-collapse">
                             <thead>
                                 <tr className="bg-[var(--cl-surface-2)]">
-                                    {["#", "Date", "Job No", "Customer", "Mobile", "Job Type", "Status", "Amount", "Actions"].map(h => (
+                                    {["#", "Date", "Job No", "Customer", "Mobile", "Device Details", "Job Type", "Status", "Amount", "Actions"].map(h => (
                                         <th key={h} className={thClass}>{h}</th>
                                     ))}
                                 </tr>
@@ -253,7 +256,7 @@ export const JobListSection = () => {
                             <tbody>
                                 {Array.from({ length: 12 }).map((_, i) => (
                                     <tr key={i} className="animate-pulse">
-                                        {Array.from({ length: 9 }).map((__, j) => (
+                                        {Array.from({ length: 10 }).map((__, j) => (
                                             <td key={j} className={tdClass}><div className="h-4 w-16 rounded bg-[var(--cl-border)]" /></td>
                                         ))}
                                     </tr>
@@ -273,6 +276,7 @@ export const JobListSection = () => {
                                     <th className={thClass}>Job No</th>
                                     <th className={thClass}>Customer</th>
                                     <th className={thClass}>Mobile</th>
+                                    <th className={`${thClass} w-[10rem]`}>Device Details</th>
                                     <th className={thClass}>Job Type</th>
                                     <th className={thClass}>Status</th>
                                     <th className={`${thClass} text-right`}>Amount</th>
@@ -281,19 +285,37 @@ export const JobListSection = () => {
                             </thead>
                             <tbody className="divide-y divide-[var(--cl-border)] bg-[var(--cl-surface)]">
                                 {rows.map((job, idx) => (
-                                    <tr key={job.id} className="group transition-colors hover:bg-[var(--cl-accent)]/5">
+                                    <tr key={job.id} className={`group transition-colors hover:bg-[var(--cl-accent)]/5 ${job.batch_no ? "border-l-2 border-l-violet-400 dark:border-l-violet-500" : ""}`}>
                                         <td className={`${tdClass} text-[var(--cl-text-muted)]`}>
                                             {(page - 1) * PAGE_SIZE + idx + 1}
                                         </td>
                                         <td className={tdClass}>{job.job_date}</td>
-                                        <td className={`${tdClass} font-mono font-medium text-[var(--cl-accent)]`}>
-                                            {job.job_no}
-                                            {job.is_closed && (
-                                                <span className="ml-1.5 text-[10px] font-bold text-emerald-600 bg-emerald-100 dark:bg-emerald-950/40 rounded px-1 py-0.5">CLOSED</span>
-                                            )}
+                                        <td className={tdClass}>
+                                            <div className="flex flex-col gap-0.5">
+                                                <div className="font-mono font-medium text-[var(--cl-accent)]">
+                                                    {job.job_no}
+                                                    {job.is_closed && (
+                                                        <span className="ml-1.5 text-[10px] font-bold text-emerald-600 bg-emerald-100 dark:bg-emerald-950/40 rounded px-1 py-0.5">CLOSED</span>
+                                                    )}
+                                                </div>
+                                                {job.batch_no != null && (
+                                                    <span className="text-[9px] font-bold text-violet-600 dark:text-violet-400 w-fit bg-violet-50 dark:bg-violet-950/40 rounded px-1 py-0.5">Batch #{job.batch_no}</span>
+                                                )}
+                                                {job.file_count > 0 && (
+                                                    <button
+                                                        type="button"
+                                                        className="flex items-center gap-1 text-[10px] text-blue-600 dark:text-blue-400 font-medium hover:text-blue-700 dark:hover:text-blue-300 cursor-pointer bg-blue-50 dark:bg-blue-950/40 rounded px-1.5 py-0.5 w-fit border-0 transition-colors"
+                                                        onClick={() => { setAttachJobId(job.id); setAttachJobNo(job.job_no); }}
+                                                    >
+                                                        <Paperclip className="h-2.5 w-2.5" />
+                                                        <span>{job.file_count} File{job.file_count !== 1 ? "s" : ""}</span>
+                                                    </button>
+                                                )}
+                                            </div>
                                         </td>
                                         <td className={tdClass}>{job.customer_name ?? "—"}</td>
                                         <td className={`${tdClass} font-mono text-xs`}>{job.mobile}</td>
+                                        <td className={`${tdClass} text-xs`}>{job.device_details || "—"}</td>
                                         <td className={tdClass}>{job.job_type_name}</td>
                                         <td className={tdClass}>
                                             <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-[var(--cl-accent)]/10 text-[var(--cl-accent)]">
@@ -376,6 +398,17 @@ export const JobListSection = () => {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            {/* Attach Files Dialog */}
+            <JobAttachDialog
+                jobId={attachJobId}
+                jobNo={attachJobNo}
+                mode="attach"
+                onClose={() => { setAttachJobId(null); setAttachJobNo(""); }}
+                onFilesChanged={() => {
+                    if (branchId) void loadData(Number(branchId), searchQ, page, closedFilter);
+                }}
+            />
         </motion.div>
     );
 };

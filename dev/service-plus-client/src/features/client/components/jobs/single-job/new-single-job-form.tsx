@@ -20,7 +20,7 @@ import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectSchema } from "@/store/context-slice";
 import type { CustomerSearchRow } from "@/features/client/types/sales";
-import type { JobDetailType, JobListRow, JobLookupRow, ModelRow, TechnicianRow } from "@/features/client/types/job";
+import type { JobDetailType, JobSearchRow, JobLookupRow, ModelRow, TechnicianRow } from "@/features/client/types/job";
 import { CustomerInput } from "@/features/client/components/inventory/customer-input";
 
 import { SearchableCombobox } from "@/components/ui/searchable-combobox";
@@ -48,9 +48,9 @@ type Props = {
     masterStates: StateOption[];
     editJob?: JobDetailType | null;
     onRefreshModels: () => void;
-    onViewJob?: (job: JobListRow) => void;
-    onEditJob?: (job: JobListRow) => void;
-    onPrintPdf?: (job: JobListRow) => void;
+    onViewJob?: (job: JobSearchRow) => void;
+    onEditJob?: (job: JobSearchRow) => void;
+    onPrintPdf?: (job: JobSearchRow) => void;
     onAttachFiles?: (jobNo: string, jobId: number) => void;
     refreshTrigger?: number;
 };
