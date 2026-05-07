@@ -45,7 +45,7 @@ type GenericQueryData<T> = { genericQuery: T[] | null };
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const PAGE_SIZE   = 50;
-const DEBOUNCE_MS = 1200;
+const DEBOUNCE_MS = 1600;
 
 // ─── CSS ──────────────────────────────────────────────────────────────────────
 
@@ -485,7 +485,6 @@ export const BranchTransferSection = () => {
                             <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--cl-text-muted)]" />
                             <Input
                                 className="h-8 border-[var(--cl-border)] bg-[var(--cl-surface)] pl-8 text-xs"
-                                disabled={loading}
                                 placeholder="Ref No or Branch…"
                                 value={search}
                                 onChange={e => handleSearchChange(e.target.value)}
@@ -639,7 +638,7 @@ export const BranchTransferSection = () => {
                         {/* Pagination */}
                         <div className="flex items-center justify-between border-t border-[var(--cl-border)] px-4 py-2">
                             <span className="text-xs text-[var(--cl-text-muted)]">
-                                Page {page} of {totalPages} · {total} records
+                                {total === 0 ? "No transfers" : `Showing ${(page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, total)} of ${total} transfers (Page ${page} of ${totalPages})`}
                             </span>
                             <div className="flex items-center gap-1">
                                 <Button

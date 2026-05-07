@@ -17,7 +17,6 @@ import { MESSAGES } from "@/constants/messages";
 import { SQL_MAP } from "@/constants/sql-map";
 import { apolloClient } from "@/lib/apollo-client";
 import { encodeObj, graphQlUtils } from "@/lib/graphql-utils";
-import { currentFinancialYearRange } from "@/lib/utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectCurrentBranch, selectSchema } from "@/store/context-slice";
@@ -31,7 +30,7 @@ type ClosedFilter = null | boolean; // null = All, false = Open, true = Closed
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const PAGE_SIZE   = 50;
-const DEBOUNCE_MS = 1200;
+const DEBOUNCE_MS = 1600;
 
 const thClass = "sticky top-0 z-20 text-xs font-semibold uppercase tracking-wide text-[var(--cl-text-muted)] p-3 text-left border-b border-[var(--cl-border)] bg-[var(--cl-surface-2)]";
 const tdClass = "p-3 text-sm text-[var(--cl-text)] border-b border-[var(--cl-border)]";
@@ -44,10 +43,6 @@ export const JobListSection = () => {
     const globalBranch = useAppSelector(selectCurrentBranch);
     const branchId     = globalBranch?.id ?? null;
 
-    const { from: defaultFrom, to: defaultTo } = currentFinancialYearRange();
-
-    const [fromDate,      setFromDate]      = useState(defaultFrom);
-    const [toDate,        setToDate]        = useState(defaultTo);
     const [search,        setSearch]        = useState("");
     const [searchQ,       setSearchQ]       = useState("");
     const [closedFilter,  setClosedFilter]  = useState<ClosedFilter>(null);
@@ -76,12 +71,12 @@ export const JobListSection = () => {
     }, [recalc, rows.length]);
 
     const loadData = useCallback(async (
-        bId: number, from: string, to: string, q: string, pg: number, closed: ClosedFilter,
+        bId: number, q: string, pg: number, closed: ClosedFilter,
     ) => {
         if (!dbName || !schema) return;
         setLoading(true);
         try {
-            const commonArgs = { branch_id: bId, from_date: from, to_date: to, search: q, show_closed: closed };
+            const commonArgs = { branch_id: bId, search: q, show_closed: closed };
             const [dataRes, countRes] = await Promise.all([
                 apolloClient.query<GenericQueryData<JobListRow>>({
                     fetchPolicy: "network-only",
@@ -117,17 +112,13 @@ export const JobListSection = () => {
 
     useEffect(() => {
         if (!branchId) return;
-        void loadData(Number(branchId), fromDate, toDate, searchQ, page, closedFilter);
-    }, [branchId, fromDate, toDate, searchQ, page, closedFilter, loadData]);
+        void loadData(Number(branchId), searchQ, page, closedFilter);
+    }, [branchId, searchQ, page, closedFilter, loadData]);
 
     const handleSearchChange = (value: string) => {
         setSearch(value);
         if (debounceRef.current) clearTimeout(debounceRef.current);
         debounceRef.current = setTimeout(() => { setPage(1); setSearchQ(value); }, DEBOUNCE_MS);
-    };
-
-    const handleFilterChange = (setter: (v: string) => void) => (v: string) => {
-        setter(v); setPage(1);
     };
 
     const handleClosedFilterChange = (value: ClosedFilter) => {
@@ -144,7 +135,7 @@ export const JobListSection = () => {
             });
             toast.success(MESSAGES.SUCCESS_JOB_DELETED);
             setDeleteId(null);
-            if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, page, closedFilter);
+            if (branchId) void loadData(Number(branchId), searchQ, page, closedFilter);
         } catch {
             toast.error(MESSAGES.ERROR_JOB_DELETE_FAILED);
         } finally {
@@ -192,29 +183,10 @@ export const JobListSection = () => {
 
             {/* ── Toolbar ────────────────────────────────────────────────────── */}
             <div className="flex flex-wrap items-center gap-2 px-4 py-2 bg-[var(--cl-surface-2)]/30">
-                <div className="flex items-center gap-1">
-                    <Input
-                        className="h-8 w-32 border-[var(--cl-border)] bg-[var(--cl-surface)] text-xs"
-                        disabled={loading}
-                        type="date"
-                        value={fromDate}
-                        onChange={e => handleFilterChange(setFromDate)(e.target.value)}
-                    />
-                    <span className="text-[var(--cl-text-muted)] text-xs">—</span>
-                    <Input
-                        className="h-8 w-32 border-[var(--cl-border)] bg-[var(--cl-surface)] text-xs"
-                        disabled={loading}
-                        type="date"
-                        value={toDate}
-                        onChange={e => handleFilterChange(setToDate)(e.target.value)}
-                    />
-                </div>
-
                 <div className="relative flex-1 sm:max-w-xs">
                     <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--cl-text-muted)]" />
                     <Input
                         className="h-8 border-[var(--cl-border)] bg-[var(--cl-surface)] pl-8 text-xs"
-                        disabled={loading}
                         placeholder="Job no, customer or mobile…"
                         value={search}
                         onChange={e => handleSearchChange(e.target.value)}
@@ -254,7 +226,7 @@ export const JobListSection = () => {
                         disabled={loading || !branchId}
                         size="sm"
                         variant="outline"
-                        onClick={() => { if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, page, closedFilter); }}
+                        onClick={() => { if (branchId) void loadData(Number(branchId), searchQ, page, closedFilter); }}
                     >
                         <RefreshCw className="mr-1.5 h-3 w-3" />
                         Refresh
@@ -362,7 +334,7 @@ export const JobListSection = () => {
                 {/* Pagination */}
                 <div className="flex items-center justify-between border-t border-[var(--cl-border)] px-4 py-2">
                     <span className="text-xs text-[var(--cl-text-muted)]">
-                        Page {page} of {totalPages} · {total} records
+                        {total === 0 ? "No jobs" : `Showing ${(page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, total)} of ${total} jobs (Page ${page} of ${totalPages})`}
                         {closedFilter !== null && (
                             <span className="ml-2 font-semibold text-[var(--cl-accent)]">
                                 ({closedFilterLabel[String(closedFilter)]})

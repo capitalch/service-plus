@@ -30,7 +30,7 @@ type GenericQueryDataType<T> = { genericQuery: T[] | null };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const DEBOUNCE_MS = 1200;
+const DEBOUNCE_MS = 1600;
 const PAGE_SIZE   = 50;
 
 const thClass = "sticky top-0 z-20 text-xs font-semibold uppercase tracking-wide text-[var(--cl-text-muted)] p-3 text-left border-b border-[var(--cl-border)] bg-[var(--cl-surface-2)]";
@@ -299,7 +299,6 @@ export const ReceiptsSection = () => {
                     <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--cl-text-muted)]" />
                     <Input
                         className="h-8 border-[var(--cl-border)] bg-[var(--cl-surface)] pl-8 text-xs"
-                        disabled={loading}
                         placeholder="Job no, customer, mode, ref no…"
                         value={search}
                         onChange={e => handleSearchChange(e.target.value)}
@@ -425,7 +424,7 @@ export const ReceiptsSection = () => {
                 <div className="flex items-center justify-between border-t border-[var(--cl-border)] px-4 py-2 flex-wrap gap-2">
                     <div className="flex items-center gap-4">
                         <span className="text-xs text-[var(--cl-text-muted)]">
-                            Page {page} of {totalPages} · {total} records
+                            {total === 0 ? "No receipts" : `Showing ${(page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, total)} of ${total} receipts (Page ${page} of ${totalPages})`}
                         </span>
                         {rows.length > 0 && (
                             <span className="text-xs font-semibold text-[var(--cl-text)]">

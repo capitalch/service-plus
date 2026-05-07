@@ -15,9 +15,10 @@ type Props = {
     loading: boolean;
     onClose: () => void;
     onPrintBatch: (jobs: JobDetailType[]) => void;
+    onFileCountChange?: (jobId: number, count: number) => void;
 };
 
-export const BatchJobViewModal = ({ isOpen, batchNo, jobs, loading, onClose, onPrintBatch }: Props) => {
+export const BatchJobViewModal = ({ isOpen, batchNo, jobs, loading, onClose, onPrintBatch, onFileCountChange }: Props) => {
     const [attachJobId, setAttachJobId] = useState<number | null>(null);
     const [attachJobNo, setAttachJobNo] = useState("");
 
@@ -144,6 +145,7 @@ export const BatchJobViewModal = ({ isOpen, batchNo, jobs, loading, onClose, onP
                 jobNo={attachJobNo}
                 mode="view"
                 onClose={() => { setAttachJobId(null); setAttachJobNo(""); }}
+                onFilesChanged={count => { if (onFileCountChange && attachJobId !== null) onFileCountChange(attachJobId, count); }}
             />
         </>
     );

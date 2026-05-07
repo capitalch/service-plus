@@ -62,7 +62,7 @@ type GenericQueryDataType<T> = { genericQuery: T[] | null };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const DEBOUNCE_MS = 1200;
+const DEBOUNCE_MS = 1600;
 const PAGE_SIZE = 50;
 
 const rowVariants = {
@@ -503,7 +503,7 @@ export const PartsSection = () => {
                                 {totalPages > 1 && (
                                     <div className="flex items-center justify-between border-t border-[var(--cl-border)] px-4 py-2">
                                         <p className="text-xs text-[var(--cl-text-muted)]">
-                                            Page {page} of {totalPages}
+                                            {total === 0 ? "No parts" : `Showing ${(page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, total)} of ${total} parts (Page ${page} of ${totalPages})`}
                                         </p>
                                         <div className="flex items-center gap-1">
                                             <Button

@@ -27,7 +27,7 @@ type JobLookupComboboxPropsType = {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const DEBOUNCE_MS = 1200;
+const DEBOUNCE_MS = 1600;
 
 // ─── Component ────────────────────────────────────────────────────────────────
 

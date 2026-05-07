@@ -24,7 +24,7 @@ type Props = {
 
 type GenericQueryData<T> = { genericQuery: T[] | null };
 
-export function BatchJobQuickInfoCard({ onAttach, onAttachJob, onEdit, onView, onPrint, refreshTrigger }: Props) {
+export function BatchJobQuickInfoCard({ onAttachJob, onEdit, onView, onPrint, refreshTrigger }: Props) {
     const dbName = useAppSelector(selectDbName);
     const schema = useAppSelector(selectSchema);
     const branch = useAppSelector(selectCurrentBranch);
@@ -111,7 +111,6 @@ export function BatchJobQuickInfoCard({ onAttach, onAttachJob, onEdit, onView, o
     const batchNo = rows[0].batch_no;
     const batchDate = rows[0].batch_date;
     const customerName = rows[0].customer_name;
-    const jobTypeName = rows[0].job_type_name;
 
     return (
         <div className="w-full rounded-xl border border-[var(--cl-border)] bg-gradient-to-r from-[var(--cl-surface-2)] to-[var(--cl-surface)] shadow-sm">

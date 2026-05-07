@@ -1,3 +1,4 @@
+import { useState, useCallback } from "react";
 import { ClientLayout, useClientSelection } from "../components/client-layout";
 import { BatchJobSection } from "../components/jobs/batch-job/batch-job-section";
 import { DeliverJobSection } from "../components/jobs/deliver-job/deliver-job-section";
@@ -27,13 +28,25 @@ function ComingSoon({ label }: { label: string }) {
 // ─── Inner (needs layout context) ─────────────────────────────────────────────
 
 function JobsContent() {
-    const { selected } = useClientSelection();
+    const { selected, onSelect } = useClientSelection();
+    const [pendingBatchNo, setPendingBatchNo] = useState<number | null>(null);
+    const [forceSingleJobView, setForceSingleJobView] = useState(false);
+
+    const navigateToBatchEdit = useCallback((batchNo: number) => {
+        setPendingBatchNo(batchNo);
+        onSelect("Batch Jobs");
+    }, [onSelect]);
+
+    const returnToSingleJob = useCallback(() => {
+        setForceSingleJobView(true);
+        onSelect("Single Job");
+    }, [onSelect]);
 
     switch (selected) {
         case "Single Job":
-            return <SingleJobSection />;
+            return <SingleJobSection onNavigateToBatchEdit={navigateToBatchEdit} forceView={forceSingleJobView} onViewModeApplied={() => setForceSingleJobView(false)} />;
         case "Batch Jobs":
-            return <BatchJobSection />;
+            return <BatchJobSection initialEditBatchNo={pendingBatchNo} onEditBatchNoApplied={() => setPendingBatchNo(null)} onReturnToSingleJob={returnToSingleJob} />;
         case "Opening Jobs":
             return <OpeningJobSection />;
         case "Part Used (Job)":

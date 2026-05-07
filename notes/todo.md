@@ -27,7 +27,13 @@
 								- Search working
 								- Delete job
 								- Check batch_no functionality. null or 0
-	- Batch Jobs
+						- Batch Jobs
+								- When a single job is beig edited which is part of batch, then Batch jobs edit screen should open
+								- Delete a job not working
+								- quick info card view and print are same
+								- View MODAL -> print pdf or print All not working
+								- view mode: 1.1,1.2 -> 3.1, 3.2
+								- Single job view mode: all the jobs in a batch should have different demarkation
 	- Job list search
 		- Remove date filter
 		- Make search stronger

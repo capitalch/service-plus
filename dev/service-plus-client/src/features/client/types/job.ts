@@ -12,6 +12,7 @@ export type JobListRow = {
     amount:            number | null;
     is_closed:         boolean;
     device_details:    string | null;
+    batch_no?:         number | null;
 };
 
 export type JobDetailType = {

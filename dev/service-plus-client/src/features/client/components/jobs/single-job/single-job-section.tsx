@@ -36,7 +36,7 @@ import type { BrandOption, ProductOption } from "@/features/client/types/model";
 
 import { NewSingleJobForm } from "./new-single-job-form";
 import { JobAttachDialog } from "./job-attach-dialog";
-import { getJobSheetBlobUrl, type CompanyInfoType } from "./single-job-sheet-pdf";
+import { getJobSheetBlobUrl, type CompanyInfoType } from "../job-sheet-pdf";
 import { PdfPreviewModal } from "@/components/shared/pdf-preview-modal";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -46,14 +46,14 @@ type GenericQueryData<T> = { genericQuery: T[] | null };
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const PAGE_SIZE = 50;
-const DEBOUNCE_MS = 1200;
+const DEBOUNCE_MS = 1600;
 
 const thClass = "sticky top-0 z-20 text-xs font-semibold uppercase tracking-wide text-[var(--cl-text-muted)] p-3 text-left border-b border-[var(--cl-border)] bg-[var(--cl-surface-2)]";
 const tdClass = "p-3 text-sm text-[var(--cl-text)] border-b border-[var(--cl-border)]";
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export const SingleJobSection = () => {
+export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeApplied }: { onNavigateToBatchEdit?: (batchNo: number) => void; forceView?: boolean; onViewModeApplied?: () => void }) => {
     const dbName = useAppSelector(selectDbName);
     const schema = useAppSelector(selectSchema);
     const globalBranch = useAppSelector(selectCurrentBranch);
@@ -89,6 +89,7 @@ export const SingleJobSection = () => {
 
     // Edit / View
     const [editJob, setEditJob] = useState<JobDetailType | null>(null);
+    const [editSourceMode, setEditSourceMode] = useState<ViewMode>("new");
     const [viewJob, setViewJob] = useState<JobDetailType | null>(null);
 
     // PDF Preview
@@ -180,8 +181,8 @@ export const SingleJobSection = () => {
             // call onSuccess manually
             if (editJob) {
                 setEditJob(null);
-                setMode("view");
-                if (branchId) void loadData(Number(branchId), searchQ, 1);
+                setMode(editSourceMode);
+                if (branchId && editSourceMode === "view") void loadData(Number(branchId), searchQ, 1);
             }
         } catch {
             toast.error(editJob ? MESSAGES.ERROR_JOB_UPDATE_FAILED : MESSAGES.ERROR_JOB_CREATE_FAILED);
@@ -193,6 +194,14 @@ export const SingleJobSection = () => {
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const scrollWrapperRef = useRef<HTMLDivElement>(null);
     const [maxHeight, setMaxHeight] = useState(0);
+
+    useEffect(() => {
+        if (forceView) {
+            setMode("view");
+            onViewModeApplied?.();
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [forceView]);
 
     const recalc = useCallback(() => {
         if (scrollWrapperRef.current) {
@@ -348,7 +357,7 @@ export const SingleJobSection = () => {
             void loadData(Number(branchId), searchQ, page);
         }
 
-    }, [branchId, mode, loadData]);
+    }, [branchId, mode, searchQ, page, loadData]);
 
     const handleSearchChange = (value: string) => {
         setSearch(value);
@@ -416,13 +425,18 @@ export const SingleJobSection = () => {
     };
 
     const handleEditJob = (job: JobListRow) => {
+        if (job.batch_no && onNavigateToBatchEdit) {
+            onNavigateToBatchEdit(job.batch_no);
+            return;
+        }
+        setEditSourceMode(mode);
         setEditJob(job as unknown as JobDetailType);
         setMode("new");
     };
 
     const handlePrintFromView = () => {
         if (!viewJob) return;
-        const url = getJobSheetBlobUrl(viewJob, companyInfo);
+        const url = getJobSheetBlobUrl(viewJob, companyInfo, globalBranch?.code);
         setPdfPreviewUrl(url);
         setPdfFilename(`Job-Sheet_${viewJob.job_date}_${viewJob.customer_name || "customer"}.pdf`);
         setShowPdfModal(true);
@@ -450,7 +464,7 @@ export const SingleJobSection = () => {
                 return;
             }
             toast.dismiss(loadingToast);
-            const url = getJobSheetBlobUrl(details, companyInfo);
+            const url = getJobSheetBlobUrl(details, companyInfo, globalBranch?.code);
             setPdfPreviewUrl(url);
             setPdfFilename(`Job-Sheet_${details.job_date}_${details.customer_name || "customer"}.pdf`);
             setShowPdfModal(true);
@@ -557,7 +571,6 @@ export const SingleJobSection = () => {
                             <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--cl-text-muted)]" />
                             <Input
                                 className="h-8 border-[var(--cl-border)] bg-[var(--cl-surface)] pl-8 text-xs"
-                                disabled={loading}
                                 placeholder="Job no, customer, mobile, model, brand, sl no"
                                 value={search}
                                 onChange={e => handleSearchChange(e.target.value)}
@@ -635,7 +648,7 @@ export const SingleJobSection = () => {
                                     </thead>
                                     <tbody className="divide-y divide-[var(--cl-border)] bg-[var(--cl-surface)]">
                                         {jobs.map((job, idx) => (
-                                            <tr key={job.id} className="group transition-colors hover:bg-[var(--cl-accent)]/5">
+                                            <tr key={job.id} className={`group transition-colors hover:bg-[var(--cl-accent)]/5 ${job.batch_no ? "border-l-2 border-l-violet-400 dark:border-l-violet-500" : ""}`}>
                                                 <td className={`${tdClass} text-[var(--cl-text-muted)]`}>
                                                     {(page - 1) * PAGE_SIZE + idx + 1}
                                                 </td>
@@ -648,6 +661,9 @@ export const SingleJobSection = () => {
                                                                 <span className="ml-1.5 text-[10px] font-bold text-emerald-600 bg-emerald-100 dark:bg-emerald-950/40 rounded px-1 py-0.5">CLOSED</span>
                                                             )}
                                                         </div>
+                                                        {job.batch_no && (
+                                                            <span className="text-[9px] font-bold text-violet-600 dark:text-violet-400 w-fit bg-violet-50 dark:bg-violet-950/40 rounded px-1 py-0.5">Batch #{job.batch_no}</span>
+                                                        )}
                                                         {job.file_count > 0 && (
                                                             <button
                                                                 type="button"
@@ -685,7 +701,14 @@ export const SingleJobSection = () => {
                                                             <DropdownMenuContent align="end" className="w-[140px] bg-white dark:bg-zinc-950 border-[var(--cl-border)] shadow-[0_10px_30px_rgba(0,0,0,0.2)] z-50">
                                                                 <DropdownMenuItem
                                                                     className="flex items-center gap-2 cursor-pointer text-amber-500 focus:bg-amber-500/10 focus:text-amber-600"
-                                                                    onClick={() => { setEditJob(job as unknown as JobDetailType); setMode("new"); }}
+                                                                    onClick={() => {
+                                                                        if (job.batch_no && onNavigateToBatchEdit) {
+                                                                            onNavigateToBatchEdit(job.batch_no);
+                                                                        } else {
+                                                                            setEditJob(job as unknown as JobDetailType);
+                                                                            setMode("new");
+                                                                        }
+                                                                    }}
                                                                 >
                                                                     <Pencil className="h-4 w-4" />
                                                                     <span>Edit Job</span>
@@ -732,7 +755,7 @@ export const SingleJobSection = () => {
                         {/* Pagination */}
                         <div className="flex items-center justify-between border-t border-[var(--cl-border)] px-4 py-2">
                             <span className="text-xs text-[var(--cl-text-muted)]">
-                                Page {page} of {totalPages} · {total} records
+                                {total === 0 ? "No jobs" : `Showing ${(page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, total)} of ${total} job${total !== 1 ? "s" : ""} (Page ${page} of ${totalPages})`}
                             </span>
                             <div className="flex items-center gap-1">
                                 <Button className="h-7 w-7" disabled={page <= 1 || loading} size="icon" variant="ghost" title="First page" onClick={() => setPage(1)}>

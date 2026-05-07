@@ -18,7 +18,6 @@ import { MESSAGES } from "@/constants/messages";
 import { SQL_MAP } from "@/constants/sql-map";
 import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
-import { currentFinancialYearRange } from "@/lib/utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName, selectCurrentUser } from "@/features/auth/store/auth-slice";
 import { selectCurrentBranch, selectSchema } from "@/store/context-slice";
@@ -32,8 +31,9 @@ import { BatchJobViewModal } from "./batch-job-view-modal";
 import { FormProvider, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { batchJobFormSchema, type BatchJobFormValues, getBatchJobDefaultValues } from "./batch-job-schema";
-import { getBatchJobSheetBlobUrl, type CompanyInfoType } from "../single-job/single-job-sheet-pdf";
+import { getBatchJobSheetBlobUrl, type CompanyInfoType } from "../job-sheet-pdf";
 import { PdfPreviewModal } from "@/components/shared/pdf-preview-modal";
+import { deleteJobFiles } from "@/lib/image-service";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -53,24 +53,20 @@ type BatchGroup = {
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const PAGE_SIZE = 50;
-const DEBOUNCE_MS = 1200;
+const DEBOUNCE_MS = 1600;
 
 const thClass = "sticky top-0 z-20 text-xs font-semibold uppercase tracking-wide text-[var(--cl-text-muted)] p-3 text-left border-b border-[var(--cl-border)] bg-[var(--cl-surface-2)]";
 const tdClass = "p-3 text-sm text-[var(--cl-text)] border-b border-[var(--cl-border)]";
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export const BatchJobSection = () => {
+export const BatchJobSection = ({ initialEditBatchNo, onEditBatchNoApplied, onReturnToSingleJob }: { initialEditBatchNo?: number | null; onEditBatchNoApplied?: () => void; onReturnToSingleJob?: () => void }) => {
     const dbName       = useAppSelector(selectDbName);
     const schema       = useAppSelector(selectSchema);
     const globalBranch = useAppSelector(selectCurrentBranch);
     const currentUser  = useAppSelector(selectCurrentUser);
     const branchId     = globalBranch?.id ?? null;
 
-    const { from: defaultFrom, to: defaultTo } = currentFinancialYearRange();
-
-    const [fromDate, setFromDate] = useState(defaultFrom);
-    const [toDate,   setToDate]   = useState(defaultTo);
     const [search,   setSearch]   = useState("");
     const [searchQ,  setSearchQ]  = useState("");
 
@@ -110,6 +106,8 @@ export const BatchJobSection = () => {
 
     // Edit
     const [editBatchNo, setEditBatchNo] = useState<number | null>(null);
+    const [editSourceMode, setEditSourceMode] = useState<ViewMode>("new");
+    const [editFromSingleJob, setEditFromSingleJob] = useState(false);
     const [editRows,    setEditRows]    = useState<JobBatchDetailRow[]>([]);
 
     // View
@@ -197,7 +195,12 @@ export const BatchJobSection = () => {
                 toast.success(`Batch #${editBatchNo} updated`);
                 setRefreshTrigger(t => t + 1);
                 handleReset();
-                setMode("view");
+                if (editFromSingleJob) {
+                    setEditFromSingleJob(false);
+                    onReturnToSingleJob?.();
+                } else {
+                    setMode(editSourceMode);
+                }
             } else {
                 const payload = encodeURIComponent(JSON.stringify({
                     sharedData: {
@@ -309,11 +312,11 @@ export const BatchJobSection = () => {
         void fetchMeta();
     }, [dbName, schema, branchId]);
 
-    const loadData = useCallback(async (bId: number, from: string, to: string, q: string, pg: number) => {
+    const loadData = useCallback(async (bId: number, q: string, pg: number) => {
         if (!dbName || !schema) return;
         setLoading(true);
         try {
-            const commonArgs = { branch_id: bId, from_date: from, to_date: to, search: q };
+            const commonArgs = { branch_id: bId, search: q };
             const [dataRes, countRes] = await Promise.all([
                 apolloClient.query<GenericQueryData<JobInBatchRow>>({
                     fetchPolicy: "network-only",
@@ -334,8 +337,17 @@ export const BatchJobSection = () => {
 
     useEffect(() => {
         if (!branchId || mode !== "view") return;
-        void loadData(Number(branchId), fromDate, toDate, searchQ, page);
-    }, [branchId, fromDate, toDate, searchQ, page, loadData, mode]);
+        void loadData(Number(branchId), searchQ, page);
+    }, [branchId, searchQ, page, loadData, mode]);
+
+    useEffect(() => {
+        if (initialEditBatchNo) {
+            setEditFromSingleJob(true);
+            void handleEdit(initialEditBatchNo);
+            onEditBatchNoApplied?.();
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [initialEditBatchNo]);
 
     const handleSearchChange = (value: string) => {
         setSearch(value);
@@ -351,6 +363,7 @@ export const BatchJobSection = () => {
                 query: GRAPHQL_MAP.genericQuery,
                 variables: { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_JOB_BATCH_DETAIL, sqlArgs: { batch_no: batchNo } }) },
             });
+            setEditSourceMode(mode);
             setEditBatchNo(batchNo);
             setEditRows(res.data?.genericQuery ?? []);
             setMode("new");
@@ -368,14 +381,29 @@ export const BatchJobSection = () => {
             });
             toast.success(`Batch #${deleteBatchNo} deleted`);
             setDeleteBatchNo(null);
-            if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, page);
+            if (branchId) void loadData(Number(branchId), searchQ, page);
         } catch { toast.error("Failed to delete batch"); }
         finally { setDeleting(false); }
     };
 
     const handleDeleteSingleJob = async () => {
         if (!deleteJobId || !dbName || !schema) return;
+        if (deleteJobCount <= 2) {
+            toast.error("Cannot delete job. A batch must have at least 2 jobs.");
+            setDeleteJobId(null);
+            return;
+        }
+        setDeleting(true);
         try {
+            // Delete attached files first if any exist
+            const fileCount = jobs.find(j => j.id === deleteJobId)?.file_count ?? 0;
+            if (fileCount > 0) {
+                try {
+                    await deleteJobFiles(dbName, schema, deleteJobId);
+                } catch (err: unknown) {
+                    console.warn(`Failed to delete files for job ${deleteJobId}: ${(err as Error).message}`);
+                }
+            }
             const payload = encodeURIComponent(JSON.stringify({ tableName: "job", deletedIds: [deleteJobId] }));
             await apolloClient.mutate({
                 mutation: GRAPHQL_MAP.genericUpdate,
@@ -384,8 +412,13 @@ export const BatchJobSection = () => {
             toast.success(`Job #${deleteJobNo} deleted`);
             setDeleteJobId(null);
             setDeleteJobNo("");
-            if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, page);
-        } catch { toast.error("Failed to delete job"); }
+            if (branchId) void loadData(Number(branchId), searchQ, page);
+        } catch (err: unknown) {
+            console.error("Failed to delete job:", err);
+            toast.error(`Failed to delete job: ${(err as Error).message}`);
+        } finally {
+            setDeleting(false);
+        }
     };
 
     const handleViewBatch = async (batchNo: number): Promise<JobDetailType[]> => {
@@ -411,9 +444,9 @@ export const BatchJobSection = () => {
             toast.error("Company info not available");
             return;
         }
-        const url = getBatchJobSheetBlobUrl(batchJobs, companyInfo);
+        const url = getBatchJobSheetBlobUrl(batchJobs, companyInfo, globalBranch?.code);
         setPdfPreviewUrl(url);
-        setPdfFilename(`Batch-Job-Sheet_${batchJobs[0]?.batch_no ?? "batch"}.pdf`);
+        setPdfFilename(`Batch-Job-Sheet_${batchJobs[0]?.job_no ?? "batch"}.pdf`);
         setShowPdfModal(true);
     };
 
@@ -471,10 +504,10 @@ export const BatchJobSection = () => {
                 <ViewModeToggle
                     mode={mode}
                     isEditing={!!editBatchNo}
-                    onNewClick={() => { setEditBatchNo(null); setEditRows([]); handleReset(); setMode("new"); }}
+                    onNewClick={() => { setEditBatchNo(null); setEditSourceMode("new"); setEditRows([]); handleReset(); setMode("new"); }}
                     onViewClick={() => {
-                        setEditBatchNo(null); setEditRows([]); setMode("view");
-                        if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, page);
+                        setEditBatchNo(null); setEditSourceMode("new"); setEditRows([]); setMode("view");
+                        if (branchId) void loadData(Number(branchId), searchQ, page);
                     }}
                 />
 
@@ -482,7 +515,7 @@ export const BatchJobSection = () => {
                     <Button
                         className="h-8 gap-1.5 px-3 text-xs font-extrabold uppercase tracking-widest text-[var(--cl-text)]"
                         disabled={submitting} variant="ghost"
-                        onClick={() => { setEditBatchNo(null); setEditRows([]); handleReset(); }}
+                        onClick={() => { setEditBatchNo(null); setEditSourceMode("new"); setEditRows([]); handleReset(); }}
                     >
                         <RefreshCw className={`h-3.5 w-3.5 ${submitting ? "animate-spin" : ""}`} />
                         Reset
@@ -514,8 +547,17 @@ export const BatchJobSection = () => {
                         onEdit={(batchNo) => void handleEdit(batchNo)}
                         onView={(batchNo) => void handleViewBatch(batchNo)}
                         onPrint={(batchNo) => {
-                            void handleViewBatch(batchNo).then(fetchedJobs => {
-                                if (fetchedJobs.length > 0) handlePrintBatch(fetchedJobs);
+                            if (!dbName || !schema) return;
+                            void apolloClient.query<GenericQueryData<JobDetailType>>({
+                                fetchPolicy: "network-only",
+                                query: GRAPHQL_MAP.genericQuery,
+                                variables: { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_JOB_BATCH_DETAIL, sqlArgs: { batch_no: batchNo } }) },
+                            }).then(res => {
+                                const detailJobs = res.data?.genericQuery ?? [];
+                                if (detailJobs.length > 0) handlePrintBatch(detailJobs);
+                                else toast.error("No jobs found in batch");
+                            }).catch(() => {
+                                toast.error("Failed to load batch for printing");
                             });
                         }}
                     />
@@ -543,14 +585,9 @@ export const BatchJobSection = () => {
                 <>
                     {/* Toolbar */}
                     <div className="flex flex-wrap items-center gap-2 px-4 py-2 bg-[var(--cl-surface-2)]/30">
-                        <div className="flex items-center gap-1">
-                            <Input className="h-8 w-32 border-[var(--cl-border)] bg-[var(--cl-surface)] text-xs" disabled={loading} type="date" value={fromDate} onChange={e => { setFromDate(e.target.value); setPage(1); }} />
-                            <span className="text-[var(--cl-text-muted)] text-xs">—</span>
-                            <Input className="h-8 w-32 border-[var(--cl-border)] bg-[var(--cl-surface)] text-xs" disabled={loading} type="date" value={toDate}   onChange={e => { setToDate(e.target.value);   setPage(1); }} />
-                        </div>
                         <div className="relative flex-1 sm:max-w-xs">
                             <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--cl-text-muted)]" />
-                            <Input className="h-8 border-[var(--cl-border)] bg-[var(--cl-surface)] pl-8 text-xs" disabled={loading} placeholder="Batch no, customer or mobile…" value={search} onChange={e => handleSearchChange(e.target.value)} />
+                            <Input className="h-8 border-[var(--cl-border)] bg-[var(--cl-surface)] pl-8 text-xs" placeholder="Batch no, customer or mobile…" value={search} onChange={e => handleSearchChange(e.target.value)} />
                             {search && (
                                 <button
                                     className="absolute right-2.5 top-1/2 flex h-4 w-4 -translate-y-1/2 items-center justify-center rounded-full bg-[var(--cl-text-muted)] text-[var(--cl-surface)] hover:bg-[var(--cl-text)] focus:outline-none"
@@ -562,7 +599,7 @@ export const BatchJobSection = () => {
                             )}
                         </div>
                         <div className="ml-auto">
-                            <Button className="h-8 px-2.5 text-xs" disabled={loading || !branchId} size="sm" variant="outline" onClick={() => { if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, page); }}>
+                            <Button className="h-8 px-2.5 text-xs" disabled={loading || !branchId} size="sm" variant="outline" onClick={() => { if (branchId) void loadData(Number(branchId), searchQ, page); }}>
                                 <RefreshCw className="mr-1.5 h-3 w-3" /> Refresh
                             </Button>
                         </div>
@@ -617,7 +654,7 @@ export const BatchJobSection = () => {
                                                 }}
                                                 onDelete={() => { setDeleteBatchNo(batch.batch_no); setDeleteJobCount(batch.job_count); }}
                                                 onAttachJob={(jobId, jobNo) => { setAttachJobId(jobId); setAttachJobNo(jobNo); }}
-                                                onDeleteJob={(jobId, jobNo) => { setDeleteJobId(jobId); setDeleteJobNo(jobNo); }}
+                                                onDeleteJob={(jobId, jobNo, _batchNo, jobCount) => { setDeleteJobId(jobId); setDeleteJobNo(jobNo); setDeleteJobCount(jobCount); }}
                                             />
                                         ))}
                                     </tbody>
@@ -627,7 +664,9 @@ export const BatchJobSection = () => {
 
                         {/* Pagination */}
                         <div className="flex items-center justify-between border-t border-[var(--cl-border)] px-4 py-2">
-                            <span className="text-xs text-[var(--cl-text-muted)]">Page {page} of {totalPages} · {total} batches</span>
+                            <span className="text-xs text-[var(--cl-text-muted)]">
+                                {total === 0 ? "No batches" : `Showing ${(page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, total)} of ${total} batch${total !== 1 ? "es" : ""} (Page ${page} of ${totalPages})`}
+                            </span>
                             <div className="flex items-center gap-1">
                                 <Button className="h-7 w-7" disabled={page <= 1 || loading} size="icon" variant="ghost" title="First"    onClick={() => setPage(1)}><ChevronsLeftIcon  className="h-4 w-4" /></Button>
                                 <Button className="h-7 w-7" disabled={page <= 1 || loading} size="icon" variant="ghost" title="Previous" onClick={() => setPage(p => p - 1)}><ChevronLeftIcon  className="h-4 w-4" /></Button>
@@ -658,12 +697,19 @@ export const BatchJobSection = () => {
                     <Dialog open={deleteJobId !== null} onOpenChange={open => { if (!open) setDeleteJobId(null); }}>
                         <DialogContent aria-describedby={undefined} className="sm:max-w-sm bg-white dark:bg-zinc-950 text-[var(--cl-text)]">
                             <DialogHeader><DialogTitle>Delete Job #{deleteJobNo}</DialogTitle></DialogHeader>
-                            <p className="text-sm text-[var(--cl-text-muted)]">
-                                This will permanently delete this job. This action cannot be undone.
-                            </p>
+                            {deleteJobCount <= 2 ? (
+                                <p className="text-sm text-red-500">
+                                    Cannot delete this job. A batch must have at least 2 jobs. This batch currently has {deleteJobCount} job{deleteJobCount !== 1 ? "s" : ""}.
+                                </p>
+                            ) : (
+                                <p className="text-sm text-[var(--cl-text-muted)]">
+                                    This will permanently delete this job. This action cannot be undone.
+                                </p>
+                            )}
                             <DialogFooter>
-                                <Button variant="outline" onClick={() => setDeleteJobId(null)}>Cancel</Button>
-                                <Button variant="destructive" onClick={() => void handleDeleteSingleJob()}>
+                                <Button variant="outline" disabled={deleting} onClick={() => setDeleteJobId(null)}>Cancel</Button>
+                                <Button variant="destructive" disabled={deleting || deleteJobCount <= 2} onClick={() => void handleDeleteSingleJob()}>
+                                    {deleting && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}
                                     Delete
                                 </Button>
                             </DialogFooter>
@@ -707,24 +753,13 @@ export const BatchJobSection = () => {
                 </DialogContent>
             </Dialog>
 
-            {/* PDF Preview Modal */}
-            <PdfPreviewModal
-                isOpen={showPdfModal}
-                pdfUrl={pdfPreviewUrl}
-                title={`Job Sheet`}
-                filename={pdfFilename}
-                onClose={() => {
-                    setShowPdfModal(false);
-                    setPdfPreviewUrl(null);
-                }}
-            />
-            </>
+        </>
         )}
 
         {/* Attach Files Dialog */}
         <Dialog
             open={attachJobId !== null}
-            onOpenChange={open => { if (!open) { setAttachJobId(null); setAttachJobNo(""); setAttachRowIdx(null); } }}
+            onOpenChange={open => { if (!open) { setAttachJobId(null); setAttachJobNo(""); setAttachRowIdx(null); setRefreshTrigger(k => k + 1); } }}
         >
             <DialogContent
                 aria-describedby={undefined}
@@ -741,11 +776,15 @@ export const BatchJobSection = () => {
                     {attachJobId !== null && (
                         <JobImageUpload
                             jobId={attachJobId}
+                            jobNo={attachJobNo}
                             onFileCountChange={(count: number) => {
                                 if (attachRowIdx !== null) {
                                     form.setValue(`rows.${attachRowIdx}.file_count`, count);
                                 }
-                                if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, page);
+                                // Update jobs array directly for immediate view-mode grid refresh
+                                setJobs(prev => prev.map(j => j.id === attachJobId ? { ...j, file_count: count } : j));
+                                setRefreshTrigger(k => k + 1);
+                                if (branchId) void loadData(Number(branchId), searchQ, page);
                             }}
                         />
                     )}
@@ -769,6 +808,23 @@ export const BatchJobSection = () => {
             onPrintBatch={(detailJobs) => {
                 handlePrintBatch(detailJobs);
             }}
+            onFileCountChange={(jobId, count) => {
+                setViewJobs(prev => prev.map(j => j.id === jobId ? { ...j, file_count: count } : j));
+                setRefreshTrigger(k => k + 1);
+                if (branchId) void loadData(Number(branchId), searchQ, page);
+            }}
+        />
+
+        {/* PDF Preview Modal */}
+        <PdfPreviewModal
+            isOpen={showPdfModal}
+            pdfUrl={pdfPreviewUrl}
+            title={`Job Sheet`}
+            filename={pdfFilename}
+            onClose={() => {
+                setShowPdfModal(false);
+                setPdfPreviewUrl(null);
+            }}
         />
     </motion.div>
     );
@@ -785,10 +841,10 @@ type BatchGroupRowProps = {
     onPrint: () => void;
     onDelete: () => void;
     onAttachJob: (jobId: number, jobNo: string) => void;
-    onDeleteJob: (jobId: number, jobNo: string) => void;
+    onDeleteJob: (jobId: number, jobNo: string, batchNo: number, jobCount: number) => void;
 };
 
-function BatchGroupRow({ batch, groupIdx, page, onEdit, onView, onPrint, onDelete, onAttachJob, onDeleteJob }: BatchGroupRowProps) {
+function BatchGroupRow({ batch, onEdit, onView, onPrint, onDelete, onAttachJob, onDeleteJob }: BatchGroupRowProps) {
     return (
         <>
             {/* Batch Header Row */}
@@ -840,7 +896,7 @@ function BatchGroupRow({ batch, groupIdx, page, onEdit, onView, onPrint, onDelet
             {batch.jobs.map((job, jobIdx) => (
                 <tr key={job.id} className="group transition-colors hover:bg-[var(--cl-accent)]/5">
                     <td className={`${tdClass} text-[var(--cl-text-muted)] text-xs`}>
-                        {(page - 1) * PAGE_SIZE + groupIdx + 1}.{jobIdx + 1}
+                        {batch.batch_no}.{jobIdx + 1}
                     </td>
                     <td className={`${tdClass} whitespace-nowrap text-xs`}>{job.job_date}</td>
                     <td className={tdClass}>
@@ -851,12 +907,16 @@ function BatchGroupRow({ batch, groupIdx, page, onEdit, onView, onPrint, onDelet
                                     <span className="ml-1.5 text-[9px] font-bold text-emerald-600 bg-emerald-100 dark:bg-emerald-950/40 rounded px-1 py-0.5">CLOSED</span>
                                 )}
                             </div>
-                            {job.file_count > 0 && (
-                                <span className="flex items-center gap-1 text-[10px] text-blue-600 dark:text-blue-400 font-medium w-fit bg-blue-50 dark:bg-blue-950/40 rounded px-1.5 py-0.5">
+                            {job.file_count != null && job.file_count >= 0 ? (
+                                <button
+                                    type="button"
+                                    className="flex items-center gap-1 text-[10px] text-blue-600 dark:text-blue-400 font-medium hover:text-blue-700 dark:hover:text-blue-300 w-fit bg-blue-50 dark:bg-blue-950/40 rounded px-1.5 py-0.5 transition-colors cursor-pointer"
+                                    onClick={() => onAttachJob(job.id, job.job_no)}
+                                >
                                     <Paperclip className="h-2.5 w-2.5" />
                                     <span>{job.file_count} File{job.file_count !== 1 ? "s" : ""}</span>
-                                </span>
-                            )}
+                                </button>
+                            ) : null}
                         </div>
                     </td>
                     <td className={`${tdClass} text-xs`}>{job.customer_name ?? "—"}</td>
@@ -877,9 +937,11 @@ function BatchGroupRow({ batch, groupIdx, page, onEdit, onView, onPrint, onDelet
                             <Button className="h-7 w-7 p-0 text-violet-500 hover:bg-violet-500/10" variant="ghost" title="Attach Files" onClick={() => onAttachJob(job.id, job.job_no)}>
                                 <Paperclip className="h-3.5 w-3.5" />
                             </Button>
-                            <Button className="h-7 w-7 p-0 text-red-500 hover:bg-red-500/10" variant="ghost" title="Delete Job" onClick={() => onDeleteJob(job.id, job.job_no)}>
-                                <Trash2 className="h-3.5 w-3.5" />
-                            </Button>
+                            {batch.job_count > 2 && (
+                                <Button className="h-7 w-7 p-0 text-red-500 hover:bg-red-500/10" variant="ghost" title="Delete Job" onClick={() => onDeleteJob(job.id, job.job_no, batch.batch_no, batch.job_count)}>
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                            )}
                         </div>
                     </td>
                 </tr>

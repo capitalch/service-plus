@@ -61,7 +61,7 @@ function currentMonthRange() {
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const PAGE_SIZE   = 50;
-const DEBOUNCE_MS = 1200;
+const DEBOUNCE_MS = 1600;
 
 const thClass = "sticky top-0 z-20 text-xs font-semibold uppercase tracking-wide text-[var(--cl-text-muted)] p-3 text-left border-b border-[var(--cl-border)] bg-[var(--cl-surface-2)]";
 const tdClass = "p-3 text-sm text-[var(--cl-text)] border-b border-[var(--cl-border)]";
@@ -389,7 +389,7 @@ export const PartUsedSection = () => {
                         </div>
                         <div className="relative flex-1 sm:max-w-xs">
                             <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--cl-text-muted)]" />
-                            <Input className="h-8 border-[var(--cl-border)] bg-[var(--cl-surface)] pl-8 text-xs" disabled={loading} placeholder="Job no, part code or part name…" value={search} onChange={e => handleSearchChange(e.target.value)} />
+                            <Input className="h-8 border-[var(--cl-border)] bg-[var(--cl-surface)] pl-8 text-xs" placeholder="Job no, part code or part name…" value={search} onChange={e => handleSearchChange(e.target.value)} />
                             {search && (
                                 <button
                                     className="absolute right-2.5 top-1/2 flex h-4 w-4 -translate-y-1/2 items-center justify-center rounded-full bg-[var(--cl-text-muted)] text-[var(--cl-surface)] hover:bg-[var(--cl-text)] focus:outline-none"
@@ -464,7 +464,9 @@ export const PartUsedSection = () => {
 
                         {/* Pagination */}
                         <div className="flex items-center justify-between border-t border-[var(--cl-border)] px-4 py-2">
-                            <span className="text-xs text-[var(--cl-text-muted)]">Page {page} of {totalPages} · {total} records</span>
+                            <span className="text-xs text-[var(--cl-text-muted)]">
+                                {total === 0 ? "No parts used" : `Showing ${(page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, total)} of ${total} parts used (Page ${page} of ${totalPages})`}
+                            </span>
                             <div className="flex items-center gap-1">
                                 <Button className="h-7 w-7" disabled={page <= 1 || loading} size="icon" variant="ghost" title="First"    onClick={() => setPage(1)}><ChevronsLeftIcon  className="h-4 w-4" /></Button>
                                 <Button className="h-7 w-7" disabled={page <= 1 || loading} size="icon" variant="ghost" title="Previous" onClick={() => setPage(p => p - 1)}><ChevronLeftIcon  className="h-4 w-4" /></Button>

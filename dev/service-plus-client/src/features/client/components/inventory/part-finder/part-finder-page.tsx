@@ -32,7 +32,7 @@ import { PartFinderTable } from "./part-finder-table";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const DEBOUNCE_MS = 1200;
+const DEBOUNCE_MS = 1600;
 const PAGE_SIZE   = 50;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -252,7 +252,6 @@ export const PartFinderPage = () => {
                     <input
                         ref={searchInputRef}
                         className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-[var(--cl-text-muted)] disabled:cursor-not-allowed disabled:opacity-50"
-                        disabled={loading}
                         placeholder="Search code, name, description, category, model…"
                         value={search}
                         onChange={e => setSearch(e.target.value)}
@@ -396,7 +395,7 @@ export const PartFinderPage = () => {
                         {totalPages > 1 && (
                             <div className="flex items-center justify-between border-t border-[var(--cl-border)] pt-3">
                                 <p className="text-xs text-[var(--cl-text-muted)]">
-                                    Page {page} of {totalPages} · {total} parts
+                                    {total === 0 ? "No parts" : `Showing ${(page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, total)} of ${total} parts (Page ${page} of ${totalPages})`}
                                 </p>
                                 <div className="flex items-center gap-1">
                                     <Button

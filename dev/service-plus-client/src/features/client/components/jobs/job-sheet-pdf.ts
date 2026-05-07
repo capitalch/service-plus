@@ -16,7 +16,7 @@ export type CompanyInfoType = {
     pincode:        string | null;
 };
 
-function buildSingleJobSheetDoc(job: JobDetailType, companyInfo: CompanyInfoType | null): jsPDF {
+function buildSingleJobSheetDoc(job: JobDetailType, companyInfo: CompanyInfoType | null, branchCode?: string): jsPDF {
     // Standard A4 page; content fits within top 148.5 mm (half-A4 stationery)
     const doc       = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
@@ -69,7 +69,7 @@ function buildSingleJobSheetDoc(job: JobDetailType, companyInfo: CompanyInfoType
     autoTable(doc, {
         body: [
             ["Job No:",   job.job_no,                  "Date:",          job.job_date],
-            ["Branch:",   job.branch_code ?? "—",       "Customer:",      job.customer_name ?? "—"],
+            ["Branch:",   branchCode ?? "—",            "Customer:",      job.customer_name ?? "—"],
             [
                 { content: "Mobile:", styles: { fontStyle: "bold" } },
                 { content: job.mobile, colSpan: 3 },
@@ -82,7 +82,7 @@ function buildSingleJobSheetDoc(job: JobDetailType, companyInfo: CompanyInfoType
             ["Model:",    job.model_name    ?? "—",      "Serial No:",     job.serial_no  ?? "—"],
             [{ content: "Qty:", styles: { fontStyle: "bold" } }, { content: String(job.quantity), colSpan: 3 }],
             ["Job Type:", job.job_type_name,             "Warranty Card:", job.warranty_card_no ?? "—"],
-            ["Manner:",   job.job_receive_manner_name,   "Condition:",     job.job_receive_condition_name ?? "—"],
+            ["Receive Manner:",   job.job_receive_manner_name,   "Condition:",     job.job_receive_condition_name ?? "—"],
         ],
         columnStyles: { 0: { cellWidth: 35, fontStyle: "bold" }, 2: { cellWidth: 35, fontStyle: "bold" } },
         margin:       { left: 15, right: 15 },
@@ -128,8 +128,8 @@ export function downloadJobSheet(job: JobDetailType, companyInfo: CompanyInfoTyp
     buildSingleJobSheetDoc(job, companyInfo).save(`JobSheet_${job.job_no}.pdf`);
 }
 
-export function getJobSheetBlobUrl(job: JobDetailType, companyInfo: CompanyInfoType | null): string {
-    const doc = buildSingleJobSheetDoc(job, companyInfo);
+export function getJobSheetBlobUrl(job: JobDetailType, companyInfo: CompanyInfoType | null, branchCode?: string): string {
+    const doc = buildSingleJobSheetDoc(job, companyInfo, branchCode);
     return String(doc.output("bloburl"));
 }
 
@@ -140,16 +140,17 @@ export function openJobSheetInTab(job: JobDetailType, companyInfo: CompanyInfoTy
 
 // ── Batch Job Sheet ───────────────────────────────────────────────────────────
 
-function buildBatchJobSheetDoc(jobs: JobDetailType[], companyInfo: CompanyInfoType | null): jsPDF {
+function buildBatchJobSheetDoc(jobs: JobDetailType[], companyInfo: CompanyInfoType | null, branchCode?: string): jsPDF {
     const doc       = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
 
-    const batchNo   = jobs[0]?.batch_no ?? 0;
+    const batchNo   = (jobs[0] as JobDetailType & { batch_no?: number })?.batch_no ?? 0;
     const batchDate = jobs[0]?.job_date  ?? "";
     const customer  = jobs[0]?.customer_name ?? "—";
     const mobile    = jobs[0]?.mobile ?? "—";
     const address   = jobs[0]?.address_snapshot ?? "—";
     const manner    = jobs[0]?.job_receive_manner_name ?? "—";
+    const branch    = branchCode ?? "—";
 
     doc.setProperties({
         title:    `Batch-Job-Sheet_${batchNo}`,
@@ -170,8 +171,12 @@ function buildBatchJobSheetDoc(jobs: JobDetailType[], companyInfo: CompanyInfoTy
     if (companyInfo) {
         const line1 = [companyInfo.address_line1, companyInfo.address_line2, companyInfo.city, companyInfo.pincode].filter(Boolean).join(", ");
         const line2 = [companyInfo.phone && `Ph: ${companyInfo.phone}`, companyInfo.email && `Email: ${companyInfo.email}`, companyInfo.gstin && `GSTIN: ${companyInfo.gstin}`].filter(Boolean).join(" | ");
-        doc.text([line1, line2].filter(Boolean).join(" | "), pageWidth / 2, y, { align: "center" });
-        y += 5;
+        doc.text(line1, pageWidth / 2, y, { align: "center" });
+        y += 3.5;
+        if (line2) {
+            doc.text(line2, pageWidth / 2, y, { align: "center" });
+            y += 3.5;
+        }
     }
 
     // ── Title + Batch Info ─────────────────────────────────────────────────
@@ -183,9 +188,9 @@ function buildBatchJobSheetDoc(jobs: JobDetailType[], companyInfo: CompanyInfoTy
     autoTable(doc, {
         body: [
             ["Batch No:", `#${batchNo}`,  "Date:",     batchDate],
-            ["Customer:", customer,        "Mobile:",   mobile],
-            ["Address:",  address,          "Manner:",   manner],
-            ["Jobs:",     String(jobs.length)],
+            ["Branch:",   branch,          "Customer:", customer],
+            ["Mobile:",   mobile,          "Receive Manner:", manner],
+            ["Address:",  address,          "Jobs:",     String(jobs.length)],
         ],
         columnStyles: { 0: { cellWidth: 28, fontStyle: "bold" }, 2: { cellWidth: 28, fontStyle: "bold" } },
         margin:       { left: 15, right: 15 },
@@ -199,7 +204,7 @@ function buildBatchJobSheetDoc(jobs: JobDetailType[], companyInfo: CompanyInfoTy
     // ── Jobs Table ─────────────────────────────────────────────────────────
     const head = [["#", "Job No", "Date", "Product / Brand / Model", "Job Type", "Qty", "Condition", "Serial No"]];
 
-    const body: (string | number | { content: string; colSpan: number; styles: Record<string, unknown> })[] = [];
+    const body: (string | number | { content: string; colSpan: number; styles: Record<string, unknown> })[][] = [];
     for (let i = 0; i < jobs.length; i++) {
         const job = jobs[i]!;
         body.push([
@@ -248,7 +253,7 @@ function buildBatchJobSheetDoc(jobs: JobDetailType[], companyInfo: CompanyInfoTy
     // ── Signatures (placed after table, on same page or last page) ───────
     const finalY   = (doc as any).lastAutoTable.finalY ?? y;
     const pageHeight = doc.internal.pageSize.getHeight();
-    const sigY = Math.min(finalY + 10, pageHeight - 10);
+    const sigY = Math.min(finalY + 20, pageHeight - 10);
 
     doc.setFontSize(7.5);
     doc.setDrawColor(180);
@@ -260,7 +265,7 @@ function buildBatchJobSheetDoc(jobs: JobDetailType[], companyInfo: CompanyInfoTy
     return doc;
 }
 
-export function getBatchJobSheetBlobUrl(jobs: JobDetailType[], companyInfo: CompanyInfoType | null): string {
-    const doc = buildBatchJobSheetDoc(jobs, companyInfo);
+export function getBatchJobSheetBlobUrl(jobs: JobDetailType[], companyInfo: CompanyInfoType | null, branchCode?: string): string {
+    const doc = buildBatchJobSheetDoc(jobs, companyInfo, branchCode);
     return String(doc.output("bloburl"));
 }

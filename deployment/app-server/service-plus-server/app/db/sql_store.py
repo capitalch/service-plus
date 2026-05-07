@@ -691,9 +691,11 @@ class SqlStore:
         ORDER BY dt.id
     """
 
+    CLAIM_NEXT_BATCH_NUMBER = "SELECT nextval('job_batch_no_seq') AS batch_no"
+
     CLAIM_NEXT_JOB_NUMBER = """
-        UPDATE document_sequence 
-        SET next_number = next_number + 1 
+        UPDATE document_sequence
+        SET next_number = next_number + 1
         WHERE document_type_id = (SELECT id FROM document_type WHERE code = 'JOB_SHEET')
           AND branch_id = %(branch_id)s
         RETURNING prefix, (next_number - 1) AS assigned_number, padding, separator;
@@ -3018,13 +3020,16 @@ class SqlStore:
             TRIM(CONCAT_WS(' ', p.name, b.name, pbm.model_name, j.serial_no)) AS device_details,
             jt.name       AS job_type_name,
             js.name       AS job_status_name,
+            jrc.name      AS receive_condition_name,
             t.name        AS technician_name,
+            j.batch_no    AS batch_no,
             (SELECT COUNT(*) FROM job_image_doc jid WHERE jid.job_id = j.id) AS file_count
         FROM job j
         JOIN customer_contact cc ON cc.id = j.customer_contact_id
         JOIN job_type          jt ON jt.id = j.job_type_id
         JOIN job_status        js ON js.id = j.job_status_id
         LEFT JOIN technician   t  ON t.id  = j.technician_id
+        LEFT JOIN job_receive_condition jrc ON jrc.id = j.job_receive_condition_id
         LEFT JOIN product_brand_model pbm ON pbm.id = j.product_brand_model_id
         LEFT JOIN brand            b   ON b.id   = pbm.brand_id
         LEFT JOIN product          p   ON p.id   = pbm.product_id
@@ -3046,15 +3051,12 @@ class SqlStore:
     GET_JOB_LIST_COUNT = """
         with
             "p_branch_id"   as (values(%(branch_id)s::bigint)),
-            "p_from_date"   as (values(%(from_date)s::date)),
-            "p_to_date"     as (values(%(to_date)s::date)),
             "p_search"      as (values(%(search)s::text)),
             "p_show_closed" as (values(%(show_closed)s::boolean))
         SELECT COUNT(*) AS total
         FROM job j
         JOIN customer_contact cc ON cc.id = j.customer_contact_id
         WHERE j.branch_id = (table "p_branch_id")
-          AND j.job_date BETWEEN (table "p_from_date") AND (table "p_to_date")
           AND ((table "p_show_closed") IS NULL OR j.is_closed = (table "p_show_closed"))
           AND ((table "p_search") = ''
            OR LOWER(j.job_no)     LIKE '%%' || LOWER((table "p_search")) || '%%'
@@ -3065,8 +3067,6 @@ class SqlStore:
     GET_JOB_LIST_PAGED = """
         with
             "p_branch_id"   as (values(%(branch_id)s::bigint)),
-            "p_from_date"   as (values(%(from_date)s::date)),
-            "p_to_date"     as (values(%(to_date)s::date)),
             "p_search"      as (values(%(search)s::text)),
             "p_show_closed" as (values(%(show_closed)s::boolean)),
             "p_limit"       as (values(%(limit)s::int)),
@@ -3089,7 +3089,6 @@ class SqlStore:
         JOIN job_status        js ON js.id = j.job_status_id
         LEFT JOIN technician   t  ON t.id  = j.technician_id
         WHERE j.branch_id = (table "p_branch_id")
-          AND j.job_date BETWEEN (table "p_from_date") AND (table "p_to_date")
           AND ((table "p_show_closed") IS NULL OR j.is_closed = (table "p_show_closed"))
           AND ((table "p_search") = ''
            OR LOWER(j.job_no)     LIKE '%%' || LOWER((table "p_search")) || '%%'
@@ -3106,13 +3105,14 @@ class SqlStore:
             j.*,
             cc.full_name  AS customer_name,
             cc.mobile,
+            CONCAT_WS(', ', NULLIF(cc.address_line1, ''), NULLIF(cc.address_line2, ''), NULLIF(cc.city, ''), NULLIF(cc.postal_code, '')) AS address_snapshot,
             jt.name       AS job_type_name,
             js.name       AS job_status_name,
             jrm.name      AS job_receive_manner_name,
             jrc.name      AS job_receive_condition_name,
             t.name        AS technician_name,
             pbm.model_name,
-            b.name        AS brand_name,
+            bn.name        AS brand_name,
             p.name        AS product_name,
             (SELECT COUNT(*) FROM job_image_doc jid WHERE jid.job_id = j.id) AS file_count
         FROM job j
@@ -3123,7 +3123,7 @@ class SqlStore:
         LEFT JOIN job_receive_condition jrc ON jrc.id = j.job_receive_condition_id
         LEFT JOIN technician       t   ON t.id   = j.technician_id
         LEFT JOIN product_brand_model pbm ON pbm.id = j.product_brand_model_id
-        LEFT JOIN brand            b   ON b.id   = pbm.brand_id
+        LEFT JOIN brand            bn  ON bn.id   = pbm.brand_id
         LEFT JOIN product          p   ON p.id   = pbm.product_id
         WHERE j.id = (table "p_id")
     """
@@ -3171,11 +3171,11 @@ class SqlStore:
             "p_offset"     as (values(%(offset)s::int))
         SELECT
             j.batch_no,
-            MIN(j.job_date)   AS batch_date,
-            cc.full_name      AS customer_name,
+            MIN(j.job_date)                                         AS batch_date,
+            cc.full_name                                            AS customer_name,
             cc.mobile,
-            jt.name           AS job_type_name,
-            COUNT(j.id)       AS job_count
+            STRING_AGG(DISTINCT jt.name, ', ' ORDER BY jt.name)    AS job_type_name,
+            COUNT(j.id)                                             AS job_count
         FROM job j
         JOIN customer_contact  cc ON cc.id = j.customer_contact_id
         JOIN job_type          jt ON jt.id = j.job_type_id
@@ -3186,7 +3186,7 @@ class SqlStore:
            OR  LOWER(cc.full_name) LIKE '%%' || LOWER((table "p_search")) || '%%'
            OR  LOWER(cc.mobile)    LIKE '%%' || LOWER((table "p_search")) || '%%'
            OR  CAST(j.batch_no AS text) LIKE '%%' || (table "p_search") || '%%')
-        GROUP BY j.batch_no, cc.full_name, cc.mobile, jt.name
+        GROUP BY j.batch_no, cc.full_name, cc.mobile
         ORDER BY j.batch_no DESC
         LIMIT  (table "p_limit")
         OFFSET (table "p_offset")
@@ -3210,18 +3210,80 @@ class SqlStore:
            OR  CAST(j.batch_no AS text) LIKE '%%' || (table "p_search") || '%%')
     """
 
+    GET_JOB_BATCHES_WITH_JOBS_PAGED = """
+        with
+            "p_branch_id" as (values(%(branch_id)s::bigint)),
+            "p_search"     as (values(%(search)s::text)),
+            "p_limit"      as (values(%(limit)s::int)),
+            "p_offset"     as (values(%(offset)s::int)),
+            "paged_batches" as (
+                SELECT DISTINCT j.batch_no
+                FROM job j
+                WHERE j.batch_no IS NOT NULL
+                  AND j.branch_id = (table "p_branch_id")
+                  AND ((table "p_search") = ''
+                   OR  LOWER((SELECT cc.full_name FROM customer_contact cc WHERE cc.id = j.customer_contact_id)) LIKE '%%' || LOWER((table "p_search")) || '%%'
+                   OR  LOWER((SELECT cc.mobile FROM customer_contact cc WHERE cc.id = j.customer_contact_id)) LIKE '%%' || LOWER((table "p_search")) || '%%'
+                   OR  CAST(j.batch_no AS text) LIKE '%%' || (table "p_search") || '%%')
+                ORDER BY j.batch_no DESC
+                LIMIT  (table "p_limit")
+                OFFSET (table "p_offset")
+            )
+        SELECT
+            j.batch_no,
+            j.id,
+            j.job_no,
+            j.job_date,
+            j.is_closed,
+            j.amount,
+            j.serial_no,
+            cc.full_name                                    AS customer_name,
+            cc.mobile,
+            TRIM(CONCAT_WS(' ', p.name, b.name, pbm.model_name, j.serial_no)) AS device_details,
+            jt.name                                         AS job_type_name,
+            js.name                                         AS job_status_name,
+            t.name                                          AS technician_name,
+            (SELECT COUNT(*) FROM job_image_doc jid WHERE jid.job_id = j.id) AS file_count
+        FROM job j
+        JOIN paged_batches           pb  ON pb.batch_no = j.batch_no
+        JOIN customer_contact        cc  ON cc.id       = j.customer_contact_id
+        JOIN job_type                jt  ON jt.id       = j.job_type_id
+        LEFT JOIN job_status         js  ON js.id       = j.job_status_id
+        LEFT JOIN technician         t   ON t.id        = j.technician_id
+        LEFT JOIN product_brand_model pbm ON pbm.id     = j.product_brand_model_id
+        LEFT JOIN brand              b   ON b.id        = pbm.brand_id
+        LEFT JOIN product            p   ON p.id        = pbm.product_id
+        ORDER BY j.batch_no DESC, j.id DESC
+    """
+
+    GET_JOB_BATCHES_WITH_JOBS_COUNT = """
+        with
+            "p_branch_id" as (values(%(branch_id)s::bigint)),
+            "p_search"     as (values(%(search)s::text))
+        SELECT COUNT(DISTINCT j.batch_no) AS total
+        FROM job j
+        WHERE j.batch_no IS NOT NULL
+          AND j.branch_id = (table "p_branch_id")
+          AND ((table "p_search") = ''
+           OR  LOWER((SELECT cc.full_name FROM customer_contact cc WHERE cc.id = j.customer_contact_id)) LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER((SELECT cc.mobile FROM customer_contact cc WHERE cc.id = j.customer_contact_id)) LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  CAST(j.batch_no AS text) LIKE '%%' || (table "p_search") || '%%')
+    """
+
     GET_JOB_BATCH_DETAIL = """
         with "p_batch_no" as (values(%(batch_no)s::integer))
         SELECT
             j.*,
             cc.full_name  AS customer_name,
             cc.mobile,
+            CONCAT_WS(', ', NULLIF(cc.address_line1, ''), NULLIF(cc.address_line2, ''), NULLIF(cc.city, ''), NULLIF(cc.postal_code, '')) AS address_snapshot,
             jt.name       AS job_type_name,
-            jrm.name      AS receive_manner_name,
+            jrm.name      AS job_receive_manner_name,
             pbm.model_name,
             b.name        AS brand_name,
             p.name        AS product_name,
-            (SELECT COUNT(*) FROM job_transaction jtr WHERE jtr.job_id = j.id) AS transaction_count
+            (SELECT COUNT(*) FROM job_transaction jtr WHERE jtr.job_id = j.id) AS transaction_count,
+            (SELECT COUNT(*) FROM job_image_doc  jd  WHERE jd.job_id  = j.id) AS file_count
         FROM job j
         JOIN customer_contact      cc  ON cc.id  = j.customer_contact_id
         JOIN job_type              jt  ON jt.id  = j.job_type_id
@@ -3231,6 +3293,49 @@ class SqlStore:
         LEFT JOIN product          p   ON p.id   = pbm.product_id
         WHERE j.batch_no = (table "p_batch_no")
         ORDER BY j.id
+    """
+
+    GET_JOB_BATCH_QUICK_INFO = """
+        with
+            "p_branch_id" as (values(%(branch_id)s::bigint)),
+            "p_offset"    as (values(%(offset)s::int)),
+            "target_batch" as (
+                SELECT DISTINCT j.batch_no
+                FROM job j
+                WHERE j.batch_no IS NOT NULL
+                  AND j.branch_id = (table "p_branch_id")
+                ORDER BY j.batch_no DESC
+                LIMIT 1 OFFSET (table "p_offset")
+            )
+        SELECT
+            j.batch_no,
+            MIN(j.job_date) OVER (PARTITION BY j.batch_no) AS batch_date,
+            cc.full_name                                    AS customer_name,
+            cc.mobile,
+            jt.name                                         AS job_type_name,
+            j.id                                            AS job_id,
+            j.job_no,
+            CASE WHEN pbm.id IS NOT NULL
+                 THEN CONCAT(b.name, ' — ', p.name, ' — ', pbm.model_name)
+                 ELSE NULL END                              AS device_details,
+            j.serial_no,
+            (SELECT COUNT(*) FROM job_image_doc jid WHERE jid.job_id = j.id) AS file_count
+        FROM job j
+        JOIN customer_contact      cc  ON cc.id  = j.customer_contact_id
+        JOIN job_type              jt  ON jt.id  = j.job_type_id
+        LEFT JOIN product_brand_model pbm ON pbm.id = j.product_brand_model_id
+        LEFT JOIN brand            b   ON b.id   = pbm.brand_id
+        LEFT JOIN product          p   ON p.id   = pbm.product_id
+        WHERE j.batch_no = (SELECT batch_no FROM target_batch)
+        ORDER BY j.id
+    """
+
+    GET_JOB_BATCH_QUICK_INFO_COUNT = """
+        with "p_branch_id" as (values(%(branch_id)s::bigint))
+        SELECT COUNT(DISTINCT batch_no) AS total
+        FROM job
+        WHERE batch_no IS NOT NULL
+          AND branch_id = (table "p_branch_id")
     """
 
     # ── Part Used (Job) ───────────────────────────────────────────────────────

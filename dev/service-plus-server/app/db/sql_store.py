@@ -3022,6 +3022,7 @@ class SqlStore:
             js.name       AS job_status_name,
             jrc.name      AS receive_condition_name,
             t.name        AS technician_name,
+            j.batch_no    AS batch_no,
             (SELECT COUNT(*) FROM job_image_doc jid WHERE jid.job_id = j.id) AS file_count
         FROM job j
         JOIN customer_contact cc ON cc.id = j.customer_contact_id
@@ -3050,15 +3051,12 @@ class SqlStore:
     GET_JOB_LIST_COUNT = """
         with
             "p_branch_id"   as (values(%(branch_id)s::bigint)),
-            "p_from_date"   as (values(%(from_date)s::date)),
-            "p_to_date"     as (values(%(to_date)s::date)),
             "p_search"      as (values(%(search)s::text)),
             "p_show_closed" as (values(%(show_closed)s::boolean))
         SELECT COUNT(*) AS total
         FROM job j
         JOIN customer_contact cc ON cc.id = j.customer_contact_id
         WHERE j.branch_id = (table "p_branch_id")
-          AND j.job_date BETWEEN (table "p_from_date") AND (table "p_to_date")
           AND ((table "p_show_closed") IS NULL OR j.is_closed = (table "p_show_closed"))
           AND ((table "p_search") = ''
            OR LOWER(j.job_no)     LIKE '%%' || LOWER((table "p_search")) || '%%'
@@ -3069,8 +3067,6 @@ class SqlStore:
     GET_JOB_LIST_PAGED = """
         with
             "p_branch_id"   as (values(%(branch_id)s::bigint)),
-            "p_from_date"   as (values(%(from_date)s::date)),
-            "p_to_date"     as (values(%(to_date)s::date)),
             "p_search"      as (values(%(search)s::text)),
             "p_show_closed" as (values(%(show_closed)s::boolean)),
             "p_limit"       as (values(%(limit)s::int)),
@@ -3093,7 +3089,6 @@ class SqlStore:
         JOIN job_status        js ON js.id = j.job_status_id
         LEFT JOIN technician   t  ON t.id  = j.technician_id
         WHERE j.branch_id = (table "p_branch_id")
-          AND j.job_date BETWEEN (table "p_from_date") AND (table "p_to_date")
           AND ((table "p_show_closed") IS NULL OR j.is_closed = (table "p_show_closed"))
           AND ((table "p_search") = ''
            OR LOWER(j.job_no)     LIKE '%%' || LOWER((table "p_search")) || '%%'
@@ -3110,13 +3105,14 @@ class SqlStore:
             j.*,
             cc.full_name  AS customer_name,
             cc.mobile,
+            CONCAT_WS(', ', NULLIF(cc.address_line1, ''), NULLIF(cc.address_line2, ''), NULLIF(cc.city, ''), NULLIF(cc.postal_code, '')) AS address_snapshot,
             jt.name       AS job_type_name,
             js.name       AS job_status_name,
             jrm.name      AS job_receive_manner_name,
             jrc.name      AS job_receive_condition_name,
             t.name        AS technician_name,
             pbm.model_name,
-            b.name        AS brand_name,
+            bn.name        AS brand_name,
             p.name        AS product_name,
             (SELECT COUNT(*) FROM job_image_doc jid WHERE jid.job_id = j.id) AS file_count
         FROM job j
@@ -3127,7 +3123,7 @@ class SqlStore:
         LEFT JOIN job_receive_condition jrc ON jrc.id = j.job_receive_condition_id
         LEFT JOIN technician       t   ON t.id   = j.technician_id
         LEFT JOIN product_brand_model pbm ON pbm.id = j.product_brand_model_id
-        LEFT JOIN brand            b   ON b.id   = pbm.brand_id
+        LEFT JOIN brand            bn  ON bn.id   = pbm.brand_id
         LEFT JOIN product          p   ON p.id   = pbm.product_id
         WHERE j.id = (table "p_id")
     """
@@ -3217,8 +3213,6 @@ class SqlStore:
     GET_JOB_BATCHES_WITH_JOBS_PAGED = """
         with
             "p_branch_id" as (values(%(branch_id)s::bigint)),
-            "p_from_date"  as (values(%(from_date)s::date)),
-            "p_to_date"    as (values(%(to_date)s::date)),
             "p_search"     as (values(%(search)s::text)),
             "p_limit"      as (values(%(limit)s::int)),
             "p_offset"     as (values(%(offset)s::int)),
@@ -3227,7 +3221,6 @@ class SqlStore:
                 FROM job j
                 WHERE j.batch_no IS NOT NULL
                   AND j.branch_id = (table "p_branch_id")
-                  AND j.job_date BETWEEN (table "p_from_date") AND (table "p_to_date")
                   AND ((table "p_search") = ''
                    OR  LOWER((SELECT cc.full_name FROM customer_contact cc WHERE cc.id = j.customer_contact_id)) LIKE '%%' || LOWER((table "p_search")) || '%%'
                    OR  LOWER((SELECT cc.mobile FROM customer_contact cc WHERE cc.id = j.customer_contact_id)) LIKE '%%' || LOWER((table "p_search")) || '%%'
@@ -3266,14 +3259,11 @@ class SqlStore:
     GET_JOB_BATCHES_WITH_JOBS_COUNT = """
         with
             "p_branch_id" as (values(%(branch_id)s::bigint)),
-            "p_from_date"  as (values(%(from_date)s::date)),
-            "p_to_date"    as (values(%(to_date)s::date)),
             "p_search"     as (values(%(search)s::text))
         SELECT COUNT(DISTINCT j.batch_no) AS total
         FROM job j
         WHERE j.batch_no IS NOT NULL
           AND j.branch_id = (table "p_branch_id")
-          AND j.job_date BETWEEN (table "p_from_date") AND (table "p_to_date")
           AND ((table "p_search") = ''
            OR  LOWER((SELECT cc.full_name FROM customer_contact cc WHERE cc.id = j.customer_contact_id)) LIKE '%%' || LOWER((table "p_search")) || '%%'
            OR  LOWER((SELECT cc.mobile FROM customer_contact cc WHERE cc.id = j.customer_contact_id)) LIKE '%%' || LOWER((table "p_search")) || '%%'
@@ -3286,8 +3276,9 @@ class SqlStore:
             j.*,
             cc.full_name  AS customer_name,
             cc.mobile,
+            CONCAT_WS(', ', NULLIF(cc.address_line1, ''), NULLIF(cc.address_line2, ''), NULLIF(cc.city, ''), NULLIF(cc.postal_code, '')) AS address_snapshot,
             jt.name       AS job_type_name,
-            jrm.name      AS receive_manner_name,
+            jrm.name      AS job_receive_manner_name,
             pbm.model_name,
             b.name        AS brand_name,
             p.name        AS product_name,
