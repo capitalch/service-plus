@@ -29,7 +29,8 @@
       "Read(//home/sushant/projects/service-plus/dev/service-plus-server/**)",
       "Bash(echo \"Exit: $?\")",
       "Bash(pip show *)",
-      "Bash(pip3 install *)"
+      "Bash(pip3 install *)",
+      "Bash(npm run *)"
     ]
   }
 }

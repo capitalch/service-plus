@@ -1,147 +1,162 @@
-# Plan: Cleanup & Fix File Upload Hierarchy
+# Plan: Update Job — Job-Type Column & Row Colour Coding
 
-## Context
-The file upload hierarchy implementation (`{BASE_DIR}/{client_code}/{bu_code}/{branch_code}/{job_no_snake}/{filename}`) was partially completed. The upload is broken with a 422 error, dead code was left behind, file serving is not proxied, and the deployment file server is missing its `config.py`. Backward compatibility is not required.
+## Overview
 
----
+Two targeted changes to the Update Job table:
 
-## Root Cause of 422
-
-Both servers use `files: list[UploadFile] | None = None` **without `File()`**. In FastAPI, when an endpoint mixes `Form()` fields with file uploads in a multipart request, the `File()` annotation is required for FastAPI to parse the upload part. Without it, `files` defaults to `None`, triggering the `"No files provided"` 422 guard.
+1. **Add "Type" column** — insert `job_type_name` as the third column (after Customer, before Mobile).
+2. **Row background colour by job type** — each row gets a light background colour determined by the job's `job_type_code`. The colour is constant regardless of job status.
 
 ---
 
-## Issues & Fixes
+## 1. Backend — `GET_UPDATE_JOBS_PAGED` in `sql_store.py`
 
-### 1. Fix 422 — Add `File()` annotation (BLOCKING)
+Add `jt.code AS job_type_code` to the SELECT list so the client receives the code needed to look up the colour.
 
-**`dev/service-plus-server/app/routers/image_router.py`** — line 5, 72:
 ```python
-# Add to import:
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
-
-# Change line 72:
-files: list[UploadFile] | None = File(None),
-```
-
-**`dev/service-plus-file-server/app/routers/files.py`** — line 8, 110:
-```python
-# Add to import:
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, Form, Header, status
-
-# Change files parameter:
-files: list[UploadFile] | None = File(None),
-```
-
----
-
-### 2. Remove Dead Code & Fix Filename Uniqueness
-
-In `dev/service-plus-file-server/app/routers/files.py`, the `_derive_stem()` function is called but its result (`stem`) is never used. Remove it and repurpose `epoch_ms` for filename uniqueness:
-
-**Remove:**
-```python
-def _derive_stem(about: str, epoch_ms: int) -> str:  # DELETE entire function
-    ...
-
-# In upload_files, DELETE these two lines:
-epoch_ms = int(time.time() * 1000)
-stem = _derive_stem(about, epoch_ms)
-```
-
-**Keep `epoch_ms`, use it in filename** (prevents overwrite when same filename uploaded twice):
-```python
-epoch_ms = int(time.time() * 1000)
-
-# For images (not compressed):
-filename = f"{file_stem_snake}_{epoch_ms}{_get_image_ext(file.filename, content_type)}"
-
-# For images (compressed to webp):
-filename = f"{file_stem_snake}_{epoch_ms}.webp"
-
-# For PDFs:
-filename = f"{file_stem_snake}_{epoch_ms}.pdf"
+GET_UPDATE_JOBS_PAGED = """
+    with
+        "p_branch_id" as (values(%(branch_id)s::bigint)),
+        "p_status_id" as (values(%(status_id)s::smallint)),
+        "p_limit"     as (values(%(limit)s::int)),
+        "p_offset"    as (values(%(offset)s::int))
+    SELECT
+        j.id,
+        j.job_no,
+        j.job_date,
+        j.job_status_id,
+        j.is_closed,
+        j.is_final,
+        j.amount,
+        j.estimate_amount,
+        j.diagnosis,
+        j.last_transaction_id,
+        j.batch_no,
+        cc.full_name   AS customer_name,
+        cc.mobile,
+        jt.name        AS job_type_name,
+        jt.code        AS job_type_code,          -- ADD THIS
+        js.name        AS job_status_name,
+        js.code        AS job_status_code,
+        t.name         AS technician_name,
+        TRIM(CONCAT_WS(' ', p.name, b.name, pbm.model_name, j.serial_no)) AS device_details,
+        (SELECT COUNT(*) FROM job_image_doc jid WHERE jid.job_id = j.id) AS file_count
+    FROM job j
+    JOIN customer_contact      cc  ON cc.id  = j.customer_contact_id
+    JOIN job_type              jt  ON jt.id  = j.job_type_id
+    JOIN job_status            js  ON js.id  = j.job_status_id
+    LEFT JOIN technician       t   ON t.id   = j.technician_id
+    LEFT JOIN product_brand_model pbm ON pbm.id = j.product_brand_model_id
+    LEFT JOIN brand            b   ON b.id   = pbm.brand_id
+    LEFT JOIN product          p   ON p.id   = pbm.product_id
+    WHERE j.branch_id = (table "p_branch_id")
+      AND ((table "p_status_id") IS NULL OR j.job_status_id = (table "p_status_id"))
+    ORDER BY j.job_date DESC, j.id DESC
+    LIMIT  (table "p_limit")
+    OFFSET (table "p_offset")
+"""
 ```
 
 ---
 
-### 3. Fix File Serving — Add Proxy Route in Main Server
+## 2. Client — `update-job-section.tsx`
 
-The client constructs `${getApiBaseUrl()}/${file.url}` (e.g., `http://localhost:8000/uploads/…`) but the main server has no `/uploads/` route. Add a streaming proxy in **`image_router.py`** (under the existing `/api/images` prefix → full path: `/api/images/uploads/{path}`):
+### 2a. `OpenJobRow` type — add `job_type_code`
 
-```python
-from fastapi.responses import StreamingResponse
-
-@router.get("/uploads/{path:path}")
-async def serve_image_file(path: str) -> StreamingResponse:
-    """Proxy file serving from file server. No auth required — paths are unguessable."""
-    try:
-        response = await _file_client.get_file(f"uploads/{path}")
-        if response.status_code == 404:
-            raise HTTPException(status_code=404, detail="File not found")
-        response.raise_for_status()
-        content_type = response.headers.get("content-type", "application/octet-stream")
-        return StreamingResponse(iter([response.content]), media_type=content_type)
-    except Exception as e:
-        raise _file_server_error(e, "serve_file") from e
+```ts
+export type OpenJobRow = {
+    // … existing fields …
+    job_type_name:       string;
+    job_type_code:       string;   // ADD THIS
+    // … rest of fields …
+};
 ```
 
-No JWT `Depends` on this route — `<img>` and `<a>` tags in the browser don't send auth headers. Files are internal and paths are unguessable.
+### 2b. Job-type row colour map
 
-Update **`job-image-upload.tsx`** line 449:
+Add a pure constant (no imports needed) near the top of the file, after the existing `tdClass`/`thClass` constants:
+
+```ts
+const JOB_TYPE_ROW_COLORS: Record<string, string> = {
+    MAKE_READY:     "bg-lime-50   dark:bg-lime-950/20",
+    ESTIMATE:       "bg-blue-50   dark:bg-blue-950/20",
+    UNDER_WARRANTY: "bg-red-50    dark:bg-red-950/20",
+    INSTALLATION:   "bg-yellow-50 dark:bg-yellow-950/20",
+    DEMO:           "bg-yellow-50 dark:bg-yellow-950/20",
+    MAINTENANCE:    "bg-gray-50   dark:bg-gray-800/20",
+    INSPECTION:     "bg-gray-50   dark:bg-gray-800/20",
+    AMC_SERVICE:    "bg-gray-50   dark:bg-gray-800/20",
+    UPGRADE:        "bg-gray-50   dark:bg-gray-800/20",
+    REFURBISH:      "bg-gray-50   dark:bg-gray-800/20",
+};
+```
+
+Any code not in the map falls back to the default row background (no extra class).
+
+### 2c. Table columns — insert "Type" as third column
+
+**Header row** (change column order):
+
+```
+# | Date | Job No | Type | Customer | Mobile | Device | Status | Amount | Actions
+```
+
+Current order is: `# | Date | Job No | Customer | Mobile | Device | Type | Status | Amount | Actions`
+
+Move `<th>Type</th>` to position 4 (after Job No, before Customer).
+
+**Data rows** — move the Type `<td>` cell after Job No, before Customer.
+
+### 2d. Apply row background colour
+
+On each `<motion.tr>`, look up the colour from `JOB_TYPE_ROW_COLORS` using `row.job_type_code` and append it to the `className`:
+
 ```tsx
-// Change from:
-const fullUrl = `${getApiBaseUrl()}/${file.url}`;
-// To:
-const fullUrl = `${getApiBaseUrl()}/api/images/${file.url}`;
+const rowBg = JOB_TYPE_ROW_COLORS[row.job_type_code] ?? "";
+
+<motion.tr
+    key={row.id}
+    className={`group transition-colors hover:bg-[var(--cl-accent)]/10 ${rowBg}`}
+    ...
+>
+```
+
+The `hover:bg-[var(--cl-accent)]/10` on hover overrides the row colour briefly, giving feedback. Remove the old `hover:bg-[var(--cl-accent)]/5` and replace with `/10` for better visibility against the coloured backgrounds.
+
+The sticky Actions `<td>` currently sets `bg-[var(--cl-surface)]` to cover its sticky column. Update it to also carry the row colour so it doesn't flash white on coloured rows:
+
+```tsx
+<td className={`${tdClass} sticky right-0 z-10 ${rowBg || "bg-[var(--cl-surface)]"} group-hover:bg-[var(--cl-accent)]/10`}>
 ```
 
 ---
 
-### 4. Fix `clientCode` — Empty String Causes Wrong Folder Structure
+## File Summary
 
-**Problem**: `LoginResponse` does not include `clientCode`. Client's `selectClientCode` falls back to `""`. The file server skips the client level → wrong folder. The delete operation fetches `client_code` from the `job` table → mismatch with upload path.
-
-**Fix**: Add `client_code` to the server login response.
-- `dev/service-plus-server/app/schemas/auth_schema.py` — add `client_code: str | None = Field(default=None, alias="clientCode")` to `LoginResponse`
-- `dev/service-plus-server/app/routers/auth_router_helper.py` — fetch and return `client_code` from the clients table during login
-- `dev/service-plus-client/src/lib/auth-service.ts` — add `clientCode?: string` to `LoginResponseType`
-- `auth-slice.ts` already handles it (stores `user.clientCode` to localStorage in `setCredentials`; `selectClientCode` reads it)
-
-If the clients table has no `code` column, use `db_name` as the client folder identifier (already available in login response).
-
----
-
-## Files Modified Summary
-
-| File | Action | Reason |
+| File | Action | Detail |
 |------|--------|--------|
-| `dev/service-plus-file-server/app/routers/files.py` | MODIFY | Fix `File()`, remove dead code, add epoch_ms to filename |
-| `dev/service-plus-server/app/routers/image_router.py` | MODIFY | Fix `File()`, add file serving proxy route |
-| `dev/service-plus-client/src/features/client/components/jobs/single-job/job-image-upload.tsx` | MODIFY | Fix `fullUrl` to use `/api/images/${file.url}` |
-| `dev/service-plus-server/app/schemas/auth_schema.py` | MODIFY | Add `client_code` to `LoginResponse` |
-| `dev/service-plus-server/app/routers/auth_router_helper.py` | MODIFY | Return `client_code` in login helper |
-| `dev/service-plus-client/src/lib/auth-service.ts` | MODIFY | Add `clientCode?` to `LoginResponseType` |
-
-**No changes needed**: `file_client.py` (already correct; `get_file()` now used), `auth-slice.ts` (already handles `clientCode`), `image-service.ts` (already sends all hierarchy fields).
+| `service-plus-server/app/db/sql_store.py` | MODIFY | Add `jt.code AS job_type_code` to `GET_UPDATE_JOBS_PAGED` SELECT |
+| `src/features/client/components/jobs/update-job/update-job-section.tsx` | MODIFY | Add `job_type_code` to `OpenJobRow`; add `JOB_TYPE_ROW_COLORS` map; reorder columns (Type after Customer); apply row background from map; fix sticky Actions cell background |
 
 ---
 
 ## Implementation Order
 
-1. Fix `File()` + remove dead code + add epoch_ms to filename in `dev/service-plus-file-server/app/routers/files.py` — **fixes 422**
-2. Fix `File()` in `image_router.py` + add file serving proxy route
-3. Fix `fullUrl` in `job-image-upload.tsx`
-4. Fix `clientCode` in server login response + client type
+1. `sql_store.py` — add `jt.code AS job_type_code` (one line change)
+2. `update-job-section.tsx`:
+   a. Add `job_type_code: string` to `OpenJobRow`
+   b. Add `JOB_TYPE_ROW_COLORS` constant
+   c. Reorder header columns (move Type `<th>` after Customer)
+   d. Reorder data cells (move Type `<td>` after Customer)
+   e. Apply `rowBg` to `<motion.tr>` and sticky Actions `<td>`
+3. Build check
 
 ---
 
-## Verification
+## Key Decisions
 
-1. Start dev file server: `uvicorn app.main:app --port 9000 --reload` (from `dev/service-plus-file-server/`)
-2. Start main server: `uvicorn app.main:app --port 8000 --reload` (from `dev/service-plus-server/`)
-3. Open a job → attach a file → confirm no 422
-4. Confirm file stored at `{BASE_DIR}/{client_code}/{bu_code}/{branch_code}/{job_no_snake}/{name}_{epoch_ms}.ext`
-5. Confirm uploaded thumbnails display (loads via `/api/images/uploads/…`)
-6. Confirm delete removes the file from disk
-7. Test both image (JPEG/PNG/WEBP) and PDF uploads
+- **`job_type_code` from SQL, not a join on the client** — the code is already available via the `job_type` JOIN; one extra column is cheaper than a second query.
+- **Row colour constant on the client** — same pattern as `STATUS_COLORS`; no round-trip needed, codes are stable enum values from seed data.
+- **Colour applies regardless of status** — the row background represents what kind of job it is (structural), while the Status badge represents where it is in the workflow (state). These are orthogonal dimensions.
+- **Light colours only** — dark-mode variants use `/20` opacity so they remain subtle and don't compete with the status badge colour.
+- **Hover overrides row colour** — `hover:bg-[var(--cl-accent)]/10` ensures a consistent hover cue across all row colours.

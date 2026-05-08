@@ -21,12 +21,15 @@ import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectCurrentBranch, selectSchema } from "@/store/context-slice";
 import type { JobSearchRow } from "@/features/client/types/job";
-import { JobAttachDialog } from "./single-job/job-attach-dialog";
+import { JobAttachDialog } from "../single-job/job-attach-dialog";
+import { JobDetailView } from "./job-detail-view";
+import { TransactionDetailView } from "./transaction-detail-view";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type GenericQueryData<T> = { genericQuery: T[] | null };
 type ClosedFilter = null | boolean; // null = All, false = Open, true = Closed
+type View = "list" | "job-detail" | "transaction-detail";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -44,6 +47,7 @@ export const JobSearchSection = () => {
     const globalBranch = useAppSelector(selectCurrentBranch);
     const branchId     = globalBranch?.id ?? null;
 
+    // ── List state (preserved across drill-down navigation) ──────────────────
     const [search,        setSearch]        = useState("");
     const [searchQ,       setSearchQ]       = useState("");
     const [closedFilter,  setClosedFilter]  = useState<ClosedFilter>(null);
@@ -55,6 +59,12 @@ export const JobSearchSection = () => {
     const [deleting,      setDeleting]      = useState(false);
     const [attachJobId,   setAttachJobId]   = useState<number | null>(null);
     const [attachJobNo,   setAttachJobNo]   = useState<string>("");
+
+    // ── Drill-down state ─────────────────────────────────────────────────────
+    const [view,           setView]           = useState<View>("list");
+    const [selectedJobId,  setSelectedJobId]  = useState<number | null>(null);
+    const [selectedJobNo,  setSelectedJobNo]  = useState<string>("");
+    const [selectedTranId, setSelectedTranId] = useState<number | null>(null);
 
     const debounceRef      = useRef<ReturnType<typeof setTimeout> | null>(null);
     const scrollWrapperRef = useRef<HTMLDivElement>(null);
@@ -146,6 +156,54 @@ export const JobSearchSection = () => {
         }
     };
 
+    // ── Drill-down handlers ───────────────────────────────────────────────────
+
+    const handleSelectJob = (job: JobSearchRow) => {
+        setSelectedJobId(job.id);
+        setSelectedJobNo(job.job_no);
+        setView("job-detail");
+    };
+
+    const handleSelectTransaction = (tranId: number) => {
+        setSelectedTranId(tranId);
+        setView("transaction-detail");
+    };
+
+    const handleBackToList = () => {
+        setView("list");
+        setSelectedJobId(null);
+        setSelectedJobNo("");
+    };
+
+    const handleBackToJobDetail = () => {
+        setView("job-detail");
+        setSelectedTranId(null);
+    };
+
+    // ── Drill-down routing ────────────────────────────────────────────────────
+
+    if (view === "job-detail" && selectedJobId) {
+        return (
+            <JobDetailView
+                jobId={selectedJobId}
+                onBack={handleBackToList}
+                onViewTransaction={handleSelectTransaction}
+            />
+        );
+    }
+
+    if (view === "transaction-detail" && selectedTranId && selectedJobId) {
+        return (
+            <TransactionDetailView
+                tranId={selectedTranId}
+                jobNo={selectedJobNo}
+                onBack={handleBackToJobDetail}
+            />
+        );
+    }
+
+    // ── List view ─────────────────────────────────────────────────────────────
+
     const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
     const closedFilterLabel: Record<string, string> = {
@@ -168,7 +226,7 @@ export const JobSearchSection = () => {
             transition={{ duration: 0.25 }}
         >
             {/* ── Header ─────────────────────────────────────────────────────── */}
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-3 border-b border-[var(--cl-border)] bg-[var(--cl-surface)] px-4 py-1">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-3 border-b border-[var(--cl-border)] bg-[var(--cl-surface)] py-1">
                 <div className="flex items-center gap-3 overflow-hidden">
                     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-[var(--cl-accent)]/10 text-[var(--cl-accent)]">
                         <ClipboardList className="h-4 w-4" />
@@ -285,7 +343,11 @@ export const JobSearchSection = () => {
                             </thead>
                             <tbody className="divide-y divide-[var(--cl-border)] bg-[var(--cl-surface)]">
                                 {rows.map((job, idx) => (
-                                    <tr key={job.id} className={`group transition-colors hover:bg-[var(--cl-accent)]/5 ${job.batch_no ? "border-l-2 border-l-violet-400 dark:border-l-violet-500" : ""}`}>
+                                    <tr
+                                        key={job.id}
+                                        className={`group cursor-pointer transition-colors hover:bg-[var(--cl-accent)]/5 ${job.batch_no ? "border-l-2 border-l-violet-400 dark:border-l-violet-500" : ""}`}
+                                        onClick={() => handleSelectJob(job)}
+                                    >
                                         <td className={`${tdClass} text-[var(--cl-text-muted)]`}>
                                             {(page - 1) * PAGE_SIZE + idx + 1}
                                         </td>
@@ -305,7 +367,7 @@ export const JobSearchSection = () => {
                                                     <button
                                                         type="button"
                                                         className="flex items-center gap-1 text-[10px] text-blue-600 dark:text-blue-400 font-medium hover:text-blue-700 dark:hover:text-blue-300 cursor-pointer bg-blue-50 dark:bg-blue-950/40 rounded px-1.5 py-0.5 w-fit border-0 transition-colors"
-                                                        onClick={() => { setAttachJobId(job.id); setAttachJobNo(job.job_no); }}
+                                                        onClick={e => { e.stopPropagation(); setAttachJobId(job.id); setAttachJobNo(job.job_no); }}
                                                     >
                                                         <Paperclip className="h-2.5 w-2.5" />
                                                         <span>{job.file_count} File{job.file_count !== 1 ? "s" : ""}</span>
@@ -325,7 +387,10 @@ export const JobSearchSection = () => {
                                         <td className={`${tdClass} text-right`}>
                                             {job.amount != null ? `₹${Number(job.amount).toFixed(2)}` : "—"}
                                         </td>
-                                        <td className={`${tdClass} sticky right-0 z-10 bg-[var(--cl-surface)] group-hover:bg-[var(--cl-surface-2)]`}>
+                                        <td
+                                            className={`${tdClass} sticky right-0 z-10 bg-[var(--cl-surface)] group-hover:bg-[var(--cl-surface-2)]`}
+                                            onClick={e => e.stopPropagation()}
+                                        >
                                             <div className="flex items-center justify-center">
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild>

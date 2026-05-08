@@ -134,3 +134,18 @@ export type JobBatchDetailRow = JobDetailType & {
     transaction_count: number;
     receive_manner_name: string;
 };
+
+export type JobTransactionRow = {
+    id:                      number;
+    job_id:                  number;
+    status_id:               number | null;
+    status_name:             string | null;
+    technician_id:           number | null;
+    technician_name:         string | null;
+    amount:                  number | null;
+    notes:                   string | null;
+    performed_by_user_id:    number;
+    performed_by_name:       string | null;
+    performed_at:            string;
+    previous_transaction_id: number | null;
+};

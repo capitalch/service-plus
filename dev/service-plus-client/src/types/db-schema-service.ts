@@ -340,7 +340,7 @@ export interface Job {
   diagnosis: string | null;
   work_done: string | null;
   remarks: string | null;
-  amount: number | null;
+  amount: number;
   delivery_date: Date | null;
   is_closed: boolean;
   warranty_card_no: string | null;
@@ -352,6 +352,7 @@ export interface Job {
   is_final: boolean;
   quantity: number;
   batch_no: number | null;
+  estimate_amount: number;
 }
 export interface JobInput {
   id: number;
@@ -370,7 +371,7 @@ export interface JobInput {
   diagnosis?: string | null;
   work_done?: string | null;
   remarks?: string | null;
-  amount?: number | null;
+  amount?: number;
   delivery_date?: Date | null;
   is_closed?: boolean;
   warranty_card_no?: string | null;
@@ -382,10 +383,11 @@ export interface JobInput {
   is_final?: boolean;
   quantity?: number;
   batch_no?: number | null;
+  estimate_amount?: number;
 }
 const job = {
   tableName: 'job',
-  columns: ['id', 'job_no', 'job_date', 'customer_contact_id', 'branch_id', 'technician_id', 'job_status_id', 'job_type_id', 'job_receive_manner_id', 'job_receive_condition_id', 'product_brand_model_id', 'serial_no', 'problem_reported', 'diagnosis', 'work_done', 'remarks', 'amount', 'delivery_date', 'is_closed', 'warranty_card_no', 'is_active', 'created_at', 'updated_at', 'address_snapshot', 'last_transaction_id', 'is_final', 'quantity', 'batch_no'],
+  columns: ['id', 'job_no', 'job_date', 'customer_contact_id', 'branch_id', 'technician_id', 'job_status_id', 'job_type_id', 'job_receive_manner_id', 'job_receive_condition_id', 'product_brand_model_id', 'serial_no', 'problem_reported', 'diagnosis', 'work_done', 'remarks', 'amount', 'delivery_date', 'is_closed', 'warranty_card_no', 'is_active', 'created_at', 'updated_at', 'address_snapshot', 'last_transaction_id', 'is_final', 'quantity', 'batch_no', 'estimate_amount'],
   requiredForInsert: ['id', 'job_no', 'customer_contact_id', 'branch_id', 'job_status_id', 'job_type_id', 'job_receive_manner_id'],
   primaryKey: 'id',
   foreignKeys: {
@@ -761,6 +763,7 @@ export interface JobTransaction {
   performed_by_user_id: number;
   performed_at: Date;
   previous_transaction_id: number | null;
+  remarks: string | null;
 }
 export interface JobTransactionInput {
   id: number;
@@ -772,10 +775,11 @@ export interface JobTransactionInput {
   performed_by_user_id: number;
   performed_at?: Date;
   previous_transaction_id?: number | null;
+  remarks?: string | null;
 }
 const job_transaction = {
   tableName: 'job_transaction',
-  columns: ['id', 'job_id', 'status_id', 'technician_id', 'amount', 'notes', 'performed_by_user_id', 'performed_at', 'previous_transaction_id'],
+  columns: ['id', 'job_id', 'status_id', 'technician_id', 'amount', 'notes', 'performed_by_user_id', 'performed_at', 'previous_transaction_id', 'remarks'],
   requiredForInsert: ['id', 'job_id', 'performed_by_user_id'],
   primaryKey: 'id',
   foreignKeys: {

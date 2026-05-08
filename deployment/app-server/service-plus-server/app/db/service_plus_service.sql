@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict kbfNnqV2NM6AWzNlhp01QyM3As5H960iQTnbhndqlWwUh4d1zjFkb3rw3Hgh6qX
+\restrict fvpft29QjZEQ4aUgofMpbd0RhJ0cI3ctCjgRUYjXm1X6PazGEwpanIvbPHBh9OC
 
 -- Dumped from database version 14.6
 -- Dumped by pg_dump version 17.9 (Ubuntu 17.9-0ubuntu0.25.10.1)
@@ -362,7 +362,7 @@ CREATE TABLE demo1.job (
     diagnosis text,
     work_done text,
     remarks text,
-    amount numeric(12,2),
+    amount numeric(12,2) DEFAULT 0 NOT NULL,
     delivery_date date,
     is_closed boolean DEFAULT false NOT NULL,
     warranty_card_no text,
@@ -373,7 +373,8 @@ CREATE TABLE demo1.job (
     last_transaction_id bigint,
     is_final boolean DEFAULT false NOT NULL,
     quantity integer DEFAULT 1 NOT NULL,
-    batch_no integer
+    batch_no integer,
+    estimate_amount numeric(12,2) DEFAULT 0 NOT NULL
 );
 
 
@@ -714,7 +715,8 @@ CREATE TABLE demo1.job_transaction (
     notes text,
     performed_by_user_id bigint NOT NULL,
     performed_at timestamp with time zone DEFAULT now() NOT NULL,
-    previous_transaction_id bigint
+    previous_transaction_id bigint,
+    remarks text
 );
 
 
@@ -3414,5 +3416,5 @@ ALTER TABLE ONLY security.user_bu_role
 -- PostgreSQL database dump complete
 --
 
-\unrestrict kbfNnqV2NM6AWzNlhp01QyM3As5H960iQTnbhndqlWwUh4d1zjFkb3rw3Hgh6qX
+\unrestrict fvpft29QjZEQ4aUgofMpbd0RhJ0cI3ctCjgRUYjXm1X6PazGEwpanIvbPHBh9OC
 

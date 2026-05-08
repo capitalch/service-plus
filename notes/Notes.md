@@ -1,5 +1,23 @@
 ## Service management software
 
+# Logic for status change
+Present Status                  Job Type                Next Options
+        RECEIVED                MAKE_READY              Assigned (technician mandatory), IN_PROGRESS (technician mandatory)
+        ASSIGNED
+        ESTIMATED
+        ESTIMATE_APPROVED
+        ESTIMATE_REJECTED
+        IN_PROGRESS
+        PARTS_PENDING
+        ON_HOLD
+        OUTSOURCED
+        SENT_TO_COMPANY
+        COMPLETED_OK
+        RETURN
+        DELIVERED_OK
+        DELIVERED_NOT_OK
+        CANCELLED
+        DISPOSED
 # Old Service DB extracts
 
 # Service

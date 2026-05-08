@@ -2,7 +2,7 @@ import { useState, useCallback } from "react";
 import { ClientLayout, useClientSelection } from "../components/client-layout";
 import { BatchJobSection } from "../components/jobs/batch-job/batch-job-section";
 import { DeliverJobSection } from "../components/jobs/deliver-job/deliver-job-section";
-import { JobSearchSection } from "../components/jobs/job-search-section";
+import { JobSearchSection } from "../components/jobs/job-search/job-search-section";
 import { OpeningJobSection } from "../components/jobs/opening-job/opening-job-section";
 import { PartUsedSection } from "../components/jobs/part-used/part-used-section";
 import { ReadyForDeliverySection } from "../components/jobs/ready-for-delivery/ready-for-delivery-section";

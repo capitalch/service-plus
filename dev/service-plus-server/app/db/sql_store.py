@@ -2919,6 +2919,68 @@ class SqlStore:
 
     # ── Job Entry ─────────────────────────────────────────────────────────────
 
+    GET_UPDATE_JOBS_STATUS_COUNTS = """
+        SELECT
+            j.job_status_id,
+            COUNT(*) AS count
+        FROM job j
+        WHERE j.branch_id = %(branch_id)s::bigint
+        GROUP BY j.job_status_id
+    """
+
+    GET_UPDATE_JOBS_COUNT = """
+        with
+            "p_branch_id" as (values(%(branch_id)s::bigint)),
+            "p_status_id" as (values(%(status_id)s::smallint))
+        SELECT COUNT(*) AS total
+        FROM job j
+        JOIN customer_contact cc ON cc.id = j.customer_contact_id
+        WHERE j.branch_id = (table "p_branch_id")
+          AND ((table "p_status_id") IS NULL OR j.job_status_id = (table "p_status_id"))
+    """
+
+    GET_UPDATE_JOBS_PAGED = """
+        with
+            "p_branch_id" as (values(%(branch_id)s::bigint)),
+            "p_status_id" as (values(%(status_id)s::smallint)),
+            "p_limit"     as (values(%(limit)s::int)),
+            "p_offset"    as (values(%(offset)s::int))
+        SELECT
+            j.id,
+            j.job_no,
+            j.job_date,
+            j.job_status_id,
+            j.is_closed,
+            j.is_final,
+            j.amount,
+            j.estimate_amount,
+            j.diagnosis,
+            j.last_transaction_id,
+            j.batch_no,
+            cc.full_name   AS customer_name,
+            cc.mobile,
+            jt.name        AS job_type_name,
+            jt.code        AS job_type_code,
+            js.name        AS job_status_name,
+            js.code        AS job_status_code,
+            t.name         AS technician_name,
+            TRIM(CONCAT_WS(' ', p.name, b.name, pbm.model_name, j.serial_no)) AS device_details,
+            (SELECT COUNT(*) FROM job_image_doc jid WHERE jid.job_id = j.id) AS file_count
+        FROM job j
+        JOIN customer_contact      cc  ON cc.id  = j.customer_contact_id
+        JOIN job_type              jt  ON jt.id  = j.job_type_id
+        JOIN job_status            js  ON js.id  = j.job_status_id
+        LEFT JOIN technician       t   ON t.id   = j.technician_id
+        LEFT JOIN product_brand_model pbm ON pbm.id = j.product_brand_model_id
+        LEFT JOIN brand            b   ON b.id   = pbm.brand_id
+        LEFT JOIN product          p   ON p.id   = pbm.product_id
+        WHERE j.branch_id = (table "p_branch_id")
+          AND ((table "p_status_id") IS NULL OR j.job_status_id = (table "p_status_id"))
+        ORDER BY j.job_date DESC, j.id DESC
+        LIMIT  (table "p_limit")
+        OFFSET (table "p_offset")
+    """
+
     GET_OPEN_JOBS_COUNT = """
         with
             "p_branch_id"   as (values(%(branch_id)s::bigint)),
@@ -3440,6 +3502,51 @@ class SqlStore:
         FROM job_payment jp
         WHERE jp.job_id = (table "p_job_id")
         ORDER BY jp.payment_date DESC, jp.id DESC
+    """
+
+    GET_JOB_TRANSACTIONS_BY_JOB = """
+        with "p_job_id" as (values(%(job_id)s::bigint))
+        SELECT
+            jt.id,
+            jt.job_id,
+            jt.status_id,
+            js.name                             AS status_name,
+            jt.technician_id,
+            t.name                              AS technician_name,
+            jt.amount,
+            jt.notes,
+            jt.performed_by_user_id,
+            COALESCE(su.full_name, su.username) AS performed_by_name,
+            jt.performed_at,
+            jt.previous_transaction_id
+        FROM job_transaction jt
+        LEFT JOIN job_status     js ON js.id = jt.status_id
+        LEFT JOIN technician     t  ON t.id  = jt.technician_id
+        LEFT JOIN security."user" su ON su.id = jt.performed_by_user_id
+        WHERE jt.job_id = (table "p_job_id")
+        ORDER BY jt.performed_at ASC, jt.id ASC
+    """
+
+    GET_JOB_TRANSACTION_DETAIL = """
+        with "p_id" as (values(%(id)s::bigint))
+        SELECT
+            jt.id,
+            jt.job_id,
+            jt.status_id,
+            js.name                             AS status_name,
+            jt.technician_id,
+            t.name                              AS technician_name,
+            jt.amount,
+            jt.notes,
+            jt.performed_by_user_id,
+            COALESCE(su.full_name, su.username) AS performed_by_name,
+            jt.performed_at,
+            jt.previous_transaction_id
+        FROM job_transaction jt
+        LEFT JOIN job_status     js ON js.id = jt.status_id
+        LEFT JOIN technician     t  ON t.id  = jt.technician_id
+        LEFT JOIN security."user" su ON su.id = jt.performed_by_user_id
+        WHERE jt.id = (table "p_id")
     """
 
     GET_JOBS_FOR_RECEIPT_LOOKUP = """

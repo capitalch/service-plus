@@ -532,7 +532,7 @@ export const BatchJobSection = ({ initialEditBatchNo, onEditBatchNoApplied, onRe
             </div>
 
             {mode === "new" ? (
-                <div className="flex-1 overflow-y-auto px-4 pb-6 flex flex-col gap-4">
+                <div className="flex-1 overflow-y-auto pb-6 flex flex-col gap-4">
                     {/* Quick info card */}
                     <BatchJobQuickInfoCard
                         refreshTrigger={refreshTrigger}

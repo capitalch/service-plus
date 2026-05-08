@@ -1,59 +1,78 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import {ArrowLeft, Briefcase,
+import {
+    Briefcase,
     ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon,
-    Loader2, Pencil, RefreshCw, Save, Search, X} from "lucide-react";
+    Loader2, MoreHorizontal,
+} from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
-import { updateJobFormSchema, type UpdateJobFormValues, getUpdateJobDefaultValues } from "./update-job-schema";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
-    Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
-import { Textarea } from "@/components/ui/textarea";
+    DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { MESSAGES } from "@/constants/messages";
 import { SQL_MAP } from "@/constants/sql-map";
 import { selectCurrentUser, selectDbName } from "@/features/auth/store/auth-slice";
 import { apolloClient } from "@/lib/apollo-client";
 import { encodeObj, graphQlUtils } from "@/lib/graphql-utils";
-import { currentFinancialYearRange } from "@/lib/utils";
 import { selectCurrentBranch, selectSchema } from "@/store/context-slice";
 import { useAppSelector } from "@/store/hooks";
-import type { JobDetailType, JobLookupRow, TechnicianRow } from "@/features/client/types/job";
+import type { JobLookupRow, TechnicianRow } from "@/features/client/types/job";
+import { JobAttachDialog } from "../single-job/job-attach-dialog";
+import { TRANSITIONS, STATUS_FLAGS, STATUS_COLORS } from "./status-transitions";
+import type { Transition } from "./status-transitions";
+import { StatusTransitionModal } from "./status-transition-modal";
+import type { TransitionPayload } from "./status-transition-modal";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type SubView = "list" | "form";
 type GenericQueryData<T> = { genericQuery: T[] | null };
 
-type OpenJobRow = {
+export type OpenJobRow = {
     id:                  number;
     job_no:              string;
     job_date:            string;
+    job_status_id:       number;
+    job_status_code:     string;
+    job_status_name:     string;
     is_closed:           boolean;
+    is_final:            boolean;
     amount:              number | null;
+    estimate_amount:     number | null;
     diagnosis:           string | null;
     last_transaction_id: number | null;
+    batch_no:            number | null;
     customer_name:       string;
     mobile:              string;
     job_type_name:       string;
-    job_status_name:     string;
+    job_type_code:       string;
     technician_name:     string | null;
+    technician_id:       number | null;
+    device_details:      string | null;
+    file_count:          number;
 };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const PAGE_SIZE   = 50;
-const DEBOUNCE_MS = 1600;
+const PAGE_SIZE = 50;
 
 const thClass = "sticky top-0 z-20 text-xs font-semibold uppercase tracking-wide text-[var(--cl-text-muted)] p-3 text-left border-b border-[var(--cl-border)] bg-[var(--cl-surface-2)]";
 const tdClass = "p-3 text-sm text-[var(--cl-text)] border-b border-[var(--cl-border)]";
+
+const JOB_TYPE_ROW_COLORS: Record<string, string> = {
+    MAKE_READY:     "bg-lime-50   dark:bg-lime-950/20",
+    ESTIMATE:       "bg-blue-50   dark:bg-blue-950/20",
+    UNDER_WARRANTY: "bg-red-50    dark:bg-red-950/20",
+    INSTALLATION:   "bg-yellow-50 dark:bg-yellow-950/20",
+    DEMO:           "bg-yellow-50 dark:bg-yellow-950/20",
+    MAINTENANCE:    "bg-gray-50   dark:bg-gray-800/20",
+    INSPECTION:     "bg-gray-50   dark:bg-gray-800/20",
+    AMC_SERVICE:    "bg-gray-50   dark:bg-gray-800/20",
+    UPGRADE:        "bg-gray-50   dark:bg-gray-800/20",
+    REFURBISH:      "bg-gray-50   dark:bg-gray-800/20",
+};
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -64,37 +83,28 @@ export const UpdateJobSection = () => {
     const currentUser   = useAppSelector(selectCurrentUser);
     const branchId      = currentBranch?.id ?? null;
 
-    const { from: defaultFrom, to: defaultTo } = currentFinancialYearRange();
-
     // ── List state ──────────────────────────────────────────────────────────
-    const [subView,    setSubView]    = useState<SubView>("list");
-    const [fromDate,   setFromDate]   = useState(defaultFrom);
-    const [toDate,     setToDate]     = useState(defaultTo);
-    const [search,     setSearch]     = useState("");
-    const [searchQ,    setSearchQ]    = useState("");
-    const [showClosed, setShowClosed] = useState(false);
-    const [page,       setPage]       = useState(1);
-    const [rows,       setRows]       = useState<OpenJobRow[]>([]);
-    const [total,      setTotal]      = useState(0);
-    const [loading,    setLoading]    = useState(false);
+    const [filterStatusId, setFilterStatusId] = useState<number | null>(null);
+    const [page,           setPage]           = useState(1);
+    const [rows,           setRows]           = useState<OpenJobRow[]>([]);
+    const [total,          setTotal]          = useState(0);
+    const [loading,        setLoading]        = useState(false);
+    const [statusCounts,   setStatusCounts]   = useState<Record<number, number>>({});
 
     // ── Metadata ────────────────────────────────────────────────────────────
     const [jobStatuses, setJobStatuses] = useState<JobLookupRow[]>([]);
     const [technicians, setTechnicians] = useState<TechnicianRow[]>([]);
     const [metaLoaded,  setMetaLoaded]  = useState(false);
 
-    // ── Form state ────────────────────────────────────────────────────────────
-    const [selectedJob,      setSelectedJob]      = useState<JobDetailType | null>(null);
-    const [loadingDetail,    setLoadingDetail]    = useState(false);
+    // ── Transition modal state ──────────────────────────────────────────────
+    const [pendingTran, setPendingTran] = useState<{ job: OpenJobRow; transition: Transition } | null>(null);
+    const [submitting,  setSubmitting]  = useState(false);
 
-    const form = useForm<UpdateJobFormValues>({
-        defaultValues: getUpdateJobDefaultValues(),
-        mode: "onChange",
-        resolver: zodResolver(updateJobFormSchema) as any,
-    });
+    // ── File attach state ───────────────────────────────────────────────────
+    const [attachJobId, setAttachJobId] = useState<number | null>(null);
+    const [attachJobNo, setAttachJobNo] = useState<string>("");
 
-    const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const scrollRef   = useRef<HTMLDivElement>(null);
+    const scrollRef = useRef<HTMLDivElement>(null);
     const [maxHeight, setMaxHeight] = useState(0);
 
     const recalc = useCallback(() => {
@@ -108,7 +118,7 @@ export const UpdateJobSection = () => {
         const timer = setTimeout(recalc, 100);
         window.addEventListener("resize", recalc);
         return () => { clearTimeout(timer); window.removeEventListener("resize", recalc); };
-    }, [recalc, rows.length, subView]);
+    }, [recalc, rows.length]);
 
     // Load statuses + technicians once
     useEffect(() => {
@@ -131,22 +141,20 @@ export const UpdateJobSection = () => {
         }).catch(() => toast.error(MESSAGES.ERROR_JOB_LOAD_FAILED));
     }, [dbName, schema, branchId, metaLoaded]);
 
-    const loadData = useCallback(async (
-        bid: number, from: string, to: string, q: string, pg: number, closed: boolean,
-    ) => {
+    const loadData = useCallback(async (bid: number, statusId: number | null, pg: number) => {
         if (!dbName || !schema) return;
         setLoading(true);
         try {
-            const commonArgs = { branch_id: bid, from_date: from, to_date: to, search: q, show_closed: closed };
-            const [dataRes, countRes] = await Promise.all([
+            const sqlArgs = { branch_id: bid, status_id: statusId };
+            const [dataRes, countRes, statusCountsRes] = await Promise.all([
                 apolloClient.query<GenericQueryData<OpenJobRow>>({
                     fetchPolicy: "network-only",
                     query:       GRAPHQL_MAP.genericQuery,
                     variables:   {
                         db_name: dbName, schema,
                         value: graphQlUtils.buildGenericQueryValue({
-                            sqlId:   SQL_MAP.GET_OPEN_JOBS_PAGED,
-                            sqlArgs: { ...commonArgs, limit: PAGE_SIZE, offset: (pg - 1) * PAGE_SIZE },
+                            sqlId:   SQL_MAP.GET_UPDATE_JOBS_PAGED,
+                            sqlArgs: { ...sqlArgs, limit: PAGE_SIZE, offset: (pg - 1) * PAGE_SIZE },
                         }),
                     },
                 }),
@@ -156,14 +164,30 @@ export const UpdateJobSection = () => {
                     variables:   {
                         db_name: dbName, schema,
                         value: graphQlUtils.buildGenericQueryValue({
-                            sqlId:   SQL_MAP.GET_OPEN_JOBS_COUNT,
-                            sqlArgs: commonArgs,
+                            sqlId:   SQL_MAP.GET_UPDATE_JOBS_COUNT,
+                            sqlArgs,
+                        }),
+                    },
+                }),
+                apolloClient.query<GenericQueryData<{ job_status_id: number; count: number }>>({
+                    fetchPolicy: "network-only",
+                    query:       GRAPHQL_MAP.genericQuery,
+                    variables:   {
+                        db_name: dbName, schema,
+                        value: graphQlUtils.buildGenericQueryValue({
+                            sqlId:   SQL_MAP.GET_UPDATE_JOBS_STATUS_COUNTS,
+                            sqlArgs: { branch_id: bid },
                         }),
                     },
                 }),
             ]);
             setRows(dataRes.data?.genericQuery ?? []);
             setTotal(Number(countRes.data?.genericQuery?.[0]?.total ?? 0));
+            const counts: Record<number, number> = {};
+            for (const r of statusCountsRes.data?.genericQuery ?? []) {
+                counts[r.job_status_id] = Number(r.count);
+            }
+            setStatusCounts(counts);
         } catch {
             toast.error(MESSAGES.ERROR_JOB_LOAD_FAILED);
         } finally {
@@ -172,303 +196,77 @@ export const UpdateJobSection = () => {
     }, [dbName, schema]);
 
     useEffect(() => {
-        if (!branchId || subView !== "list") return;
-        void loadData(branchId, fromDate, toDate, searchQ, page, showClosed);
-    }, [branchId, fromDate, toDate, searchQ, page, showClosed, loadData, subView]);
+        if (!branchId) return;
+        void loadData(branchId, filterStatusId, page);
+    }, [branchId, filterStatusId, page, loadData]);
 
-    function handleSearchChange(value: string) {
-        setSearch(value);
-        if (debounceRef.current) clearTimeout(debounceRef.current);
-        debounceRef.current = setTimeout(() => { setPage(1); setSearchQ(value); }, DEBOUNCE_MS);
-    }
+    // ── Transition handlers ─────────────────────────────────────────────────
 
-    async function handleRowClick(row: OpenJobRow) {
-        if (!dbName || !schema) return;
-        setLoadingDetail(true);
-        try {
-            const res = await apolloClient.query<GenericQueryData<JobDetailType>>({
-                fetchPolicy: "network-only",
-                query:       GRAPHQL_MAP.genericQuery,
-                variables:   {
-                    db_name: dbName, schema,
-                    value: graphQlUtils.buildGenericQueryValue({
-                        sqlId:   SQL_MAP.GET_JOB_DETAIL,
-                        sqlArgs: { id: row.id },
-                    }),
-                },
+    function handleTransitionClick(job: OpenJobRow, transition: Transition) {
+        if (transition.fields === "none") {
+            void handleSubmitTransition(job, transition, {
+                targetStatusId:  transition.targetId,
+                technician_id:   null,
+                amount:          null,
+                estimate_amount: null,
+                remarks:         "",
+                is_final:        false,
+                is_closed:       false,
             });
-            const job = res.data?.genericQuery?.[0] ?? null;
-            if (!job) { toast.error(MESSAGES.ERROR_JOB_LOAD_FAILED); return; }
-            setSelectedJob(job);
-            form.reset({
-                job_status_id: String(job.job_status_id),
-                technician_id: job.technician_id ? String(job.technician_id) : "",
-                diagnosis: job.diagnosis ?? "",
-                work_done: job.work_done ?? "",
-                amount: job.amount != null ? String(job.amount) : "",
-                delivery_date: job.delivery_date ?? "",
-                is_closed: job.is_closed,
-                is_final: job.is_final,
-                remarks: job.remarks ?? "",
-                transaction_notes: "",
-            });
-            setSubView("form");
-        } catch {
-            toast.error(MESSAGES.ERROR_JOB_LOAD_FAILED);
-        } finally {
-            setLoadingDetail(false);
+        } else {
+            setPendingTran({ job, transition });
         }
     }
 
-    function handleBack() {
-        setSubView("list");
-        setSelectedJob(null);
-    }
-
-    async function handleSave(values: UpdateJobFormValues) {
-        if (!selectedJob || !dbName || !schema) return;
+    async function handleSubmitTransition(
+        job:        OpenJobRow,
+        transition: Transition,
+        payload:    TransitionPayload,
+    ) {
+        if (!dbName || !schema) return;
+        setSubmitting(true);
         try {
-            const payload = encodeObj({
-                job_id:               selectedJob.id,
-                last_transaction_id:  selectedJob.last_transaction_id,
-                performed_by_user_id: currentUser?.id ?? null,
-                transaction_notes:    values.transaction_notes || "",
-                xData: {
-                    id:            selectedJob.id,
-                    job_status_id: Number(values.job_status_id),
-                    technician_id: values.technician_id ? Number(values.technician_id) : null,
-                    diagnosis:     values.diagnosis || null,
-                    work_done:     values.work_done || null,
-                    amount:        values.amount !== "" ? Number(values.amount) : null,
-                    delivery_date: values.delivery_date || null,
-                    is_closed:     values.is_closed,
-                    is_final:      values.is_final,
-                    remarks:       values.remarks || null,
-                },
-            });
+            const flags = STATUS_FLAGS[transition.targetId];
+            const xData = {
+                id:              job.id,
+                job_status_id:   transition.targetId,
+                technician_id:   payload.technician_id,
+                amount:          transition.fields === "RA" ? payload.amount          : job.amount,
+                estimate_amount: transition.fields === "RE" ? payload.estimate_amount : job.estimate_amount,
+                is_final:        flags?.is_final  ?? false,
+                is_closed:       flags?.is_closed ?? false,
+            };
             await apolloClient.mutate({
                 mutation:  GRAPHQL_MAP.updateJob,
-                variables: { db_name: dbName, schema, value: payload },
+                variables: {
+                    db_name: dbName, schema,
+                    value: encodeObj({
+                        job_id:               job.id,
+                        last_transaction_id:  job.last_transaction_id,
+                        performed_by_user_id: currentUser?.id ?? null,
+                        transaction_notes:    payload.remarks || "",
+                        xData,
+                    }),
+                },
             });
-            toast.success(MESSAGES.SUCCESS_JOB_UPDATED);
-            setSubView("list");
-            setSelectedJob(null);
-            if (branchId) void loadData(branchId, fromDate, toDate, searchQ, page, showClosed);
+            toast.success(`Job ${job.job_no} → ${transition.targetName}`);
+            setPendingTran(null);
+            if (branchId) void loadData(branchId, filterStatusId, page);
         } catch {
             toast.error(MESSAGES.ERROR_JOB_UPDATE_FAILED);
+        } finally {
+            setSubmitting(false);
         }
     }
 
     const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
-    // ─── Form View ────────────────────────────────────────────────────────────
-
-    if (subView === "form" && selectedJob) {
-        return (
-            <motion.div
-                animate={{ opacity: 1 }}
-                className="flex min-h-0 flex-1 flex-col overflow-hidden"
-                initial={{ opacity: 0 }}
-                transition={{ duration: 0.2 }}
-            >
-                {/* Header */}
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-[var(--cl-border)] bg-[var(--cl-surface)] px-4 py-2">
-                    <Button
-                        className="h-8 gap-1.5 px-3 text-xs"
-                        disabled={form.formState.isSubmitting}
-                        variant="ghost"
-                        onClick={handleBack}
-                    >
-                        <ArrowLeft className="h-3.5 w-3.5" />
-                        Back to List
-                    </Button>
-                    <div className="flex items-baseline gap-2">
-                        <span className="font-mono font-bold text-[var(--cl-accent)] text-sm">#{selectedJob.job_no}</span>
-                        <span className="text-sm font-medium text-[var(--cl-text)]">{selectedJob.customer_name}</span>
-                    </div>
-                    <div className="flex-1" />
-                     <Button
-                         className="h-8 gap-1.5 px-4 text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm font-extrabold uppercase tracking-widest disabled:opacity-30 disabled:bg-slate-300 disabled:text-slate-600 disabled:cursor-not-allowed"
-                         disabled={!form.formState.isValid || form.formState.isSubmitting}
-                         onClick={() => void form.handleSubmit(handleSave)()}
-                     >
-                         {form.formState.isSubmitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-                         Save Update
-                     </Button>
-
-                </div>
-
-                <div className="flex-1 overflow-y-auto p-4 space-y-5">
-                    {/* Intake summary (read-only) */}
-                    <div className="rounded-lg border border-[var(--cl-border)] bg-[var(--cl-surface-2)] p-4">
-                        <p className="mb-3 text-[10px] font-semibold uppercase tracking-widest text-[var(--cl-text-muted)]">Intake Summary</p>
-                        <div className="grid grid-cols-2 gap-x-6 gap-y-2 sm:grid-cols-3">
-                            {([
-                                ["Job No",         selectedJob.job_no],
-                                ["Job Date",       selectedJob.job_date],
-                                ["Customer",       selectedJob.customer_name ?? "—"],
-                                ["Mobile",         selectedJob.mobile],
-                                ["Job Type",       selectedJob.job_type_name],
-                                ["Receive Manner", selectedJob.job_receive_manner_name],
-                            ] as [string, string][]).map(([label, value]) => (
-                                <div key={label}>
-                                    <p className="text-[10px] uppercase tracking-wider text-[var(--cl-text-muted)]">{label}</p>
-                                    <p className="text-sm font-medium text-[var(--cl-text)]">{value}</p>
-                                </div>
-                            ))}
-                        </div>
-                        {selectedJob.problem_reported && (
-                            <div className="mt-3">
-                                <p className="text-[10px] uppercase tracking-wider text-[var(--cl-text-muted)]">Problem Reported</p>
-                                <p className="mt-0.5 text-sm text-[var(--cl-text)]">{selectedJob.problem_reported}</p>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Job Status + Technician */}
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                         <div>
-                             <Label className="mb-1.5 block text-sm font-medium text-[var(--cl-text)]">
-                                 Job Status <span className="text-red-500">*</span>
-                             </Label>
-                             <Select 
-                                value={form.watch("job_status_id")} 
-                                onValueChange={v => form.setValue("job_status_id", v, { shouldValidate: true })}
-                            >
-                                 <SelectTrigger className="h-9 border-[var(--cl-border)] bg-[var(--cl-surface)] text-sm">
-                                     <SelectValue placeholder="Select status" />
-                                 </SelectTrigger>
-                                 <SelectContent>
-                                     {jobStatuses.map(s => (
-                                         <SelectItem key={s.id} value={String(s.id)}>{s.name}</SelectItem>
-                                     ))}
-                                 </SelectContent>
-                             </Select>
-                         </div>
-                         <div>
-                             <Label className="mb-1.5 block text-sm font-medium text-[var(--cl-text)]">Technician</Label>
-                             <Select 
-                                value={form.watch("technician_id")} 
-                                onValueChange={v => form.setValue("technician_id", v, { shouldValidate: true })}
-                            >
-                                 <SelectTrigger className="h-9 border-[var(--cl-border)] bg-[var(--cl-surface)] text-sm">
-                                     <SelectValue placeholder="Select technician" />
-                                 </SelectTrigger>
-                                 <SelectContent>
-                                     {technicians.map(t => (
-                                         <SelectItem key={t.id} value={String(t.id)}>{t.name}</SelectItem>
-                                     ))}
-                                 </SelectContent>
-                             </Select>
-                         </div>
-
-                    </div>
-
-                     {/* Diagnosis */}
-                     <div>
-                         <Label className="mb-1.5 block text-sm font-medium text-[var(--cl-text)]" htmlFor="uj-diagnosis">Diagnosis</Label>
-                         <Textarea
-                             className="min-h-[72px] border-[var(--cl-border)] bg-[var(--cl-surface)] text-sm"
-                             id="uj-diagnosis"
-                             placeholder="Technical diagnosis…"
-                             {...form.register("diagnosis")}
-                         />
-                     </div>
-                     {/* Work Done */}
-                     <div>
-                         <Label className="mb-1.5 block text-sm font-medium text-[var(--cl-text)]" htmlFor="uj-work-done">Work Done</Label>
-                         <Textarea
-                             className="min-h-[72px] border-[var(--cl-border)] bg-[var(--cl-surface)] text-sm"
-                             id="uj-work-done"
-                             placeholder="Work performed…"
-                             {...form.register("work_done")}
-                         />
-                     </div>
-
-
-                     {/* Amount + Delivery Date */}
-                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                         <div>
-                             <Label className="mb-1.5 block text-sm font-medium text-[var(--cl-text)]" htmlFor="uj-amount">Amount</Label>
-                             <Input
-                                 className="h-9 border-[var(--cl-border)] bg-[var(--cl-surface)] text-sm"
-                                 id="uj-amount"
-                                 min="0"
-                                 placeholder="0.00"
-                                 step="0.01"
-                                 type="number"
-                                 {...form.register("amount")}
-                             />
-                         </div>
-                         <div>
-                             <Label className="mb-1.5 block text-sm font-medium text-[var(--cl-text)]" htmlFor="uj-delivery-date">Delivery Date</Label>
-                             <Input
-                                 className="h-9 border-[var(--cl-border)] bg-[var(--cl-surface)] text-sm"
-                                 id="uj-delivery-date"
-                                 type="date"
-                                 {...form.register("delivery_date")}
-                             />
-                         </div>
-                     </div>
-
-
-                     {/* Is Closed + Is Final */}
-                     <div className="flex flex-wrap items-center gap-6">
-                         <div className="flex items-center gap-2">
-                             <Switch 
-                                checked={form.watch("is_closed")} 
-                                id="uj-is-closed" 
-                                onCheckedChange={v => form.setValue("is_closed", v, { shouldValidate: true })} 
-                            />
-                             <Label className="text-sm text-[var(--cl-text)] cursor-pointer" htmlFor="uj-is-closed">Closed</Label>
-                         </div>
-                         <div className="flex items-center gap-2">
-                             <Switch 
-                                checked={form.watch("is_final")} 
-                                id="uj-is-final" 
-                                onCheckedChange={v => form.setValue("is_final", v, { shouldValidate: true })} 
-                            />
-                             <Label className="text-sm text-[var(--cl-text)] cursor-pointer" htmlFor="uj-is-final">Final</Label>
-                         </div>
-                     </div>
-
-
-                     {/* Remarks */}
-                     <div>
-                         <Label className="mb-1.5 block text-sm font-medium text-[var(--cl-text)]" htmlFor="uj-remarks">Remarks</Label>
-                         <Textarea
-                             className="min-h-[60px] border-[var(--cl-border)] bg-[var(--cl-surface)] text-sm"
-                             id="uj-remarks"
-                             placeholder="Optional remarks…"
-                             {...form.register("remarks")}
-                         />
-                     </div>
-                     {/* Transaction Notes */}
-                     <div>
-                         <Label className="mb-1.5 block text-sm font-medium text-[var(--cl-text)]" htmlFor="uj-txn-notes">
-                             Transaction Notes
-                             <span className="ml-1.5 text-[10px] font-normal normal-case text-[var(--cl-text-muted)]">(recorded in job history)</span>
-                         </Label>
-                         <Textarea
-                             className="min-h-[60px] border-[var(--cl-border)] bg-[var(--cl-surface)] text-sm"
-                             id="uj-txn-notes"
-                             placeholder="Notes for this update…"
-                             {...form.register("transaction_notes")}
-                         />
-                     </div>
-
-
-                </div>
-            </motion.div>
-        );
-    }
-
-    // ─── List View ────────────────────────────────────────────────────────────
+    // ─── Render ───────────────────────────────────────────────────────────────
 
     return (
         <motion.div
             animate={{ opacity: 1 }}
-            className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden"
+            className="flex min-h-0 flex-1 flex-col overflow-hidden"
             initial={{ opacity: 0 }}
             transition={{ duration: 0.25 }}
         >
@@ -487,87 +285,51 @@ export const UpdateJobSection = () => {
                 </div>
             </div>
 
-            {/* Toolbar */}
-            <div className="flex flex-wrap items-center gap-2 px-4 py-1 bg-[var(--cl-surface-2)]/30">
-                <div className="flex items-center gap-1">
-                    <Input
-                        className="h-8 w-32 border-[var(--cl-border)] bg-[var(--cl-surface)] text-xs"
-                        disabled={loading}
-                        type="date"
-                        value={fromDate}
-                        onChange={e => { setFromDate(e.target.value); setPage(1); }}
-                    />
-                    <span className="text-[var(--cl-text-muted)] text-xs">—</span>
-                    <Input
-                        className="h-8 w-32 border-[var(--cl-border)] bg-[var(--cl-surface)] text-xs"
-                        disabled={loading}
-                        type="date"
-                        value={toDate}
-                        onChange={e => { setToDate(e.target.value); setPage(1); }}
-                    />
-                </div>
-                <div className="relative flex-1 sm:max-w-xs">
-                    <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--cl-text-muted)]" />
-                    <Input
-                        className="h-8 border-[var(--cl-border)] bg-[var(--cl-surface)] pl-8 text-xs"
-                        placeholder="Job no, customer or mobile…"
-                        value={search}
-                        onChange={e => handleSearchChange(e.target.value)}
-                    />
-                            {search && (
-                                <button
-                                    className="absolute right-2.5 top-1/2 flex h-4 w-4 -translate-y-1/2 items-center justify-center rounded-full bg-[var(--cl-text-muted)] text-[var(--cl-surface)] hover:bg-[var(--cl-text)] focus:outline-none"
-                                    type="button"
-                                    onClick={() => handleSearchChange("")}
-                                >
-                                    <X className="h-2.5 w-2.5" />
-                                </button>
-                            )}
-                </div>
-                <div className="flex items-center gap-2">
-                    <Switch
-                        checked={showClosed}
-                        id="uj-list-show-closed"
-                        onCheckedChange={v => { setShowClosed(v); setPage(1); }}
-                    />
-                    <Label className="cursor-pointer text-xs text-[var(--cl-text-muted)]" htmlFor="uj-list-show-closed">Show Closed</Label>
-                </div>
-                <Button
-                    className="h-8 px-2.5 text-xs"
-                    disabled={loading || !branchId}
-                    size="sm"
-                    variant="outline"
-                    onClick={() => { if (branchId) void loadData(branchId, fromDate, toDate, searchQ, page, showClosed); }}
+            {/* Status filter strip */}
+            <div className="flex flex-wrap items-center gap-2 px-4 py-3 bg-[var(--cl-surface-2)]/30 border-b border-[var(--cl-border)]">
+                <button
+                    className={`cursor-pointer rounded font-bold transition-all duration-150 ${
+                        filterStatusId === null
+                            ? "h-8 px-4 text-sm text-white bg-[var(--cl-accent)] shadow-lg border-2 border-gray-900 ring-2 ring-gray-900 ring-offset-1"
+                            : "h-7 px-3 text-sm font-semibold text-[var(--cl-text-muted)] bg-[var(--cl-surface)] border border-[var(--cl-border)] hover:bg-[var(--cl-hover)]"
+                    }`}
+                    onClick={() => { setFilterStatusId(null); setPage(1); }}
                 >
-                    <RefreshCw className="mr-1.5 h-3 w-3" /> Refresh
-                </Button>
+                    All ({total})
+                </button>
+                {jobStatuses.map(s => {
+                    const colorClass = STATUS_COLORS[s.code] ?? "bg-slate-400 hover:bg-slate-500 text-white";
+                    const isActive   = filterStatusId === s.id;
+                    const cnt        = statusCounts[s.id] ?? 0;
+                    return (
+                        <button
+                            key={s.id}
+                            className={`cursor-pointer rounded font-bold transition-all duration-150 ${colorClass} ${
+                                isActive
+                                    ? "h-8 px-4 text-sm shadow-lg border-2 border-gray-900 ring-2 ring-gray-900 ring-offset-1"
+                                    : "h-7 px-3 text-sm font-semibold opacity-80 hover:opacity-100"
+                            }`}
+                            onClick={() => { setFilterStatusId(s.id); setPage(1); }}
+                        >
+                            {s.name}
+                            <span className="ml-1.5 rounded-full bg-black px-1.5 py-0.5 text-[11px] font-bold text-white">
+                                {cnt}
+                            </span>
+                        </button>
+                    );
+                })}
             </div>
 
-            {/* Grid */}
-            <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-[var(--cl-border)] bg-[var(--cl-surface)] shadow-sm mx-4">
+            {/* Table */}
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-[var(--cl-border)] bg-[var(--cl-surface)] shadow-sm mx-4 my-3">
                 <div ref={scrollRef} className="flex-1 overflow-x-auto overflow-y-auto" style={{ maxHeight: maxHeight || undefined }}>
                     {loading ? (
-                        <table className="min-w-full border-collapse">
-                            <thead>
-                                <tr>
-                                    {["#","Date","Job No","Customer","Mobile","Status","Technician","Diagnosis","Amount","Action"].map(h => (
-                                        <th key={h} className={thClass}>{h}</th>
-                                    ))}
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {Array.from({ length: 10 }).map((_, i) => (
-                                    <tr key={i} className="animate-pulse">
-                                        {Array.from({ length: 10 }).map((__, j) => (
-                                            <td key={j} className={tdClass}><div className="h-4 w-16 rounded bg-[var(--cl-border)]" /></td>
-                                        ))}
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                        <div className="flex h-32 items-center justify-center gap-2 text-sm text-[var(--cl-text-muted)]">
+                            <Loader2 className="h-4 w-4 animate-spin" /> Loading…
+                        </div>
                     ) : rows.length === 0 ? (
                         <div className="flex h-32 items-center justify-center text-sm text-[var(--cl-text-muted)]">
-                            No jobs found for the selected filters.
+                            No jobs found for the selected status.
                         </div>
                     ) : (
                         <table className="min-w-full border-collapse">
@@ -576,63 +338,96 @@ export const UpdateJobSection = () => {
                                     <th className={thClass}>#</th>
                                     <th className={thClass}>Date</th>
                                     <th className={thClass}>Job No</th>
+                                    <th className={thClass}>Type</th>
                                     <th className={thClass}>Customer</th>
                                     <th className={thClass}>Mobile</th>
+                                    <th className={thClass}>Device</th>
                                     <th className={thClass}>Status</th>
-                                    <th className={thClass}>Technician</th>
-                                    <th className={thClass}>Diagnosis</th>
                                     <th className={`${thClass} text-right`}>Amount</th>
-                                    <th className={`${thClass} sticky right-0 z-20 !bg-[var(--cl-surface-2)]`}>Action</th>
+                                    <th className={`${thClass} sticky right-0 z-20 !bg-[var(--cl-surface-2)]`}>Actions</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-[var(--cl-border)] bg-[var(--cl-surface)]">
-                                {rows.map((row, idx) => (
-                                    <motion.tr
-                                        key={row.id}
-                                        animate={{ opacity: 1 }}
-                                        className="group transition-colors hover:bg-[var(--cl-accent)]/5"
-                                        initial={{ opacity: 0 }}
-                                        transition={{ delay: idx * 0.015, duration: 0.15 }}
-                                    >
-                                        <td className={`${tdClass} text-[var(--cl-text-muted)]`}>{(page - 1) * PAGE_SIZE + idx + 1}</td>
-                                        <td className={tdClass}>{row.job_date}</td>
-                                        <td className={`${tdClass} font-mono font-semibold text-[var(--cl-accent)]`}>
-                                            #{row.job_no}
-                                            {row.is_closed && (
-                                                <span className="ml-1.5 rounded px-1 py-0.5 text-[10px] font-bold text-emerald-600 bg-emerald-100 dark:bg-emerald-950/40">CLOSED</span>
-                                            )}
-                                        </td>
-                                        <td className={tdClass}>{row.customer_name}</td>
-                                        <td className={`${tdClass} font-mono text-xs`}>{row.mobile}</td>
-                                        <td className={tdClass}>
-                                            <span className="rounded-full px-2 py-0.5 text-xs font-medium bg-[var(--cl-accent)]/10 text-[var(--cl-accent)]">
-                                                {row.job_status_name}
-                                            </span>
-                                        </td>
-                                        <td className={tdClass}>{row.technician_name ?? "—"}</td>
-                                        <td className={`${tdClass} max-w-[160px]`}>
-                                            {row.diagnosis
-                                                ? <span className="text-xs">{row.diagnosis.slice(0, 40)}{row.diagnosis.length > 40 ? "…" : ""}</span>
-                                                : <span className="text-xs italic text-[var(--cl-text-muted)]">—</span>
-                                            }
-                                        </td>
-                                        <td className={`${tdClass} text-right tabular-nums`}>
-                                            {row.amount != null ? `₹${Number(row.amount).toFixed(2)}` : "—"}
-                                        </td>
-                                        <td className={`${tdClass} sticky right-0 z-10 bg-[var(--cl-surface)] group-hover:bg-[var(--cl-surface-2)]`}>
-                                            <Button
-                                                className="h-7 w-7 p-0 text-[var(--cl-text-muted)] hover:text-[var(--cl-accent)]"
-                                                disabled={loadingDetail}
-                                                size="icon"
-                                                title="Update Job"
-                                                variant="ghost"
-                                                onClick={() => void handleRowClick(row)}
-                                            >
-                                                {loadingDetail ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Pencil className="h-3.5 w-3.5" />}
-                                            </Button>
-                                        </td>
-                                    </motion.tr>
-                                ))}
+                                {rows.map((row, idx) => {
+                                    const badgeColor = STATUS_COLORS[row.job_status_code]?.split(" ")[0] ?? "bg-slate-400";
+                                    const transitions = TRANSITIONS[row.job_status_id] ?? [];
+                                    const rowBg = JOB_TYPE_ROW_COLORS[row.job_type_code] ?? "";
+                                    return (
+                                        <motion.tr
+                                            key={row.id}
+                                            animate={{ opacity: 1 }}
+                                            className={`group transition-colors hover:bg-[var(--cl-accent)]/10 ${rowBg}`}
+                                            initial={{ opacity: 0 }}
+                                            transition={{ delay: idx * 0.015, duration: 0.15 }}
+                                        >
+                                            <td className={`${tdClass} text-[var(--cl-text-muted)]`}>{(page - 1) * PAGE_SIZE + idx + 1}</td>
+                                            <td className={tdClass}>{row.job_date}</td>
+                                            <td className={tdClass}>
+                                                <div className="flex flex-wrap items-center gap-1">
+                                                    <span className="font-mono font-semibold text-[var(--cl-accent)]">#{row.job_no}</span>
+                                                    {row.is_closed && (
+                                                        <span className="rounded px-1 py-0.5 text-[10px] font-bold text-emerald-600 bg-emerald-100 dark:bg-emerald-950/40">CLOSED</span>
+                                                    )}
+                                                    {row.batch_no && (
+                                                        <span className="rounded px-1 py-0.5 text-[10px] font-medium bg-[var(--cl-accent)]/10 text-[var(--cl-accent)]">Batch #{row.batch_no}</span>
+                                                    )}
+                                                    {row.file_count > 0 && (
+                                                        <button
+                                                            className="cursor-pointer rounded px-1 py-0.5 text-[10px] font-medium bg-amber-100 text-amber-700 hover:bg-amber-200 dark:bg-amber-950/40 dark:text-amber-400"
+                                                            onClick={e => { e.stopPropagation(); setAttachJobId(row.id); setAttachJobNo(row.job_no); }}
+                                                        >
+                                                            {row.file_count} file{row.file_count !== 1 ? "s" : ""}
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </td>
+                                            <td className={`${tdClass} text-xs`}>{row.job_type_name}</td>
+                                            <td className={tdClass}>{row.customer_name}</td>
+                                            <td className={`${tdClass} font-mono text-xs`}>{row.mobile}</td>
+                                            <td className={`${tdClass} max-w-[180px] truncate text-xs`}>{row.device_details ?? "—"}</td>
+                                            <td className={tdClass}>
+                                                <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold text-white ${badgeColor}`}>
+                                                    {row.job_status_name}
+                                                </span>
+                                            </td>
+                                            <td className={`${tdClass} text-right tabular-nums`}>
+                                                {row.amount != null ? `₹${Number(row.amount).toFixed(2)}` : "—"}
+                                            </td>
+                                            <td className={`${tdClass} sticky right-0 z-10 ${rowBg || "bg-[var(--cl-surface)]"} group-hover:bg-[var(--cl-accent)]/10`} onClick={e => e.stopPropagation()}>
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild>
+                                                        <Button
+                                                            className="h-7 w-7 p-0 text-[var(--cl-text-muted)] hover:text-[var(--cl-accent)]"
+                                                            disabled={submitting}
+                                                            size="icon"
+                                                            variant="ghost"
+                                                        >
+                                                            <MoreHorizontal className="h-4 w-4" />
+                                                        </Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="end" className="min-w-[170px] bg-white dark:bg-zinc-950 border-[var(--cl-border)] shadow-[0_10px_30px_rgba(0,0,0,0.2)] z-50">
+                                                        {transitions.length === 0 ? (
+                                                            <DropdownMenuItem disabled className="text-xs text-[var(--cl-text-muted)]">
+                                                                No transitions available
+                                                            </DropdownMenuItem>
+                                                        ) : (
+                                                            transitions.map(t => (
+                                                                <DropdownMenuItem
+                                                                    key={`${t.targetId}-${t.targetName}`}
+                                                                    className="gap-2 text-xs"
+                                                                    onClick={() => handleTransitionClick(row, t)}
+                                                                >
+                                                                    <span className={`h-2 w-2 shrink-0 rounded-full ${STATUS_COLORS[t.targetCode]?.split(" ")[0] ?? "bg-slate-400"}`} />
+                                                                    → {t.targetName}
+                                                                </DropdownMenuItem>
+                                                            ))
+                                                        )}
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
+                                            </td>
+                                        </motion.tr>
+                                    );
+                                })}
                             </tbody>
                         </table>
                     )}
@@ -641,7 +436,9 @@ export const UpdateJobSection = () => {
                 {/* Pagination */}
                 <div className="flex items-center justify-between border-t border-[var(--cl-border)] px-4 py-2">
                     <span className="text-xs text-[var(--cl-text-muted)]">
-                        {total === 0 ? "No jobs" : `Showing ${(page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, total)} of ${total} jobs (Page ${page} of ${totalPages})`}
+                        {total === 0
+                            ? "No jobs"
+                            : `Showing ${(page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, total)} of ${total} jobs (Page ${page} of ${totalPages})`}
                     </span>
                     <div className="flex items-center gap-1">
                         <Button className="h-7 w-7" disabled={page <= 1 || loading} size="icon" title="First"    variant="ghost" onClick={() => setPage(1)}><ChevronsLeftIcon  className="h-4 w-4" /></Button>
@@ -651,6 +448,26 @@ export const UpdateJobSection = () => {
                     </div>
                 </div>
             </div>
+
+            {/* Transition modal */}
+            {pendingTran && (
+                <StatusTransitionModal
+                    job={pendingTran.job}
+                    transition={pendingTran.transition}
+                    technicians={technicians}
+                    onClose={() => setPendingTran(null)}
+                    onSubmit={payload => handleSubmitTransition(pendingTran.job, pendingTran.transition, payload)}
+                />
+            )}
+
+            {/* File attach dialog */}
+            <JobAttachDialog
+                jobId={attachJobId}
+                jobNo={attachJobNo}
+                mode="attach"
+                onClose={() => { setAttachJobId(null); setAttachJobNo(""); }}
+                onFilesChanged={() => { if (branchId) void loadData(branchId, filterStatusId, page); }}
+            />
         </motion.div>
     );
 };
