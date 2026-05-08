@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
     Briefcase,
     ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon,
-    Loader2, MoreHorizontal,
+    Loader2, Lock, MoreHorizontal,
 } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
@@ -61,6 +61,8 @@ const PAGE_SIZE = 50;
 const thClass = "sticky top-0 z-20 text-xs font-semibold uppercase tracking-wide text-[var(--cl-text-muted)] p-3 text-left border-b border-[var(--cl-border)] bg-[var(--cl-surface-2)]";
 const tdClass = "p-3 text-sm text-[var(--cl-text)] border-b border-[var(--cl-border)]";
 
+const NO_ACTION_CODES = new Set(["COMPLETED_OK", "RETURN", "DELIVERED_OK", "DELIVERED_NOT_OK"]);
+
 const JOB_TYPE_ROW_COLORS: Record<string, string> = {
     MAKE_READY:     "bg-lime-50   dark:bg-lime-950/20",
     ESTIMATE:       "bg-blue-50   dark:bg-blue-950/20",
@@ -118,7 +120,7 @@ export const UpdateJobSection = () => {
         const timer = setTimeout(recalc, 100);
         window.addEventListener("resize", recalc);
         return () => { clearTimeout(timer); window.removeEventListener("resize", recalc); };
-    }, [recalc, rows.length]);
+    }, [recalc, rows.length, jobStatuses.length]);
 
     // Load statuses + technicians once
     useEffect(() => {
@@ -271,7 +273,7 @@ export const UpdateJobSection = () => {
             transition={{ duration: 0.25 }}
         >
             {/* Header */}
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-3 border-b border-[var(--cl-border)] bg-[var(--cl-surface)] px-4 py-1">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-3 border-b border-[var(--cl-border)] bg-[var(--cl-surface)] py-1">
                 <div className="flex items-center gap-3">
                     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-[var(--cl-accent)]/10 text-[var(--cl-accent)]">
                         <Briefcase className="h-4 w-4" />
@@ -286,18 +288,29 @@ export const UpdateJobSection = () => {
             </div>
 
             {/* Status filter strip */}
-            <div className="flex flex-wrap items-center gap-2 px-4 py-3 bg-[var(--cl-surface-2)]/30 border-b border-[var(--cl-border)]">
-                <button
-                    className={`cursor-pointer rounded font-bold transition-all duration-150 ${
-                        filterStatusId === null
-                            ? "h-8 px-4 text-sm text-white bg-[var(--cl-accent)] shadow-lg border-2 border-gray-900 ring-2 ring-gray-900 ring-offset-1"
-                            : "h-7 px-3 text-sm font-semibold text-[var(--cl-text-muted)] bg-[var(--cl-surface)] border border-[var(--cl-border)] hover:bg-[var(--cl-hover)]"
-                    }`}
-                    onClick={() => { setFilterStatusId(null); setPage(1); }}
-                >
-                    All ({total})
-                </button>
-                {jobStatuses.map(s => {
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-3 px-4 py-3 border-b border-[var(--cl-border)] bg-[var(--cl-surface-2)]/30">
+
+                {/* All button — readonly indicator */}
+                <span className="relative">
+                    <button
+                        className={`cursor-pointer rounded font-bold transition-all duration-150 ${
+                            filterStatusId === null
+                                ? "h-8 px-4 text-sm text-white bg-[var(--cl-accent)] shadow-lg border-2 border-gray-900 ring-2 ring-gray-900 ring-offset-1"
+                                : "h-7 px-3 text-sm font-semibold text-[var(--cl-text-muted)] bg-[var(--cl-surface)] border border-[var(--cl-border)] hover:bg-[var(--cl-hover)]"
+                        }`}
+                        onClick={() => { setFilterStatusId(null); setPage(1); }}
+                    >
+                        All ({total})
+                    </button>
+                    <span className="pointer-events-none absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-gray-600 text-[9px] font-black text-white shadow">
+                        R
+                    </span>
+                </span>
+
+                <div className="h-6 w-px shrink-0 bg-[var(--cl-border)]" />
+
+                {/* Working / actionable statuses */}
+                {jobStatuses.filter(s => !NO_ACTION_CODES.has(s.code) && !STATUS_FLAGS[s.id]?.is_final).map(s => {
                     const colorClass = STATUS_COLORS[s.code] ?? "bg-slate-400 hover:bg-slate-500 text-white";
                     const isActive   = filterStatusId === s.id;
                     const cnt        = statusCounts[s.id] ?? 0;
@@ -307,21 +320,82 @@ export const UpdateJobSection = () => {
                             className={`cursor-pointer rounded font-bold transition-all duration-150 ${colorClass} ${
                                 isActive
                                     ? "h-8 px-4 text-sm shadow-lg border-2 border-gray-900 ring-2 ring-gray-900 ring-offset-1"
-                                    : "h-7 px-3 text-sm font-semibold opacity-80 hover:opacity-100"
+                                    : "h-7 px-4 text-sm font-semibold opacity-80 hover:opacity-100"
                             }`}
                             onClick={() => { setFilterStatusId(s.id); setPage(1); }}
                         >
                             {s.name}
-                            <span className="ml-1.5 rounded-full bg-black px-1.5 py-0.5 text-[11px] font-bold text-white">
+                            <span className="ml-1.5 rounded-full bg-black/40 px-1.5 py-0.5 text-[11px] font-bold text-white">
                                 {cnt}
                             </span>
                         </button>
                     );
                 })}
+
+                {/* Divider + terminal statuses (CANCELLED, DISPOSED) */}
+                {jobStatuses.some(s => !NO_ACTION_CODES.has(s.code) && STATUS_FLAGS[s.id]?.is_final) && (
+                    <>
+                        <div className="h-6 w-px shrink-0 bg-[var(--cl-border)]" />
+                        {jobStatuses.filter(s => !NO_ACTION_CODES.has(s.code) && STATUS_FLAGS[s.id]?.is_final).map(s => {
+                            const colorClass = STATUS_COLORS[s.code] ?? "bg-slate-400 hover:bg-slate-500 text-white";
+                            const isActive   = filterStatusId === s.id;
+                            const cnt        = statusCounts[s.id] ?? 0;
+                            return (
+                                <button
+                                    key={s.id}
+                                    className={`cursor-pointer rounded font-bold transition-all duration-150 ${colorClass} ${
+                                        isActive
+                                            ? "h-8 px-4 text-sm shadow-lg border-2 border-gray-900 ring-2 ring-gray-900 ring-offset-1"
+                                            : "h-7 px-4 text-sm font-semibold opacity-70 hover:opacity-100"
+                                    }`}
+                                    onClick={() => { setFilterStatusId(s.id); setPage(1); }}
+                                >
+                                    {s.name}
+                                    <span className="ml-1.5 rounded-full bg-black/40 px-1.5 py-0.5 text-[11px] font-bold text-white">
+                                        {cnt}
+                                    </span>
+                                </button>
+                            );
+                        })}
+                    </>
+                )}
+
+                {/* Divider + view-only statuses with "R" badge */}
+                {jobStatuses.some(s => NO_ACTION_CODES.has(s.code)) && (
+                    <>
+                        <div className="h-6 w-px shrink-0 bg-[var(--cl-border)]" />
+                        {jobStatuses.filter(s => NO_ACTION_CODES.has(s.code)).map(s => {
+                            const colorClass = STATUS_COLORS[s.code] ?? "bg-slate-400 hover:bg-slate-500 text-white";
+                            const isActive   = filterStatusId === s.id;
+                            const cnt        = statusCounts[s.id] ?? 0;
+                            return (
+                                <span key={s.id} className="relative">
+                                    <button
+                                        className={`cursor-pointer rounded font-bold transition-all duration-150 ${colorClass} ${
+                                            isActive
+                                                ? "h-8 px-4 text-sm shadow-lg border-2 border-gray-900 ring-2 ring-gray-900 ring-offset-1"
+                                                : "h-7 px-4 text-sm font-semibold opacity-80 hover:opacity-100"
+                                        }`}
+                                        onClick={() => { setFilterStatusId(s.id); setPage(1); }}
+                                    >
+                                        {s.name}
+                                        <span className="ml-1.5 rounded-full bg-black/40 px-1.5 py-0.5 text-[11px] font-bold text-white">
+                                            {cnt}
+                                        </span>
+                                    </button>
+                                    <span className="pointer-events-none absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-gray-600 text-[9px] font-black text-white shadow">
+                                        R
+                                    </span>
+                                </span>
+                            );
+                        })}
+                    </>
+                )}
+
             </div>
 
             {/* Table */}
-            <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-[var(--cl-border)] bg-[var(--cl-surface)] shadow-sm mx-4 my-3">
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-[var(--cl-border)] bg-[var(--cl-surface)] shadow-sm my-3">
                 <div ref={scrollRef} className="flex-1 overflow-x-auto overflow-y-auto" style={{ maxHeight: maxHeight || undefined }}>
                     {loading ? (
                         <div className="flex h-32 items-center justify-center gap-2 text-sm text-[var(--cl-text-muted)]">
@@ -352,6 +426,7 @@ export const UpdateJobSection = () => {
                                     const badgeColor = STATUS_COLORS[row.job_status_code]?.split(" ")[0] ?? "bg-slate-400";
                                     const transitions = TRANSITIONS[row.job_status_id] ?? [];
                                     const rowBg = JOB_TYPE_ROW_COLORS[row.job_type_code] ?? "";
+                                    const isReadOnly = filterStatusId === null || NO_ACTION_CODES.has(row.job_status_code);
                                     return (
                                         <motion.tr
                                             key={row.id}
@@ -394,6 +469,11 @@ export const UpdateJobSection = () => {
                                                 {row.amount != null ? `₹${Number(row.amount).toFixed(2)}` : "—"}
                                             </td>
                                             <td className={`${tdClass} sticky right-0 z-10 ${rowBg || "bg-[var(--cl-surface)]"} group-hover:bg-[var(--cl-accent)]/10`} onClick={e => e.stopPropagation()}>
+                                                {isReadOnly ? (
+                                                    <span className="flex h-7 w-7 items-center justify-center">
+                                                        <Lock className="h-3.5 w-3.5 text-[var(--cl-text-muted)] opacity-40" />
+                                                    </span>
+                                                ) : (
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild>
                                                         <Button
@@ -424,6 +504,7 @@ export const UpdateJobSection = () => {
                                                         )}
                                                     </DropdownMenuContent>
                                                 </DropdownMenu>
+                                                )}
                                             </td>
                                         </motion.tr>
                                     );

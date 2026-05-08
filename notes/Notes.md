@@ -1,23 +1,36 @@
 ## Service management software
 
 # Logic for status change
+
+For "Assigned" as target status selection of technician through drop down is mandatory in modal window if not already selected earlier.
+For all transactions, remarks and date field will appear by default in modal window.
+When completed OK, provision to set part used through a shared part used dialog window, which stores data in job_part_used.
+Update Job: When status is COMPLETED_OK, RETURN, DELIVERED_OK, DELIVERED_NOT_OK then make sure that no     
+actions / transactions can be performed on these jobs, through Update Job. That means, Actions options      
+will not appear for them. The buttons for them will still appear, but those buttons be grouped separately   
+on right side with a nice UI. Also jobs displayed by clicking  "All" button should not be allowed any       
+actions. 
+
 Present Status                  Job Type                Next Options
-        RECEIVED                MAKE_READY              Assigned (technician mandatory), IN_PROGRESS (technician mandatory)
-        ASSIGNED
-        ESTIMATED
-        ESTIMATE_APPROVED
-        ESTIMATE_REJECTED
-        IN_PROGRESS
-        PARTS_PENDING
-        ON_HOLD
-        OUTSOURCED
-        SENT_TO_COMPANY
-        COMPLETED_OK
-        RETURN
-        DELIVERED_OK
-        DELIVERED_NOT_OK
-        CANCELLED
-        DISPOSED
+        RECEIVED                Estimate                Assigned, Estimated (estimate_amount)
+                                Any other               Assigned, IN_PROGRESS, 
+        ASSIGNED                Any                     Assigned, IN_PROGRESS
+        ESTIMATED               Any                     ESTIMATE_APPROVED, ESTIMATE_REJECTED, IN_PROGRESS
+        ESTIMATE_APPROVED       Any                     IN_PROGRESS
+        ESTIMATE_REJECTED       Any                     RETURN
+        IN_PROGRESS             Any                     Assigned, SENT_TO_COMPANY, OUTSOURCED, PARTS_PENDING, ON_HOLD, COMPLETED_OK. RETURN, CANCELLED, DISPOSED
+        PARTS_PENDING           Any                     IN_PROGRESS
+        ON_HOLD                 Any                     IN_PROGRESS
+        OUTSOURCED              Any                     IN_PROGRESS
+        SENT_TO_COMPANY         Any                     RECEIVED_BACK_FROM_COMPANY
+        COMPLETED_OK            Any                     No transactions
+        RETURN                  Any                     No transactions
+        DELIVERED_OK            Any                     No transactions
+        DELIVERED_NOT_OK        Any                     No transactions
+        CANCELLED               Any                     IN_PROGRESS
+        DISPOSED                Any                     IN_PROGRESS
+        RECEIVED_BACK_FROM_COMPANY                      IN_PROGRESS
+        
 # Old Service DB extracts
 
 # Service

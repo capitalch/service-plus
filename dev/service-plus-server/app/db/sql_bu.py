@@ -863,7 +863,8 @@ class SqlBu:
             (13, 'DELIVERED_OK',      'Delivered OK',     'Delivered successfully',     13),
             (14, 'DELIVERED_NOT_OK',  'Delivered Not OK', 'Delivered but issue remains',14),
             (15, 'CANCELLED',         'Cancelled',        'Job cancelled',              15),
-            (16, 'DISPOSED',          'Disposed',         'Item disposed',              16)
+            (16, 'DISPOSED',          'Disposed',         'Item disposed',              16),
+            (17, 'RECEIVED_BACK_FROM_COMPANY', 'Received Back From Company', 'Item received back from company', 17)
         ON CONFLICT (id) DO NOTHING;
 
         INSERT INTO job_type (id, code, name, description, is_system, display_order) VALUES
