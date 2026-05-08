@@ -302,7 +302,7 @@ export const UpdateJobSection = () => {
                     >
                         All ({total})
                     </button>
-                    <span className="pointer-events-none absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-gray-600 text-[9px] font-black text-white shadow">
+                    <span className="pointer-events-none absolute -right-1 -top-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-black text-[8px] font-black text-white shadow">
                         R
                     </span>
                 </span>
@@ -383,7 +383,7 @@ export const UpdateJobSection = () => {
                                             {cnt}
                                         </span>
                                     </button>
-                                    <span className="pointer-events-none absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-gray-600 text-[9px] font-black text-white shadow">
+                                    <span className="pointer-events-none absolute -right-1 -top-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-black text-[8px] font-black text-white shadow">
                                         R
                                     </span>
                                 </span>
