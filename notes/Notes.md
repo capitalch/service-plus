@@ -30,6 +30,12 @@ Present Status                  Job Type                Next Options
         CANCELLED               Any                     IN_PROGRESS
         DISPOSED                Any                     IN_PROGRESS
         RECEIVED_BACK_FROM_COMPANY                      IN_PROGRESS
+
+# Undo last transaction
+- In all the drop down actions provide "Undo Last Transaction" in red
+- Show a valid warning when a user clicks this
+- This will delete the last transaction of the job and restore to previous status
+- This option will be available to the read only statuses except "All"
         
 # Old Service DB extracts
 

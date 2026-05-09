@@ -21,7 +21,7 @@ import { selectCurrentBranch, selectSchema } from "@/store/context-slice";
 import { useAppSelector } from "@/store/hooks";
 import type { JobLookupRow, TechnicianRow } from "@/features/client/types/job";
 import { JobAttachDialog } from "../single-job/job-attach-dialog";
-import { TRANSITIONS, STATUS_FLAGS, STATUS_COLORS } from "./status-transitions";
+import { getTransitions, STATUS_FLAGS, STATUS_COLORS } from "./status-transitions";
 import type { Transition } from "./status-transitions";
 import { StatusTransitionModal } from "./status-transition-modal";
 import type { TransitionPayload } from "./status-transition-modal";
@@ -205,19 +205,7 @@ export const UpdateJobSection = () => {
     // ── Transition handlers ─────────────────────────────────────────────────
 
     function handleTransitionClick(job: OpenJobRow, transition: Transition) {
-        if (transition.fields === "none") {
-            void handleSubmitTransition(job, transition, {
-                targetStatusId:  transition.targetId,
-                technician_id:   null,
-                amount:          null,
-                estimate_amount: null,
-                remarks:         "",
-                is_final:        false,
-                is_closed:       false,
-            });
-        } else {
-            setPendingTran({ job, transition });
-        }
+        setPendingTran({ job, transition });
     }
 
     async function handleSubmitTransition(
@@ -233,7 +221,7 @@ export const UpdateJobSection = () => {
                 id:              job.id,
                 job_status_id:   transition.targetId,
                 technician_id:   payload.technician_id,
-                amount:          transition.fields === "RA" ? payload.amount          : job.amount,
+                amount:          (transition.fields === "RA" || transition.fields === "RAP") ? payload.amount : job.amount,
                 estimate_amount: transition.fields === "RE" ? payload.estimate_amount : job.estimate_amount,
                 is_final:        flags?.is_final  ?? false,
                 is_closed:       flags?.is_closed ?? false,
@@ -247,10 +235,33 @@ export const UpdateJobSection = () => {
                         last_transaction_id:  job.last_transaction_id,
                         performed_by_user_id: currentUser?.id ?? null,
                         transaction_notes:    payload.remarks || "",
+                        transaction_date:     payload.transaction_date || null,
                         xData,
                     }),
                 },
             });
+
+            // Save parts if any
+            const pd = payload.partsData;
+            if (pd && (pd.newLines.length || pd.deletedIds.length)) {
+                await apolloClient.mutate({
+                    mutation:  GRAPHQL_MAP.genericUpdate,
+                    variables: {
+                        db_name: dbName, schema,
+                        value: encodeObj({
+                            tableName:  "job_part_used",
+                            deletedIds: pd.deletedIds,
+                            xData: pd.newLines.map(l => ({
+                                job_id:   job.id,
+                                part_id:  l.part_id,
+                                quantity: l.quantity,
+                                remarks:  l.remarks || null,
+                            })),
+                        }),
+                    },
+                });
+            }
+
             toast.success(`Job ${job.job_no} → ${transition.targetName}`);
             setPendingTran(null);
             if (branchId) void loadData(branchId, filterStatusId, page);
@@ -424,7 +435,7 @@ export const UpdateJobSection = () => {
                             <tbody className="divide-y divide-[var(--cl-border)] bg-[var(--cl-surface)]">
                                 {rows.map((row, idx) => {
                                     const badgeColor = STATUS_COLORS[row.job_status_code]?.split(" ")[0] ?? "bg-slate-400";
-                                    const transitions = TRANSITIONS[row.job_status_id] ?? [];
+                                    const transitions = getTransitions(row.job_status_id, row.job_type_code);
                                     const rowBg = JOB_TYPE_ROW_COLORS[row.job_type_code] ?? "";
                                     const isReadOnly = filterStatusId === null || NO_ACTION_CODES.has(row.job_status_code);
                                     return (
@@ -477,27 +488,27 @@ export const UpdateJobSection = () => {
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild>
                                                         <Button
-                                                            className="h-7 w-7 p-0 text-[var(--cl-text-muted)] hover:text-[var(--cl-accent)]"
+                                                            className="h-8 w-8 p-0 text-[var(--cl-text-muted)] hover:text-[var(--cl-accent)] hover:bg-[var(--cl-accent)]/10"
                                                             disabled={submitting}
                                                             size="icon"
                                                             variant="ghost"
                                                         >
-                                                            <MoreHorizontal className="h-4 w-4" />
+                                                            <MoreHorizontal className="h-5 w-5" />
                                                         </Button>
                                                     </DropdownMenuTrigger>
-                                                    <DropdownMenuContent align="end" className="min-w-[170px] bg-white dark:bg-zinc-950 border-[var(--cl-border)] shadow-[0_10px_30px_rgba(0,0,0,0.2)] z-50">
+                                                    <DropdownMenuContent align="end" className="min-w-[210px] bg-white dark:bg-zinc-950 border-[var(--cl-border)] shadow-[0_10px_30px_rgba(0,0,0,0.2)] z-50">
                                                         {transitions.length === 0 ? (
-                                                            <DropdownMenuItem disabled className="text-xs text-[var(--cl-text-muted)]">
+                                                            <DropdownMenuItem disabled className="text-sm text-[var(--cl-text-muted)] py-2.5">
                                                                 No transitions available
                                                             </DropdownMenuItem>
                                                         ) : (
                                                             transitions.map(t => (
                                                                 <DropdownMenuItem
                                                                     key={`${t.targetId}-${t.targetName}`}
-                                                                    className="gap-2 text-xs"
+                                                                    className="gap-2.5 text-sm font-medium py-2.5 cursor-pointer"
                                                                     onClick={() => handleTransitionClick(row, t)}
                                                                 >
-                                                                    <span className={`h-2 w-2 shrink-0 rounded-full ${STATUS_COLORS[t.targetCode]?.split(" ")[0] ?? "bg-slate-400"}`} />
+                                                                    <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${STATUS_COLORS[t.targetCode]?.split(" ")[0] ?? "bg-slate-400"}`} />
                                                                     → {t.targetName}
                                                                 </DropdownMenuItem>
                                                             ))
@@ -536,6 +547,8 @@ export const UpdateJobSection = () => {
                     job={pendingTran.job}
                     transition={pendingTran.transition}
                     technicians={technicians}
+                    dbName={dbName ?? ""}
+                    schema={schema ?? ""}
                     onClose={() => setPendingTran(null)}
                     onSubmit={payload => handleSubmitTransition(pendingTran.job, pendingTran.transition, payload)}
                 />
