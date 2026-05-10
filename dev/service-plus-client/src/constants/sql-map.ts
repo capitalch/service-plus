@@ -184,16 +184,11 @@ export const SQL_MAP = {
     GET_JOBS_PAGED:                       "GET_JOBS_PAGED",
     // Job Search
     GET_JOB_SEARCH_COUNT:                   "GET_JOB_SEARCH_COUNT",
+
     GET_JOB_SEARCH_PAGED:                   "GET_JOB_SEARCH_PAGED",
     GET_JOB_DETAIL:                       "GET_JOB_DETAIL",
     GET_JOB_IMAGE_DOCS:                   "GET_JOB_IMAGE_DOCS",
     GET_LATEST_JOB:                       "GET_LATEST_JOB",
-    // Update Job
-    GET_OPEN_JOBS_COUNT:                  "GET_OPEN_JOBS_COUNT",
-    GET_OPEN_JOBS_PAGED:                  "GET_OPEN_JOBS_PAGED",
-    GET_UPDATE_JOBS_STATUS_COUNTS:        "GET_UPDATE_JOBS_STATUS_COUNTS",
-    GET_UPDATE_JOBS_COUNT:                "GET_UPDATE_JOBS_COUNT",
-    GET_UPDATE_JOBS_PAGED:                "GET_UPDATE_JOBS_PAGED",
     // Batch Job Entry
     GET_JOB_BATCHES_PAGED:               "GET_JOB_BATCHES_PAGED",
     GET_JOB_BATCHES_COUNT:               "GET_JOB_BATCHES_COUNT",
@@ -219,4 +214,8 @@ export const SQL_MAP = {
     GET_DELIVERABLE_JOBS_COUNT:         "GET_DELIVERABLE_JOBS_COUNT",
     GET_DELIVERABLE_JOBS_PAGED:         "GET_DELIVERABLE_JOBS_PAGED",
     GET_JOB_DELIVERY_DETAIL:            "GET_JOB_DELIVERY_DETAIL",
+    // Job Pipeline
+    GET_JOB_PIPELINE_STATUS_COUNTS:     "GET_JOB_PIPELINE_STATUS_COUNTS",
+    GET_JOB_PIPELINE_COUNT:             "GET_JOB_PIPELINE_COUNT",
+    GET_JOB_PIPELINE_PAGED:             "GET_JOB_PIPELINE_PAGED",
 }

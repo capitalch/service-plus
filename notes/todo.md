@@ -1,5 +1,6 @@
 # QA round
 - Jobs
+	- implement alternate job no
 						- Separate file server
 								- Folder hierarchy as client/bu/branch/job_no
 								- Final deployment of file server with deploy script

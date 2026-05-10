@@ -135,6 +135,37 @@ export type JobBatchDetailRow = JobDetailType & {
     receive_manner_name: string;
 };
 
+export type OpenJobRow = {
+    id:                  number;
+    job_no:              string;
+    job_date:            string;
+    job_status_id:       number;
+    job_status_code:     string;
+    job_status_name:     string;
+    is_closed:           boolean;
+    is_final:            boolean;
+    amount:              number | null;
+    estimate_amount:     number | null;
+    diagnosis:           string | null;
+    last_transaction_id: number | null;
+    batch_no:            number | null;
+    customer_name:       string;
+    mobile:              string;
+    job_type_name:       string;
+    job_type_code:       string;
+    technician_name:     string | null;
+    technician_id:       number | null;
+    device_details:      string | null;
+    file_count:          number;
+};
+
+export type JobBoardStatusCount = {
+    status_id:   number;
+    status_name: string;
+    status_code: string;
+    count:       number;
+};
+
 export type JobTransactionRow = {
     id:                      number;
     job_id:                  number;
@@ -143,7 +174,7 @@ export type JobTransactionRow = {
     technician_id:           number | null;
     technician_name:         string | null;
     amount:                  number | null;
-    notes:                   string | null;
+    remarks:                 string | null;
     performed_by_user_id:    number;
     performed_by_name:       string | null;
     performed_at:            string;

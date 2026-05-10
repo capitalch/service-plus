@@ -8,7 +8,7 @@ import { PartUsedSection } from "../components/jobs/part-used/part-used-section"
 import { ReadyForDeliverySection } from "../components/jobs/ready-for-delivery/ready-for-delivery-section";
 import { ReceiptsSection } from "../components/jobs/receipts/receipts-section";
 import { SingleJobSection } from "../components/jobs/single-job/single-job-section";
-import { UpdateJobSection } from "../components/jobs/update-job/update-job-section";
+import { JobPipelineSection } from "../components/jobs/job-pipeline/job-pipeline-section";
 
 // ─── Coming Soon placeholder ──────────────────────────────────────────────────
 
@@ -53,8 +53,8 @@ function JobsContent() {
             return <PartUsedSection />;
         case "Receipts":
             return <ReceiptsSection />;
-        case "Update Job":
-            return <UpdateJobSection />;
+        case "Job Pipeline":
+            return <JobPipelineSection />;
         case "Ready for Delivery":
             return <ReadyForDeliverySection />;
         case "Deliver Job":

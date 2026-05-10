@@ -184,12 +184,12 @@ export function TransactionDetailView({ tranId, jobNo, onBack }: Props) {
                             </div>
 
                             {/* Notes */}
-                            {tran.notes && tran.notes.trim() && (
+                            {tran.remarks && tran.remarks.trim() && (
                                 <>
                                     <div className="my-4 border-t border-[var(--cl-border)]" />
                                     <div className="flex flex-col gap-1">
-                                        <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--cl-text-muted)]">Notes</span>
-                                        <p className="whitespace-pre-wrap text-sm text-[var(--cl-text)]">{tran.notes}</p>
+                                        <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--cl-text-muted)]">Remarks</span>
+                                        <p className="whitespace-pre-wrap text-sm text-[var(--cl-text)]">{tran.remarks}</p>
                                     </div>
                                 </>
                             )}

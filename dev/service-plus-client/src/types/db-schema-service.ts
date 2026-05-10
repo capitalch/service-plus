@@ -759,7 +759,6 @@ export interface JobTransaction {
   status_id: number | null;
   technician_id: number | null;
   amount: number | null;
-  notes: string | null;
   performed_by_user_id: number;
   performed_at: Date;
   previous_transaction_id: number | null;
@@ -771,7 +770,6 @@ export interface JobTransactionInput {
   status_id?: number | null;
   technician_id?: number | null;
   amount?: number | null;
-  notes?: string | null;
   performed_by_user_id: number;
   performed_at?: Date;
   previous_transaction_id?: number | null;
@@ -779,7 +777,7 @@ export interface JobTransactionInput {
 }
 const job_transaction = {
   tableName: 'job_transaction',
-  columns: ['id', 'job_id', 'status_id', 'technician_id', 'amount', 'notes', 'performed_by_user_id', 'performed_at', 'previous_transaction_id', 'remarks'],
+  columns: ['id', 'job_id', 'status_id', 'technician_id', 'amount', 'performed_by_user_id', 'performed_at', 'previous_transaction_id', 'remarks'],
   requiredForInsert: ['id', 'job_id', 'performed_by_user_id'],
   primaryKey: 'id',
   foreignKeys: {

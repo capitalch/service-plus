@@ -311,7 +311,7 @@ export function JobDetailView({ jobId, onBack, onViewTransaction }: Props) {
                                             <th className={thClass}>Status</th>
                                             <th className={thClass}>Technician</th>
                                             <th className={`${thClass} text-right`}>Amount</th>
-                                            <th className={thClass}>Notes</th>
+                                            <th className={thClass}>Remarks</th>
                                             <th className={thClass}>Performed By</th>
                                         </tr>
                                     </thead>
@@ -334,7 +334,7 @@ export function JobDetailView({ jobId, onBack, onViewTransaction }: Props) {
                                                 </td>
                                                 <td className={tdClass}>{t.technician_name ?? "—"}</td>
                                                 <td className={`${tdClass} text-right tabular-nums`}>{fmtAmount(t.amount)}</td>
-                                                <td className={`${tdClass} max-w-[200px] truncate`} title={t.notes ?? ""}>{t.notes ?? "—"}</td>
+                                                <td className={`${tdClass} max-w-[200px] truncate`} title={t.remarks ?? ""}>{t.remarks ?? "—"}</td>
                                                 <td className={tdClass}>{t.performed_by_name ?? "—"}</td>
                                             </tr>
                                         ))}

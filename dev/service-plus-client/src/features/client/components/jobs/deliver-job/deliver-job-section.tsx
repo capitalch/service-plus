@@ -467,12 +467,12 @@ export const DeliverJobSection = () => {
                             </div>
                             <div className="sm:col-span-1">
                                 <Label className="mb-1.5 block text-sm font-medium text-[var(--cl-text)]" htmlFor="dj-txn-notes">
-                                    Transaction Notes
+                                    Transaction Remarks
                                 </Label>
                                 <Textarea
                                     className="h-9 min-h-[36px] border-[var(--cl-border)] bg-[var(--cl-surface)] text-sm resize-none"
                                     id="dj-txn-notes"
-                                    placeholder="Optional notes…"
+                                    placeholder="Optional remarks…"
                                     rows={1}
                                     {...form.register("transaction_notes")}
                                 />

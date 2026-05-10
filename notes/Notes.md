@@ -2,23 +2,22 @@
 
 # Logic for status change
 
-For "Assigned" as target status selection of technician through drop down is mandatory in modal window if not already selected earlier.
-For all transactions, remarks and date field will appear by default in modal window.
-When completed OK, provision to set part used through a shared part used dialog window, which stores data in job_part_used.
-Update Job: When status is COMPLETED_OK, RETURN, DELIVERED_OK, DELIVERED_NOT_OK then make sure that no     
-actions / transactions can be performed on these jobs, through Update Job. That means, Actions options      
-will not appear for them. The buttons for them will still appear, but those buttons be grouped separately   
-on right side with a nice UI. Also jobs displayed by clicking  "All" button should not be allowed any       
-actions. 
-
-Present Status                  Job Type                Next Options
+- For "Assigned" as target status, selection of technician through drop down is mandatory in modal window if not already selected earlier.
+- For all transactions, remarks and date field will appear by default in modal window.
+- When completed OK as target status, there should be provision to register part used through a grid in the existing dialog window, which stores data in job_part_used. If already some part used, that should show up. User should be able to add / delete new parts.
+- When target status is IN_PROGRESS, then also there should be provision to add / delete parts
+- When existing status is COMPLETED_OK, RETURN, DELIVERED_OK, DELIVERED_NOT_OK then make sure that no     
+actions / transactions can be performed on these jobs. That means, Actions options      
+will not appear for them. This function is already existing.
+- Please incorporate the following logical steps table for options in dropdown of actions column
+Present Status                  Job Type                Allowed Options
         RECEIVED                Estimate                Assigned, Estimated (estimate_amount)
                                 Any other               Assigned, IN_PROGRESS, 
         ASSIGNED                Any                     Assigned, IN_PROGRESS
         ESTIMATED               Any                     ESTIMATE_APPROVED, ESTIMATE_REJECTED, IN_PROGRESS
         ESTIMATE_APPROVED       Any                     IN_PROGRESS
         ESTIMATE_REJECTED       Any                     RETURN
-        IN_PROGRESS             Any                     Assigned, SENT_TO_COMPANY, OUTSOURCED, PARTS_PENDING, ON_HOLD, COMPLETED_OK. RETURN, CANCELLED, DISPOSED
+        IN_PROGRESS             Any                     Assigned, SENT_TO_COMPANY, OUTSOURCED, PARTS_PENDING, ON_HOLD, COMPLETED_OK. RETURN, CANCELLED, DISPOSED, In_progress
         PARTS_PENDING           Any                     IN_PROGRESS
         ON_HOLD                 Any                     IN_PROGRESS
         OUTSOURCED              Any                     IN_PROGRESS
@@ -30,12 +29,6 @@ Present Status                  Job Type                Next Options
         CANCELLED               Any                     IN_PROGRESS
         DISPOSED                Any                     IN_PROGRESS
         RECEIVED_BACK_FROM_COMPANY                      IN_PROGRESS
-
-# Undo last transaction
-- In all the drop down actions provide "Undo Last Transaction" in red
-- Show a valid warning when a user clicks this
-- This will delete the last transaction of the job and restore to previous status
-- This option will be available to the read only statuses except "All"
         
 # Old Service DB extracts
 

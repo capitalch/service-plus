@@ -129,14 +129,14 @@ function buildJobDetailDoc(
         doc.setFont("helvetica", "italic");
         doc.text("No transactions recorded.", 14, y);
     } else {
-        const head = [["#", "Date & Time", "Status", "Technician", "Amount", "Notes", "Performed By"]];
+        const head = [["#", "Date & Time", "Status", "Technician", "Amount", "Remarks", "Performed By"]];
         const body = transactions.map((t, i) => [
             String(i + 1),
             fmtDateTime(t.performed_at),
             fmt(t.status_name),
             fmt(t.technician_name),
             fmtAmount(t.amount),
-            fmt(t.notes),
+            fmt(t.remarks),
             fmt(t.performed_by_name),
         ]);
 
