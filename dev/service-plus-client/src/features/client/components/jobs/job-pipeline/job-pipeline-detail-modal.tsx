@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Calendar, FileText, Loader2, MapPin, Phone, User, Wrench } from "lucide-react";
+import { Calendar, FileText, Loader2, MapPin, User, Wrench } from "lucide-react";
 import { toast } from "sonner";
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
