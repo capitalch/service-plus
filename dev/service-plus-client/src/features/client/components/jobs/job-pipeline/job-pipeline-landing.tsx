@@ -72,14 +72,18 @@ export const JobPipelineLanding = ({ onStatusClick }: Props) => {
                 <motion.button
                     key={s.status_id}
                     animate={{ opacity: 1 }}
-                    className={`group flex w-full cursor-pointer items-center gap-3 rounded px-3 py-2 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--cl-accent)] hover:bg-[var(--cl-hover)] transition-colors duration-150 ${isZero ? "opacity-40" : ""}`}
+                    className={`group flex w-full items-center gap-3 rounded px-3 py-2 text-left focus:outline-none transition-colors duration-150 ${isZero ? "opacity-40 cursor-not-allowed" : "cursor-pointer focus-visible:ring-2 focus-visible:ring-[var(--cl-accent)] hover:bg-[var(--cl-hover)]"}`}
                     initial={{ opacity: 0 }}
                     title={`${s.status_name}: ${count} job${count !== 1 ? "s" : ""}`}
                     transition={{ delay: idx * 0.04, duration: 0.2 }}
-                    onClick={() => onStatusClick(s)}
+                    onClick={() => { if (!isZero) onStatusClick(s); }}
                 >
                     <span className="w-44 shrink-0 truncate text-sm font-semibold text-[var(--cl-text)]" title={s.status_name}>
                         {s.status_name}
+                    </span>
+
+                    <span className="w-8 shrink-0 text-right text-xs font-bold tabular-nums text-zinc-700 bg-zinc-200 rounded px-1.5 py-0.5">
+                        {count}
                     </span>
 
                     <div className="relative flex h-7 flex-1 overflow-hidden rounded bg-[var(--cl-surface-2)]">

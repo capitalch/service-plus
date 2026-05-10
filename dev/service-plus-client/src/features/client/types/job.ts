@@ -33,7 +33,8 @@ export type JobDetailType = {
     work_done:                   string | null;
     remarks:                     string | null;
     amount:                      number | null;
-    delivery_date:                string | null;
+    estimate_amount:             number | null;
+    delivery_date:               string | null;
     is_closed:                   boolean;
     is_final:                    boolean;
     last_transaction_id:         number | null;

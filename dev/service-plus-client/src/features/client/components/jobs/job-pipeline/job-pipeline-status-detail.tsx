@@ -1,15 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-    ArrowLeft,
+    ArrowLeft, ArrowRightLeft,
     ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon,
-    Eye, Loader2, Lock, MoreHorizontal, RefreshCcw, Search, X,
+    Eye, Loader2, Lock, RefreshCcw, Search, X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
 import {
-    DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+    DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
+    DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { MESSAGES } from "@/constants/messages";
@@ -147,8 +148,8 @@ export const JobPipelineStatusDetail = ({ status, technicians, onBack }: Props) 
                 id:              job.id,
                 job_status_id:   transition.targetId,
                 technician_id:   payload.technician_id,
-                amount:          (transition.fields === "RA" || transition.fields === "RAP") ? payload.amount : job.amount,
-                estimate_amount: transition.fields === "RE" ? payload.estimate_amount : job.estimate_amount,
+                amount:          (transition.fields === "RAT" || transition.fields === "RAPT") ? payload.amount : job.amount,
+                estimate_amount: transition.fields === "RET" ? payload.estimate_amount : job.estimate_amount,
                 is_final:        flags?.is_final  ?? false,
                 is_closed:       flags?.is_closed ?? false,
             };
@@ -344,30 +345,39 @@ export const JobPipelineStatusDetail = ({ status, technicians, onBack }: Props) 
                                                         <DropdownMenu>
                                                             <DropdownMenuTrigger asChild>
                                                                 <Button
-                                                                    className="h-8 w-8 p-0 text-[var(--cl-text-muted)] hover:text-[var(--cl-accent)] hover:bg-[var(--cl-accent)]/10"
+                                                                    className="h-8 w-8 p-0 text-[var(--cl-accent)] hover:text-white hover:bg-[var(--cl-accent)] rounded-lg transition-colors"
                                                                     disabled={submitting}
                                                                     size="icon"
+                                                                    title="Change status"
                                                                     variant="ghost"
                                                                 >
-                                                                    <MoreHorizontal className="h-5 w-5" />
+                                                                    <ArrowRightLeft className="h-4 w-4" />
                                                                 </Button>
                                                             </DropdownMenuTrigger>
-                                                            <DropdownMenuContent align="end" className="min-w-[210px] bg-white dark:bg-zinc-950 border-[var(--cl-border)] shadow-[0_10px_30px_rgba(0,0,0,0.2)] z-50">
+                                                            <DropdownMenuContent align="end" className="min-w-[220px] bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 shadow-xl rounded-xl p-1 z-50">
+                                                                <DropdownMenuLabel className="px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
+                                                                    Move job to
+                                                                </DropdownMenuLabel>
+                                                                <DropdownMenuSeparator className="bg-zinc-100 dark:bg-zinc-800 mx-1" />
                                                                 {transitions.length === 0 ? (
-                                                                    <DropdownMenuItem disabled className="text-sm text-[var(--cl-text-muted)] py-2.5">
+                                                                    <DropdownMenuItem disabled className="rounded-lg text-sm text-zinc-400 py-2.5 px-3 italic">
                                                                         No transitions available
                                                                     </DropdownMenuItem>
                                                                 ) : (
-                                                                    transitions.map(t => (
-                                                                        <DropdownMenuItem
-                                                                            key={`${t.targetId}-${t.targetName}`}
-                                                                            className="gap-2.5 text-sm font-medium py-2.5 cursor-pointer"
-                                                                            onClick={() => setPendingTran({ job: row, transition: t })}
-                                                                        >
-                                                                            <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${STATUS_COLORS[t.targetCode]?.split(" ")[0] ?? "bg-slate-400"}`} />
-                                                                            → {t.targetName}
-                                                                        </DropdownMenuItem>
-                                                                    ))
+                                                                    transitions.map(t => {
+                                                                        const dotBg = STATUS_COLORS[t.targetCode]?.trim().split(/\s+/)[0] ?? "bg-slate-400";
+                                                                        return (
+                                                                            <DropdownMenuItem
+                                                                                key={`${t.targetId}-${t.targetName}`}
+                                                                                className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-900 focus:bg-zinc-50 dark:focus:bg-zinc-900"
+                                                                                onClick={() => setPendingTran({ job: row, transition: t })}
+                                                                            >
+                                                                                <span className={`h-3 w-3 shrink-0 rounded-full ${dotBg} shadow-sm`} />
+                                                                                <span className="flex-1 text-zinc-700 dark:text-zinc-300">{t.targetName}</span>
+                                                                                <span className="text-zinc-300 dark:text-zinc-600">›</span>
+                                                                            </DropdownMenuItem>
+                                                                        );
+                                                                    })
                                                                 )}
                                                             </DropdownMenuContent>
                                                         </DropdownMenu>
@@ -414,6 +424,7 @@ export const JobPipelineStatusDetail = ({ status, technicians, onBack }: Props) 
                 jobId={attachJobId}
                 jobNo={attachJobNo}
                 onClose={() => { setAttachJobId(null); setAttachJobNo(""); }}
+                onFilesChanged={() => void loadData()}
             />
 
             {viewJobId !== null && (

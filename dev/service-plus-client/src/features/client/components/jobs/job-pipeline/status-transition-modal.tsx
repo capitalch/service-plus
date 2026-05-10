@@ -97,7 +97,7 @@ const today = new Date().toISOString().slice(0, 10);
 
 export const StatusTransitionModal = ({ job, transition, technicians, dbName, schema, onClose, onSubmit }: Props) => {
     const { fields } = transition;
-    const needsParts = fields === "P" || fields === "RAP";
+    const needsParts = fields === "PT" || fields === "RAPT";
 
     const [existingParts, setExistingParts] = useState<ExistingPartRow[]>([]);
     const [newParts,      setNewParts]      = useState<NewPartRow[]>([]);
@@ -193,7 +193,7 @@ export const StatusTransitionModal = ({ job, transition, technicians, dbName, sc
     }
 
     async function handleSubmit(values: FormValues) {
-        if (fields === "RT" && !values.technician_id) {
+        if (fields.includes("T") && !values.technician_id) {
             form.setError("technician_id", { message: "Technician is required" });
             return;
         }
@@ -245,8 +245,8 @@ export const StatusTransitionModal = ({ job, transition, technicians, dbName, sc
                 </div>
 
                 <div className="space-y-4">
-                    {/* Technician — RT */}
-                    {fields === "RT" && (
+                    {/* Technician — when code contains T */}
+                    {fields.includes("T") && (
                         <div>
                             <Label className="mb-1.5 block text-sm font-medium text-[var(--cl-text)]">
                                 Technician <span className="text-red-500">*</span>
@@ -271,7 +271,7 @@ export const StatusTransitionModal = ({ job, transition, technicians, dbName, sc
                     )}
 
                     {/* Estimated Price — RE */}
-                    {fields === "RE" && (
+                    {fields === "RET" && (
                         <div>
                             <Label className="mb-1.5 block text-sm font-medium text-[var(--cl-text)]" htmlFor="stm-estimate-amount">
                                 Estimated Price
@@ -289,7 +289,7 @@ export const StatusTransitionModal = ({ job, transition, technicians, dbName, sc
                     )}
 
                     {/* Amount — RA or RAP */}
-                    {(fields === "RA" || fields === "RAP") && (
+                    {(fields === "RAT" || fields === "RAPT") && (
                         <div>
                             <Label className="mb-1.5 block text-sm font-medium text-[var(--cl-text)]" htmlFor="stm-amount">
                                 Amount

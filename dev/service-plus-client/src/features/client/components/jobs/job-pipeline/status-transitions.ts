@@ -1,4 +1,4 @@
-export type TransitionFields = "none" | "R" | "RT" | "RA" | "RE" | "P" | "RAP";
+export type TransitionFields = "none" | "R" | "RT" | "RAT" | "RET" | "PT" | "RAPT";
 
 export type Transition = {
     targetId:   number;
@@ -20,11 +20,11 @@ export const STATUS_FLAGS: Record<number, StatusFlags> = {
     8:  { is_final: false, is_closed: false }, // ON_HOLD
     9:  { is_final: false, is_closed: false }, // OUTSOURCED
     10: { is_final: false, is_closed: false }, // SENT_TO_COMPANY
-    11: { is_final: false, is_closed: false }, // COMPLETED_OK
-    12: { is_final: false, is_closed: false }, // RETURN
-    13: { is_final: false, is_closed: false }, // DELIVERED_OK
-    14: { is_final: false, is_closed: false }, // DELIVERED_NOT_OK
-    15: { is_final: true,  is_closed: true  }, // CANCELLED
+    11: { is_final: true,  is_closed: false }, // COMPLETED_OK
+    12: { is_final: true,  is_closed: false }, // RETURN
+    13: { is_final: false, is_closed: true  }, // DELIVERED_OK
+    14: { is_final: false, is_closed: true  }, // DELIVERED_NOT_OK
+    15: { is_final: true,  is_closed: false }, // CANCELLED
     16: { is_final: true,  is_closed: true  }, // DISPOSED
     17: { is_final: false, is_closed: false }, // RECEIVED_BACK_FROM_COMPANY
 };
@@ -34,27 +34,32 @@ export function getTransitions(statusId: number, jobTypeCode: string): Transitio
         case 1: // RECEIVED
             if (jobTypeCode === "ESTIMATE")
                 return [
-                    { targetId: 2,  targetCode: "ASSIGNED",  targetName: "Assigned",  fields: "RT" },
-                    { targetId: 3,  targetCode: "ESTIMATED", targetName: "Estimated", fields: "RE" },
+                    { targetId: 2,  targetCode: "ASSIGNED",  targetName: "Assigned",  fields: "RT"  },
+                    { targetId: 3,  targetCode: "ESTIMATED", targetName: "Estimated", fields: "RET" },
                 ];
             return [
-                { targetId: 2, targetCode: "ASSIGNED",    targetName: "Assigned",    fields: "RT" },
-                { targetId: 6, targetCode: "IN_PROGRESS", targetName: "In Progress", fields: "P"  },
+                { targetId: 2,  targetCode: "ASSIGNED",     targetName: "Assigned",     fields: "RT"   },
+                { targetId: 3,  targetCode: "ESTIMATED",    targetName: "Estimated",    fields: "RET"  },
+                { targetId: 6,  targetCode: "IN_PROGRESS",  targetName: "In Progress",  fields: "PT"   },
+                { targetId: 11, targetCode: "COMPLETED_OK", targetName: "Completed OK", fields: "RAPT" },
+                { targetId: 12, targetCode: "RETURN",       targetName: "Return",       fields: "R"    },
+                { targetId: 15, targetCode: "CANCELLED",    targetName: "Cancelled",    fields: "R"    },
+                { targetId: 16, targetCode: "DISPOSED",     targetName: "Disposed",     fields: "R"    },
             ];
         case 2: // ASSIGNED
             return [
                 { targetId: 2, targetCode: "ASSIGNED",    targetName: "Re-Assign",   fields: "RT" },
-                { targetId: 6, targetCode: "IN_PROGRESS", targetName: "In Progress", fields: "P"  },
+                { targetId: 6, targetCode: "IN_PROGRESS", targetName: "In Progress", fields: "PT" },
             ];
         case 3: // ESTIMATED
             return [
-                { targetId: 4, targetCode: "ESTIMATE_APPROVED", targetName: "Estimate Approved", fields: "R" },
-                { targetId: 5, targetCode: "ESTIMATE_REJECTED", targetName: "Estimate Rejected", fields: "R" },
-                { targetId: 6, targetCode: "IN_PROGRESS",       targetName: "In Progress",       fields: "P" },
+                { targetId: 4, targetCode: "ESTIMATE_APPROVED", targetName: "Estimate Approved", fields: "R"  },
+                { targetId: 5, targetCode: "ESTIMATE_REJECTED", targetName: "Estimate Rejected", fields: "R"  },
+                { targetId: 6, targetCode: "IN_PROGRESS",       targetName: "In Progress",       fields: "PT" },
             ];
         case 4: // ESTIMATE_APPROVED
             return [
-                { targetId: 6, targetCode: "IN_PROGRESS", targetName: "In Progress", fields: "P" },
+                { targetId: 6, targetCode: "IN_PROGRESS", targetName: "In Progress", fields: "PT" },
             ];
         case 5: // ESTIMATE_REJECTED
             return [
@@ -62,31 +67,32 @@ export function getTransitions(statusId: number, jobTypeCode: string): Transitio
             ];
         case 6: // IN_PROGRESS
             return [
-                { targetId: 2,  targetCode: "ASSIGNED",        targetName: "Re-Assign",       fields: "RT"  },
-                { targetId: 6,  targetCode: "IN_PROGRESS",     targetName: "Re-start",        fields: "P"   },
-                { targetId: 7,  targetCode: "PARTS_PENDING",   targetName: "Parts Pending",   fields: "R"   },
-                { targetId: 8,  targetCode: "ON_HOLD",         targetName: "On Hold",         fields: "R"   },
-                { targetId: 9,  targetCode: "OUTSOURCED",      targetName: "Outsourced",      fields: "R"   },
-                { targetId: 10, targetCode: "SENT_TO_COMPANY", targetName: "Sent to Company", fields: "R"   },
-                { targetId: 11, targetCode: "COMPLETED_OK",    targetName: "Completed OK",    fields: "RAP" },
-                { targetId: 12, targetCode: "RETURN",          targetName: "Return",          fields: "R"   },
-                { targetId: 15, targetCode: "CANCELLED",       targetName: "Cancelled",       fields: "R"   },
-                { targetId: 16, targetCode: "DISPOSED",        targetName: "Disposed",        fields: "R"   },
+                { targetId: 2,  targetCode: "ASSIGNED",        targetName: "Re-Assign",       fields: "RT"   },
+                { targetId: 3,  targetCode: "ESTIMATED",       targetName: "Estimated",       fields: "RET"  },
+                { targetId: 6,  targetCode: "IN_PROGRESS",     targetName: "Re-start",        fields: "PT"   },
+                { targetId: 7,  targetCode: "PARTS_PENDING",   targetName: "Parts Pending",   fields: "R"    },
+                { targetId: 8,  targetCode: "ON_HOLD",         targetName: "On Hold",         fields: "R"    },
+                { targetId: 9,  targetCode: "OUTSOURCED",      targetName: "Outsourced",      fields: "R"    },
+                { targetId: 10, targetCode: "SENT_TO_COMPANY", targetName: "Sent to Company", fields: "R"    },
+                { targetId: 11, targetCode: "COMPLETED_OK",    targetName: "Completed OK",    fields: "RAPT" },
+                { targetId: 12, targetCode: "RETURN",          targetName: "Return",          fields: "R"    },
+                { targetId: 15, targetCode: "CANCELLED",       targetName: "Cancelled",       fields: "R"    },
+                { targetId: 16, targetCode: "DISPOSED",        targetName: "Disposed",        fields: "R"    },
             ];
         case 7: // PARTS_PENDING
-            return [{ targetId: 6, targetCode: "IN_PROGRESS", targetName: "In Progress", fields: "P" }];
+            return [{ targetId: 6, targetCode: "IN_PROGRESS", targetName: "In Progress", fields: "PT" }];
         case 8: // ON_HOLD
-            return [{ targetId: 6, targetCode: "IN_PROGRESS", targetName: "In Progress", fields: "P" }];
+            return [{ targetId: 6, targetCode: "IN_PROGRESS", targetName: "In Progress", fields: "PT" }];
         case 9: // OUTSOURCED
-            return [{ targetId: 6, targetCode: "IN_PROGRESS", targetName: "In Progress", fields: "P" }];
+            return [{ targetId: 6, targetCode: "IN_PROGRESS", targetName: "In Progress", fields: "PT" }];
         case 10: // SENT_TO_COMPANY
             return [{ targetId: 17, targetCode: "RECEIVED_BACK_FROM_COMPANY", targetName: "Received Back", fields: "R" }];
         case 15: // CANCELLED
-            return [{ targetId: 6, targetCode: "IN_PROGRESS", targetName: "Re-open", fields: "P" }];
+            return [{ targetId: 6, targetCode: "IN_PROGRESS", targetName: "Re-open",     fields: "PT" }];
         case 16: // DISPOSED
-            return [{ targetId: 6, targetCode: "IN_PROGRESS", targetName: "Re-open", fields: "P" }];
+            return [{ targetId: 6, targetCode: "IN_PROGRESS", targetName: "Re-open",     fields: "PT" }];
         case 17: // RECEIVED_BACK_FROM_COMPANY
-            return [{ targetId: 6, targetCode: "IN_PROGRESS", targetName: "In Progress", fields: "P" }];
+            return [{ targetId: 6, targetCode: "IN_PROGRESS", targetName: "In Progress", fields: "PT" }];
         default:
             return [];
     }

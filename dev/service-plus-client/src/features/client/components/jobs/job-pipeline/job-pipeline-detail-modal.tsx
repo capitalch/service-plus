@@ -196,8 +196,9 @@ export const JobPipelineDetailModal = ({ jobId, onClose }: Props) => {
                                 <div className="grid grid-cols-2 gap-4">
                                     <LabelValue label="Job No"        value={job.job_no} />
                                     <LabelValue label="Batch No"      value={(job as any).batch_no ?? null} />
-                                    <LabelValue label="Amount"        value={fmtAmount(job.amount)} />
-                                    <LabelValue label="Delivery Date" value={job.delivery_date} />
+                                    <LabelValue label="Amount"          value={fmtAmount(job.amount)} />
+                                    <LabelValue label="Estimate Amount" value={fmtAmount(job.estimate_amount)} />
+                                    <LabelValue label="Delivery Date"   value={job.delivery_date} />
                                     <LabelValue label="Job Type"       value={job.job_type_name} />
                                     <LabelValue label="Receive Manner" value={job.job_receive_manner_name} />
                                     <LabelValue label="Condition"  value={job.job_receive_condition_name} />
