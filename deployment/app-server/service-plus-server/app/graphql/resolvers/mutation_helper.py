@@ -982,6 +982,7 @@ async def resolve_update_job_helper(
     last_transaction_id = payload.pop("last_transaction_id", None)
     performed_by = payload.pop("performed_by_user_id", None)
     transaction_notes = payload.pop("transaction_notes", "")
+    transaction_date = payload.pop("transaction_date", None)
     x_data = payload.get("xData", {})
 
     job_status_id = x_data.get("job_status_id")
@@ -1007,7 +1008,9 @@ async def resolve_update_job_helper(
     if amount is not None:
         txn_data["amount"] = amount
     if transaction_notes:
-        txn_data["notes"] = transaction_notes
+        txn_data["remarks"] = transaction_notes
+    if transaction_date:
+        txn_data["performed_at"] = transaction_date
     if last_transaction_id is not None:
         txn_data["previous_transaction_id"] = last_transaction_id
 
@@ -1085,7 +1088,7 @@ async def resolve_deliver_job_helper(
         "performed_by_user_id": performed_by,
     }
     if full_notes:
-        txn_data["notes"] = full_notes
+        txn_data["remarks"] = full_notes
     if last_transaction_id is not None:
         txn_data["previous_transaction_id"] = last_transaction_id
 

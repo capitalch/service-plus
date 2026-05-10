@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict fvpft29QjZEQ4aUgofMpbd0RhJ0cI3ctCjgRUYjXm1X6PazGEwpanIvbPHBh9OC
+\restrict Ox3V68QihqbV4fmof6LToh8VH6ylDRrVpDQGhJWJnAJfp66b6gfGcuvIlrIjUya
 
 -- Dumped from database version 14.6
 -- Dumped by pg_dump version 17.9 (Ubuntu 17.9-0ubuntu0.25.10.1)
@@ -712,7 +712,6 @@ CREATE TABLE demo1.job_transaction (
     status_id smallint,
     technician_id bigint,
     amount numeric(12,2),
-    notes text,
     performed_by_user_id bigint NOT NULL,
     performed_at timestamp with time zone DEFAULT now() NOT NULL,
     previous_transaction_id bigint,
@@ -3416,5 +3415,5 @@ ALTER TABLE ONLY security.user_bu_role
 -- PostgreSQL database dump complete
 --
 
-\unrestrict fvpft29QjZEQ4aUgofMpbd0RhJ0cI3ctCjgRUYjXm1X6PazGEwpanIvbPHBh9OC
+\unrestrict Ox3V68QihqbV4fmof6LToh8VH6ylDRrVpDQGhJWJnAJfp66b6gfGcuvIlrIjUya
 

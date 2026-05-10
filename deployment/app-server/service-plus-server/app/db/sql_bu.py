@@ -850,20 +850,21 @@ class SqlBu:
         INSERT INTO job_status (id, code, name, description, display_order) VALUES
             (1,  'RECEIVED',          'Received',         'Item received',               1),
             (2,  'ASSIGNED',          'Assigned',         'Assigned to technician',      2),
-            (3,  'ESTIMATED',         'Estimated',        'Cost estimation is done',     3),
-            (4,  'ESTIMATE_APPROVED', 'Estimate Approved','Customer approved estimate',  4),
-            (5,  'ESTIMATE_REJECTED', 'Estimate Rejected','Customer rejected estimate',  5),
-            (6,  'IN_PROGRESS',       'In Progress',      'Work in progress',            6),
+            (3,  'ESTIMATED',         'Estimated',        'Cost estimation is done',     4),
+            (4,  'ESTIMATE_APPROVED', 'Estimate Approved','Customer approved estimate',  5),
+            (5,  'ESTIMATE_REJECTED', 'Estimate Rejected','Customer rejected estimate',  6),
+            (6,  'IN_PROGRESS',       'In Progress',      'Work in progress',            3),
             (7,  'PARTS_PENDING',     'Parts Pending',    'Waiting for parts',           7),
-            (8,  'ON_HOLD',           'On Hold',          'Temporarily paused',          8),
-            (9,  'OUTSOURCED',        'Outsourced',       'Sent to vendor',              9),
-            (10, 'SENT_TO_COMPANY',   'Sent to Company',  'Sent to company',            10),
+            (8,  'ON_HOLD',           'On Hold',          'Temporarily paused',          17),
+            (9,  'OUTSOURCED',        'Outsourced',       'Sent to vendor',              12),
+            (10, 'SENT_TO_COMPANY',   'Sent to Company',  'Sent to company',            8),
             (11, 'COMPLETED_OK',      'Completed OK',     'Work completed',             11),
-            (12, 'RETURN',            'Return',           'Ready to return',            12),
-            (13, 'DELIVERED_OK',      'Delivered OK',     'Delivered successfully',     13),
-            (14, 'DELIVERED_NOT_OK',  'Delivered Not OK', 'Delivered but issue remains',14),
-            (15, 'CANCELLED',         'Cancelled',        'Job cancelled',              15),
-            (16, 'DISPOSED',          'Disposed',         'Item disposed',              16)
+            (12, 'RETURN',            'Return',           'Ready to return',            10),
+            (13, 'DELIVERED_OK',      'Delivered OK',     'Delivered successfully',     15),
+            (14, 'DELIVERED_NOT_OK',  'Delivered Not OK', 'Delivered but issue remains',16),
+            (15, 'CANCELLED',         'Cancelled',        'Job cancelled',              13),
+            (16, 'DISPOSED',          'Disposed',         'Item disposed',              14),
+            (17, 'RECEIVED_BACK_FROM_COMPANY', 'Received Back From Company', 'Item received back from company', 9)
         ON CONFLICT (id) DO NOTHING;
 
         INSERT INTO job_type (id, code, name, description, is_system, display_order) VALUES
