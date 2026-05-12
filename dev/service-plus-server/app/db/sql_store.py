@@ -3012,6 +3012,43 @@ class SqlStore:
         OFFSET (table "p_offset")
     """
 
+    GET_JOB_TRANSACTION_FOR_UNDO = """
+        SELECT t.id, t.previous_transaction_id
+        FROM   job_transaction t
+        JOIN   job j ON j.id = t.job_id
+        WHERE  t.job_id = %(job_id)s
+          AND  t.id     = %(last_txn_id)s
+          AND  j.last_transaction_id = %(last_txn_id)s
+    """
+
+    GET_PREV_JOB_TRANSACTION_FALLBACK = """
+        SELECT id FROM job_transaction
+        WHERE  job_id = %(job_id)s AND id < %(last_txn_id)s
+        ORDER  BY id DESC
+        LIMIT  1
+    """
+
+    GET_JOB_TRANSACTION_STATE = """
+        SELECT status_id, technician_id, amount
+        FROM   job_transaction
+        WHERE  id = %(prev_txn_id)s
+    """
+
+    DELETE_JOB_TRANSACTION = """
+        DELETE FROM job_transaction WHERE id = %(last_txn_id)s
+    """
+
+    RESTORE_JOB_FROM_TRANSACTION = """
+        UPDATE job
+        SET    job_status_id       = %(job_status_id)s,
+               technician_id       = %(technician_id)s,
+               amount              = %(amount)s,
+               is_final            = %(is_final)s,
+               is_closed           = %(is_closed)s,
+               last_transaction_id = %(last_transaction_id)s
+        WHERE  id = %(job_id)s
+    """
+
     GET_JOBS_COUNT = """
         with
             "p_branch_id" as (values(%(branch_id)s::bigint)),

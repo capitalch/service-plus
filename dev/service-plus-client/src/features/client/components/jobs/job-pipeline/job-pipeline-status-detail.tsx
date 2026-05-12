@@ -249,8 +249,10 @@ export const JobPipelineStatusDetail = ({ status, technicians, onBack }: Props) 
             toast.success(`Undo successful — Job #${job.job_no} restored to previous status.`);
             setUndoPendingJob(null);
             void loadData();
-        } catch {
-            toast.error("Failed to undo transaction. Please refresh and try again.");
+        } catch (err) {
+            const msg = (err as { errors?: { message: string }[] })?.errors?.[0]?.message
+                ?? "Failed to undo transaction. Please refresh and try again.";
+            toast.error(msg);
         } finally {
             setSubmitting(false);
         }

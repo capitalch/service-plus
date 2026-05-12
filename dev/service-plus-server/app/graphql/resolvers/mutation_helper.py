@@ -1065,14 +1065,7 @@ async def resolve_undo_job_transaction_helper(
     # 1. Verify last_transaction_id is still current (stale guard)
     rows = await exec_sql(
         db_name_arg, schema_name,
-        """
-        SELECT t.id, t.previous_transaction_id
-        FROM   job_transaction t
-        JOIN   job j ON j.id = t.job_id
-        WHERE  t.job_id = %(job_id)s
-          AND  t.id     = %(last_txn_id)s
-          AND  j.last_transaction_id = %(last_txn_id)s
-        """,
+        SqlStore.GET_JOB_TRANSACTION_FOR_UNDO,
         {"job_id": job_id, "last_txn_id": last_txn_id},
     )
     if not rows:
@@ -1084,12 +1077,7 @@ async def resolve_undo_job_transaction_helper(
     if prev_txn_id is None:
         fallback = await exec_sql(
             db_name_arg, schema_name,
-            """
-            SELECT id FROM job_transaction
-            WHERE  job_id = %(job_id)s AND id < %(last_txn_id)s
-            ORDER  BY id DESC
-            LIMIT  1
-            """,
+            SqlStore.GET_PREV_JOB_TRANSACTION_FALLBACK,
             {"job_id": job_id, "last_txn_id": last_txn_id},
         )
         if not fallback:
@@ -1099,7 +1087,7 @@ async def resolve_undo_job_transaction_helper(
     # 2. Fetch previous transaction state to restore
     prev_rows = await exec_sql(
         db_name_arg, schema_name,
-        "SELECT status_id, technician_id, amount FROM job_transaction WHERE id = %(prev_txn_id)s",
+        SqlStore.GET_JOB_TRANSACTION_STATE,
         {"prev_txn_id": prev_txn_id},
     )
     if not prev_rows:
@@ -1109,26 +1097,25 @@ async def resolve_undo_job_transaction_helper(
     flags = _STATUS_FLAGS.get(prev["status_id"], {"is_final": False, "is_closed": False})
 
     # 3. Delete last transaction
-    await exec_sql_object(
+    await exec_sql(
         db_name_arg, schema_name,
-        {"tableName": "job_transaction", "deletedIds": [last_txn_id]},
+        SqlStore.DELETE_JOB_TRANSACTION,
+        {"last_txn_id": last_txn_id},
     )
     logger.info("Undid job transaction %s for job %s", last_txn_id, job_id)
 
     # 4. Restore job to previous state
-    await exec_sql_object(
+    await exec_sql(
         db_name_arg, schema_name,
+        SqlStore.RESTORE_JOB_FROM_TRANSACTION,
         {
-            "tableName": "job",
-            "xData": {
-                "id":                  job_id,
-                "job_status_id":       prev["status_id"],
-                "technician_id":       prev["technician_id"],
-                "amount":              prev["amount"],
-                "is_final":            flags["is_final"],
-                "is_closed":           flags["is_closed"],
-                "last_transaction_id": prev_txn_id,
-            },
+            "job_id":               job_id,
+            "job_status_id":        prev["status_id"],
+            "technician_id":        prev["technician_id"],
+            "amount":               prev["amount"],
+            "is_final":             flags["is_final"],
+            "is_closed":            flags["is_closed"],
+            "last_transaction_id":  prev_txn_id,
         },
     )
     logger.info("Job %s restored to transaction %s", job_id, prev_txn_id)
