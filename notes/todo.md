@@ -1,6 +1,13 @@
 # QA round
 - Jobs
+	- job pipeline
+								- Add additional charges
+		- data saving test
+		- Undo last transaction
+								- Unique index for customer
 	- implement alternate job no
+	- implement multiple company name options
+	- Trace transfer
 						- Separate file server
 								- Folder hierarchy as client/bu/branch/job_no
 								- Final deployment of file server with deploy script

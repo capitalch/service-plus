@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { SQL_MAP } from "@/constants/sql-map";
@@ -65,7 +66,7 @@ function formatNumber(num: number): string {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-const inputCls = "h-7 border-[var(--cl-border)] bg-[var(--cl-surface)] text-sm px-2";
+const inputCls = "h-7 rounded-sm border-[var(--cl-border,rgba(0,0,0,0.1))] bg-[var(--cl-surface,#f5f5f5)] text-sm px-2";
 
 export const PartCodeInput = forwardRef<HTMLInputElement, PartCodeInputProps>(({
     partCode,
@@ -266,7 +267,7 @@ export const PartCodeInput = forwardRef<HTMLInputElement, PartCodeInputProps>(({
                         tabIndex={-1}
                         onMouseDown={e => { e.preventDefault(); skipBlurRef.current = true; }}
                         onClick={openPartPick}
-                        className="absolute left-1.5 top-1/2 -translate-y-1/2 rounded-md p-1 bg-[var(--cl-accent)] text-white hover:bg-[var(--cl-accent)]/10 hover:text-[var(--cl-accent)] shadow-sm transition-all focus:ring-2 focus:ring-[var(--cl-accent)]/20 cursor-pointer z-10"
+                        className="absolute left-1.5 top-1/2 -translate-y-1/2 rounded-md p-1 bg-[var(--cl-accent,#007acc)] text-white hover:bg-[var(--cl-accent,#007acc)]/10 hover:text-[var(--cl-accent,#007acc)] shadow-sm transition-all focus:ring-2 focus:ring-[var(--cl-accent,#007acc)]/20 cursor-pointer z-10"
                         title="Browse all parts"
                     >
                         <Search className="h-3.5 w-3.5" />
@@ -277,7 +278,14 @@ export const PartCodeInput = forwardRef<HTMLInputElement, PartCodeInputProps>(({
                             if (typeof ref === "function") ref(el);
                             else if (ref) (ref as React.MutableRefObject<HTMLInputElement | null>).current = el;
                         }}
-                        className={`${inputCls} font-mono w-full pl-9 pr-14 border-transparent hover:border-[var(--cl-border)] focus:border-[var(--cl-accent)] focus:bg-[var(--cl-surface)] transition-all ${partId ? "bg-[var(--cl-accent)]/5 border-[var(--cl-accent)]/20 text-[var(--cl-accent)] font-bold" : "border-red-500 focus:border-red-500 ring-red-500/10 bg-transparent"}`}
+                        className={cn(
+                            inputCls,
+                            "font-mono w-full pl-9 pr-14 transition-all text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500",
+                            "hover:border-[var(--cl-border,rgba(0,0,0,0.1))] focus:border-[var(--cl-accent,#007acc)] focus:bg-[var(--cl-surface,#f5f5f5)]",
+                            partId
+                                ? "bg-[var(--cl-accent,#007acc)]/5 border-[var(--cl-accent,#007acc)]/20 !text-[var(--cl-accent,#007acc)] font-bold"
+                                : "border-red-400 focus:border-red-500 ring-red-500/10 bg-white dark:bg-zinc-800"
+                        )}
                         placeholder="Part Code"
                         value={partCode}
                         onChange={e => onChange(e.target.value)}
@@ -337,7 +345,7 @@ export const PartCodeInput = forwardRef<HTMLInputElement, PartCodeInputProps>(({
                 </div>
                 {partId && partName && (
                     <div className="flex items-center px-1 overflow-hidden h-3 animate-in fade-in slide-in-from-top-1 duration-200">
-                        <span className="truncate text-[10px] font-bold text-[var(--cl-accent)]/70 tracking-tight" title={partName}>{partName}</span>
+                        <span className="truncate text-[10px] font-bold text-[var(--cl-accent,#007acc)]/70 tracking-tight" title={partName}>{partName}</span>
                     </div>
                 )}
             </div>

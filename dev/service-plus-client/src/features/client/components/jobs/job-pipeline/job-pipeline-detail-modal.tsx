@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Calendar, FileText, Loader2, MapPin, User, Wrench } from "lucide-react";
 import { toast } from "sonner";
 
@@ -14,225 +14,255 @@ import type { JobDetailType, JobTransactionRow } from "@/features/client/types/j
 import { STATUS_COLORS } from "./status-transitions";
 
 type Props = {
-    jobId:   number;
+    jobId: number;
     onClose: () => void;
 };
 
 type GenericQueryData<T> = { genericQuery: T[] | null };
-
-function LabelValue({ label, value }: { label: string; value: string | number | null | undefined }) {
-    return (
-        <div className="flex flex-col gap-0.5">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--cl-text-muted)]">{label}</span>
-            <span className="text-sm font-medium text-[var(--cl-text)]">{value ?? "—"}</span>
-        </div>
-    );
-}
-
-function SectionCard({ title, icon, color, titleColor, children }: {
-    title: string;
-    icon?: React.ReactNode;
-    color: string;
-    titleColor: string;
-    children: React.ReactNode;
-}) {
-    return (
-        <div className={`rounded-xl border-l-4 ${color} bg-white dark:bg-zinc-900 shadow-sm overflow-hidden`}>
-            <div className="flex items-center gap-2 px-4 py-2.5 bg-gray-50 dark:bg-zinc-800">
-                {icon && <span className="opacity-80">{icon}</span>}
-                <h3 className={`font-serif text-sm font-bold italic tracking-wide ${titleColor}`}>{title}</h3>
-            </div>
-            <div className="p-4">{children}</div>
-        </div>
-    );
-}
 
 function fmtAmount(val: number | null | undefined) {
     if (val == null) return "—";
     return `₹${Number(val).toFixed(2)}`;
 }
 
-function fmtDateTime(iso: string) {
-    if (!iso) return "—";
-    const d = new Date(iso);
-    if (isNaN(d.getTime())) return iso;
-    return d.toLocaleString("en-IN", {
-        day: "2-digit", month: "short", year: "numeric",
-        hour: "2-digit", minute: "2-digit", hour12: true,
-    });
+const SECTION_COLORS: Record<string, { border: string; label: string; bar: string }> = {
+    sky: { border: "border-sky-300", label: "text-sky-700", bar: "bg-sky-300" },
+    violet: { border: "border-violet-300", label: "text-violet-700", bar: "bg-violet-300" },
+    amber: { border: "border-amber-300", label: "text-amber-700", bar: "bg-amber-300" },
+    teal: { border: "border-teal-300", label: "text-teal-700", bar: "bg-teal-300" },
+    rose: { border: "border-rose-300", label: "text-rose-700", bar: "bg-rose-300" },
+    emerald: { border: "border-emerald-300", label: "text-emerald-700", bar: "bg-emerald-300" },
+    slate: { border: "border-slate-300", label: "text-slate-700", bar: "bg-slate-300" },
+};
+
+function InfoCard({ color, title, children }: { color: string; title: string; children: React.ReactNode }) {
+    const c = SECTION_COLORS[color];
+    return (
+        <div className="rounded-sm bg-white">
+            <div className={`px-4 py-2.5 border-b border-border/60 bg-gradient-to-r from-transparent via-white to-white`}>
+                <h3 className={`text-xs font-bold uppercase tracking-wider ${c?.label ?? "text-foreground"}`}>{title}</h3>
+            </div>
+            <div className="p-4">{children}</div>
+        </div>
+    );
 }
 
-const TRAN_ROW_COLORS = [
-    "bg-sky-50     dark:bg-sky-950",
-    "bg-violet-50  dark:bg-violet-950",
-    "bg-emerald-50 dark:bg-emerald-950",
-    "bg-amber-50   dark:bg-amber-950",
-    "bg-rose-50    dark:bg-rose-950",
-    "bg-teal-50    dark:bg-teal-950",
-];
+function NarrativeBlock({ color, label, value }: { color: string; label: string; value: string | null | undefined }) {
+    const c = SECTION_COLORS[color];
+    if (!value?.trim()) return null;
+    return (
+        <div className="rounded-lg bg-white shadow-sm overflow-hidden">
+            <div className={`h-1 ${c?.bar ?? "bg-muted"}`} />
+            <div className="px-4 py-3">
+                <span className={`text-xs font-bold uppercase tracking-wider ${c?.label ?? "text-muted-foreground"}`}>{label}</span>
+                <p className="mt-1.5 whitespace-pre-wrap text-sm text-foreground leading-relaxed">{value}</p>
+            </div>
+        </div>
+    );
+}
 
 export const JobPipelineDetailModal = ({ jobId, onClose }: Props) => {
-    const dbName        = useAppSelector(selectDbName);
-    const schema        = useAppSelector(selectSchema);
+    const dbName = useAppSelector(selectDbName);
+    const schema = useAppSelector(selectSchema);
     const currentBranch = useAppSelector(selectCurrentBranch);
 
-    const [job,          setJob]          = useState<JobDetailType | null>(null);
+    const [job, setJob] = useState<JobDetailType | null>(null);
     const [transactions, setTransactions] = useState<JobTransactionRow[]>([]);
-    const [loading,      setLoading]      = useState(true);
+    const [loading, setLoading] = useState(true);
 
-    const loadData = useCallback(async () => {
+    useEffect(() => {
         if (!dbName || !schema) return;
-        setLoading(true);
-        try {
-            const gq = (sqlId: string, sqlArgs?: Record<string, unknown>) =>
-                apolloClient.query<GenericQueryData<any>>({
-                    fetchPolicy: "network-only",
-                    query:       GRAPHQL_MAP.genericQuery,
-                    variables:   {
-                        db_name: dbName, schema,
-                        value: graphQlUtils.buildGenericQueryValue({ sqlId, sqlArgs }),
-                    },
-                });
-
-            const [jobRes, tranRes] = await Promise.all([
-                gq(SQL_MAP.GET_JOB_DETAIL,              { id: jobId }),
-                gq(SQL_MAP.GET_JOB_TRANSACTIONS_BY_JOB, { job_id: jobId }),
-            ]);
-
-            setJob(jobRes.data?.genericQuery?.[0] ?? null);
-            setTransactions(tranRes.data?.genericQuery ?? []);
-        } catch {
+        const gq = (sqlId: string, sqlArgs?: Record<string, unknown>) =>
+            apolloClient.query<GenericQueryData<unknown>>({
+                fetchPolicy: "network-only",
+                query: GRAPHQL_MAP.genericQuery,
+                variables: {
+                    db_name: dbName, schema,
+                    value: graphQlUtils.buildGenericQueryValue({ sqlId, sqlArgs }),
+                },
+            });
+        Promise.all([
+            gq(SQL_MAP.GET_JOB_DETAIL, { id: jobId }),
+            gq(SQL_MAP.GET_JOB_TRANSACTIONS_BY_JOB, { job_id: jobId }),
+        ]).then(([jobRes, tranRes]) => {
+            setJob((jobRes.data?.genericQuery?.[0] ?? null) as JobDetailType | null);
+            setTransactions((tranRes.data?.genericQuery ?? []) as JobTransactionRow[]);
+        }).catch(() => {
             toast.error("Failed to load job details.");
-        } finally {
+        }).finally(() => {
             setLoading(false);
-        }
+        });
     }, [dbName, schema, jobId]);
-
-    useEffect(() => { void loadData(); }, [loadData]);
 
     const device = job
         ? [job.product_name, job.brand_name, job.model_name].filter(Boolean).join(" / ") || null
         : null;
 
-    const statusKey       = job?.job_status_name.toUpperCase().replace(/ /g, "_") ?? "";
+    const statusKey = job?.job_status_name.toUpperCase().replace(/ /g, "_") ?? "";
     const statusColorParts = STATUS_COLORS[statusKey]?.trim().split(/\s+/) ?? [];
-    const statusBg        = statusColorParts[0] ?? "bg-[var(--cl-accent)]";
-
     return (
         <Dialog open onOpenChange={open => { if (!open) onClose(); }}>
-            <DialogContent className="max-w-5xl w-[95vw] bg-white dark:bg-zinc-950 border-[var(--cl-border)] p-0 overflow-hidden">
-
-                {/* ── Colored hero header ── */}
-                <DialogHeader className={`relative overflow-hidden px-6 py-5 ${statusBg}`}>
-                    <div className="relative z-10">
-                        <DialogTitle className="flex flex-wrap items-center gap-3 text-white">
-                            {loading || !job ? (
-                                <span className="font-serif text-lg font-bold italic">Job Details</span>
-                            ) : (
-                                <>
+            <DialogContent className="sm:max-w-xl bg-slate-50 p-0 overflow-hidden">
+                {/* ── Header ── */}
+                <DialogHeader className="relative overflow-hidden px-6 py-5 bg-slate-100 border-b border-slate-200">
+                    <div className="relative z-10 flex flex-wrap items-center justify-between gap-3">
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                            <DialogTitle className="text-slate-900">
+                                {loading || !job ? (
+                                    <span className="text-lg font-bold">Job Details</span>
+                                ) : (
                                     <span className="font-mono text-2xl font-extrabold tracking-tight">#{job.job_no}</span>
-                                    <span className="rounded-full bg-white/20 px-3 py-0.5 text-sm font-semibold backdrop-blur-sm">
+                                )}
+                            </DialogTitle>
+                            {job && (
+                                <>
+                                    <span className={`rounded-sm px-3 py-1 text-xs font-semibold ${statusColorParts[0] ?? "bg-blue-500"} text-white`}>
                                         {job.job_status_name}
                                     </span>
+                                    <span className="rounded-sm bg-slate-200/60 px-3 py-1 text-[11px] font-medium text-slate-900">
+                                        {job.job_type_name}
+                                    </span>
                                     {job.is_closed && (
-                                        <span className="rounded-full bg-emerald-400/90 px-3 py-0.5 text-[11px] font-bold text-white">
+                                        <span className="rounded-sm bg-emerald-400/80 px-3 py-0.5 text-[11px] font-bold text-white">
                                             CLOSED
                                         </span>
                                     )}
                                 </>
                             )}
-                        </DialogTitle>
-                        {job && (
-                            <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-white/80">
-                                <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />{job.job_date}</span>
-                                <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{currentBranch?.code ?? "—"}</span>
-                                {job.technician_name && (
-                                    <span className="flex items-center gap-1"><Wrench className="h-3 w-3" />{job.technician_name}</span>
-                                )}
-                            </div>
-                        )}
+                        </div>
                     </div>
+                    {job && (
+                        <div className="relative z-10 mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-600">
+                            <span className="inline-flex items-center gap-1.5"><Calendar className="h-3.5 w-3.5" />{job.job_date}</span>
+                            <span className="inline-flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" />{currentBranch?.code ?? job.branch_code ?? "—"}</span>
+                            {job.technician_name && (
+                                <span className="inline-flex items-center gap-1.5"><Wrench className="h-3.5 w-3.5" />{job.technician_name}</span>
+                            )}
+                            {job.customer_name && (
+                                <span className="inline-flex items-center gap-1.5"><User className="h-3.5 w-3.5" />{job.customer_name}</span>
+                            )}
+                        </div>
+                    )}
                 </DialogHeader>
 
-                <div className="max-h-[75vh] overflow-y-auto px-5 py-4 bg-white dark:bg-zinc-950">
+                <div className="max-h-[78vh] overflow-y-auto">
                     {loading ? (
-                        <div className="flex h-48 items-center justify-center gap-2 text-sm text-[var(--cl-text-muted)]">
+                        <div className="flex h-48 items-center justify-center gap-2 text-sm text-slate-500">
                             <Loader2 className="h-5 w-5 animate-spin" /> Loading…
                         </div>
                     ) : !job ? (
-                        <div className="flex h-48 items-center justify-center text-sm text-[var(--cl-text-muted)]">
+                        <div className="flex h-48 items-center justify-center text-sm text-slate-500">
                             Job not found.
                         </div>
                     ) : (
-                        <div className="flex flex-col gap-3">
+                        <div className="p-5 space-y-5">
 
-                            {/* ── Customer ── */}
-                            <SectionCard title="Customer" icon={<User className="h-4 w-4 text-sky-500" />} color="border-sky-400" titleColor="text-sky-600 dark:text-sky-400">
-                                <div className="grid grid-cols-2 gap-4">
-                                    <LabelValue label="Customer" value={job.customer_name} />
-                                    <LabelValue label="Mobile"   value={job.mobile} />
-                                    {job.address_snapshot && (
-                                        <div className="col-span-2">
-                                            <LabelValue label="Address" value={job.address_snapshot} />
+                            {/* ── Customer + Device ── */}
+                            <div className="space-y-5">
+
+                                {/* Customer */}
+                                <InfoCard color="sky" title="Customer">
+                                    <div className="space-y-3">
+                                        <div>
+                                            <p className="text-base font-bold text-slate-900">{job.customer_name ?? "—"}</p>
+                                            <span className="inline-flex items-center gap-1 mt-1.5 rounded-md bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700 border border-sky-200">
+                                                <User className="h-3 w-3" />{job.mobile}
+                                            </span>
                                         </div>
-                                    )}
-                                </div>
-                            </SectionCard>
-
-                            {/* ── Device ── */}
-                            <SectionCard title="Device" icon={<Wrench className="h-4 w-4 text-violet-500" />} color="border-violet-400" titleColor="text-violet-600 dark:text-violet-400">
-                                <div className="grid grid-cols-2 gap-4">
-                                    <LabelValue label="Serial No"     value={job.serial_no} />
-                                    <LabelValue label="Warranty Card" value={job.warranty_card_no} />
-                                    <LabelValue label="Quantity"      value={job.quantity} />
-                                    <div className="col-span-2">
-                                        <LabelValue label="Device" value={device} />
+                                        {job.address_snapshot && (
+                                            <div>
+                                                <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Address</span>
+                                                <p className="mt-0.5 text-sm text-slate-700 leading-relaxed">{job.address_snapshot}</p>
+                                            </div>
+                                        )}
                                     </div>
-                                </div>
-                            </SectionCard>
+                                </InfoCard>
+
+                                {/* Device */}
+                                <InfoCard color="violet" title="Device">
+                                    <div className="space-y-3">
+                                        {device && (
+                                            <p className="text-base font-bold text-slate-900 leading-snug">{device}</p>
+                                        )}
+                                        <div className="flex flex-wrap gap-2">
+                                            {job.serial_no && (
+                                                <span className="inline-flex items-center rounded-md bg-violet-50 px-2.5 py-1 text-[11px] font-mono font-semibold text-violet-700 border border-violet-200">
+                                                    S/N: {job.serial_no}
+                                                </span>
+                                            )}
+                                            {job.warranty_card_no && (
+                                                <span className="inline-flex items-center rounded-md bg-violet-50 px-2.5 py-1 text-[11px] font-semibold text-violet-700 border border-violet-200">
+                                                    Warranty: {job.warranty_card_no}
+                                                </span>
+                                            )}
+                                            <span className="inline-flex items-center rounded-md bg-violet-50 px-2.5 py-1 text-[11px] font-semibold text-violet-700 border border-violet-200">
+                                                Qty: {job.quantity}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </InfoCard>
+                            </div>
 
                             {/* ── Service Info ── */}
-                            <SectionCard title="Service Info" icon={<FileText className="h-4 w-4 text-amber-500" />} color="border-amber-400" titleColor="text-amber-600 dark:text-amber-400">
-                                <div className="grid grid-cols-2 gap-4">
-                                    <LabelValue label="Job No"        value={job.job_no} />
-                                    <LabelValue label="Batch No"      value={(job as any).batch_no ?? null} />
-                                    <LabelValue label="Amount"          value={fmtAmount(job.amount)} />
-                                    <LabelValue label="Estimate Amount" value={fmtAmount(job.estimate_amount)} />
-                                    <LabelValue label="Delivery Date"   value={job.delivery_date} />
-                                    <LabelValue label="Job Type"       value={job.job_type_name} />
-                                    <LabelValue label="Receive Manner" value={job.job_receive_manner_name} />
-                                    <LabelValue label="Condition"  value={job.job_receive_condition_name} />
-                                    <LabelValue label="Technician" value={job.technician_name} />
+                            <InfoCard color="amber" title="Service Information">
+                                <div className="grid grid-cols-2 gap-x-8 gap-y-3">
+                                    {[
+                                        ["Job No", job.job_no],
+                                        ["Batch No", (job as JobDetailType & { batch_no?: string | null }).batch_no],
+                                        ["Job Type", job.job_type_name],
+                                        ["Technician", job.technician_name],
+                                        ["Amount", fmtAmount(job.amount)],
+                                        ["Estimate", fmtAmount(job.estimate_amount)],
+                                        ["Delivery Date", job.delivery_date],
+                                        ["Receive Mode", job.job_receive_manner_name],
+                                        ["Condition", job.job_receive_condition_name],
+                                    ].filter(([, v]) => v != null).map(([label, value]) => (
+                                        <div key={label as string} className="border-b border-slate-100 pb-1.5">
+                                            <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{label as string}</span>
+                                            <p className="text-sm font-medium text-slate-900 mt-0.5">{value as string}</p>
+                                        </div>
+                                    ))}
                                 </div>
-                            </SectionCard>
+                            </InfoCard>
 
                             {/* ── Narrative fields ── */}
-                            {[
-                                { label: "Problem Reported", value: job.problem_reported, cls: "border-l-4 border-rose-400   bg-rose-50   dark:bg-rose-950" },
-                                { label: "Diagnosis",        value: job.diagnosis,        cls: "border-l-4 border-violet-400 bg-violet-50 dark:bg-violet-950" },
-                                { label: "Work Done",        value: job.work_done,        cls: "border-l-4 border-emerald-400 bg-emerald-50 dark:bg-emerald-950" },
-                                { label: "Remarks",          value: job.remarks,          cls: "border-l-4 border-slate-400  bg-slate-50  dark:bg-slate-800" },
-                            ].filter(n => n.value?.trim()).map(n => (
-                                <div key={n.label} className={`rounded-lg px-4 py-3 ${n.cls}`}>
-                                    <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--cl-text-muted)]">{n.label}</span>
-                                    <p className="mt-1 whitespace-pre-wrap text-sm text-[var(--cl-text)]">{n.value}</p>
+                            <div className="rounded-lg bg-white shadow-sm overflow-hidden">
+                                <div className="h-1 bg-rose-300" />
+                                <div className="px-4 py-3">
+                                    <span className="text-xs font-bold uppercase tracking-wider text-rose-700">Problem Reported</span>
+                                    <p className="mt-1.5 whitespace-pre-wrap text-sm text-slate-900 leading-relaxed min-h-[1.5rem]">
+                                        {job.problem_reported?.trim() || "—"}
+                                    </p>
                                 </div>
-                            ))}
+                            </div>
+                            <NarrativeBlock color="violet" label="Diagnosis" value={job.diagnosis} />
+                            <NarrativeBlock color="emerald" label="Work Done" value={job.work_done} />
+
+                            {/* ── Remarks (always visible) ── */}
+                            <div className="rounded-lg bg-white shadow-sm overflow-hidden">
+                                <div className="h-1 bg-slate-300" />
+                                <div className="px-4 py-3">
+                                    <span className="text-xs font-bold uppercase tracking-wider text-slate-700">Remarks</span>
+                                    <p className="mt-1.5 whitespace-pre-wrap text-sm text-slate-900 leading-relaxed min-h-[1.5rem]">
+                                        {job.remarks?.trim() || "—"}
+                                    </p>
+                                </div>
+                            </div>
 
                             {/* ── Transaction History ── */}
-                            <div className="rounded-xl border-l-4 border-teal-400 bg-white dark:bg-zinc-900 shadow-sm overflow-hidden">
-                                <div className="flex items-center gap-2 px-4 py-2.5 bg-gray-50 dark:bg-zinc-800">
-                                    <FileText className="h-4 w-4 text-teal-500 opacity-80" />
-                                    <h3 className="font-serif text-sm font-bold italic tracking-wide text-teal-600 dark:text-teal-400">
-                                        Transaction History
-                                        <span className="ml-2 rounded-full bg-teal-100 px-2 py-0.5 text-[10px] font-sans font-bold not-italic text-teal-700 dark:bg-teal-950 dark:text-teal-400">
-                                            {transactions.length}
-                                        </span>
-                                    </h3>
+                            <div className="rounded-lg bg-white shadow-sm overflow-hidden">
+                                <div className="flex items-center justify-between px-4 py-2.5 border-b border-teal-200/60 bg-gradient-to-r from-teal-50/80 to-white">
+                                    <div className="flex items-center gap-2">
+                                        <FileText className="h-4 w-4 text-teal-600" />
+                                        <h3 className="text-xs font-bold uppercase tracking-wider text-teal-700">Transaction History</h3>
+                                    </div>
+                                    <span className="inline-flex items-center justify-center rounded-sm bg-teal-100 px-2.5 py-0.5 text-[11px] font-bold text-teal-700 border border-teal-200">
+                                        {transactions.length}
+                                    </span>
                                 </div>
 
                                 {transactions.length === 0 ? (
-                                    <div className="flex h-20 items-center justify-center text-sm text-[var(--cl-text-muted)]">
+                                    <div className="flex h-20 items-center justify-center text-sm text-slate-500">
                                         No transactions recorded for this job.
                                     </div>
                                 ) : (
@@ -240,33 +270,41 @@ export const JobPipelineDetailModal = ({ jobId, onClose }: Props) => {
                                         <table className="min-w-full border-collapse">
                                             <thead>
                                                 <tr>
-                                                    {["#", "Date & Time", "Status", "Technician", "Amount", "Remarks", "Performed By"].map(h => (
-                                                        <th key={h} className="text-xs font-bold uppercase tracking-widest text-zinc-500 dark:text-zinc-400 p-3 text-left border-b border-zinc-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800">
-                                                            {h}
+                                                    {[
+                                                        { label: "#", cls: "w-10" },
+                                                        { label: "Date", cls: "w-32" },
+                                                        { label: "Status", cls: "w-40" },
+                                                        { label: "Technician", cls: "w-36" },
+                                                        { label: "Amount", cls: "w-28 text-right" },
+                                                        { label: "Remarks", cls: "" },
+                                                    ].map(h => (
+                                                        <th key={h.label} className={`sticky top-0 z-10 text-[11px] font-bold uppercase tracking-wider text-slate-500 px-3 py-2.5 text-left border-b border-slate-200 bg-slate-50/80 ${h.cls}`}>
+                                                            {h.label}
                                                         </th>
                                                     ))}
                                                 </tr>
                                             </thead>
                                             <tbody>
                                                 {transactions.map((t, idx) => {
-                                                    const rowBg      = TRAN_ROW_COLORS[idx % TRAN_ROW_COLORS.length];
                                                     const statusCode = t.status_name?.toUpperCase().replace(/ /g, "_") ?? "";
-                                                    const sBg        = STATUS_COLORS[statusCode]?.trim().split(/\s+/)[0] ?? "bg-[var(--cl-accent)]";
+                                                    const sParts = STATUS_COLORS[statusCode]?.trim().split(/\s+/) ?? [];
+                                                    const sBg = sParts[0] ?? "bg-blue-500";
                                                     return (
-                                                        <tr key={t.id} className={`${rowBg} transition-colors hover:brightness-95`}>
-                                                            <td className="p-3 text-sm text-[var(--cl-text-muted)] border-b border-[var(--cl-border)] font-mono">{idx + 1}</td>
-                                                            <td className="p-3 text-xs font-mono whitespace-nowrap text-[var(--cl-text)] border-b border-[var(--cl-border)]">{fmtDateTime(t.performed_at)}</td>
-                                                            <td className="p-3 border-b border-[var(--cl-border)]">
+                                                        <tr key={t.id} className="odd:bg-white even:bg-slate-50/60 transition-colors hover:bg-blue-50/40">
+                                                            <td className="px-3 py-3 text-sm text-slate-500 border-b border-slate-100 font-mono">{idx + 1}</td>
+                                                            <td className="px-3 py-3 text-xs font-mono whitespace-nowrap text-slate-700 border-b border-slate-100">
+                                                                {t.performed_at ? t.performed_at.slice(0, 10) : "—"}
+                                                            </td>
+                                                            <td className="px-3 py-3 border-b border-slate-100">
                                                                 {t.status_name ? (
-                                                                    <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold text-white ${sBg}`}>
+                                                                    <span className={`inline-flex items-center gap-1.5 rounded-sm px-2.5 py-0.5 text-[11px] font-semibold text-white shadow-sm ${sBg}`}>
                                                                         {t.status_name}
                                                                     </span>
-                                                                ) : <span className="text-[var(--cl-text-muted)]">—</span>}
+                                                                ) : <span className="text-slate-400">—</span>}
                                                             </td>
-                                                            <td className="p-3 text-sm text-[var(--cl-text)] border-b border-[var(--cl-border)]">{t.technician_name ?? "—"}</td>
-                                                            <td className="p-3 text-sm text-right tabular-nums font-semibold text-emerald-700 dark:text-emerald-400 border-b border-[var(--cl-border)]">{fmtAmount(t.amount)}</td>
-                                                            <td className="p-3 text-sm text-[var(--cl-text)] border-b border-[var(--cl-border)] max-w-[200px] truncate" title={t.remarks ?? ""}>{t.remarks ?? "—"}</td>
-                                                            <td className="p-3 text-sm text-[var(--cl-text)] border-b border-[var(--cl-border)]">{t.performed_by_name ?? "—"}</td>
+                                                            <td className="px-3 py-3 text-sm text-slate-700 border-b border-slate-100">{t.technician_name ?? "—"}</td>
+                                                            <td className="px-3 py-3 text-sm text-right tabular-nums font-semibold text-emerald-700 border-b border-slate-100">{fmtAmount(t.amount)}</td>
+                                                            <td className="px-3 py-3 text-sm text-slate-700 border-b border-slate-100 max-w-48 truncate" title={t.remarks ?? undefined}>{t.remarks ?? "—"}</td>
                                                         </tr>
                                                     );
                                                 })}

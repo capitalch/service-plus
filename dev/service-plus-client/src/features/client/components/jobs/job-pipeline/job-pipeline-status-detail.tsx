@@ -148,8 +148,8 @@ export const JobPipelineStatusDetail = ({ status, technicians, onBack }: Props) 
                 id:              job.id,
                 job_status_id:   transition.targetId,
                 technician_id:   payload.technician_id,
-                amount:          (transition.fields === "RAT" || transition.fields === "RAPT") ? payload.amount : job.amount,
-                estimate_amount: transition.fields === "RET" ? payload.estimate_amount : job.estimate_amount,
+                amount:          transition.fields.includes("A") ? payload.amount : job.amount,
+                estimate_amount: transition.fields.includes("E") ? payload.estimate_amount : job.estimate_amount,
                 is_final:        flags?.is_final  ?? false,
                 is_closed:       flags?.is_closed ?? false,
             };
@@ -178,10 +178,33 @@ export const JobPipelineStatusDetail = ({ status, technicians, onBack }: Props) 
                             tableName:  "job_part_used",
                             deletedIds: pd.deletedIds,
                             xData: pd.newLines.map(l => ({
-                                job_id:   job.id,
-                                part_id:  l.part_id,
-                                quantity: l.quantity,
-                                remarks:  l.remarks || null,
+                                job_id:     job.id,
+                                part_id:    l.part_id,
+                                quantity:   l.quantity,
+                                cost_price: l.cost_price,
+                                sale_price: l.sale_price,
+                                remarks:    l.remarks || null,
+                            })),
+                        }),
+                    },
+                });
+            }
+
+            const cd = payload.chargesData;
+            if (cd && cd.lines.length) {
+                await apolloClient.mutate({
+                    mutation:  GRAPHQL_MAP.genericUpdate,
+                    variables: {
+                        db_name: dbName, schema,
+                        value: encodeObj({
+                            tableName: "job_additional_charge",
+                            xData: cd.lines.map(l => ({
+                                job_id:        job.id,
+                                charge_name:   l.charge_name,
+                                ref_no:        l.ref_no || null,
+                                description:   l.description || null,
+                                cost_price:    l.cost_price,
+                                selling_price: l.selling_price,
                             })),
                         }),
                     },

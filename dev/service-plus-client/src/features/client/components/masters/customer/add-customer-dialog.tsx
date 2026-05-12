@@ -47,7 +47,7 @@ type AddCustomerFormType = z.infer<typeof addCustomerSchema>;
 
 const addCustomerSchema = z.object({
     customer_type_id: z.coerce.number().positive("Customer type is required"),
-    full_name:        z.string().optional(),
+    full_name:        z.string().min(1, "Full name is required"),
     mobile:           z.string().min(1, "Mobile is required"),
     alternate_mobile: z.string().optional(),
     email:            z.string().email("Invalid email address").or(z.literal("")).optional(),
@@ -184,13 +184,16 @@ export const AddCustomerDialog = ({
 
                         {/* Full Name */}
                         <div className="flex flex-col gap-1.5">
-                            <Label htmlFor="ac_name">Full Name</Label>
+                            <Label htmlFor="ac_name">
+                                Full Name <span className="text-red-500">*</span>
+                            </Label>
                             <Input
                                 autoComplete="off"
                                 id="ac_name"
                                 placeholder="Customer name"
                                 {...form.register("full_name")}
                             />
+                            <FieldError message={errors.full_name?.message} />
                         </div>
                     </div>
 

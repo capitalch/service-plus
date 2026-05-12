@@ -1,5 +1,11 @@
 ## Service management software
 
+# Redesign of Job Pipeline
+- I want to Add Additional Charges block to status-transition-modal. Let 'C' be the representation for additional charges. Additional charges will be stored in job_additional_charge table of database.
+- When target status is IN_PROGRESS or COMPLETED_OK then 'C' will be additionally applicable
+- Need a way to completely implement the Additional charges while job transition. This section will be below Parts Used, when applicable
+- Make changes in logic-status-change.md accordingly
+
 # Logic for status change
 
 - For "Assigned" as target status, selection of technician through drop down is mandatory in modal window if not already selected earlier.
