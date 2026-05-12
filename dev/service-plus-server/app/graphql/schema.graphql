@@ -33,6 +33,7 @@ type Mutation {
     updateJobBatch(db_name: String!, schema: String, value: String!): Generic
     deleteJobBatch(db_name: String!, schema: String, value: String!): Generic
     deliverJob(db_name: String!, schema: String, value: String!): Generic
+    undoJobTransaction(db_name: String!, schema: String, value: String!): Generic
 }
 
 type Subscription {

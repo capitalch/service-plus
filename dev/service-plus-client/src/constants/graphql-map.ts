@@ -154,6 +154,11 @@ export const GRAPHQL_MAP = {
             deliverJob(db_name: $db_name, schema: $schema, value: $value)
         }
     `,
+    undoJobTransaction: gql`
+        mutation UndoJobTransaction($db_name: String!, $schema: String, $value: String!) {
+            undoJobTransaction(db_name: $db_name, schema: $schema, value: $value)
+        }
+    `,
     superAdminClientsData: gql`
         query SuperAdminClientsData {
             superAdminClientsData

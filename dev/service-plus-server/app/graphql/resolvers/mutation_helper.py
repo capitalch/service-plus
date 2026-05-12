@@ -1030,6 +1030,112 @@ async def resolve_update_job_helper(
     return new_txn_id
 
 
+# Mirrors STATUS_FLAGS in status-transitions.ts
+_STATUS_FLAGS: dict[int, dict[str, bool]] = {
+    1:  {"is_final": False, "is_closed": False},  # RECEIVED
+    2:  {"is_final": False, "is_closed": False},  # ASSIGNED
+    3:  {"is_final": False, "is_closed": False},  # ESTIMATED
+    4:  {"is_final": False, "is_closed": False},  # ESTIMATE_APPROVED
+    5:  {"is_final": False, "is_closed": False},  # ESTIMATE_REJECTED
+    6:  {"is_final": False, "is_closed": False},  # IN_PROGRESS
+    7:  {"is_final": False, "is_closed": False},  # PARTS_PENDING
+    8:  {"is_final": False, "is_closed": False},  # ON_HOLD
+    9:  {"is_final": False, "is_closed": False},  # OUTSOURCED
+    10: {"is_final": False, "is_closed": False},  # SENT_TO_COMPANY
+    11: {"is_final": True,  "is_closed": False},  # COMPLETED_OK
+    12: {"is_final": True,  "is_closed": False},  # RETURN
+    13: {"is_final": False, "is_closed": True },  # DELIVERED_OK
+    14: {"is_final": False, "is_closed": True },  # DELIVERED_NOT_OK
+    15: {"is_final": True,  "is_closed": False},  # CANCELLED
+    16: {"is_final": True,  "is_closed": True },  # DISPOSED
+    17: {"is_final": False, "is_closed": False},  # RECEIVED_BACK_FROM_COMPANY
+}
+
+
+async def resolve_undo_job_transaction_helper(
+    db_name: str, schema: str = "public", value: str = ""
+) -> Any:
+    payload = _decode_value(value, "undoJobTransaction")
+    job_id       = payload["job_id"]
+    last_txn_id  = payload["last_transaction_id"]
+
+    db_name_arg = db_name if db_name else None
+    schema_name = schema or "public"
+
+    # 1. Verify last_transaction_id is still current (stale guard)
+    rows = await exec_sql(
+        db_name_arg, schema_name,
+        """
+        SELECT t.id, t.previous_transaction_id
+        FROM   job_transaction t
+        JOIN   job j ON j.id = t.job_id
+        WHERE  t.job_id = %(job_id)s
+          AND  t.id     = %(last_txn_id)s
+          AND  j.last_transaction_id = %(last_txn_id)s
+        """,
+        {"job_id": job_id, "last_txn_id": last_txn_id},
+    )
+    if not rows:
+        raise ValidationException("Transaction no longer current — page may be stale.")
+
+    prev_txn_id = rows[0]["previous_transaction_id"]
+
+    # Fall back to the most recent earlier transaction if the link was never set
+    if prev_txn_id is None:
+        fallback = await exec_sql(
+            db_name_arg, schema_name,
+            """
+            SELECT id FROM job_transaction
+            WHERE  job_id = %(job_id)s AND id < %(last_txn_id)s
+            ORDER  BY id DESC
+            LIMIT  1
+            """,
+            {"job_id": job_id, "last_txn_id": last_txn_id},
+        )
+        if not fallback:
+            raise ValidationException("Cannot undo the initial transaction.")
+        prev_txn_id = fallback[0]["id"]
+
+    # 2. Fetch previous transaction state to restore
+    prev_rows = await exec_sql(
+        db_name_arg, schema_name,
+        "SELECT status_id, technician_id, amount FROM job_transaction WHERE id = %(prev_txn_id)s",
+        {"prev_txn_id": prev_txn_id},
+    )
+    if not prev_rows:
+        raise ValidationException("Previous transaction not found.")
+    prev = prev_rows[0]
+
+    flags = _STATUS_FLAGS.get(prev["status_id"], {"is_final": False, "is_closed": False})
+
+    # 3. Delete last transaction
+    await exec_sql_object(
+        db_name_arg, schema_name,
+        {"tableName": "job_transaction", "deletedIds": [last_txn_id]},
+    )
+    logger.info("Undid job transaction %s for job %s", last_txn_id, job_id)
+
+    # 4. Restore job to previous state
+    await exec_sql_object(
+        db_name_arg, schema_name,
+        {
+            "tableName": "job",
+            "xData": {
+                "id":                  job_id,
+                "job_status_id":       prev["status_id"],
+                "technician_id":       prev["technician_id"],
+                "amount":              prev["amount"],
+                "is_final":            flags["is_final"],
+                "is_closed":           flags["is_closed"],
+                "last_transaction_id": prev_txn_id,
+            },
+        },
+    )
+    logger.info("Job %s restored to transaction %s", job_id, prev_txn_id)
+
+    return {"job_id": job_id, "restored_transaction_id": prev_txn_id}
+
+
 async def resolve_deliver_job_helper(
     db_name: str, schema: str = "public", value: str = ""
 ) -> Any:

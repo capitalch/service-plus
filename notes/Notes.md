@@ -1,10 +1,11 @@
 ## Service management software
 
 # Redesign of Job Pipeline
-- I want to Add Additional Charges block to status-transition-modal. Let 'C' be the representation for additional charges. Additional charges will be stored in job_additional_charge table of database.
-- When target status is IN_PROGRESS or COMPLETED_OK then 'C' will be additionally applicable
-- Need a way to completely implement the Additional charges while job transition. This section will be below Parts Used, when applicable
-- Make changes in logic-status-change.md accordingly
+- In actions dropdown add the last dropdown options as "Undo last transaction"
+- If there are no transactions already done for the selected job, then this item will be disabled
+- "Undo last transaction" will remove the last transaction for the job and bring it to previous status
+- A modal window will be shown with job no, customer name,  receive type, receive condition, device details, and read only transactions so far. There will be a message that last transaction will be undone and this step cannot be undone, are u sure? On confirm only, the action is taken.
+- read the file plans/plan-undo-last-tran.md and write the modified plan in plans/plan.md
 
 # Logic for status change
 

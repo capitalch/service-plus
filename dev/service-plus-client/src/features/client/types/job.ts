@@ -158,6 +158,7 @@ export type OpenJobRow = {
     technician_id:       number | null;
     device_details:      string | null;
     file_count:          number;
+    transaction_count:   number;
     job_receive_manner_name:     string | null;
     job_receive_condition_name:  string | null;
 };

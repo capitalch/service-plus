@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
     ArrowLeft, ArrowRightLeft,
     ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon,
-    Eye, Loader2, Lock, RefreshCcw, Search, X,
+    Eye, Loader2, Lock, RefreshCcw, Search, Undo2, X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
@@ -28,6 +28,7 @@ import type { Transition } from "./status-transitions";
 import { StatusTransitionModal } from "./status-transition-modal";
 import type { TransitionPayload } from "./status-transition-modal";
 import { JobPipelineDetailModal } from "./job-pipeline-detail-modal";
+import { UndoTransactionDialog } from "./undo-transaction-dialog";
 
 type Props = {
     status:      JobBoardStatusCount;
@@ -39,7 +40,14 @@ type GenericQueryData<T> = { genericQuery: T[] | null };
 
 const PAGE_SIZE = 50;
 
-const NO_ACTION_CODES = new Set(["COMPLETED_OK", "RETURN", "DELIVERED_OK", "DELIVERED_NOT_OK"]);
+const NO_ACTION_CODES  = new Set(["COMPLETED_OK", "RETURN", "DELIVERED_OK", "DELIVERED_NOT_OK"]);
+const NO_UNDO_CODES    = new Set(["DELIVERED_OK", "DELIVERED_NOT_OK"]);
+
+function canUndo(row: OpenJobRow): boolean {
+    if (NO_UNDO_CODES.has(row.job_status_code)) return false;
+    if (row.transaction_count <= 1) return false;
+    return true;
+}
 
 const JOB_TYPE_ROW_COLORS: Record<string, string> = {
     MAKE_READY:     "bg-lime-50   dark:bg-lime-950/20",
@@ -76,6 +84,8 @@ export const JobPipelineStatusDetail = ({ status, technicians, onBack }: Props) 
 
     const [attachJobId, setAttachJobId] = useState<number | null>(null);
     const [attachJobNo, setAttachJobNo] = useState<string>("");
+
+    const [undoPendingJob, setUndoPendingJob] = useState<OpenJobRow | null>(null);
 
     const [viewJobId, setViewJobId] = useState<number | null>(null);
 
@@ -221,8 +231,32 @@ export const JobPipelineStatusDetail = ({ status, technicians, onBack }: Props) 
         }
     }
 
+    async function handleUndoConfirm(job: OpenJobRow) {
+        if (!dbName || !schema) return;
+        setSubmitting(true);
+        try {
+            await apolloClient.mutate({
+                mutation: GRAPHQL_MAP.undoJobTransaction,
+                variables: {
+                    db_name: dbName, schema,
+                    value: encodeObj({
+                        job_id:               job.id,
+                        last_transaction_id:  job.last_transaction_id,
+                        performed_by_user_id: currentUser?.id ?? null,
+                    }),
+                },
+            });
+            toast.success(`Undo successful — Job #${job.job_no} restored to previous status.`);
+            setUndoPendingJob(null);
+            void loadData();
+        } catch {
+            toast.error("Failed to undo transaction. Please refresh and try again.");
+        } finally {
+            setSubmitting(false);
+        }
+    }
+
     const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-    const isReadOnlyStatus = NO_ACTION_CODES.has(status.status_code);
     const badgeColorClass  = STATUS_COLORS[status.status_code]?.split(" ")[0] ?? "bg-slate-400";
 
     return (
@@ -243,7 +277,7 @@ export const JobPipelineStatusDetail = ({ status, technicians, onBack }: Props) 
                     <ArrowLeft className="h-4 w-4" />
                     Back
                 </Button>
-                <span className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-semibold text-white ${badgeColorClass}`}>
+                <span className={`inline-flex items-center rounded-sm px-3 py-1 text-sm font-semibold text-white ${badgeColorClass}`}>
                     {status.status_name}
                 </span>
                 <span className="text-xs text-[var(--cl-text-muted)]">
@@ -310,9 +344,10 @@ export const JobPipelineStatusDetail = ({ status, technicians, onBack }: Props) 
                             </thead>
                             <tbody className="divide-y divide-[var(--cl-border)] bg-[var(--cl-surface)]">
                                 {rows.map((row, idx) => {
-                                    const transitions = getTransitions(row.job_status_id, row.job_type_code);
-                                    const rowBg       = JOB_TYPE_ROW_COLORS[row.job_type_code] ?? "";
-                                    const isReadOnly  = isReadOnlyStatus || NO_ACTION_CODES.has(row.job_status_code);
+                                    const transitions  = getTransitions(row.job_status_id, row.job_type_code);
+                                    const rowBg        = JOB_TYPE_ROW_COLORS[row.job_type_code] ?? "";
+                                    const isNoAction   = NO_ACTION_CODES.has(row.job_status_code);
+                                    const rowCanUndo   = canUndo(row);
                                     return (
                                         <motion.tr
                                             key={row.id}
@@ -360,7 +395,8 @@ export const JobPipelineStatusDetail = ({ status, technicians, onBack }: Props) 
                                                     >
                                                         <Eye className="h-4 w-4" />
                                                     </Button>
-                                                    {isReadOnly ? (
+                                                    {/* No-action + no undo → lock icon */}
+                                                    {isNoAction && !rowCanUndo ? (
                                                         <span className="flex h-7 w-7 items-center justify-center">
                                                             <Lock className="h-3.5 w-3.5 text-[var(--cl-text-muted)] opacity-40" />
                                                         </span>
@@ -371,36 +407,52 @@ export const JobPipelineStatusDetail = ({ status, technicians, onBack }: Props) 
                                                                     className="h-8 w-8 p-0 text-[var(--cl-accent)] hover:text-white hover:bg-[var(--cl-accent)] rounded-lg transition-colors"
                                                                     disabled={submitting}
                                                                     size="icon"
-                                                                    title="Change status"
+                                                                    title="Actions"
                                                                     variant="ghost"
                                                                 >
                                                                     <ArrowRightLeft className="h-4 w-4" />
                                                                 </Button>
                                                             </DropdownMenuTrigger>
                                                             <DropdownMenuContent align="end" className="min-w-[220px] bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 shadow-xl rounded-xl p-1 z-50">
-                                                                <DropdownMenuLabel className="px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
-                                                                    Move job to
-                                                                </DropdownMenuLabel>
-                                                                <DropdownMenuSeparator className="bg-zinc-100 dark:bg-zinc-800 mx-1" />
-                                                                {transitions.length === 0 ? (
-                                                                    <DropdownMenuItem disabled className="rounded-lg text-sm text-zinc-400 py-2.5 px-3 italic">
-                                                                        No transitions available
-                                                                    </DropdownMenuItem>
-                                                                ) : (
-                                                                    transitions.map(t => {
-                                                                        const dotBg = STATUS_COLORS[t.targetCode]?.trim().split(/\s+/)[0] ?? "bg-slate-400";
-                                                                        return (
-                                                                            <DropdownMenuItem
-                                                                                key={`${t.targetId}-${t.targetName}`}
-                                                                                className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-900 focus:bg-zinc-50 dark:focus:bg-zinc-900"
-                                                                                onClick={() => setPendingTran({ job: row, transition: t })}
-                                                                            >
-                                                                                <span className={`h-3 w-3 shrink-0 rounded-full ${dotBg} shadow-sm`} />
-                                                                                <span className="flex-1 text-zinc-700 dark:text-zinc-300">{t.targetName}</span>
-                                                                                <span className="text-zinc-300 dark:text-zinc-600">›</span>
+                                                                {!isNoAction && (
+                                                                    <>
+                                                                        <DropdownMenuLabel className="px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
+                                                                            Move job to
+                                                                        </DropdownMenuLabel>
+                                                                        <DropdownMenuSeparator className="bg-zinc-100 dark:bg-zinc-800 mx-1" />
+                                                                        {transitions.length === 0 ? (
+                                                                            <DropdownMenuItem disabled className="rounded-lg text-sm text-zinc-400 py-2.5 px-3 italic">
+                                                                                No transitions available
                                                                             </DropdownMenuItem>
-                                                                        );
-                                                                    })
+                                                                        ) : (
+                                                                            transitions.map(t => {
+                                                                                const dotBg = STATUS_COLORS[t.targetCode]?.trim().split(/\s+/)[0] ?? "bg-slate-400";
+                                                                                return (
+                                                                                    <DropdownMenuItem
+                                                                                        key={`${t.targetId}-${t.targetName}`}
+                                                                                        className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-900 focus:bg-zinc-50 dark:focus:bg-zinc-900"
+                                                                                        onClick={() => setPendingTran({ job: row, transition: t })}
+                                                                                    >
+                                                                                        <span className={`h-3 w-3 shrink-0 rounded-full ${dotBg} shadow-sm`} />
+                                                                                        <span className="flex-1 text-zinc-700 dark:text-zinc-300">{t.targetName}</span>
+                                                                                        <span className="text-zinc-300 dark:text-zinc-600">›</span>
+                                                                                    </DropdownMenuItem>
+                                                                                );
+                                                                            })
+                                                                        )}
+                                                                    </>
+                                                                )}
+                                                                {rowCanUndo && (
+                                                                    <>
+                                                                        {!isNoAction && <DropdownMenuSeparator className="bg-zinc-100 dark:bg-zinc-800 mx-1" />}
+                                                                        <DropdownMenuItem
+                                                                            className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950/30"
+                                                                            onClick={() => setUndoPendingJob(row)}
+                                                                        >
+                                                                            <Undo2 className="h-3.5 w-3.5 shrink-0" />
+                                                                            Undo Last Transaction
+                                                                        </DropdownMenuItem>
+                                                                    </>
                                                                 )}
                                                             </DropdownMenuContent>
                                                         </DropdownMenu>
@@ -454,6 +506,15 @@ export const JobPipelineStatusDetail = ({ status, technicians, onBack }: Props) 
                 <JobPipelineDetailModal
                     jobId={viewJobId}
                     onClose={() => setViewJobId(null)}
+                />
+            )}
+
+            {undoPendingJob && (
+                <UndoTransactionDialog
+                    job={undoPendingJob}
+                    submitting={submitting}
+                    onConfirm={() => void handleUndoConfirm(undoPendingJob)}
+                    onClose={() => setUndoPendingJob(null)}
                 />
             )}
         </motion.div>

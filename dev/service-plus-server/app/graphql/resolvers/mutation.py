@@ -30,6 +30,7 @@ from app.graphql.resolvers.mutation_helper import (
     resolve_update_job_batch_helper,
     resolve_delete_job_batch_helper,
     resolve_deliver_job_helper,
+    resolve_undo_job_transaction_helper,
 )
 # from app.graphql.pubsub import pubsub
 
@@ -319,6 +320,19 @@ async def resolve_deliver_job(_, info, db_name: str = "", schema: str = "public"
         raise
     except Exception as e:
         logger.error("Error delivering job: %s", e, exc_info=True)
+        raise GraphQLException(
+            message=AppMessages.OPERATION_FAILED, extensions={"details": str(e)}
+        )
+
+
+@mutation.field("undoJobTransaction")
+async def resolve_undo_job_transaction(_, info, db_name: str = "", schema: str = "public", value: str = "") -> Any:
+    try:
+        return await resolve_undo_job_transaction_helper(db_name, schema, value)
+    except ValidationException:
+        raise
+    except Exception as e:
+        logger.error("Error undoing job transaction: %s", e, exc_info=True)
         raise GraphQLException(
             message=AppMessages.OPERATION_FAILED, extensions={"details": str(e)}
         )
