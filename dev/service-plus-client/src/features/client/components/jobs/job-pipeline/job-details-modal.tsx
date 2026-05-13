@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Calendar, FileText, Loader2, MapPin, User, Wrench } from "lucide-react";
+import { Calendar, FileText, Loader2, MapPin, Package, ReceiptText, User, Wrench } from "lucide-react";
 import { toast } from "sonner";
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -19,6 +19,24 @@ type Props = {
 };
 
 type GenericQueryData<T> = { genericQuery: T[] | null };
+
+type PartUsedRow = {
+    id:        number;
+    part_code: string;
+    part_name: string;
+    uom:       string;
+    quantity:  number;
+    remarks:   string | null;
+};
+
+type AdditionalChargeRow = {
+    id:            number;
+    charge_name:   string;
+    ref_no:        string | null;
+    description:   string | null;
+    cost_price:    number;
+    selling_price: number;
+};
 
 function fmtAmount(val: number | null | undefined) {
     if (val == null) return "—";
@@ -61,13 +79,15 @@ function NarrativeBlock({ color, label, value }: { color: string; label: string;
     );
 }
 
-export const JobPipelineDetailModal = ({ jobId, onClose }: Props) => {
+export const JobDetailsModal = ({ jobId, onClose }: Props) => {
     const dbName = useAppSelector(selectDbName);
     const schema = useAppSelector(selectSchema);
     const currentBranch = useAppSelector(selectCurrentBranch);
 
     const [job, setJob] = useState<JobDetailType | null>(null);
     const [transactions, setTransactions] = useState<JobTransactionRow[]>([]);
+    const [parts,        setParts]        = useState<PartUsedRow[]>([]);
+    const [charges,      setCharges]      = useState<AdditionalChargeRow[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -84,9 +104,13 @@ export const JobPipelineDetailModal = ({ jobId, onClose }: Props) => {
         Promise.all([
             gq(SQL_MAP.GET_JOB_DETAIL, { id: jobId }),
             gq(SQL_MAP.GET_JOB_TRANSACTIONS_BY_JOB, { job_id: jobId }),
-        ]).then(([jobRes, tranRes]) => {
+            gq(SQL_MAP.GET_JOB_PART_USED_BY_JOB, { job_id: jobId }),
+            gq(SQL_MAP.GET_JOB_ADDITIONAL_CHARGES_BY_JOB, { job_id: jobId }),
+        ]).then(([jobRes, tranRes, partsRes, chargesRes]) => {
             setJob((jobRes.data?.genericQuery?.[0] ?? null) as JobDetailType | null);
             setTransactions((tranRes.data?.genericQuery ?? []) as JobTransactionRow[]);
+            setParts((partsRes.data?.genericQuery ?? []) as PartUsedRow[]);
+            setCharges((chargesRes.data?.genericQuery ?? []) as AdditionalChargeRow[]);
         }).catch(() => {
             toast.error("Failed to load job details.");
         }).finally(() => {
@@ -248,6 +272,86 @@ export const JobPipelineDetailModal = ({ jobId, onClose }: Props) => {
                                     </p>
                                 </div>
                             </div>
+
+                            {/* ── Parts Used ── */}
+                            {parts.length > 0 && (
+                                <div className="rounded-lg bg-white shadow-sm overflow-hidden">
+                                    <div className="flex items-center justify-between px-4 py-2.5 border-b border-violet-200/60 bg-gradient-to-r from-violet-50/80 to-white">
+                                        <div className="flex items-center gap-2">
+                                            <Package className="h-4 w-4 text-violet-600" />
+                                            <h3 className="text-xs font-bold uppercase tracking-wider text-violet-700">Parts Used</h3>
+                                        </div>
+                                        <span className="inline-flex items-center justify-center rounded-sm bg-violet-100 px-2.5 py-0.5 text-[11px] font-bold text-violet-700 border border-violet-200">
+                                            {parts.length}
+                                        </span>
+                                    </div>
+                                    <div className="overflow-x-auto">
+                                        <table className="min-w-full border-collapse">
+                                            <thead>
+                                                <tr>
+                                                    {["#", "Part Code", "Part Name", "UOM", "Qty", "Remarks"].map(h => (
+                                                        <th key={h} className="sticky top-0 z-10 text-[11px] font-bold uppercase tracking-wider text-slate-500 px-3 py-2.5 text-left border-b border-slate-200 bg-slate-50/80">
+                                                            {h}
+                                                        </th>
+                                                    ))}
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {parts.map((p, idx) => (
+                                                    <tr key={p.id} className="odd:bg-white even:bg-slate-50/60 hover:bg-violet-50/40">
+                                                        <td className="px-3 py-2 text-xs text-slate-500 border-b border-slate-100 font-mono">{idx + 1}</td>
+                                                        <td className="px-3 py-2 text-xs font-mono font-semibold text-slate-800 border-b border-slate-100">{p.part_code}</td>
+                                                        <td className="px-3 py-2 text-sm text-slate-700 border-b border-slate-100">{p.part_name}</td>
+                                                        <td className="px-3 py-2 text-xs text-slate-500 border-b border-slate-100">{p.uom}</td>
+                                                        <td className="px-3 py-2 text-sm tabular-nums font-semibold text-slate-800 border-b border-slate-100">{Number(p.quantity).toFixed(2)}</td>
+                                                        <td className="px-3 py-2 text-xs text-slate-500 border-b border-slate-100 italic">{p.remarks || "—"}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* ── Additional Charges ── */}
+                            {charges.length > 0 && (
+                                <div className="rounded-lg bg-white shadow-sm overflow-hidden">
+                                    <div className="flex items-center justify-between px-4 py-2.5 border-b border-amber-200/60 bg-gradient-to-r from-amber-50/80 to-white">
+                                        <div className="flex items-center gap-2">
+                                            <ReceiptText className="h-4 w-4 text-amber-600" />
+                                            <h3 className="text-xs font-bold uppercase tracking-wider text-amber-700">Additional Charges</h3>
+                                        </div>
+                                        <span className="inline-flex items-center justify-center rounded-sm bg-amber-100 px-2.5 py-0.5 text-[11px] font-bold text-amber-700 border border-amber-200">
+                                            {charges.length}
+                                        </span>
+                                    </div>
+                                    <div className="overflow-x-auto">
+                                        <table className="min-w-full border-collapse">
+                                            <thead>
+                                                <tr>
+                                                    {["#", "Charge Name", "Ref No", "Description", "Cost", "Selling"].map(h => (
+                                                        <th key={h} className="sticky top-0 z-10 text-[11px] font-bold uppercase tracking-wider text-slate-500 px-3 py-2.5 text-left border-b border-slate-200 bg-slate-50/80">
+                                                            {h}
+                                                        </th>
+                                                    ))}
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {charges.map((c, idx) => (
+                                                    <tr key={c.id} className="odd:bg-white even:bg-slate-50/60 hover:bg-amber-50/40">
+                                                        <td className="px-3 py-2 text-xs text-slate-500 border-b border-slate-100 font-mono">{idx + 1}</td>
+                                                        <td className="px-3 py-2 text-sm font-semibold text-slate-800 border-b border-slate-100">{c.charge_name}</td>
+                                                        <td className="px-3 py-2 text-xs text-slate-500 border-b border-slate-100">{c.ref_no || "—"}</td>
+                                                        <td className="px-3 py-2 text-sm text-slate-700 border-b border-slate-100">{c.description || "—"}</td>
+                                                        <td className="px-3 py-2 text-sm tabular-nums text-slate-700 border-b border-slate-100">{fmtAmount(c.cost_price)}</td>
+                                                        <td className="px-3 py-2 text-sm tabular-nums font-semibold text-emerald-700 border-b border-slate-100">{fmtAmount(c.selling_price)}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            )}
 
                             {/* ── Transaction History ── */}
                             <div className="rounded-lg bg-white shadow-sm overflow-hidden">

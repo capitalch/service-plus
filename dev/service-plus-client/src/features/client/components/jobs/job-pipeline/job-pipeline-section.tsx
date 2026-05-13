@@ -10,7 +10,7 @@ import { graphQlUtils } from "@/lib/graphql-utils";
 import { selectCurrentBranch, selectSchema } from "@/store/context-slice";
 import { useAppSelector } from "@/store/hooks";
 import type { JobBoardStatusCount, TechnicianRow } from "@/features/client/types/job";
-import { JobPipelineStatusDetail } from "./job-pipeline-status-detail";
+import { JobPipelineStatusDrilldown } from "./job-pipeline-status-drilldown";
 import { JobPipelineLanding } from "./job-pipeline-landing";
 
 type View = "landing" | "detail";
@@ -56,7 +56,7 @@ export const JobPipelineSection = () => {
 
     if (view === "detail" && selectedStatus) {
         return (
-            <JobPipelineStatusDetail
+            <JobPipelineStatusDrilldown
                 status={selectedStatus}
                 technicians={technicians}
                 onBack={handleBack}

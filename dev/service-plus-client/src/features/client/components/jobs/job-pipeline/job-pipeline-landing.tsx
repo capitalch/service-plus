@@ -147,11 +147,34 @@ export const JobPipelineLanding = ({ onStatusClick }: Props) => {
                     </div>
                 ) : (
                     <div className="flex flex-col gap-1">
-                        {renderRows(actionable, 0)}
+                        {/* All bar */}
+                        <motion.button
+                            animate={{ opacity: 1 }}
+                            className="group flex w-full items-center gap-3 rounded px-3 py-2 text-left focus:outline-none transition-colors duration-150 cursor-pointer focus-visible:ring-2 focus-visible:ring-[var(--cl-accent)] hover:bg-[var(--cl-hover)]"
+                            initial={{ opacity: 0 }}
+                            title={`All: ${totalJobs} job${totalJobs !== 1 ? "s" : ""}`}
+                            transition={{ delay: 0, duration: 0.2 }}
+                            onClick={() => onStatusClick({ status_id: 0, status_code: "ALL", status_name: "All", count: totalJobs })}
+                        >
+                            <span className="w-44 shrink-0 truncate text-sm font-semibold text-[var(--cl-text)]">All</span>
+                            <span className="w-8 shrink-0 text-right text-xs font-bold tabular-nums text-[var(--cl-accent)] bg-[var(--cl-accent)]/10 rounded px-1.5 py-0.5">
+                                {totalJobs}
+                            </span>
+                            <div className="relative flex h-7 flex-1 overflow-hidden rounded bg-[var(--cl-surface-2)]">
+                                <div className="flex h-full w-full items-center justify-end rounded pr-2 bg-[var(--cl-accent)] opacity-70 group-hover:opacity-90 transition-opacity duration-150">
+                                    <span className="text-xs font-bold tabular-nums text-white">{totalJobs}</span>
+                                </div>
+                            </div>
+                            <span className="w-10 shrink-0 text-right text-sm font-bold tabular-nums text-[var(--cl-text)]">{totalJobs}</span>
+                        </motion.button>
+
+                        <hr className="my-2 border-dashed border-[var(--cl-border)]" />
+
+                        {renderRows(actionable, 1)}
                         {readOnly.length > 0 && (
                             <>
                                 <hr className="my-3 border-dashed border-[var(--cl-border)]" />
-                                {renderRows(readOnly, actionable.length + 1)}
+                                {renderRows(readOnly, actionable.length + 2)}
                             </>
                         )}
                     </div>

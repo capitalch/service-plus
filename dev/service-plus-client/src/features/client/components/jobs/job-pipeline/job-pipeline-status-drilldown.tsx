@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
     ArrowLeft, ArrowRightLeft,
     ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon,
-    Eye, Loader2, Lock, RefreshCcw, Search, Undo2, X,
+    Eye, Loader2, Lock, Package, RefreshCcw, Search, Undo2, X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
@@ -27,7 +27,8 @@ import { getTransitions, STATUS_COLORS, STATUS_FLAGS } from "./status-transition
 import type { Transition } from "./status-transitions";
 import { StatusTransitionModal } from "./status-transition-modal";
 import type { TransitionPayload } from "./status-transition-modal";
-import { JobPipelineDetailModal } from "./job-pipeline-detail-modal";
+import { JobDetailsModal } from "./job-details-modal";
+import { JobChargesModal, type ChargesJobSummary } from "./job-charges-modal";
 import { UndoTransactionDialog } from "./undo-transaction-dialog";
 
 type Props = {
@@ -40,8 +41,9 @@ type GenericQueryData<T> = { genericQuery: T[] | null };
 
 const PAGE_SIZE = 50;
 
-const NO_ACTION_CODES  = new Set(["COMPLETED_OK", "RETURN", "DELIVERED_OK", "DELIVERED_NOT_OK"]);
-const NO_UNDO_CODES    = new Set(["DELIVERED_OK", "DELIVERED_NOT_OK"]);
+const NO_ACTION_CODES    = new Set(["COMPLETED_OK", "RETURN", "DELIVERED_OK", "DELIVERED_NOT_OK"]);
+const NO_UNDO_CODES      = new Set(["DELIVERED_OK", "DELIVERED_NOT_OK"]);
+const ADD_CHARGES_CODES  = new Set(["RECEIVED", "ASSIGNED", "ESTIMATE_APPROVED", "IN_PROGRESS"]);
 
 function canUndo(row: OpenJobRow): boolean {
     if (NO_UNDO_CODES.has(row.job_status_code)) return false;
@@ -65,7 +67,7 @@ const JOB_TYPE_ROW_COLORS: Record<string, string> = {
 const thClass = "sticky top-0 z-20 text-xs font-semibold uppercase tracking-wide text-[var(--cl-text-muted)] p-3 text-left border-b border-[var(--cl-border)] bg-[var(--cl-surface-2)]";
 const tdClass = "p-3 text-sm text-[var(--cl-text)] border-b border-[var(--cl-border)]";
 
-export const JobPipelineStatusDetail = ({ status, technicians, onBack }: Props) => {
+export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Props) => {
     const dbName        = useAppSelector(selectDbName);
     const schema        = useAppSelector(selectSchema);
     const currentBranch = useAppSelector(selectCurrentBranch);
@@ -73,7 +75,7 @@ export const JobPipelineStatusDetail = ({ status, technicians, onBack }: Props) 
     const branchId      = currentBranch?.id ?? null;
 
     const [searchInput, setSearchInput] = useState("");
-    const searchQ                       = useDebounce(searchInput, 300);
+    const searchQ                       = useDebounce(searchInput, 1600);
     const [page,        setPage]        = useState(1);
     const [rows,        setRows]        = useState<OpenJobRow[]>([]);
     const [total,       setTotal]       = useState(0);
@@ -87,7 +89,8 @@ export const JobPipelineStatusDetail = ({ status, technicians, onBack }: Props) 
 
     const [undoPendingJob, setUndoPendingJob] = useState<OpenJobRow | null>(null);
 
-    const [viewJobId, setViewJobId] = useState<number | null>(null);
+    const [viewJobId,   setViewJobId]   = useState<number | null>(null);
+    const [chargesJob,  setChargesJob]  = useState<ChargesJobSummary | null>(null);
 
     const scrollRef = useRef<HTMLDivElement>(null);
     const [maxHeight, setMaxHeight] = useState(0);
@@ -111,12 +114,15 @@ export const JobPipelineStatusDetail = ({ status, technicians, onBack }: Props) 
     const loadData = useCallback(async () => {
         if (!dbName || !schema || !branchId) return;
         setLoading(true);
+        const isAll = status.status_id === 0;
         try {
-            const sqlArgs = {
-                branch_id: branchId,
-                status_id: status.status_id,
-                search:    searchQ,
-            };
+            const baseArgs = { branch_id: branchId, search: searchQ };
+            const pagedArgs = isAll
+                ? { ...baseArgs, limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE }
+                : { ...baseArgs, status_id: status.status_id, limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE };
+            const countArgs = isAll
+                ? baseArgs
+                : { ...baseArgs, status_id: status.status_id };
             const [dataRes, countRes] = await Promise.all([
                 apolloClient.query<GenericQueryData<OpenJobRow>>({
                     fetchPolicy: "network-only",
@@ -124,8 +130,8 @@ export const JobPipelineStatusDetail = ({ status, technicians, onBack }: Props) 
                     variables:   {
                         db_name: dbName, schema,
                         value: graphQlUtils.buildGenericQueryValue({
-                            sqlId:   SQL_MAP.GET_JOB_PIPELINE_PAGED,
-                            sqlArgs: { ...sqlArgs, limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE },
+                            sqlId:   isAll ? SQL_MAP.GET_JOB_PIPELINE_ALL_PAGED : SQL_MAP.GET_JOB_PIPELINE_PAGED,
+                            sqlArgs: pagedArgs,
                         }),
                     },
                 }),
@@ -134,7 +140,10 @@ export const JobPipelineStatusDetail = ({ status, technicians, onBack }: Props) 
                     query:       GRAPHQL_MAP.genericQuery,
                     variables:   {
                         db_name: dbName, schema,
-                        value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_JOB_PIPELINE_COUNT, sqlArgs }),
+                        value: graphQlUtils.buildGenericQueryValue({
+                            sqlId:   isAll ? SQL_MAP.GET_JOB_PIPELINE_ALL_COUNT : SQL_MAP.GET_JOB_PIPELINE_COUNT,
+                            sqlArgs: countArgs,
+                        }),
                     },
                 }),
             ]);
@@ -158,7 +167,7 @@ export const JobPipelineStatusDetail = ({ status, technicians, onBack }: Props) 
                 id:              job.id,
                 job_status_id:   transition.targetId,
                 technician_id:   payload.technician_id,
-                amount:          transition.fields.includes("A") ? payload.amount : job.amount,
+                amount:          job.amount,
                 estimate_amount: transition.fields.includes("E") ? payload.estimate_amount : job.estimate_amount,
                 is_final:        flags?.is_final  ?? false,
                 is_closed:       flags?.is_closed ?? false,
@@ -177,49 +186,6 @@ export const JobPipelineStatusDetail = ({ status, technicians, onBack }: Props) 
                     }),
                 },
             });
-
-            const pd = payload.partsData;
-            if (pd && (pd.newLines.length || pd.deletedIds.length)) {
-                await apolloClient.mutate({
-                    mutation:  GRAPHQL_MAP.genericUpdate,
-                    variables: {
-                        db_name: dbName, schema,
-                        value: encodeObj({
-                            tableName:  "job_part_used",
-                            deletedIds: pd.deletedIds,
-                            xData: pd.newLines.map(l => ({
-                                job_id:     job.id,
-                                part_id:    l.part_id,
-                                quantity:   l.quantity,
-                                cost_price: l.cost_price,
-                                sale_price: l.sale_price,
-                                remarks:    l.remarks || null,
-                            })),
-                        }),
-                    },
-                });
-            }
-
-            const cd = payload.chargesData;
-            if (cd && cd.lines.length) {
-                await apolloClient.mutate({
-                    mutation:  GRAPHQL_MAP.genericUpdate,
-                    variables: {
-                        db_name: dbName, schema,
-                        value: encodeObj({
-                            tableName: "job_additional_charge",
-                            xData: cd.lines.map(l => ({
-                                job_id:        job.id,
-                                charge_name:   l.charge_name,
-                                ref_no:        l.ref_no || null,
-                                description:   l.description || null,
-                                cost_price:    l.cost_price,
-                                selling_price: l.selling_price,
-                            })),
-                        }),
-                    },
-                });
-            }
 
             toast.success(`Job ${job.job_no} → ${transition.targetName}`);
             setPendingTran(null);
@@ -271,9 +237,9 @@ export const JobPipelineStatusDetail = ({ status, technicians, onBack }: Props) 
             {/* Header */}
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-[var(--cl-border)] bg-[var(--cl-surface)] py-2 px-4">
                 <Button
-                    className="h-8 gap-1.5 text-[var(--cl-text-muted)] hover:text-[var(--cl-text)]"
+                    className="h-8 gap-1.5 px-3 font-semibold text-[var(--cl-accent)] border border-[var(--cl-accent)] hover:bg-[var(--cl-accent)] hover:text-white transition-colors"
                     size="sm"
-                    variant="ghost"
+                    variant="outline"
                     onClick={onBack}
                 >
                     <ArrowLeft className="h-4 w-4" />
@@ -290,8 +256,8 @@ export const JobPipelineStatusDetail = ({ status, technicians, onBack }: Props) 
                     <div className="relative flex items-center">
                         <Search className="pointer-events-none absolute left-2.5 h-3.5 w-3.5 text-[var(--cl-text-muted)]" />
                         <input
-                            className="h-8 rounded border border-[var(--cl-border)] bg-[var(--cl-surface)] pl-8 pr-8 text-sm text-[var(--cl-text)] placeholder:text-[var(--cl-text-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--cl-accent)] w-56"
-                            placeholder="Search job no, customer, device…"
+                            className="h-8 rounded border border-[var(--cl-border)] bg-[var(--cl-surface)] pl-8 pr-8 text-sm text-[var(--cl-text)] placeholder:text-[var(--cl-text-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--cl-accent)] w-[32rem]"
+                            placeholder="Job no, customer, mobile, email, city, technician, serial no, device…"
                             value={searchInput}
                             onChange={e => setSearchInput(e.target.value)}
                         />
@@ -361,21 +327,32 @@ export const JobPipelineStatusDetail = ({ status, technicians, onBack }: Props) 
                                             <td className={`${tdClass} text-[var(--cl-text-muted)]`}>{(page - 1) * PAGE_SIZE + idx + 1}</td>
                                             <td className={tdClass}>{row.job_date}</td>
                                             <td className={tdClass}>
-                                                <div className="flex flex-wrap items-center gap-1">
-                                                    <span className="font-mono font-semibold text-[var(--cl-accent)]">#{row.job_no}</span>
-                                                    {row.is_closed && (
-                                                        <span className="rounded px-1 py-0.5 text-[10px] font-bold text-emerald-600 bg-emerald-100 dark:bg-emerald-950/40">CLOSED</span>
-                                                    )}
-                                                    {row.batch_no && (
-                                                        <span className="rounded px-1 py-0.5 text-[10px] font-medium bg-[var(--cl-accent)]/10 text-[var(--cl-accent)]">Batch #{row.batch_no}</span>
-                                                    )}
-                                                    {row.file_count > 0 && (
-                                                        <button
-                                                            className="cursor-pointer rounded px-1 py-0.5 text-[10px] font-medium bg-amber-100 text-amber-700 hover:bg-amber-200 dark:bg-amber-950/40 dark:text-amber-400"
-                                                            onClick={e => { e.stopPropagation(); setAttachJobId(row.id); setAttachJobNo(row.job_no); }}
-                                                        >
-                                                            {row.file_count} file{row.file_count !== 1 ? "s" : ""}
-                                                        </button>
+                                                <div className="flex flex-col gap-0.5">
+                                                    <div className="flex flex-wrap items-center gap-1">
+                                                        <span className="font-mono font-semibold text-[var(--cl-accent)]">#{row.job_no}</span>
+                                                        {row.is_closed && (
+                                                            <span className="rounded px-1 py-0.5 text-[10px] font-bold text-emerald-600 bg-emerald-100 dark:bg-emerald-950/40">CLOSED</span>
+                                                        )}
+                                                        {row.batch_no && (
+                                                            <span className="rounded px-1 py-0.5 text-[10px] font-medium bg-[var(--cl-accent)]/10 text-[var(--cl-accent)]">Batch #{row.batch_no}</span>
+                                                        )}
+                                                    </div>
+                                                    {(status.status_id === 0 || row.file_count > 0) && (
+                                                        <div className="flex flex-wrap items-center gap-1">
+                                                            {status.status_id === 0 && (
+                                                                <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold text-white ${STATUS_COLORS[row.job_status_code]?.trim().split(/\s+/)[0] ?? "bg-slate-400"}`}>
+                                                                    {row.job_status_name}
+                                                                </span>
+                                                            )}
+                                                            {row.file_count > 0 && (
+                                                                <button
+                                                                    className="cursor-pointer rounded px-1 py-0.5 text-[10px] font-medium bg-amber-100 text-amber-700 hover:bg-amber-200 dark:bg-amber-950/40 dark:text-amber-400"
+                                                                    onClick={e => { e.stopPropagation(); setAttachJobId(row.id); setAttachJobNo(row.job_no); }}
+                                                                >
+                                                                    {row.file_count} file{row.file_count !== 1 ? "s" : ""}
+                                                                </button>
+                                                            )}
+                                                        </div>
                                                     )}
                                                 </div>
                                             </td>
@@ -456,6 +433,24 @@ export const JobPipelineStatusDetail = ({ status, technicians, onBack }: Props) 
                                                                         </DropdownMenuItem>
                                                                     </>
                                                                 )}
+                                                                {ADD_CHARGES_CODES.has(row.job_status_code) && (
+                                                                    <>
+                                                                        <DropdownMenuSeparator className="bg-zinc-100 dark:bg-zinc-800 mx-1" />
+                                                                        <DropdownMenuItem
+                                                                            className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium cursor-pointer text-violet-600 focus:text-violet-700 focus:bg-violet-50 dark:focus:bg-violet-950/30"
+                                                                            onClick={() => setChargesJob({
+                                                                                id:              row.id,
+                                                                                job_no:          row.job_no,
+                                                                                customer_name:   row.customer_name,
+                                                                                job_status_name: row.job_status_name,
+                                                                                job_status_code: row.job_status_code,
+                                                                            })}
+                                                                        >
+                                                                            <Package className="h-3.5 w-3.5 shrink-0" />
+                                                                            Parts &amp; Charges
+                                                                        </DropdownMenuItem>
+                                                                    </>
+                                                                )}
                                                             </DropdownMenuContent>
                                                         </DropdownMenu>
                                                     )}
@@ -490,8 +485,6 @@ export const JobPipelineStatusDetail = ({ status, technicians, onBack }: Props) 
                     job={pendingTran.job}
                     transition={pendingTran.transition}
                     technicians={technicians}
-                    dbName={dbName ?? ""}
-                    schema={schema ?? ""}
                     onClose={() => setPendingTran(null)}
                     onSubmit={payload => handleSubmitTransition(pendingTran.job, pendingTran.transition, payload)}
                 />
@@ -505,7 +498,7 @@ export const JobPipelineStatusDetail = ({ status, technicians, onBack }: Props) 
             />
 
             {viewJobId !== null && (
-                <JobPipelineDetailModal
+                <JobDetailsModal
                     jobId={viewJobId}
                     onClose={() => setViewJobId(null)}
                 />
@@ -517,6 +510,16 @@ export const JobPipelineStatusDetail = ({ status, technicians, onBack }: Props) 
                     submitting={submitting}
                     onConfirm={() => void handleUndoConfirm(undoPendingJob)}
                     onClose={() => setUndoPendingJob(null)}
+                />
+            )}
+
+            {chargesJob && (
+                <JobChargesModal
+                    job={chargesJob}
+                    dbName={dbName ?? ""}
+                    schema={schema ?? ""}
+                    onClose={() => setChargesJob(null)}
+                    onSaved={() => { setChargesJob(null); void loadData(); }}
                 />
             )}
         </motion.div>

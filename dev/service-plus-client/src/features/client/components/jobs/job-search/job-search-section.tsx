@@ -1,35 +1,30 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import {ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon,
-    ClipboardList, Loader2, MoreHorizontal, Paperclip, RefreshCw, Search, Trash2, X} from "lucide-react";
+import {
+    ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon,
+    ClipboardList, Eye, FileDown, Paperclip, RefreshCw, Search, X,
+} from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
-import {
-    Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
-} from "@/components/ui/dialog";
-import {
-    DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { MESSAGES } from "@/constants/messages";
 import { SQL_MAP } from "@/constants/sql-map";
 import { apolloClient } from "@/lib/apollo-client";
-import { encodeObj, graphQlUtils } from "@/lib/graphql-utils";
+import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectCurrentBranch, selectSchema } from "@/store/context-slice";
 import type { JobSearchRow } from "@/features/client/types/job";
 import { JobAttachDialog } from "../single-job/job-attach-dialog";
-import { JobDetailView } from "./job-detail-view";
-import { TransactionDetailView } from "./transaction-detail-view";
+import { JobDetailsModal } from "../job-pipeline/job-details-modal";
+import { JobPdfModal } from "./job-pdf-modal";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type GenericQueryData<T> = { genericQuery: T[] | null };
-type ClosedFilter = null | boolean; // null = All, false = Open, true = Closed
-type View = "list" | "job-detail" | "transaction-detail";
+type ClosedFilter = null | boolean;
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -47,28 +42,23 @@ export const JobSearchSection = () => {
     const globalBranch = useAppSelector(selectCurrentBranch);
     const branchId     = globalBranch?.id ?? null;
 
-    // ── List state (preserved across drill-down navigation) ──────────────────
-    const [search,        setSearch]        = useState("");
-    const [searchQ,       setSearchQ]       = useState("");
-    const [closedFilter,  setClosedFilter]  = useState<ClosedFilter>(null);
-    const [page,          setPage]          = useState(1);
-    const [rows,          setRows]          = useState<JobSearchRow[]>([]);
-    const [total,         setTotal]         = useState(0);
-    const [loading,       setLoading]       = useState(false);
-    const [deleteId,      setDeleteId]      = useState<number | null>(null);
-    const [deleting,      setDeleting]      = useState(false);
-    const [attachJobId,   setAttachJobId]   = useState<number | null>(null);
-    const [attachJobNo,   setAttachJobNo]   = useState<string>("");
+    const [search,       setSearch]       = useState("");
+    const [searchQ,      setSearchQ]      = useState("");
+    const [closedFilter, setClosedFilter] = useState<ClosedFilter>(null);
+    const [page,         setPage]         = useState(1);
+    const [rows,         setRows]         = useState<JobSearchRow[]>([]);
+    const [total,        setTotal]        = useState(0);
+    const [loading,      setLoading]      = useState(false);
 
-    // ── Drill-down state ─────────────────────────────────────────────────────
-    const [view,           setView]           = useState<View>("list");
-    const [selectedJobId,  setSelectedJobId]  = useState<number | null>(null);
-    const [selectedJobNo,  setSelectedJobNo]  = useState<string>("");
-    const [selectedTranId, setSelectedTranId] = useState<number | null>(null);
+    const [attachJobId, setAttachJobId] = useState<number | null>(null);
+    const [attachJobNo, setAttachJobNo] = useState<string>("");
+
+    const [viewJobId, setViewJobId] = useState<number | null>(null);
+    const [pdfJobId,  setPdfJobId]  = useState<number | null>(null);
 
     const debounceRef      = useRef<ReturnType<typeof setTimeout> | null>(null);
     const scrollWrapperRef = useRef<HTMLDivElement>(null);
-    const [maxHeight,     setMaxHeight]     = useState(0);
+    const [maxHeight, setMaxHeight] = useState(0);
 
     const recalc = useCallback(() => {
         if (scrollWrapperRef.current) {
@@ -138,70 +128,6 @@ export const JobSearchSection = () => {
         setClosedFilter(value); setPage(1);
     };
 
-    const handleDelete = async () => {
-        if (!deleteId || !dbName || !schema) return;
-        setDeleting(true);
-        try {
-            await apolloClient.mutate({
-                mutation: GRAPHQL_MAP.genericUpdate,
-                variables: { db_name: dbName, schema, value: encodeObj({ tableName: "job", deletedIds: [deleteId] }) },
-            });
-            toast.success(MESSAGES.SUCCESS_JOB_DELETED);
-            setDeleteId(null);
-            if (branchId) void loadData(Number(branchId), searchQ, page, closedFilter);
-        } catch {
-            toast.error(MESSAGES.ERROR_JOB_DELETE_FAILED);
-        } finally {
-            setDeleting(false);
-        }
-    };
-
-    // ── Drill-down handlers ───────────────────────────────────────────────────
-
-    const handleSelectJob = (job: JobSearchRow) => {
-        setSelectedJobId(job.id);
-        setSelectedJobNo(job.job_no);
-        setView("job-detail");
-    };
-
-    const handleSelectTransaction = (tranId: number) => {
-        setSelectedTranId(tranId);
-        setView("transaction-detail");
-    };
-
-    const handleBackToList = () => {
-        setView("list");
-        setSelectedJobId(null);
-        setSelectedJobNo("");
-    };
-
-    const handleBackToJobDetail = () => {
-        setView("job-detail");
-        setSelectedTranId(null);
-    };
-
-    // ── Drill-down routing ────────────────────────────────────────────────────
-
-    if (view === "job-detail" && selectedJobId) {
-        return (
-            <JobDetailView
-                jobId={selectedJobId}
-                onBack={handleBackToList}
-                onViewTransaction={handleSelectTransaction}
-            />
-        );
-    }
-
-    if (view === "transaction-detail" && selectedTranId && selectedJobId) {
-        return (
-            <TransactionDetailView
-                tranId={selectedTranId}
-                jobNo={selectedJobNo}
-                onBack={handleBackToJobDetail}
-            />
-        );
-    }
-
     // ── List view ─────────────────────────────────────────────────────────────
 
     const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -232,9 +158,7 @@ export const JobSearchSection = () => {
                         <ClipboardList className="h-4 w-4" />
                     </div>
                     <div className="flex items-baseline gap-2 overflow-hidden">
-                        <h1 className="text-lg font-bold text-[var(--cl-text)] truncate">
-                            Job Search
-                        </h1>
+                        <h1 className="text-lg font-bold text-[var(--cl-text)] truncate">Job Search</h1>
                         <span className="text-xs text-[var(--cl-text-muted)] whitespace-nowrap">
                             {loading ? "Loading…" : `(${total})`}
                         </span>
@@ -252,15 +176,15 @@ export const JobSearchSection = () => {
                         value={search}
                         onChange={e => handleSearchChange(e.target.value)}
                     />
-                            {search && (
-                                <button
-                                    className="absolute right-2.5 top-1/2 flex h-4 w-4 -translate-y-1/2 items-center justify-center rounded-full bg-[var(--cl-text-muted)] text-[var(--cl-surface)] hover:bg-[var(--cl-text)] focus:outline-none"
-                                    type="button"
-                                    onClick={() => handleSearchChange("")}
-                                >
-                                    <X className="h-2.5 w-2.5" />
-                                </button>
-                            )}
+                    {search && (
+                        <button
+                            className="absolute right-2.5 top-1/2 flex h-4 w-4 -translate-y-1/2 items-center justify-center rounded-full bg-[var(--cl-text-muted)] text-[var(--cl-surface)] hover:bg-[var(--cl-text)] focus:outline-none"
+                            type="button"
+                            onClick={() => handleSearchChange("")}
+                        >
+                            <X className="h-2.5 w-2.5" />
+                        </button>
+                    )}
                 </div>
 
                 {/* Closed filter toggle */}
@@ -269,12 +193,12 @@ export const JobSearchSection = () => {
                         <button
                             key={String(opt.value)}
                             disabled={loading}
-                            onClick={() => handleClosedFilterChange(opt.value)}
                             className={`px-3 h-8 text-xs font-semibold transition-colors disabled:opacity-50 cursor-pointer
                                 ${closedFilter === opt.value
                                     ? "bg-[var(--cl-accent)] text-white"
                                     : "bg-[var(--cl-surface)] text-[var(--cl-text-muted)] hover:bg-[var(--cl-hover)] hover:text-[var(--cl-text)]"
                                 }`}
+                            onClick={() => handleClosedFilterChange(opt.value)}
                         >
                             {opt.label}
                         </button>
@@ -346,7 +270,7 @@ export const JobSearchSection = () => {
                                     <tr
                                         key={job.id}
                                         className={`group cursor-pointer transition-colors hover:bg-[var(--cl-accent)]/5 ${job.batch_no ? "border-l-2 border-l-violet-400 dark:border-l-violet-500" : ""}`}
-                                        onClick={() => handleSelectJob(job)}
+                                        onClick={() => setViewJobId(job.id)}
                                     >
                                         <td className={`${tdClass} text-[var(--cl-text-muted)]`}>
                                             {(page - 1) * PAGE_SIZE + idx + 1}
@@ -391,24 +315,27 @@ export const JobSearchSection = () => {
                                             className={`${tdClass} sticky right-0 z-10 bg-[var(--cl-surface)] group-hover:bg-[var(--cl-surface-2)]`}
                                             onClick={e => e.stopPropagation()}
                                         >
-                                            <div className="flex items-center justify-center">
-                                                <DropdownMenu>
-                                                    <DropdownMenuTrigger asChild>
-                                                        <Button className="h-8 w-8 p-0 hover:bg-[var(--cl-accent)]/15" variant="ghost">
-                                                            <MoreHorizontal className="h-4 w-4" />
-                                                            <span className="sr-only">Open menu</span>
-                                                        </Button>
-                                                    </DropdownMenuTrigger>
-                                                    <DropdownMenuContent align="end" className="w-[140px] bg-white dark:bg-zinc-950 border-[var(--cl-border)] shadow-[0_10px_30px_rgba(0,0,0,0.2)] z-50">
-                                                        <DropdownMenuItem
-                                                            className="flex items-center gap-2 cursor-pointer text-red-500 focus:bg-red-500/10 focus:text-red-600 font-semibold"
-                                                            onClick={() => setDeleteId(job.id)}
-                                                        >
-                                                            <Trash2 className="h-4 w-4" />
-                                                            <span>Delete Job</span>
-                                                        </DropdownMenuItem>
-                                                    </DropdownMenuContent>
-                                                </DropdownMenu>
+                                            <div className="flex items-center justify-center gap-1">
+                                                {/* View details */}
+                                                <Button
+                                                    className="h-8 w-8 p-0 text-[var(--cl-text-muted)] hover:text-[var(--cl-accent)] hover:bg-[var(--cl-accent)]/10"
+                                                    size="icon"
+                                                    title="View job details"
+                                                    variant="ghost"
+                                                    onClick={() => setViewJobId(job.id)}
+                                                >
+                                                    <Eye className="h-4 w-4" />
+                                                </Button>
+                                                {/* PDF / Print */}
+                                                <Button
+                                                    className="h-8 w-8 p-0 text-[var(--cl-text-muted)] hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
+                                                    size="icon"
+                                                    title="Print / Save as PDF"
+                                                    variant="ghost"
+                                                    onClick={() => setPdfJobId(job.id)}
+                                                >
+                                                    <FileDown className="h-4 w-4" />
+                                                </Button>
                                             </div>
                                         </td>
                                     </tr>
@@ -429,40 +356,13 @@ export const JobSearchSection = () => {
                         )}
                     </span>
                     <div className="flex items-center gap-1">
-                        <Button className="h-7 w-7" disabled={page <= 1 || loading} size="icon" variant="ghost" title="First page" onClick={() => setPage(1)}>
-                            <ChevronsLeftIcon className="h-4 w-4" />
-                        </Button>
-                        <Button className="h-7 w-7" disabled={page <= 1 || loading} size="icon" variant="ghost" title="Previous page" onClick={() => setPage(p => p - 1)}>
-                            <ChevronLeftIcon className="h-4 w-4" />
-                        </Button>
-                        <Button className="h-7 w-7" disabled={page >= totalPages || loading} size="icon" variant="ghost" title="Next page" onClick={() => setPage(p => p + 1)}>
-                            <ChevronRightIcon className="h-4 w-4" />
-                        </Button>
-                        <Button className="h-7 w-7" disabled={page >= totalPages || loading} size="icon" variant="ghost" title="Last page" onClick={() => setPage(totalPages)}>
-                            <ChevronsRightIcon className="h-4 w-4" />
-                        </Button>
+                        <Button className="h-7 w-7" disabled={page <= 1 || loading} size="icon" variant="ghost" title="First page"    onClick={() => setPage(1)}><ChevronsLeftIcon  className="h-4 w-4" /></Button>
+                        <Button className="h-7 w-7" disabled={page <= 1 || loading} size="icon" variant="ghost" title="Previous page" onClick={() => setPage(p => p - 1)}><ChevronLeftIcon  className="h-4 w-4" /></Button>
+                        <Button className="h-7 w-7" disabled={page >= totalPages || loading} size="icon" variant="ghost" title="Next page"     onClick={() => setPage(p => p + 1)}><ChevronRightIcon className="h-4 w-4" /></Button>
+                        <Button className="h-7 w-7" disabled={page >= totalPages || loading} size="icon" variant="ghost" title="Last page"     onClick={() => setPage(totalPages)}><ChevronsRightIcon className="h-4 w-4" /></Button>
                     </div>
                 </div>
             </div>
-
-            {/* Delete Confirm Dialog */}
-            <Dialog open={deleteId !== null} onOpenChange={open => { if (!open && !deleting) setDeleteId(null); }}>
-                <DialogContent aria-describedby={undefined} className="sm:max-w-sm !bg-[var(--cl-surface)] text-[var(--cl-text)]">
-                    <DialogHeader>
-                        <DialogTitle>Delete Job</DialogTitle>
-                    </DialogHeader>
-                    <p className="text-sm text-[var(--cl-text-muted)]">
-                        This will permanently delete the job and all associated records. This action cannot be undone.
-                    </p>
-                    <DialogFooter>
-                        <Button disabled={deleting} variant="outline" onClick={() => setDeleteId(null)}>Cancel</Button>
-                        <Button disabled={deleting} variant="destructive" onClick={() => void handleDelete()}>
-                            {deleting && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}
-                            Delete
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
 
             {/* Attach Files Dialog */}
             <JobAttachDialog
@@ -474,6 +374,22 @@ export const JobSearchSection = () => {
                     if (branchId) void loadData(Number(branchId), searchQ, page, closedFilter);
                 }}
             />
+
+            {/* Job Details Modal */}
+            {viewJobId !== null && (
+                <JobDetailsModal
+                    jobId={viewJobId}
+                    onClose={() => setViewJobId(null)}
+                />
+            )}
+
+            {/* PDF / Print Modal */}
+            {pdfJobId !== null && (
+                <JobPdfModal
+                    jobId={pdfJobId}
+                    onClose={() => setPdfJobId(null)}
+                />
+            )}
         </motion.div>
     );
 };
