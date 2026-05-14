@@ -334,7 +334,7 @@ export interface Job {
   job_type_id: number;
   job_receive_manner_id: number;
   job_receive_condition_id: number | null;
-  product_brand_model_id: number | null;
+  product_brand_model_id: number;
   serial_no: string | null;
   problem_reported: string | null;
   diagnosis: string | null;
@@ -366,7 +366,7 @@ export interface JobInput {
   job_type_id: number;
   job_receive_manner_id: number;
   job_receive_condition_id?: number | null;
-  product_brand_model_id?: number | null;
+  product_brand_model_id: number;
   serial_no?: string | null;
   problem_reported?: string | null;
   diagnosis?: string | null;
@@ -390,7 +390,7 @@ export interface JobInput {
 const job = {
   tableName: 'job',
   columns: ['id', 'job_no', 'job_date', 'customer_contact_id', 'branch_id', 'technician_id', 'job_status_id', 'job_type_id', 'job_receive_manner_id', 'job_receive_condition_id', 'product_brand_model_id', 'serial_no', 'problem_reported', 'diagnosis', 'work_done', 'remarks', 'amount', 'delivery_date', 'is_closed', 'warranty_card_no', 'is_active', 'created_at', 'updated_at', 'address_snapshot', 'last_transaction_id', 'is_final', 'quantity', 'batch_no', 'estimate_amount', 'alternate_job_no'],
-  requiredForInsert: ['id', 'job_no', 'customer_contact_id', 'branch_id', 'job_status_id', 'job_type_id', 'job_receive_manner_id'],
+  requiredForInsert: ['id', 'job_no', 'customer_contact_id', 'branch_id', 'job_status_id', 'job_type_id', 'job_receive_manner_id', 'product_brand_model_id'],
   primaryKey: 'id',
   foreignKeys: {
     customer_contact_id: { table: 'customer_contact', column: 'id', $type: null as unknown as CustomerContact },

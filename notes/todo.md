@@ -1,5 +1,6 @@
 # QA round
 - Jobs
+	- There is gap found in job numbers
 	- job pipeline
 		- for job type: demo, inspection: No spare parts can be provided
 		- job update: should be in a transaction. Recheck mutation at server

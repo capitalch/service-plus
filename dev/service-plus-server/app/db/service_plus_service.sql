@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict zVGKNCOsWTD06e4pS4IbNzvflWZyMO48eTSFXTMNzSUmvyEQIoG8G4VOm92iOTJ
+\restrict ElDwwHFgghyBHtrAqjTOvvRlCTICkOJ9tZz0CnGaXUwsaozeHI1HClG4aewwN1u
 
 -- Dumped from database version 14.6
 -- Dumped by pg_dump version 17.9 (Ubuntu 17.9-0ubuntu0.25.10.1)
@@ -356,7 +356,7 @@ CREATE TABLE demo1.job (
     job_type_id smallint NOT NULL,
     job_receive_manner_id smallint NOT NULL,
     job_receive_condition_id smallint,
-    product_brand_model_id bigint,
+    product_brand_model_id bigint NOT NULL,
     serial_no text,
     problem_reported text,
     diagnosis text,
@@ -2570,6 +2570,13 @@ CREATE INDEX job_job_date_idx ON demo1.job USING btree (job_date);
 
 
 --
+-- Name: job_product_brand_model_id_idx; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX job_product_brand_model_id_idx ON demo1.job USING btree (product_brand_model_id) WITH (deduplicate_items='true');
+
+
+--
 -- Name: job_status_idx; Type: INDEX; Schema: demo1; Owner: webadmin
 --
 
@@ -3441,5 +3448,5 @@ ALTER TABLE ONLY security.user_bu_role
 -- PostgreSQL database dump complete
 --
 
-\unrestrict zVGKNCOsWTD06e4pS4IbNzvflWZyMO48eTSFXTMNzSUmvyEQIoG8G4VOm92iOTJ
+\unrestrict ElDwwHFgghyBHtrAqjTOvvRlCTICkOJ9tZz0CnGaXUwsaozeHI1HClG4aewwN1u
 

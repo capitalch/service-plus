@@ -269,14 +269,15 @@ export function NewSingleJobForm({
                                     <div className="flex items-end gap-2">
                                         <div className="flex-1">
                                             <SearchableCombobox<ModelRow>
-                                                label="Product / Model"
+                                                label={<>Product / Model <span className="text-red-500 ml-0.5">*</span></>}
                                                 placeholder="Search by brand, product or model…"
                                                 items={models.filter(m => m.is_active)}
                                                 selectedValue={watch("model_id")?.toString() ?? ""}
                                                 getDisplayValue={m => `${m.brand_name} — ${m.product_name} — ${m.model_name}`}
                                                 getFilterKey={m => `${m.brand_name} ${m.product_name} ${m.model_name}`}
                                                 getIdentifier={m => m.id.toString()}
-                                                onSelect={m => setValue("model_id", m ? m.id : null, { shouldValidate: false })}
+                                                isError={!!errors.model_id}
+                                                onSelect={m => setValue("model_id", m ? m.id : null, { shouldValidate: true })}
                                                 renderItem={m => (
                                                     <div className="flex flex-col gap-0.5">
                                                         <span className="font-semibold">{m.brand_name}</span>
@@ -295,6 +296,7 @@ export function NewSingleJobForm({
                                             <Plus className="h-4 w-4" />
                                         </Button>
                                     </div>
+                                    {errors.model_id && <p className="mt-1 text-xs text-red-500">{errors.model_id.message}</p>}
                                 </div>
 
                                 <div className="space-y-1.5 md:col-span-6 lg:col-span-6 xl:col-span-3">

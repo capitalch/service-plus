@@ -898,10 +898,6 @@ async def resolve_create_single_job_helper(
 ) -> Any:
     """
     Create a single job and atomically increment the document sequence.
-
-    The `value` JSON must contain:
-      - tableName: "job"
-      - xData: job fields.
     """
     if not value:
         raise ValidationException(

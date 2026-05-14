@@ -54,7 +54,7 @@ export function NewBatchJobForm({
     const [showAddModel, setShowAddModel] = useState(false);
     const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
 
-    const { control, formState: { isSubmitting }, setValue, watch, register } = useFormContext<BatchJobFormValues>();
+    const { control, formState: { isSubmitting, errors }, setValue, watch, register } = useFormContext<BatchJobFormValues>();
 
     const { fields, append, remove } = useFieldArray({ control, name: "rows" });
 
@@ -221,7 +221,8 @@ export function NewBatchJobForm({
                                                     getDisplayValue={m => `${m.brand_name} — ${m.product_name} — ${m.model_name}`}
                                                     getFilterKey={m => `${m.brand_name} ${m.product_name} ${m.model_name}`}
                                                     getIdentifier={m => m.id.toString()}
-                                                    onSelect={m => setValue(`rows.${idx}.product_brand_model_id`, m ? m.id : null)}
+                                                    isError={!!errors.rows?.[idx]?.product_brand_model_id}
+                                                    onSelect={m => setValue(`rows.${idx}.product_brand_model_id`, m ? m.id : (undefined as unknown as number), { shouldValidate: true })}
                                                     renderItem={m => (
                                                         <div className="flex flex-col gap-0.5">
                                                             <span className="font-semibold">{m.brand_name}</span>
