@@ -2966,7 +2966,8 @@ class SqlStore:
            OR  COALESCE(j.serial_no, '')         ILIKE '%%' || (table "p_search") || '%%'
            OR  COALESCE(b.name, '')              ILIKE '%%' || (table "p_search") || '%%'
            OR  COALESCE(p.name, '')              ILIKE '%%' || (table "p_search") || '%%'
-           OR  COALESCE(pbm.model_name, '')      ILIKE '%%' || (table "p_search") || '%%')
+           OR  COALESCE(pbm.model_name, '')      ILIKE '%%' || (table "p_search") || '%%'
+           OR  COALESCE(j.alternate_job_no, '')  ILIKE '%%' || (table "p_search") || '%%')
     """
 
     GET_JOB_PIPELINE_PAGED = """
@@ -2979,6 +2980,7 @@ class SqlStore:
         SELECT
             j.id,
             j.job_no,
+            j.alternate_job_no,
             j.job_date,
             j.job_status_id,
             j.is_closed,
@@ -3024,7 +3026,8 @@ class SqlStore:
            OR  COALESCE(j.serial_no, '')         ILIKE '%%' || (table "p_search") || '%%'
            OR  COALESCE(b.name, '')              ILIKE '%%' || (table "p_search") || '%%'
            OR  COALESCE(p.name, '')              ILIKE '%%' || (table "p_search") || '%%'
-           OR  COALESCE(pbm.model_name, '')      ILIKE '%%' || (table "p_search") || '%%')
+           OR  COALESCE(pbm.model_name, '')      ILIKE '%%' || (table "p_search") || '%%'
+           OR  COALESCE(j.alternate_job_no, '')  ILIKE '%%' || (table "p_search") || '%%')
         ORDER BY j.job_date DESC, j.id DESC
         LIMIT  (table "p_limit")
         OFFSET (table "p_offset")
@@ -3053,7 +3056,8 @@ class SqlStore:
            OR  COALESCE(j.serial_no, '')         ILIKE '%%' || (table "p_search") || '%%'
            OR  COALESCE(b.name, '')              ILIKE '%%' || (table "p_search") || '%%'
            OR  COALESCE(p.name, '')              ILIKE '%%' || (table "p_search") || '%%'
-           OR  COALESCE(pbm.model_name, '')      ILIKE '%%' || (table "p_search") || '%%')
+           OR  COALESCE(pbm.model_name, '')      ILIKE '%%' || (table "p_search") || '%%'
+           OR  COALESCE(j.alternate_job_no, '')  ILIKE '%%' || (table "p_search") || '%%')
     """
 
     GET_JOB_PIPELINE_ALL_PAGED = """
@@ -3065,6 +3069,7 @@ class SqlStore:
         SELECT
             j.id,
             j.job_no,
+            j.alternate_job_no,
             j.job_date,
             j.job_status_id,
             j.is_closed,
@@ -3109,7 +3114,8 @@ class SqlStore:
            OR  COALESCE(j.serial_no, '')         ILIKE '%%' || (table "p_search") || '%%'
            OR  COALESCE(b.name, '')              ILIKE '%%' || (table "p_search") || '%%'
            OR  COALESCE(p.name, '')              ILIKE '%%' || (table "p_search") || '%%'
-           OR  COALESCE(pbm.model_name, '')      ILIKE '%%' || (table "p_search") || '%%')
+           OR  COALESCE(pbm.model_name, '')      ILIKE '%%' || (table "p_search") || '%%'
+           OR  COALESCE(j.alternate_job_no, '')  ILIKE '%%' || (table "p_search") || '%%')
         ORDER BY j.job_date DESC, j.id DESC
         LIMIT  (table "p_limit")
         OFFSET (table "p_offset")
@@ -3174,7 +3180,8 @@ class SqlStore:
            OR LOWER(p.name)         LIKE '%%' || LOWER((table "p_search")) || '%%'
            OR LOWER(b.name)         LIKE '%%' || LOWER((table "p_search")) || '%%'
            OR LOWER(pbm.model_name) LIKE '%%' || LOWER((table "p_search")) || '%%'
-           OR LOWER(j.serial_no)    LIKE '%%' || LOWER((table "p_search")) || '%%')
+           OR LOWER(j.serial_no)    LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(COALESCE(j.alternate_job_no, '')) LIKE '%%' || LOWER((table "p_search")) || '%%')
     """
 
     GET_JOBS_PAGED = """
@@ -3188,6 +3195,7 @@ class SqlStore:
         SELECT
             j.id,
             j.job_no,
+            j.alternate_job_no,
             j.job_date,
             j.is_closed,
             j.amount,
@@ -3218,7 +3226,8 @@ class SqlStore:
            OR LOWER(p.name)         LIKE '%%' || LOWER((table "p_search")) || '%%'
            OR LOWER(b.name)         LIKE '%%' || LOWER((table "p_search")) || '%%'
            OR LOWER(pbm.model_name) LIKE '%%' || LOWER((table "p_search")) || '%%'
-           OR LOWER(j.serial_no)    LIKE '%%' || LOWER((table "p_search")) || '%%')
+           OR LOWER(j.serial_no)    LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(COALESCE(j.alternate_job_no, '')) LIKE '%%' || LOWER((table "p_search")) || '%%')
         ORDER BY j.job_date DESC, j.id DESC
         LIMIT  (table "p_limit")
         OFFSET (table "p_offset")
@@ -3244,7 +3253,8 @@ class SqlStore:
            OR LOWER(p.name)       LIKE '%%' || LOWER((table "p_search")) || '%%'
            OR LOWER(b.name)       LIKE '%%' || LOWER((table "p_search")) || '%%'
            OR LOWER(pbm.model_name) LIKE '%%' || LOWER((table "p_search")) || '%%'
-           OR LOWER(j.serial_no)  LIKE '%%' || LOWER((table "p_search")) || '%%')
+           OR LOWER(j.serial_no)  LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(COALESCE(j.alternate_job_no, '')) LIKE '%%' || LOWER((table "p_search")) || '%%')
      """
 
     GET_JOB_SEARCH_PAGED = """
@@ -3257,6 +3267,7 @@ class SqlStore:
         SELECT
             j.id,
             j.job_no,
+            j.alternate_job_no,
             j.job_date,
             j.is_closed,
             j.amount,
@@ -3285,7 +3296,8 @@ class SqlStore:
            OR LOWER(p.name)       LIKE '%%' || LOWER((table "p_search")) || '%%'
            OR LOWER(b.name)       LIKE '%%' || LOWER((table "p_search")) || '%%'
            OR LOWER(pbm.model_name) LIKE '%%' || LOWER((table "p_search")) || '%%'
-           OR LOWER(j.serial_no)  LIKE '%%' || LOWER((table "p_search")) || '%%')
+           OR LOWER(j.serial_no)  LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(COALESCE(j.alternate_job_no, '')) LIKE '%%' || LOWER((table "p_search")) || '%%')
          ORDER BY j.job_date DESC, j.id DESC
          LIMIT  (table "p_limit")
          OFFSET (table "p_offset")
@@ -3698,7 +3710,7 @@ class SqlStore:
             "p_branch_id" as (values(%(branch_id)s::bigint)),
             "p_search"    as (values(%(search)s::text)),
             "p_limit"     as (values(%(limit)s::int))
-        SELECT j.id, j.job_no, j.job_date, j.amount, j.is_closed,
+        SELECT j.id, j.job_no, j.alternate_job_no, j.job_date, j.amount, j.is_closed,
                cc.full_name AS customer_name, cc.mobile
         FROM job j
         LEFT JOIN customer_contact cc ON cc.id = j.customer_contact_id
@@ -3707,7 +3719,8 @@ class SqlStore:
           AND ((table "p_search") = ''
            OR  j.job_no::text ILIKE '%%' || (table "p_search") || '%%'
            OR  LOWER(cc.full_name) LIKE '%%' || LOWER((table "p_search")) || '%%'
-           OR  LOWER(cc.mobile)    LIKE '%%' || LOWER((table "p_search")) || '%%')
+           OR  LOWER(cc.mobile)    LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(COALESCE(j.alternate_job_no, '')) LIKE '%%' || LOWER((table "p_search")) || '%%')
         ORDER BY j.job_date DESC, j.id DESC
         LIMIT (table "p_limit")
     """
@@ -3728,9 +3741,10 @@ class SqlStore:
           AND j.is_final = true
           AND j.is_closed = false
           AND ((table "p_search") = ''
-           OR  LOWER(j.job_no::text) LIKE '%%' || LOWER((table "p_search")) || '%%'
-           OR  LOWER(cc.mobile)      LIKE '%%' || LOWER((table "p_search")) || '%%'
-           OR  LOWER(cc.full_name)   LIKE '%%' || LOWER((table "p_search")) || '%%')
+           OR  LOWER(j.job_no::text)                LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(cc.mobile)                     LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(cc.full_name)                  LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(COALESCE(j.alternate_job_no, '')) LIKE '%%' || LOWER((table "p_search")) || '%%')
     """
 
     GET_READY_JOBS_PAGED = """
@@ -3741,7 +3755,7 @@ class SqlStore:
             "p_search"    as (values(%(search)s::text)),
             "p_limit"     as (values(%(limit)s::int)),
             "p_offset"    as (values(%(offset)s::int))
-        SELECT j.id, j.job_no, j.job_date, j.amount,
+        SELECT j.id, j.job_no, j.alternate_job_no, j.job_date, j.amount,
                cc.full_name AS customer_name, cc.mobile,
                js.name      AS job_status_name,
                t.name       AS technician_name,
@@ -3757,9 +3771,10 @@ class SqlStore:
           AND j.is_final = true
           AND j.is_closed = false
           AND ((table "p_search") = ''
-           OR  LOWER(j.job_no::text) LIKE '%%' || LOWER((table "p_search")) || '%%'
-           OR  LOWER(cc.mobile)      LIKE '%%' || LOWER((table "p_search")) || '%%'
-           OR  LOWER(cc.full_name)   LIKE '%%' || LOWER((table "p_search")) || '%%')
+           OR  LOWER(j.job_no::text)                LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(cc.mobile)                     LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(cc.full_name)                  LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(COALESCE(j.alternate_job_no, '')) LIKE '%%' || LOWER((table "p_search")) || '%%')
         ORDER BY j.job_date DESC, j.id DESC
         LIMIT  (table "p_limit")
         OFFSET (table "p_offset")
@@ -3823,9 +3838,10 @@ class SqlStore:
           AND j.is_final  = true
           AND j.is_closed = false
           AND ((table "p_search") = ''
-           OR  LOWER(j.job_no::text) LIKE '%%' || LOWER((table "p_search")) || '%%'
-           OR  LOWER(cc.mobile)      LIKE '%%' || LOWER((table "p_search")) || '%%'
-           OR  LOWER(cc.full_name)   LIKE '%%' || LOWER((table "p_search")) || '%%')
+           OR  LOWER(j.job_no::text)                LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(cc.mobile)                     LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(cc.full_name)                  LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(COALESCE(j.alternate_job_no, '')) LIKE '%%' || LOWER((table "p_search")) || '%%')
     """
 
     GET_DELIVERABLE_JOBS_PAGED = """
@@ -3836,7 +3852,7 @@ class SqlStore:
             "p_search"    as (values(%(search)s::text)),
             "p_limit"     as (values(%(limit)s::int)),
             "p_offset"    as (values(%(offset)s::int))
-        SELECT j.id, j.job_no, j.job_date, j.amount, j.last_transaction_id,
+        SELECT j.id, j.job_no, j.alternate_job_no, j.job_date, j.amount, j.last_transaction_id,
                cc.full_name  AS customer_name, cc.mobile,
                js.name       AS job_status_name,
                t.name        AS technician_name,
@@ -3852,9 +3868,10 @@ class SqlStore:
           AND j.is_final  = true
           AND j.is_closed = false
           AND ((table "p_search") = ''
-           OR  LOWER(j.job_no::text) LIKE '%%' || LOWER((table "p_search")) || '%%'
-           OR  LOWER(cc.mobile)      LIKE '%%' || LOWER((table "p_search")) || '%%'
-           OR  LOWER(cc.full_name)   LIKE '%%' || LOWER((table "p_search")) || '%%')
+           OR  LOWER(j.job_no::text)                LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(cc.mobile)                     LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(cc.full_name)                  LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(COALESCE(j.alternate_job_no, '')) LIKE '%%' || LOWER((table "p_search")) || '%%')
         ORDER BY j.job_date DESC, j.id DESC
         LIMIT  (table "p_limit")
         OFFSET (table "p_offset")
@@ -3863,7 +3880,7 @@ class SqlStore:
     GET_JOB_DELIVERY_DETAIL = """
         with "p_job_id" as (values(%(job_id)s::bigint))
         SELECT
-            j.id, j.job_no, j.job_date, j.problem_reported, j.diagnosis, j.work_done,
+            j.id, j.job_no, j.alternate_job_no, j.job_date, j.problem_reported, j.diagnosis, j.work_done,
             j.amount, j.delivery_date, j.is_closed, j.last_transaction_id,
             cc.full_name AS customer_name, cc.mobile,
             js.name      AS job_status_name,

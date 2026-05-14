@@ -172,7 +172,7 @@ export const JobSearchSection = () => {
                     <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--cl-text-muted)]" />
                     <Input
                         className="h-8 border-[var(--cl-border)] bg-[var(--cl-surface)] pl-8 text-xs"
-                        placeholder="Job no, customer, mobile, product, brand, model or serial…"
+                        placeholder="Job no, alt job no, customer, mobile, product, brand, model or serial…"
                         value={search}
                         onChange={e => handleSearchChange(e.target.value)}
                     />
@@ -284,6 +284,9 @@ export const JobSearchSection = () => {
                                                         <span className="ml-1.5 text-[10px] font-bold text-emerald-600 bg-emerald-100 dark:bg-emerald-950/40 rounded px-1 py-0.5">CLOSED</span>
                                                     )}
                                                 </div>
+                                                {job.alternate_job_no && (
+                                                    <span className="text-[10px] text-[var(--cl-text-muted)]">Alt: {job.alternate_job_no}</span>
+                                                )}
                                                 {job.batch_no != null && (
                                                     <span className="text-[9px] font-bold text-violet-600 dark:text-violet-400 w-fit bg-violet-50 dark:bg-violet-950/40 rounded px-1 py-0.5">Batch #{job.batch_no}</span>
                                                 )}

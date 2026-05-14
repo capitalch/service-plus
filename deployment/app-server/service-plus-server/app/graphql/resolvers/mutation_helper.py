@@ -969,6 +969,12 @@ async def resolve_update_job_helper(
     transaction_date = payload.pop("transaction_date", None)
     x_data = payload.get("xData", {})
 
+    # Prevent NULL from being written into the NOT NULL estimate_amount column.
+    # Null arrives when: (a) user skips the estimate field, or (b) the job row
+    # already has NULL due to legacy data and the transition doesn't update estimate.
+    if x_data.get("estimate_amount") is None:
+        x_data["estimate_amount"] = 0
+
     job_status_id = x_data.get("job_status_id")
     technician_id = x_data.get("technician_id")
     amount = x_data.get("amount")
@@ -988,7 +994,7 @@ async def resolve_update_job_helper(
     if remarks:
         txn_data["remarks"] = remarks
     if transaction_date:
-        txn_data["performed_at"] = transaction_date
+        txn_data["transaction_date"] = transaction_date
     if last_transaction_id is not None:
         txn_data["previous_transaction_id"] = last_transaction_id
 
@@ -1044,70 +1050,76 @@ _STATUS_FLAGS: dict[int, dict[str, bool]] = {
 async def resolve_undo_job_transaction_helper(
     db_name: str, schema: str = "public", value: str = ""
 ) -> Any:
-    payload = _decode_value(value, "undoJobTransaction")
-    job_id       = payload["job_id"]
-    last_txn_id  = payload["last_transaction_id"]
+    payload     = _decode_value(value, "undoJobTransaction")
+    job_id      = payload["job_id"]
+    last_txn_id = payload["last_transaction_id"]
 
     db_name_arg = db_name if db_name else None
     schema_name = schema or "public"
 
-    # 1. Verify last_transaction_id is still current (stale guard)
-    rows = await exec_sql(
-        db_name_arg, schema_name,
-        SqlStore.GET_JOB_TRANSACTION_FOR_UNDO,
-        {"job_id": job_id, "last_txn_id": last_txn_id},
-    )
-    if not rows:
-        raise ValidationException("Transaction no longer current — page may be stale.")
+    async with get_service_db_connection(db_name_arg) as conn:
+        async with conn.cursor(row_factory=dict_row) as cur:
+            await cur.execute(
+                pgsql.SQL("SET search_path TO {}").format(pgsql.Identifier(schema_name))
+            )
 
-    prev_txn_id = rows[0]["previous_transaction_id"]
+            # 1. Stale guard — confirm this txn is still job.last_transaction_id
+            await cur.execute(
+                SqlStore.GET_JOB_TRANSACTION_FOR_UNDO,
+                {"job_id": job_id, "last_txn_id": last_txn_id},
+            )
+            rows = await cur.fetchall()
+            if not rows:
+                raise ValidationException("Transaction no longer current — page may be stale.")
+            prev_txn_id = rows[0]["previous_transaction_id"]
 
-    # Fall back to the most recent earlier transaction if the link was never set
-    if prev_txn_id is None:
-        fallback = await exec_sql(
-            db_name_arg, schema_name,
-            SqlStore.GET_PREV_JOB_TRANSACTION_FALLBACK,
-            {"job_id": job_id, "last_txn_id": last_txn_id},
-        )
-        if not fallback:
-            raise ValidationException("Cannot undo the initial transaction.")
-        prev_txn_id = fallback[0]["id"]
+            # 2. Fallback if previous_transaction_id link was never populated
+            if prev_txn_id is None:
+                await cur.execute(
+                    SqlStore.GET_PREV_JOB_TRANSACTION_FALLBACK,
+                    {"job_id": job_id, "last_txn_id": last_txn_id},
+                )
+                fallback = await cur.fetchall()
+                if fallback:
+                    prev_txn_id = fallback[0]["id"]
 
-    # 2. Fetch previous transaction state to restore
-    prev_rows = await exec_sql(
-        db_name_arg, schema_name,
-        SqlStore.GET_JOB_TRANSACTION_STATE,
-        {"prev_txn_id": prev_txn_id},
-    )
-    if not prev_rows:
-        raise ValidationException("Previous transaction not found.")
-    prev = prev_rows[0]
+            # 3. Fetch previous state (skipped when undoing the very first real transaction)
+            if prev_txn_id is not None:
+                await cur.execute(
+                    SqlStore.GET_JOB_TRANSACTION_STATE,
+                    {"prev_txn_id": prev_txn_id},
+                )
+                prev_rows = await cur.fetchall()
+                if not prev_rows:
+                    raise ValidationException("Previous transaction not found.")
+                prev  = prev_rows[0]
+                flags = _STATUS_FLAGS.get(prev["status_id"], {"is_final": False, "is_closed": False})
+            else:
+                # No earlier real transaction — restore to the job's implicit initial Received state
+                prev  = {"status_id": 1, "technician_id": None, "amount": 0, "estimate_amount": 0}
+                flags = _STATUS_FLAGS.get(1, {"is_final": False, "is_closed": False})
 
-    flags = _STATUS_FLAGS.get(prev["status_id"], {"is_final": False, "is_closed": False})
+            # 4 + 5 are atomic: if 5 fails, 4 is rolled back automatically
+            await cur.execute(
+                SqlStore.DELETE_JOB_TRANSACTION,
+                {"last_txn_id": last_txn_id},
+            )
+            logger.info("Undid job transaction %s for job %s", last_txn_id, job_id)
 
-    # 3. Delete last transaction
-    await exec_sql(
-        db_name_arg, schema_name,
-        SqlStore.DELETE_JOB_TRANSACTION,
-        {"last_txn_id": last_txn_id},
-    )
-    logger.info("Undid job transaction %s for job %s", last_txn_id, job_id)
-
-    # 4. Restore job to previous state
-    await exec_sql(
-        db_name_arg, schema_name,
-        SqlStore.RESTORE_JOB_FROM_TRANSACTION,
-        {
-            "job_id":               job_id,
-            "job_status_id":        prev["status_id"],
-            "technician_id":        prev["technician_id"],
-            "amount":               prev["amount"],
-            "is_final":             flags["is_final"],
-            "is_closed":            flags["is_closed"],
-            "last_transaction_id":  prev_txn_id,
-        },
-    )
-    logger.info("Job %s restored to transaction %s", job_id, prev_txn_id)
+            await cur.execute(
+                SqlStore.RESTORE_JOB_FROM_TRANSACTION,
+                {
+                    "job_id":              job_id,
+                    "job_status_id":       prev["status_id"],
+                    "technician_id":       prev["technician_id"],
+                    "amount":              prev["amount"],
+                    "estimate_amount":     prev.get("estimate_amount"),  # None → COALESCE keeps existing
+                    "is_final":            flags["is_final"],
+                    "is_closed":           flags["is_closed"],
+                    "last_transaction_id": prev_txn_id,
+                },
+            )
+            logger.info("Job %s restored to transaction %s", job_id, prev_txn_id)
 
     return {"job_id": job_id, "restored_transaction_id": prev_txn_id}
 

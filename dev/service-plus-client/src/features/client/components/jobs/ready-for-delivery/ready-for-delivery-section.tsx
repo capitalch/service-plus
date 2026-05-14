@@ -38,15 +38,16 @@ type SubView = "list" | "invoice";
 type GenericQueryData<T> = { genericQuery: T[] | null };
 
 type ReadyJobRow = {
-    id:              number;
-    job_no:          string;
-    job_date:        string;
-    amount:          number | null;
-    customer_name:   string;
-    mobile:          string;
-    job_status_name: string;
-    technician_name: string | null;
-    has_invoice:     boolean;
+    id:               number;
+    job_no:           string;
+    alternate_job_no: string | null;
+    job_date:         string;
+    amount:           number | null;
+    customer_name:    string;
+    mobile:           string;
+    job_status_name:  string;
+    technician_name:  string | null;
+    has_invoice:      boolean;
 };
 
 type CompanyInfoRow = {
@@ -529,7 +530,7 @@ export const ReadyForDeliverySection = () => {
                         <p className="mb-3 text-[10px] font-semibold uppercase tracking-widest text-[var(--cl-text-muted)]">Job Summary</p>
                         <div className="grid grid-cols-2 gap-x-6 gap-y-2 sm:grid-cols-3 lg:grid-cols-4">
                             {([
-                                ["Job No",      selectedJob.job_no],
+                                ["Job No",      selectedJob.alternate_job_no ? `${selectedJob.job_no} · Alt: ${selectedJob.alternate_job_no}` : selectedJob.job_no],
                                 ["Job Date",    selectedJob.job_date],
                                 ["Customer",    selectedJob.customer_name ?? "—"],
                                 ["Mobile",      selectedJob.mobile],
@@ -820,7 +821,7 @@ export const ReadyForDeliverySection = () => {
                     <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--cl-text-muted)]" />
                     <Input
                         className="h-8 border-[var(--cl-border)] bg-[var(--cl-surface)] pl-8 text-xs"
-                        placeholder="Job no, customer or mobile…"
+                        placeholder="Job no, alt job no, customer or mobile…"
                         value={search}
                         onChange={e => handleSearchChange(e.target.value)}
                     />
@@ -898,7 +899,12 @@ export const ReadyForDeliverySection = () => {
                                     >
                                         <td className={`${tdClass} text-[var(--cl-text-muted)]`}>{(page - 1) * PAGE_SIZE + idx + 1}</td>
                                         <td className={tdClass}>{row.job_date}</td>
-                                        <td className={`${tdClass} font-mono font-semibold text-[var(--cl-accent)]`}>#{row.job_no}</td>
+                                        <td className={`${tdClass} font-mono font-semibold text-[var(--cl-accent)]`}>
+                                            #{row.job_no}
+                                            {row.alternate_job_no && (
+                                                <span className="block text-[10px] text-[var(--cl-text-muted)] font-normal">Alt: {row.alternate_job_no}</span>
+                                            )}
+                                        </td>
                                         <td className={tdClass}>{row.customer_name}</td>
                                         <td className={`${tdClass} font-mono text-xs`}>{row.mobile}</td>
                                         <td className={tdClass}>

@@ -259,7 +259,7 @@ export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Prop
                         <Search className="pointer-events-none absolute left-2.5 h-3.5 w-3.5 text-[var(--cl-text-muted)]" />
                         <input
                             className="h-8 rounded border border-[var(--cl-border)] bg-[var(--cl-surface)] pl-8 pr-8 text-sm text-[var(--cl-text)] placeholder:text-[var(--cl-text-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--cl-accent)] w-[32rem]"
-                            placeholder="Job no, customer, mobile, email, city, technician, serial no, device…"
+                            placeholder="Job no, alt job no, customer, mobile, email, city, technician, serial no, device…"
                             value={searchInput}
                             onChange={e => setSearchInput(e.target.value)}
                         />
@@ -332,6 +332,9 @@ export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Prop
                                                 <div className="flex flex-col gap-0.5">
                                                     <div className="flex flex-wrap items-center gap-1">
                                                         <span className="font-mono font-semibold text-[var(--cl-accent)]">#{row.job_no}</span>
+                                                        {row.alternate_job_no && (
+                                                            <span className="text-[10px] text-[var(--cl-text-muted)]">Alt: {row.alternate_job_no}</span>
+                                                        )}
                                                         {row.is_closed && (
                                                             <span className="rounded px-1 py-0.5 text-[10px] font-bold text-emerald-600 bg-emerald-100 dark:bg-emerald-950/40">CLOSED</span>
                                                         )}

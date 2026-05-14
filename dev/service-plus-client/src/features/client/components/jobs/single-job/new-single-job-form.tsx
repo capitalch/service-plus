@@ -109,9 +109,10 @@ export function NewSingleJobForm({
                 receive_condition_id: d.job_receive_condition_id ?? null,
                 job_status_id: d.job_status_id ?? null,
                 model_id: d.product_brand_model_id ?? (undefined as unknown as number),
+                alternate_job_no: d.alternate_job_no ?? "",
                 serial_no: d.serial_no ?? "",
                 quantity: d.quantity,
-                problem_reported: d.problem_reported,
+                problem_reported: d.problem_reported ?? "",
                 warranty_card_no: d.warranty_card_no ?? "",
                 remarks: d.remarks ?? "",
             });
@@ -173,6 +174,15 @@ export function NewSingleJobForm({
                                         readOnly
                                         className="bg-[var(--cl-surface-2)] font-mono text-[var(--cl-accent)] font-bold cursor-not-allowed opacity-80"
                                         value={editJob?.job_no ?? "AUTO"}
+                                    />
+                                </div>
+
+                                <div className="space-y-1.5 md:col-span-6 lg:col-span-6 xl:col-span-3">
+                                    <Label className={labelCls}>Alt Job No</Label>
+                                    <Input
+                                        className="bg-[var(--cl-surface-2)]"
+                                        placeholder="Optional…"
+                                        {...form.register("alternate_job_no")}
                                     />
                                 </div>
 
@@ -343,7 +353,7 @@ export function NewSingleJobForm({
                                 </div>
 
                                 {/* Remarks */}
-                                <div className="space-y-1.5 md:col-span-12 lg:col-span-12">
+                                <div className="space-y-1.5 md:col-span-6 lg:col-span-6">
                                     <Label className={labelCls}>Remarks</Label>
                                     <Textarea
                                         rows={3}

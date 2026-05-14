@@ -71,6 +71,7 @@ export function NewBatchJobForm({
                     localId:                  crypto.randomUUID(),
                     job_type_id:              r.job_type_id,
                     product_brand_model_id:   r.product_brand_model_id ?? (undefined as unknown as number),
+                    alternate_job_no:         (r as typeof r & { alternate_job_no?: string | null }).alternate_job_no ?? "",
                     serial_no:                r.serial_no ?? "",
                     problem_reported:         r.problem_reported ?? "",
                     warranty_card_no:         r.warranty_card_no ?? "",
@@ -381,6 +382,10 @@ export function NewBatchJobForm({
                                                     <div className="space-y-1">
                                                         <Label className={labelCls}>Remarks</Label>
                                                         <Input className="h-8 text-xs bg-[var(--cl-surface-2)]" placeholder="Optional…" {...register(`rows.${idx}.remarks`)} />
+                                                    </div>
+                                                    <div className="space-y-1">
+                                                        <Label className={labelCls}>Alt Job No</Label>
+                                                        <Input className="h-8 text-xs bg-[var(--cl-surface-2)]" placeholder="Optional…" {...register(`rows.${idx}.alternate_job_no`)} />
                                                     </div>
                                                     <div className="space-y-1">
                                                         <Label className={labelCls}>Warranty Card No</Label>

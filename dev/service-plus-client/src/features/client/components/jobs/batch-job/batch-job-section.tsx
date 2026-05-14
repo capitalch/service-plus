@@ -157,6 +157,7 @@ export const BatchJobSection = ({ initialEditBatchNo, onEditBatchNoApplied, onRe
                 const addedJobs     = formRows.filter(r => !r.id).map(r => ({
                     job_type_id:              r.job_type_id,
                     product_brand_model_id:   r.product_brand_model_id,
+                    alternate_job_no:         r.alternate_job_no || null,
                     serial_no:                r.serial_no || null,
                     problem_reported:         r.problem_reported || null,
                     warranty_card_no:         r.warranty_card_no || null,
@@ -168,6 +169,7 @@ export const BatchJobSection = ({ initialEditBatchNo, onEditBatchNoApplied, onRe
                     id:                       r.id!,
                     job_type_id:              r.job_type_id,
                     product_brand_model_id:   r.product_brand_model_id,
+                    alternate_job_no:         r.alternate_job_no || null,
                     serial_no:                r.serial_no || null,
                     problem_reported:         r.problem_reported || null,
                     warranty_card_no:         r.warranty_card_no || null,
@@ -214,6 +216,7 @@ export const BatchJobSection = ({ initialEditBatchNo, onEditBatchNoApplied, onRe
                     jobs: formRows.map(r => ({
                         job_type_id:              r.job_type_id,
                         product_brand_model_id:   r.product_brand_model_id,
+                        alternate_job_no:         r.alternate_job_no || null,
                         serial_no:                r.serial_no || null,
                         problem_reported:         r.problem_reported || null,
                         warranty_card_no:         r.warranty_card_no || null,

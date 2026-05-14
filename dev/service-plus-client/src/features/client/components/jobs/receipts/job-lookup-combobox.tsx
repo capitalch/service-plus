@@ -150,7 +150,7 @@ export const JobLookupCombobox = ({ disabled = false, onChange, value }: JobLook
                     <Input
                         className="h-9 pr-8 text-sm"
                         disabled={disabled}
-                        placeholder="Search by job no, customer name or mobile…"
+                        placeholder="Search by job no, alt job no, customer name or mobile…"
                         value={search}
                         onChange={handleInputChange}
                     />
@@ -181,6 +181,9 @@ export const JobLookupCombobox = ({ disabled = false, onChange, value }: JobLook
                                 <div className="min-w-0">
                                     <div className="flex items-center gap-2 flex-wrap">
                                         <span className="font-mono font-semibold text-primary text-sm">#{job.job_no}</span>
+                                        {job.alternate_job_no && (
+                                            <span className="text-xs text-muted-foreground font-mono">Alt: {job.alternate_job_no}</span>
+                                        )}
                                         <span className="text-sm font-medium text-foreground truncate">{job.customer_name}</span>
                                         {job.mobile && <span className="text-xs text-muted-foreground">{job.mobile}</span>}
                                         {job.is_closed && (

@@ -1,11 +1,12 @@
 export type JobLookupForReceiptType = {
-    amount:        number;
-    customer_name: string;
-    id:            number;
-    is_closed:     boolean;
-    job_date:      string;
-    job_no:        number;
-    mobile:        string;
+    amount:          number;
+    customer_name:   string;
+    id:              number;
+    is_closed:       boolean;
+    job_date:        string;
+    job_no:          number;
+    alternate_job_no?: string | null;
+    mobile:          string;
 }
 
 export type JobReceiptDetailType = {

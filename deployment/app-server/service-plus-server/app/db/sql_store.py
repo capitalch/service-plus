@@ -3146,6 +3146,7 @@ class SqlStore:
         SET    job_status_id       = %(job_status_id)s,
                technician_id       = %(technician_id)s,
                amount              = %(amount)s,
+               estimate_amount     = COALESCE(%(estimate_amount)s, estimate_amount, 0),
                is_final            = %(is_final)s,
                is_closed           = %(is_closed)s,
                last_transaction_id = %(last_transaction_id)s
@@ -3639,7 +3640,8 @@ class SqlStore:
             jt.performed_by_user_id,
             COALESCE(su.full_name, su.username) AS performed_by_name,
             jt.performed_at,
-            jt.previous_transaction_id
+            jt.previous_transaction_id,
+            jt.transaction_date
         FROM job_transaction jt
         LEFT JOIN job_status      js ON js.id  = jt.status_id
         LEFT JOIN technician      t  ON t.id   = jt.technician_id
@@ -3660,7 +3662,8 @@ class SqlStore:
             NULL::bigint                        AS performed_by_user_id,
             NULL::text                          AS performed_by_name,
             j.created_at                        AS performed_at,
-            NULL::bigint                        AS previous_transaction_id
+            NULL::bigint                        AS previous_transaction_id,
+            j.created_at::date                  AS transaction_date
         FROM job j
         JOIN job_status js ON js.id = 1
         WHERE j.id = (table "p_job_id")

@@ -272,6 +272,7 @@ export const JobDetailsModal = ({ jobId, onClose, onJobChanged }: Props) => {
                                 <div className="grid grid-cols-2 gap-x-8 gap-y-3">
                                     {[
                                         ["Job No", job.job_no],
+                                        ["Alt Job No", job.alternate_job_no],
                                         ["Batch No", (job as JobDetailType & { batch_no?: string | null }).batch_no],
                                         ["Job Type", job.job_type_name],
                                         ["Technician", job.technician_name],

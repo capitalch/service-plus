@@ -1,6 +1,7 @@
 export type JobSearchRow = {
     id:                number;
     job_no:            string;
+    alternate_job_no?: string | null;
     job_date:          string;
     customer_name:     string | null;
     file_count:        number;
@@ -18,6 +19,7 @@ export type JobSearchRow = {
 export type JobDetailType = {
     id:                          number;
     job_no:                      string;
+    alternate_job_no:            string | null;
     job_date:                    string;
     customer_contact_id:         number;
     branch_id:                   number;
@@ -139,6 +141,7 @@ export type JobBatchDetailRow = JobDetailType & {
 export type OpenJobRow = {
     id:                  number;
     job_no:              string;
+    alternate_job_no:    string | null;
     job_date:            string;
     job_status_id:       number;
     job_status_code:     string;
