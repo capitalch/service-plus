@@ -28,8 +28,9 @@ export type PartRow = {
     category: string | null;
     model: string | null;
     uom: string;
-    cost_price: number | null;
-    mrp: number | null;
+    cost_price:    number | null;
+    selling_price: number | null;
+    mrp:           number | null;
     hsn_code: string | null;
     gst_rate: number | null;
     is_active: boolean;

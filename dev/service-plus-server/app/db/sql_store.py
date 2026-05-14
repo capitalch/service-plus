@@ -1502,7 +1502,7 @@ class SqlStore:
         SELECT
             p.id, p.brand_id, p.part_code, p.part_name,
             p.part_description, p.category, p.model, p.uom,
-            p.cost_price, p.mrp, p.hsn_code, p.gst_rate, p.is_active,
+            p.cost_price, p.selling_price, p.mrp, p.hsn_code, p.gst_rate, p.is_active,
             b.name AS brand_name
         FROM spare_part_master p
         JOIN brand b ON b.id = p.brand_id
@@ -1518,7 +1518,7 @@ class SqlStore:
         SELECT
             p.id, p.brand_id, p.part_code, p.part_name,
             p.part_description, p.category, p.model, p.uom,
-            p.cost_price, p.mrp, p.hsn_code, p.gst_rate, p.is_active,
+            p.cost_price, p.selling_price, p.mrp, p.hsn_code, p.gst_rate, p.is_active,
             b.name AS brand_name
         FROM spare_part_master p
         JOIN brand b ON b.id = p.brand_id
@@ -1537,7 +1537,7 @@ class SqlStore:
         SELECT
             p.id, p.brand_id, p.part_code, p.part_name,
             p.part_description, p.category, p.model, p.uom,
-            p.cost_price, p.mrp, p.hsn_code, p.gst_rate, p.is_active,
+            p.cost_price, p.selling_price, p.mrp, p.hsn_code, p.gst_rate, p.is_active,
             b.name AS brand_name
         FROM spare_part_master p
         JOIN brand b ON b.id = p.brand_id
@@ -2761,6 +2761,13 @@ class SqlStore:
         ORDER BY setting_key
     """
 
+    GET_APP_SETTING_BY_KEY = """
+        with "p_key" as (values(%(setting_key)s::text))
+        SELECT id, setting_key, setting_value
+        FROM app_setting
+        WHERE setting_key = (table "p_key")
+    """
+
     CHECK_APP_SETTING_KEY_EXISTS = """
         with "p_key" as (values(%(setting_key)s::text))
         -- with "p_key" as (values('default_gst_rate'::text)) -- Test line
@@ -3546,7 +3553,7 @@ class SqlStore:
 
     GET_JOB_PART_USED_BY_JOB = """
         with "p_job_id" as (values(%(job_id)s::bigint))
-        SELECT jpu.id, jpu.part_id, jpu.quantity, jpu.cost_price, jpu.sale_price, jpu.remarks,
+        SELECT jpu.id, jpu.part_id, jpu.quantity, jpu.cost_price, jpu.selling_price, jpu.remarks,
                sp.part_code, sp.part_name, sp.uom
         FROM job_part_used jpu
         JOIN spare_part_master sp ON sp.id = jpu.part_id
@@ -3634,11 +3641,31 @@ class SqlStore:
             jt.performed_at,
             jt.previous_transaction_id
         FROM job_transaction jt
-        LEFT JOIN job_status     js ON js.id = jt.status_id
-        LEFT JOIN technician     t  ON t.id  = jt.technician_id
-        LEFT JOIN security."user" su ON su.id = jt.performed_by_user_id
+        LEFT JOIN job_status      js ON js.id  = jt.status_id
+        LEFT JOIN technician      t  ON t.id   = jt.technician_id
+        LEFT JOIN security."user" su ON su.id  = jt.performed_by_user_id
         WHERE jt.job_id = (table "p_job_id")
-        ORDER BY jt.performed_at ASC, jt.id ASC
+
+        UNION ALL
+
+        SELECT
+            0                                   AS id,
+            j.id                                AS job_id,
+            js.id                               AS status_id,
+            js.name                             AS status_name,
+            NULL::bigint                        AS technician_id,
+            NULL::text                          AS technician_name,
+            NULL::numeric                       AS amount,
+            NULL::text                          AS remarks,
+            NULL::bigint                        AS performed_by_user_id,
+            NULL::text                          AS performed_by_name,
+            j.created_at                        AS performed_at,
+            NULL::bigint                        AS previous_transaction_id
+        FROM job j
+        JOIN job_status js ON js.id = 1
+        WHERE j.id = (table "p_job_id")
+
+        ORDER BY performed_at ASC, id ASC
     """
 
     GET_JOB_TRANSACTION_DETAIL = """

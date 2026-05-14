@@ -161,7 +161,7 @@ const company_info = {
 export interface CustomerContact {
   id: number;
   customer_type_id: number;
-  full_name: string | null;
+  full_name: string;
   gstin: string | null;
   mobile: string;
   alternate_mobile: string | null;
@@ -180,7 +180,7 @@ export interface CustomerContact {
 export interface CustomerContactInput {
   id: number;
   customer_type_id: number;
-  full_name?: string | null;
+  full_name: string;
   gstin?: string | null;
   mobile: string;
   alternate_mobile?: string | null;
@@ -199,7 +199,7 @@ export interface CustomerContactInput {
 const customer_contact = {
   tableName: 'customer_contact',
   columns: ['id', 'customer_type_id', 'full_name', 'gstin', 'mobile', 'alternate_mobile', 'email', 'address_line1', 'address_line2', 'landmark', 'state_id', 'city', 'postal_code', 'remarks', 'is_active', 'created_at', 'updated_at'],
-  requiredForInsert: ['id', 'customer_type_id', 'mobile', 'address_line1', 'state_id'],
+  requiredForInsert: ['id', 'customer_type_id', 'full_name', 'mobile', 'address_line1', 'state_id'],
   primaryKey: 'id',
   foreignKeys: {
     customer_type_id: { table: 'customer_type', column: 'id', $type: null as unknown as CustomerType },
@@ -353,6 +353,7 @@ export interface Job {
   quantity: number;
   batch_no: number | null;
   estimate_amount: number;
+  alternate_job_no: string | null;
 }
 export interface JobInput {
   id: number;
@@ -384,10 +385,11 @@ export interface JobInput {
   quantity?: number;
   batch_no?: number | null;
   estimate_amount?: number;
+  alternate_job_no?: string | null;
 }
 const job = {
   tableName: 'job',
-  columns: ['id', 'job_no', 'job_date', 'customer_contact_id', 'branch_id', 'technician_id', 'job_status_id', 'job_type_id', 'job_receive_manner_id', 'job_receive_condition_id', 'product_brand_model_id', 'serial_no', 'problem_reported', 'diagnosis', 'work_done', 'remarks', 'amount', 'delivery_date', 'is_closed', 'warranty_card_no', 'is_active', 'created_at', 'updated_at', 'address_snapshot', 'last_transaction_id', 'is_final', 'quantity', 'batch_no', 'estimate_amount'],
+  columns: ['id', 'job_no', 'job_date', 'customer_contact_id', 'branch_id', 'technician_id', 'job_status_id', 'job_type_id', 'job_receive_manner_id', 'job_receive_condition_id', 'product_brand_model_id', 'serial_no', 'problem_reported', 'diagnosis', 'work_done', 'remarks', 'amount', 'delivery_date', 'is_closed', 'warranty_card_no', 'is_active', 'created_at', 'updated_at', 'address_snapshot', 'last_transaction_id', 'is_final', 'quantity', 'batch_no', 'estimate_amount', 'alternate_job_no'],
   requiredForInsert: ['id', 'job_no', 'customer_contact_id', 'branch_id', 'job_status_id', 'job_type_id', 'job_receive_manner_id'],
   primaryKey: 'id',
   foreignKeys: {
@@ -595,6 +597,8 @@ export interface JobPartUsed {
   created_at: Date;
   updated_at: Date;
   remarks: string | null;
+  cost_price: number;
+  selling_price: number;
 }
 export interface JobPartUsedInput {
   id: number;
@@ -604,10 +608,12 @@ export interface JobPartUsedInput {
   created_at?: Date;
   updated_at?: Date;
   remarks?: string | null;
+  cost_price?: number;
+  selling_price?: number;
 }
 const job_part_used = {
   tableName: 'job_part_used',
-  columns: ['id', 'job_id', 'part_id', 'quantity', 'created_at', 'updated_at', 'remarks'],
+  columns: ['id', 'job_id', 'part_id', 'quantity', 'created_at', 'updated_at', 'remarks', 'cost_price', 'selling_price'],
   requiredForInsert: ['id', 'job_id', 'part_id', 'quantity'],
   primaryKey: 'id',
   foreignKeys: {
@@ -1108,6 +1114,7 @@ export interface SparePartMaster {
   is_active: boolean;
   created_at: Date | null;
   updated_at: Date | null;
+  selling_price: number;
 }
 export interface SparePartMasterInput {
   id: number;
@@ -1125,10 +1132,11 @@ export interface SparePartMasterInput {
   is_active?: boolean;
   created_at?: Date | null;
   updated_at?: Date | null;
+  selling_price?: number;
 }
 const spare_part_master = {
   tableName: 'spare_part_master',
-  columns: ['id', 'brand_id', 'part_code', 'part_name', 'part_description', 'category', 'model', 'uom', 'cost_price', 'mrp', 'hsn_code', 'gst_rate', 'is_active', 'created_at', 'updated_at'],
+  columns: ['id', 'brand_id', 'part_code', 'part_name', 'part_description', 'category', 'model', 'uom', 'cost_price', 'mrp', 'hsn_code', 'gst_rate', 'is_active', 'created_at', 'updated_at', 'selling_price'],
   requiredForInsert: ['id', 'brand_id', 'part_code', 'part_name'],
   primaryKey: 'id',
   foreignKeys: { brand_id: { table: 'brand', column: 'id', $type: null as unknown as Brand }, },

@@ -32,18 +32,19 @@ import { JobChargesModal, type ChargesJobSummary } from "./job-charges-modal";
 import { UndoTransactionDialog } from "./undo-transaction-dialog";
 
 type Props = {
-    status:      JobBoardStatusCount;
+    status: JobBoardStatusCount;
     technicians: TechnicianRow[];
-    onBack:      () => void;
+    onBack: () => void;
 };
 
 type GenericQueryData<T> = { genericQuery: T[] | null };
 
 const PAGE_SIZE = 50;
 
-const NO_ACTION_CODES    = new Set(["COMPLETED_OK", "RETURN", "DELIVERED_OK", "DELIVERED_NOT_OK"]);
-const NO_UNDO_CODES      = new Set(["DELIVERED_OK", "DELIVERED_NOT_OK"]);
-const ADD_CHARGES_CODES  = new Set(["RECEIVED", "ASSIGNED", "ESTIMATE_APPROVED", "IN_PROGRESS"]);
+const NO_ACTION_CODES = new Set(["COMPLETED_OK", "RETURN", "DELIVERED_OK", "DELIVERED_NOT_OK"]);
+const NO_UNDO_CODES = new Set(["DELIVERED_OK", "DELIVERED_NOT_OK"]);
+const ADD_CHARGES_CODES = new Set(["RECEIVED", "ASSIGNED", "ESTIMATE_APPROVED", "IN_PROGRESS"]);
+const NO_CHARGES_JOB_TYPES = new Set(["DEMO", "INSPECTION", "UNDER_WARRANTY"]);
 
 function canUndo(row: OpenJobRow): boolean {
     if (NO_UNDO_CODES.has(row.job_status_code)) return false;
@@ -52,45 +53,45 @@ function canUndo(row: OpenJobRow): boolean {
 }
 
 const JOB_TYPE_ROW_COLORS: Record<string, string> = {
-    MAKE_READY:     "bg-lime-50   dark:bg-lime-950/20",
-    ESTIMATE:       "bg-blue-50   dark:bg-blue-950/20",
+    MAKE_READY: "bg-lime-50   dark:bg-lime-950/20",
+    ESTIMATE: "bg-blue-50   dark:bg-blue-950/20",
     UNDER_WARRANTY: "bg-red-50    dark:bg-red-950/20",
-    INSTALLATION:   "bg-yellow-50 dark:bg-yellow-950/20",
-    DEMO:           "bg-yellow-50 dark:bg-yellow-950/20",
-    MAINTENANCE:    "bg-gray-50   dark:bg-gray-800/20",
-    INSPECTION:     "bg-gray-50   dark:bg-gray-800/20",
-    AMC_SERVICE:    "bg-gray-50   dark:bg-gray-800/20",
-    UPGRADE:        "bg-gray-50   dark:bg-gray-800/20",
-    REFURBISH:      "bg-gray-50   dark:bg-gray-800/20",
+    INSTALLATION: "bg-yellow-50 dark:bg-yellow-950/20",
+    DEMO: "bg-yellow-50 dark:bg-yellow-950/20",
+    MAINTENANCE: "bg-gray-50   dark:bg-gray-800/20",
+    INSPECTION: "bg-gray-50   dark:bg-gray-800/20",
+    AMC_SERVICE: "bg-gray-50   dark:bg-gray-800/20",
+    UPGRADE: "bg-gray-50   dark:bg-gray-800/20",
+    REFURBISH: "bg-gray-50   dark:bg-gray-800/20",
 };
 
 const thClass = "sticky top-0 z-20 text-xs font-semibold uppercase tracking-wide text-[var(--cl-text-muted)] p-3 text-left border-b border-[var(--cl-border)] bg-[var(--cl-surface-2)]";
 const tdClass = "p-3 text-sm text-[var(--cl-text)] border-b border-[var(--cl-border)]";
 
 export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Props) => {
-    const dbName        = useAppSelector(selectDbName);
-    const schema        = useAppSelector(selectSchema);
+    const dbName = useAppSelector(selectDbName);
+    const schema = useAppSelector(selectSchema);
     const currentBranch = useAppSelector(selectCurrentBranch);
-    const currentUser   = useAppSelector(selectCurrentUser);
-    const branchId      = currentBranch?.id ?? null;
+    const currentUser = useAppSelector(selectCurrentUser);
+    const branchId = currentBranch?.id ?? null;
 
     const [searchInput, setSearchInput] = useState("");
-    const searchQ                       = useDebounce(searchInput, 1600);
-    const [page,        setPage]        = useState(1);
-    const [rows,        setRows]        = useState<OpenJobRow[]>([]);
-    const [total,       setTotal]       = useState(0);
-    const [loading,     setLoading]     = useState(false);
+    const searchQ = useDebounce(searchInput, 1600);
+    const [page, setPage] = useState(1);
+    const [rows, setRows] = useState<OpenJobRow[]>([]);
+    const [total, setTotal] = useState(0);
+    const [loading, setLoading] = useState(false);
 
     const [pendingTran, setPendingTran] = useState<{ job: OpenJobRow; transition: Transition } | null>(null);
-    const [submitting,  setSubmitting]  = useState(false);
+    const [submitting, setSubmitting] = useState(false);
 
     const [attachJobId, setAttachJobId] = useState<number | null>(null);
     const [attachJobNo, setAttachJobNo] = useState<string>("");
 
     const [undoPendingJob, setUndoPendingJob] = useState<OpenJobRow | null>(null);
 
-    const [viewJobId,   setViewJobId]   = useState<number | null>(null);
-    const [chargesJob,  setChargesJob]  = useState<ChargesJobSummary | null>(null);
+    const [viewJobId, setViewJobId] = useState<number | null>(null);
+    const [chargesJob, setChargesJob] = useState<ChargesJobSummary | null>(null);
 
     const scrollRef = useRef<HTMLDivElement>(null);
     const [maxHeight, setMaxHeight] = useState(0);
@@ -126,22 +127,22 @@ export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Prop
             const [dataRes, countRes] = await Promise.all([
                 apolloClient.query<GenericQueryData<OpenJobRow>>({
                     fetchPolicy: "network-only",
-                    query:       GRAPHQL_MAP.genericQuery,
-                    variables:   {
+                    query: GRAPHQL_MAP.genericQuery,
+                    variables: {
                         db_name: dbName, schema,
                         value: graphQlUtils.buildGenericQueryValue({
-                            sqlId:   isAll ? SQL_MAP.GET_JOB_PIPELINE_ALL_PAGED : SQL_MAP.GET_JOB_PIPELINE_PAGED,
+                            sqlId: isAll ? SQL_MAP.GET_JOB_PIPELINE_ALL_PAGED : SQL_MAP.GET_JOB_PIPELINE_PAGED,
                             sqlArgs: pagedArgs,
                         }),
                     },
                 }),
                 apolloClient.query<GenericQueryData<{ total: number }>>({
                     fetchPolicy: "network-only",
-                    query:       GRAPHQL_MAP.genericQuery,
-                    variables:   {
+                    query: GRAPHQL_MAP.genericQuery,
+                    variables: {
                         db_name: dbName, schema,
                         value: graphQlUtils.buildGenericQueryValue({
-                            sqlId:   isAll ? SQL_MAP.GET_JOB_PIPELINE_ALL_COUNT : SQL_MAP.GET_JOB_PIPELINE_COUNT,
+                            sqlId: isAll ? SQL_MAP.GET_JOB_PIPELINE_ALL_COUNT : SQL_MAP.GET_JOB_PIPELINE_COUNT,
                             sqlArgs: countArgs,
                         }),
                     },
@@ -164,24 +165,25 @@ export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Prop
         try {
             const flags = STATUS_FLAGS[transition.targetId];
             const xData = {
-                id:              job.id,
-                job_status_id:   transition.targetId,
-                technician_id:   payload.technician_id,
-                amount:          job.amount,
+                id: job.id,
+                job_status_id: transition.targetId,
+                technician_id: payload.technician_id,
+                amount: job.amount,
                 estimate_amount: transition.fields.includes("E") ? payload.estimate_amount : job.estimate_amount,
-                is_final:        flags?.is_final  ?? false,
-                is_closed:       flags?.is_closed ?? false,
+                is_final: flags?.is_final ?? false,
+                is_closed: flags?.is_closed ?? false,
             };
             await apolloClient.mutate({
-                mutation:  GRAPHQL_MAP.updateJob,
+                mutation: GRAPHQL_MAP.updateJob,
                 variables: {
-                    db_name: dbName, schema,
+                    db_name: dbName,
+                    schema,
                     value: encodeObj({
-                        job_id:               job.id,
-                        last_transaction_id:  job.last_transaction_id,
+                        job_id: job.id,
+                        last_transaction_id: job.last_transaction_id,
                         performed_by_user_id: currentUser?.id ?? null,
-                        transaction_notes:    payload.remarks || "",
-                        transaction_date:     payload.transaction_date || null,
+                        remarks: payload.remarks || "",
+                        transaction_date: payload.transaction_date || null,
                         xData,
                     }),
                 },
@@ -206,8 +208,8 @@ export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Prop
                 variables: {
                     db_name: dbName, schema,
                     value: encodeObj({
-                        job_id:               job.id,
-                        last_transaction_id:  job.last_transaction_id,
+                        job_id: job.id,
+                        last_transaction_id: job.last_transaction_id,
                         performed_by_user_id: currentUser?.id ?? null,
                     }),
                 },
@@ -225,7 +227,7 @@ export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Prop
     }
 
     const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-    const badgeColorClass  = STATUS_COLORS[status.status_code]?.split(" ")[0] ?? "bg-slate-400";
+    const badgeColorClass = STATUS_COLORS[status.status_code]?.split(" ")[0] ?? "bg-slate-400";
 
     return (
         <motion.div
@@ -312,10 +314,10 @@ export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Prop
                             </thead>
                             <tbody className="divide-y divide-[var(--cl-border)] bg-[var(--cl-surface)]">
                                 {rows.map((row, idx) => {
-                                    const transitions  = getTransitions(row.job_status_id, row.job_type_code);
-                                    const rowBg        = JOB_TYPE_ROW_COLORS[row.job_type_code] ?? "";
-                                    const isNoAction   = NO_ACTION_CODES.has(row.job_status_code);
-                                    const rowCanUndo   = canUndo(row);
+                                    const transitions = getTransitions(row.job_status_id, row.job_type_code);
+                                    const rowBg = JOB_TYPE_ROW_COLORS[row.job_type_code] ?? "";
+                                    const isNoAction = NO_ACTION_CODES.has(row.job_status_code);
+                                    const rowCanUndo = canUndo(row);
                                     return (
                                         <motion.tr
                                             key={row.id}
@@ -433,15 +435,15 @@ export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Prop
                                                                         </DropdownMenuItem>
                                                                     </>
                                                                 )}
-                                                                {ADD_CHARGES_CODES.has(row.job_status_code) && (
+                                                                {ADD_CHARGES_CODES.has(row.job_status_code) && !NO_CHARGES_JOB_TYPES.has(row.job_type_code) && (
                                                                     <>
                                                                         <DropdownMenuSeparator className="bg-zinc-100 dark:bg-zinc-800 mx-1" />
                                                                         <DropdownMenuItem
                                                                             className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium cursor-pointer text-violet-600 focus:text-violet-700 focus:bg-violet-50 dark:focus:bg-violet-950/30"
                                                                             onClick={() => setChargesJob({
-                                                                                id:              row.id,
-                                                                                job_no:          row.job_no,
-                                                                                customer_name:   row.customer_name,
+                                                                                id: row.id,
+                                                                                job_no: row.job_no,
+                                                                                customer_name: row.customer_name,
                                                                                 job_status_name: row.job_status_name,
                                                                                 job_status_code: row.job_status_code,
                                                                             })}
@@ -472,8 +474,8 @@ export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Prop
                             : `Showing ${(page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, total)} of ${total} jobs (Page ${page} of ${totalPages})`}
                     </span>
                     <div className="flex items-center gap-1">
-                        <Button className="h-7 w-7" disabled={page <= 1 || loading} size="icon" title="First"    variant="ghost" onClick={() => setPage(1)}><ChevronsLeftIcon  className="h-4 w-4" /></Button>
-                        <Button className="h-7 w-7" disabled={page <= 1 || loading} size="icon" title="Previous" variant="ghost" onClick={() => setPage(p => p - 1)}><ChevronLeftIcon  className="h-4 w-4" /></Button>
+                        <Button className="h-7 w-7" disabled={page <= 1 || loading} size="icon" title="First" variant="ghost" onClick={() => setPage(1)}><ChevronsLeftIcon className="h-4 w-4" /></Button>
+                        <Button className="h-7 w-7" disabled={page <= 1 || loading} size="icon" title="Previous" variant="ghost" onClick={() => setPage(p => p - 1)}><ChevronLeftIcon className="h-4 w-4" /></Button>
                         <Button className="h-7 w-7" disabled={page >= totalPages || loading} size="icon" title="Next" variant="ghost" onClick={() => setPage(p => p + 1)}><ChevronRightIcon className="h-4 w-4" /></Button>
                         <Button className="h-7 w-7" disabled={page >= totalPages || loading} size="icon" title="Last" variant="ghost" onClick={() => setPage(totalPages)}><ChevronsRightIcon className="h-4 w-4" /></Button>
                     </div>

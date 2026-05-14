@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict Ox3V68QihqbV4fmof6LToh8VH6ylDRrVpDQGhJWJnAJfp66b6gfGcuvIlrIjUya
+\restrict zVGKNCOsWTD06e4pS4IbNzvflWZyMO48eTSFXTMNzSUmvyEQIoG8G4VOm92iOTJ
 
 -- Dumped from database version 14.6
 -- Dumped by pg_dump version 17.9 (Ubuntu 17.9-0ubuntu0.25.10.1)
@@ -226,7 +226,7 @@ ALTER TABLE demo1.company_info OWNER TO webadmin;
 CREATE TABLE demo1.customer_contact (
     id bigint NOT NULL,
     customer_type_id smallint NOT NULL,
-    full_name text,
+    full_name text NOT NULL,
     gstin text,
     mobile text NOT NULL,
     alternate_mobile text,
@@ -374,7 +374,8 @@ CREATE TABLE demo1.job (
     is_final boolean DEFAULT false NOT NULL,
     quantity integer DEFAULT 1 NOT NULL,
     batch_no integer,
-    estimate_amount numeric(12,2) DEFAULT 0 NOT NULL
+    estimate_amount numeric(12,2) DEFAULT 0 NOT NULL,
+    alternate_job_no text
 );
 
 
@@ -589,6 +590,8 @@ CREATE TABLE demo1.job_part_used (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     remarks text,
+    cost_price numeric(12,2) DEFAULT 0 NOT NULL,
+    selling_price numeric(12,2) DEFAULT 0 NOT NULL,
     CONSTRAINT job_part_used_quantity_check CHECK ((quantity > (0)::numeric))
 );
 
@@ -1003,7 +1006,8 @@ CREATE TABLE demo1.spare_part_master (
     gst_rate numeric(5,2),
     is_active boolean DEFAULT true NOT NULL,
     created_at timestamp with time zone DEFAULT now(),
-    updated_at timestamp with time zone DEFAULT now()
+    updated_at timestamp with time zone DEFAULT now(),
+    selling_price numeric(12,2) DEFAULT 0 NOT NULL
 );
 
 
@@ -1744,6 +1748,14 @@ ALTER TABLE ONLY demo1.company_info
 
 
 --
+-- Name: customer_contact customer_contact_full_name_mobile_key; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.customer_contact
+    ADD CONSTRAINT customer_contact_full_name_mobile_key UNIQUE (full_name, mobile);
+
+
+--
 -- Name: customer_contact customer_contact_pkey; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
 --
 
@@ -2383,6 +2395,13 @@ CREATE INDEX branch_state_idx ON demo1.branch USING btree (state_id);
 
 
 --
+-- Name: customer_contact_email_idx; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX customer_contact_email_idx ON demo1.customer_contact USING btree (email) WITH (deduplicate_items='true');
+
+
+--
 -- Name: idx_customer_contact_mobile; Type: INDEX; Schema: demo1; Owner: webadmin
 --
 
@@ -2513,6 +2532,13 @@ CREATE INDEX idx_stock_adj_line_adj_id ON demo1.stock_adjustment_line USING btre
 --
 
 CREATE INDEX idx_stock_adj_line_part ON demo1.stock_adjustment_line USING btree (part_id);
+
+
+--
+-- Name: job_alternate_job_no_idx; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX job_alternate_job_no_idx ON demo1.job USING btree (alternate_job_no) WITH (deduplicate_items='true');
 
 
 --
@@ -3415,5 +3441,5 @@ ALTER TABLE ONLY security.user_bu_role
 -- PostgreSQL database dump complete
 --
 
-\unrestrict Ox3V68QihqbV4fmof6LToh8VH6ylDRrVpDQGhJWJnAJfp66b6gfGcuvIlrIjUya
+\unrestrict zVGKNCOsWTD06e4pS4IbNzvflWZyMO48eTSFXTMNzSUmvyEQIoG8G4VOm92iOTJ
 

@@ -273,7 +273,7 @@ export const DeliverJobSection = () => {
                 delivered_status_id:  deliveredStatusId,
                 delivery_date:        values.delivery_date,
                 delivery_manner_name: values.delivery_manner,
-                transaction_notes:    values.transaction_notes,
+                remarks:              values.remarks,
                 payment: {
                     payment_date: values.payment_date,
                     payment_mode: values.payment_mode,
@@ -474,7 +474,7 @@ export const DeliverJobSection = () => {
                                     id="dj-txn-notes"
                                     placeholder="Optional remarks…"
                                     rows={1}
-                                    {...form.register("transaction_notes")}
+                                    {...form.register("remarks")}
                                 />
                             </div>
                         </div>

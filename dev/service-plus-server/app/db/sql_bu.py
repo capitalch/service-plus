@@ -979,6 +979,7 @@ class SqlBu:
 
         INSERT INTO app_setting (id, setting_key, setting_value, description, is_editable) VALUES
             (1, 'default_gst_rate',             '18',   'Default GST rate (%) applied to invoices', true),
-            (2, 'to_show_parts_in_job_invoice',  'true', 'Show parts line items in job invoice',     true)
+            (2, 'to_show_parts_in_job_invoice',  'true', 'Show parts line items in job invoice',     true),
+            (3, 'MARKUP_PERCENT_OVER_COST',     '20', 'Default markup percent over cost price to get selling price', true)
         ON CONFLICT (id) DO NOTHING;
     """

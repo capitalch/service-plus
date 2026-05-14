@@ -26,7 +26,7 @@ type PartUsedRow = {
     part_name:  string;
     uom:        string;
     quantity:   number;
-    sale_price: number | null;
+    selling_price: number | null;
     remarks:    string | null;
 };
 
@@ -115,7 +115,7 @@ export const JobPdfModal = ({ jobId, onClose }: Props) => {
         ? [job.product_name, job.brand_name, job.model_name].filter(Boolean).join(" / ") || null
         : null;
 
-    const partsSelling   = parts.reduce((s, p) => s + (Number(p.sale_price ?? 0) * Number(p.quantity)), 0);
+    const partsSelling   = parts.reduce((s, p) => s + (Number(p.selling_price ?? 0) * Number(p.quantity)), 0);
     const chargesSelling = charges.reduce((s, c) => s + Number(c.selling_price ?? 0), 0);
     const grandTotal     = partsSelling + chargesSelling;
 
@@ -125,7 +125,7 @@ export const JobPdfModal = ({ jobId, onClose }: Props) => {
         <Dialog open onOpenChange={open => { if (!open) onClose(); }}>
             <DialogContent className="sm:max-w-2xl max-h-[95vh] flex flex-col overflow-hidden bg-white p-0">
                 {/* ── Modal toolbar (hidden on print) ── */}
-                <DialogHeader className="flex flex-row items-center justify-between px-5 py-3 border-b border-slate-200 shrink-0">
+                <DialogHeader className="flex flex-row items-center justify-between px-5 py-3 pr-12 border-b border-slate-200 shrink-0">
                     <DialogTitle className="text-base font-bold text-slate-900">
                         {job ? `Job Report — #${job.job_no}` : "Job Report"}
                     </DialogTitle>
@@ -248,8 +248,8 @@ export const JobPdfModal = ({ jobId, onClose }: Props) => {
                                                     <TD>{p.part_name}</TD>
                                                     <TD small>{p.uom}</TD>
                                                     <TD right>{Number(p.quantity).toFixed(2)}</TD>
-                                                    <TD right small>{fmt(p.sale_price)}</TD>
-                                                    <TD right bold>{p.sale_price != null ? fmt(Number(p.sale_price) * Number(p.quantity)) : "—"}</TD>
+                                                    <TD right small>{fmt(p.selling_price)}</TD>
+                                                    <TD right bold>{p.selling_price != null ? fmt(Number(p.selling_price) * Number(p.quantity)) : "—"}</TD>
                                                 </tr>
                                             ))}
                                         </tbody>

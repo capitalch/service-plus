@@ -135,6 +135,7 @@ export const SQL_MAP = {
     SET_PART_LOCATIONS:                            "SET_PART_LOCATIONS",
     // App Settings (Configurations)
     GET_APP_SETTINGS:                              "GET_APP_SETTINGS",
+    GET_APP_SETTING_BY_KEY:                        "GET_APP_SETTING_BY_KEY",
     CHECK_APP_SETTING_KEY_EXISTS:                  "CHECK_APP_SETTING_KEY_EXISTS",
     CHECK_APP_SETTING_KEY_EXISTS_EXCLUDE_ID:       "CHECK_APP_SETTING_KEY_EXISTS_EXCLUDE_ID",
     // Company Info (Configurations)

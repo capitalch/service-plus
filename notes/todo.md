@@ -1,7 +1,8 @@
 # QA round
 - Jobs
 	- job pipeline
-								- Add additional charges
+		- for job type: demo, inspection: No spare parts can be provided
+		- job update: should be in a transaction. Recheck mutation at server
 		- data saving test
 		- Undo last transaction
 								- Unique index for customer

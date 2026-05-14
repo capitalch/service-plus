@@ -897,11 +897,10 @@ async def resolve_create_single_job_helper(
     db_name: str, schema: str = "public", value: str = ""
 ) -> Any:
     """
-    Create a single job and atomically insert an initial job_transaction + increment document sequence.
+    Create a single job and atomically increment the document sequence.
 
     The `value` JSON must contain:
       - tableName: "job"
-      - performed_by_user_id (int): User ID for the initial job_transaction.
       - xData: job fields.
     """
     if not value:
@@ -920,8 +919,7 @@ async def resolve_create_single_job_helper(
         )
 
     x_data = payload.get("xData", {})
-    performed_by = x_data.pop("performed_by_user_id", None)
-    initial_status_id = x_data.get("job_status_id")
+    x_data.pop("performed_by_user_id", None)
     branch_id = x_data.get("branch_id")
 
     if not branch_id:
@@ -960,16 +958,6 @@ async def resolve_create_single_job_helper(
             job_id = await process_data(x_data, cur, "job", None, None)
             logger.info("Single job created with id=%s, job_no=%s", job_id, job_no)
 
-            # 4. Insert initial job_transaction
-            if performed_by is not None:
-                txn_data = {
-                    "job_id": job_id,
-                    "status_id": initial_status_id,
-                    "performed_by_user_id": performed_by,
-                }
-                await process_data(txn_data, cur, "job_transaction", None, None)
-                logger.debug("Initial job_transaction inserted for job_id=%s", job_id)
-
     return job_id
 
 
@@ -981,7 +969,7 @@ async def resolve_update_job_helper(
     job_id = payload.pop("job_id")
     last_transaction_id = payload.pop("last_transaction_id", None)
     performed_by = payload.pop("performed_by_user_id", None)
-    transaction_notes = payload.pop("transaction_notes", "")
+    remarks = payload.pop("remarks", "")
     transaction_date = payload.pop("transaction_date", None)
     x_data = payload.get("xData", {})
 
@@ -992,12 +980,6 @@ async def resolve_update_job_helper(
     db_name_arg = db_name if db_name else None
     schema_name = schema or "public"
 
-    # 1. Update the job row
-    job_object = {"tableName": "job", "xData": x_data}
-    await exec_sql_object(db_name_arg, schema_name, job_object)
-    logger.info("Job %s updated", job_id)
-
-    # 2. Insert job_transaction
     txn_data: dict = {
         "job_id": job_id,
         "status_id": job_status_id,
@@ -1007,25 +989,36 @@ async def resolve_update_job_helper(
         txn_data["technician_id"] = technician_id
     if amount is not None:
         txn_data["amount"] = amount
-    if transaction_notes:
-        txn_data["remarks"] = transaction_notes
+    if remarks:
+        txn_data["remarks"] = remarks
     if transaction_date:
         txn_data["performed_at"] = transaction_date
     if last_transaction_id is not None:
         txn_data["previous_transaction_id"] = last_transaction_id
 
-    txn_object = {"tableName": "job_transaction", "xData": txn_data}
-    new_txn_id = await exec_sql_object(db_name_arg, schema_name, txn_object)
-    logger.debug("Job transaction inserted, id=%s", new_txn_id)
+    new_txn_id: int | None = None
 
-    # 3. Update job.last_transaction_id with the new transaction id
-    if new_txn_id:
-        upd_object = {
-            "tableName": "job",
-            "xData": {"id": job_id, "last_transaction_id": new_txn_id},
-        }
-        await exec_sql_object(db_name_arg, schema_name, upd_object)
-        logger.debug("job.last_transaction_id updated to %s", new_txn_id)
+    async with get_service_db_connection(db_name_arg) as conn:
+        async with conn.cursor(row_factory=dict_row) as cur:
+            await cur.execute(
+                pgsql.SQL("SET search_path TO {}").format(pgsql.Identifier(schema_name))
+            )
+
+            # 1. Update the job row
+            await process_data(x_data, cur, "job", None, None)
+            logger.info("Job %s updated", job_id)
+
+            # 2. Insert job_transaction
+            new_txn_id = await process_data(txn_data, cur, "job_transaction", None, None)
+            logger.debug("Job transaction inserted, id=%s", new_txn_id)
+
+            # 3. Update job.last_transaction_id
+            if new_txn_id:
+                await process_data(
+                    {"id": job_id, "last_transaction_id": new_txn_id},
+                    cur, "job", None, None,
+                )
+                logger.debug("job.last_transaction_id updated to %s", new_txn_id)
 
     return new_txn_id
 
@@ -1134,7 +1127,7 @@ async def resolve_deliver_job_helper(
     delivered_status_id = payload.pop("delivered_status_id")
     delivery_date = payload.pop("delivery_date")
     delivery_manner_name = payload.pop("delivery_manner_name", "")
-    transaction_notes = payload.pop("transaction_notes", "")
+    remarks = payload.pop("remarks", "")
     payment = payload.pop("payment", {})
 
     db_name_arg = db_name if db_name else None
@@ -1172,7 +1165,7 @@ async def resolve_deliver_job_helper(
     logger.info("Job %s closed, delivery_date=%s", job_id, delivery_date)
 
     # 3. Insert job_transaction
-    notes_parts = [p for p in [delivery_manner_name, transaction_notes] if p]
+    notes_parts = [p for p in [delivery_manner_name, remarks] if p]
     full_notes = ". ".join(notes_parts)
 
     txn_data: dict = {

@@ -25,27 +25,27 @@ export type ChargesJobSummary = {
 };
 
 type ExistingPartRow = {
-    id:         number;
-    part_id:    number;
-    part_code:  string;
-    part_name:  string;
-    uom:        string;
-    quantity:   number;
-    cost_price: number | null;
-    sale_price: number | null;
-    remarks:    string;
+    id:            number;
+    part_id:       number;
+    part_code:     string;
+    part_name:     string;
+    uom:           string;
+    quantity:      number;
+    cost_price:    number | null;
+    selling_price: number | null;
+    remarks:       string;
 };
 
 type NewPartRow = {
-    _key:       string;
-    part_id:    number | null;
-    part_code:  string;
-    part_name:  string;
-    uom:        string;
-    quantity:   number;
-    cost_price: number | null;
-    sale_price: number | null;
-    remarks:    string;
+    _key:          string;
+    part_id:       number | null;
+    part_code:     string;
+    part_name:     string;
+    uom:           string;
+    quantity:      number;
+    cost_price:    number | null;
+    selling_price: number | null;
+    remarks:       string;
 };
 
 type ExistingChargeRow = {
@@ -79,11 +79,16 @@ type GenericQueryData<T> = { genericQuery: T[] | null };
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function newPartRow(): NewPartRow {
-    return { _key: crypto.randomUUID(), part_id: null, part_code: "", part_name: "", uom: "", quantity: 1, cost_price: null, sale_price: null, remarks: "" };
+    return { _key: crypto.randomUUID(), part_id: null, part_code: "", part_name: "", uom: "", quantity: 1, cost_price: null, selling_price: null, remarks: "" };
 }
 
 function newChargeRow(): NewChargeRow {
     return { _key: crypto.randomUUID(), charge_name: "", ref_no: "", description: "", cost_price: 0, selling_price: 0 };
+}
+
+function applyMarkup(costPrice: number | null, markupPct: number): number | null {
+    if (costPrice == null) return null;
+    return Math.round(costPrice * (1 + markupPct / 100) * 100) / 100;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -91,6 +96,9 @@ function newChargeRow(): NewChargeRow {
 export const JobChargesModal = ({ job, dbName, schema, onClose, onSaved }: Props) => {
     const [loading,  setLoading]  = useState(true);
     const [saving,   setSaving]   = useState(false);
+
+    // Markup from app_setting
+    const [markupPct, setMarkupPct] = useState(0);
 
     // Parts state
     const [existingParts,   setExistingParts]   = useState<ExistingPartRow[]>([]);
@@ -101,12 +109,12 @@ export const JobChargesModal = ({ job, dbName, schema, onClose, onSaved }: Props
     const originalPartsRef = useRef<ExistingPartRow[]>([]);
 
     // Charges state
-    const [existingCharges,    setExistingCharges]    = useState<ExistingChargeRow[]>([]);
-    const [newCharges,         setNewCharges]         = useState<NewChargeRow[]>([]);
-    const [deletedChargeIds,   setDeletedChargeIds]   = useState<number[]>([]);
+    const [existingCharges,  setExistingCharges]  = useState<ExistingChargeRow[]>([]);
+    const [newCharges,       setNewCharges]       = useState<NewChargeRow[]>([]);
+    const [deletedChargeIds, setDeletedChargeIds] = useState<number[]>([]);
     const originalChargesRef = useRef<ExistingChargeRow[]>([]);
 
-    // Load existing data
+    // Load existing data + markup setting
     useEffect(() => {
         const gq = <T,>(sqlId: string, sqlArgs: Record<string, unknown>) =>
             apolloClient.query<GenericQueryData<T>>({
@@ -118,7 +126,8 @@ export const JobChargesModal = ({ job, dbName, schema, onClose, onSaved }: Props
             gq<ExistingPartRow>(SQL_MAP.GET_JOB_PART_USED_BY_JOB, { job_id: job.id }),
             gq<ExistingChargeRow>(SQL_MAP.GET_JOB_ADDITIONAL_CHARGES_BY_JOB, { job_id: job.id }),
             gq<BrandOption>(SQL_MAP.GET_ALL_BRANDS, {}),
-        ]).then(([partsRes, chargesRes, brandsRes]) => {
+            gq<{ setting_value: unknown }>(SQL_MAP.GET_APP_SETTING_BY_KEY, { setting_key: "MARKUP_PERCENT_OVER_COST" }),
+        ]).then(([partsRes, chargesRes, brandsRes, markupRes]) => {
             const parts = partsRes.data?.genericQuery ?? [];
             originalPartsRef.current = parts;
             setExistingParts(parts);
@@ -126,6 +135,9 @@ export const JobChargesModal = ({ job, dbName, schema, onClose, onSaved }: Props
             originalChargesRef.current = charges;
             setExistingCharges(charges);
             setBrands(brandsRes.data?.genericQuery ?? []);
+            const rawMarkup = markupRes.data?.genericQuery?.[0]?.setting_value;
+            const pct = rawMarkup != null ? Number(rawMarkup) : 0;
+            setMarkupPct(isNaN(pct) ? 0 : pct);
         }).catch(() => {
             toast.error("Failed to load job data.");
         }).finally(() => setLoading(false));
@@ -138,7 +150,7 @@ export const JobChargesModal = ({ job, dbName, schema, onClose, onSaved }: Props
         const orig = originalPartsRef.current.find(r => r.id === row.id);
         if (!orig) return false;
         return orig.quantity !== row.quantity || orig.cost_price !== row.cost_price
-            || orig.sale_price !== row.sale_price || orig.remarks !== row.remarks;
+            || orig.selling_price !== row.selling_price || orig.remarks !== row.remarks;
     }
 
     function resetParts() {
@@ -161,14 +173,17 @@ export const JobChargesModal = ({ job, dbName, schema, onClose, onSaved }: Props
     }
 
     function handlePartSelect(key: string, part: PartRow) {
+        const cost = part.cost_price ?? null;
+        const masterSelling = (part.selling_price != null && part.selling_price > 0) ? part.selling_price : null;
+        const selling = masterSelling ?? applyMarkup(cost, markupPct);
         setNewParts(prev => prev.map(r => r._key === key
-            ? { ...r, part_id: part.id, part_code: part.part_code, part_name: part.part_name, uom: part.uom, cost_price: part.cost_price ?? null, sale_price: part.mrp ?? null }
+            ? { ...r, part_id: part.id, part_code: part.part_code, part_name: part.part_name, uom: part.uom, cost_price: cost, selling_price: selling }
             : r));
     }
 
     function handlePartClear(key: string) {
         setNewParts(prev => prev.map(r => r._key === key
-            ? { ...r, part_id: null, part_code: "", part_name: "", uom: "", cost_price: null, sale_price: null }
+            ? { ...r, part_id: null, part_code: "", part_name: "", uom: "", cost_price: null, selling_price: null }
             : r));
     }
 
@@ -186,22 +201,20 @@ export const JobChargesModal = ({ job, dbName, schema, onClose, onSaved }: Props
     // ── Save ─────────────────────────────────────────────────────────────────
 
     async function handleSave() {
-        // Validate new parts
         const invalidPart = newParts.find(p => p.part_id && p.quantity <= 0);
         if (invalidPart) {
             toast.error("Part quantity must be greater than zero.");
             return;
         }
 
-        // Validate new charges
         const invalidCharge = newCharges.find(c => !c.charge_name.trim() && (c.cost_price > 0 || c.selling_price > 0));
         if (invalidCharge) {
             toast.error("Charge name is required.");
             return;
         }
 
-        const editedParts    = existingParts.filter(isPartEdited);
-        const validNewParts  = newParts.filter(p => p.part_id && p.quantity > 0);
+        const editedParts     = existingParts.filter(isPartEdited);
+        const validNewParts   = newParts.filter(p => p.part_id && p.quantity > 0);
         const validNewCharges = newCharges.filter(c => c.charge_name.trim());
 
         const hasParts   = editedParts.length > 0 || validNewParts.length > 0 || deletedPartIds.length > 0;
@@ -219,19 +232,19 @@ export const JobChargesModal = ({ job, dbName, schema, onClose, onSaved }: Props
             if (hasParts) {
                 const xData = [
                     ...editedParts.map(p => ({
-                        id:         p.id,
-                        quantity:   p.quantity,
-                        cost_price: p.cost_price,
-                        sale_price: p.sale_price,
-                        remarks:    p.remarks || null,
+                        id:            p.id,
+                        quantity:      p.quantity,
+                        cost_price:    p.cost_price,
+                        selling_price: p.selling_price,
+                        remarks:       p.remarks || null,
                     })),
                     ...validNewParts.map(p => ({
-                        job_id:     job.id,
-                        part_id:    p.part_id,
-                        quantity:   p.quantity,
-                        cost_price: p.cost_price,
-                        sale_price: p.sale_price,
-                        remarks:    p.remarks || null,
+                        job_id:        job.id,
+                        part_id:       p.part_id,
+                        quantity:      p.quantity,
+                        cost_price:    p.cost_price,
+                        selling_price: p.selling_price,
+                        remarks:       p.remarks || null,
                     })),
                 ];
                 mutations.push(apolloClient.mutate({
@@ -300,6 +313,11 @@ export const JobChargesModal = ({ job, dbName, schema, onClose, onSaved }: Props
                         <span className={`inline-flex items-center rounded-sm px-2 py-0.5 text-[11px] font-semibold text-white ${statusBg}`}>
                             {job.job_status_name}
                         </span>
+                        {markupPct > 0 && (
+                            <span className="ml-auto text-[10px] text-muted-foreground">
+                                Markup: {markupPct}%
+                            </span>
+                        )}
                     </div>
                 </DialogHeader>
 
@@ -349,7 +367,7 @@ export const JobChargesModal = ({ job, dbName, schema, onClose, onSaved }: Props
                                             <th className={thCls}>Part Code</th>
                                             <th className={`${thCls} text-right`}>Cost Price</th>
                                             <th className={`${thCls} text-right`}>Qty</th>
-                                            <th className={`${thCls} text-right`}>Sale Price</th>
+                                            <th className={`${thCls} text-right`}>Selling Price</th>
                                             <th className={thCls}>Remarks</th>
                                             <th className={`${thCls} w-8`}></th>
                                         </tr>
@@ -385,9 +403,9 @@ export const JobChargesModal = ({ job, dbName, schema, onClose, onSaved }: Props
                                                     </td>
                                                     <td className={tdCls}>
                                                         <Input className="h-6 w-20 rounded-sm text-xs text-right px-1" min={0} step="0.01" type="number"
-                                                            value={row.sale_price ?? ""}
+                                                            value={row.selling_price ?? ""}
                                                             placeholder="0.00"
-                                                            onChange={e => updateExistingPart(row.id, "sale_price", e.target.value === "" ? null : e.target.valueAsNumber)} />
+                                                            onChange={e => updateExistingPart(row.id, "selling_price", e.target.value === "" ? null : e.target.valueAsNumber)} />
                                                     </td>
                                                     <td className={tdCls}>
                                                         <Input className="h-6 rounded-sm text-xs px-1" placeholder="Remarks…"
@@ -434,9 +452,9 @@ export const JobChargesModal = ({ job, dbName, schema, onClose, onSaved }: Props
                                                 </td>
                                                 <td className={tdCls}>
                                                     <Input className="h-6 w-20 rounded-sm text-xs text-right px-1" min={0} step="0.01" type="number"
-                                                        value={row.sale_price ?? ""}
+                                                        value={row.selling_price ?? ""}
                                                         placeholder="0.00"
-                                                        onChange={e => updateNewPart(row._key, "sale_price", e.target.value === "" ? null : e.target.valueAsNumber)} />
+                                                        onChange={e => updateNewPart(row._key, "selling_price", e.target.value === "" ? null : e.target.valueAsNumber)} />
                                                 </td>
                                                 <td className={tdCls}>
                                                     <Input className="h-6 rounded-sm text-xs px-1" placeholder="Remarks…"
