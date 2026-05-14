@@ -1,36 +1,33 @@
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
+import { useForm } from "react-hook-form";
 import { AlertTriangle, CheckCircle2, Loader2, ShieldAlert, XCircle } from "lucide-react";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-export type PhysicalValidationState = {
-    allValid: boolean;
-    qty: { isValid: boolean };
-    cgst: { isValid: boolean };
-    sgst: { isValid: boolean };
-    igst: { isValid: boolean };
-    total: { isValid: boolean };
+export type PhysicalValues = {
+    qty:   number;
+    cgst:  number;
+    sgst:  number;
+    igst:  number;
+    total: number;
+};
+
+export type PhysicalTotals = {
+    quantity: number;
+    cgst:     number;
+    sgst:     number;
+    igst:     number;
+    total:    number;
 };
 
 export type PhysicalInvoiceModalProps = {
-    isOpen: boolean;
-    onClose: () => void;
-    onSubmit: () => void;
+    isOpen:     boolean;
+    onClose:    () => void;
+    onSubmit:   (values: PhysicalValues) => void;
     submitting: boolean;
-    isIgst: boolean;
-    physicalValidation: PhysicalValidationState;
-    
-    physicalQty: number;
-    setPhysicalQty: (val: number) => void;
-    physicalCgst: number;
-    setPhysicalCgst: (val: number) => void;
-    physicalSgst: number;
-    setPhysicalSgst: (val: number) => void;
-    physicalIgst: number;
-    setPhysicalIgst: (val: number) => void;
-    physicalTotal: number;
-    setPhysicalTotal: (val: number) => void;
+    isIgst:     boolean;
+    totals:     PhysicalTotals;
 };
 
 export function PhysicalInvoiceModal({
@@ -39,33 +36,50 @@ export function PhysicalInvoiceModal({
     onSubmit,
     submitting,
     isIgst,
-    physicalValidation,
-    physicalQty, setPhysicalQty,
-    physicalCgst, setPhysicalCgst,
-    physicalSgst, setPhysicalSgst,
-    physicalIgst, setPhysicalIgst,
-    physicalTotal, setPhysicalTotal
+    totals,
 }: PhysicalInvoiceModalProps) {
-    const [hasValidated, setHasValidated] = useState(false);
+    const { watch, setValue, setError, clearErrors, handleSubmit, reset, formState: { errors, isSubmitted } } =
+        useForm<PhysicalValues>({ defaultValues: { qty: 0, cgst: 0, sgst: 0, igst: 0, total: 0 } });
 
     useEffect(() => {
-        if (isOpen) {
-            setHasValidated(false);
-        }
-    }, [isOpen]);
+        if (isOpen) reset({ qty: 0, cgst: 0, sgst: 0, igst: 0, total: 0 });
+    }, [isOpen, reset]);
 
-    const handleValidateAndSave = () => {
-        setHasValidated(true);
-        if (physicalValidation.allValid) {
-            onSubmit();
-        }
+    const values = watch();
+    const allValid = isSubmitted && Object.keys(errors).length === 0;
+
+    const validateAndSubmit = handleSubmit((vals) => {
+        const check = (p: number, c: number, pct: number, minAbs?: number) => {
+            const diff    = Math.abs(p - c);
+            const allowed = minAbs !== undefined ? Math.max((pct / 100) * c, minAbs) : (pct / 100) * c;
+            return diff <= allowed + 0.0001;
+        };
+        const taxPct = 0.02, taxMin = 0.20, totalPct = 0.2;
+        let ok = true;
+
+        if (Math.abs(vals.qty - totals.quantity) >= 0.001) { setError("qty",   { type: "manual" }); ok = false; }
+        if (!isIgst && !check(vals.cgst, totals.cgst, taxPct, taxMin)) { setError("cgst",  { type: "manual" }); ok = false; }
+        if (!isIgst && !check(vals.sgst, totals.sgst, taxPct, taxMin)) { setError("sgst",  { type: "manual" }); ok = false; }
+        if (isIgst  && !check(vals.igst, totals.igst, taxPct, taxMin)) { setError("igst",  { type: "manual" }); ok = false; }
+        if (!check(vals.total, totals.total, totalPct))                 { setError("total", { type: "manual" }); ok = false; }
+
+        if (ok) onSubmit(vals);
+    });
+
+    const statusIcon = (field: keyof PhysicalValues) => {
+        if (!isSubmitted) return <span className="text-[var(--cl-text-muted)] text-xs">—</span>;
+        return errors[field]
+            ? <XCircle className="h-4 w-4 text-red-500 mx-auto" />
+            : <CheckCircle2 className="h-4 w-4 text-green-500 mx-auto" />;
     };
 
+    const rowCls   = (field: keyof PhysicalValues) =>
+        isSubmitted ? (errors[field] ? "bg-red-500/5" : "bg-green-500/5") : "";
+    const inputCls = (field: keyof PhysicalValues, extra = "") =>
+        `h-8 text-right tabular-nums text-sm ${extra} ${isSubmitted && errors[field] ? "border-red-400 bg-red-50 text-red-700" : ""}`;
+
     return (
-        <Dialog
-            open={isOpen}
-            onOpenChange={open => { if (!open && !submitting) onClose(); }}
-        >
+        <Dialog open={isOpen} onOpenChange={open => { if (!open && !submitting) onClose(); }}>
             <DialogContent aria-describedby={undefined} className="max-w-lg !bg-white !text-zinc-900 border-zinc-200">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2 text-base">
@@ -92,136 +106,92 @@ export function PhysicalInvoiceModal({
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-[var(--cl-border)]">
-                            <tr className={hasValidated ? (physicalValidation.qty.isValid ? "bg-green-500/5" : "bg-red-500/5") : ""}>
+                            {/* Qty */}
+                            <tr className={rowCls("qty")}>
                                 <td className="py-1 px-3 text-xs font-medium text-[var(--cl-text-muted)]">Total Qty</td>
                                 <td className="py-1 px-2">
-                                    <Input
-                                        type="number" step="0.01" placeholder="0"
-                                        value={physicalQty || ""}
-                                        onChange={e => setPhysicalQty(Number(e.target.value))}
-                                        onFocus={e => { const t = e.target; setTimeout(() => (t as HTMLInputElement).select(), 0); }}
-                                        className={`h-8 text-right tabular-nums text-sm ${hasValidated && !physicalValidation.qty.isValid ? "border-red-400 bg-red-50 text-red-700" : ""}`}
-                                    />
+                                    <Input type="number" step="0.01" placeholder="0"
+                                        value={values.qty || ""}
+                                        className={inputCls("qty")}
+                                        onFocus={e => setTimeout(() => e.target.select(), 0)}
+                                        onChange={e => { clearErrors("qty"); setValue("qty", e.target.value === "" ? 0 : Number(e.target.value)); }} />
                                 </td>
-                                <td className="py-1 px-2 text-center">
-                                    {!hasValidated ? (
-                                        <span className="text-[var(--cl-text-muted)] text-xs">—</span>
-                                    ) : physicalValidation.qty.isValid ? (
-                                        <CheckCircle2 className="h-4 w-4 text-green-500 mx-auto" />
-                                    ) : (
-                                        <XCircle className="h-4 w-4 text-red-500 mx-auto" />
-                                    )}
-                                </td>
+                                <td className="py-1 px-2 text-center">{statusIcon("qty")}</td>
                             </tr>
-                            
+
+                            {/* CGST */}
                             {!isIgst && (
-                                <tr className={hasValidated ? (physicalValidation.cgst.isValid ? "bg-green-500/5" : "bg-red-500/5") : ""}>
+                                <tr className={rowCls("cgst")}>
                                     <td className="py-1 px-3 text-xs font-medium text-[var(--cl-text-muted)]">CGST</td>
                                     <td className="py-1 px-2">
-                                        <Input
-                                            type="number" step="0.01" placeholder="0.00"
-                                            value={physicalCgst || ""}
+                                        <Input type="number" step="0.01" placeholder="0.00"
+                                            value={values.cgst || ""}
+                                            className={inputCls("cgst")}
+                                            onFocus={e => setTimeout(() => e.target.select(), 0)}
                                             onChange={e => {
-                                                const val = Number(e.target.value);
-                                                setPhysicalCgst(val);
-                                                setPhysicalSgst(val);
-                                            }}
-                                            onFocus={e => { const t = e.target; setTimeout(() => (t as HTMLInputElement).select(), 0); }}
-                                            className={`h-8 text-right tabular-nums text-sm ${hasValidated && !physicalValidation.cgst.isValid ? "border-red-400 bg-red-50 text-red-700" : ""}`}
-                                        />
+                                                const val = e.target.value === "" ? 0 : Number(e.target.value);
+                                                clearErrors("cgst");
+                                                clearErrors("sgst");
+                                                setValue("cgst", val);
+                                                setValue("sgst", val);
+                                            }} />
                                     </td>
-                                    <td className="py-1 px-2 text-center">
-                                        {!hasValidated ? (
-                                            <span className="text-[var(--cl-text-muted)] text-xs">—</span>
-                                        ) : physicalValidation.cgst.isValid ? (
-                                            <CheckCircle2 className="h-4 w-4 text-green-500 mx-auto" />
-                                        ) : (
-                                            <XCircle className="h-4 w-4 text-red-500 mx-auto" />
-                                        )}
-                                    </td>
+                                    <td className="py-1 px-2 text-center">{statusIcon("cgst")}</td>
                                 </tr>
                             )}
-                            
+
+                            {/* SGST (read-only, mirrors CGST) */}
                             {!isIgst && (
-                                <tr className={hasValidated ? (physicalValidation.sgst.isValid ? "bg-green-500/5" : "bg-red-500/5") : ""}>
+                                <tr className={rowCls("sgst")}>
                                     <td className="py-1 px-3 text-xs font-medium text-[var(--cl-text-muted)]">SGST</td>
                                     <td className="py-1 px-2">
-                                        <Input
-                                            type="number" step="0.01" placeholder="0.00"
-                                            value={physicalSgst || ""}
-                                            readOnly
-                                            tabIndex={-1}
-                                            className={`h-8 text-right tabular-nums text-sm bg-zinc-100 opacity-80 cursor-not-allowed ${hasValidated && !physicalValidation.sgst.isValid ? "border-red-400 bg-red-50 text-red-700" : ""}`}
-                                        />
+                                        <Input type="number" step="0.01" placeholder="0.00"
+                                            value={values.sgst || ""}
+                                            readOnly tabIndex={-1}
+                                            className={inputCls("sgst", "bg-zinc-100 opacity-80 cursor-not-allowed")} />
                                     </td>
-                                    <td className="py-1 px-2 text-center">
-                                        {!hasValidated ? (
-                                            <span className="text-[var(--cl-text-muted)] text-xs">—</span>
-                                        ) : physicalValidation.sgst.isValid ? (
-                                            <CheckCircle2 className="h-4 w-4 text-green-500 mx-auto" />
-                                        ) : (
-                                            <XCircle className="h-4 w-4 text-red-500 mx-auto" />
-                                        )}
-                                    </td>
+                                    <td className="py-1 px-2 text-center">{statusIcon("sgst")}</td>
                                 </tr>
                             )}
-                            
+
+                            {/* IGST */}
                             {isIgst && (
-                                <tr className={hasValidated ? (physicalValidation.igst.isValid ? "bg-green-500/5" : "bg-red-500/5") : ""}>
+                                <tr className={rowCls("igst")}>
                                     <td className="py-1 px-3 text-xs font-medium text-[var(--cl-text-muted)]">IGST</td>
                                     <td className="py-1 px-2">
-                                        <Input
-                                            type="number" step="0.01" placeholder="0.00"
-                                            value={physicalIgst || ""}
-                                            onChange={e => setPhysicalIgst(Number(e.target.value))}
-                                            onFocus={e => { const t = e.target; setTimeout(() => (t as HTMLInputElement).select(), 0); }}
-                                            className={`h-8 text-right tabular-nums text-sm ${hasValidated && !physicalValidation.igst.isValid ? "border-red-400 bg-red-50 text-red-700" : ""}`}
-                                        />
+                                        <Input type="number" step="0.01" placeholder="0.00"
+                                            value={values.igst || ""}
+                                            className={inputCls("igst")}
+                                            onFocus={e => setTimeout(() => e.target.select(), 0)}
+                                            onChange={e => { clearErrors("igst"); setValue("igst", e.target.value === "" ? 0 : Number(e.target.value)); }} />
                                     </td>
-                                    <td className="py-1 px-2 text-center">
-                                        {!hasValidated ? (
-                                            <span className="text-[var(--cl-text-muted)] text-xs">—</span>
-                                        ) : physicalValidation.igst.isValid ? (
-                                            <CheckCircle2 className="h-4 w-4 text-green-500 mx-auto" />
-                                        ) : (
-                                            <XCircle className="h-4 w-4 text-red-500 mx-auto" />
-                                        )}
-                                    </td>
+                                    <td className="py-1 px-2 text-center">{statusIcon("igst")}</td>
                                 </tr>
                             )}
-                            
-                            <tr className={`font-semibold ${hasValidated ? (physicalValidation.total.isValid ? "bg-green-500/5" : "bg-red-500/5") : ""}`}>
+
+                            {/* Invoice amount */}
+                            <tr className={`font-semibold ${rowCls("total")}`}>
                                 <td className="py-1 px-3 text-xs font-semibold text-[var(--cl-text)]">Invoice amount</td>
                                 <td className="py-1 px-2">
-                                    <Input
-                                        type="number" step="0.01" placeholder="0.00"
-                                        value={physicalTotal || ""}
-                                        onChange={e => setPhysicalTotal(Number(e.target.value))}
-                                        onFocus={e => { const t = e.target; setTimeout(() => (t as HTMLInputElement).select(), 0); }}
-                                        className={`h-8 text-right tabular-nums text-sm font-semibold ${hasValidated && !physicalValidation.total.isValid ? "border-red-400 bg-red-50 text-red-700" : ""}`}
-                                    />
+                                    <Input type="number" step="0.01" placeholder="0.00"
+                                        value={values.total || ""}
+                                        className={inputCls("total", "font-semibold")}
+                                        onFocus={e => setTimeout(() => e.target.select(), 0)}
+                                        onChange={e => { clearErrors("total"); setValue("total", e.target.value === "" ? 0 : Number(e.target.value)); }} />
                                 </td>
-                                <td className="py-1 px-2 text-center">
-                                    {!hasValidated ? (
-                                        <span className="text-[var(--cl-text-muted)] text-xs">—</span>
-                                    ) : physicalValidation.total.isValid ? (
-                                        <CheckCircle2 className="h-4 w-4 text-green-500 mx-auto" />
-                                    ) : (
-                                        <XCircle className="h-4 w-4 text-red-500 mx-auto" />
-                                    )}
-                                </td>
+                                <td className="py-1 px-2 text-center">{statusIcon("total")}</td>
                             </tr>
                         </tbody>
                     </table>
                 </div>
 
-                {hasValidated && (
+                {isSubmitted && (
                     <div className={`flex items-center gap-2 rounded-md px-3 py-2 text-xs font-semibold ${
-                        physicalValidation.allValid
+                        allValid
                             ? "bg-green-500/10 text-green-700 border border-green-500/20"
                             : "bg-red-50 text-red-700 border border-red-200"
                     }`}>
-                        {physicalValidation.allValid ? (
+                        {allValid ? (
                             <><CheckCircle2 className="h-4 w-4 text-green-500" /> All checks passed — saving...</>
                         ) : (
                             <><AlertTriangle className="h-4 w-4 text-red-500" /> Validation failed. Please correct the highlighted errors.</>
@@ -230,17 +200,13 @@ export function PhysicalInvoiceModal({
                 )}
 
                 <DialogFooter>
-                    <Button
-                        variant="outline"
-                        disabled={submitting}
-                        onClick={() => onClose()}
-                    >
+                    <Button variant="outline" disabled={submitting} onClick={onClose}>
                         Cancel
                     </Button>
                     <Button
                         className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold disabled:opacity-40"
                         disabled={submitting}
-                        onClick={handleValidateAndSave}
+                        onClick={() => void validateAndSubmit()}
                     >
                         {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
                         Validate {'&'} Save

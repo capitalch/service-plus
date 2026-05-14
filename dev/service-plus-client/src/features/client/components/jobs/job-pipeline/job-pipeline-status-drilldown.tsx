@@ -48,7 +48,7 @@ const NO_CHARGES_JOB_TYPES = new Set(["DEMO", "INSPECTION", "UNDER_WARRANTY"]);
 
 function canUndo(row: OpenJobRow): boolean {
     if (NO_UNDO_CODES.has(row.job_status_code)) return false;
-    if (row.transaction_count <= 1) return false;
+    if (row.transaction_count < 1) return false;
     return true;
 }
 
@@ -503,6 +503,7 @@ export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Prop
                 <JobDetailsModal
                     jobId={viewJobId}
                     onClose={() => setViewJobId(null)}
+                    onJobChanged={() => void loadData()}
                 />
             )}
 

@@ -294,7 +294,7 @@ export const JobPdfModal = ({ jobId, onClose }: Props) => {
                                             {transactions.map((t, i) => (
                                                 <tr key={t.id} className="border-b border-slate-100 odd:bg-white even:bg-slate-50/60">
                                                     <TD mono>{i + 1}</TD>
-                                                    <TD mono small>{t.performed_at?.slice(0, 10) ?? "—"}</TD>
+                                                    <TD mono small>{t.transaction_date ?? "—"}</TD>
                                                     <TD bold>{t.status_name ?? "—"}</TD>
                                                     <TD>{t.technician_name ?? "—"}</TD>
                                                     <TD right>{fmt(t.amount)}</TD>

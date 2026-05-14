@@ -70,7 +70,7 @@ export function NewBatchJobForm({
                     id:                       r.id,
                     localId:                  crypto.randomUUID(),
                     job_type_id:              r.job_type_id,
-                    product_brand_model_id:   r.product_brand_model_id ?? null,
+                    product_brand_model_id:   r.product_brand_model_id ?? (undefined as unknown as number),
                     serial_no:                r.serial_no ?? "",
                     problem_reported:         r.problem_reported ?? "",
                     warranty_card_no:         r.warranty_card_no ?? "",

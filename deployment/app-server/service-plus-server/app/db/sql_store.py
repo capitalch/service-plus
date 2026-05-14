@@ -1502,7 +1502,7 @@ class SqlStore:
         SELECT
             p.id, p.brand_id, p.part_code, p.part_name,
             p.part_description, p.category, p.model, p.uom,
-            p.cost_price, p.mrp, p.hsn_code, p.gst_rate, p.is_active,
+            p.cost_price, p.selling_price, p.mrp, p.hsn_code, p.gst_rate, p.is_active,
             b.name AS brand_name
         FROM spare_part_master p
         JOIN brand b ON b.id = p.brand_id
@@ -1518,7 +1518,7 @@ class SqlStore:
         SELECT
             p.id, p.brand_id, p.part_code, p.part_name,
             p.part_description, p.category, p.model, p.uom,
-            p.cost_price, p.mrp, p.hsn_code, p.gst_rate, p.is_active,
+            p.cost_price, p.selling_price, p.mrp, p.hsn_code, p.gst_rate, p.is_active,
             b.name AS brand_name
         FROM spare_part_master p
         JOIN brand b ON b.id = p.brand_id
@@ -1537,7 +1537,7 @@ class SqlStore:
         SELECT
             p.id, p.brand_id, p.part_code, p.part_name,
             p.part_description, p.category, p.model, p.uom,
-            p.cost_price, p.mrp, p.hsn_code, p.gst_rate, p.is_active,
+            p.cost_price, p.selling_price, p.mrp, p.hsn_code, p.gst_rate, p.is_active,
             b.name AS brand_name
         FROM spare_part_master p
         JOIN brand b ON b.id = p.brand_id
@@ -2761,6 +2761,13 @@ class SqlStore:
         ORDER BY setting_key
     """
 
+    GET_APP_SETTING_BY_KEY = """
+        with "p_key" as (values(%(setting_key)s::text))
+        SELECT id, setting_key, setting_value
+        FROM app_setting
+        WHERE setting_key = (table "p_key")
+    """
+
     CHECK_APP_SETTING_KEY_EXISTS = """
         with "p_key" as (values(%(setting_key)s::text))
         -- with "p_key" as (values('default_gst_rate'::text)) -- Test line
@@ -2943,17 +2950,23 @@ class SqlStore:
         FROM job j
         JOIN customer_contact cc ON cc.id = j.customer_contact_id
         LEFT JOIN product_brand_model pbm ON pbm.id = j.product_brand_model_id
-        LEFT JOIN brand   b ON b.id  = pbm.brand_id
-        LEFT JOIN product p ON p.id  = pbm.product_id
+        LEFT JOIN brand      b ON b.id  = pbm.brand_id
+        LEFT JOIN product    p ON p.id  = pbm.product_id
+        LEFT JOIN technician t ON t.id  = j.technician_id
         WHERE j.branch_id     = (table "p_branch_id")
           AND j.job_status_id = (table "p_status_id")
           AND ((table "p_search") = ''
-           OR  j.job_no::text              ILIKE '%%' || (table "p_search") || '%%'
-           OR  cc.full_name                ILIKE '%%' || (table "p_search") || '%%'
-           OR  COALESCE(b.name, '')        ILIKE '%%' || (table "p_search") || '%%'
-           OR  COALESCE(p.name, '')        ILIKE '%%' || (table "p_search") || '%%'
-           OR  COALESCE(pbm.model_name,'') ILIKE '%%' || (table "p_search") || '%%'
-           OR  COALESCE(j.serial_no, '')   ILIKE '%%' || (table "p_search") || '%%')
+           OR  j.job_no::text                   ILIKE '%%' || (table "p_search") || '%%'
+           OR  cc.full_name                      ILIKE '%%' || (table "p_search") || '%%'
+           OR  cc.mobile                         ILIKE '%%' || (table "p_search") || '%%'
+           OR  COALESCE(cc.email, '')            ILIKE '%%' || (table "p_search") || '%%'
+           OR  COALESCE(cc.address_line1, '')    ILIKE '%%' || (table "p_search") || '%%'
+           OR  COALESCE(cc.city, '')             ILIKE '%%' || (table "p_search") || '%%'
+           OR  COALESCE(t.name, '')              ILIKE '%%' || (table "p_search") || '%%'
+           OR  COALESCE(j.serial_no, '')         ILIKE '%%' || (table "p_search") || '%%'
+           OR  COALESCE(b.name, '')              ILIKE '%%' || (table "p_search") || '%%'
+           OR  COALESCE(p.name, '')              ILIKE '%%' || (table "p_search") || '%%'
+           OR  COALESCE(pbm.model_name, '')      ILIKE '%%' || (table "p_search") || '%%')
     """
 
     GET_JOB_PIPELINE_PAGED = """
@@ -2981,13 +2994,19 @@ class SqlStore:
             jt.code        AS job_type_code,
             js.name        AS job_status_name,
             js.code        AS job_status_code,
+            j.technician_id,
             t.name         AS technician_name,
             TRIM(CONCAT_WS(' ', p.name, b.name, pbm.model_name, j.serial_no)) AS device_details,
-            (SELECT COUNT(*) FROM job_image_doc jid WHERE jid.job_id = j.id)  AS file_count
+            (SELECT COUNT(*) FROM job_image_doc   jid WHERE jid.job_id = j.id)  AS file_count,
+            (SELECT COUNT(*) FROM job_transaction jtr WHERE jtr.job_id = j.id)  AS transaction_count,
+            jrm.name       AS job_receive_manner_name,
+            jrc.name       AS job_receive_condition_name
         FROM job j
         JOIN customer_contact      cc  ON cc.id  = j.customer_contact_id
         JOIN job_type              jt  ON jt.id  = j.job_type_id
         JOIN job_status            js  ON js.id  = j.job_status_id
+        LEFT JOIN job_receive_manner    jrm ON jrm.id = j.job_receive_manner_id
+        LEFT JOIN job_receive_condition jrc ON jrc.id = j.job_receive_condition_id
         LEFT JOIN technician       t   ON t.id   = j.technician_id
         LEFT JOIN product_brand_model pbm ON pbm.id = j.product_brand_model_id
         LEFT JOIN brand            b   ON b.id   = pbm.brand_id
@@ -2995,15 +3014,142 @@ class SqlStore:
         WHERE j.branch_id     = (table "p_branch_id")
           AND j.job_status_id = (table "p_status_id")
           AND ((table "p_search") = ''
-           OR  j.job_no::text              ILIKE '%%' || (table "p_search") || '%%'
-           OR  cc.full_name                ILIKE '%%' || (table "p_search") || '%%'
-           OR  COALESCE(b.name, '')        ILIKE '%%' || (table "p_search") || '%%'
-           OR  COALESCE(p.name, '')        ILIKE '%%' || (table "p_search") || '%%'
-           OR  COALESCE(pbm.model_name,'') ILIKE '%%' || (table "p_search") || '%%'
-           OR  COALESCE(j.serial_no, '')   ILIKE '%%' || (table "p_search") || '%%')
+           OR  j.job_no::text                   ILIKE '%%' || (table "p_search") || '%%'
+           OR  cc.full_name                      ILIKE '%%' || (table "p_search") || '%%'
+           OR  cc.mobile                         ILIKE '%%' || (table "p_search") || '%%'
+           OR  COALESCE(cc.email, '')            ILIKE '%%' || (table "p_search") || '%%'
+           OR  COALESCE(cc.address_line1, '')    ILIKE '%%' || (table "p_search") || '%%'
+           OR  COALESCE(cc.city, '')             ILIKE '%%' || (table "p_search") || '%%'
+           OR  COALESCE(t.name, '')              ILIKE '%%' || (table "p_search") || '%%'
+           OR  COALESCE(j.serial_no, '')         ILIKE '%%' || (table "p_search") || '%%'
+           OR  COALESCE(b.name, '')              ILIKE '%%' || (table "p_search") || '%%'
+           OR  COALESCE(p.name, '')              ILIKE '%%' || (table "p_search") || '%%'
+           OR  COALESCE(pbm.model_name, '')      ILIKE '%%' || (table "p_search") || '%%')
         ORDER BY j.job_date DESC, j.id DESC
         LIMIT  (table "p_limit")
         OFFSET (table "p_offset")
+    """
+
+    GET_JOB_PIPELINE_ALL_COUNT = """
+        with
+            "p_branch_id" as (values(%(branch_id)s::bigint)),
+            "p_search"    as (values(%(search)s::text))
+        SELECT COUNT(*) AS total
+        FROM job j
+        JOIN customer_contact cc ON cc.id = j.customer_contact_id
+        LEFT JOIN product_brand_model pbm ON pbm.id = j.product_brand_model_id
+        LEFT JOIN brand      b ON b.id  = pbm.brand_id
+        LEFT JOIN product    p ON p.id  = pbm.product_id
+        LEFT JOIN technician t ON t.id  = j.technician_id
+        WHERE j.branch_id = (table "p_branch_id")
+          AND ((table "p_search") = ''
+           OR  j.job_no::text                   ILIKE '%%' || (table "p_search") || '%%'
+           OR  cc.full_name                      ILIKE '%%' || (table "p_search") || '%%'
+           OR  cc.mobile                         ILIKE '%%' || (table "p_search") || '%%'
+           OR  COALESCE(cc.email, '')            ILIKE '%%' || (table "p_search") || '%%'
+           OR  COALESCE(cc.address_line1, '')    ILIKE '%%' || (table "p_search") || '%%'
+           OR  COALESCE(cc.city, '')             ILIKE '%%' || (table "p_search") || '%%'
+           OR  COALESCE(t.name, '')              ILIKE '%%' || (table "p_search") || '%%'
+           OR  COALESCE(j.serial_no, '')         ILIKE '%%' || (table "p_search") || '%%'
+           OR  COALESCE(b.name, '')              ILIKE '%%' || (table "p_search") || '%%'
+           OR  COALESCE(p.name, '')              ILIKE '%%' || (table "p_search") || '%%'
+           OR  COALESCE(pbm.model_name, '')      ILIKE '%%' || (table "p_search") || '%%')
+    """
+
+    GET_JOB_PIPELINE_ALL_PAGED = """
+        with
+            "p_branch_id" as (values(%(branch_id)s::bigint)),
+            "p_search"    as (values(%(search)s::text)),
+            "p_limit"     as (values(%(limit)s::int)),
+            "p_offset"    as (values(%(offset)s::int))
+        SELECT
+            j.id,
+            j.job_no,
+            j.job_date,
+            j.job_status_id,
+            j.is_closed,
+            j.is_final,
+            j.amount,
+            j.estimate_amount,
+            j.diagnosis,
+            j.last_transaction_id,
+            j.batch_no,
+            cc.full_name   AS customer_name,
+            cc.mobile,
+            jt.name        AS job_type_name,
+            jt.code        AS job_type_code,
+            js.name        AS job_status_name,
+            js.code        AS job_status_code,
+            j.technician_id,
+            t.name         AS technician_name,
+            TRIM(CONCAT_WS(' ', p.name, b.name, pbm.model_name, j.serial_no)) AS device_details,
+            (SELECT COUNT(*) FROM job_image_doc   jid WHERE jid.job_id = j.id)  AS file_count,
+            (SELECT COUNT(*) FROM job_transaction jtr WHERE jtr.job_id = j.id)  AS transaction_count,
+            jrm.name       AS job_receive_manner_name,
+            jrc.name       AS job_receive_condition_name
+        FROM job j
+        JOIN customer_contact      cc  ON cc.id  = j.customer_contact_id
+        JOIN job_type              jt  ON jt.id  = j.job_type_id
+        JOIN job_status            js  ON js.id  = j.job_status_id
+        LEFT JOIN job_receive_manner    jrm ON jrm.id = j.job_receive_manner_id
+        LEFT JOIN job_receive_condition jrc ON jrc.id = j.job_receive_condition_id
+        LEFT JOIN technician       t   ON t.id   = j.technician_id
+        LEFT JOIN product_brand_model pbm ON pbm.id = j.product_brand_model_id
+        LEFT JOIN brand            b   ON b.id   = pbm.brand_id
+        LEFT JOIN product          p   ON p.id   = pbm.product_id
+        WHERE j.branch_id = (table "p_branch_id")
+          AND ((table "p_search") = ''
+           OR  j.job_no::text                   ILIKE '%%' || (table "p_search") || '%%'
+           OR  cc.full_name                      ILIKE '%%' || (table "p_search") || '%%'
+           OR  cc.mobile                         ILIKE '%%' || (table "p_search") || '%%'
+           OR  COALESCE(cc.email, '')            ILIKE '%%' || (table "p_search") || '%%'
+           OR  COALESCE(cc.address_line1, '')    ILIKE '%%' || (table "p_search") || '%%'
+           OR  COALESCE(cc.city, '')             ILIKE '%%' || (table "p_search") || '%%'
+           OR  COALESCE(t.name, '')              ILIKE '%%' || (table "p_search") || '%%'
+           OR  COALESCE(j.serial_no, '')         ILIKE '%%' || (table "p_search") || '%%'
+           OR  COALESCE(b.name, '')              ILIKE '%%' || (table "p_search") || '%%'
+           OR  COALESCE(p.name, '')              ILIKE '%%' || (table "p_search") || '%%'
+           OR  COALESCE(pbm.model_name, '')      ILIKE '%%' || (table "p_search") || '%%')
+        ORDER BY j.job_date DESC, j.id DESC
+        LIMIT  (table "p_limit")
+        OFFSET (table "p_offset")
+    """
+
+    GET_JOB_TRANSACTION_FOR_UNDO = """
+        SELECT t.id, t.previous_transaction_id
+        FROM   job_transaction t
+        JOIN   job j ON j.id = t.job_id
+        WHERE  t.job_id = %(job_id)s
+          AND  t.id     = %(last_txn_id)s
+          AND  j.last_transaction_id = %(last_txn_id)s
+    """
+
+    GET_PREV_JOB_TRANSACTION_FALLBACK = """
+        SELECT id FROM job_transaction
+        WHERE  job_id = %(job_id)s AND id < %(last_txn_id)s
+        ORDER  BY id DESC
+        LIMIT  1
+    """
+
+    GET_JOB_TRANSACTION_STATE = """
+        SELECT status_id, technician_id, amount
+        FROM   job_transaction
+        WHERE  id = %(prev_txn_id)s
+    """
+
+    DELETE_JOB_TRANSACTION = """
+        DELETE FROM job_transaction WHERE id = %(last_txn_id)s
+    """
+
+    RESTORE_JOB_FROM_TRANSACTION = """
+        UPDATE job
+        SET    job_status_id       = %(job_status_id)s,
+               technician_id       = %(technician_id)s,
+               amount              = %(amount)s,
+               is_final            = %(is_final)s,
+               is_closed           = %(is_closed)s,
+               last_transaction_id = %(last_transaction_id)s
+        WHERE  id = %(job_id)s
     """
 
     GET_JOBS_COUNT = """
@@ -3407,12 +3553,20 @@ class SqlStore:
 
     GET_JOB_PART_USED_BY_JOB = """
         with "p_job_id" as (values(%(job_id)s::bigint))
-        SELECT jpu.id, jpu.part_id, jpu.quantity, jpu.remarks,
+        SELECT jpu.id, jpu.part_id, jpu.quantity, jpu.cost_price, jpu.selling_price, jpu.remarks,
                sp.part_code, sp.part_name, sp.uom
         FROM job_part_used jpu
         JOIN spare_part_master sp ON sp.id = jpu.part_id
         WHERE jpu.job_id = (table "p_job_id")
         ORDER BY jpu.id
+    """
+
+    GET_JOB_ADDITIONAL_CHARGES_BY_JOB = """
+        with "p_job_id" as (values(%(job_id)s::bigint))
+        SELECT id, charge_name, ref_no, description, cost_price, selling_price
+        FROM job_additional_charge
+        WHERE job_id = (table "p_job_id")
+        ORDER BY id
     """
 
     # ── Job Receipts (Payments) ───────────────────────────────────────────────
@@ -3487,11 +3641,31 @@ class SqlStore:
             jt.performed_at,
             jt.previous_transaction_id
         FROM job_transaction jt
-        LEFT JOIN job_status     js ON js.id = jt.status_id
-        LEFT JOIN technician     t  ON t.id  = jt.technician_id
-        LEFT JOIN security."user" su ON su.id = jt.performed_by_user_id
+        LEFT JOIN job_status      js ON js.id  = jt.status_id
+        LEFT JOIN technician      t  ON t.id   = jt.technician_id
+        LEFT JOIN security."user" su ON su.id  = jt.performed_by_user_id
         WHERE jt.job_id = (table "p_job_id")
-        ORDER BY jt.performed_at ASC, jt.id ASC
+
+        UNION ALL
+
+        SELECT
+            0                                   AS id,
+            j.id                                AS job_id,
+            js.id                               AS status_id,
+            js.name                             AS status_name,
+            NULL::bigint                        AS technician_id,
+            NULL::text                          AS technician_name,
+            NULL::numeric                       AS amount,
+            NULL::text                          AS remarks,
+            NULL::bigint                        AS performed_by_user_id,
+            NULL::text                          AS performed_by_name,
+            j.created_at                        AS performed_at,
+            NULL::bigint                        AS previous_transaction_id
+        FROM job j
+        JOIN job_status js ON js.id = 1
+        WHERE j.id = (table "p_job_id")
+
+        ORDER BY performed_at ASC, id ASC
     """
 
     GET_JOB_TRANSACTION_DETAIL = """

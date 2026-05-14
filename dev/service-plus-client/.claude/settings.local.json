@@ -30,7 +30,14 @@
       "Bash(echo \"Exit: $?\")",
       "Bash(pip show *)",
       "Bash(pip3 install *)",
-      "Bash(npm run *)"
+      "Bash(npm run *)",
+      "Bash(cat)",
+      "Bash(chmod +x /tmp/analyze_rhf.sh)",
+      "Bash(bash /tmp/analyze_rhf.sh)",
+      "Bash(chmod +x /tmp/analyze_rhf2.sh)",
+      "Bash(bash /tmp/analyze_rhf2.sh)",
+      "Bash(chmod +x /tmp/analyze_rhf3.sh)",
+      "Bash(bash /tmp/analyze_rhf3.sh)"
     ]
   }
 }

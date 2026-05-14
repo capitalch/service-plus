@@ -2,10 +2,17 @@ import { AlertTriangle, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import type { OpenJobRow } from "@/features/client/types/job";
+
+type UndoJobInfo = {
+    job_no:                  string;
+    customer_name:           string | null;
+    job_receive_manner_name: string | null | undefined;
+    device_details:          string | null | undefined;
+    job_status_name:         string;
+};
 
 type Props = {
-    job:        OpenJobRow;
+    job:        UndoJobInfo;
     submitting: boolean;
     onConfirm:  () => void;
     onClose:    () => void;

@@ -897,12 +897,7 @@ async def resolve_create_single_job_helper(
     db_name: str, schema: str = "public", value: str = ""
 ) -> Any:
     """
-    Create a single job and atomically insert an initial job_transaction + increment document sequence.
-
-    The `value` JSON must contain:
-      - tableName: "job"
-      - performed_by_user_id (int): User ID for the initial job_transaction.
-      - xData: job fields.
+    Create a single job and atomically increment the document sequence.
     """
     if not value:
         raise ValidationException(
@@ -920,8 +915,7 @@ async def resolve_create_single_job_helper(
         )
 
     x_data = payload.get("xData", {})
-    performed_by = x_data.pop("performed_by_user_id", None)
-    initial_status_id = x_data.get("job_status_id")
+    x_data.pop("performed_by_user_id", None)
     branch_id = x_data.get("branch_id")
 
     if not branch_id:
@@ -960,16 +954,6 @@ async def resolve_create_single_job_helper(
             job_id = await process_data(x_data, cur, "job", None, None)
             logger.info("Single job created with id=%s, job_no=%s", job_id, job_no)
 
-            # 4. Insert initial job_transaction
-            if performed_by is not None:
-                txn_data = {
-                    "job_id": job_id,
-                    "status_id": initial_status_id,
-                    "performed_by_user_id": performed_by,
-                }
-                await process_data(txn_data, cur, "job_transaction", None, None)
-                logger.debug("Initial job_transaction inserted for job_id=%s", job_id)
-
     return job_id
 
 
@@ -981,7 +965,7 @@ async def resolve_update_job_helper(
     job_id = payload.pop("job_id")
     last_transaction_id = payload.pop("last_transaction_id", None)
     performed_by = payload.pop("performed_by_user_id", None)
-    transaction_notes = payload.pop("transaction_notes", "")
+    remarks = payload.pop("remarks", "")
     transaction_date = payload.pop("transaction_date", None)
     x_data = payload.get("xData", {})
 
@@ -992,12 +976,6 @@ async def resolve_update_job_helper(
     db_name_arg = db_name if db_name else None
     schema_name = schema or "public"
 
-    # 1. Update the job row
-    job_object = {"tableName": "job", "xData": x_data}
-    await exec_sql_object(db_name_arg, schema_name, job_object)
-    logger.info("Job %s updated", job_id)
-
-    # 2. Insert job_transaction
     txn_data: dict = {
         "job_id": job_id,
         "status_id": job_status_id,
@@ -1007,27 +985,131 @@ async def resolve_update_job_helper(
         txn_data["technician_id"] = technician_id
     if amount is not None:
         txn_data["amount"] = amount
-    if transaction_notes:
-        txn_data["remarks"] = transaction_notes
+    if remarks:
+        txn_data["remarks"] = remarks
     if transaction_date:
         txn_data["performed_at"] = transaction_date
     if last_transaction_id is not None:
         txn_data["previous_transaction_id"] = last_transaction_id
 
-    txn_object = {"tableName": "job_transaction", "xData": txn_data}
-    new_txn_id = await exec_sql_object(db_name_arg, schema_name, txn_object)
-    logger.debug("Job transaction inserted, id=%s", new_txn_id)
+    new_txn_id: int | None = None
 
-    # 3. Update job.last_transaction_id with the new transaction id
-    if new_txn_id:
-        upd_object = {
-            "tableName": "job",
-            "xData": {"id": job_id, "last_transaction_id": new_txn_id},
-        }
-        await exec_sql_object(db_name_arg, schema_name, upd_object)
-        logger.debug("job.last_transaction_id updated to %s", new_txn_id)
+    async with get_service_db_connection(db_name_arg) as conn:
+        async with conn.cursor(row_factory=dict_row) as cur:
+            await cur.execute(
+                pgsql.SQL("SET search_path TO {}").format(pgsql.Identifier(schema_name))
+            )
+
+            # 1. Update the job row
+            await process_data(x_data, cur, "job", None, None)
+            logger.info("Job %s updated", job_id)
+
+            # 2. Insert job_transaction
+            new_txn_id = await process_data(txn_data, cur, "job_transaction", None, None)
+            logger.debug("Job transaction inserted, id=%s", new_txn_id)
+
+            # 3. Update job.last_transaction_id
+            if new_txn_id:
+                await process_data(
+                    {"id": job_id, "last_transaction_id": new_txn_id},
+                    cur, "job", None, None,
+                )
+                logger.debug("job.last_transaction_id updated to %s", new_txn_id)
 
     return new_txn_id
+
+
+# Mirrors STATUS_FLAGS in status-transitions.ts
+_STATUS_FLAGS: dict[int, dict[str, bool]] = {
+    1:  {"is_final": False, "is_closed": False},  # RECEIVED
+    2:  {"is_final": False, "is_closed": False},  # ASSIGNED
+    3:  {"is_final": False, "is_closed": False},  # ESTIMATED
+    4:  {"is_final": False, "is_closed": False},  # ESTIMATE_APPROVED
+    5:  {"is_final": False, "is_closed": False},  # ESTIMATE_REJECTED
+    6:  {"is_final": False, "is_closed": False},  # IN_PROGRESS
+    7:  {"is_final": False, "is_closed": False},  # PARTS_PENDING
+    8:  {"is_final": False, "is_closed": False},  # ON_HOLD
+    9:  {"is_final": False, "is_closed": False},  # OUTSOURCED
+    10: {"is_final": False, "is_closed": False},  # SENT_TO_COMPANY
+    11: {"is_final": True,  "is_closed": False},  # COMPLETED_OK
+    12: {"is_final": True,  "is_closed": False},  # RETURN
+    13: {"is_final": False, "is_closed": True },  # DELIVERED_OK
+    14: {"is_final": False, "is_closed": True },  # DELIVERED_NOT_OK
+    15: {"is_final": True,  "is_closed": False},  # CANCELLED
+    16: {"is_final": True,  "is_closed": True },  # DISPOSED
+    17: {"is_final": False, "is_closed": False},  # RECEIVED_BACK_FROM_COMPANY
+}
+
+
+async def resolve_undo_job_transaction_helper(
+    db_name: str, schema: str = "public", value: str = ""
+) -> Any:
+    payload = _decode_value(value, "undoJobTransaction")
+    job_id       = payload["job_id"]
+    last_txn_id  = payload["last_transaction_id"]
+
+    db_name_arg = db_name if db_name else None
+    schema_name = schema or "public"
+
+    # 1. Verify last_transaction_id is still current (stale guard)
+    rows = await exec_sql(
+        db_name_arg, schema_name,
+        SqlStore.GET_JOB_TRANSACTION_FOR_UNDO,
+        {"job_id": job_id, "last_txn_id": last_txn_id},
+    )
+    if not rows:
+        raise ValidationException("Transaction no longer current — page may be stale.")
+
+    prev_txn_id = rows[0]["previous_transaction_id"]
+
+    # Fall back to the most recent earlier transaction if the link was never set
+    if prev_txn_id is None:
+        fallback = await exec_sql(
+            db_name_arg, schema_name,
+            SqlStore.GET_PREV_JOB_TRANSACTION_FALLBACK,
+            {"job_id": job_id, "last_txn_id": last_txn_id},
+        )
+        if not fallback:
+            raise ValidationException("Cannot undo the initial transaction.")
+        prev_txn_id = fallback[0]["id"]
+
+    # 2. Fetch previous transaction state to restore
+    prev_rows = await exec_sql(
+        db_name_arg, schema_name,
+        SqlStore.GET_JOB_TRANSACTION_STATE,
+        {"prev_txn_id": prev_txn_id},
+    )
+    if not prev_rows:
+        raise ValidationException("Previous transaction not found.")
+    prev = prev_rows[0]
+
+    flags = _STATUS_FLAGS.get(prev["status_id"], {"is_final": False, "is_closed": False})
+
+    # 3. Delete last transaction
+    await exec_sql(
+        db_name_arg, schema_name,
+        SqlStore.DELETE_JOB_TRANSACTION,
+        {"last_txn_id": last_txn_id},
+    )
+    logger.info("Undid job transaction %s for job %s", last_txn_id, job_id)
+
+    # 4. Restore job to previous state
+    await exec_sql(
+        db_name_arg, schema_name,
+        SqlStore.RESTORE_JOB_FROM_TRANSACTION,
+        {
+            "job_id":               job_id,
+            "job_status_id":        prev["status_id"],
+            "technician_id":        prev["technician_id"],
+            "amount":               prev["amount"],
+            "is_final":             flags["is_final"],
+            "is_closed":            flags["is_closed"],
+            "last_transaction_id":  prev_txn_id,
+        },
+    )
+    logger.info("Job %s restored to transaction %s", job_id, prev_txn_id)
+
+    return {"job_id": job_id, "restored_transaction_id": prev_txn_id}
 
 
 async def resolve_deliver_job_helper(
@@ -1041,7 +1123,7 @@ async def resolve_deliver_job_helper(
     delivered_status_id = payload.pop("delivered_status_id")
     delivery_date = payload.pop("delivery_date")
     delivery_manner_name = payload.pop("delivery_manner_name", "")
-    transaction_notes = payload.pop("transaction_notes", "")
+    remarks = payload.pop("remarks", "")
     payment = payload.pop("payment", {})
 
     db_name_arg = db_name if db_name else None
@@ -1079,7 +1161,7 @@ async def resolve_deliver_job_helper(
     logger.info("Job %s closed, delivery_date=%s", job_id, delivery_date)
 
     # 3. Insert job_transaction
-    notes_parts = [p for p in [delivery_manner_name, transaction_notes] if p]
+    notes_parts = [p for p in [delivery_manner_name, remarks] if p]
     full_notes = ". ".join(notes_parts)
 
     txn_data: dict = {

@@ -1,5 +1,7 @@
 ## Service management software
 
+# Logic for undo last tran
+
 # Redesign of Job Pipeline
 - In actions dropdown add the last dropdown options as "Undo last transaction"
 - If there are no transactions already done for the selected job, then this item will be disabled

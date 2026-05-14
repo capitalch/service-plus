@@ -7,7 +7,7 @@
 - In plan.md include a workflow section which provides the workflow of entire effort
 - When creating a form never use red color for any control css. Red color will only be used for indicating errors.
 - Always make use of shadcn components and framer-motion for transition wherever required
-- For forms use react-hook-form and zod for validations and business rules
+- For forms always use react-hook-form and fieldArray and zod for validations and business rules
 - Use GraphQL with subscription support for authenticated query. - - Use apollo for GraphQL
 - Use Sonner for notification
 - use pnpm and not npm

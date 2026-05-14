@@ -78,10 +78,14 @@ export const StatusTransitionModal = ({ job, transition, technicians, onClose, o
             form.setError("technician_id", { message: "Technician is required" });
             return;
         }
+        if (showEstimate && (!values.estimate_amount || Number(values.estimate_amount) < 0)) {
+            form.setError("estimate_amount", { message: "Estimated price is required" });
+            return;
+        }
         await onSubmit({
             targetStatusId:   transition.targetId,
             technician_id:    values.technician_id ? Number(values.technician_id) : null,
-            estimate_amount:  values.estimate_amount ? Number(values.estimate_amount) : null,
+            estimate_amount:  values.estimate_amount ? Number(values.estimate_amount) : 0,
             remarks:          values.remarks ?? "",
             transaction_date: values.transaction_date,
             is_final:         false,
@@ -129,9 +133,11 @@ export const StatusTransitionModal = ({ job, transition, technicians, onClose, o
                         <div className="space-y-3 rounded-lg border border-border p-4">
                             <h4 className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Pricing</h4>
                             <div className="space-y-1.5">
-                                <Label htmlFor="stm-estimate-amount">Estimated Price</Label>
+                                <Label htmlFor="stm-estimate-amount">
+                                    Estimated Price <span className="text-red-500">*</span>
+                                </Label>
                                 <Input
-                                    className="h-9"
+                                    className={`h-9 ${form.formState.errors.estimate_amount ? "border-red-400" : ""}`}
                                     id="stm-estimate-amount"
                                     min="0"
                                     placeholder="0.00"
@@ -139,6 +145,9 @@ export const StatusTransitionModal = ({ job, transition, technicians, onClose, o
                                     type="number"
                                     {...form.register("estimate_amount")}
                                 />
+                                {form.formState.errors.estimate_amount && (
+                                    <p className="text-xs text-red-500">{form.formState.errors.estimate_amount.message}</p>
+                                )}
                             </div>
                         </div>
                     )}

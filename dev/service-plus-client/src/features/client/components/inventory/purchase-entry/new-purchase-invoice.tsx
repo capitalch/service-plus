@@ -25,7 +25,7 @@ import { getPurchaseInvoiceDefaultValues } from "./purchase-invoice-schema";
 
 import { PartCodeInput } from "../part-code-input";
 import { MasterDataDiffModal } from "./master-data-diff-modal";
-import { PhysicalInvoiceModal } from "./physical-invoice-modal";
+import { PhysicalInvoiceModal, type PhysicalValues } from "./physical-invoice-modal";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -123,13 +123,7 @@ export const NewPurchaseInvoice = forwardRef<PurchaseInvoiceHandle, Props>(
 
         // Line items
         const [originalLineIds, setOriginalLineIds] = useState<number[]>([]);
-
-        // Physical invoice check fields
-        const [physicalTotal, setPhysicalTotal] = useState<number>(0);
-        const [physicalQty,   setPhysicalQty]   = useState<number>(0);
-        const [physicalCgst,  setPhysicalCgst]  = useState<number>(0);
-        const [physicalSgst,  setPhysicalSgst]  = useState<number>(0);
-        const [physicalIgst,  setPhysicalIgst]  = useState<number>(0);
+        const physicalValuesRef = useRef<PhysicalValues>({ qty: 0, cgst: 0, sgst: 0, igst: 0, total: 0 });
 
         // Duplicate check
         const [invoiceExists,     setInvoiceExists]     = useState(false);
@@ -182,11 +176,6 @@ export const NewPurchaseInvoice = forwardRef<PurchaseInvoiceHandle, Props>(
         useEffect(() => {
             if (!editInvoice) {
                 setOriginalLineIds([]);
-                setPhysicalTotal(0);
-                setPhysicalQty(0);
-                setPhysicalCgst(0);
-                setPhysicalSgst(0);
-                setPhysicalIgst(0);
                 setInvoiceExists(false);
                 setShowPhysicalCheckModal(false);
                 setMasterDiffLines([]);
@@ -235,11 +224,6 @@ export const NewPurchaseInvoice = forwardRef<PurchaseInvoiceHandle, Props>(
                     lines:        loadedLines,
                 });
                 onIsReturnChange(Boolean(detail.is_return));
-                setPhysicalTotal(0);
-                setPhysicalQty(0);
-                setPhysicalCgst(0);
-                setPhysicalSgst(0);
-                setPhysicalIgst(0);
                 setInvoiceExists(false);
                 setOriginalLineIds((detail.lines ?? []).map(l => l.id));
             }).catch(() => toast.error(MESSAGES.ERROR_PURCHASE_LOAD_FAILED));
@@ -355,26 +339,8 @@ export const NewPurchaseInvoice = forwardRef<PurchaseInvoiceHandle, Props>(
             return { quantity, aggregate, cgst, sgst, igst, total_tax: cgst + sgst + igst, total: aggregate + cgst + sgst + igst };
         }, [fields]);
 
-        const physicalValidation = useMemo(() => {
-            const check = (p: number, c: number, pct: number, minAbs?: number) => {
-                const diff      = Math.abs(p - c);
-                const threshold = (pct / 100) * c;
-                const allowed   = minAbs !== undefined ? Math.max(threshold, minAbs) : threshold;
-                return { isValid: diff <= allowed + 0.0001, diff };
-            };
-            const taxPct  = 0.02;
-            const taxMin  = 0.20;
-            const totalPct = 0.2;
-            const cgstRes  = isIgst ? { isValid: true, diff: 0 } : check(physicalCgst, totals.cgst, taxPct, taxMin);
-            const sgstRes  = isIgst ? { isValid: true, diff: 0 } : check(physicalSgst, totals.sgst, taxPct, taxMin);
-            const igstRes  = !isIgst ? { isValid: true, diff: 0 } : check(physicalIgst, totals.igst, taxPct, taxMin);
-            const totalRes = check(physicalTotal, totals.total, totalPct);
-            const qtyRes   = { isValid: Math.abs(physicalQty - totals.quantity) < 0.001, diff: Math.abs(physicalQty - totals.quantity) };
-            return { cgst: cgstRes, sgst: sgstRes, igst: igstRes, total: totalRes, qty: qtyRes, allValid: qtyRes.isValid && cgstRes.isValid && sgstRes.isValid && igstRes.isValid && totalRes.isValid };
-        }, [isIgst, physicalQty, physicalCgst, physicalSgst, physicalIgst, physicalTotal, totals]);
-
         // executeSave: fires the actual DB mutation
-        const executeSave = async () => {
+        const executeSave = async (physical: PhysicalValues) => {
             const { vendor_id, invoice_no, invoice_date, remarks } = form.getValues();
             const lines           = form.getValues("lines");
             const purchaseTypeId  = txnTypes.find(t => t.code === "PURCHASE")?.id;
@@ -436,11 +402,11 @@ export const NewPurchaseInvoice = forwardRef<PurchaseInvoiceHandle, Props>(
                 invoice_no:    invoice_no.trim(),
                 invoice_date:  invoice_date,
                 aggregate_amount: totals.aggregate,
-                cgst_amount:   physicalCgst || 0,
-                sgst_amount:   physicalSgst || 0,
-                igst_amount:   physicalIgst || 0,
-                total_tax:     isIgst ? (physicalIgst || 0) : ((physicalCgst || 0) + (physicalSgst || 0)),
-                total_amount:  physicalTotal || 0,
+                cgst_amount:   physical.cgst,
+                sgst_amount:   physical.sgst,
+                igst_amount:   physical.igst,
+                total_tax:     isIgst ? physical.igst : (physical.cgst + physical.sgst),
+                total_amount:  physical.total,
                 brand_id:      selectedBrandId,
                 remarks:       remarks?.trim() || null,
                 is_return:     isReturn,
@@ -490,11 +456,6 @@ export const NewPurchaseInvoice = forwardRef<PurchaseInvoiceHandle, Props>(
                 setMasterDiffLines([]);
                 form.reset(getPurchaseInvoiceDefaultValues());
                 setOriginalLineIds([]);
-                setPhysicalTotal(0);
-                setPhysicalQty(0);
-                setPhysicalCgst(0);
-                setPhysicalSgst(0);
-                setPhysicalIgst(0);
                 setInvoiceExists(false);
                 onSaveSuccess();
             } catch {
@@ -504,12 +465,9 @@ export const NewPurchaseInvoice = forwardRef<PurchaseInvoiceHandle, Props>(
             }
         };
 
-        // handleConfirmedSubmit: called from physical check modal
-        const handleConfirmedSubmit = async () => {
-            if (!physicalValidation.allValid) {
-                toast.error(MESSAGES.ERROR_PURCHASE_PHYSICAL_CHECK_FAILED);
-                return;
-            }
+        // handleConfirmedSubmit: called from physical check modal once user values are validated
+        const handleConfirmedSubmit = async (physical: PhysicalValues) => {
+            physicalValuesRef.current = physical;
             const lines = form.getValues("lines");
             const diffLines = lines.filter(line => {
                 if (!line.part_id) return false;
@@ -523,7 +481,7 @@ export const NewPurchaseInvoice = forwardRef<PurchaseInvoiceHandle, Props>(
                 setMasterDiffLines(diffLines);
                 return;
             }
-            await executeSave();
+            await executeSave(physical);
         };
 
         // triggerSave: validates then opens physical check modal
@@ -544,11 +502,6 @@ export const NewPurchaseInvoice = forwardRef<PurchaseInvoiceHandle, Props>(
                 return;
             }
             if (invoiceExists) { toast.error(MESSAGES.ERROR_PURCHASE_INVOICE_EXISTS); return; }
-            setPhysicalQty(0);
-            setPhysicalCgst(0);
-            setPhysicalSgst(0);
-            setPhysicalIgst(0);
-            setPhysicalTotal(0);
             setShowPhysicalCheckModal(true);
         };
 
@@ -906,7 +859,7 @@ export const NewPurchaseInvoice = forwardRef<PurchaseInvoiceHandle, Props>(
                             isOpen={masterDiffLines.length > 0}
                             masterDiffLines={masterDiffLines}
                             onClose={() => setMasterDiffLines([])}
-                            onConfirm={() => executeSave()}
+                            onConfirm={() => void executeSave(physicalValuesRef.current)}
                             submitting={submitting}
                         />
 
@@ -914,20 +867,10 @@ export const NewPurchaseInvoice = forwardRef<PurchaseInvoiceHandle, Props>(
                         <PhysicalInvoiceModal
                             isOpen={showPhysicalCheckModal}
                             onClose={() => setShowPhysicalCheckModal(false)}
-                            onSubmit={handleConfirmedSubmit}
+                            onSubmit={physical => void handleConfirmedSubmit(physical)}
                             submitting={submitting}
                             isIgst={isIgst}
-                            physicalValidation={physicalValidation}
-                            physicalQty={physicalQty}
-                            setPhysicalQty={setPhysicalQty}
-                            physicalCgst={physicalCgst}
-                            setPhysicalCgst={setPhysicalCgst}
-                            physicalSgst={physicalSgst}
-                            setPhysicalSgst={setPhysicalSgst}
-                            physicalIgst={physicalIgst}
-                            setPhysicalIgst={setPhysicalIgst}
-                            physicalTotal={physicalTotal}
-                            setPhysicalTotal={setPhysicalTotal}
+                            totals={totals}
                         />
                     </>
                 )}

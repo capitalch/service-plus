@@ -1,21 +1,24 @@
-import { useEffect, useState } from "react";
-import { Calendar, FileText, Loader2, MapPin, Package, ReceiptText, User, Wrench } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { Calendar, FileText, Loader2, MapPin, Package, ReceiptText, RotateCcw, User, Wrench } from "lucide-react";
 import { toast } from "sonner";
 
+import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { SQL_MAP } from "@/constants/sql-map";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { apolloClient } from "@/lib/apollo-client";
-import { graphQlUtils } from "@/lib/graphql-utils";
+import { encodeObj, graphQlUtils } from "@/lib/graphql-utils";
 import { selectCurrentBranch, selectSchema } from "@/store/context-slice";
 import { useAppSelector } from "@/store/hooks";
 import type { JobDetailType, JobTransactionRow } from "@/features/client/types/job";
 import { STATUS_COLORS } from "./status-transitions";
+import { UndoTransactionDialog } from "./undo-transaction-dialog";
 
 type Props = {
-    jobId: number;
-    onClose: () => void;
+    jobId:          number;
+    onClose:        () => void;
+    onJobChanged?:  () => void;
 };
 
 type GenericQueryData<T> = { genericQuery: T[] | null };
@@ -79,7 +82,7 @@ function NarrativeBlock({ color, label, value }: { color: string; label: string;
     );
 }
 
-export const JobDetailsModal = ({ jobId, onClose }: Props) => {
+export const JobDetailsModal = ({ jobId, onClose, onJobChanged }: Props) => {
     const dbName = useAppSelector(selectDbName);
     const schema = useAppSelector(selectSchema);
     const currentBranch = useAppSelector(selectCurrentBranch);
@@ -88,10 +91,13 @@ export const JobDetailsModal = ({ jobId, onClose }: Props) => {
     const [transactions, setTransactions] = useState<JobTransactionRow[]>([]);
     const [parts,        setParts]        = useState<PartUsedRow[]>([]);
     const [charges,      setCharges]      = useState<AdditionalChargeRow[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [loading,   setLoading]  = useState(true);
+    const [undoing,   setUndoing]  = useState(false);
+    const [showUndo,  setShowUndo] = useState(false);
 
-    useEffect(() => {
+    const loadData = useCallback(() => {
         if (!dbName || !schema) return;
+        setLoading(true);
         const gq = (sqlId: string, sqlArgs?: Record<string, unknown>) =>
             apolloClient.query<GenericQueryData<unknown>>({
                 fetchPolicy: "network-only",
@@ -102,9 +108,9 @@ export const JobDetailsModal = ({ jobId, onClose }: Props) => {
                 },
             });
         Promise.all([
-            gq(SQL_MAP.GET_JOB_DETAIL, { id: jobId }),
-            gq(SQL_MAP.GET_JOB_TRANSACTIONS_BY_JOB, { job_id: jobId }),
-            gq(SQL_MAP.GET_JOB_PART_USED_BY_JOB, { job_id: jobId }),
+            gq(SQL_MAP.GET_JOB_DETAIL,                    { id: jobId }),
+            gq(SQL_MAP.GET_JOB_TRANSACTIONS_BY_JOB,       { job_id: jobId }),
+            gq(SQL_MAP.GET_JOB_PART_USED_BY_JOB,          { job_id: jobId }),
             gq(SQL_MAP.GET_JOB_ADDITIONAL_CHARGES_BY_JOB, { job_id: jobId }),
         ]).then(([jobRes, tranRes, partsRes, chargesRes]) => {
             setJob((jobRes.data?.genericQuery?.[0] ?? null) as JobDetailType | null);
@@ -118,6 +124,39 @@ export const JobDetailsModal = ({ jobId, onClose }: Props) => {
         });
     }, [dbName, schema, jobId]);
 
+    useEffect(() => { loadData(); }, [loadData]);
+
+    function handleUndoClick() {
+        if (transactions.length === 0) return;
+        setShowUndo(true);
+    }
+
+    async function handleUndoConfirm() {
+        const lastTxn = transactions[transactions.length - 1];
+        if (!lastTxn) return;
+        setShowUndo(false);
+        setUndoing(true);
+        try {
+            await apolloClient.mutate({
+                mutation:  GRAPHQL_MAP.undoJobTransaction,
+                variables: {
+                    db_name: dbName,
+                    schema,
+                    value:   encodeObj({ job_id: jobId, last_transaction_id: lastTxn.id }),
+                },
+            });
+            toast.success("Last transaction undone.");
+            loadData();
+            onJobChanged?.();
+        } catch (err: unknown) {
+            const msg = (err as { graphQLErrors?: { message: string }[] })
+                            ?.graphQLErrors?.[0]?.message ?? "Failed to undo transaction.";
+            toast.error(msg);
+        } finally {
+            setUndoing(false);
+        }
+    }
+
     const device = job
         ? [job.product_name, job.brand_name, job.model_name].filter(Boolean).join(" / ") || null
         : null;
@@ -125,6 +164,7 @@ export const JobDetailsModal = ({ jobId, onClose }: Props) => {
     const statusKey = job?.job_status_name.toUpperCase().replace(/ /g, "_") ?? "";
     const statusColorParts = STATUS_COLORS[statusKey]?.trim().split(/\s+/) ?? [];
     return (
+        <>
         <Dialog open onOpenChange={open => { if (!open) onClose(); }}>
             <DialogContent className="sm:max-w-xl bg-slate-50 p-0 overflow-hidden">
                 {/* ── Header ── */}
@@ -360,9 +400,23 @@ export const JobDetailsModal = ({ jobId, onClose }: Props) => {
                                         <FileText className="h-4 w-4 text-teal-600" />
                                         <h3 className="text-xs font-bold uppercase tracking-wider text-teal-700">Transaction History</h3>
                                     </div>
-                                    <span className="inline-flex items-center justify-center rounded-sm bg-teal-100 px-2.5 py-0.5 text-[11px] font-bold text-teal-700 border border-teal-200">
-                                        {transactions.length}
-                                    </span>
+                                    <div className="flex items-center gap-2">
+                                        <span className="inline-flex items-center justify-center rounded-sm bg-teal-100 px-2.5 py-0.5 text-[11px] font-bold text-teal-700 border border-teal-200">
+                                            {transactions.length}
+                                        </span>
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            className="h-6 px-2 text-[11px] text-amber-700 border-amber-300 hover:bg-amber-50 disabled:opacity-40"
+                                            disabled={undoing || loading || !transactions.some(t => t.id > 0)}
+                                            onClick={() => handleUndoClick()}
+                                        >
+                                            {undoing
+                                                ? <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                                                : <RotateCcw className="h-3 w-3 mr-1" />}
+                                            Undo Last
+                                        </Button>
+                                    </div>
                                 </div>
 
                                 {transactions.length === 0 ? (
@@ -397,7 +451,7 @@ export const JobDetailsModal = ({ jobId, onClose }: Props) => {
                                                         <tr key={t.id} className="odd:bg-white even:bg-slate-50/60 transition-colors hover:bg-blue-50/40">
                                                             <td className="px-3 py-3 text-sm text-slate-500 border-b border-slate-100 font-mono">{idx + 1}</td>
                                                             <td className="px-3 py-3 text-xs font-mono whitespace-nowrap text-slate-700 border-b border-slate-100">
-                                                                {t.performed_at ? t.performed_at.slice(0, 10) : "—"}
+                                                                {t.transaction_date ?? "—"}
                                                             </td>
                                                             <td className="px-3 py-3 border-b border-slate-100">
                                                                 {t.status_name ? (
@@ -423,5 +477,21 @@ export const JobDetailsModal = ({ jobId, onClose }: Props) => {
                 </div>
             </DialogContent>
         </Dialog>
+
+        {showUndo && job && (
+            <UndoTransactionDialog
+                job={{
+                    job_no:                  job.job_no,
+                    customer_name:           job.customer_name,
+                    job_receive_manner_name: job.job_receive_manner_name,
+                    device_details:          device,
+                    job_status_name:         job.job_status_name,
+                }}
+                submitting={undoing}
+                onConfirm={() => void handleUndoConfirm()}
+                onClose={() => setShowUndo(false)}
+            />
+        )}
+        </>
     );
 };

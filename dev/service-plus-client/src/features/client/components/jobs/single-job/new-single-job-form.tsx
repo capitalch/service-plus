@@ -108,7 +108,7 @@ export function NewSingleJobForm({
                 receive_manner_id: d.job_receive_manner_id ?? (undefined as unknown as number),
                 receive_condition_id: d.job_receive_condition_id ?? null,
                 job_status_id: d.job_status_id ?? null,
-                model_id: d.product_brand_model_id ?? null,
+                model_id: d.product_brand_model_id ?? (undefined as unknown as number),
                 serial_no: d.serial_no ?? "",
                 quantity: d.quantity,
                 problem_reported: d.problem_reported,
@@ -277,7 +277,7 @@ export function NewSingleJobForm({
                                                 getFilterKey={m => `${m.brand_name} ${m.product_name} ${m.model_name}`}
                                                 getIdentifier={m => m.id.toString()}
                                                 isError={!!errors.model_id}
-                                                onSelect={m => setValue("model_id", m ? m.id : null, { shouldValidate: true })}
+                                                onSelect={m => setValue("model_id", m ? m.id : (undefined as unknown as number), { shouldValidate: true })}
                                                 renderItem={m => (
                                                     <div className="flex flex-col gap-0.5">
                                                         <span className="font-semibold">{m.brand_name}</span>

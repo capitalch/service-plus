@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict ElDwwHFgghyBHtrAqjTOvvRlCTICkOJ9tZz0CnGaXUwsaozeHI1HClG4aewwN1u
+\restrict FqBxTeEV6naWmBl3TjVvNrT4qY2q5xXdLf3vOewNwiOsmVNlh7RxHle25PRjdWw
 
 -- Dumped from database version 14.6
 -- Dumped by pg_dump version 17.9 (Ubuntu 17.9-0ubuntu0.25.10.1)
@@ -718,7 +718,8 @@ CREATE TABLE demo1.job_transaction (
     performed_by_user_id bigint NOT NULL,
     performed_at timestamp with time zone DEFAULT now() NOT NULL,
     previous_transaction_id bigint,
-    remarks text
+    remarks text,
+    transaction_date date DEFAULT now() NOT NULL
 );
 
 
@@ -2591,6 +2592,13 @@ CREATE INDEX job_technician_idx ON demo1.job USING btree (technician_id);
 
 
 --
+-- Name: job_transaction_transaction_date_idx; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX job_transaction_transaction_date_idx ON demo1.job_transaction USING btree (transaction_date) WITH (deduplicate_items='true');
+
+
+--
 -- Name: spare_part_master_category_idx; Type: INDEX; Schema: demo1; Owner: webadmin
 --
 
@@ -3448,5 +3456,5 @@ ALTER TABLE ONLY security.user_bu_role
 -- PostgreSQL database dump complete
 --
 
-\unrestrict ElDwwHFgghyBHtrAqjTOvvRlCTICkOJ9tZz0CnGaXUwsaozeHI1HClG4aewwN1u
+\unrestrict FqBxTeEV6naWmBl3TjVvNrT4qY2q5xXdLf3vOewNwiOsmVNlh7RxHle25PRjdWw
 

@@ -769,6 +769,7 @@ export interface JobTransaction {
   performed_at: Date;
   previous_transaction_id: number | null;
   remarks: string | null;
+  transaction_date: Date;
 }
 export interface JobTransactionInput {
   id: number;
@@ -780,10 +781,11 @@ export interface JobTransactionInput {
   performed_at?: Date;
   previous_transaction_id?: number | null;
   remarks?: string | null;
+  transaction_date?: Date;
 }
 const job_transaction = {
   tableName: 'job_transaction',
-  columns: ['id', 'job_id', 'status_id', 'technician_id', 'amount', 'performed_by_user_id', 'performed_at', 'previous_transaction_id', 'remarks'],
+  columns: ['id', 'job_id', 'status_id', 'technician_id', 'amount', 'performed_by_user_id', 'performed_at', 'previous_transaction_id', 'remarks', 'transaction_date'],
   requiredForInsert: ['id', 'job_id', 'performed_by_user_id'],
   primaryKey: 'id',
   foreignKeys: {

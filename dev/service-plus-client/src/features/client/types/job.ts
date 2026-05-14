@@ -183,4 +183,5 @@ export type JobTransactionRow = {
     performed_by_name:       string | null;
     performed_at:            string;
     previous_transaction_id: number | null;
+    transaction_date:        string | null;
 };
