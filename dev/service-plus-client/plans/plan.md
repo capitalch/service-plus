@@ -1,186 +1,280 @@
-# Plan: Implement `alternate_job_no`
+# Implementation Plan: Divisions in Branch
 
-## Context
+## Overview
 
-The `job` table already has an `alternate_job_no text` column (nullable, indexed via `job_alternate_job_no_idx`). It is not yet exposed anywhere in the UI or queries. The goal is to:
-
-- Allow entry of `alternate_job_no` on the single-job and batch-job forms
-- Display it next to `job_no` in all grid views and the job details modal
-- Include it in all search/filter queries
-
----
-
-## Server Changes
-
-### A. `app/db/sql_store.py`
-
-**1. `GET_JOB_PIPELINE_PAGED` and `GET_JOB_PIPELINE_ALL_PAGED`**
-Add `j.alternate_job_no` to the SELECT column list.
-
-**2. `GET_JOB_PIPELINE_COUNT` and `GET_JOB_PIPELINE_ALL_COUNT`**
-Add `OR j.alternate_job_no ILIKE %(search)s` to the WHERE search clause (alongside existing `j.job_no ILIKE ...`).
-
-**3. `GET_JOB_SEARCH_PAGED` and `GET_JOB_SEARCH_COUNT`**
-- Add `j.alternate_job_no` to SELECT.
-- Add `OR j.alternate_job_no ILIKE %(search)s` to WHERE search.
-
-**4. `GET_JOBS_PAGED` and `GET_JOBS_COUNT`**
-Add `OR j.alternate_job_no ILIKE %(search)s` to WHERE search.
-
-**5. `GET_JOB_DETAIL`**
-Uses `j.*` — already includes `alternate_job_no` automatically. No change needed.
-
-**6. `GET_READY_JOBS_PAGED` and `GET_DELIVERABLE_JOBS_PAGED`**
-Add `j.alternate_job_no` to SELECT if those queries explicitly list columns (check at implementation time). Add to search WHERE if applicable.
-
-**7. `GET_JOBS_FOR_RECEIPT_LOOKUP`**
-Add `j.alternate_job_no` to SELECT for display in the lookup combobox.
-
-### B. `app/graphql/resolvers/mutation_helper.py`
-
-**`resolve_create_job_batch_helper` (explicit INSERT)**
-Add `alternate_job_no` to the INSERT column list and pass from xData. Value comes from each job row's `alternate_job_no` field (may be NULL if not entered).
-
-**`resolve_update_job_batch_helper` (explicit UPDATE)**
-Add `alternate_job_no = %(alternate_job_no)s` to the SET clause.
-
-**`resolve_create_single_job_helper` and `resolve_update_job_helper`**
-Both use `process_data(x_data, ...)` which is fully dynamic — no change needed here. Sending `alternate_job_no` in the client's xData is sufficient.
+A **Division** is a sub-entity within a Branch. One branch can have multiple divisions, each
+with its own identity (name, address, GSTIN, PAN, phone, email) and independent invoice
+numbering series for sale and service invoices. All divisions within a branch share the same
+masters (products, parts, customers, vendors, technicians), jobs/job sheets, inventory, and
+document series other than sale/service invoices.
 
 ---
 
-## Client Changes
+## 1. Database Schema Changes
 
-### 1. Types — `src/features/client/types/job.ts`
+### 1.1 New `division` Table
 
-Add `alternate_job_no: string | null` to:
-- `JobDetailType`
-- `OpenJobRow`
-- `JobSearchRow`
-
-(BatchJobRow and other types can be updated if they need to show it in grids.)
-
----
-
-### 2. Single-Job Form
-
-**Files:**
-- `src/features/client/components/jobs/single-job/single-job-schema.ts`
-- `src/features/client/components/jobs/single-job/new-single-job-form.tsx`
-
-**Schema:** Add `alternate_job_no: z.string().optional()` to `singleJobSchema`.
-
-**Form UI:** Add an optional text input labelled "Alt Job No" in Row 1 (alongside Job No / Job Date). Place it immediately after Job No. Send `alternate_job_no: values.alternate_job_no || null` in xData on submit.
-
----
-
-### 3. Batch-Job Form
-
-**Files:**
-- `src/features/client/components/jobs/batch-job/batch-job-schema.ts`
-- `src/features/client/components/jobs/batch-job/new-batch-job-form.tsx`
-
-**Schema:** Add `alternate_job_no: z.string().optional()` to `batchJobRowSchema`.
-
-**Form UI:** Add "Alt Job No" text input in the **expanded section** of each job row (alongside Serial No / Warranty Card No). Send `alternate_job_no` per job row in the batch INSERT/UPDATE xData.
-
----
-
-### 4. Job Details Modal
-
-**File:** `src/features/client/components/jobs/job-pipeline/job-details-modal.tsx`
-
-**Service Information grid (line ~274):** Add `["Alt Job No", job.alternate_job_no]` immediately after `["Job No", job.job_no]` in the array. The existing `.filter(([, v]) => v != null)` guard means it only renders when a value exists.
-
----
-
-### 5. Job Pipeline Grid
-
-**File:** `src/features/client/components/jobs/job-pipeline/job-pipeline-status-drilldown.tsx`
-
-In the Job No table cell (line ~334), add below the `job_no` span:
-
-```tsx
-{row.alternate_job_no && (
-    <span className="text-[10px] text-[var(--cl-text-muted)]">
-        Alt: {row.alternate_job_no}
-    </span>
-)}
+```sql
+CREATE TABLE {schema}.division (
+    id            bigserial PRIMARY KEY,
+    branch_id     bigint NOT NULL REFERENCES {schema}.branch(id),
+    code          text NOT NULL,
+    name          text NOT NULL,
+    address_line1 text NOT NULL,
+    address_line2 text,
+    city          text,
+    state_id      integer NOT NULL REFERENCES {schema}.state(id),
+    pincode       text NOT NULL,
+    phone         text,
+    email         text,
+    gstin         text,
+    pan_no        text,
+    is_active     boolean NOT NULL DEFAULT true,
+    created_at    timestamptz NOT NULL DEFAULT now(),
+    updated_at    timestamptz NOT NULL DEFAULT now(),
+    CONSTRAINT division_code_branch_unique UNIQUE (branch_id, code),
+    CONSTRAINT division_name_branch_unique UNIQUE (branch_id, name)
+);
 ```
 
-Update the search placeholder to include "alt job no".
+### 1.2 Modify `document_sequence` Table
 
----
+Add a nullable `division_id` to allow each division to have its own invoice series.
 
-### 6. Job Search Section
+```sql
+ALTER TABLE {schema}.document_sequence
+    ADD COLUMN division_id bigint REFERENCES {schema}.division(id);
 
-**File:** `src/features/client/components/jobs/job-search/job-search-section.tsx`
+-- Replace old unique constraint
+ALTER TABLE {schema}.document_sequence
+    DROP CONSTRAINT document_sequence_unique;
 
-In the Job No grid cell (line ~282), add below `job.job_no`:
-
-```tsx
-{job.alternate_job_no && (
-    <span className="text-[10px] text-muted-foreground">Alt: {job.alternate_job_no}</span>
-)}
+CREATE UNIQUE INDEX document_sequence_unique
+    ON {schema}.document_sequence (document_type_id, branch_id, COALESCE(division_id, 0));
 ```
 
-Update search placeholder to include "alt job no".
+- `division_id IS NULL`  → branch-level sequence (existing rows, all non-invoice document types)
+- `division_id IS NOT NULL` → division-specific sequence (sale invoice, job invoice)
 
----
+### 1.3 Modify Invoice Tables
 
-### 7. Job Lookup Combobox
+Stamp which division issued the invoice:
 
-**File:** `src/features/client/components/jobs/receipts/job-lookup-combobox.tsx`
+```sql
+ALTER TABLE {schema}.sales_invoice
+    ADD COLUMN division_id bigint REFERENCES {schema}.division(id);
 
-Show `alternate_job_no` in each dropdown result row (lines ~183) when it exists.
-
----
-
-### 8. Ready-for-Delivery, Receipts, Deliver-Job Grids
-
-**Files:**
-- `src/features/client/components/jobs/ready-for-delivery/ready-for-delivery-section.tsx`
-- `src/features/client/components/jobs/receipts/receipts-section.tsx`
-- `src/features/client/components/jobs/deliver-job/deliver-job-section.tsx`
-
-In each job_no table cell, add the same pattern:
-```tsx
-{row.alternate_job_no && (
-    <span className="text-[10px] text-muted-foreground">Alt: {row.alternate_job_no}</span>
-)}
+ALTER TABLE {schema}.job_invoice
+    ADD COLUMN division_id bigint REFERENCES {schema}.division(id);
 ```
 
-(Requires those SQL queries to SELECT `alternate_job_no` — verify at implementation time.)
+`NULL` on existing rows means no division; fully backward-compatible.
 
 ---
 
-## Files Modified Summary
+## 2. Server-Side Changes (`service-plus-server`)
 
-| File | Change |
-|------|--------|
-| `app/db/sql_store.py` | Add `alternate_job_no` to SELECT and search WHERE in pipeline, search, ready, deliverable, receipt-lookup queries |
-| `app/graphql/resolvers/mutation_helper.py` | Add `alternate_job_no` to batch job INSERT/UPDATE |
-| `src/features/client/types/job.ts` | Add field to `JobDetailType`, `OpenJobRow`, `JobSearchRow` |
-| `src/features/client/components/jobs/single-job/single-job-schema.ts` | Add optional field |
-| `src/features/client/components/jobs/single-job/new-single-job-form.tsx` | Add input, send in xData |
-| `src/features/client/components/jobs/batch-job/batch-job-schema.ts` | Add optional field to row schema |
-| `src/features/client/components/jobs/batch-job/new-batch-job-form.tsx` | Add input per row, send in xData |
-| `src/features/client/components/jobs/job-pipeline/job-details-modal.tsx` | Show in Service Information |
-| `src/features/client/components/jobs/job-pipeline/job-pipeline-status-drilldown.tsx` | Show below job_no in grid, update search placeholder |
-| `src/features/client/components/jobs/job-search/job-search-section.tsx` | Show below job_no in grid, update search placeholder |
-| `src/features/client/components/jobs/receipts/job-lookup-combobox.tsx` | Show in dropdown results |
-| `src/features/client/components/jobs/ready-for-delivery/ready-for-delivery-section.tsx` | Show below job_no |
-| `src/features/client/components/jobs/receipts/receipts-section.tsx` | Show below job_no |
-| `src/features/client/components/jobs/deliver-job/deliver-job-section.tsx` | Show below job_no |
+### 2.1 SQL Store (`app/db/sql_store.py`)
+
+Add the following new SQL query IDs:
+
+| Query ID | Purpose |
+|---|---|
+| `GET_DIVISIONS_BY_BRANCH` | All divisions for a branch (ordered by code) |
+| `GET_ACTIVE_DIVISIONS_BY_BRANCH` | Active-only list used for context loading and selectors |
+| `GET_DIVISION_BY_ID` | Single division fetch for edit pre-population |
+| `CHECK_DIVISION_CODE_EXISTS` | Uniqueness check on create |
+| `CHECK_DIVISION_CODE_EXISTS_EXCLUDE_ID` | Uniqueness check on edit |
+| `CHECK_DIVISION_NAME_EXISTS` | Uniqueness check on create |
+| `CHECK_DIVISION_NAME_EXISTS_EXCLUDE_ID` | Uniqueness check on edit |
+| `CHECK_DIVISION_IN_USE` | Pre-delete check — blocks delete if any invoice references this division |
+| `GET_DOCUMENT_SEQUENCES_BY_DIVISION` | Sequences scoped to a specific `division_id` |
+
+### 2.2 GraphQL Mutations (`app/graphql/resolvers/mutation_helper.py`)
+
+**Division CRUD:**
+- `resolve_insert_division(branch_id, code, name, address_line1, ...)` → INSERT, return new id
+- `resolve_update_division(id, code, name, ...)` → UPDATE
+- `resolve_delete_division(id)` → DELETE after `CHECK_DIVISION_IN_USE` guard
+
+**Invoice generation changes:**
+
+When creating a sale or job invoice, if `division_id` is provided:
+1. Look up `document_sequence` WHERE `document_type_id = X AND branch_id = Y AND division_id = Z`.
+2. If no row exists, auto-create one by copying the branch-level defaults (prefix, padding, separator) with `next_number = 1`.
+3. Increment `next_number` on that division-specific row.
+4. Stamp `division_id` on the invoice record.
+
+If `division_id` is NULL (branch has no divisions), fall back to existing branch-level sequence logic unchanged.
+
+**Document sequence config:**
+- Extend `get_document_sequences` resolver to accept optional `division_id`.
+- Extend `update_document_sequence` to handle division-scoped rows.
 
 ---
 
-## Verification
+## 3. Client-Side Changes (`service-plus-client`)
 
-1. `npm run build` — must compile clean.
-2. Create a new single job with an alt job no → saved correctly.
-3. Create a batch job with alt job nos on individual rows → saved correctly.
-4. Open job details modal → "Alt Job No" appears in Service Information when set.
-5. Pipeline grid → "Alt: XYZ" appears below job_no in the row.
-6. Search for a job by its alt job no → result appears in pipeline and search grids.
-7. Edit a job → existing alt job no pre-filled; can be changed or cleared.
+### 3.1 New Type File — `src/features/client/types/division.ts`
+
+```typescript
+export type DivisionType = {
+    id:            number;
+    branch_id:     number;
+    code:          string;
+    name:          string;
+    address_line1: string;
+    address_line2: string | null;
+    city:          string | null;
+    state_id:      number;
+    state_name:    string | null;
+    pincode:       string;
+    phone:         string | null;
+    email:         string | null;
+    gstin:         string | null;
+    pan_no:        string | null;
+    is_active:     boolean;
+};
+
+export type DivisionContextType = Pick<DivisionType,
+    'id' | 'code' | 'name' | 'gstin' | 'pan_no' | 'address_line1' |
+    'address_line2' | 'city' | 'state_id' | 'pincode' | 'phone' | 'email'
+> & { state_name: string | null };
+```
+
+### 3.2 SQL_MAP Constants — `src/constants/sql-map.ts`
+
+Add entries for all new server-side query IDs listed in §2.1.
+
+### 3.3 Context Slice — `src/store/context-slice.ts`
+
+Extend `ContextStateType`:
+
+```typescript
+availableDivisions: DivisionContextType[];
+currentDivision:    DivisionContextType | null;
+```
+
+Add actions `setAvailableDivisions` and `setCurrentDivision`.
+Add selectors `selectAvailableDivisions` and `selectCurrentDivision`.
+
+**Loading logic:** Whenever `currentBranch` changes, dispatch a query for
+`GET_ACTIVE_DIVISIONS_BY_BRANCH`. If the branch has exactly one division, auto-select it.
+If zero divisions, set `currentDivision = null` (existing behavior, no UI change).
+
+### 3.4 Division Master UI — `src/features/client/components/masters/division/`
+
+Follow the same CRUD pattern used in `masters/branch/`:
+
+| File | Purpose |
+|---|---|
+| `division.ts` | Zod schema + `DivisionFormValues` type |
+| `division-section.tsx` | Paginated list with search, Add / Edit / Delete actions |
+| `add-division-dialog.tsx` | Create form with async code & name uniqueness checks |
+| `edit-division-dialog.tsx` | Edit form (pre-populated via `GET_DIVISION_BY_ID`) |
+| `delete-division-dialog.tsx` | Confirmation dialog; blocks with error if division is in use |
+
+**Form fields:**
+- Code (required, unique within branch — debounced uniqueness check)
+- Name (required, unique within branch — debounced uniqueness check)
+- Address Line 1 (required), Address Line 2, City, State (dropdown), Pincode (required)
+- Phone, Email
+- GSTIN, PAN No
+- Is Active (toggle)
+
+**Add a navigation entry** to the Masters sidebar/menu pointing to Division list, visible only when the current branch has or can have divisions.
+
+### 3.5 Division Selector in App Shell
+
+Add a division switcher pill in the app header/sidebar, adjacent to the branch selector.
+
+- Visible only when `availableDivisions.length > 1`.
+- Dispatches `setCurrentDivision` on selection.
+- An "All Divisions" option sets `currentDivision = null` for reporting/cross-division views.
+- If `availableDivisions.length === 1`, auto-select that division silently (no UI shown).
+- If `availableDivisions.length === 0`, selector is hidden entirely (existing branches work unchanged).
+
+### 3.6 Document Sequence Configuration
+
+File: `src/features/client/components/configurations/document-sequence/document-sequence-section.tsx`
+
+- Add a Division tab/toggle at the top of the configuration panel (only shown when
+  `availableDivisions.length > 0`).
+- When a division is selected in the tab, fetch `GET_DOCUMENT_SEQUENCES_BY_DIVISION` with
+  that `division_id` and display its sequences.
+- Only sale-invoice and job-invoice document types appear in the division tab; all other
+  document types (purchase, stock, etc.) remain in the branch tab and are division-agnostic.
+- Save uses the existing `update_document_sequence` mutation extended to accept `division_id`.
+
+### 3.7 Invoice Forms — Sales & Job Invoices
+
+For both `sales-invoice` and `job-invoice` create/edit forms:
+
+**Division selection:**
+- If `currentDivision` is non-null, pre-populate `division_id` silently and do not show a selector.
+- If `currentDivision` is null and `availableDivisions.length > 1`, render a required Division
+  dropdown at the top of the form.
+- If `availableDivisions.length === 0`, omit `division_id` entirely (NULL in mutation).
+
+**Invoice header / printout:**
+- When `division_id` is set, display division name, address, GSTIN, and PAN on the invoice
+  header instead of branch details.
+
+**Invoice numbering:**
+- The server auto-resolves the correct sequence (division-specific or branch-level) based on
+  `division_id`. No client change needed beyond passing `division_id`.
+
+### 3.8 Invoice List / Filter
+
+For both sales-invoice and job-invoice list pages:
+
+- When `currentDivision` is non-null, automatically apply `division_id` filter to the query.
+- When `currentDivision` is null (All Divisions view), show all invoices with an optional
+  Division column in the grid displaying the division name.
+- Update the corresponding SQL queries on the server to support the optional `division_id` filter.
+
+---
+
+## 4. Backward Compatibility
+
+- All new `division_id` columns are nullable → no existing data breaks.
+- Branches without divisions have `availableDivisions = []` and `currentDivision = null`.
+  All UI elements that depend on divisions are hidden; all flows work exactly as today.
+- The `COALESCE(division_id, 0)` technique in the document_sequence unique index preserves
+  the existing branch-level rows.
+- Invoice generation without `division_id` follows the original branch-level sequence path.
+
+---
+
+## 5. Implementation Order
+
+| Step | Area | Task |
+|---|---|---|
+| 1 | DB | Create `division` table, alter `document_sequence`, alter invoice tables |
+| 2 | Server | Add SQL query strings for all new query IDs |
+| 3 | Server | Add division CRUD mutation helpers |
+| 4 | Server | Extend invoice generation to accept and use `division_id` |
+| 5 | Server | Extend document-sequence resolvers for division scope |
+| 6 | Client | `division.ts` type file + SQL_MAP entries |
+| 7 | Client | Extend context-slice with division state + load on branch change |
+| 8 | Client | Division master CRUD components |
+| 9 | Client | Division selector in app shell |
+| 10 | Client | Document-sequence config — division tab |
+| 11 | Client | Invoice forms — division selector + pass division_id |
+| 12 | Client | Invoice lists — division filter + division column |
+| 13 | QA | Test multi-division branch, single-division auto-select, no-division backward compat |
+
+---
+
+## 6. Edge Cases to Handle
+
+- **Delete branch with divisions** — block delete if any division exists; user must deactivate
+  or reassign divisions first.
+- **Division deactivated mid-session** — if `currentDivision` is deactivated by another user,
+  refresh `availableDivisions` and clear `currentDivision`; show a toast.
+- **Cross-division invoice lookup** — receipt and job lookup comboboxes should search across
+  all divisions; display division name as a secondary label in results.
+- **Division-scoped sequence gap on first invoice** — if no division-specific sequence row
+  exists, the server auto-creates it (see §2.2); the client does not need to pre-configure it.
+- **Reporting** — All reports that aggregate by branch still work. Add optional division
+  breakdown where the report groups or filters by `division_id`.

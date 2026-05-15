@@ -175,7 +175,14 @@ export const JobDetailsModal = ({ jobId, onClose, onJobChanged }: Props) => {
                                 {loading || !job ? (
                                     <span className="text-lg font-bold">Job Details</span>
                                 ) : (
-                                    <span className="font-mono text-2xl font-extrabold tracking-tight">#{job.job_no}</span>
+                                    <span className="flex flex-col gap-0.5">
+                                        <span className="font-mono text-2xl font-extrabold tracking-tight">#{job.job_no}</span>
+                                        {job.alternate_job_no && (
+                                            <span className="text-xs font-medium text-slate-500">
+                                                Alt: <span className="font-mono font-semibold text-slate-700">{job.alternate_job_no}</span>
+                                            </span>
+                                        )}
+                                    </span>
                                 )}
                             </DialogTitle>
                             {job && (
