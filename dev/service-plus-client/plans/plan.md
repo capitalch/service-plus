@@ -70,6 +70,38 @@ ALTER TABLE {schema}.job_invoice
 
 `NULL` on existing rows means no division; fully backward-compatible.
 
+### 1.4 Fix Invoice Unique Constraints
+
+Both invoice tables currently enforce `UNIQUE (company_id, invoice_no)`. With divisions each
+having their own series, two divisions can legitimately produce `INV-001` — the old constraint
+would reject the second. Replace with a division-aware index on both tables:
+
+```sql
+ALTER TABLE {schema}.sales_invoice DROP CONSTRAINT sales_invoice_company_no_uidx;
+ALTER TABLE {schema}.job_invoice   DROP CONSTRAINT job_invoice_company_no_uidx;
+
+CREATE UNIQUE INDEX sales_invoice_company_no_uidx
+    ON {schema}.sales_invoice (company_id, COALESCE(division_id, 0), invoice_no);
+
+CREATE UNIQUE INDEX job_invoice_company_no_uidx
+    ON {schema}.job_invoice   (company_id, COALESCE(division_id, 0), invoice_no);
+```
+
+Rows with `division_id IS NULL` continue to enforce uniqueness per company as before.
+
+### 1.5 `company_info` — No Structural Change
+
+`company_info` remains a single-row table and is unchanged. It continues to serve:
+- Company name displayed in the app header (`context-slice.companyName`).
+- The `company_id` FK on invoices (used for scoping the unique constraint above).
+- The Company Profile configuration screen.
+- Purchase invoice PDFs (buyer identity = company).
+
+The only behavioural change is in **invoice PDF generation** (client-side): when a sale or
+job invoice has `division_id` set, the PDF header renders the division's name, address, and
+GSTIN instead of the company_info details. When `division_id` is null the existing output is
+unchanged.
+
 ---
 
 ## 2. Server-Side Changes (`service-plus-server`)
@@ -90,26 +122,23 @@ Add the following new SQL query IDs:
 | `CHECK_DIVISION_IN_USE` | Pre-delete check — blocks delete if any invoice references this division |
 | `GET_DOCUMENT_SEQUENCES_BY_DIVISION` | Sequences scoped to a specific `division_id` |
 
-### 2.2 GraphQL Mutations (`app/graphql/resolvers/mutation_helper.py`)
+### 2.2 No New Mutations Required
 
-**Division CRUD:**
-- `resolve_insert_division(branch_id, code, name, address_line1, ...)` → INSERT, return new id
-- `resolve_update_division(id, code, name, ...)` → UPDATE
-- `resolve_delete_division(id)` → DELETE after `CHECK_DIVISION_IN_USE` guard
+All division operations use existing generic mutations — no new Python helpers needed.
 
-**Invoice generation changes:**
+**Division insert / update** — use `genericUpdate` with `{ tableName: "division", xData: { ... } }`.
+The same dynamic INSERT/UPDATE path (`exec_sql_object` → `process_data`) used by branch, technician, and other masters handles this without any server changes.
 
-When creating a sale or job invoice, if `division_id` is provided:
-1. Look up `document_sequence` WHERE `document_type_id = X AND branch_id = Y AND division_id = Z`.
-2. If no row exists, auto-create one by copying the branch-level defaults (prefix, padding, separator) with `next_number = 1`.
-3. Increment `next_number` on that division-specific row.
-4. Stamp `division_id` on the invoice record.
+**Division delete** — two-step, client-driven:
+1. Client calls `genericQuery` with `CHECK_DIVISION_IN_USE`; if rows returned, show error and stop.
+2. Client calls `genericUpdateScript` with `DELETE_DIVISION_BY_ID` SQL. No guard logic needed server-side.
 
-If `division_id` is NULL (branch has no divisions), fall back to existing branch-level sequence logic unchanged.
+**Invoice generation** — existing `createSalesInvoice` and `createJobInvoice` mutations are unchanged. They already accept `doc_sequence_id` and `doc_sequence_next` from the client and atomically increment whichever sequence row the client resolves. For division invoices the client simply:
+1. Queries `GET_DOCUMENT_SEQUENCES_BY_DIVISION` to obtain the division-specific sequence row.
+2. Includes `division_id` as a field in the invoice `xData` (new nullable column, handled automatically).
+3. Passes `doc_sequence_id` / `doc_sequence_next` from that row — same as today.
 
-**Document sequence config:**
-- Extend `get_document_sequences` resolver to accept optional `division_id`.
-- Extend `update_document_sequence` to handle division-scoped rows.
+**Document sequence config** — `genericUpdate` already handles updating any `document_sequence` row by `id`; no resolver changes needed.
 
 ---
 
@@ -251,18 +280,15 @@ For both sales-invoice and job-invoice list pages:
 | Step | Area | Task |
 |---|---|---|
 | 1 | DB | Create `division` table, alter `document_sequence`, alter invoice tables |
-| 2 | Server | Add SQL query strings for all new query IDs |
-| 3 | Server | Add division CRUD mutation helpers |
-| 4 | Server | Extend invoice generation to accept and use `division_id` |
-| 5 | Server | Extend document-sequence resolvers for division scope |
-| 6 | Client | `division.ts` type file + SQL_MAP entries |
-| 7 | Client | Extend context-slice with division state + load on branch change |
-| 8 | Client | Division master CRUD components |
-| 9 | Client | Division selector in app shell |
-| 10 | Client | Document-sequence config — division tab |
-| 11 | Client | Invoice forms — division selector + pass division_id |
-| 12 | Client | Invoice lists — division filter + division column |
-| 13 | QA | Test multi-division branch, single-division auto-select, no-division backward compat |
+| 2 | Server | Add SQL query strings for all new query IDs (sql_store.py only) |
+| 3 | Client | `division.ts` type file + SQL_MAP entries |
+| 4 | Client | Extend context-slice with division state + load on branch change |
+| 5 | Client | Division master CRUD components |
+| 6 | Client | Division selector in app shell |
+| 7 | Client | Document-sequence config — division tab |
+| 8 | Client | Invoice forms — division selector + pass division_id |
+| 9 | Client | Invoice lists — division filter + division column |
+| 10 | QA | Test multi-division branch, single-division auto-select, no-division backward compat |
 
 ---
 
