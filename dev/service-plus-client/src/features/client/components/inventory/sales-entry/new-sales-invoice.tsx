@@ -18,7 +18,7 @@ import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
-import { selectDefaultGstRate, selectEffectiveGstStateCode, selectIsGstRegistered, selectSchema } from "@/store/context-slice";
+import { selectDefaultGstRate, selectEffectiveGstStateCode, selectForceGstOnPartsForNonGst, selectIsGstMode, selectSchema } from "@/store/context-slice";
 import type { SalesInvoiceType, DocumentSequenceRow, CustomerSearchRow } from "@/features/client/types/sales";
 import type { CustomerTypeOption, StateOption } from "@/features/client/types/customer";
 import { type SalesInvoiceFormValues, getInitialSalesLine } from "./sales-invoice-schema";
@@ -93,11 +93,12 @@ export function NewSalesInvoice({
     customerGstin, setCustomerGstin,
     customerStateCode, setCustomerStateCode,
 }: Props) {
-    const dbName                = useAppSelector(selectDbName);
-    const schema                = useAppSelector(selectSchema);
-    const isGstRegistered       = useAppSelector(selectIsGstRegistered);
-    const defaultGstRate        = useAppSelector(selectDefaultGstRate);
-    const effectiveGstStateCode = useAppSelector(selectEffectiveGstStateCode);
+    const dbName                    = useAppSelector(selectDbName);
+    const schema                    = useAppSelector(selectSchema);
+    const isGstMode                 = useAppSelector(selectIsGstMode);
+    const defaultGstRate            = useAppSelector(selectDefaultGstRate);
+    const effectiveGstStateCode     = useAppSelector(selectEffectiveGstStateCode);
+    const forceGstOnPartsForNonGst  = useAppSelector(selectForceGstOnPartsForNonGst);
 
     const form = useFormContext<SalesInvoiceFormValues>();
     const { register, setValue, formState: { isSubmitting } } = form;
@@ -445,10 +446,17 @@ export function NewSalesInvoice({
                                                         }}
                                                         onClear={() => updateLine(idx, { part_code: "", part_id: null, part_name: "" })}
                                                         onSelect={part => {
-                                                            const masterGstRate    = Number(part.gst_rate ?? 0);
-                                                            const effectiveGstRate = (isGstRegistered && masterGstRate === 0)
-                                                                ? defaultGstRate
-                                                                : masterGstRate;
+                                                            const masterGstRate   = Number(part.gst_rate ?? 0);
+                                                            const forceGstOnParts = !isGstMode && forceGstOnPartsForNonGst;
+                                                            const effectiveGstRate = isGstMode
+                                                                ? (masterGstRate === 0 ? defaultGstRate : masterGstRate)
+                                                                : 0;
+                                                            const costPrice  = Number(part.cost_price ?? 0);
+                                                            const unitPrice  = isGstMode
+                                                                ? Number(part.mrp ?? costPrice)
+                                                                : forceGstOnParts
+                                                                    ? Math.round(costPrice * 1.18 * 100) / 100
+                                                                    : costPrice;
                                                             updateLine(idx, {
                                                                 part_id:    part.id,
                                                                 brand_id:   part.brand_id,
@@ -456,7 +464,7 @@ export function NewSalesInvoice({
                                                                 part_name:  part.part_name,
                                                                 uom:        part.uom,
                                                                 hsn_code:   part.hsn_code ?? "",
-                                                                unit_price: Number(part.mrp ?? part.cost_price ?? 0),
+                                                                unit_price: unitPrice,
                                                                 gst_rate:   effectiveGstRate,
                                                             });
                                                         }}

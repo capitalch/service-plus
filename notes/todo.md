@@ -1,23 +1,24 @@
 # QA round
 - Jobs
 	- There is gap found in job numbers
-	- job pipeline
-		- for job type: demo, inspection: No spare parts can be provided
-		- job update: should be in a transaction. Recheck mutation at server
-		- data saving test
-		- Undo last transaction
+							- job pipeline
+								- for job type: demo, inspection: No spare parts can be provided
+								- job update: should be in a transaction. Recheck mutation at server
+								- data saving test
+								- Undo last transaction
 								- Unique index for customer
 	- implement alternate job no
 	- implement multiple company name options
+	
 	- Trace transfer
-						- Separate file server
+							- Separate file server
 								- Folder hierarchy as client/bu/branch/job_no
 								- Final deployment of file server with deploy script
 								- Deployment documentation
 								- Create local server and Test it locally
 								- Create cloudjiffy server
 								- Deploy cloudjiffy server
-						- Single Job
+							- Single Job
 								- the info card does not retain the job-no selected during refresh
 								- Info card should show the no before latest
 								- remove useEffect unnecessary fetches
@@ -37,7 +38,7 @@
 								- Search working
 								- Delete job
 								- Check batch_no functionality. null or 0
-						- Batch Jobs
+							- Batch Jobs
 								- When a single job is beig edited which is part of batch, then Batch jobs edit screen should open
 								- Delete a job not working
 								- quick info card view and print are same

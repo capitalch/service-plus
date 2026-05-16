@@ -29,14 +29,14 @@ import { encodeObj, graphQlUtils } from "@/lib/graphql-utils";
 
 import { useAppSelector } from "@/store/hooks";
 import { selectCurrentUser, selectDbName } from "@/features/auth/store/auth-slice";
-import { selectCurrentBranch, selectSchema } from "@/store/context-slice";
+import { selectAvailableDivisions, selectCurrentBranch, selectCurrentDivision, selectDefaultDivisionId, selectSchema } from "@/store/context-slice";
 import type { JobDetailType, JobSearchRow, JobLookupRow, ModelRow, TechnicianRow } from "@/features/client/types/job";
 import type { CustomerTypeOption, StateOption } from "@/features/client/types/customer";
 import type { BrandOption, ProductOption } from "@/features/client/types/model";
 
 import { NewSingleJobForm } from "./new-single-job-form";
 import { JobAttachDialog } from "./job-attach-dialog";
-import { getJobSheetBlobUrl, type CompanyInfoType } from "../job-sheet-pdf";
+import { getJobSheetBlobUrl } from "../job-sheet-pdf";
 import { PdfPreviewModal } from "@/components/shared/pdf-preview-modal";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -54,10 +54,13 @@ const tdClass = "p-3 text-sm text-[var(--cl-text)] border-b border-[var(--cl-bor
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeApplied }: { onNavigateToBatchEdit?: (batchNo: number) => void; forceView?: boolean; onViewModeApplied?: () => void }) => {
-    const dbName = useAppSelector(selectDbName);
-    const schema = useAppSelector(selectSchema);
-    const globalBranch = useAppSelector(selectCurrentBranch);
-    const branchId = globalBranch?.id ?? null;
+    const dbName             = useAppSelector(selectDbName);
+    const schema             = useAppSelector(selectSchema);
+    const globalBranch       = useAppSelector(selectCurrentBranch);
+    const availableDivisions = useAppSelector(selectAvailableDivisions);
+    const currentDivision    = useAppSelector(selectCurrentDivision);
+    const defaultDivisionId  = useAppSelector(selectDefaultDivisionId);
+    const branchId           = globalBranch?.id ?? null;
 
     // Filters
     const [search, setSearch] = useState("");
@@ -77,7 +80,6 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
     const [products, setProducts] = useState<ProductOption[]>([]);
     const [customerTypes, setCustomerTypes] = useState<CustomerTypeOption[]>([]);
     const [masterStates, setMasterStates] = useState<StateOption[]>([]);
-    const [companyInfo, setCompanyInfo] = useState<CompanyInfoType | null>(null);
     const [jobs, setJobs] = useState<JobSearchRow[]>([]);
     const [total, setTotal] = useState(0);
     const [page, setPage] = useState(1);
@@ -110,7 +112,7 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
     const currentUser = useAppSelector(selectCurrentUser);
 
     const form = useForm<SingleJobFormValues>({
-        defaultValues: getSingleJobDefaultValues(),
+        defaultValues: getSingleJobDefaultValues(defaultDivisionId),
         mode: "onChange",
         resolver: zodResolver(singleJobFormSchema) as unknown as any, // eslint-disable-line @typescript-eslint/no-explicit-any
     });
@@ -123,11 +125,33 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
         setSubmitting(true);
         try {
             if (editJob) {
+                // GST guard: if division changes and GST status flips, block if invoice exists
+                const newDivId = values.division_id ?? editJob.division_id ?? null;
+                if (newDivId && editJob.division_id && newDivId !== editJob.division_id) {
+                    const oldDiv = availableDivisions.find(d => d.id === editJob.division_id);
+                    const newDiv = availableDivisions.find(d => d.id === newDivId);
+                    if (!!oldDiv?.gstin !== !!newDiv?.gstin) {
+                        try {
+                            const invRes = await apolloClient.query<GenericQueryData<{ id: number }>>({
+                                fetchPolicy: "network-only",
+                                query: GRAPHQL_MAP.genericQuery,
+                                variables: { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_JOB_INVOICE_BY_JOB, sqlArgs: { job_id: editJob.id } }) },
+                            });
+                            if ((invRes.data?.genericQuery?.length ?? 0) > 0) {
+                                toast.error("Invoice must be regenerated due to GST status change. Please void the existing invoice first.");
+                                setSubmitting(false);
+                                return;
+                            }
+                        } catch { /* allow proceed on query failure */ }
+                    }
+                }
+
                 const payload = graphQlUtils.buildGenericUpdateValue({
                     tableName: "job",
                     xData: {
                         id:                       editJob.id,
                         customer_contact_id:      values.customer_id,
+                        division_id:              newDivId,
                         job_date:                 values.job_date,
                         job_type_id:              values.job_type_id,
                         job_receive_manner_id:    values.receive_manner_id,
@@ -149,11 +173,13 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
                 });
                 toast.success(MESSAGES.SUCCESS_JOB_UPDATED);
             } else {
+                const divisionId = values.division_id ?? defaultDivisionId;
                 const receivedStatusId = jobStatuses.find(s => s.code === "RECEIVED")?.id ?? null;
                 const sqlObject = {
                     tableName:         "job",
                     xData: {
                         branch_id:                branchId,
+                        division_id:              divisionId,
                         job_date:                 values.job_date,
                         customer_contact_id:      values.customer_id,
                         job_type_id:              values.job_type_id,
@@ -237,7 +263,7 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
         if (!dbName || !schema || !branchId) return;
         const fetchMeta = async () => {
             try {
-                const [statusRes, typeRes, mannerRes, condRes, techRes, modelRes, brandRes, prodRes, custTypeRes, stateRes, compRes] =
+                const [statusRes, typeRes, mannerRes, condRes, techRes, modelRes, brandRes, prodRes, custTypeRes, stateRes] =
                     await Promise.all([
                         apolloClient.query<GenericQueryData<JobLookupRow>>({
                             fetchPolicy: "network-only",
@@ -289,11 +315,6 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
                             query: GRAPHQL_MAP.genericQuery,
                             variables: { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_ALL_STATES }) },
                         }),
-                        apolloClient.query<GenericQueryData<CompanyInfoType>>({
-                            fetchPolicy: "network-only",
-                            query: GRAPHQL_MAP.genericQuery,
-                            variables: { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_COMPANY_INFO }) },
-                        }),
                     ]);
                 setJobStatuses(statusRes.data?.genericQuery ?? []);
                 setJobTypes(typeRes.data?.genericQuery ?? []);
@@ -307,7 +328,6 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
                 setMasterStates((stateRes.data?.genericQuery ?? []).map(s => ({
                     id: s.id, code: (s as { gst_state_code?: string }).gst_state_code ?? s.code, name: s.name,
                 })));
-                setCompanyInfo(compRes.data?.genericQuery?.[0] ?? null);
             } catch {
                 toast.error(MESSAGES.ERROR_JOB_LOAD_FAILED);
             }
@@ -438,7 +458,8 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
 
     const handlePrintFromView = () => {
         if (!viewJob) return;
-        const url = getJobSheetBlobUrl(viewJob, companyInfo, globalBranch?.code);
+        const jobDivision = availableDivisions.find(d => d.id === viewJob.division_id) ?? currentDivision;
+        const url = getJobSheetBlobUrl(viewJob, jobDivision ?? null, globalBranch?.code);
         setPdfPreviewUrl(url);
         setPdfFilename(`Job-Sheet_${viewJob.job_date}_${viewJob.customer_name || "customer"}.pdf`);
         setShowPdfModal(true);
@@ -466,7 +487,8 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
                 return;
             }
             toast.dismiss(loadingToast);
-            const url = getJobSheetBlobUrl(details, companyInfo, globalBranch?.code);
+            const jobDivision = availableDivisions.find(d => d.id === details.division_id) ?? currentDivision;
+            const url = getJobSheetBlobUrl(details, jobDivision ?? null, globalBranch?.code);
             setPdfPreviewUrl(url);
             setPdfFilename(`Job-Sheet_${details.job_date}_${details.customer_name || "customer"}.pdf`);
             setShowPdfModal(true);
@@ -544,7 +566,7 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
                     <FormProvider {...form}>
                         <NewSingleJobForm
                         branchId={branchId}
-                        
+                        divisions={availableDivisions}
                         jobStatuses={jobStatuses}
                         jobTypes={jobTypes}
                         receiveMannners={receiveMannners}

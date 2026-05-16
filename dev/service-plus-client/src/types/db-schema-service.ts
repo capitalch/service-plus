@@ -114,10 +114,11 @@ const brand = {
   $input: null as unknown as BrandInput
 } as const;
 
-// Table company_info
-export interface CompanyInfo {
+// Table division
+export interface Division {
   id: number;
-  company_name: string;
+  branch_id: number;
+  name: string;
   address_line1: string;
   address_line2: string | null;
   city: string | null;
@@ -131,9 +132,10 @@ export interface CompanyInfo {
   created_at: Date;
   updated_at: Date;
 }
-export interface CompanyInfoInput {
+export interface DivisionInput {
   id: number;
-  company_name: string;
+  branch_id: number;
+  name: string;
   address_line1: string;
   address_line2?: string | null;
   city?: string | null;
@@ -147,14 +149,17 @@ export interface CompanyInfoInput {
   created_at?: Date;
   updated_at?: Date;
 }
-const company_info = {
-  tableName: 'company_info',
-  columns: ['id', 'company_name', 'address_line1', 'address_line2', 'city', 'state_id', 'country', 'pincode', 'phone', 'email', 'gstin', 'is_active', 'created_at', 'updated_at'],
-  requiredForInsert: ['id', 'company_name', 'address_line1', 'state_id'],
+const division = {
+  tableName: 'division',
+  columns: ['id', 'branch_id', 'name', 'address_line1', 'address_line2', 'city', 'state_id', 'country', 'pincode', 'phone', 'email', 'gstin', 'is_active', 'created_at', 'updated_at'],
+  requiredForInsert: ['id', 'branch_id', 'name', 'address_line1', 'state_id'],
   primaryKey: 'id',
-  foreignKeys: { state_id: { table: 'state', column: 'id', $type: null as unknown as State }, },
-  $type: null as unknown as CompanyInfo,
-  $input: null as unknown as CompanyInfoInput
+  foreignKeys: {
+    branch_id: { table: 'branch', column: 'id', $type: null as unknown as Branch },
+    state_id: { table: 'state', column: 'id', $type: null as unknown as State },
+  },
+  $type: null as unknown as Division,
+  $input: null as unknown as DivisionInput
 } as const;
 
 // Table customer_contact
@@ -243,6 +248,7 @@ export interface DocumentSequence {
   id: number;
   document_type_id: number;
   branch_id: number;
+  division_id: number | null;
   prefix: string | null;
   next_number: number;
   padding: number;
@@ -254,6 +260,7 @@ export interface DocumentSequenceInput {
   id: number;
   document_type_id: number;
   branch_id: number;
+  division_id?: number | null;
   prefix?: string | null;
   next_number: number;
   padding?: number;
@@ -263,12 +270,13 @@ export interface DocumentSequenceInput {
 }
 const document_sequence = {
   tableName: 'document_sequence',
-  columns: ['id', 'document_type_id', 'branch_id', 'prefix', 'next_number', 'padding', 'separator', 'created_at', 'updated_at'],
+  columns: ['id', 'document_type_id', 'branch_id', 'division_id', 'prefix', 'next_number', 'padding', 'separator', 'created_at', 'updated_at'],
   requiredForInsert: ['id', 'document_type_id', 'branch_id', 'next_number'],
   primaryKey: 'id',
   foreignKeys: {
     document_type_id: { table: 'document_type', column: 'id', $type: null as unknown as DocumentType },
     branch_id: { table: 'branch', column: 'id', $type: null as unknown as Branch },
+    division_id: { table: 'division', column: 'id', $type: null as unknown as Division },
   },
   $type: null as unknown as DocumentSequence,
   $input: null as unknown as DocumentSequenceInput
@@ -354,6 +362,7 @@ export interface Job {
   batch_no: number | null;
   estimate_amount: number;
   alternate_job_no: string | null;
+  division_id: number;
 }
 export interface JobInput {
   id: number;
@@ -386,15 +395,17 @@ export interface JobInput {
   batch_no?: number | null;
   estimate_amount?: number;
   alternate_job_no?: string | null;
+  division_id: number;
 }
 const job = {
   tableName: 'job',
-  columns: ['id', 'job_no', 'job_date', 'customer_contact_id', 'branch_id', 'technician_id', 'job_status_id', 'job_type_id', 'job_receive_manner_id', 'job_receive_condition_id', 'product_brand_model_id', 'serial_no', 'problem_reported', 'diagnosis', 'work_done', 'remarks', 'amount', 'delivery_date', 'is_closed', 'warranty_card_no', 'is_active', 'created_at', 'updated_at', 'address_snapshot', 'last_transaction_id', 'is_final', 'quantity', 'batch_no', 'estimate_amount', 'alternate_job_no'],
-  requiredForInsert: ['id', 'job_no', 'customer_contact_id', 'branch_id', 'job_status_id', 'job_type_id', 'job_receive_manner_id', 'product_brand_model_id'],
+  columns: ['id', 'job_no', 'job_date', 'customer_contact_id', 'branch_id', 'technician_id', 'job_status_id', 'job_type_id', 'job_receive_manner_id', 'job_receive_condition_id', 'product_brand_model_id', 'serial_no', 'problem_reported', 'diagnosis', 'work_done', 'remarks', 'amount', 'delivery_date', 'is_closed', 'warranty_card_no', 'is_active', 'created_at', 'updated_at', 'address_snapshot', 'last_transaction_id', 'is_final', 'quantity', 'batch_no', 'estimate_amount', 'alternate_job_no', 'division_id'],
+  requiredForInsert: ['id', 'job_no', 'customer_contact_id', 'branch_id', 'job_status_id', 'job_type_id', 'job_receive_manner_id', 'product_brand_model_id', 'division_id'],
   primaryKey: 'id',
   foreignKeys: {
     customer_contact_id: { table: 'customer_contact', column: 'id', $type: null as unknown as CustomerContact },
     branch_id: { table: 'branch', column: 'id', $type: null as unknown as Branch },
+    division_id: { table: 'division', column: 'id', $type: null as unknown as Division },
     technician_id: { table: 'technician', column: 'id', $type: null as unknown as Technician },
     job_status_id: { table: 'job_status', column: 'id', $type: null as unknown as JobStatus },
     job_type_id: { table: 'job_type', column: 'id', $type: null as unknown as JobType },
@@ -497,7 +508,6 @@ const job_image_doc = {
 export interface JobInvoice {
   id: number;
   job_id: number;
-  company_id: number;
   invoice_no: string;
   invoice_date: Date;
   supply_state_code: string;
@@ -513,7 +523,6 @@ export interface JobInvoice {
 export interface JobInvoiceInput {
   id: number;
   job_id: number;
-  company_id: number;
   invoice_no: string;
   invoice_date?: Date;
   supply_state_code: string;
@@ -528,12 +537,11 @@ export interface JobInvoiceInput {
 }
 const job_invoice = {
   tableName: 'job_invoice',
-  columns: ['id', 'job_id', 'company_id', 'invoice_no', 'invoice_date', 'supply_state_code', 'taxable_amount', 'cgst_amount', 'sgst_amount', 'igst_amount', 'total_tax', 'total_amount', 'created_at', 'updated_at'],
-  requiredForInsert: ['id', 'job_id', 'company_id', 'invoice_no', 'supply_state_code', 'taxable_amount', 'total_tax', 'total_amount'],
+  columns: ['id', 'job_id', 'invoice_no', 'invoice_date', 'supply_state_code', 'taxable_amount', 'cgst_amount', 'sgst_amount', 'igst_amount', 'total_tax', 'total_amount', 'created_at', 'updated_at'],
+  requiredForInsert: ['id', 'job_id', 'invoice_no', 'supply_state_code', 'taxable_amount', 'total_tax', 'total_amount'],
   primaryKey: 'id',
   foreignKeys: {
     job_id: { table: 'job', column: 'id', $type: null as unknown as Job },
-    company_id: { table: 'company_info', column: 'id', $type: null as unknown as CompanyInfo },
   },
   $type: null as unknown as JobInvoice,
   $input: null as unknown as JobInvoiceInput
@@ -997,7 +1005,7 @@ export interface SalesInvoice {
   id: number;
   invoice_no: string;
   invoice_date: Date;
-  company_id: number;
+  division_id: number;
   customer_contact_id: number;
   customer_name: string;
   customer_gstin: string | null;
@@ -1008,7 +1016,6 @@ export interface SalesInvoice {
   igst_amount: number;
   total_tax: number;
   total_amount: number;
-  branch_id: number;
   remarks: string | null;
   created_at: Date;
   updated_at: Date;
@@ -1018,7 +1025,7 @@ export interface SalesInvoiceInput {
   id: number;
   invoice_no: string;
   invoice_date: Date;
-  company_id: number;
+  division_id: number;
   customer_contact_id: number;
   customer_name: string;
   customer_gstin?: string | null;
@@ -1029,7 +1036,6 @@ export interface SalesInvoiceInput {
   igst_amount?: number;
   total_tax: number;
   total_amount: number;
-  branch_id: number;
   remarks?: string | null;
   created_at?: Date;
   updated_at?: Date;
@@ -1037,13 +1043,12 @@ export interface SalesInvoiceInput {
 }
 const sales_invoice = {
   tableName: 'sales_invoice',
-  columns: ['id', 'invoice_no', 'invoice_date', 'company_id', 'customer_contact_id', 'customer_name', 'customer_gstin', 'customer_state_code', 'aggregate_amount', 'cgst_amount', 'sgst_amount', 'igst_amount', 'total_tax', 'total_amount', 'branch_id', 'remarks', 'created_at', 'updated_at', 'is_return'],
-  requiredForInsert: ['id', 'invoice_no', 'invoice_date', 'company_id', 'customer_contact_id', 'customer_name', 'customer_state_code', 'aggregate_amount', 'total_tax', 'total_amount', 'branch_id'],
+  columns: ['id', 'invoice_no', 'invoice_date', 'division_id', 'customer_contact_id', 'customer_name', 'customer_gstin', 'customer_state_code', 'aggregate_amount', 'cgst_amount', 'sgst_amount', 'igst_amount', 'total_tax', 'total_amount', 'remarks', 'created_at', 'updated_at', 'is_return'],
+  requiredForInsert: ['id', 'invoice_no', 'invoice_date', 'division_id', 'customer_contact_id', 'customer_name', 'customer_state_code', 'aggregate_amount', 'total_tax', 'total_amount'],
   primaryKey: 'id',
   foreignKeys: {
-    company_id: { table: 'company_info', column: 'id', $type: null as unknown as CompanyInfo },
+    division_id: { table: 'division', column: 'id', $type: null as unknown as Division },
     customer_contact_id: { table: 'customer_contact', column: 'id', $type: null as unknown as CustomerContact },
-    branch_id: { table: 'branch', column: 'id', $type: null as unknown as Branch },
   },
   $type: null as unknown as SalesInvoice,
   $input: null as unknown as SalesInvoiceInput
@@ -1766,9 +1771,9 @@ export interface TableTypes {
     select: Brand;
     input: BrandInput;
   };
-  company_info: {
-    select: CompanyInfo;
-    input: CompanyInfoInput;
+  division: {
+    select: Division;
+    input: DivisionInput;
   };
   customer_contact: {
     select: CustomerContact;
@@ -1944,7 +1949,7 @@ export const tables = {
   app_setting,
   branch,
   brand,
-  company_info,
+  division,
   customer_contact,
   customer_type,
   document_sequence,

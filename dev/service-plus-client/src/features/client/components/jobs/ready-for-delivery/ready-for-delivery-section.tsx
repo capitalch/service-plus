@@ -21,7 +21,7 @@ import { selectDbName } from "@/features/auth/store/auth-slice";
 import { apolloClient } from "@/lib/apollo-client";
 import { encodeObj, graphQlUtils } from "@/lib/graphql-utils";
 import { currentFinancialYearRange } from "@/lib/utils";
-import { selectCurrentBranch, selectEffectiveGstStateCode, selectSchema } from "@/store/context-slice";
+import { selectAvailableDivisions, selectCurrentBranch, selectCurrentDivision, selectEffectiveGstStateCode, selectSchema } from "@/store/context-slice";
 import { useAppSelector } from "@/store/hooks";
 import type { JobDetailType, JobLookupRow } from "@/features/client/types/job";
 import type { DocumentSequenceRow } from "@/features/client/types/sales";
@@ -48,14 +48,10 @@ type ReadyJobRow = {
     job_status_name:  string;
     technician_name:  string | null;
     has_invoice:      boolean;
+    division_id:      number | null;
 };
 
-type CompanyInfoRow = {
-    id:             number;
-    company_name:   string;
-    gstin:          string | null;
-    gst_state_code: string | null;
-};
+type DivSeqRow = Pick<DocumentSequenceRow, "id" | "prefix" | "next_number" | "padding" | "separator"> & { document_type_code: string };
 
 type StateRow = {
     id:             number;
@@ -144,6 +140,8 @@ export const ReadyForDeliverySection = () => {
     const schema             = useAppSelector(selectSchema);
     const currentBranch      = useAppSelector(selectCurrentBranch);
     const effectiveStateCode = useAppSelector(selectEffectiveGstStateCode);
+    const availableDivisions = useAppSelector(selectAvailableDivisions);
+    const currentDivision    = useAppSelector(selectCurrentDivision);
     const branchId           = currentBranch?.id ?? null;
 
     const { from: defaultFrom, to: defaultTo } = currentFinancialYearRange();
@@ -160,8 +158,8 @@ export const ReadyForDeliverySection = () => {
     const [loading,  setLoading]  = useState(false);
 
     // ── Meta ────────────────────────────────────────────────────────────────
-    const [companyInfo,   setCompanyInfo]   = useState<CompanyInfoRow | null>(null);
     const [docSequence,   setDocSequence]   = useState<DocumentSequenceRow | null>(null);
+    const [jobDocSeq,     setJobDocSeq]     = useState<DocumentSequenceRow | null>(null);
     const [allStates,     setAllStates]     = useState<StateRow[]>([]);
     const [readyStatusId, setReadyStatusId] = useState<number | null>(null);
     const [metaLoaded,    setMetaLoaded]    = useState(false);
@@ -202,11 +200,6 @@ export const ReadyForDeliverySection = () => {
     useEffect(() => {
         if (!dbName || !schema || !branchId || metaLoaded) return;
         Promise.all([
-            apolloClient.query<GenericQueryData<CompanyInfoRow>>({
-                fetchPolicy: "network-only",
-                query:       GRAPHQL_MAP.genericQuery,
-                variables:   { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_COMPANY_INFO }) },
-            }),
             apolloClient.query<GenericQueryData<DocumentSequenceRow>>({
                 fetchPolicy: "network-only",
                 query:       GRAPHQL_MAP.genericQuery,
@@ -222,10 +215,7 @@ export const ReadyForDeliverySection = () => {
                 query:       GRAPHQL_MAP.genericQuery,
                 variables:   { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_JOB_STATUSES }) },
             }),
-        ]).then(([compRes, seqRes, stateRes, statusRes]) => {
-            const ci = compRes.data?.genericQuery?.[0] ?? null;
-            setCompanyInfo(ci);
-
+        ]).then(([seqRes, stateRes, statusRes]) => {
             const seqs = seqRes.data?.genericQuery ?? [];
             const jinvSeq = seqs.find(s => s.document_type_code === "JINV") ?? null;
             setDocSequence(jinvSeq);
@@ -236,7 +226,7 @@ export const ReadyForDeliverySection = () => {
             const readyStatus = statuses.find(s => s.code === "READY");
             setReadyStatusId(readyStatus?.id ?? null);
 
-            const defaultStateCode = ci?.gst_state_code ?? effectiveStateCode ?? "";
+            const defaultStateCode = effectiveStateCode ?? "";
             form.setValue("supply_state_code", defaultStateCode, { shouldValidate: true });
 
             setMetaLoaded(true);
@@ -244,11 +234,11 @@ export const ReadyForDeliverySection = () => {
     }, [dbName, schema, branchId, metaLoaded, effectiveStateCode]);
 
     // ── Load list data ──────────────────────────────────────────────────────
-    const loadData = useCallback(async (bid: number, from: string, to: string, q: string, pg: number) => {
+    const loadData = useCallback(async (bid: number, from: string, to: string, q: string, pg: number, divisionId: number | null = null) => {
         if (!dbName || !schema) return;
         setLoading(true);
         try {
-            const commonArgs = { branch_id: bid, from_date: from, to_date: to, search: q };
+            const commonArgs = { branch_id: bid, division_id: divisionId, from_date: from, to_date: to, search: q };
             const [dataRes, countRes] = await Promise.all([
                 apolloClient.query<GenericQueryData<ReadyJobRow>>({
                     fetchPolicy: "network-only",
@@ -281,8 +271,8 @@ export const ReadyForDeliverySection = () => {
 
     useEffect(() => {
         if (!branchId || subView !== "list") return;
-        void loadData(branchId, fromDate, toDate, searchQ, page);
-    }, [branchId, fromDate, toDate, searchQ, page, loadData, subView]);
+        void loadData(branchId, fromDate, toDate, searchQ, page, currentDivision?.id ?? null);
+    }, [branchId, fromDate, toDate, searchQ, page, loadData, subView, currentDivision]);
 
     function handleSearchChange(value: string) {
         setSearch(value);
@@ -311,9 +301,26 @@ export const ReadyForDeliverySection = () => {
             const job = jobRes.data?.genericQuery?.[0] ?? null;
             if (!job) { toast.error(MESSAGES.ERROR_JOB_INVOICE_LOAD_FAILED); return; }
 
+            const jobDivision = availableDivisions.find(d => d.id === job.division_id) ?? currentDivision;
+
+            // Fetch division-specific JINV sequence if job has a division
+            let activeSeq: DocumentSequenceRow | null = docSequence;
+            if (job.division_id && branchId) {
+                try {
+                    const divSeqRes = await apolloClient.query<GenericQueryData<DivSeqRow>>({
+                        fetchPolicy: "network-only",
+                        query:       GRAPHQL_MAP.genericQuery,
+                        variables:   { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_DOCUMENT_SEQUENCES_BY_DIVISION, sqlArgs: { branch_id: branchId, division_id: job.division_id } }) },
+                    });
+                    const divSeqs = divSeqRes.data?.genericQuery ?? [];
+                    const found = divSeqs.find(s => s.document_type_code === "JINV");
+                    if (found) activeSeq = found as DocumentSequenceRow;
+                } catch {}
+            }
+            setJobDocSeq(activeSeq !== docSequence ? activeSeq : null);
+
             const invoice = invRes.data?.genericQuery?.[0] ?? null;
 
-            // setSelectedRow(row);
             setSelectedJob(job);
             setExistingInvoice(invoice);
 
@@ -326,7 +333,7 @@ export const ReadyForDeliverySection = () => {
                 setIsIgst(hasIgst);
                 setLines(invoice.lines?.length ? invoice.lines.map(dbLineToFormLine) : [emptyFormLine()]);
             } else {
-                form.reset(getReadyForDeliveryDefaultValues(companyInfo?.gst_state_code ?? effectiveStateCode ?? ""));
+                form.reset(getReadyForDeliveryDefaultValues(jobDivision?.gst_state_code ?? effectiveStateCode ?? ""));
                 setIsIgst(false);
                 setLines([emptyFormLine()]);
             }
@@ -340,9 +347,9 @@ export const ReadyForDeliverySection = () => {
 
     function handleBack() {
         setSubView("list");
-        // setSelectedRow(null);
         setSelectedJob(null);
         setExistingInvoice(null);
+        setJobDocSeq(null);
     }
 
     // ── Auto-populate lines from parts used ─────────────────────────────────
@@ -408,20 +415,20 @@ export const ReadyForDeliverySection = () => {
         try {
             const linePayloads = lines.filter(l => l.description.trim()).map(l => buildLinePayload(l, isIgst));
             const isNew = !existingInvoice;
+            const activeSeq = jobDocSeq ?? docSequence;
 
             let sqlObject: Record<string, unknown>;
 
             if (isNew) {
-                if (!docSequence?.id) {
+                if (!activeSeq?.id) {
                     toast.error("JINV document sequence not configured.");
                     return;
                 }
-                const invoiceNo = buildInvoiceNo(docSequence);
+                const invoiceNo = buildInvoiceNo(activeSeq);
                 sqlObject = {
                     tableName: "job_invoice",
                     xData: {
                         job_id:            selectedJob.id,
-                        company_id:        companyInfo?.id ?? null,
                         invoice_no:        invoiceNo,
                         invoice_date:      values.invoice_date,
                         supply_state_code: values.supply_state_code,
@@ -435,7 +442,7 @@ export const ReadyForDeliverySection = () => {
                     xDetails: [
                         { tableName: "job_invoice_line", fkeyName: "job_invoice_id", xData: linePayloads },
                         { tableName: "job", xData: { id: selectedJob.id, job_status_id: readyStatusId } },
-                        { tableName: "document_sequence", xData: { id: docSequence.id, next_number: docSequence.next_number + 1 } },
+                        { tableName: "document_sequence", xData: { id: activeSeq.id, next_number: activeSeq.next_number + 1 } },
                     ],
                 };
             } else {
@@ -475,7 +482,7 @@ export const ReadyForDeliverySection = () => {
 
             toast.success(MESSAGES.SUCCESS_JOB_INVOICE_SAVED);
             handleBack();
-            if (branchId) void loadData(branchId, fromDate, toDate, searchQ, page);
+            if (branchId) void loadData(branchId, fromDate, toDate, searchQ, page, currentDivision?.id ?? null);
         } catch {
             toast.error(MESSAGES.ERROR_JOB_INVOICE_SAVE_FAILED);
         }
@@ -488,7 +495,8 @@ export const ReadyForDeliverySection = () => {
     // ─── Invoice View ─────────────────────────────────────────────────────────
 
     if (subView === "invoice" && selectedJob) {
-        const invoiceNo = existingInvoice?.invoice_no ?? (docSequence ? buildInvoiceNo(docSequence) : "—");
+        const activeSeq = jobDocSeq ?? docSequence;
+        const invoiceNo = existingInvoice?.invoice_no ?? (activeSeq ? buildInvoiceNo(activeSeq) : "—");
         const canSave   = form.formState.isValid && linesValid && !form.formState.isSubmitting && !!readyStatusId;
 
         return (
@@ -840,7 +848,7 @@ export const ReadyForDeliverySection = () => {
                     disabled={loading || !branchId}
                     size="sm"
                     variant="outline"
-                    onClick={() => { if (branchId) void loadData(branchId, fromDate, toDate, searchQ, page); }}
+                    onClick={() => { if (branchId) void loadData(branchId, fromDate, toDate, searchQ, page, currentDivision?.id ?? null); }}
                 >
                     <RefreshCw className="mr-1.5 h-3 w-3" /> Refresh
                 </Button>
@@ -853,7 +861,7 @@ export const ReadyForDeliverySection = () => {
                         <table className="min-w-full border-collapse">
                             <thead>
                                 <tr>
-                                    {["#","Date","Job No","Customer","Mobile","Status","Technician","Amount","Invoice","Action"].map(h => (
+                                    {["#","Date","Job No","Customer","Mobile","Status","Technician","Amount","Invoice",...(currentDivision ? [] : ["Division"]),"Action"].map(h => (
                                         <th key={h} className={thClass}>{h}</th>
                                     ))}
                                 </tr>
@@ -885,6 +893,7 @@ export const ReadyForDeliverySection = () => {
                                     <th className={thClass}>Technician</th>
                                     <th className={`${thClass} text-right`}>Amount</th>
                                     <th className={thClass}>Invoice</th>
+                                    {!currentDivision && <th className={thClass}>Division</th>}
                                     <th className={`${thClass} sticky right-0 z-20 !bg-[var(--cl-surface-2)]`}>Action</th>
                                 </tr>
                             </thead>
@@ -922,6 +931,13 @@ export const ReadyForDeliverySection = () => {
                                                 : <span className="text-xs text-[var(--cl-text-muted)]">—</span>
                                             }
                                         </td>
+                                        {!currentDivision && (
+                                            <td className={tdClass}>
+                                                <span className="text-xs text-[var(--cl-text-muted)]">
+                                                    {availableDivisions.find(d => d.id === row.division_id)?.name ?? "—"}
+                                                </span>
+                                            </td>
+                                        )}
                                         <td className={`${tdClass} sticky right-0 z-10 bg-[var(--cl-surface)] group-hover:bg-[var(--cl-surface-2)]`}>
                                             <Button
                                                 className="h-7 px-2 text-xs text-[var(--cl-text-muted)] hover:text-[var(--cl-accent)]"

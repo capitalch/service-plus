@@ -18,7 +18,8 @@ import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
-import { selectSchema } from "@/store/context-slice";
+import { selectDefaultDivisionId, selectSchema } from "@/store/context-slice";
+import type { DivisionContextType } from "@/features/client/types/division";
 import type { CustomerSearchRow } from "@/features/client/types/sales";
 import type { JobDetailType, JobSearchRow, JobLookupRow, ModelRow, TechnicianRow } from "@/features/client/types/job";
 import { CustomerInput } from "@/features/client/components/inventory/customer-input";
@@ -36,6 +37,7 @@ type GenericQueryData<T> = { genericQuery: T[] | null };
 
 type Props = {
     branchId: number | null;
+    divisions: DivisionContextType[];
     jobStatuses: JobLookupRow[];
     jobTypes: JobLookupRow[];
     receiveMannners: JobLookupRow[];
@@ -60,11 +62,12 @@ const labelCls = "text-xs font-extrabold text-[var(--cl-text)] uppercase trackin
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function NewSingleJobForm({
-    branchId, jobStatuses, jobTypes, receiveMannners, receiveConditions, models, brands, products, customerTypes, masterStates, editJob,
+    branchId, divisions, jobStatuses, jobTypes, receiveMannners, receiveConditions, models, brands, products, customerTypes, masterStates, editJob,
     onRefreshModels, onViewJob, onEditJob, onPrintPdf, onAttachFiles, refreshTrigger,
 }: Props) {
     const dbName = useAppSelector(selectDbName);
     const schema = useAppSelector(selectSchema);
+    const defaultDivisionId = useAppSelector(selectDefaultDivisionId);
     const [showAddModel, setShowAddModel] = useState(false);
     const form = useFormContext<SingleJobFormValues>();
     const { formState: { errors, isSubmitting }, setValue, watch } = form;
@@ -115,6 +118,7 @@ export function NewSingleJobForm({
                 problem_reported: d.problem_reported ?? "",
                 warranty_card_no: d.warranty_card_no ?? "",
                 remarks: d.remarks ?? "",
+                division_id: d.division_id ?? defaultDivisionId,
             });
         }).catch(() => toast.error(MESSAGES.ERROR_JOB_LOAD_FAILED));
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -166,6 +170,23 @@ export function NewSingleJobForm({
 
                         <Card className="border-[var(--cl-border)] shadow-md bg-[var(--cl-surface)] !overflow-visible flex-1 w-full">
                             <CardContent className="grid grid-cols-1 md:grid-cols-6 lg:grid-cols-12 gap-x-3 gap-y-3 !overflow-visible">
+
+                                {/* Division selector — only shown when multiple divisions exist */}
+                                {divisions.length > 1 && (
+                                    <div className="space-y-1.5 md:col-span-6 lg:col-span-12">
+                                        <Label className={labelCls}>Division <span className="text-red-500 ml-0.5">*</span></Label>
+                                        <select
+                                            className={`w-full h-9 rounded-md border text-sm px-2 bg-[var(--cl-surface-2)] text-[var(--cl-text)] ${!watch("division_id") ? "border-red-400" : "border-[var(--cl-border)]"}`}
+                                            value={watch("division_id") ?? ""}
+                                            onChange={e => setValue("division_id", e.target.value ? Number(e.target.value) : (undefined as unknown as number), { shouldValidate: true })}
+                                        >
+                                            <option value="">Select Division…</option>
+                                            {divisions.map(d => (
+                                                <option key={d.id} value={d.id}>{d.name}{d.gstin ? " (GST)" : " (Non-GST)"}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                )}
 
                                 {/* Row 1: Job No, Date, Customer, Manner */}
                                 <div className="space-y-1.5 md:col-span-6 lg:col-span-6 xl:col-span-3">

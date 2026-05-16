@@ -17,12 +17,12 @@ export const singleJobFormSchema = z.object({
     problem_reported:     z.string().optional().default(""),
     warranty_card_no:     z.string().optional().default(""),
     remarks:              z.string().optional().default(""),
-
+    division_id:          z.number().int().min(1).optional(),
 });
 
 export type SingleJobFormValues = z.infer<typeof singleJobFormSchema>;
 
-export function getSingleJobDefaultValues(): SingleJobFormValues {
+export function getSingleJobDefaultValues(defaultDivisionId = 1): SingleJobFormValues {
     return {
         customer_id:          undefined as unknown as number,
         customer_name:        "",
@@ -39,6 +39,6 @@ export function getSingleJobDefaultValues(): SingleJobFormValues {
         problem_reported:     "",
         warranty_card_no:     "",
         remarks:              "",
-
+        division_id:          defaultDivisionId,
     };
 }

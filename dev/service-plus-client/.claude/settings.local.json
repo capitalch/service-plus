@@ -37,7 +37,8 @@
       "Bash(chmod +x /tmp/analyze_rhf2.sh)",
       "Bash(bash /tmp/analyze_rhf2.sh)",
       "Bash(chmod +x /tmp/analyze_rhf3.sh)",
-      "Bash(bash /tmp/analyze_rhf3.sh)"
+      "Bash(bash /tmp/analyze_rhf3.sh)",
+      "Bash(git -C /home/sushant/projects/service-plus/dev/service-plus-server show 7391ec2:dev/service-plus-server/app/db/sql_bu.py)"
     ]
   }
 }

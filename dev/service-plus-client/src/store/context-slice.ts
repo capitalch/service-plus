@@ -1,5 +1,6 @@
 import { createSlice } from '@reduxjs/toolkit';
 import type { PayloadAction } from '@reduxjs/toolkit';
+import type { DivisionContextType } from '../features/client/types/division';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -22,29 +23,37 @@ export type BuContextType = {
 };
 
 type ContextStateType = {
-    availableBranches: BranchContextType[];
-    availableBus:      BuContextType[];
-    buGstStateCode:    string | null;
-    buGstin:           string | null;
-    companyName:       string | null;
-    currentBranch:     BranchContextType | null;
-    currentBu:         BuContextType | null;
-    defaultGstRate:    number;
-    isGstRegistered:   boolean;
+    availableBranches:        BranchContextType[];
+    availableBus:             BuContextType[];
+    availableDivisions:       DivisionContextType[];
+    buGstStateCode:           string | null;
+    buGstin:                  string | null;
+    companyName:              string | null;
+    currentBranch:            BranchContextType | null;
+    currentBu:                BuContextType | null;
+    currentDivision:          DivisionContextType | null;
+    defaultDivisionId:        number;
+    defaultGstRate:           number;
+    forceGstOnPartsForNonGst: boolean;
+    isGstRegistered:          boolean;
 };
 
 // ─── Initial State ────────────────────────────────────────────────────────────
 
 const initialState: ContextStateType = {
-    availableBranches: [],
-    availableBus:      [],
-    buGstStateCode:    null,
-    buGstin:           null,
-    companyName:       null,
-    currentBranch:     null,
-    currentBu:         null,
-    defaultGstRate:    0,
-    isGstRegistered:   false,
+    availableBranches:        [],
+    availableBus:             [],
+    availableDivisions:       [],
+    buGstStateCode:           null,
+    buGstin:                  null,
+    companyName:              null,
+    currentBranch:            null,
+    currentBu:                null,
+    currentDivision:          null,
+    defaultDivisionId:        1,
+    defaultGstRate:           0,
+    forceGstOnPartsForNonGst: false,
+    isGstRegistered:          false,
 };
 
 // ─── Slice ────────────────────────────────────────────────────────────────────
@@ -90,6 +99,22 @@ export const contextSlice = createSlice({
         setIsGstRegistered: (state, action: PayloadAction<boolean>) => {
             state.isGstRegistered = action.payload;
         },
+
+        setAvailableDivisions: (state, action: PayloadAction<DivisionContextType[]>) => {
+            state.availableDivisions = action.payload;
+        },
+
+        setCurrentDivision: (state, action: PayloadAction<DivisionContextType | null>) => {
+            state.currentDivision = action.payload;
+        },
+
+        setDefaultDivisionId: (state, action: PayloadAction<number>) => {
+            state.defaultDivisionId = action.payload;
+        },
+
+        setForceGstOnPartsForNonGst: (state, action: PayloadAction<boolean>) => {
+            state.forceGstOnPartsForNonGst = action.payload;
+        },
     },
 });
 
@@ -101,10 +126,14 @@ export const {
     setBuGstin,
     setAvailableBranches,
     setAvailableBus,
+    setAvailableDivisions,
     setCompanyName,
     setCurrentBranch,
     setCurrentBu,
+    setCurrentDivision,
+    setDefaultDivisionId,
     setDefaultGstRate,
+    setForceGstOnPartsForNonGst,
     setIsGstRegistered,
 } = contextSlice.actions;
 
@@ -114,13 +143,19 @@ type ContextRootState = { context: ContextStateType };
 
 export const selectAvailableBranches     = (state: ContextRootState) => state.context.availableBranches;
 export const selectAvailableBus          = (state: ContextRootState) => state.context.availableBus;
+export const selectAvailableDivisions    = (state: ContextRootState) => state.context.availableDivisions;
 export const selectBuGstStateCode        = (state: ContextRootState) => state.context.buGstStateCode;
 export const selectBuGstin               = (state: ContextRootState) => state.context.buGstin;
 export const selectCompanyName           = (state: ContextRootState) => state.context.companyName;
 export const selectCurrentBranch         = (state: ContextRootState) => state.context.currentBranch;
 export const selectCurrentBu             = (state: ContextRootState) => state.context.currentBu;
+export const selectCurrentDivision       = (state: ContextRootState) => state.context.currentDivision;
+export const selectDefaultDivisionId     = (state: ContextRootState) => state.context.defaultDivisionId;
 export const selectDefaultGstRate        = (state: ContextRootState) => state.context.defaultGstRate;
+export const selectForceGstOnPartsForNonGst = (state: ContextRootState) => state.context.forceGstOnPartsForNonGst;
 export const selectIsGstRegistered       = (state: ContextRootState) => state.context.isGstRegistered;
+export const selectIsGstMode             = (state: ContextRootState): boolean =>
+    !!state.context.currentDivision?.gstin;
 export const selectSchema                = (state: ContextRootState): string | null =>
     state.context.currentBu?.code?.toLowerCase() ?? null;
 export const selectEffectiveGstStateCode = (state: ContextRootState): string | null =>

@@ -1,6 +1,6 @@
 import { useCallback, useEffect } from "react";
 import { toast } from "sonner";
-import { BuildingIcon, GitBranchIcon } from "lucide-react";
+import { BuildingIcon, GitBranchIcon, LayoutGridIcon } from "lucide-react";
 
 import {
     Select,
@@ -19,20 +19,29 @@ import { selectCurrentUser, selectDbName } from "@/features/auth/store/auth-slic
 import {
     selectAvailableBus,
     selectAvailableBranches,
+    selectAvailableDivisions,
     selectCurrentBranch,
     selectCurrentBu,
+    selectCurrentDivision,
     setAvailableBranches,
     setAvailableBus,
+    setAvailableDivisions,
     setCurrentBranch,
     setCurrentBu,
+    setCurrentDivision,
+    setDefaultDivisionId,
+    setForceGstOnPartsForNonGst,
 } from "@/store/context-slice";
 import type { BranchContextType, BuContextType } from "@/store/context-slice";
+import type { DivisionContextType } from "@/features/client/types/division";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type BuBranchSwitcherPropsType = { variant?: 'admin' | 'client' };
 
-type GenericBranchDataType = { genericQuery: BranchContextType[] | null };
+type GenericBranchDataType  = { genericQuery: BranchContextType[] | null };
+type GenericDivisionDataType = { genericQuery: DivisionContextType[] | null };
+type GenericAppSettingDataType = { genericQuery: { setting_key: string; setting_value: unknown }[] | null };
 
 // ─── Style maps ───────────────────────────────────────────────────────────────
 
@@ -60,10 +69,12 @@ export const BuBranchSwitcher = ({ variant = 'admin' }: BuBranchSwitcherPropsTyp
     const dispatch        = useAppDispatch();
     const dbName          = useAppSelector(selectDbName);
     const user            = useAppSelector(selectCurrentUser);
-    const availableBus    = useAppSelector(selectAvailableBus);
-    const availableBranches = useAppSelector(selectAvailableBranches);
-    const currentBu       = useAppSelector(selectCurrentBu);
-    const currentBranch   = useAppSelector(selectCurrentBranch);
+    const availableBus       = useAppSelector(selectAvailableBus);
+    const availableBranches  = useAppSelector(selectAvailableBranches);
+    const availableDivisions = useAppSelector(selectAvailableDivisions);
+    const currentBu          = useAppSelector(selectCurrentBu);
+    const currentBranch      = useAppSelector(selectCurrentBranch);
+    const currentDivision    = useAppSelector(selectCurrentDivision);
 
     // ── Fetch branches for a given BU ─────────────────────────────────────────
 
@@ -166,6 +177,79 @@ export const BuBranchSwitcher = ({ variant = 'admin' }: BuBranchSwitcherPropsTyp
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [currentBu?.id]);
 
+    // ── On currentBranch change: fetch divisions + division app settings ────────
+
+    useEffect(() => {
+        if (!dbName || !currentBu || !currentBranch) {
+            dispatch(setAvailableDivisions([]));
+            dispatch(setCurrentDivision(null));
+            return;
+        }
+        const schema = currentBu.code.toLowerCase();
+
+        const divisionPromise = apolloClient.query<GenericDivisionDataType>({
+            fetchPolicy: 'network-only',
+            query: GRAPHQL_MAP.genericQuery,
+            variables: {
+                db_name: dbName,
+                schema,
+                value: graphQlUtils.buildGenericQueryValue({
+                    sqlId: SQL_MAP.GET_ACTIVE_DIVISIONS_BY_BRANCH,
+                    sqlArgs: { branch_id: currentBranch.id },
+                }),
+            },
+        });
+
+        const settingsPromise = apolloClient.query<GenericAppSettingDataType>({
+            fetchPolicy: 'network-only',
+            query: GRAPHQL_MAP.genericQuery,
+            variables: {
+                db_name: dbName,
+                schema,
+                value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_APP_SETTINGS }),
+            },
+        });
+
+        Promise.all([divisionPromise, settingsPromise]).then(([divRes, setRes]) => {
+            const divisions = divRes.data?.genericQuery ?? [];
+            dispatch(setAvailableDivisions(divisions));
+
+            const settings = setRes.data?.genericQuery ?? [];
+
+            const rawDefaultId = settings.find(s => s.setting_key === 'default_division_id')?.setting_value;
+            let defaultId = 1;
+            if (rawDefaultId !== undefined) {
+                let parsed: unknown = rawDefaultId;
+                if (typeof rawDefaultId === 'string') { try { parsed = JSON.parse(rawDefaultId); } catch { /* keep raw */ } }
+                defaultId = Number(parsed ?? 1);
+            }
+            dispatch(setDefaultDivisionId(defaultId));
+
+            const rawForce = settings.find(s => s.setting_key === 'force_gst_on_parts_for_non_gst_invoices')?.setting_value;
+            let force = false;
+            if (rawForce !== undefined) {
+                let parsed: unknown = rawForce;
+                if (typeof rawForce === 'string') { try { parsed = JSON.parse(rawForce); } catch { /* keep raw */ } }
+                force = parsed === true || parsed === 'true';
+            }
+            dispatch(setForceGstOnPartsForNonGst(force));
+
+            // Auto-select division
+            if (divisions.length === 0) {
+                dispatch(setCurrentDivision(null));
+            } else if (divisions.length === 1) {
+                dispatch(setCurrentDivision(divisions[0]));
+            } else {
+                const byDefault = divisions.find(d => d.id === defaultId) ?? null;
+                dispatch(setCurrentDivision(byDefault));
+            }
+        }).catch(() => {
+            dispatch(setAvailableDivisions([]));
+            dispatch(setCurrentDivision(null));
+        });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [currentBranch?.id]);
+
     // ── Handlers ─────────────────────────────────────────────────────────────
 
     async function handleBuChange(buIdStr: string) {
@@ -174,6 +258,8 @@ export const BuBranchSwitcher = ({ variant = 'admin' }: BuBranchSwitcherPropsTyp
         dispatch(setCurrentBu(bu));
         dispatch(setAvailableBranches([]));
         dispatch(setCurrentBranch(null));
+        dispatch(setAvailableDivisions([]));
+        dispatch(setCurrentDivision(null));
         try {
             const branches = await fetchBranches(bu.code);
             if (!branches) return;
@@ -191,6 +277,16 @@ export const BuBranchSwitcher = ({ variant = 'admin' }: BuBranchSwitcherPropsTyp
         if (!branch || branch.id === currentBranch?.id) return;
         dispatch(setCurrentBranch(branch));
         await persist(currentBu!.id, branch.id);
+    }
+
+    function handleDivisionChange(divisionIdStr: string) {
+        const divisionId = Number(divisionIdStr);
+        if (divisionId === 0) {
+            dispatch(setCurrentDivision(null));
+        } else {
+            const division = availableDivisions.find(d => d.id === divisionId) ?? null;
+            dispatch(setCurrentDivision(division));
+        }
     }
 
     // ── Nothing to show for super-admin ──────────────────────────────────────
@@ -266,6 +362,37 @@ export const BuBranchSwitcher = ({ variant = 'admin' }: BuBranchSwitcherPropsTyp
                                 </SelectContent>
                             </Select>
                         ) }
+                    </div>
+                </>
+            )}
+
+            {/* Division selector — only visible when multiple divisions exist */}
+            {availableDivisions.length > 1 && (
+                <>
+                    {isClient && <div className="h-4 w-px shrink-0 bg-[var(--cl-border)]" />}
+                    <div className={`flex items-center gap-1.5 ${isClient ? '' : 'flex-col gap-0.5 items-start'}`}>
+                        <span className={`flex shrink-0 items-center gap-1 font-medium ${s.labelSize} ${s.label}`}>
+                            <LayoutGridIcon className={`h-3 w-3 shrink-0 ${s.icon}`} />
+                            <span className={isClient ? 'hidden lg:inline' : 'inline'}>
+                                Division
+                            </span>
+                        </span>
+                        <Select
+                            value={currentDivision ? String(currentDivision.id) : "0"}
+                            onValueChange={handleDivisionChange}
+                        >
+                            <SelectTrigger className={`h-7 gap-1 pl-2.5 pr-2 text-xs ${s.trigger}`}>
+                                <SelectValue placeholder="All Divisions" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="0" className="text-xs">All Divisions</SelectItem>
+                                {availableDivisions.map(d => (
+                                    <SelectItem key={d.id} value={String(d.id)} className="text-xs">
+                                        {d.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                     </div>
                 </>
             )}

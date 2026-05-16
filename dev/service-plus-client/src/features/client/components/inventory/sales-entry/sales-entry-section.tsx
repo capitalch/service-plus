@@ -34,7 +34,7 @@ import { encodeObj, graphQlUtils } from "@/lib/graphql-utils";
 import { formatCurrency, currentFinancialYearRange } from "@/lib/utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
-import { selectCurrentBranch, selectSchema, selectCompanyName, selectIsGstRegistered } from "@/store/context-slice";
+import { selectCurrentBranch, selectSchema, selectCurrentDivision, selectIsGstMode, selectDefaultDivisionId, selectAvailableDivisions } from "@/store/context-slice";
 import type { BrandOption } from "@/features/client/types/model";
 import { BrandSelect } from "@/features/client/components/inventory/brand-select";
 import type { SalesInvoiceType, SalesLineType, DocumentSequenceRow } from "@/features/client/types/sales";
@@ -76,12 +76,15 @@ function buildInvoiceNo(seq: DocumentSequenceRow): string {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export const SalesEntrySection = () => {
-    const dbName          = useAppSelector(selectDbName);
-    const schema          = useAppSelector(selectSchema);
-    const globalBranch    = useAppSelector(selectCurrentBranch);
-    const branchId        = globalBranch?.id ?? null;
-    const companyName     = useAppSelector(selectCompanyName) || "Service Plus";
-    const isGstRegistered = useAppSelector(selectIsGstRegistered);
+    const dbName           = useAppSelector(selectDbName);
+    const schema           = useAppSelector(selectSchema);
+    const globalBranch     = useAppSelector(selectCurrentBranch);
+    const branchId         = globalBranch?.id ?? null;
+    const currentDivision  = useAppSelector(selectCurrentDivision);
+    const availableDivisions = useAppSelector(selectAvailableDivisions);
+    const defaultDivisionId  = useAppSelector(selectDefaultDivisionId);
+    const isGstMode        = useAppSelector(selectIsGstMode);
+    const companyName      = currentDivision?.name || globalBranch?.name || "Service Plus";
 
     const { from: defaultFrom, to: defaultTo } = currentFinancialYearRange();
 
@@ -242,32 +245,45 @@ export const SalesEntrySection = () => {
         void fetchMeta();
     }, [dbName, schema]);
 
-    // Load doc sequences when branchId is available
+    // Load doc sequences — division-level when currentDivision is set, otherwise branch-level
     useEffect(() => {
         if (!dbName || !schema || !branchId) return;
-        apolloClient.query<GenericQueryData<DocumentSequenceRow>>({
-            fetchPolicy: "network-only",
-            query: GRAPHQL_MAP.genericQuery,
-            variables: {
-                db_name: dbName, schema,
-                value: graphQlUtils.buildGenericQueryValue({
-                    sqlId:   SQL_MAP.GET_DOCUMENT_SEQUENCES,
-                    sqlArgs: { branch_id: branchId },
-                }),
-            },
-        }).then(res => {
+        const fetchSeqs = currentDivision?.id
+            ? apolloClient.query<GenericQueryData<DocumentSequenceRow>>({
+                fetchPolicy: "network-only",
+                query: GRAPHQL_MAP.genericQuery,
+                variables: {
+                    db_name: dbName, schema,
+                    value: graphQlUtils.buildGenericQueryValue({
+                        sqlId:   SQL_MAP.GET_DOCUMENT_SEQUENCES_BY_DIVISION,
+                        sqlArgs: { branch_id: branchId, division_id: currentDivision.id },
+                    }),
+                },
+            })
+            : apolloClient.query<GenericQueryData<DocumentSequenceRow>>({
+                fetchPolicy: "network-only",
+                query: GRAPHQL_MAP.genericQuery,
+                variables: {
+                    db_name: dbName, schema,
+                    value: graphQlUtils.buildGenericQueryValue({
+                        sqlId:   SQL_MAP.GET_DOCUMENT_SEQUENCES,
+                        sqlArgs: { branch_id: branchId },
+                    }),
+                },
+            });
+        fetchSeqs.then(res => {
             setDocSequences(res.data?.genericQuery ?? []);
         }).catch(() => {});
-    }, [dbName, schema, branchId]);
+    }, [dbName, schema, branchId, currentDivision?.id]);
 
     // Load invoices (paged)
     const loadData = useCallback(async (
-        bId: number, from: string, to: string, q: string, pg: number,
+        bId: number, from: string, to: string, q: string, pg: number, divisionId: number | null = null,
     ) => {
         if (!dbName || !schema) return;
         setLoading(true);
         try {
-            const commonArgs = { branch_id: bId, from_date: from, to_date: to, search: q };
+            const commonArgs = { branch_id: bId, division_id: divisionId, from_date: from, to_date: to, search: q };
             const [dataRes, countRes] = await Promise.all([
                 apolloClient.query<GenericQueryData<SalesInvoiceType>>({
                     fetchPolicy: "network-only",
@@ -303,8 +319,8 @@ export const SalesEntrySection = () => {
 
     useEffect(() => {
         if (!branchId || mode !== "view") return;
-        void loadData(Number(branchId), fromDate, toDate, searchQ, page);
-    }, [branchId, fromDate, toDate, searchQ, page, loadData, mode]);
+        void loadData(Number(branchId), fromDate, toDate, searchQ, page, currentDivision?.id ?? null);
+    }, [branchId, fromDate, toDate, searchQ, page, loadData, mode, currentDivision]);
 
     const handleSearchChange = (value: string) => {
         setSearch(value);
@@ -443,7 +459,7 @@ export const SalesEntrySection = () => {
                 toast.success(MESSAGES.SUCCESS_SALES_UPDATED);
                 handleReset();
                 setMode("view");
-                if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, 1);
+                if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, 1, currentDivision?.id ?? null);
             } else {
                 const docSequence = sinvSequence;
                 const invoiceNo   = docSequence ? buildInvoiceNo(docSequence) : "";
@@ -452,8 +468,8 @@ export const SalesEntrySection = () => {
                     doc_sequence_id:   docSequence?.id ?? null,
                     doc_sequence_next: docSequence ? (docSequence.next_number + 1) : null,
                     xData: {
-                        branch_id:  branchId,
-                        invoice_no: invoiceNo,
+                        division_id: currentDivision?.id ?? defaultDivisionId,
+                        invoice_no:  invoiceNo,
                         ...headerFields,
                         xDetails: {
                             tableName: "sales_invoice_line",
@@ -471,17 +487,30 @@ export const SalesEntrySection = () => {
                 handleReset();
                 // Refresh doc sequence after create
                 if (dbName && schema && branchId) {
-                    apolloClient.query<GenericQueryData<DocumentSequenceRow>>({
-                        fetchPolicy: "network-only",
-                        query: GRAPHQL_MAP.genericQuery,
-                        variables: {
-                            db_name: dbName, schema,
-                            value: graphQlUtils.buildGenericQueryValue({
-                                sqlId:   SQL_MAP.GET_DOCUMENT_SEQUENCES,
-                                sqlArgs: { branch_id: branchId },
-                            }),
-                        },
-                    }).then(res => setDocSequences(res.data?.genericQuery ?? [])).catch(() => {});
+                    const refreshQuery = currentDivision?.id
+                        ? apolloClient.query<GenericQueryData<DocumentSequenceRow>>({
+                            fetchPolicy: "network-only",
+                            query: GRAPHQL_MAP.genericQuery,
+                            variables: {
+                                db_name: dbName, schema,
+                                value: graphQlUtils.buildGenericQueryValue({
+                                    sqlId:   SQL_MAP.GET_DOCUMENT_SEQUENCES_BY_DIVISION,
+                                    sqlArgs: { branch_id: branchId, division_id: currentDivision.id },
+                                }),
+                            },
+                        })
+                        : apolloClient.query<GenericQueryData<DocumentSequenceRow>>({
+                            fetchPolicy: "network-only",
+                            query: GRAPHQL_MAP.genericQuery,
+                            variables: {
+                                db_name: dbName, schema,
+                                value: graphQlUtils.buildGenericQueryValue({
+                                    sqlId:   SQL_MAP.GET_DOCUMENT_SEQUENCES,
+                                    sqlArgs: { branch_id: branchId },
+                                }),
+                            },
+                        });
+                    refreshQuery.then(res => setDocSequences(res.data?.genericQuery ?? [])).catch(() => {});
                 }
             }
         } catch {
@@ -501,7 +530,7 @@ export const SalesEntrySection = () => {
             });
             toast.success(MESSAGES.SUCCESS_SALES_DELETED);
             setDeleteId(null);
-            if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, page);
+            if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, page, currentDivision?.id ?? null);
         } catch {
             toast.error(MESSAGES.ERROR_SALES_DELETE_FAILED);
         } finally {
@@ -663,14 +692,14 @@ export const SalesEntrySection = () => {
                         </h1>
                         {mode === "new" && (
                             <div className={`flex items-center gap-1 px-1.5 py-1 rounded-sm border shadow-sm animate-in fade-in zoom-in duration-500 delay-150 ml-4 ${
-                                isGstRegistered ? "bg-emerald-500/10 border-emerald-500/20" : "bg-red-500/10 border-red-500/20"
+                                isGstMode ? "bg-emerald-500/10 border-emerald-500/20" : "bg-red-500/10 border-red-500/20"
                             }`}>
-                                {isGstRegistered
+                                {isGstMode
                                     ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
                                     : <XCircle className="h-3.5 w-3.5 text-red-600" />
                                 }
-                                <span className={`text-[10.5px] font-bold uppercase tracking-tighter ${isGstRegistered ? "text-emerald-700" : "text-red-700"}`}>
-                                    {isGstRegistered ? "GST" : "No-GST"}
+                                <span className={`text-[10.5px] font-bold uppercase tracking-tighter ${isGstMode ? "text-emerald-700" : "text-red-700"}`}>
+                                    {isGstMode ? "GST" : "No-GST"}
                                 </span>
                             </div>
                         )}
@@ -690,7 +719,7 @@ export const SalesEntrySection = () => {
                     mode={mode}
                     isEditing={!!editInvoice}
                     onNewClick={() => { handleReset(); setMode("new"); }}
-                    onViewClick={() => { handleReset(); setMode("view"); if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, page); }}
+                    onViewClick={() => { handleReset(); setMode("view"); if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, page, currentDivision?.id ?? null); }}
                 />
 
                 {/* Brand */}
@@ -847,7 +876,7 @@ export const SalesEntrySection = () => {
                                 disabled={loading || !branchId}
                                 size="sm"
                                 variant="outline"
-                                onClick={() => { if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, page); }}
+                                onClick={() => { if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, page, currentDivision?.id ?? null); }}
                             >
                                 <RefreshCw className="mr-1.5 h-3 w-3" />
                                 Refresh
@@ -907,6 +936,7 @@ export const SalesEntrySection = () => {
                                             <th className={thClass}>Date</th>
                                             <th className={thClass}>Invoice No</th>
                                             <th className={thClass}>Customer</th>
+                                            {!currentDivision && <th className={thClass}>Division</th>}
                                             <th className={`${thClass} text-right`}>Aggregate</th>
                                             <th className={`${thClass} text-right`}>CGST</th>
                                             <th className={`${thClass} text-right`}>SGST</th>
@@ -929,6 +959,11 @@ export const SalesEntrySection = () => {
                                                     )}
                                                 </td>
                                                 <td className={tdClass} style={{ width: "26%" }}>{inv.customer_name}</td>
+                                                {!currentDivision && (
+                                                    <td className={tdClass}>
+                                                        <span className="text-xs text-[var(--cl-text-muted)]">{inv.division_name ?? "—"}</span>
+                                                    </td>
+                                                )}
                                                 <td className={`${tdClass} text-right`} style={{ width: "10%" }}>
                                                     {formatCurrency(inv.aggregate_amount)}
                                                 </td>
@@ -1014,7 +1049,7 @@ export const SalesEntrySection = () => {
                                     <tbody>
                                         <tr>
                                             <td className={tdClass} style={{ width: "5%" }}></td>
-                                            <td className={tdClass} colSpan={3}>
+                                            <td className={tdClass} colSpan={currentDivision ? 3 : 4}>
                                                 <div className="flex items-center justify-between">
                                                     <span className="text-xs text-[var(--cl-text-muted)]">{invoices.length} lines</span>
                                                     <span className="font-bold text-[var(--cl-text)]">Total:</span>
@@ -1092,7 +1127,7 @@ export const SalesEntrySection = () => {
 
                     {/* PDF Preview Dialog */}
                     <SalesInvoicePdfPreviewDialog
-                        branch={pdfPreviewInvoice ? (branches.find(b => b.id === pdfPreviewInvoice.branch_id) ?? null) : null}
+                        division={pdfPreviewInvoice ? (availableDivisions.find(d => d.id === pdfPreviewInvoice.division_id) ?? currentDivision) : null}
                         invoice={pdfPreviewInvoice}
                         open={pdfPreviewInvoice !== null}
                         onOpenChange={open => { if (!open) setPdfPreviewInvoice(null); }}

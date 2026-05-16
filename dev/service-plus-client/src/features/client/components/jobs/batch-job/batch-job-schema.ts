@@ -24,6 +24,7 @@ export const batchJobFormSchema = z.object({
     customer_id:       z.number({ error: MESSAGES.ERROR_JOB_CUSTOMER_REQUIRED }).int().positive(MESSAGES.ERROR_JOB_CUSTOMER_REQUIRED),
     customer_name:     z.string().optional().default(""),
     receive_manner_id: z.number({ error: MESSAGES.ERROR_JOB_RECEIVE_MANNER_REQUIRED }).int().positive(MESSAGES.ERROR_JOB_RECEIVE_MANNER_REQUIRED),
+    division_id:       z.number().int().min(1).optional(),
     rows: z.array(batchJobRowSchema).min(2, "Minimum 2 jobs are required for a batch"),
 });
 
@@ -47,12 +48,13 @@ export function getInitialBatchJobRow(): BatchJobRowFormValues {
     };
 }
 
-export function getBatchJobDefaultValues(): BatchJobFormValues {
+export function getBatchJobDefaultValues(defaultDivisionId = 1): BatchJobFormValues {
     return {
         batch_date:        new Date().toISOString().slice(0, 10),
         customer_id:       undefined as unknown as number,
         customer_name:     "",
         receive_manner_id: undefined as unknown as number,
+        division_id:       defaultDivisionId,
         rows:              [getInitialBatchJobRow(), getInitialBatchJobRow()],
     };
 }

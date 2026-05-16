@@ -1,7 +1,7 @@
 import { ClientLayout, useClientSelection } from "../components/client-layout";
 import { AppSettingsSection } from "../components/configurations/app-settings/app-settings-section";
-import { CompanyProfileSection } from "../components/configurations/company-profile/company-profile-section";
 import { DocumentSequenceSection } from "../components/configurations/document-sequence/document-sequence-section";
+import { DivisionSection } from "../components/masters/division/division-section";
 
 // ─── Coming Soon placeholder ──────────────────────────────────────────────────
 
@@ -25,8 +25,8 @@ function ConfigurationsContent() {
     const s = selected?.trim() || "";
 
     switch (s) {
-        case "Company Profile":
-            return <CompanyProfileSection />;
+        case "Divisions":
+            return <DivisionSection />;
         case "App Settings":
             return <AppSettingsSection />;
         case "Numbering / Auto Series":

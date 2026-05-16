@@ -2,7 +2,7 @@ import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import { formatCurrency } from "@/lib/utils";
 import type { SalesInvoiceType, SalesLineType } from "@/features/client/types/sales";
-import type { BranchType } from "@/features/client/components/masters/branch/branch";
+import type { DivisionContextType } from "@/features/client/types/division";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -18,15 +18,10 @@ function cityStatePinLine(city?: string | null, state?: string | null, pincode?:
 
 // ─── PDF Generator ────────────────────────────────────────────────────────────
 
-/**
- * Generates a professional Sales Invoice PDF.
- */
 export const generateSalesInvoicePdf = (
-    invoice:     SalesInvoiceType & { lines?: SalesLineType[] },
-    companyName: string,
-    branchName:  string,
-    branch:      BranchType | null,
-    saveAs?:     string
+    invoice:  SalesInvoiceType & { lines?: SalesLineType[] },
+    division: DivisionContextType | null,
+    saveAs?:  string
 ): jsPDF => {
     const doc = new jsPDF({ format: "a4", orientation: "p", unit: "mm" });
 
@@ -40,7 +35,7 @@ export const generateSalesInvoicePdf = (
     doc.setFont("helvetica", "bold");
     doc.setFontSize(14);
     doc.setTextColor(20, 20, 20);
-    doc.text("TAX INVOICE (SALES)", midX, currY, { align: "center" });
+    doc.text(division?.gstin ? "TAX INVOICE (SALES)" : "SALES INVOICE", midX, currY, { align: "center" });
     currY += 5;
 
     doc.setDrawColor(180, 180, 180);
@@ -62,11 +57,11 @@ export const generateSalesInvoicePdf = (
     doc.text("INVOICE DETAILS",      rightX, currY);
     currY += 4.5;
 
-    // Row 1 Content: Company Name | Invoice No
+    // Row 1 Content: Division Name | Invoice No
     doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(20, 20, 20);
-    doc.text(companyName, leftX, currY, { maxWidth: colW });
+    doc.text(division?.name ?? "Service Plus", leftX, currY, { maxWidth: colW });
 
     doc.setFontSize(7);
     doc.setTextColor(110, 110, 110);
@@ -76,14 +71,13 @@ export const generateSalesInvoicePdf = (
     doc.text(invoice.invoice_no, rightX + 22, currY);
     currY += 4.5;
 
-    // Row 1 Cont: Branch / Seller Address (Left) | Invoice Date + State Code (Right)
+    // Row 1 Cont: Division Address (Left) | Invoice Date + State Code (Right)
     const fromLines = buildAddressLines([
-        `Branch: ${branch?.name ?? branchName}`,
-        branch?.address_line1 ?? null,
-        branch?.address_line2 ?? null,
-        cityStatePinLine(branch?.city, branch?.state_name, branch?.pincode),
-        branch?.phone ? `Ph: ${branch.phone}`   : null,
-        branch?.gstin ? `GSTIN: ${branch.gstin}` : null,
+        division?.address_line1 ?? null,
+        division?.address_line2 ?? null,
+        cityStatePinLine(division?.city, null, division?.pincode),
+        division?.phone ? `Ph: ${division.phone}`   : null,
+        division?.gstin ? `GSTIN: ${division.gstin}` : null,
     ]);
 
     doc.setFont("helvetica", "normal");
@@ -294,7 +288,7 @@ export const generateSalesInvoicePdf = (
     doc.setFont("helvetica", "bold");
     doc.setFontSize(8.5);
     doc.setTextColor(40, 40, 40);
-    doc.text(`For, ${companyName}`, pageWidth - margin, footerY, { align: "right" });
+    doc.text(`For, ${division?.name ?? "Service Plus"}`, pageWidth - margin, footerY, { align: "right" });
 
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7.5);

@@ -16,6 +16,7 @@ import type { CustomerSearchRow } from "@/features/client/types/sales";
 import type { JobBatchDetailRow, JobLookupRow, ModelRow } from "@/features/client/types/job";
 import type { BrandOption, ProductOption } from "@/features/client/types/model";
 import type { CustomerTypeOption, StateOption } from "@/features/client/types/customer";
+import type { DivisionContextType } from "@/features/client/types/division";
 
 import { type BatchJobFormValues, getInitialBatchJobRow } from "./batch-job-schema";
 
@@ -23,6 +24,7 @@ import { type BatchJobFormValues, getInitialBatchJobRow } from "./batch-job-sche
 
 type Props = {
     branchId:          number | null;
+    divisions:         DivisionContextType[];
     jobTypes:          JobLookupRow[];
     receiveMannners:   JobLookupRow[];
     receiveConditions: JobLookupRow[];
@@ -45,7 +47,7 @@ const labelCls = "text-xs font-extrabold text-[var(--cl-text)] uppercase trackin
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function NewBatchJobForm({
-    branchId, jobTypes, receiveMannners, receiveConditions,
+    branchId, divisions, jobTypes, receiveMannners, receiveConditions,
     models, brands, products, customerTypes, masterStates,
     editBatchNo, editRows,
     onRefreshModels, onAttachFiles, form,
@@ -165,6 +167,22 @@ export function NewBatchJobForm({
                             {receiveMannners.filter(r => r.is_active).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
                         </select>
                     </div>
+
+                    {divisions.length > 1 && (
+                        <div className="space-y-0.5 shrink-0 w-44">
+                            <Label className={labelCls}>Division <span className="text-red-500">*</span></Label>
+                            <select
+                                className={`w-full h-8 rounded-md border text-xs px-2 bg-[var(--cl-surface-2)] text-[var(--cl-text)] ${!watch("division_id") ? "border-red-400" : "border-[var(--cl-border)]"}`}
+                                value={watch("division_id") ?? ""}
+                                onChange={e => setValue("division_id", e.target.value ? Number(e.target.value) : (undefined as unknown as number), { shouldValidate: true })}
+                            >
+                                <option value="">Select…</option>
+                                {divisions.map(d => (
+                                    <option key={d.id} value={d.id}>{d.name}{d.gstin ? " (GST)" : " (Non-GST)"}</option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
                 </CardContent>
             </Card>
 

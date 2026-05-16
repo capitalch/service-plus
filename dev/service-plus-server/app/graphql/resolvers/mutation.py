@@ -20,6 +20,7 @@ from app.graphql.resolvers.mutation_helper import (
     resolve_delete_unused_parts_by_brand_helper,
     resolve_drop_database_helper,
     resolve_feed_bu_seed_data_helper,
+    resolve_migrate_bu_schema_helper,
     resolve_generic_update_helper,
     resolve_generic_update_script_helper,
     resolve_mail_admin_credentials_helper,
@@ -118,6 +119,21 @@ async def resolve_feed_bu_seed_data(
         logger.error("Error feeding BU seed data: %s", e, exc_info=True)
         raise GraphQLException(
             message=AppMessages.BU_SEED_FEED_FAILED, extensions={"details": str(e)}
+        )
+
+
+@mutation.field("migrateBuSchema")
+async def resolve_migrate_bu_schema(
+    _, info, db_name: str = "", schema: str = "security", value: str = ""
+) -> Any:
+    try:
+        return await resolve_migrate_bu_schema_helper(db_name, schema, value)
+    except ValidationException:
+        raise
+    except Exception as e:
+        logger.error("Error migrating BU schema: %s", e, exc_info=True)
+        raise GraphQLException(
+            message=AppMessages.BU_MIGRATE_FAILED, extensions={"details": str(e)}
         )
 
 

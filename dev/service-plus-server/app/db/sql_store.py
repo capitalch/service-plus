@@ -175,7 +175,7 @@ class SqlStore:
             UNION ALL
             SELECT 1 FROM purchase_invoice  WHERE branch_id = (table "p_id")
             UNION ALL
-            SELECT 1 FROM sales_invoice     WHERE branch_id = (table "p_id")
+            SELECT 1 FROM sales_invoice si JOIN division d ON d.id = si.division_id WHERE d.branch_id = (table "p_id")
             UNION ALL
             SELECT 1 FROM stock_adjustment  WHERE branch_id = (table "p_id")
             UNION ALL
@@ -584,21 +584,86 @@ class SqlStore:
         RETURNING id, db_name
     """
 
-    # ── Company Info (Configurations) ─────────────────────────────────────────
+    # ── Division (Configurations) ──────────────────────────────────────────────
 
-    CHECK_COMPANY_INFO_EXISTS = """
-        with "dummy" as (values(1::int))
-        SELECT EXISTS(SELECT 1 FROM company_info) AS exists
+    GET_DIVISIONS_BY_BRANCH = """
+        with "p_branch_id" as (values(%(branch_id)s::bigint))
+        SELECT d.id, d.branch_id, d.name, d.address_line1, d.address_line2,
+               d.city, d.state_id, d.country, d.pincode, d.phone, d.email,
+               d.gstin, d.is_active,
+               s.gst_state_code
+        FROM division d
+        LEFT JOIN state s ON s.id = d.state_id
+        WHERE d.branch_id = (table "p_branch_id")
+        ORDER BY d.name
     """
 
-    GET_COMPANY_INFO = """
-        SELECT ci.id, ci.company_name, ci.address_line1, ci.address_line2,
-               ci.city, ci.state_id, ci.country, ci.pincode, ci.phone, ci.email,
-               ci.gstin, ci.is_active, s.gst_state_code
-        FROM company_info ci
-        LEFT JOIN state s ON s.id = ci.state_id
-        ORDER BY ci.id
-        LIMIT 1
+    GET_ACTIVE_DIVISIONS_BY_BRANCH = """
+        with "p_branch_id" as (values(%(branch_id)s::bigint))
+        SELECT d.id, d.branch_id, d.name, d.address_line1, d.address_line2,
+               d.city, d.state_id, d.country, d.pincode, d.phone, d.email,
+               d.gstin,
+               s.gst_state_code, s.id AS state_id
+        FROM division d
+        LEFT JOIN state s ON s.id = d.state_id
+        WHERE d.branch_id = (table "p_branch_id") AND d.is_active = true
+        ORDER BY d.name
+    """
+
+    GET_DIVISION_BY_ID = """
+        with "p_id" as (values(%(id)s::bigint))
+        SELECT d.id, d.branch_id, d.name, d.address_line1, d.address_line2,
+               d.city, d.state_id, d.country, d.pincode, d.phone, d.email,
+               d.gstin, d.is_active, s.gst_state_code
+        FROM division d
+        LEFT JOIN state s ON s.id = d.state_id
+        WHERE d.id = (table "p_id")
+    """
+
+    CHECK_DIVISION_NAME_EXISTS = """
+        with "p_branch_id" as (values(%(branch_id)s::bigint)),
+             "p_name"      as (values(%(name)s::text))
+        SELECT EXISTS(
+            SELECT 1 FROM division
+            WHERE branch_id = (table "p_branch_id")
+              AND UPPER(name) = UPPER((table "p_name"))
+        ) AS exists
+    """
+
+    CHECK_DIVISION_NAME_EXISTS_EXCLUDE_ID = """
+        with "p_branch_id" as (values(%(branch_id)s::bigint)),
+             "p_name"      as (values(%(name)s::text)),
+             "p_id"        as (values(%(id)s::bigint))
+        SELECT EXISTS(
+            SELECT 1 FROM division
+            WHERE branch_id = (table "p_branch_id")
+              AND UPPER(name) = UPPER((table "p_name"))
+              AND id <> (table "p_id")
+        ) AS exists
+    """
+
+    CHECK_DIVISION_IN_USE = """
+        with "p_id" as (values(%(id)s::bigint))
+        SELECT EXISTS(
+            SELECT 1 FROM job_invoice ji JOIN job j ON j.id = ji.job_id WHERE j.division_id = (table "p_id")
+            UNION ALL
+            SELECT 1 FROM sales_invoice WHERE division_id = (table "p_id")
+            UNION ALL
+            SELECT 1 FROM job WHERE division_id = (table "p_id")
+        ) AS in_use
+    """
+
+    GET_DOCUMENT_SEQUENCES_BY_DIVISION = """
+        with "p_branch_id"   as (values(%(branch_id)s::bigint)),
+             "p_division_id" as (values(%(division_id)s::bigint))
+        SELECT ds.id, ds.document_type_id, ds.branch_id, ds.division_id,
+               ds.prefix, ds.next_number, ds.padding, ds.separator,
+               dt.code AS document_type_code, dt.name AS doc_type_name
+        FROM document_sequence ds
+        JOIN document_type dt ON dt.id = ds.document_type_id
+        WHERE ds.branch_id   = (table "p_branch_id")
+          AND ds.division_id = (table "p_division_id")
+        ORDER BY dt.display_order
     """
 
     # ── Customer Types ────────────────────────────────────────────────────────
@@ -1790,7 +1855,7 @@ class SqlStore:
         SELECT EXISTS (
             SELECT 1 FROM branch           WHERE state_id = (table "p_id")
             UNION ALL
-            SELECT 1 FROM company_info     WHERE state_id = (table "p_id")
+            SELECT 1 FROM division         WHERE state_id = (table "p_id")
             UNION ALL
             SELECT 1 FROM customer_contact WHERE state_id = (table "p_id")
             UNION ALL
@@ -2148,13 +2213,16 @@ class SqlStore:
 
     GET_SALES_INVOICES_COUNT = """
         with
-            "p_branch_id" as (values(%(branch_id)s::bigint)),
-            "p_from_date" as (values(%(from_date)s::date)),
-            "p_to_date"   as (values(%(to_date)s::date)),
-            "p_search"    as (values(%(search)s::text))
+            "p_branch_id"   as (values(%(branch_id)s::bigint)),
+            "p_division_id" as (values(%(division_id)s::bigint)),
+            "p_from_date"   as (values(%(from_date)s::date)),
+            "p_to_date"     as (values(%(to_date)s::date)),
+            "p_search"      as (values(%(search)s::text))
         SELECT COUNT(*) AS total
         FROM sales_invoice si
-        WHERE si.branch_id = (table "p_branch_id")
+        JOIN division d ON d.id = si.division_id
+        WHERE d.branch_id = (table "p_branch_id")
+          AND ((table "p_division_id") IS NULL OR si.division_id = (table "p_division_id"))
           AND si.invoice_date BETWEEN (table "p_from_date") AND (table "p_to_date")
           AND ((table "p_search") = ''
            OR LOWER(si.invoice_no)    LIKE '%%' || LOWER((table "p_search")) || '%%'
@@ -2163,15 +2231,17 @@ class SqlStore:
 
     GET_SALES_INVOICES_PAGED = """
         with
-            "p_branch_id" as (values(%(branch_id)s::bigint)),
-            "p_from_date" as (values(%(from_date)s::date)),
-            "p_to_date"   as (values(%(to_date)s::date)),
-            "p_search"    as (values(%(search)s::text)),
-            "p_limit"     as (values(%(limit)s::int)),
-            "p_offset"    as (values(%(offset)s::int))
+            "p_branch_id"   as (values(%(branch_id)s::bigint)),
+            "p_division_id" as (values(%(division_id)s::bigint)),
+            "p_from_date"   as (values(%(from_date)s::date)),
+            "p_to_date"     as (values(%(to_date)s::date)),
+            "p_search"      as (values(%(search)s::text)),
+            "p_limit"       as (values(%(limit)s::int)),
+            "p_offset"      as (values(%(offset)s::int))
         SELECT
             si.id,
-            si.branch_id,
+            si.division_id,
+            d.name AS division_name,
             si.customer_contact_id,
             si.customer_name,
             si.customer_gstin,
@@ -2187,7 +2257,9 @@ class SqlStore:
             si.remarks,
             si.is_return
         FROM sales_invoice si
-        WHERE si.branch_id = (table "p_branch_id")
+        JOIN division d ON d.id = si.division_id
+        WHERE d.branch_id = (table "p_branch_id")
+          AND ((table "p_division_id") IS NULL OR si.division_id = (table "p_division_id"))
           AND si.invoice_date BETWEEN (table "p_from_date") AND (table "p_to_date")
           AND ((table "p_search") = ''
            OR LOWER(si.invoice_no)    LIKE '%%' || LOWER((table "p_search")) || '%%'
@@ -2200,7 +2272,7 @@ class SqlStore:
     GET_SALES_INVOICE_DETAIL = """
         with "p_id" as (values(%(id)s::bigint))
         SELECT
-            si.id, si.branch_id, si.customer_contact_id, si.customer_name,
+            si.id, si.division_id, si.customer_contact_id, si.customer_name,
             si.customer_gstin, si.customer_state_code,
             si.invoice_no, si.invoice_date,
             si.aggregate_amount, si.cgst_amount, si.sgst_amount, si.igst_amount,
@@ -3729,14 +3801,16 @@ class SqlStore:
 
     GET_READY_JOBS_COUNT = """
         with
-            "p_branch_id" as (values(%(branch_id)s::bigint)),
-            "p_from_date" as (values(%(from_date)s::date)),
-            "p_to_date"   as (values(%(to_date)s::date)),
-            "p_search"    as (values(%(search)s::text))
+            "p_branch_id"   as (values(%(branch_id)s::bigint)),
+            "p_division_id" as (values(%(division_id)s::bigint)),
+            "p_from_date"   as (values(%(from_date)s::date)),
+            "p_to_date"     as (values(%(to_date)s::date)),
+            "p_search"      as (values(%(search)s::text))
         SELECT COUNT(*) AS total
         FROM job j
         JOIN customer_contact cc ON cc.id = j.customer_contact_id
         WHERE j.branch_id = (table "p_branch_id")
+          AND ((table "p_division_id") IS NULL OR j.division_id = (table "p_division_id"))
           AND j.job_date BETWEEN (table "p_from_date") AND (table "p_to_date")
           AND j.is_final = true
           AND j.is_closed = false
@@ -3749,13 +3823,15 @@ class SqlStore:
 
     GET_READY_JOBS_PAGED = """
         with
-            "p_branch_id" as (values(%(branch_id)s::bigint)),
-            "p_from_date" as (values(%(from_date)s::date)),
-            "p_to_date"   as (values(%(to_date)s::date)),
-            "p_search"    as (values(%(search)s::text)),
-            "p_limit"     as (values(%(limit)s::int)),
-            "p_offset"    as (values(%(offset)s::int))
+            "p_branch_id"   as (values(%(branch_id)s::bigint)),
+            "p_division_id" as (values(%(division_id)s::bigint)),
+            "p_from_date"   as (values(%(from_date)s::date)),
+            "p_to_date"     as (values(%(to_date)s::date)),
+            "p_search"      as (values(%(search)s::text)),
+            "p_limit"       as (values(%(limit)s::int)),
+            "p_offset"      as (values(%(offset)s::int))
         SELECT j.id, j.job_no, j.alternate_job_no, j.job_date, j.amount,
+               j.division_id,
                cc.full_name AS customer_name, cc.mobile,
                js.name      AS job_status_name,
                t.name       AS technician_name,
@@ -3767,6 +3843,7 @@ class SqlStore:
         JOIN job_status        js ON js.id = j.job_status_id
         LEFT JOIN technician   t  ON t.id  = j.technician_id
         WHERE j.branch_id = (table "p_branch_id")
+          AND ((table "p_division_id") IS NULL OR j.division_id = (table "p_division_id"))
           AND j.job_date BETWEEN (table "p_from_date") AND (table "p_to_date")
           AND j.is_final = true
           AND j.is_closed = false
@@ -3782,7 +3859,7 @@ class SqlStore:
 
     GET_JOB_INVOICE_BY_JOB = """
         with "p_job_id" as (values(%(job_id)s::bigint))
-        SELECT ji.id, ji.job_id, ji.company_id, ji.invoice_no, ji.invoice_date,
+        SELECT ji.id, ji.job_id, ji.invoice_no, ji.invoice_date,
                ji.supply_state_code, ji.taxable_amount, ji.cgst_amount, ji.sgst_amount,
                ji.igst_amount, ji.total_tax, ji.total_amount,
                COALESCE(

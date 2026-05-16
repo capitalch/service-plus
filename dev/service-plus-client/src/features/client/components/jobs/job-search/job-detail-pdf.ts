@@ -3,7 +3,7 @@ import { jsPDF } from "jspdf";
 
 import type { JobDetailType } from "@/features/client/types/job";
 import type { JobTransactionRow } from "@/features/client/types/job";
-import type { CompanyInfoType } from "@/features/client/components/jobs/job-sheet-pdf";
+import type { DivisionContextType } from "@/features/client/types/division";
 
 function fmt(val: string | number | null | undefined, fallback = "—"): string {
     if (val == null || val === "") return fallback;
@@ -28,7 +28,7 @@ function fmtDateTime(iso: string): string {
 function buildJobDetailDoc(
     job: JobDetailType,
     transactions: JobTransactionRow[],
-    companyInfo: CompanyInfoType | null,
+    division: DivisionContextType | null,
 ): jsPDF {
     const doc       = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
@@ -37,30 +37,30 @@ function buildJobDetailDoc(
     doc.setProperties({
         title:   `Job-Detail_${job.job_no}`,
         subject: "Job Detail Report",
-        author:  companyInfo?.company_name ?? "Service Plus",
+        author:  division?.name ?? "Service Plus",
         creator: "Service Plus",
     });
 
     // ── Header ────────────────────────────────────────────────────────────────
     doc.setFontSize(15);
     doc.setFont("helvetica", "bold");
-    doc.text(companyInfo?.company_name ?? "Service Plus", pageWidth / 2, 14, { align: "center" });
+    doc.text(division?.name ?? "Service Plus", pageWidth / 2, 14, { align: "center" });
 
     doc.setFontSize(9);
     doc.setFont("helvetica", "normal");
     let y = 19;
 
-    if (companyInfo) {
-        const addr = [companyInfo.address_line1, companyInfo.address_line2, companyInfo.city, companyInfo.pincode]
+    if (division) {
+        const addr = [division.address_line1, division.address_line2, division.city, division.pincode]
             .filter(Boolean).join(", ");
         doc.text(addr, pageWidth / 2, y, { align: "center" });
         y += 4;
         const contact = [
-            companyInfo.phone && `Phone: ${companyInfo.phone}`,
-            companyInfo.email && `Email: ${companyInfo.email}`,
+            division.phone && `Phone: ${division.phone}`,
+            division.email && `Email: ${division.email}`,
         ].filter(Boolean).join(" | ");
         if (contact) { doc.text(contact, pageWidth / 2, y, { align: "center" }); y += 4; }
-        if (companyInfo.gstin) { doc.text(`GSTIN: ${companyInfo.gstin}`, pageWidth / 2, y, { align: "center" }); y += 4; }
+        if (division.gstin) { doc.text(`GSTIN: ${division.gstin}`, pageWidth / 2, y, { align: "center" }); y += 4; }
     }
 
     // ── Title ─────────────────────────────────────────────────────────────────
@@ -174,7 +174,7 @@ function buildJobDetailDoc(
 export function getJobDetailPdfBlobUrl(
     job: JobDetailType,
     transactions: JobTransactionRow[],
-    companyInfo: CompanyInfoType | null,
+    division: DivisionContextType | null,
 ): string {
-    return String(buildJobDetailDoc(job, transactions, companyInfo).output("bloburl"));
+    return String(buildJobDetailDoc(job, transactions, division).output("bloburl"));
 }

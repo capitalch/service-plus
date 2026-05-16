@@ -10,14 +10,10 @@ import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import {
-    selectCompanyName,
-    selectIsGstRegistered,
+    selectCurrentDivision,
+    selectIsGstMode,
     selectSchema,
-    setBuGstStateCode,
-    setBuGstin,
-    setCompanyName,
     setDefaultGstRate,
-    setIsGstRegistered,
 } from "@/store/context-slice";
 import { ClientActivityBar } from "./client-activity-bar";
 import { ClientExplorerPanel } from "./client-explorer-panel";
@@ -67,7 +63,7 @@ const SECTION_LABELS: Record<Section, string> = {
 };
 
 const SECTION_DEFAULTS: Record<Section, string> = {
-    configurations: 'Company Profile',
+    configurations: 'Divisions',
     dashboard:      'Overview',
     inventory:      'Stock Overview',
     jobs:           'Single Job',
@@ -92,8 +88,8 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
     const dispatch                          = useAppDispatch();
     const dbName                            = useAppSelector(selectDbName);
     const schema                            = useAppSelector(selectSchema);
-    const companyName                       = useAppSelector(selectCompanyName);
-    const isGstRegistered                    = useAppSelector(selectIsGstRegistered);
+    const currentDivision                   = useAppSelector(selectCurrentDivision);
+    const isGstMode                         = useAppSelector(selectIsGstMode);
     const [selected, setSelected]           = useState(() => SECTION_DEFAULTS[activeSection]);
     const [selectedGroup, setSelectedGroup] = useState(() => SECTION_DEFAULT_GROUPS[activeSection]);
     const [explorerOpen, setExplorerOpen]   = useState(() => window.innerWidth >= 1024);
@@ -124,20 +120,6 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
 
     useEffect(() => {
         if (!dbName || !schema) return;
-
-        void apolloClient.query<{ genericQuery: { company_name: string; gstin: string | null; gst_state_code: string | null }[] }>({
-            fetchPolicy: 'network-only',
-            query:       GRAPHQL_MAP.genericQuery,
-            variables:   { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_COMPANY_INFO }) },
-        }).then(res => {
-            const company = res.data?.genericQuery?.[0];
-            if (company) {
-                dispatch(setCompanyName(company.company_name));
-                dispatch(setIsGstRegistered(!!company.gstin));
-                dispatch(setBuGstin(company.gstin ?? null));
-                dispatch(setBuGstStateCode(company.gst_state_code ?? null));
-            }
-        }).catch(() => {/* silently ignore */});
 
         void apolloClient.query<{ genericQuery: { setting_key: string; setting_value: unknown }[] }>({
             fetchPolicy: 'network-only',
@@ -195,14 +177,14 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
                         <p className="text-xs font-bold text-[var(--cl-accent-text)] tracking-wider">
                             {displayTitle}
                         </p>
-                        {companyName && (
+                        {currentDivision && (
                             <div className="flex items-center gap-2.5">
-                                {isGstRegistered && (
+                                {isGstMode && (
                                     <span className="ml-1 text-[10px] font-bold text-emerald-500 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20 leading-none">GST</span>
                                 )}
                                 <Building2 className="h-4 w-4 text-[var(--cl-accent)]" />
                                 <span className="text-sm font-bold text-[var(--cl-text)] tracking-tight uppercase">
-                                    {companyName}
+                                    {currentDivision.name}
                                 </span>
                             </div>
                         )}

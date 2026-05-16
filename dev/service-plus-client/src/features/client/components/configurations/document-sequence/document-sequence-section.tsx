@@ -15,20 +15,21 @@ import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
-import { selectCurrentBranch, selectSchema } from "@/store/context-slice";
+import { selectAvailableDivisions, selectCurrentBranch, selectSchema } from "@/store/context-slice";
 
 // ─── Types & Schema ───────────────────────────────────────────────────────────
 
 type SequenceRow = {
-    document_type_id: number;
+    document_type_id:   number;
     document_type_name: string;
     document_type_code: string;
-    id: number | null;
-    prefix: string | null;
-    next_number: number | null;
-    padding: number | null;
-    separator: string | null;
-    branch_id: number | null;
+    id:                 number | null;
+    prefix:             string | null;
+    next_number:        number | null;
+    padding:            number | null;
+    separator:          string | null;
+    branch_id:          number | null;
+    division_id:        number | null;
 };
 
 const sequenceItemSchema = z.object({
@@ -54,11 +55,15 @@ type GenericQueryData<T> = {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export const DocumentSequenceSection = () => {
-    const dbName = useAppSelector(selectDbName);
-    const schema = useAppSelector(selectSchema);
-    const currentBranch = useAppSelector(selectCurrentBranch);
+    const dbName           = useAppSelector(selectDbName);
+    const schema           = useAppSelector(selectSchema);
+    const currentBranch    = useAppSelector(selectCurrentBranch);
+    const availableDivisions = useAppSelector(selectAvailableDivisions);
 
-    const [loading,       setLoading]       = useState(false);
+    // activeTab: 'branch' | division_id (number)
+    const [activeTab, setActiveTab] = useState<'branch' | number>('branch');
+    const [loading,   setLoading]   = useState(false);
+
     const form = useForm<SequencesFormType>({
         defaultValues: { sequences: [] },
         mode: "onChange",
@@ -72,25 +77,56 @@ export const DocumentSequenceSection = () => {
 
     const { formState: { errors } } = form;
 
-    // 1. Load sequences when branch changes
-    const loadSequences = async (branchId: number) => {
+    // Reset tab to branch if no divisions
+    useEffect(() => {
+        if (availableDivisions.length === 0) setActiveTab('branch');
+    }, [availableDivisions.length]);
+
+    // Load sequences when branch or active tab changes
+    useEffect(() => {
+        if (!currentBranch?.id) {
+            form.reset({ sequences: [] });
+            return;
+        }
+        void loadSequences(currentBranch.id, activeTab);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [currentBranch?.id, activeTab, dbName, schema]);
+
+    const loadSequences = async (branchId: number, tab: 'branch' | number) => {
         if (!dbName || !schema) return;
         setLoading(true);
         try {
-            const res = await apolloClient.query<GenericQueryData<SequenceRow>>({
-                fetchPolicy: "network-only",
-                query: GRAPHQL_MAP.genericQuery,
-                variables: {
-                    db_name: dbName,
-                    schema,
-                    value: graphQlUtils.buildGenericQueryValue({
-                        sqlArgs: { branch_id: branchId },
-                        sqlId: SQL_MAP.GET_DOCUMENT_SEQUENCES,
-                    }),
-                },
-            });
+            let rows: SequenceRow[];
+            if (tab === 'branch') {
+                const res = await apolloClient.query<GenericQueryData<SequenceRow>>({
+                    fetchPolicy: "network-only",
+                    query: GRAPHQL_MAP.genericQuery,
+                    variables: {
+                        db_name: dbName,
+                        schema,
+                        value: graphQlUtils.buildGenericQueryValue({
+                            sqlArgs: { branch_id: branchId },
+                            sqlId: SQL_MAP.GET_DOCUMENT_SEQUENCES,
+                        }),
+                    },
+                });
+                rows = res.data?.genericQuery ?? [];
+            } else {
+                const res = await apolloClient.query<GenericQueryData<SequenceRow>>({
+                    fetchPolicy: "network-only",
+                    query: GRAPHQL_MAP.genericQuery,
+                    variables: {
+                        db_name: dbName,
+                        schema,
+                        value: graphQlUtils.buildGenericQueryValue({
+                            sqlArgs: { division_id: tab },
+                            sqlId: SQL_MAP.GET_DOCUMENT_SEQUENCES_BY_DIVISION,
+                        }),
+                    },
+                });
+                rows = res.data?.genericQuery ?? [];
+            }
 
-            const rows = res.data?.genericQuery ?? [];
             form.reset({
                 sequences: rows.map(r => ({
                     document_type_id:   r.document_type_id,
@@ -109,21 +145,11 @@ export const DocumentSequenceSection = () => {
         }
     };
 
-    useEffect(() => {
-        if (currentBranch?.id) {
-            void loadSequences(currentBranch.id);
-        } else {
-            form.reset({ sequences: [] });
-        }
-    }, [currentBranch?.id, dbName, schema]); // eslint-disable-line react-hooks/exhaustive-deps
-
-    // 3. Submit
     async function onSubmit(data: SequencesFormType) {
         if (!dbName || !schema || !currentBranch?.id) return;
         try {
             const branchId = currentBranch.id;
-            
-            // Build the array of xData for genericUpdate
+
             const xDataArray = data.sequences.map(seq => {
                 const row: Record<string, unknown> = {
                     document_type_id: seq.document_type_id,
@@ -133,9 +159,8 @@ export const DocumentSequenceSection = () => {
                     padding:          seq.padding,
                     separator:        seq.separator || "",
                 };
-                if (seq.id) {
-                    row.id = seq.id;
-                }
+                if (seq.id) row.id = seq.id;
+                if (activeTab !== 'branch') row.division_id = activeTab;
                 return row;
             });
 
@@ -152,13 +177,17 @@ export const DocumentSequenceSection = () => {
             });
 
             toast.success(MESSAGES.SUCCESS_DOCUMENT_SEQUENCE_SAVED);
-            await loadSequences(branchId);
+            await loadSequences(branchId, activeTab);
         } catch {
             toast.error(MESSAGES.ERROR_DOCUMENT_SEQUENCE_SAVE_FAILED);
         }
     }
 
     const submitDisabled = Object.keys(errors).length > 0 || form.formState.isSubmitting || loading || !currentBranch?.id;
+
+    const activeDivision = typeof activeTab === 'number'
+        ? availableDivisions.find(d => d.id === activeTab) ?? null
+        : null;
 
     // ── Render ─────────────────────────────────────────────────────────────────
 
@@ -169,7 +198,7 @@ export const DocumentSequenceSection = () => {
             initial={{ opacity: 0, y: 8 }}
             transition={{ duration: 0.2 }}
         >
-            {/* Header & Branch Selector */}
+            {/* Header */}
             <div className="flex flex-col gap-4 border-b border-[var(--cl-border)] pb-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-3">
                     <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--cl-accent)]/10">
@@ -178,11 +207,50 @@ export const DocumentSequenceSection = () => {
                     <div>
                         <h2 className="text-base font-semibold text-[var(--cl-text)]">Numbering / Auto Series</h2>
                         <p className="text-xs text-[var(--cl-text-muted)]">
-                            Configure document sequence prefixes and padding for <b>{currentBranch?.name || "selected branch"}</b>
+                            Configure document sequence prefixes and padding for{" "}
+                            <b>{activeDivision ? activeDivision.name : (currentBranch?.name || "selected branch")}</b>
                         </p>
                     </div>
                 </div>
             </div>
+
+            {/* Tabs — Branch + per division (when divisions exist) */}
+            {availableDivisions.length > 0 && (
+                <div className="flex gap-1 border-b border-[var(--cl-border)] pb-0">
+                    <button
+                        type="button"
+                        className={`px-4 py-2 text-xs font-semibold rounded-t-md border border-b-0 transition-colors ${
+                            activeTab === 'branch'
+                                ? 'border-[var(--cl-border)] bg-[var(--cl-surface)] text-[var(--cl-text)]'
+                                : 'border-transparent text-[var(--cl-text-muted)] hover:text-[var(--cl-text)]'
+                        }`}
+                        onClick={() => setActiveTab('branch')}
+                    >
+                        Branch
+                    </button>
+                    {availableDivisions.map(d => (
+                        <button
+                            key={d.id}
+                            type="button"
+                            className={`px-4 py-2 text-xs font-semibold rounded-t-md border border-b-0 transition-colors ${
+                                activeTab === d.id
+                                    ? 'border-[var(--cl-border)] bg-[var(--cl-surface)] text-[var(--cl-text)]'
+                                    : 'border-transparent text-[var(--cl-text-muted)] hover:text-[var(--cl-text)]'
+                            }`}
+                            onClick={() => setActiveTab(d.id)}
+                        >
+                            {d.name}
+                        </button>
+                    ))}
+                </div>
+            )}
+
+            {/* Note for division tab */}
+            {activeTab !== 'branch' && (
+                <p className="text-xs text-[var(--cl-text-muted)]">
+                    Division sequences override branch sequences for sale invoices and job invoices.
+                </p>
+            )}
 
             {/* Form */}
             {loading ? (

@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict FqBxTeEV6naWmBl3TjVvNrT4qY2q5xXdLf3vOewNwiOsmVNlh7RxHle25PRjdWw
+\restrict GzDPzKrPhTSQz7rnIh1lNnAODzW6VfqLVX4I4OjRLqDXzgRmLyrb7krM6pGTyap
 
 -- Dumped from database version 14.6
 -- Dumped by pg_dump version 17.9 (Ubuntu 17.9-0ubuntu0.25.10.1)
@@ -196,30 +196,6 @@ ALTER TABLE demo1.brand ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
 
 
 --
--- Name: company_info; Type: TABLE; Schema: demo1; Owner: webadmin
---
-
-CREATE TABLE demo1.company_info (
-    id integer NOT NULL,
-    company_name text NOT NULL,
-    address_line1 text NOT NULL,
-    address_line2 text,
-    city text,
-    state_id integer NOT NULL,
-    country text DEFAULT 'IN'::text,
-    pincode text,
-    phone text,
-    email text,
-    gstin text,
-    is_active boolean DEFAULT true NOT NULL,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL
-);
-
-
-ALTER TABLE demo1.company_info OWNER TO webadmin;
-
---
 -- Name: customer_contact; Type: TABLE; Schema: demo1; Owner: webadmin
 --
 
@@ -278,6 +254,31 @@ CREATE TABLE demo1.customer_type (
 ALTER TABLE demo1.customer_type OWNER TO webadmin;
 
 --
+-- Name: division; Type: TABLE; Schema: demo1; Owner: webadmin
+--
+
+CREATE TABLE demo1.division (
+    id bigint NOT NULL,
+    name text NOT NULL,
+    address_line1 text NOT NULL,
+    address_line2 text,
+    city text,
+    state_id integer NOT NULL,
+    country text DEFAULT 'IN'::text,
+    pincode text,
+    phone text,
+    email text,
+    gstin text,
+    is_active boolean DEFAULT true NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    branch_id bigint NOT NULL
+);
+
+
+ALTER TABLE demo1.division OWNER TO webadmin;
+
+--
 -- Name: document_sequence; Type: TABLE; Schema: demo1; Owner: webadmin
 --
 
@@ -290,7 +291,8 @@ CREATE TABLE demo1.document_sequence (
     padding smallint DEFAULT 0 NOT NULL,
     separator text,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    division_id bigint
 );
 
 
@@ -375,7 +377,8 @@ CREATE TABLE demo1.job (
     quantity integer DEFAULT 1 NOT NULL,
     batch_no integer,
     estimate_amount numeric(12,2) DEFAULT 0 NOT NULL,
-    alternate_job_no text
+    alternate_job_no text,
+    division_id bigint NOT NULL
 );
 
 
@@ -504,7 +507,6 @@ ALTER TABLE demo1.job_image_doc ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY
 CREATE TABLE demo1.job_invoice (
     id bigint NOT NULL,
     job_id bigint NOT NULL,
-    company_id smallint NOT NULL,
     invoice_no text NOT NULL,
     invoice_date date DEFAULT CURRENT_DATE NOT NULL,
     supply_state_code character(2) NOT NULL,
@@ -911,7 +913,6 @@ CREATE TABLE demo1.sales_invoice (
     id bigint NOT NULL,
     invoice_no text NOT NULL,
     invoice_date date NOT NULL,
-    company_id bigint NOT NULL,
     customer_contact_id bigint NOT NULL,
     customer_name text NOT NULL,
     customer_gstin text,
@@ -922,11 +923,11 @@ CREATE TABLE demo1.sales_invoice (
     igst_amount numeric(14,2) DEFAULT 0 NOT NULL,
     total_tax numeric(14,2) NOT NULL,
     total_amount numeric(14,2) NOT NULL,
-    branch_id bigint NOT NULL,
     remarks text,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
-    is_return boolean DEFAULT false NOT NULL
+    is_return boolean DEFAULT false NOT NULL,
+    division_id bigint NOT NULL
 );
 
 
@@ -1741,14 +1742,6 @@ ALTER TABLE ONLY demo1.brand
 
 
 --
--- Name: company_info company_info_pkey; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
---
-
-ALTER TABLE ONLY demo1.company_info
-    ADD CONSTRAINT company_info_pkey PRIMARY KEY (id);
-
-
---
 -- Name: customer_contact customer_contact_full_name_mobile_key; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
 --
 
@@ -1781,19 +1774,27 @@ ALTER TABLE ONLY demo1.customer_type
 
 
 --
+-- Name: division division_branch_id_name_key; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.division
+    ADD CONSTRAINT division_branch_id_name_key UNIQUE (branch_id, name);
+
+
+--
+-- Name: division division_pkey; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.division
+    ADD CONSTRAINT division_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: document_sequence document_sequence_pkey; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
 --
 
 ALTER TABLE ONLY demo1.document_sequence
     ADD CONSTRAINT document_sequence_pkey PRIMARY KEY (id);
-
-
---
--- Name: document_sequence document_sequence_unique; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
---
-
-ALTER TABLE ONLY demo1.document_sequence
-    ADD CONSTRAINT document_sequence_unique UNIQUE (document_type_id, branch_id);
 
 
 --
@@ -1861,11 +1862,11 @@ ALTER TABLE ONLY demo1.job_image_doc
 
 
 --
--- Name: job_invoice job_invoice_company_no_uidx; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+-- Name: job_invoice job_invoice_invoice_no_key; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
 --
 
 ALTER TABLE ONLY demo1.job_invoice
-    ADD CONSTRAINT job_invoice_company_no_uidx UNIQUE (company_id, invoice_no);
+    ADD CONSTRAINT job_invoice_invoice_no_key UNIQUE (invoice_no);
 
 
 --
@@ -2053,11 +2054,11 @@ ALTER TABLE ONLY demo1.purchase_invoice
 
 
 --
--- Name: sales_invoice sales_invoice_company_no_uidx; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+-- Name: sales_invoice sales_invoice_division_id_invoice_no_key; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
 --
 
 ALTER TABLE ONLY demo1.sales_invoice
-    ADD CONSTRAINT sales_invoice_company_no_uidx UNIQUE (company_id, invoice_no);
+    ADD CONSTRAINT sales_invoice_division_id_invoice_no_key UNIQUE (division_id, invoice_no);
 
 
 --
@@ -2403,6 +2404,13 @@ CREATE INDEX customer_contact_email_idx ON demo1.customer_contact USING btree (e
 
 
 --
+-- Name: document_sequence_unique; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE UNIQUE INDEX document_sequence_unique ON demo1.document_sequence USING btree (document_type_id, branch_id, COALESCE(division_id, (0)::bigint));
+
+
+--
 -- Name: idx_customer_contact_mobile; Type: INDEX; Schema: demo1; Owner: webadmin
 --
 
@@ -2414,6 +2422,13 @@ CREATE INDEX idx_customer_contact_mobile ON demo1.customer_contact USING btree (
 --
 
 CREATE INDEX idx_job_delivery_date ON demo1.job USING btree (delivery_date);
+
+
+--
+-- Name: idx_job_division; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX idx_job_division ON demo1.job USING btree (division_id);
 
 
 --
@@ -2845,14 +2860,6 @@ ALTER TABLE ONLY demo1.branch
 
 
 --
--- Name: company_info company_info_state_fk; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
---
-
-ALTER TABLE ONLY demo1.company_info
-    ADD CONSTRAINT company_info_state_fk FOREIGN KEY (state_id) REFERENCES demo1.state(id) ON DELETE RESTRICT;
-
-
---
 -- Name: customer_contact customer_contact_state_fk; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
 --
 
@@ -2866,6 +2873,22 @@ ALTER TABLE ONLY demo1.customer_contact
 
 ALTER TABLE ONLY demo1.customer_contact
     ADD CONSTRAINT customer_contact_type_fk FOREIGN KEY (customer_type_id) REFERENCES demo1.customer_type(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: division division_branch_id_fkey; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.division
+    ADD CONSTRAINT division_branch_id_fkey FOREIGN KEY (branch_id) REFERENCES demo1.branch(id) NOT VALID;
+
+
+--
+-- Name: division division_state_fk; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.division
+    ADD CONSTRAINT division_state_fk FOREIGN KEY (state_id) REFERENCES demo1.state(id) ON DELETE RESTRICT;
 
 
 --
@@ -2909,19 +2932,19 @@ ALTER TABLE ONLY demo1.job
 
 
 --
+-- Name: job job_division_id_fkey; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.job
+    ADD CONSTRAINT job_division_id_fkey FOREIGN KEY (division_id) REFERENCES demo1.division(id) NOT VALID;
+
+
+--
 -- Name: job_image_doc job_image_doc_job_id_fkey; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
 --
 
 ALTER TABLE ONLY demo1.job_image_doc
     ADD CONSTRAINT job_image_doc_job_id_fkey FOREIGN KEY (job_id) REFERENCES demo1.job(id);
-
-
---
--- Name: job_invoice job_invoice_company_fk; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
---
-
-ALTER TABLE ONLY demo1.job_invoice
-    ADD CONSTRAINT job_invoice_company_fk FOREIGN KEY (company_id) REFERENCES demo1.company_info(id) ON DELETE RESTRICT;
 
 
 --
@@ -3093,27 +3116,19 @@ ALTER TABLE ONLY demo1.purchase_invoice
 
 
 --
--- Name: sales_invoice sales_invoice_branch_fk; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
---
-
-ALTER TABLE ONLY demo1.sales_invoice
-    ADD CONSTRAINT sales_invoice_branch_fk FOREIGN KEY (branch_id) REFERENCES demo1.branch(id) ON DELETE RESTRICT;
-
-
---
--- Name: sales_invoice sales_invoice_company_fk; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
---
-
-ALTER TABLE ONLY demo1.sales_invoice
-    ADD CONSTRAINT sales_invoice_company_fk FOREIGN KEY (company_id) REFERENCES demo1.company_info(id) ON DELETE RESTRICT;
-
-
---
 -- Name: sales_invoice sales_invoice_customer_fk; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
 --
 
 ALTER TABLE ONLY demo1.sales_invoice
     ADD CONSTRAINT sales_invoice_customer_fk FOREIGN KEY (customer_contact_id) REFERENCES demo1.customer_contact(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: sales_invoice sales_invoice_division_id_fkey; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.sales_invoice
+    ADD CONSTRAINT sales_invoice_division_id_fkey FOREIGN KEY (division_id) REFERENCES demo1.division(id) NOT VALID;
 
 
 --
@@ -3456,5 +3471,5 @@ ALTER TABLE ONLY security.user_bu_role
 -- PostgreSQL database dump complete
 --
 
-\unrestrict FqBxTeEV6naWmBl3TjVvNrT4qY2q5xXdLf3vOewNwiOsmVNlh7RxHle25PRjdWw
+\unrestrict GzDPzKrPhTSQz7rnIh1lNnAODzW6VfqLVX4I4OjRLqDXzgRmLyrb7krM6pGTyap
 

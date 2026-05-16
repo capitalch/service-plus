@@ -2,60 +2,48 @@ import autoTable from "jspdf-autotable";
 import { jsPDF } from "jspdf";
 
 import type { JobDetailType } from "@/features/client/types/job";
+import type { DivisionContextType } from "@/features/client/types/division";
 
-export type CompanyInfoType = {
-    address_line1:  string;
-    address_line2:  string | null;
-    city:           string | null;
-    company_name:   string;
-    email:          string | null;
-    gstin:          string | null;
-    gst_state_code: string | null;
-    id:             number;
-    phone:          string | null;
-    pincode:        string | null;
-};
-
-function buildSingleJobSheetDoc(job: JobDetailType, companyInfo: CompanyInfoType | null, branchCode?: string): jsPDF {
+function buildSingleJobSheetDoc(job: JobDetailType, division: DivisionContextType | null, branchCode?: string): jsPDF {
     // Standard A4 page; content fits within top 148.5 mm (half-A4 stationery)
     const doc       = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
     // Signatures are anchored to the bottom edge of the printable half-A4 area
     const HALF_A4_BOTTOM = 140;
-    
+
     doc.setProperties({
         title: `Job-Sheet_${job.job_date}_${job.customer_name || "customer"}`,
         subject: "Job Sheet",
-        author: companyInfo?.company_name || "Service Plus",
+        author: division?.name || "Service Plus",
         creator: "Service Plus"
     });
 
     // ── Header ────────────────────────────────────────────────────────────────
     doc.setFontSize(15);
     doc.setFont("helvetica", "bold");
-    doc.text(companyInfo?.company_name ?? "Electronic Gadgets Repair", pageWidth / 2, 14, { align: "center" });
+    doc.text(division?.name ?? "Electronic Gadgets Repair", pageWidth / 2, 14, { align: "center" });
 
     doc.setFontSize(9);
     doc.setFont("helvetica", "normal");
     let y = 19;
 
-    if (companyInfo) {
-        const addr = [companyInfo.address_line1, companyInfo.address_line2, companyInfo.city, companyInfo.pincode]
+    if (division) {
+        const addr = [division.address_line1, division.address_line2, division.city, division.pincode]
             .filter(Boolean).join(", ");
         doc.text(addr, pageWidth / 2, y, { align: "center" });
         y += 4;
 
-        if (companyInfo.phone || companyInfo.email) {
+        if (division.phone || division.email) {
             const contact = [
-                companyInfo.phone && `Phone: ${companyInfo.phone}`,
-                companyInfo.email && `Email: ${companyInfo.email}`,
+                division.phone && `Phone: ${division.phone}`,
+                division.email && `Email: ${division.email}`,
             ].filter(Boolean).join(" | ");
             doc.text(contact, pageWidth / 2, y, { align: "center" });
             y += 4;
         }
 
-        if (companyInfo.gstin) {
-            doc.text(`GSTIN: ${companyInfo.gstin}`, pageWidth / 2, y, { align: "center" });
+        if (division.gstin) {
+            doc.text(`GSTIN: ${division.gstin}`, pageWidth / 2, y, { align: "center" });
             y += 5;
         }
     }
@@ -124,23 +112,23 @@ function buildSingleJobSheetDoc(job: JobDetailType, companyInfo: CompanyInfoType
     return doc;
 }
 
-export function downloadJobSheet(job: JobDetailType, companyInfo: CompanyInfoType | null): void {
-    buildSingleJobSheetDoc(job, companyInfo).save(`JobSheet_${job.job_no}.pdf`);
+export function downloadJobSheet(job: JobDetailType, division: DivisionContextType | null): void {
+    buildSingleJobSheetDoc(job, division).save(`JobSheet_${job.job_no}.pdf`);
 }
 
-export function getJobSheetBlobUrl(job: JobDetailType, companyInfo: CompanyInfoType | null, branchCode?: string): string {
-    const doc = buildSingleJobSheetDoc(job, companyInfo, branchCode);
+export function getJobSheetBlobUrl(job: JobDetailType, division: DivisionContextType | null, branchCode?: string): string {
+    const doc = buildSingleJobSheetDoc(job, division, branchCode);
     return String(doc.output("bloburl"));
 }
 
-export function openJobSheetInTab(job: JobDetailType, companyInfo: CompanyInfoType | null): void {
-    const url = getJobSheetBlobUrl(job, companyInfo);
+export function openJobSheetInTab(job: JobDetailType, division: DivisionContextType | null): void {
+    const url = getJobSheetBlobUrl(job, division);
     window.open(url, "_blank");
 }
 
 // ── Batch Job Sheet ───────────────────────────────────────────────────────────
 
-function buildBatchJobSheetDoc(jobs: JobDetailType[], companyInfo: CompanyInfoType | null, branchCode?: string): jsPDF {
+function buildBatchJobSheetDoc(jobs: JobDetailType[], division: DivisionContextType | null, branchCode?: string): jsPDF {
     const doc       = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
 
@@ -155,22 +143,22 @@ function buildBatchJobSheetDoc(jobs: JobDetailType[], companyInfo: CompanyInfoTy
     doc.setProperties({
         title:    `Batch-Job-Sheet_${batchNo}`,
         subject:  "Batch Job Sheet",
-        author:   companyInfo?.company_name ?? "Service Plus",
+        author:   division?.name ?? "Service Plus",
         creator:  "Service Plus",
     });
 
     // ── Header (2 lines) ──────────────────────────────────────────────────
     doc.setFontSize(13);
     doc.setFont("helvetica", "bold");
-    doc.text(companyInfo?.company_name ?? "Electronic Gadgets Repair", pageWidth / 2, 11, { align: "center" });
+    doc.text(division?.name ?? "Electronic Gadgets Repair", pageWidth / 2, 11, { align: "center" });
 
     doc.setFontSize(7.5);
     doc.setFont("helvetica", "normal");
     let y = 16;
 
-    if (companyInfo) {
-        const line1 = [companyInfo.address_line1, companyInfo.address_line2, companyInfo.city, companyInfo.pincode].filter(Boolean).join(", ");
-        const line2 = [companyInfo.phone && `Ph: ${companyInfo.phone}`, companyInfo.email && `Email: ${companyInfo.email}`, companyInfo.gstin && `GSTIN: ${companyInfo.gstin}`].filter(Boolean).join(" | ");
+    if (division) {
+        const line1 = [division.address_line1, division.address_line2, division.city, division.pincode].filter(Boolean).join(", ");
+        const line2 = [division.phone && `Ph: ${division.phone}`, division.email && `Email: ${division.email}`, division.gstin && `GSTIN: ${division.gstin}`].filter(Boolean).join(" | ");
         doc.text(line1, pageWidth / 2, y, { align: "center" });
         y += 3.5;
         if (line2) {
@@ -265,7 +253,7 @@ function buildBatchJobSheetDoc(jobs: JobDetailType[], companyInfo: CompanyInfoTy
     return doc;
 }
 
-export function getBatchJobSheetBlobUrl(jobs: JobDetailType[], companyInfo: CompanyInfoType | null, branchCode?: string): string {
-    const doc = buildBatchJobSheetDoc(jobs, companyInfo, branchCode);
+export function getBatchJobSheetBlobUrl(jobs: JobDetailType[], division: DivisionContextType | null, branchCode?: string): string {
+    const doc = buildBatchJobSheetDoc(jobs, division, branchCode);
     return String(doc.output("bloburl"));
 }

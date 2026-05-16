@@ -19,7 +19,8 @@ export type SalesLineType = {
 
 export type SalesInvoiceType = {
     id:                   number;
-    branch_id:            number;
+    division_id:          number | null;
+    division_name?:       string | null;
     customer_contact_id:  number | null;
     customer_name:        string;
     customer_gstin:       string | null;

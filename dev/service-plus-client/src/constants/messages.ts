@@ -109,6 +109,18 @@ export const MESSAGES = {
   SUCCESS_BRANCH_DELETED:          'Branch deleted successfully.',
   SUCCESS_BRANCH_UPDATED:          'Branch updated successfully.',
 
+  // Division CRUD
+  ERROR_DIVISION_CREATE_FAILED:  'Failed to create division. Please try again.',
+  ERROR_DIVISION_DELETE_FAILED:  'Failed to delete division. Please try again.',
+  ERROR_DIVISION_DELETE_IN_USE:  'This division cannot be deleted as it is referenced by existing records.',
+  ERROR_DIVISION_LOAD_FAILED:    'Failed to load divisions. Please try again.',
+  ERROR_DIVISION_NAME_EXISTS:    'This name is already in use for this branch.',
+  ERROR_DIVISION_NAME_EXISTS_EDIT: 'This name is already used by another division in this branch.',
+  ERROR_DIVISION_UPDATE_FAILED:  'Failed to update division. Please try again.',
+  SUCCESS_DIVISION_CREATED:      'Division created successfully.',
+  SUCCESS_DIVISION_DELETED:      'Division deleted successfully.',
+  SUCCESS_DIVISION_UPDATED:      'Division updated successfully.',
+
   // Financial Year CRUD
   ERROR_FY_CREATE_FAILED: 'Failed to create financial year. Please try again.',
   ERROR_FY_DATE_OVERLAP:  'Date range overlaps with an existing financial year.',

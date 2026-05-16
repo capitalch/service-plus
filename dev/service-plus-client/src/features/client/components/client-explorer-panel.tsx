@@ -83,7 +83,7 @@ function ConfigurationsExplorer() {
     return (
         <div className="space-y-4">
             <div className="space-y-1">
-                <TreeItem icon={Building2}    label="Company Profile" />
+                <TreeItem icon={Building2}    label="Divisions" />
                 <TreeItem icon={Settings2}    label="App Settings" />
                 <TreeItem icon={Hash}         label="Numbering / Auto Series" />
             </div>

@@ -55,6 +55,7 @@ export type JobDetailType = {
     product_name:                string | null;
     address_snapshot:            string | null;
     branch_code:                 string | null;
+    division_id:                 number | null;
     file_count?:                 number;
 };
 

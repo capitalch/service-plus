@@ -14,15 +14,15 @@ import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
-import { selectCompanyName, selectCurrentBranch, selectSchema } from "@/store/context-slice";
-import type { BranchType } from "@/features/client/components/masters/branch/branch";
+import { selectSchema } from "@/store/context-slice";
+import type { DivisionContextType } from "@/features/client/types/division";
 import type { SalesInvoiceType, SalesLineType } from "@/features/client/types/sales";
 import { generateSalesInvoicePdf } from "./sales-invoice-pdf-gen";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export type Props = {
-    branch:       BranchType | null;
+    division:     DivisionContextType | null;
     invoice:      SalesInvoiceType | null;
     open:         boolean;
     onOpenChange: (open: boolean) => void;
@@ -33,12 +33,9 @@ type DetailRow = SalesInvoiceType & { lines: SalesLineType[] };
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export const SalesInvoicePdfPreviewDialog = ({ branch, invoice: propInvoice, onOpenChange, open }: Props) => {
-    const dbName      = useAppSelector(selectDbName);
-    const schema      = useAppSelector(selectSchema);
-    const companyName = useAppSelector(selectCompanyName) || "Service Plus";
-    const ctxBranch   = useAppSelector(selectCurrentBranch);
-    const branchName  = ctxBranch?.name || "Main Branch";
+export const SalesInvoicePdfPreviewDialog = ({ division, invoice: propInvoice, onOpenChange, open }: Props) => {
+    const dbName = useAppSelector(selectDbName);
+    const schema = useAppSelector(selectSchema);
 
     const [detail,  setDetail]  = useState<DetailRow | null>(null);
     const [loading, setLoading] = useState(false);
@@ -79,7 +76,7 @@ export const SalesInvoicePdfPreviewDialog = ({ branch, invoice: propInvoice, onO
                 if (!det) throw new Error("Could not load invoice details");
 
                 await new Promise(r => setTimeout(r, 150));
-                const doc     = generateSalesInvoicePdf(det, companyName, branchName, branch);
+                const doc     = generateSalesInvoicePdf(det, division);
                 const pdfBlob = doc.output("blob");
                 setPdfUrl(URL.createObjectURL(pdfBlob));
             } catch {
@@ -92,18 +89,12 @@ export const SalesInvoicePdfPreviewDialog = ({ branch, invoice: propInvoice, onO
         void process();
 
         return () => { if (pdfUrl) URL.revokeObjectURL(pdfUrl); };
-    }, [open, propInvoice, dbName, schema, companyName, branchName, branch]);
+    }, [open, propInvoice, dbName, schema, division]);
 
     const handleDownload = () => {
         const d = detail || propInvoice;
         if (!d) return;
-        generateSalesInvoicePdf(
-            d as DetailRow,
-            companyName,
-            branchName,
-            branch,
-            `sales_invoice_${d.invoice_no || "doc"}.pdf`
-        );
+        generateSalesInvoicePdf(d as DetailRow, division, `sales_invoice_${d.invoice_no || "doc"}.pdf`);
     };
 
     return (

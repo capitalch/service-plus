@@ -20,10 +20,11 @@ import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName, selectCurrentUser } from "@/features/auth/store/auth-slice";
-import { selectCurrentBranch, selectSchema } from "@/store/context-slice";
+import { selectAvailableDivisions, selectCurrentBranch, selectCurrentDivision, selectDefaultDivisionId, selectSchema } from "@/store/context-slice";
 import type { JobBatchDetailRow, JobDetailType, JobInBatchRow, JobLookupRow, ModelRow } from "@/features/client/types/job";
 import type { CustomerTypeOption, StateOption } from "@/features/client/types/customer";
 import type { BrandOption, ProductOption } from "@/features/client/types/model";
+import type { DivisionContextType } from "@/features/client/types/division";
 
 import { NewBatchJobForm } from "./new-batch-job-form";
 import { BatchJobQuickInfoCard } from "./batch-job-quick-info-card";
@@ -31,7 +32,7 @@ import { BatchJobViewModal } from "./batch-job-view-modal";
 import { FormProvider, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { batchJobFormSchema, type BatchJobFormValues, getBatchJobDefaultValues } from "./batch-job-schema";
-import { getBatchJobSheetBlobUrl, type CompanyInfoType } from "../job-sheet-pdf";
+import { getBatchJobSheetBlobUrl } from "../job-sheet-pdf";
 import { PdfPreviewModal } from "@/components/shared/pdf-preview-modal";
 import { deleteJobFiles } from "@/lib/image-service";
 
@@ -61,11 +62,14 @@ const tdClass = "p-3 text-sm text-[var(--cl-text)] border-b border-[var(--cl-bor
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export const BatchJobSection = ({ initialEditBatchNo, onEditBatchNoApplied, onReturnToSingleJob }: { initialEditBatchNo?: number | null; onEditBatchNoApplied?: () => void; onReturnToSingleJob?: () => void }) => {
-    const dbName       = useAppSelector(selectDbName);
-    const schema       = useAppSelector(selectSchema);
-    const globalBranch = useAppSelector(selectCurrentBranch);
-    const currentUser  = useAppSelector(selectCurrentUser);
-    const branchId     = globalBranch?.id ?? null;
+    const dbName             = useAppSelector(selectDbName);
+    const schema             = useAppSelector(selectSchema);
+    const globalBranch       = useAppSelector(selectCurrentBranch);
+    const currentUser        = useAppSelector(selectCurrentUser);
+    const availableDivisions = useAppSelector(selectAvailableDivisions);
+    const currentDivision    = useAppSelector(selectCurrentDivision);
+    const defaultDivisionId  = useAppSelector(selectDefaultDivisionId);
+    const branchId           = globalBranch?.id ?? null;
 
     const [search,   setSearch]   = useState("");
     const [searchQ,  setSearchQ]  = useState("");
@@ -82,7 +86,6 @@ export const BatchJobSection = ({ initialEditBatchNo, onEditBatchNoApplied, onRe
     const [products,          setProducts]          = useState<ProductOption[]>([]);
     const [customerTypes,     setCustomerTypes]     = useState<CustomerTypeOption[]>([]);
     const [masterStates,      setMasterStates]      = useState<StateOption[]>([]);
-    const [companyInfo,       setCompanyInfo]       = useState<CompanyInfoType | null>(null);
 
     // List data
     const [jobs,    setJobs]    = useState<JobInBatchRow[]>([]);
@@ -130,13 +133,13 @@ export const BatchJobSection = ({ initialEditBatchNo, onEditBatchNoApplied, onRe
     const [submitting, setSubmitting] = useState(false);
 
     const form = useForm<BatchJobFormValues>({
-        defaultValues: getBatchJobDefaultValues(),
+        defaultValues: getBatchJobDefaultValues(defaultDivisionId),
         mode: "onChange",
         resolver: zodResolver(batchJobFormSchema) as any, // eslint-disable-line @typescript-eslint/no-explicit-any
     });
 
     function handleReset() {
-        form.reset(getBatchJobDefaultValues());
+        form.reset(getBatchJobDefaultValues(defaultDivisionId));
         setPostSaveJobs(null);
         setPostSaveBatchNo(null);
     }
@@ -182,6 +185,7 @@ export const BatchJobSection = ({ initialEditBatchNo, onEditBatchNoApplied, onRe
                     batch_no: editBatchNo,
                     sharedData: {
                         branch_id:             branchId,
+                        division_id:           values.division_id ?? defaultDivisionId,
                         batch_date:            values.batch_date,
                         customer_contact_id:   values.customer_id,
                         job_receive_manner_id: values.receive_manner_id,
@@ -207,6 +211,7 @@ export const BatchJobSection = ({ initialEditBatchNo, onEditBatchNoApplied, onRe
                 const payload = encodeURIComponent(JSON.stringify({
                     sharedData: {
                         branch_id:             branchId,
+                        division_id:           values.division_id ?? defaultDivisionId,
                         batch_date:            values.batch_date,
                         customer_contact_id:   values.customer_id,
                         job_receive_manner_id: values.receive_manner_id,
@@ -237,7 +242,7 @@ export const BatchJobSection = ({ initialEditBatchNo, onEditBatchNoApplied, onRe
 
                 toast.success(`Batch #${batchNo} created with ${formRows.length} job${formRows.length !== 1 ? "s" : ""}`);
                 setRefreshTrigger(t => t + 1);
-                form.reset(getBatchJobDefaultValues());
+                form.reset(getBatchJobDefaultValues(defaultDivisionId));
 
                 // Show post-save file attachment panel
                 const postJobs: PostSaveJob[] = jobIds.map((id, i) => ({ jobId: id, jobNo: jobNos[i] ?? "" }));
@@ -285,7 +290,7 @@ export const BatchJobSection = ({ initialEditBatchNo, onEditBatchNoApplied, onRe
         if (!dbName || !schema || !branchId) return;
         const fetchMeta = async () => {
             try {
-                const [statusRes, typeRes, mannerRes, condRes, modelRes, brandRes, prodRes, custTypeRes, stateRes, compRes] =
+                const [statusRes, typeRes, mannerRes, condRes, modelRes, brandRes, prodRes, custTypeRes, stateRes] =
                     await Promise.all([
                         apolloClient.query<GenericQueryData<JobLookupRow>>({ fetchPolicy: "network-only", query: GRAPHQL_MAP.genericQuery, variables: { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_JOB_STATUSES }) } }),
                         apolloClient.query<GenericQueryData<JobLookupRow>>({ fetchPolicy: "network-only", query: GRAPHQL_MAP.genericQuery, variables: { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_JOB_TYPES }) } }),
@@ -296,7 +301,6 @@ export const BatchJobSection = ({ initialEditBatchNo, onEditBatchNoApplied, onRe
                         apolloClient.query<GenericQueryData<ProductOption>>({ fetchPolicy: "network-only", query: GRAPHQL_MAP.genericQuery, variables: { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_ALL_PRODUCTS }) } }),
                         apolloClient.query<GenericQueryData<CustomerTypeOption>>({ fetchPolicy: "network-only", query: GRAPHQL_MAP.genericQuery, variables: { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_ALL_CUSTOMER_TYPES }) } }),
                         apolloClient.query<GenericQueryData<StateOption>>({ fetchPolicy: "network-only", query: GRAPHQL_MAP.genericQuery, variables: { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_ALL_STATES }) } }),
-                        apolloClient.query<GenericQueryData<CompanyInfoType>>({ fetchPolicy: "network-only", query: GRAPHQL_MAP.genericQuery, variables: { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_COMPANY_INFO }) } }),
                     ]);
                 setJobStatuses(statusRes.data?.genericQuery ?? []);
                 setJobTypes(typeRes.data?.genericQuery ?? []);
@@ -309,7 +313,6 @@ export const BatchJobSection = ({ initialEditBatchNo, onEditBatchNoApplied, onRe
                 setMasterStates((stateRes.data?.genericQuery ?? []).map(s => ({
                     id: s.id, code: (s as { gst_state_code?: string }).gst_state_code ?? s.code, name: s.name,
                 })));
-                setCompanyInfo(compRes.data?.genericQuery?.[0] ?? null);
             } catch { toast.error(MESSAGES.ERROR_JOB_LOAD_FAILED); }
         };
         void fetchMeta();
@@ -443,11 +446,15 @@ export const BatchJobSection = ({ initialEditBatchNo, onEditBatchNoApplied, onRe
     };
 
     const handlePrintBatch = (batchJobs: JobDetailType[]) => {
-        if (!companyInfo) {
-            toast.error("Company info not available");
+        const firstJob = batchJobs[0];
+        const batchDivision = firstJob?.division_id
+            ? (availableDivisions.find(d => d.id === firstJob.division_id) ?? currentDivision)
+            : currentDivision;
+        if (!batchDivision) {
+            toast.error("Division info not available");
             return;
         }
-        const url = getBatchJobSheetBlobUrl(batchJobs, companyInfo, globalBranch?.code);
+        const url = getBatchJobSheetBlobUrl(batchJobs, batchDivision, globalBranch?.code);
         setPdfPreviewUrl(url);
         setPdfFilename(`Batch-Job-Sheet_${batchJobs[0]?.job_no ?? "batch"}.pdf`);
         setShowPdfModal(true);
@@ -568,6 +575,7 @@ export const BatchJobSection = ({ initialEditBatchNo, onEditBatchNoApplied, onRe
                     <FormProvider {...form}>
                         <NewBatchJobForm
                             branchId={branchId}
+                            divisions={availableDivisions}
                             jobTypes={jobTypes}
                             receiveMannners={receiveMannners}
                             receiveConditions={receiveConditions}
