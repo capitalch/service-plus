@@ -3701,7 +3701,7 @@ class SqlStore:
     GET_JOB_PART_USED_BY_JOB = """
         with "p_job_id" as (values(%(job_id)s::bigint))
         SELECT jpu.id, jpu.part_id, jpu.quantity, jpu.cost_price, jpu.selling_price, jpu.remarks,
-               sp.part_code, sp.part_name, sp.uom
+               sp.part_code, sp.part_name, sp.uom, sp.brand_id
         FROM job_part_used jpu
         JOIN spare_part_master sp ON sp.id = jpu.part_id
         WHERE jpu.job_id = (table "p_job_id")
@@ -3865,55 +3865,80 @@ class SqlStore:
         with
             "p_branch_id"   as (values(%(branch_id)s::bigint)),
             "p_division_id" as (values(%(division_id)s::bigint)),
-            "p_from_date"   as (values(%(from_date)s::date)),
-            "p_to_date"     as (values(%(to_date)s::date)),
             "p_search"      as (values(%(search)s::text))
         SELECT COUNT(*) AS total
         FROM job j
-        JOIN customer_contact cc ON cc.id = j.customer_contact_id
+        JOIN customer_contact     cc  ON cc.id  = j.customer_contact_id
+        JOIN job_status           js  ON js.id  = j.job_status_id
+        LEFT JOIN technician      t   ON t.id   = j.technician_id
+        LEFT JOIN product_brand_model pbm ON pbm.id = j.product_brand_model_id
+        LEFT JOIN brand           b   ON b.id   = pbm.brand_id
+        LEFT JOIN product         p   ON p.id   = pbm.product_id
         WHERE j.branch_id = (table "p_branch_id")
           AND ((table "p_division_id") IS NULL OR j.division_id = (table "p_division_id"))
-          AND j.job_date BETWEEN (table "p_from_date") AND (table "p_to_date")
-          AND j.is_final = true
-          AND j.is_closed = false
+          AND js.code = 'COMPLETED_OK'
           AND ((table "p_search") = ''
-           OR  LOWER(j.job_no::text)                LIKE '%%' || LOWER((table "p_search")) || '%%'
-           OR  LOWER(cc.mobile)                     LIKE '%%' || LOWER((table "p_search")) || '%%'
-           OR  LOWER(cc.full_name)                  LIKE '%%' || LOWER((table "p_search")) || '%%'
-           OR  LOWER(COALESCE(j.alternate_job_no, '')) LIKE '%%' || LOWER((table "p_search")) || '%%')
+           OR  LOWER(j.job_no::text)                     LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(COALESCE(j.alternate_job_no, ''))   LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(cc.full_name)                       LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(cc.mobile)                          LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(COALESCE(cc.email, ''))             LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(COALESCE(cc.city, ''))              LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(COALESCE(t.name, ''))               LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(COALESCE(j.serial_no, ''))          LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(COALESCE(p.name, ''))               LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(COALESCE(b.name, ''))               LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(COALESCE(pbm.model_name, ''))       LIKE '%%' || LOWER((table "p_search")) || '%%')
     """
 
     GET_FINAL_JOBS_PAGED = """
         with
             "p_branch_id"   as (values(%(branch_id)s::bigint)),
             "p_division_id" as (values(%(division_id)s::bigint)),
-            "p_from_date"   as (values(%(from_date)s::date)),
-            "p_to_date"     as (values(%(to_date)s::date)),
             "p_search"      as (values(%(search)s::text)),
             "p_limit"       as (values(%(limit)s::int)),
             "p_offset"      as (values(%(offset)s::int))
-        SELECT j.id, j.job_no, j.alternate_job_no, j.job_date, j.amount,
-               j.division_id,
-               cc.full_name AS customer_name, cc.mobile,
-               js.name      AS job_status_name,
-               t.name       AS technician_name,
-               EXISTS(
-                   SELECT 1 FROM job_invoice ji WHERE ji.job_id = j.id
-               ) AS has_invoice
+        SELECT
+            j.id,
+            j.job_no,
+            j.alternate_job_no,
+            j.job_date,
+            j.amount,
+            j.batch_no,
+            j.serial_no,
+            j.is_closed,
+            j.is_final,
+            j.division_id,
+            cc.full_name  AS customer_name,
+            cc.mobile,
+            jt.name       AS job_type_name,
+            jt.code       AS job_type_code,
+            t.name        AS technician_name,
+            TRIM(CONCAT_WS(' / ', NULLIF(p.name, ''), NULLIF(b.name, ''), NULLIF(pbm.model_name, ''))) AS device_details,
+            (SELECT COUNT(*) FROM job_image_doc jid WHERE jid.job_id = j.id) AS file_count
         FROM job j
-        JOIN customer_contact cc ON cc.id = j.customer_contact_id
-        JOIN job_status        js ON js.id = j.job_status_id
-        LEFT JOIN technician   t  ON t.id  = j.technician_id
+        JOIN customer_contact     cc  ON cc.id  = j.customer_contact_id
+        JOIN job_type             jt  ON jt.id  = j.job_type_id
+        JOIN job_status           js  ON js.id  = j.job_status_id
+        LEFT JOIN technician      t   ON t.id   = j.technician_id
+        LEFT JOIN product_brand_model pbm ON pbm.id = j.product_brand_model_id
+        LEFT JOIN brand           b   ON b.id   = pbm.brand_id
+        LEFT JOIN product         p   ON p.id   = pbm.product_id
         WHERE j.branch_id = (table "p_branch_id")
           AND ((table "p_division_id") IS NULL OR j.division_id = (table "p_division_id"))
-          AND j.job_date BETWEEN (table "p_from_date") AND (table "p_to_date")
-          AND j.is_final = true
-          AND j.is_closed = false
+          AND js.code = 'COMPLETED_OK'
           AND ((table "p_search") = ''
-           OR  LOWER(j.job_no::text)                LIKE '%%' || LOWER((table "p_search")) || '%%'
-           OR  LOWER(cc.mobile)                     LIKE '%%' || LOWER((table "p_search")) || '%%'
-           OR  LOWER(cc.full_name)                  LIKE '%%' || LOWER((table "p_search")) || '%%'
-           OR  LOWER(COALESCE(j.alternate_job_no, '')) LIKE '%%' || LOWER((table "p_search")) || '%%')
+           OR  LOWER(j.job_no::text)                     LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(COALESCE(j.alternate_job_no, ''))   LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(cc.full_name)                       LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(cc.mobile)                          LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(COALESCE(cc.email, ''))             LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(COALESCE(cc.city, ''))              LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(COALESCE(t.name, ''))               LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(COALESCE(j.serial_no, ''))          LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(COALESCE(p.name, ''))               LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(COALESCE(b.name, ''))               LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(COALESCE(pbm.model_name, ''))       LIKE '%%' || LOWER((table "p_search")) || '%%')
         ORDER BY j.job_date DESC, j.id DESC
         LIMIT  (table "p_limit")
         OFFSET (table "p_offset")

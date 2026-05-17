@@ -89,7 +89,7 @@ export const SalesEntrySection = () => {
     const { from: defaultFrom, to: defaultTo } = currentFinancialYearRange();
 
     // Filter state
-    const [branches,      setBranches]      = useState<BranchType[]>([]);
+    const [_branches,     setBranches]      = useState<BranchType[]>([]);
     const [txnTypes,      setTxnTypes]      = useState<StockTransactionTypeRow[]>([]);
     const [fromDate,      setFromDate]      = useState(defaultFrom);
     const [toDate,        setToDate]        = useState(defaultTo);

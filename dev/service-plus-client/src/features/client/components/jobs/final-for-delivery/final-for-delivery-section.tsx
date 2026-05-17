@@ -1,70 +1,74 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import {ArrowLeft, CheckCircle2,
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+    AlertTriangle, ArrowLeft, CheckCheck, CheckCircle2,
     ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon,
-    Loader2, Plus, RefreshCw, Save, Search, Trash2, Wand2, X} from "lucide-react";
+    Eye, Loader2, Paperclip, Plus, RefreshCw, Search, Trash2, X,
+} from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-    Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { MESSAGES } from "@/constants/messages";
 import { SQL_MAP } from "@/constants/sql-map";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { apolloClient } from "@/lib/apollo-client";
 import { encodeObj, graphQlUtils } from "@/lib/graphql-utils";
-import { currentFinancialYearRange } from "@/lib/utils";
-import { selectAvailableDivisions, selectCurrentBranch, selectCurrentDivision, selectEffectiveGstStateCode, selectSchema } from "@/store/context-slice";
+import { selectAvailableDivisions, selectCurrentBranch, selectCurrentDivision, selectSchema } from "@/store/context-slice";
 import { useAppSelector } from "@/store/hooks";
-import type { JobDetailType, JobLookupRow } from "@/features/client/types/job";
-import type { DocumentSequenceRow } from "@/features/client/types/sales";
-import type { JobInvoiceFormLine, JobInvoiceLineType, JobInvoiceType } from "@/features/client/types/job-invoice";
+import type { JobDetailType } from "@/features/client/types/job";
+import { isGstDivision } from "@/features/client/types/division";
+import type { BrandOption } from "@/features/client/types/model";
+import type { StockTransactionTypeRow } from "@/features/client/types/purchase";
+import { PartCodeInput, type PartRow } from "../../inventory/part-code-input";
+import { JobDetailsModal } from "../job-pipeline/job-details-modal";
+import { JobAttachDialog } from "../single-job/job-attach-dialog";
 import {
-    finalForDeliverySchema,
-    getFinalForDeliveryDefaultValues,
-    type FinalForDeliveryFormValues,
+    type FinalJobRow,
+    type EditableChargeLine,
+    emptyChargeLine,
 } from "./final-for-delivery-schema";
 
-// ─── Local types ──────────────────────────────────────────────────────────────
+// ─── Types ────────────────────────────────────────────────────────────────────
 
-type SubView = "list" | "invoice";
+type SubView = "list" | "final";
 type GenericQueryData<T> = { genericQuery: T[] | null };
 
-type FinalJobRow = {
-    id:               number;
-    job_no:           string;
-    alternate_job_no: string | null;
-    job_date:         string;
-    amount:           number | null;
-    customer_name:    string;
-    mobile:           string;
-    job_status_name:  string;
-    technician_name:  string | null;
-    has_invoice:      boolean;
-    division_id:      number | null;
+type LoadedPartRow = {
+    id:            number;
+    part_id:       number;
+    brand_id:      number | null;
+    part_code:     string;
+    part_name:     string;
+    uom:           string;
+    quantity:      number;
+    cost_price:    number | null;
+    selling_price: number | null;
+    remarks:       string | null;
 };
 
-type DivSeqRow = Pick<DocumentSequenceRow, "id" | "prefix" | "next_number" | "padding" | "separator"> & { document_type_code: string };
-
-type StateRow = {
-    id:             number;
-    code:           string;
-    name:           string;
-    gst_state_code: string | null;
+type EditablePartLine = {
+    _key:          string;
+    id?:           number;        // present for rows loaded from DB
+    brand_id:      number | null;
+    part_id:       number | null;
+    part_code:     string;
+    part_name:     string;
+    quantity:      number;
+    cost_price:    string;
+    selling_price: string;
+    remarks:       string;
 };
 
-type JobPartRow = {
-    quantity:   number;
-    part_code:  string;
-    part_name:  string;
-    uom:        string;
+type AdditionalChargeRow = {
+    id:            number;
+    charge_name:   string;
+    ref_no:        string | null;
+    description:   string | null;
+    cost_price:    number;
+    selling_price: number;
 };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -72,65 +76,13 @@ type JobPartRow = {
 const PAGE_SIZE   = 50;
 const DEBOUNCE_MS = 1600;
 
-const thClass = "sticky top-0 z-20 text-xs font-semibold uppercase tracking-wide text-[var(--cl-text-muted)] p-3 text-left border-b border-[var(--cl-border)] bg-[var(--cl-surface-2)]";
-const tdClass = "p-3 text-sm text-[var(--cl-text)] border-b border-[var(--cl-border)]";
+const thClass  = "sticky top-0 z-20 text-xs font-semibold uppercase tracking-wide text-[var(--cl-text-muted)] p-3 text-left border-b border-[var(--cl-border)] bg-[var(--cl-surface-2)]";
+const tdClass  = "p-3 text-sm text-[var(--cl-text)] border-b border-[var(--cl-border)]";
+const pthClass = "sticky top-0 z-20 text-xs font-extrabold uppercase tracking-widest text-[var(--cl-text)] py-2 px-2 text-left border-b border-[var(--cl-border)] bg-zinc-200/60 dark:bg-zinc-800/60";
+const ptdClass = "p-0.5 border-b border-[var(--cl-border)]";
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function round2(n: number): number {
-    return Math.round(n * 100) / 100;
-}
-
-function buildInvoiceNo(seq: DocumentSequenceRow): string {
-    return `${seq.prefix}${seq.separator}${String(seq.next_number).padStart(seq.padding, "0")}`;
-}
-
-function emptyFormLine(): JobInvoiceFormLine {
-    return { _key: crypto.randomUUID(), description: "", part_code: "", hsn_code: "", quantity: "1", unit_price: "0", gst_rate: "0" };
-}
-
-function dbLineToFormLine(line: JobInvoiceLineType): JobInvoiceFormLine {
-    const gstRate = line.igst_rate > 0 ? String(line.igst_rate) : String(line.cgst_rate + line.sgst_rate);
-    return {
-        _key:        crypto.randomUUID(),
-        description: line.description,
-        part_code:   line.part_code ?? "",
-        hsn_code:    line.hsn_code ?? "",
-        quantity:    String(line.quantity),
-        unit_price:  String(line.unit_price),
-        gst_rate:    gstRate,
-    };
-}
-
-function calcLine(line: JobInvoiceFormLine, isIgst: boolean) {
-    const qty      = parseFloat(line.quantity)   || 0;
-    const price    = parseFloat(line.unit_price) || 0;
-    const gstRate  = parseFloat(line.gst_rate)   || 0;
-    const taxable  = round2(qty * price);
-    const cgst     = isIgst ? 0 : round2(taxable * (gstRate / 2) / 100);
-    const sgst     = isIgst ? 0 : round2(taxable * (gstRate / 2) / 100);
-    const igst     = isIgst ? round2(taxable * gstRate / 100) : 0;
-    const total    = round2(taxable + cgst + sgst + igst);
-    return { qty, price, gstRate, taxable, cgst, sgst, igst, total };
-}
-
-function buildLinePayload(line: JobInvoiceFormLine, isIgst: boolean) {
-    const { qty, price, gstRate, taxable, cgst, sgst, igst, total } = calcLine(line, isIgst);
-    return {
-        description:    line.description.trim(),
-        part_code:      line.part_code.trim() || null,
-        hsn_code:       line.hsn_code.trim(),
-        quantity:       qty,
-        unit_price:     price,
-        taxable_amount: taxable,
-        cgst_rate:      isIgst ? 0 : gstRate / 2,
-        sgst_rate:      isIgst ? 0 : gstRate / 2,
-        igst_rate:      isIgst ? gstRate : 0,
-        cgst_amount:    cgst,
-        sgst_amount:    sgst,
-        igst_amount:    igst,
-        total_amount:   total,
-    };
+function emptyPartLine(): EditablePartLine {
+    return { _key: crypto.randomUUID(), brand_id: null, part_id: null, part_code: "", part_name: "", quantity: 1, cost_price: "0", selling_price: "0", remarks: "" };
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -139,17 +91,12 @@ export const FinalForDeliverySection = () => {
     const dbName             = useAppSelector(selectDbName);
     const schema             = useAppSelector(selectSchema);
     const currentBranch      = useAppSelector(selectCurrentBranch);
-    const effectiveStateCode = useAppSelector(selectEffectiveGstStateCode);
     const availableDivisions = useAppSelector(selectAvailableDivisions);
     const currentDivision    = useAppSelector(selectCurrentDivision);
     const branchId           = currentBranch?.id ?? null;
 
-    const { from: defaultFrom, to: defaultTo } = currentFinancialYearRange();
-
     // ── List state ──────────────────────────────────────────────────────────
     const [subView,  setSubView]  = useState<SubView>("list");
-    const [fromDate, setFromDate] = useState(defaultFrom);
-    const [toDate,   setToDate]   = useState(defaultTo);
     const [search,   setSearch]   = useState("");
     const [searchQ,  setSearchQ]  = useState("");
     const [page,     setPage]     = useState(1);
@@ -157,27 +104,28 @@ export const FinalForDeliverySection = () => {
     const [total,    setTotal]    = useState(0);
     const [loading,  setLoading]  = useState(false);
 
-    // ── Meta ────────────────────────────────────────────────────────────────
-    const [docSequence,  setDocSequence]  = useState<DocumentSequenceRow | null>(null);
-    const [jobDocSeq,    setJobDocSeq]    = useState<DocumentSequenceRow | null>(null);
-    const [allStates,    setAllStates]    = useState<StateRow[]>([]);
-    const [finalStatusId, setFinalStatusId] = useState<number | null>(null);
-    const [metaLoaded,   setMetaLoaded]   = useState(false);
+    const [viewJobId,   setViewJobId]   = useState<number | null>(null);
+    const [attachJobId, setAttachJobId] = useState<number | null>(null);
+    const [attachJobNo, setAttachJobNo] = useState<string>("");
 
-    // ── Invoice state ───────────────────────────────────────────────────────
-    // const [selectedRow,      setSelectedRow]      = useState<FinalJobRow | null>(null);
-    const [selectedJob,      setSelectedJob]      = useState<JobDetailType | null>(null);
-    const [existingInvoice,  setExistingInvoice]  = useState<JobInvoiceType | null>(null);
-    const [isIgst,           setIsIgst]           = useState(false);
-    const [lines,            setLines]            = useState<JobInvoiceFormLine[]>([emptyFormLine()]);
-    const [loadingDetail,    setLoadingDetail]    = useState(false);
-    const [loadingParts,     setLoadingParts]     = useState(false);
+    // ── Final sub-view state ────────────────────────────────────────────────
+    const [selectedJob,        setSelectedJob]        = useState<JobDetailType | null>(null);
+    const [selectedRow,        setSelectedRow]        = useState<FinalJobRow | null>(null);
+    const [selectedDivisionId, setSelectedDivisionId] = useState<number | null>(null);
+    const [loadingDetail,      setLoadingDetail]      = useState(false);
+    const [submitting,         setSubmitting]         = useState(false);
 
-    const form = useForm<FinalForDeliveryFormValues>({
-        defaultValues: getFinalForDeliveryDefaultValues(),
-        mode:          "onChange",
-        resolver:      zodResolver(finalForDeliverySchema) as any,
-    });
+    // Unified editable parts
+    const [partLines,        setPartLines]        = useState<EditablePartLine[]>([emptyPartLine()]);
+    const [deletedPartIds,   setDeletedPartIds]   = useState<number[]>([]);
+
+    // Additional charges (full CRUD)
+    const [chargeLines,      setChargeLines]      = useState<EditableChargeLine[]>([]);
+    const [deletedChargeIds, setDeletedChargeIds] = useState<number[]>([]);
+
+    // Meta
+    const [brands,           setBrands]           = useState<BrandOption[]>([]);
+    const [jobConsumeTypeId, setJobConsumeTypeId] = useState<number | null>(null);
 
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const scrollRef   = useRef<HTMLDivElement>(null);
@@ -196,49 +144,37 @@ export const FinalForDeliverySection = () => {
         return () => { clearTimeout(timer); window.removeEventListener("resize", recalc); };
     }, [recalc, rows.length, subView]);
 
-    // ── Load meta once ──────────────────────────────────────────────────────
+    // ── Load brands + JOB_CONSUME type once ─────────────────────────────────
     useEffect(() => {
-        if (!dbName || !schema || !branchId || metaLoaded) return;
-        Promise.all([
-            apolloClient.query<GenericQueryData<DocumentSequenceRow>>({
-                fetchPolicy: "network-only",
-                query:       GRAPHQL_MAP.genericQuery,
-                variables:   { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_DOCUMENT_SEQUENCES, sqlArgs: { branch_id: branchId } }) },
-            }),
-            apolloClient.query<GenericQueryData<StateRow>>({
-                fetchPolicy: "network-only",
-                query:       GRAPHQL_MAP.genericQuery,
-                variables:   { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_ALL_STATES }) },
-            }),
-            apolloClient.query<GenericQueryData<JobLookupRow>>({
-                fetchPolicy: "network-only",
-                query:       GRAPHQL_MAP.genericQuery,
-                variables:   { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_JOB_STATUSES }) },
-            }),
-        ]).then(([seqRes, stateRes, statusRes]) => {
-            const seqs = seqRes.data?.genericQuery ?? [];
-            const jinvSeq = seqs.find(s => s.document_type_code === "JINV") ?? null;
-            setDocSequence(jinvSeq);
+        if (!dbName || !schema) return;
+        const fetchMeta = async () => {
+            try {
+                const [brandsRes, txnRes] = await Promise.all([
+                    apolloClient.query<GenericQueryData<BrandOption>>({
+                        fetchPolicy: "network-only",
+                        query:       GRAPHQL_MAP.genericQuery,
+                        variables:   { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_ALL_BRANDS }) },
+                    }),
+                    apolloClient.query<GenericQueryData<StockTransactionTypeRow>>({
+                        fetchPolicy: "network-only",
+                        query:       GRAPHQL_MAP.genericQuery,
+                        variables:   { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_STOCK_TRANSACTION_TYPES }) },
+                    }),
+                ]);
+                setBrands(brandsRes.data?.genericQuery ?? []);
+                const consume = txnRes.data?.genericQuery?.find(t => t.code === "JOB_CONSUME");
+                setJobConsumeTypeId(consume?.id ?? null);
+            } catch { /* silent */ }
+        };
+        void fetchMeta();
+    }, [dbName, schema]);
 
-            setAllStates(stateRes.data?.genericQuery ?? []);
-
-            const statuses = statusRes.data?.genericQuery ?? [];
-            const finalStatus = statuses.find(s => s.code === "READY");
-            setFinalStatusId(finalStatus?.id ?? null);
-
-            const defaultStateCode = effectiveStateCode ?? "";
-            form.setValue("supply_state_code", defaultStateCode, { shouldValidate: true });
-
-            setMetaLoaded(true);
-        }).catch(() => toast.error(MESSAGES.ERROR_JOB_INVOICE_LOAD_FAILED));
-    }, [dbName, schema, branchId, metaLoaded, effectiveStateCode]);
-
-    // ── Load list data ──────────────────────────────────────────────────────
-    const loadData = useCallback(async (bid: number, from: string, to: string, q: string, pg: number, divisionId: number | null = null) => {
+    // ── Load list ───────────────────────────────────────────────────────────
+    const loadData = useCallback(async (bid: number, q: string, pg: number, divisionId: number | null = null) => {
         if (!dbName || !schema) return;
         setLoading(true);
         try {
-            const commonArgs = { branch_id: bid, division_id: divisionId, from_date: from, to_date: to, search: q };
+            const commonArgs = { branch_id: bid, division_id: divisionId, search: q };
             const [dataRes, countRes] = await Promise.all([
                 apolloClient.query<GenericQueryData<FinalJobRow>>({
                     fetchPolicy: "network-only",
@@ -271,8 +207,9 @@ export const FinalForDeliverySection = () => {
 
     useEffect(() => {
         if (!branchId || subView !== "list") return;
-        void loadData(branchId, fromDate, toDate, searchQ, page, currentDivision?.id ?? null);
-    }, [branchId, fromDate, toDate, searchQ, page, loadData, subView, currentDivision]);
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        void loadData(branchId, searchQ, page, currentDivision?.id ?? null);
+    }, [branchId, searchQ, page, loadData, subView, currentDivision]);
 
     function handleSearchChange(value: string) {
         setSearch(value);
@@ -280,66 +217,68 @@ export const FinalForDeliverySection = () => {
         debounceRef.current = setTimeout(() => { setPage(1); setSearchQ(value); }, DEBOUNCE_MS);
     }
 
-    // ── Open invoice view for a row ─────────────────────────────────────────
-    async function handleRowClick(row: FinalJobRow) {
+    // ── Open Final sub-view ─────────────────────────────────────────────────
+    async function handleOpenFinal(row: FinalJobRow) {
         if (!dbName || !schema) return;
         setLoadingDetail(true);
         try {
-            const [jobRes, invRes] = await Promise.all([
+            const [jobRes, partsRes, chargesRes] = await Promise.all([
                 apolloClient.query<GenericQueryData<JobDetailType>>({
                     fetchPolicy: "network-only",
                     query:       GRAPHQL_MAP.genericQuery,
                     variables:   { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_JOB_DETAIL, sqlArgs: { id: row.id } }) },
                 }),
-                apolloClient.query<GenericQueryData<JobInvoiceType>>({
+                apolloClient.query<GenericQueryData<LoadedPartRow>>({
                     fetchPolicy: "network-only",
                     query:       GRAPHQL_MAP.genericQuery,
-                    variables:   { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_JOB_INVOICE_BY_JOB, sqlArgs: { job_id: row.id } }) },
+                    variables:   { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_JOB_PART_USED_BY_JOB, sqlArgs: { job_id: row.id } }) },
+                }),
+                apolloClient.query<GenericQueryData<AdditionalChargeRow>>({
+                    fetchPolicy: "network-only",
+                    query:       GRAPHQL_MAP.genericQuery,
+                    variables:   { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_JOB_ADDITIONAL_CHARGES_BY_JOB, sqlArgs: { job_id: row.id } }) },
                 }),
             ]);
 
             const job = jobRes.data?.genericQuery?.[0] ?? null;
-            if (!job) { toast.error(MESSAGES.ERROR_JOB_INVOICE_LOAD_FAILED); return; }
+            if (!job) { toast.error(MESSAGES.ERROR_JOB_LOAD_FAILED); return; }
 
-            const jobDivision = availableDivisions.find(d => d.id === job.division_id) ?? currentDivision;
-
-            // Fetch division-specific JINV sequence if job has a division
-            let activeSeq: DocumentSequenceRow | null = docSequence;
-            if (job.division_id && branchId) {
-                try {
-                    const divSeqRes = await apolloClient.query<GenericQueryData<DivSeqRow>>({
-                        fetchPolicy: "network-only",
-                        query:       GRAPHQL_MAP.genericQuery,
-                        variables:   { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_DOCUMENT_SEQUENCES_BY_DIVISION, sqlArgs: { branch_id: branchId, division_id: job.division_id } }) },
-                    });
-                    const divSeqs = divSeqRes.data?.genericQuery ?? [];
-                    const found = divSeqs.find(s => s.document_type_code === "JINV");
-                    if (found) activeSeq = found as DocumentSequenceRow;
-                } catch {}
-            }
-            setJobDocSeq(activeSeq !== docSequence ? activeSeq : null);
-
-            const invoice = invRes.data?.genericQuery?.[0] ?? null;
+            const parts   = partsRes.data?.genericQuery   ?? [];
+            const charges = chargesRes.data?.genericQuery ?? [];
 
             setSelectedJob(job);
-            setExistingInvoice(invoice);
-
-            if (invoice) {
-                form.reset({
-                    invoice_date:      invoice.invoice_date.slice(0, 10),
-                    supply_state_code: invoice.supply_state_code ?? "",
-                });
-                const hasIgst = (invoice.lines ?? []).some(l => l.igst_rate > 0);
-                setIsIgst(hasIgst);
-                setLines(invoice.lines?.length ? invoice.lines.map(dbLineToFormLine) : [emptyFormLine()]);
-            } else {
-                form.reset(getFinalForDeliveryDefaultValues(jobDivision?.gst_state_code ?? effectiveStateCode ?? ""));
-                setIsIgst(false);
-                setLines([emptyFormLine()]);
-            }
-            setSubView("invoice");
+            setSelectedRow(row);
+            setSelectedDivisionId(row.division_id);
+            setPartLines(
+                parts.length > 0
+                    ? parts.map(p => ({
+                        _key:          crypto.randomUUID(),
+                        id:            p.id,
+                        brand_id:      p.brand_id,
+                        part_id:       p.part_id,
+                        part_code:     p.part_code,
+                        part_name:     p.part_name,
+                        quantity:      Number(p.quantity),
+                        cost_price:    String(p.cost_price ?? 0),
+                        selling_price: String(p.selling_price ?? 0),
+                        remarks:       p.remarks ?? "",
+                    }))
+                    : [emptyPartLine()],
+            );
+            setDeletedPartIds([]);
+            setChargeLines(charges.map(c => ({
+                _key:          crypto.randomUUID(),
+                id:            c.id,
+                charge_name:   c.charge_name,
+                ref_no:        c.ref_no ?? "",
+                description:   c.description ?? "",
+                cost_price:    String(c.cost_price),
+                selling_price: String(c.selling_price),
+            })));
+            setDeletedChargeIds([]);
+            setSubView("final");
         } catch {
-            toast.error(MESSAGES.ERROR_JOB_INVOICE_LOAD_FAILED);
+            toast.error(MESSAGES.ERROR_JOB_LOAD_FAILED);
         } finally {
             setLoadingDetail(false);
         }
@@ -348,156 +287,161 @@ export const FinalForDeliverySection = () => {
     function handleBack() {
         setSubView("list");
         setSelectedJob(null);
-        setExistingInvoice(null);
-        setJobDocSeq(null);
+        setSelectedRow(null);
+        setSelectedDivisionId(null);
+        setPartLines([emptyPartLine()]);
+        setDeletedPartIds([]);
     }
 
-    // ── Auto-populate lines from parts used ─────────────────────────────────
-    async function handleAutoPopulate() {
-        if (!dbName || !schema || !selectedJob) return;
-        setLoadingParts(true);
-        try {
-            const res = await apolloClient.query<GenericQueryData<JobPartRow>>({
-                fetchPolicy: "network-only",
-                query:       GRAPHQL_MAP.genericQuery,
-                variables:   { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_JOB_PARTS_FOR_INVOICE, sqlArgs: { job_id: selectedJob.id } }) },
-            });
-            const parts = res.data?.genericQuery ?? [];
-            if (!parts.length) { toast.info("No parts used found for this job."); return; }
-            const partLines: JobInvoiceFormLine[] = parts.map(p => ({
-                _key:        crypto.randomUUID(),
-                description: p.part_name,
-                part_code:   p.part_code,
-                hsn_code:    "",
-                quantity:    String(p.quantity),
-                unit_price:  "0",
-                gst_rate:    "0",
-            }));
-            setLines(prev => {
-                const nonEmpty = prev.filter(l => l.description.trim() || l.unit_price !== "0");
-                return [...nonEmpty, ...partLines];
-            });
-        } catch {
-            toast.error(MESSAGES.ERROR_JOB_INVOICE_LOAD_FAILED);
-        } finally {
-            setLoadingParts(false);
-        }
+    // ── Part mutations ──────────────────────────────────────────────────────
+    function addPartLine() {
+        setPartLines(prev => [...prev, emptyPartLine()]);
     }
 
-    // ── Line mutations ───────────────────────────────────────────────────────
-    function updateLine(key: string, field: keyof JobInvoiceFormLine, value: string) {
-        setLines(prev => prev.map(l => l._key === key ? { ...l, [field]: value } : l));
+    function removePartLine(key: string, id?: number) {
+        setPartLines(prev => prev.length > 1 ? prev.filter(l => l._key !== key) : [emptyPartLine()]);
+        if (id !== undefined) setDeletedPartIds(prev => [...prev, id]);
     }
-    function addLine() { setLines(prev => [...prev, emptyFormLine()]); }
-    function removeLine(key: string) { setLines(prev => prev.length > 1 ? prev.filter(l => l._key !== key) : prev); }
 
-    // ── Computed totals ──────────────────────────────────────────────────────
-    const totals = useMemo(() => {
-        const computed = lines.map(l => calcLine(l, isIgst));
-        return {
-            taxable: round2(computed.reduce((s, l) => s + l.taxable, 0)),
-            cgst:    round2(computed.reduce((s, l) => s + l.cgst,    0)),
-            sgst:    round2(computed.reduce((s, l) => s + l.sgst,    0)),
-            igst:    round2(computed.reduce((s, l) => s + l.igst,    0)),
-            tax:     round2(computed.reduce((s, l) => s + l.cgst + l.sgst + l.igst, 0)),
-            total:   round2(computed.reduce((s, l) => s + l.total,   0)),
-        };
-    }, [lines, isIgst]);
+    function updatePartLine(key: string, patch: Partial<EditablePartLine>) {
+        setPartLines(prev => prev.map(l => l._key === key ? { ...l, ...patch } : l));
+    }
 
-    // ── Save ─────────────────────────────────────────────────────────────────
-    async function executeSave(values: FinalForDeliveryFormValues) {
-        if (!selectedJob || !dbName || !schema) return;
-        if (!finalStatusId) {
-            toast.error("Final for Delivery status not configured. Check job status codes.");
+    function handlePartSelect(key: string, part: PartRow) {
+        updatePartLine(key, {
+            part_id:       part.id,
+            part_code:     part.part_code,
+            part_name:     part.part_name,
+            brand_id:      part.brand_id,
+            cost_price:    String(part.cost_price ?? 0),
+            selling_price: String(part.selling_price ?? 0),
+        });
+    }
+
+    // ── Charge mutations ────────────────────────────────────────────────────
+    function addChargeLine() {
+        setChargeLines(prev => [...prev, emptyChargeLine()]);
+    }
+
+    function removeChargeLine(key: string, id?: number) {
+        setChargeLines(prev => prev.filter(c => c._key !== key));
+        if (id !== undefined) setDeletedChargeIds(prev => [...prev, id]);
+    }
+
+    function updateChargeLine(key: string, field: keyof EditableChargeLine, value: string) {
+        setChargeLines(prev => prev.map(c => c._key === key ? { ...c, [field]: value } : c));
+    }
+
+    // ── Save final ──────────────────────────────────────────────────────────
+    async function handleSaveFinal() {
+        if (!selectedJob || !dbName || !schema || !branchId) return;
+
+        const newParts = partLines.filter(l => !l.id && l.part_id && l.quantity > 0);
+        if (newParts.length > 0 && !jobConsumeTypeId) {
+            toast.error("Stock transaction type not loaded. Please try again.");
             return;
         }
 
+        setSubmitting(true);
         try {
-            const linePayloads = lines.filter(l => l.description.trim()).map(l => buildLinePayload(l, isIgst));
-            const isNew = !existingInvoice;
-            const activeSeq = jobDocSeq ?? docSequence;
+            const chargeUpsertRows = chargeLines
+                .filter(c => c.charge_name.trim())
+                .map(c => ({
+                    ...(c.id !== undefined ? { id: c.id } : {}),
+                    job_id:        selectedJob.id,
+                    charge_name:   c.charge_name.trim(),
+                    ref_no:        c.ref_no.trim() || null,
+                    description:   c.description.trim() || null,
+                    cost_price:    parseFloat(c.cost_price)    || 0,
+                    selling_price: parseFloat(c.selling_price) || 0,
+                }));
 
-            let sqlObject: Record<string, unknown>;
+            const xDetails: Record<string, unknown>[] = [];
 
-            if (isNew) {
-                if (!activeSeq?.id) {
-                    toast.error("JINV document sequence not configured.");
-                    return;
-                }
-                const invoiceNo = buildInvoiceNo(activeSeq);
-                sqlObject = {
-                    tableName: "job_invoice",
+            // Existing part updates (have id)
+            const existingUpdates = partLines
+                .filter(l => l.id !== undefined && l.part_id)
+                .map(l => ({
+                    id:            l.id,
+                    job_id:        selectedJob.id,
+                    part_id:       l.part_id,
+                    quantity:      l.quantity,
+                    cost_price:    parseFloat(l.cost_price)    || 0,
+                    selling_price: parseFloat(l.selling_price) || 0,
+                    remarks:       l.remarks.trim() || null,
+                }));
+
+            // New part inserts (no id, valid part_id) with stock transactions
+            const newInserts = newParts.map(l => ({
+                job_id:        selectedJob.id,
+                part_id:       l.part_id,
+                quantity:      l.quantity,
+                cost_price:    parseFloat(l.cost_price)    || 0,
+                selling_price: parseFloat(l.selling_price) || 0,
+                remarks:       l.remarks.trim() || null,
+                xDetails: {
+                    tableName: "stock_transaction",
+                    fkeyName:  "job_part_used_id",
                     xData: {
-                        job_id:            selectedJob.id,
-                        invoice_no:        invoiceNo,
-                        invoice_date:      values.invoice_date,
-                        supply_state_code: values.supply_state_code,
-                        taxable_amount:    totals.taxable,
-                        cgst_amount:       totals.cgst,
-                        sgst_amount:       totals.sgst,
-                        igst_amount:       totals.igst,
-                        total_tax:         totals.tax,
-                        total_amount:      totals.total,
+                        branch_id:                 branchId,
+                        part_id:                   l.part_id,
+                        quantity:                  l.quantity,
+                        dr_cr:                     "C",
+                        transaction_date:          selectedJob.job_date,
+                        stock_transaction_type_id: jobConsumeTypeId,
+                        remarks:                   l.remarks.trim() || null,
                     },
-                    xDetails: [
-                        { tableName: "job_invoice_line", fkeyName: "job_invoice_id", xData: linePayloads },
-                        { tableName: "job", xData: { id: selectedJob.id, job_status_id: finalStatusId } },
-                        { tableName: "document_sequence", xData: { id: activeSeq.id, next_number: activeSeq.next_number + 1 } },
-                    ],
-                };
-            } else {
-                const existingLineIds = (existingInvoice.lines ?? []).map(l => l.id);
-                const lineDetail: Record<string, unknown> = {
-                    tableName: "job_invoice_line",
-                    fkeyName:  "job_invoice_id",
-                    xData:     linePayloads,
-                };
-                if (existingLineIds.length > 0) {
-                    lineDetail.deletedIds = existingLineIds;
-                }
-                sqlObject = {
-                    tableName: "job_invoice",
-                    xData: {
-                        id:                existingInvoice.id,
-                        invoice_date:      values.invoice_date,
-                        supply_state_code: values.supply_state_code,
-                        taxable_amount:    totals.taxable,
-                        cgst_amount:       totals.cgst,
-                        sgst_amount:       totals.sgst,
-                        igst_amount:       totals.igst,
-                        total_tax:         totals.tax,
-                        total_amount:      totals.total,
-                    },
-                    xDetails: [
-                        lineDetail,
-                        { tableName: "job", xData: { id: selectedJob.id, job_status_id: finalStatusId } },
-                    ],
-                };
+                },
+            }));
+
+            const allPartXData = [...existingUpdates, ...newInserts];
+            if (allPartXData.length > 0 || deletedPartIds.length > 0) {
+                xDetails.push({
+                    tableName:  "job_part_used",
+                    fkeyName:   "job_id",
+                    ...(deletedPartIds.length > 0 ? { deletedIds: deletedPartIds } : {}),
+                    xData:      allPartXData,
+                });
             }
+
+            xDetails.push({
+                tableName:  "job_additional_charge",
+                fkeyName:   "job_id",
+                ...(deletedChargeIds.length > 0 ? { deletedIds: deletedChargeIds } : {}),
+                xData:      chargeUpsertRows,
+            });
 
             await apolloClient.mutate({
                 mutation:  GRAPHQL_MAP.genericUpdate,
-                variables: { db_name: dbName, schema, value: encodeObj(sqlObject) },
+                variables: {
+                    db_name: dbName,
+                    schema,
+                    value: encodeObj({
+                        tableName: "job",
+                        xData:     { id: selectedJob.id, is_final: true, division_id: selectedDivisionId },
+                        xDetails,
+                    }),
+                },
             });
 
-            toast.success(MESSAGES.SUCCESS_JOB_INVOICE_SAVED);
+            toast.success("Job marked as final.");
             handleBack();
-            if (branchId) void loadData(branchId, fromDate, toDate, searchQ, page, currentDivision?.id ?? null);
+            if (branchId) void loadData(branchId, searchQ, page, currentDivision?.id ?? null);
         } catch {
-            toast.error(MESSAGES.ERROR_JOB_INVOICE_SAVE_FAILED);
+            toast.error("Failed to save. Please try again.");
+        } finally {
+            setSubmitting(false);
         }
     }
 
-    const linesValid = useMemo(() => lines.some(l => l.description.trim()), [lines]);
-
     const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
-    // ─── Invoice View ─────────────────────────────────────────────────────────
+    // ─── Final sub-view ───────────────────────────────────────────────────────
 
-    if (subView === "invoice" && selectedJob) {
-        const activeSeq = jobDocSeq ?? docSequence;
-        const invoiceNo = existingInvoice?.invoice_no ?? (activeSeq ? buildInvoiceNo(activeSeq) : "—");
-        const canSave   = form.formState.isValid && linesValid && !form.formState.isSubmitting && !!finalStatusId;
+    if (subView === "final" && selectedJob && selectedRow) {
+        const isWarranty = selectedRow.job_type_code === "UNDER_WARRANTY";
+        const division   = availableDivisions.find(d => d.id === selectedDivisionId) ?? null;
+        const isGst      = isGstDivision(division);
 
         return (
             <motion.div
@@ -507,44 +451,79 @@ export const FinalForDeliverySection = () => {
                 transition={{ duration: 0.2 }}
             >
                 {/* Header */}
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-[var(--cl-border)] bg-[var(--cl-surface)] px-4 py-2">
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-[var(--cl-border)] bg-[var(--cl-surface)] py-2">
                     <Button
-                        className="h-8 gap-1.5 px-3 text-xs"
-                        disabled={form.formState.isSubmitting}
-                        variant="ghost"
+                        className="h-8 gap-1.5 font-semibold text-[var(--cl-accent)] border border-[var(--cl-accent)] hover:bg-[var(--cl-accent)] hover:text-white transition-colors"
+                        disabled={submitting}
+                        size="sm"
+                        variant="outline"
                         onClick={handleBack}
                     >
-                        <ArrowLeft className="h-3.5 w-3.5" />
-                        Back to List
+                        <ArrowLeft className="h-4 w-4" />
+                        Back
                     </Button>
                     <div className="flex items-baseline gap-2">
                         <span className="font-mono font-bold text-[var(--cl-accent)] text-sm">#{selectedJob.job_no}</span>
                         <span className="text-sm font-medium text-[var(--cl-text)]">{selectedJob.customer_name}</span>
                     </div>
                     <div className="flex-1" />
-                    <Button
-                        className="h-8 gap-1.5 px-4 text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm font-extrabold uppercase tracking-widest disabled:opacity-30 disabled:bg-slate-300 disabled:text-slate-600 disabled:cursor-not-allowed"
-                        disabled={!canSave}
-                        onClick={() => void form.handleSubmit(executeSave)()}
+                    {/* Division selector */}
+                    <Select
+                        value={selectedDivisionId ? String(selectedDivisionId) : "__none__"}
+                        onValueChange={v => setSelectedDivisionId(v === "__none__" ? null : Number(v))}
                     >
-                        {form.formState.isSubmitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-                        Save Invoice &amp; Mark Final
-                    </Button>
+                        <SelectTrigger className="h-8 w-44 text-xs border-[var(--cl-border)] bg-[var(--cl-surface)]">
+                            <SelectValue placeholder="Select division" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="__none__">No division</SelectItem>
+                            {availableDivisions.map(d => (
+                                <SelectItem key={d.id} value={String(d.id)}>{d.name}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                    {/* GST / Non-GST badge */}
+                    <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-bold tracking-wide ${isGst ? "bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-400" : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400"}`}>
+                        {isGst ? "GST" : "NON-GST"}
+                    </span>
+                    {!isWarranty && (
+                        <Button
+                            className="h-8 gap-1.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-bold uppercase tracking-wider disabled:opacity-40"
+                            disabled={submitting}
+                            onClick={() => void handleSaveFinal()}
+                        >
+                            {submitting
+                                ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                : <CheckCheck className="h-3.5 w-3.5" />
+                            }
+                            Save &amp; Mark Final
+                        </Button>
+                    )}
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-4 space-y-5">
-                    {/* Job summary */}
-                    <div className="rounded-lg border border-[var(--cl-border)] bg-[var(--cl-surface-2)] p-4">
+                <div className="flex-1 overflow-y-auto space-y-5 p-4">
+
+                    {/* Warranty banner */}
+                    {isWarranty && (
+                        <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300">
+                            <AlertTriangle className="h-4 w-4 shrink-0" />
+                            This is a warranty job — parts used and additional charges cannot be modified.
+                        </div>
+                    )}
+
+                    {/* Job Summary */}
+                    <div className="rounded-lg border border-[var(--cl-border)] bg-[var(--cl-surface-2)] px-4 py-4">
                         <p className="mb-3 text-[10px] font-semibold uppercase tracking-widest text-[var(--cl-text-muted)]">Job Summary</p>
                         <div className="grid grid-cols-2 gap-x-6 gap-y-2 sm:grid-cols-3 lg:grid-cols-4">
                             {([
-                                ["Job No",      selectedJob.alternate_job_no ? `${selectedJob.job_no} · Alt: ${selectedJob.alternate_job_no}` : selectedJob.job_no],
-                                ["Job Date",    selectedJob.job_date],
-                                ["Customer",    selectedJob.customer_name ?? "—"],
-                                ["Mobile",      selectedJob.mobile],
-                                ["Technician",  selectedJob.technician_name ?? "—"],
-                                ["Status",      selectedJob.job_status_name],
-                                ["Amount",      selectedJob.amount != null ? `₹${Number(selectedJob.amount).toFixed(2)}` : "—"],
+                                ["Job No",     selectedJob.alternate_job_no ? `${selectedJob.job_no} · Alt: ${selectedJob.alternate_job_no}` : selectedJob.job_no],
+                                ["Job Date",   selectedJob.job_date],
+                                ["Customer",   selectedJob.customer_name ?? "—"],
+                                ["Mobile",     selectedJob.mobile],
+                                ["Technician", selectedJob.technician_name ?? "—"],
+                                ["Job Type",   selectedJob.job_type_name],
+                                ["Status",     selectedJob.job_status_name],
+                                ["Amount",     selectedJob.amount != null ? `₹${Number(selectedJob.amount).toFixed(2)}` : "—"],
                             ] as [string, string][]).map(([lbl, val]) => (
                                 <div key={lbl}>
                                     <p className="text-[10px] uppercase tracking-wider text-[var(--cl-text-muted)]">{lbl}</p>
@@ -553,238 +532,280 @@ export const FinalForDeliverySection = () => {
                             ))}
                         </div>
                         {selectedJob.problem_reported && (
-                            <div className="mt-3">
+                            <div className="mt-3 border-t border-[var(--cl-border)] pt-3">
                                 <p className="text-[10px] uppercase tracking-wider text-[var(--cl-text-muted)]">Problem Reported</p>
-                                <p className="mt-0.5 text-sm text-[var(--cl-text)]">{selectedJob.problem_reported}</p>
+                                <p className="mt-0.5 text-sm text-[var(--cl-text)] leading-relaxed">{selectedJob.problem_reported}</p>
                             </div>
                         )}
                     </div>
 
-                    {/* Invoice header */}
-                    <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-                        <div>
-                            <Label className="mb-1.5 block text-sm font-medium text-[var(--cl-text)]">Invoice No</Label>
-                            <Input
-                                className="h-9 border-[var(--cl-border)] bg-[var(--cl-surface-2)] text-sm font-mono"
-                                readOnly
-                                value={invoiceNo}
-                            />
+                    {/* Parts Used — unified editable table */}
+                    <div className="rounded-lg border border-[var(--cl-border)] bg-[var(--cl-surface)] overflow-hidden">
+                        <div className="px-4 py-2.5 border-b border-[var(--cl-border)] bg-[var(--cl-surface-2)]/60">
+                            <p className="text-xs font-bold uppercase tracking-wider text-[var(--cl-text-muted)]">Parts Used</p>
                         </div>
-                        <div>
-                            <Label className="mb-1.5 block text-sm font-medium text-[var(--cl-text)]" htmlFor="ffd-inv-date">
-                                Invoice Date <span className="text-red-500">*</span>
-                            </Label>
-                            <Input
-                                className="h-9 border-[var(--cl-border)] bg-[var(--cl-surface)] text-sm"
-                                id="ffd-inv-date"
-                                type="date"
-                                {...form.register("invoice_date")}
-                            />
-                        </div>
-                        <div>
-                            <Label className="mb-1.5 block text-sm font-medium text-[var(--cl-text)]">Supply State</Label>
-                            <Select value={form.watch("supply_state_code")} onValueChange={v => form.setValue("supply_state_code", v, { shouldValidate: true })}>
-                                <SelectTrigger className="h-9 border-[var(--cl-border)] bg-[var(--cl-surface)] text-sm">
-                                    <SelectValue placeholder="Select state" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {allStates.map(s => (
-                                        <SelectItem key={s.id} value={s.gst_state_code ?? s.code}>
-                                            {s.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div className="flex items-end pb-1">
-                            <div className="flex items-center gap-2">
-                                <Switch checked={isIgst} id="ffd-igst" onCheckedChange={v => setIsIgst(v)} />
-                                <Label className="text-sm text-[var(--cl-text)] cursor-pointer" htmlFor="ffd-igst">IGST</Label>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Lines section */}
-                    <div>
-                        <div className="mb-2 flex items-center justify-between">
-                            <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--cl-text-muted)]">Invoice Lines</p>
-                            <Button
-                                className="h-7 gap-1.5 px-2.5 text-xs"
-                                disabled={loadingParts || form.formState.isSubmitting}
-                                size="sm"
-                                variant="outline"
-                                onClick={() => void handleAutoPopulate()}
-                            >
-                                {loadingParts
-                                    ? <Loader2 className="h-3 w-3 animate-spin" />
-                                    : <Wand2 className="h-3 w-3" />
-                                }
-                                Auto-populate from Parts Used
-                            </Button>
-                        </div>
-
-                        <div className="overflow-x-auto rounded-lg border border-[var(--cl-border)]">
-                            <table className="min-w-full border-collapse text-sm">
+                        <div className="overflow-x-auto pb-1">
+                            <table className="min-w-[780px] w-full border-collapse text-sm">
                                 <thead>
                                     <tr>
-                                        <th className={`${thClass} w-8`}>#</th>
-                                        <th className={thClass}>Description <span className="text-red-500">*</span></th>
-                                        <th className={thClass}>Part Code</th>
-                                        <th className={thClass}>HSN</th>
-                                        <th className={`${thClass} w-20`}>Qty <span className="text-red-500">*</span></th>
-                                        <th className={`${thClass} w-24`}>Unit Price <span className="text-red-500">*</span></th>
-                                        <th className={`${thClass} w-20`}>GST %</th>
-                                        <th className={`${thClass} text-right w-24`}>Taxable</th>
-                                        {isIgst
-                                            ? <th className={`${thClass} text-right w-24`}>IGST</th>
-                                            : <>
-                                                <th className={`${thClass} text-right w-24`}>CGST</th>
-                                                <th className={`${thClass} text-right w-24`}>SGST</th>
-                                              </>
-                                        }
-                                        <th className={`${thClass} text-right w-24`}>Total</th>
-                                        <th className={`${thClass} w-10`}></th>
+                                        <th className={pthClass} style={{ width: "3%" }}>#</th>
+                                        <th className={pthClass} style={{ width: "14%" }}>Brand</th>
+                                        <th className={pthClass} style={{ width: "18%" }}>Part Code <span className="text-red-500">*</span></th>
+                                        <th className={pthClass} style={{ width: "20%" }}>Part Name</th>
+                                        <th className={`${pthClass} text-right`} style={{ width: "8%" }}>Qty <span className="text-red-500">*</span></th>
+                                        <th className={`${pthClass} text-right`} style={{ width: "9%" }}>Cost Price</th>
+                                        <th className={`${pthClass} text-right`} style={{ width: "9%" }}>Selling Price</th>
+                                        <th className={pthClass} style={{ width: "14%" }}>Remarks</th>
+                                        {!isWarranty && <th className={pthClass} style={{ width: "5%" }}></th>}
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {lines.map((line, idx) => {
-                                        const c = calcLine(line, isIgst);
-                                        return (
-                                            <tr key={line._key} className="group">
-                                                <td className={`${tdClass} text-center text-[var(--cl-text-muted)]`}>{idx + 1}</td>
+                                    {partLines.map((line, idx) => (
+                                        <tr key={line._key} className="hover:bg-[var(--cl-surface-2)]/30">
+                                            <td className={`${ptdClass} pl-3 text-xs text-[var(--cl-text-muted)]`}>{idx + 1}</td>
+                                            <td className={ptdClass}>
+                                                {isWarranty ? (
+                                                    <span className="px-2 text-xs text-[var(--cl-text-muted)]">
+                                                        {brands.find(b => b.id === line.brand_id)?.name ?? "—"}
+                                                    </span>
+                                                ) : (
+                                                    <Select
+                                                        value={line.brand_id ? String(line.brand_id) : ""}
+                                                        onValueChange={v => updatePartLine(line._key, { brand_id: Number(v), part_id: null, part_code: "", part_name: "" })}
+                                                    >
+                                                        <SelectTrigger className="h-7 text-xs bg-transparent border-[var(--cl-border)]">
+                                                            <SelectValue placeholder="Select brand" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            {brands.map(b => (
+                                                                <SelectItem key={b.id} value={String(b.id)}>{b.name}</SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                )}
+                                            </td>
+                                            <td className={ptdClass}>
+                                                {isWarranty ? (
+                                                    <span className="px-2 font-mono text-xs font-semibold text-[var(--cl-accent)]">{line.part_code || "—"}</span>
+                                                ) : (
+                                                    <PartCodeInput
+                                                        brandId={line.brand_id}
+                                                        partCode={line.part_code}
+                                                        partId={line.part_id}
+                                                        partName={line.part_name}
+                                                        selectedBrandId={line.brand_id}
+                                                        brandName={brands.find(b => b.id === line.brand_id)?.name}
+                                                        onChange={code => {
+                                                            if (!code.trim()) {
+                                                                updatePartLine(line._key, { part_code: "", part_id: null, part_name: "" });
+                                                            } else {
+                                                                updatePartLine(line._key, { part_code: code });
+                                                            }
+                                                        }}
+                                                        onClear={() => updatePartLine(line._key, { part_code: "", part_id: null, part_name: "" })}
+                                                        onSelect={part => handlePartSelect(line._key, part)}
+                                                    />
+                                                )}
+                                            </td>
+                                            <td className={ptdClass}>
+                                                <Input
+                                                    className="h-7 min-w-[100px] border-[var(--cl-border)] bg-[var(--cl-surface)] text-xs"
+                                                    disabled={isWarranty}
+                                                    placeholder="Part name"
+                                                    value={line.part_name}
+                                                    onChange={e => updatePartLine(line._key, { part_name: e.target.value })}
+                                                />
+                                            </td>
+                                            <td className={ptdClass}>
+                                                <Input
+                                                    className={`h-7 w-20 border-[var(--cl-border)] bg-[var(--cl-surface)] text-xs text-right ${line.quantity <= 0 ? "border-red-500" : ""}`}
+                                                    disabled={isWarranty}
+                                                    min={0.01}
+                                                    step="0.01"
+                                                    type="number"
+                                                    value={line.quantity}
+                                                    onChange={e => updatePartLine(line._key, { quantity: parseFloat(e.target.value) || 0 })}
+                                                    onFocus={e => e.target.select()}
+                                                />
+                                            </td>
+                                            <td className={ptdClass}>
+                                                <Input
+                                                    className="h-7 w-20 border-[var(--cl-border)] bg-[var(--cl-surface)] text-xs text-right"
+                                                    disabled={isWarranty}
+                                                    min="0"
+                                                    step="0.01"
+                                                    type="number"
+                                                    value={line.cost_price}
+                                                    onChange={e => updatePartLine(line._key, { cost_price: e.target.value })}
+                                                    onFocus={e => e.target.select()}
+                                                />
+                                            </td>
+                                            <td className={ptdClass}>
+                                                <Input
+                                                    className="h-7 w-20 border-[var(--cl-border)] bg-[var(--cl-surface)] text-xs text-right"
+                                                    disabled={isWarranty}
+                                                    min="0"
+                                                    step="0.01"
+                                                    type="number"
+                                                    value={line.selling_price}
+                                                    onChange={e => updatePartLine(line._key, { selling_price: e.target.value })}
+                                                    onFocus={e => e.target.select()}
+                                                />
+                                            </td>
+                                            <td className={ptdClass}>
+                                                <Input
+                                                    className="h-7 border-[var(--cl-border)] bg-[var(--cl-surface)] text-xs"
+                                                    disabled={isWarranty}
+                                                    placeholder="Remarks…"
+                                                    value={line.remarks}
+                                                    onChange={e => updatePartLine(line._key, { remarks: e.target.value })}
+                                                />
+                                            </td>
+                                            {!isWarranty && (
+                                                <td className={`${ptdClass} px-1`}>
+                                                    <div className="flex items-center gap-0.5">
+                                                        <Button
+                                                            className="h-6 w-6 p-0 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
+                                                            size="icon"
+                                                            title="Add row"
+                                                            variant="ghost"
+                                                            onClick={addPartLine}
+                                                        >
+                                                            <Plus className="h-3.5 w-3.5" />
+                                                        </Button>
+                                                        <Button
+                                                            className="h-6 w-6 p-0 text-[var(--cl-text-muted)] hover:text-red-500 hover:bg-red-500/10"
+                                                            size="icon"
+                                                            title="Remove part"
+                                                            variant="ghost"
+                                                            onClick={() => removePartLine(line._key, line.id)}
+                                                        >
+                                                            <Trash2 className="h-3.5 w-3.5" />
+                                                        </Button>
+                                                    </div>
+                                                </td>
+                                            )}
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                        {deletedPartIds.length > 0 && (
+                            <p className="px-4 py-2 text-xs text-red-500">
+                                {deletedPartIds.length} part{deletedPartIds.length !== 1 ? "s" : ""} marked for removal.
+                            </p>
+                        )}
+                    </div>
+
+                    {/* Additional Charges */}
+                    <div className="rounded-lg border border-[var(--cl-border)] bg-[var(--cl-surface)] overflow-hidden">
+                        <div className="flex items-center justify-between px-4 py-2.5 border-b border-[var(--cl-border)] bg-[var(--cl-surface-2)]/60">
+                            <p className="text-xs font-bold uppercase tracking-wider text-[var(--cl-text-muted)]">Additional Charges</p>
+                            {!isWarranty && (
+                                <Button className="h-7 gap-1 px-2.5 text-xs" size="sm" variant="outline" onClick={addChargeLine}>
+                                    <Plus className="h-3 w-3" /> Add Charge
+                                </Button>
+                            )}
+                        </div>
+                        {chargeLines.length === 0 ? (
+                            <p className="px-4 py-4 text-sm text-[var(--cl-text-muted)] italic">No additional charges.</p>
+                        ) : (
+                            <div className="overflow-x-auto">
+                                <table className="min-w-full border-collapse text-sm">
+                                    <thead>
+                                        <tr>
+                                            <th className={thClass}>#</th>
+                                            <th className={thClass}>Charge Name <span className="text-red-500">*</span></th>
+                                            <th className={thClass}>Ref No</th>
+                                            <th className={thClass}>Description</th>
+                                            <th className={`${thClass} text-right`}>Cost Price</th>
+                                            <th className={`${thClass} text-right`}>Selling Price <span className="text-red-500">*</span></th>
+                                            {!isWarranty && <th className={thClass}></th>}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {chargeLines.map((c, idx) => (
+                                            <tr key={c._key} className="group">
+                                                <td className={`${tdClass} text-[var(--cl-text-muted)]`}>{idx + 1}</td>
                                                 <td className={tdClass}>
                                                     <Input
-                                                        className="h-7 min-w-[160px] border-[var(--cl-border)] bg-[var(--cl-surface)] text-xs"
-                                                        placeholder="Description"
-                                                        value={line.description}
-                                                        onChange={e => updateLine(line._key, "description", e.target.value)}
+                                                        className="h-7 min-w-[140px] border-[var(--cl-border)] bg-[var(--cl-surface)] text-xs"
+                                                        disabled={isWarranty}
+                                                        placeholder="Charge name"
+                                                        value={c.charge_name}
+                                                        onChange={e => updateChargeLine(c._key, "charge_name", e.target.value)}
                                                     />
                                                 </td>
                                                 <td className={tdClass}>
                                                     <Input
                                                         className="h-7 w-28 border-[var(--cl-border)] bg-[var(--cl-surface)] text-xs"
-                                                        placeholder="Part code"
-                                                        value={line.part_code}
-                                                        onChange={e => updateLine(line._key, "part_code", e.target.value)}
+                                                        disabled={isWarranty}
+                                                        placeholder="Ref no"
+                                                        value={c.ref_no}
+                                                        onChange={e => updateChargeLine(c._key, "ref_no", e.target.value)}
                                                     />
                                                 </td>
                                                 <td className={tdClass}>
                                                     <Input
-                                                        className="h-7 w-24 border-[var(--cl-border)] bg-[var(--cl-surface)] text-xs"
-                                                        placeholder="HSN"
-                                                        value={line.hsn_code}
-                                                        onChange={e => updateLine(line._key, "hsn_code", e.target.value)}
+                                                        className="h-7 min-w-[160px] border-[var(--cl-border)] bg-[var(--cl-surface)] text-xs"
+                                                        disabled={isWarranty}
+                                                        placeholder="Description"
+                                                        value={c.description}
+                                                        onChange={e => updateChargeLine(c._key, "description", e.target.value)}
                                                     />
                                                 </td>
                                                 <td className={tdClass}>
                                                     <Input
-                                                        className="h-7 w-16 border-[var(--cl-border)] bg-[var(--cl-surface)] text-xs text-right"
+                                                        className="h-7 w-24 border-[var(--cl-border)] bg-[var(--cl-surface)] text-xs text-right"
+                                                        disabled={isWarranty}
                                                         min="0"
                                                         step="0.01"
                                                         type="number"
-                                                        value={line.quantity}
-                                                        onChange={e => updateLine(line._key, "quantity", e.target.value)}
+                                                        value={c.cost_price}
+                                                        onChange={e => updateChargeLine(c._key, "cost_price", e.target.value)}
                                                     />
                                                 </td>
                                                 <td className={tdClass}>
                                                     <Input
-                                                        className="h-7 w-20 border-[var(--cl-border)] bg-[var(--cl-surface)] text-xs text-right"
+                                                        className="h-7 w-24 border-[var(--cl-border)] bg-[var(--cl-surface)] text-xs text-right"
+                                                        disabled={isWarranty}
                                                         min="0"
                                                         step="0.01"
                                                         type="number"
-                                                        value={line.unit_price}
-                                                        onChange={e => updateLine(line._key, "unit_price", e.target.value)}
+                                                        value={c.selling_price}
+                                                        onChange={e => updateChargeLine(c._key, "selling_price", e.target.value)}
                                                     />
                                                 </td>
-                                                <td className={tdClass}>
-                                                    <Input
-                                                        className="h-7 w-16 border-[var(--cl-border)] bg-[var(--cl-surface)] text-xs text-right"
-                                                        min="0"
-                                                        step="0.5"
-                                                        type="number"
-                                                        value={line.gst_rate}
-                                                        onChange={e => updateLine(line._key, "gst_rate", e.target.value)}
-                                                    />
-                                                </td>
-                                                <td className={`${tdClass} text-right tabular-nums`}>{c.taxable.toFixed(2)}</td>
-                                                {isIgst
-                                                    ? <td className={`${tdClass} text-right tabular-nums`}>{c.igst.toFixed(2)}</td>
-                                                    : <>
-                                                        <td className={`${tdClass} text-right tabular-nums`}>{c.cgst.toFixed(2)}</td>
-                                                        <td className={`${tdClass} text-right tabular-nums`}>{c.sgst.toFixed(2)}</td>
-                                                      </>
-                                                }
-                                                <td className={`${tdClass} text-right tabular-nums font-medium`}>{c.total.toFixed(2)}</td>
-                                                <td className={tdClass}>
-                                                    <Button
-                                                        className="h-6 w-6 p-0 text-[var(--cl-text-muted)] hover:text-red-500 opacity-0 group-hover:opacity-100"
-                                                        disabled={lines.length <= 1}
-                                                        size="icon"
-                                                        title="Remove line"
-                                                        variant="ghost"
-                                                        onClick={() => removeLine(line._key)}
-                                                    >
-                                                        <Trash2 className="h-3 w-3" />
-                                                    </Button>
-                                                </td>
+                                                {!isWarranty && (
+                                                    <td className={tdClass}>
+                                                        <Button
+                                                            className="h-6 w-6 p-0 text-[var(--cl-text-muted)] hover:text-red-500 hover:bg-red-500/10 opacity-0 group-hover:opacity-100"
+                                                            size="icon"
+                                                            title="Remove charge"
+                                                            variant="ghost"
+                                                            onClick={() => removeChargeLine(c._key, c.id)}
+                                                        >
+                                                            <Trash2 className="h-3.5 w-3.5" />
+                                                        </Button>
+                                                    </td>
+                                                )}
                                             </tr>
-                                        );
-                                    })}
-                                </tbody>
-                            </table>
-                        </div>
-
-                        <Button
-                            className="mt-2 h-7 gap-1.5 px-3 text-xs"
-                            size="sm"
-                            variant="outline"
-                            onClick={addLine}
-                        >
-                            <Plus className="h-3 w-3" /> Add Line
-                        </Button>
-                    </div>
-
-                    {/* Totals */}
-                    <div className="flex justify-end">
-                        <div className="rounded-lg border border-[var(--cl-border)] bg-[var(--cl-surface-2)] p-4 min-w-[260px]">
-                            <p className="mb-3 text-[10px] font-semibold uppercase tracking-widest text-[var(--cl-text-muted)]">Totals</p>
-                            <div className="space-y-1.5 text-sm">
-                                <div className="flex justify-between gap-8">
-                                    <span className="text-[var(--cl-text-muted)]">Taxable</span>
-                                    <span className="tabular-nums">₹{totals.taxable.toFixed(2)}</span>
-                                </div>
-                                {isIgst ? (
-                                    <div className="flex justify-between gap-8">
-                                        <span className="text-[var(--cl-text-muted)]">IGST</span>
-                                        <span className="tabular-nums">₹{totals.igst.toFixed(2)}</span>
-                                    </div>
-                                ) : (
-                                    <>
-                                        <div className="flex justify-between gap-8">
-                                            <span className="text-[var(--cl-text-muted)]">CGST</span>
-                                            <span className="tabular-nums">₹{totals.cgst.toFixed(2)}</span>
-                                        </div>
-                                        <div className="flex justify-between gap-8">
-                                            <span className="text-[var(--cl-text-muted)]">SGST</span>
-                                            <span className="tabular-nums">₹{totals.sgst.toFixed(2)}</span>
-                                        </div>
-                                    </>
-                                )}
-                                <div className="flex justify-between gap-8 border-t border-[var(--cl-border)] pt-1.5 font-semibold">
-                                    <span>Total</span>
-                                    <span className="tabular-nums text-[var(--cl-accent)]">₹{totals.total.toFixed(2)}</span>
-                                </div>
+                                        ))}
+                                    </tbody>
+                                </table>
                             </div>
-                        </div>
+                        )}
                     </div>
+
                 </div>
             </motion.div>
         );
     }
 
-    // ─── List View ────────────────────────────────────────────────────────────
+    // ─── List view ────────────────────────────────────────────────────────────
 
     return (
+        <>
         <motion.div
             animate={{ opacity: 1 }}
             className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden"
@@ -808,47 +829,30 @@ export const FinalForDeliverySection = () => {
 
             {/* Toolbar */}
             <div className="flex flex-wrap items-center gap-2 px-4 py-1 bg-[var(--cl-surface-2)]/30">
-                <div className="flex items-center gap-1">
-                    <Input
-                        className="h-8 w-32 border-[var(--cl-border)] bg-[var(--cl-surface)] text-xs"
-                        disabled={loading}
-                        type="date"
-                        value={fromDate}
-                        onChange={e => { setFromDate(e.target.value); setPage(1); }}
-                    />
-                    <span className="text-[var(--cl-text-muted)] text-xs">—</span>
-                    <Input
-                        className="h-8 w-32 border-[var(--cl-border)] bg-[var(--cl-surface)] text-xs"
-                        disabled={loading}
-                        type="date"
-                        value={toDate}
-                        onChange={e => { setToDate(e.target.value); setPage(1); }}
-                    />
-                </div>
-                <div className="relative flex-1 sm:max-w-xs">
+                <div className="relative flex-1 sm:max-w-lg">
                     <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--cl-text-muted)]" />
                     <Input
-                        className="h-8 border-[var(--cl-border)] bg-[var(--cl-surface)] pl-8 text-xs"
-                        placeholder="Job no, alt job no, customer or mobile…"
+                        className="h-8 border-[var(--cl-border)] bg-[var(--cl-surface)] pl-8 pr-8 text-xs"
+                        placeholder="Job no, alt job no, customer, mobile, email, city, technician, serial no, device…"
                         value={search}
                         onChange={e => handleSearchChange(e.target.value)}
                     />
-                            {search && (
-                                <button
-                                    className="absolute right-2.5 top-1/2 flex h-4 w-4 -translate-y-1/2 items-center justify-center rounded-full bg-[var(--cl-text-muted)] text-[var(--cl-surface)] hover:bg-[var(--cl-text)] focus:outline-none"
-                                    type="button"
-                                    onClick={() => handleSearchChange("")}
-                                >
-                                    <X className="h-2.5 w-2.5" />
-                                </button>
-                            )}
+                    {search && (
+                        <button
+                            className="absolute right-2.5 top-1/2 flex h-4 w-4 -translate-y-1/2 items-center justify-center rounded-full bg-[var(--cl-text-muted)] text-[var(--cl-surface)] hover:bg-[var(--cl-text)] focus:outline-none"
+                            type="button"
+                            onClick={() => handleSearchChange("")}
+                        >
+                            <X className="h-2.5 w-2.5" />
+                        </button>
+                    )}
                 </div>
                 <Button
-                    className="h-8 px-2.5 text-xs"
+                    className="ml-auto h-8 px-2.5 text-xs"
                     disabled={loading || !branchId}
                     size="sm"
                     variant="outline"
-                    onClick={() => { if (branchId) void loadData(branchId, fromDate, toDate, searchQ, page, currentDivision?.id ?? null); }}
+                    onClick={() => { if (branchId) void loadData(branchId, searchQ, page, currentDivision?.id ?? null); }}
                 >
                     <RefreshCw className="mr-1.5 h-3 w-3" /> Refresh
                 </Button>
@@ -861,7 +865,7 @@ export const FinalForDeliverySection = () => {
                         <table className="min-w-full border-collapse">
                             <thead>
                                 <tr>
-                                    {["#","Date","Job No","Customer","Mobile","Status","Technician","Amount","Invoice",...(currentDivision ? [] : ["Division"]),"Action"].map(h => (
+                                    {["#", "Date", "Job No", "Customer", "Mobile", "Device Details", "Job Type", "Amount", "Actions"].map(h => (
                                         <th key={h} className={thClass}>{h}</th>
                                     ))}
                                 </tr>
@@ -869,7 +873,7 @@ export const FinalForDeliverySection = () => {
                             <tbody>
                                 {Array.from({ length: 8 }).map((_, i) => (
                                     <tr key={i} className="animate-pulse">
-                                        {Array.from({ length: 10 }).map((__, j) => (
+                                        {Array.from({ length: 9 }).map((__, j) => (
                                             <td key={j} className={tdClass}><div className="h-4 w-16 rounded bg-[var(--cl-border)]" /></td>
                                         ))}
                                     </tr>
@@ -878,7 +882,7 @@ export const FinalForDeliverySection = () => {
                         </table>
                     ) : rows.length === 0 ? (
                         <div className="flex h-32 items-center justify-center text-sm text-[var(--cl-text-muted)]">
-                            No finalised jobs pending delivery for the selected filters.
+                            No Completed OK jobs found.
                         </div>
                     ) : (
                         <table className="min-w-full border-collapse">
@@ -889,12 +893,10 @@ export const FinalForDeliverySection = () => {
                                     <th className={thClass}>Job No</th>
                                     <th className={thClass}>Customer</th>
                                     <th className={thClass}>Mobile</th>
-                                    <th className={thClass}>Status</th>
-                                    <th className={thClass}>Technician</th>
+                                    <th className={`${thClass} w-40`}>Device Details</th>
+                                    <th className={thClass}>Job Type</th>
                                     <th className={`${thClass} text-right`}>Amount</th>
-                                    <th className={thClass}>Invoice</th>
-                                    {!currentDivision && <th className={thClass}>Division</th>}
-                                    <th className={`${thClass} sticky right-0 z-20 !bg-[var(--cl-surface-2)]`}>Action</th>
+                                    <th className={`${thClass} sticky right-0 z-20 !bg-[var(--cl-surface-2)]`}>Actions</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-[var(--cl-border)] bg-[var(--cl-surface)]">
@@ -907,51 +909,100 @@ export const FinalForDeliverySection = () => {
                                         transition={{ delay: idx * 0.015, duration: 0.15 }}
                                     >
                                         <td className={`${tdClass} text-[var(--cl-text-muted)]`}>{(page - 1) * PAGE_SIZE + idx + 1}</td>
-                                        <td className={tdClass}>{row.job_date}</td>
-                                        <td className={`${tdClass} font-mono font-semibold text-[var(--cl-accent)]`}>
-                                            #{row.job_no}
-                                            {row.alternate_job_no && (
-                                                <span className="block text-[10px] text-[var(--cl-text-muted)] font-normal">Alt: {row.alternate_job_no}</span>
-                                            )}
+
+                                        {/* Date + division badge */}
+                                        <td className={`${tdClass} whitespace-nowrap`}>
+                                            <div className="flex flex-col gap-0.5">
+                                                <span>{row.job_date}</span>
+                                                {row.division_id && (() => {
+                                                    const dv = availableDivisions.find(d => d.id === row.division_id);
+                                                    return dv ? (
+                                                        <span className="font-mono text-[10px] font-semibold text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-950/40 rounded px-1 py-0.5 w-fit">
+                                                            {dv.code}
+                                                        </span>
+                                                    ) : null;
+                                                })()}
+                                            </div>
                                         </td>
+
+                                        {/* Job No + badges */}
+                                        <td className={tdClass}>
+                                            <div className="flex flex-col gap-0.5">
+                                                <div className="font-mono font-semibold text-[var(--cl-accent)]">
+                                                    #{row.job_no}
+                                                    {row.is_final && (
+                                                        <span className="ml-1.5 text-[10px] font-bold text-emerald-600 bg-emerald-100 dark:bg-emerald-950/40 rounded px-1 py-0.5">FINAL</span>
+                                                    )}
+                                                </div>
+                                                {row.alternate_job_no && (
+                                                    <span className="text-[10px] text-[var(--cl-text-muted)]">Alt: {row.alternate_job_no}</span>
+                                                )}
+                                                {row.batch_no != null && (
+                                                    <span className="text-[9px] font-bold text-violet-600 dark:text-violet-400 w-fit bg-violet-50 dark:bg-violet-950/40 rounded px-1 py-0.5">Batch #{row.batch_no}</span>
+                                                )}
+                                                {row.file_count > 0 && (
+                                                    <button
+                                                        type="button"
+                                                        className="flex items-center gap-1 text-[10px] text-blue-600 dark:text-blue-400 font-medium hover:text-blue-700 cursor-pointer bg-blue-50 dark:bg-blue-950/40 rounded px-1.5 py-0.5 w-fit border-0 transition-colors"
+                                                        onClick={e => { e.stopPropagation(); setAttachJobId(row.id); setAttachJobNo(row.job_no); }}
+                                                    >
+                                                        <Paperclip className="h-2.5 w-2.5" />
+                                                        <span>{row.file_count} File{row.file_count !== 1 ? "s" : ""}</span>
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </td>
+
                                         <td className={tdClass}>{row.customer_name}</td>
                                         <td className={`${tdClass} font-mono text-xs`}>{row.mobile}</td>
-                                        <td className={tdClass}>
-                                            <span className="rounded-full px-2 py-0.5 text-xs font-medium bg-[var(--cl-accent)]/10 text-[var(--cl-accent)]">
-                                                {row.job_status_name}
-                                            </span>
+
+                                        {/* Device details */}
+                                        <td className={`${tdClass} max-w-[10rem]`}>
+                                            <div className="flex flex-col gap-0.5">
+                                                {row.device_details && (
+                                                    <span className="text-xs leading-snug">{row.device_details}</span>
+                                                )}
+                                                {row.serial_no && (
+                                                    <span className="font-mono text-[10px] text-[var(--cl-text-muted)]">S/N: {row.serial_no}</span>
+                                                )}
+                                            </div>
                                         </td>
-                                        <td className={tdClass}>{row.technician_name ?? "—"}</td>
+
+                                        <td className={tdClass}>
+                                            <span className="text-xs text-[var(--cl-text-muted)]">{row.job_type_name}</span>
+                                        </td>
+
                                         <td className={`${tdClass} text-right tabular-nums`}>
                                             {row.amount != null ? `₹${Number(row.amount).toFixed(2)}` : "—"}
                                         </td>
-                                        <td className={tdClass}>
-                                            {row.has_invoice
-                                                ? <span className="rounded-full px-2 py-0.5 text-xs font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400">✓ Invoiced</span>
-                                                : <span className="text-xs text-[var(--cl-text-muted)]">—</span>
-                                            }
-                                        </td>
-                                        {!currentDivision && (
-                                            <td className={tdClass}>
-                                                <span className="text-xs text-[var(--cl-text-muted)]">
-                                                    {availableDivisions.find(d => d.id === row.division_id)?.name ?? "—"}
-                                                </span>
-                                            </td>
-                                        )}
+
+                                        {/* Actions */}
                                         <td className={`${tdClass} sticky right-0 z-10 bg-[var(--cl-surface)] group-hover:bg-[var(--cl-surface-2)]`}>
-                                            <Button
-                                                className="h-7 px-2 text-xs text-[var(--cl-text-muted)] hover:text-[var(--cl-accent)]"
-                                                disabled={loadingDetail}
-                                                size="sm"
-                                                title={row.has_invoice ? "Edit Invoice" : "Create Invoice"}
-                                                variant="ghost"
-                                                onClick={() => void handleRowClick(row)}
-                                            >
-                                                {loadingDetail
-                                                    ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                                    : row.has_invoice ? "Edit" : "Invoice"
-                                                }
-                                            </Button>
+                                            <div className="flex items-center gap-1">
+                                                <Button
+                                                    className="h-7 w-7 p-0 text-[var(--cl-text-muted)] hover:text-[var(--cl-accent)]"
+                                                    size="icon"
+                                                    title="View job details"
+                                                    variant="ghost"
+                                                    onClick={() => setViewJobId(row.id)}
+                                                >
+                                                    <Eye className="h-3.5 w-3.5" />
+                                                </Button>
+                                                <Button
+                                                    className="h-7 gap-1 px-2 text-xs font-semibold text-emerald-700 border border-emerald-300 hover:bg-emerald-50 dark:text-emerald-400 dark:border-emerald-700 dark:hover:bg-emerald-950/30"
+                                                    disabled={loadingDetail}
+                                                    size="sm"
+                                                    title="Finalise this job"
+                                                    variant="outline"
+                                                    onClick={() => void handleOpenFinal(row)}
+                                                >
+                                                    {loadingDetail
+                                                        ? <Loader2 className="h-3 w-3 animate-spin" />
+                                                        : <CheckCheck className="h-3 w-3" />
+                                                    }
+                                                    Final
+                                                </Button>
+                                            </div>
                                         </td>
                                     </motion.tr>
                                 ))}
@@ -963,7 +1014,7 @@ export const FinalForDeliverySection = () => {
                 {/* Pagination */}
                 <div className="flex items-center justify-between border-t border-[var(--cl-border)] px-4 py-2">
                     <span className="text-xs text-[var(--cl-text-muted)]">
-                        {total === 0 ? "No jobs" : `Showing ${(page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, total)} of ${total} jobs (Page ${page} of ${totalPages})`}
+                        {total === 0 ? "No jobs" : `Showing ${(page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, total)} of ${total} (Page ${page} of ${totalPages})`}
                     </span>
                     <div className="flex items-center gap-1">
                         <Button className="h-7 w-7" disabled={page <= 1 || loading} size="icon" title="First"    variant="ghost" onClick={() => setPage(1)}><ChevronsLeftIcon  className="h-4 w-4" /></Button>
@@ -974,5 +1025,18 @@ export const FinalForDeliverySection = () => {
                 </div>
             </div>
         </motion.div>
+
+        {viewJobId !== null && (
+            <JobDetailsModal jobId={viewJobId} onClose={() => setViewJobId(null)} />
+        )}
+
+        {attachJobId !== null && (
+            <JobAttachDialog
+                jobId={attachJobId}
+                jobNo={attachJobNo}
+                onClose={() => { setAttachJobId(null); setAttachJobNo(""); }}
+            />
+        )}
+        </>
     );
 };

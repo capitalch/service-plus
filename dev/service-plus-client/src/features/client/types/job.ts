@@ -14,6 +14,7 @@ export type JobSearchRow = {
     is_closed:         boolean;
     device_details:    string | null;
     batch_no?:         number | null;
+    division_id?:      number | null;
 };
 
 export type JobDetailType = {

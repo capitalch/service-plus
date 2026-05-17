@@ -1,6 +1,12 @@
-# Mo
-- I added "code" column in division table
-- Implement code for division in CRUD operations. Make correct changes at client and server side.
-- Single job: view, Show division code in date column below date value. Also show division in view modal for a job
-- Batch jobs: view, show division code in batch header. Also show division in view modal for a batch job
-- 
+# Modification in "Final for delivery" feature
+- Remove date filters
+- Make search box functionality same as that of Job Search, but for only completed_ok jobs
+- The data grid will only show thos jobs whose status are completed_ok
+- The data format for data grid will be same as "Job Search"
+- Each row will have a view icon, which will show job details modal same as in "Job Pipeline" job-details-modal
+- Each row will also have a final button which will open a Final tab with back button, similar to as in Job Pipeline
+- Final tab will have job details. Here the user will check and alter parts used and additional charges. This screen is to make the charges against a job final. After saving is_final will be set true.
+- If associated division has gst, then indicate GST else indicate non-gst in a fab
+- in warranty jobs will not be allowed to set charges
+- Create compatible and nice UI.
+- write a detailed plan to plans/plan.md

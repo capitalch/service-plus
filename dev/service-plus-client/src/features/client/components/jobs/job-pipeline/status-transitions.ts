@@ -20,7 +20,7 @@ export const STATUS_FLAGS: Record<number, StatusFlags> = {
     8:  { is_final: false, is_closed: false }, // ON_HOLD
     9:  { is_final: false, is_closed: false }, // OUTSOURCED
     10: { is_final: false, is_closed: false }, // SENT_TO_COMPANY
-    11: { is_final: true,  is_closed: false }, // COMPLETED_OK
+    11: { is_final: false, is_closed: false }, // COMPLETED_OK
     12: { is_final: true,  is_closed: false }, // RETURN
     13: { is_final: false, is_closed: true  }, // DELIVERED_OK
     14: { is_final: false, is_closed: true  }, // DELIVERED_NOT_OK

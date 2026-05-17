@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Calendar, FileText, Loader2, MapPin, Package, ReceiptText, RotateCcw, User, Wrench } from "lucide-react";
+import { Building2, Calendar, FileText, Loader2, MapPin, Package, ReceiptText, RotateCcw, User, Wrench } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,7 @@ import { SQL_MAP } from "@/constants/sql-map";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { apolloClient } from "@/lib/apollo-client";
 import { encodeObj, graphQlUtils } from "@/lib/graphql-utils";
-import { selectCurrentBranch, selectSchema } from "@/store/context-slice";
+import { selectAvailableDivisions, selectCurrentBranch, selectSchema } from "@/store/context-slice";
 import { useAppSelector } from "@/store/hooks";
 import type { JobDetailType, JobTransactionRow } from "@/features/client/types/job";
 import { STATUS_COLORS } from "./status-transitions";
@@ -86,6 +86,7 @@ export const JobDetailsModal = ({ jobId, onClose, onJobChanged }: Props) => {
     const dbName = useAppSelector(selectDbName);
     const schema = useAppSelector(selectSchema);
     const currentBranch = useAppSelector(selectCurrentBranch);
+    const divisions = useAppSelector(selectAvailableDivisions);
 
     const [job, setJob] = useState<JobDetailType | null>(null);
     const [transactions, setTransactions] = useState<JobTransactionRow[]>([]);
@@ -160,6 +161,7 @@ export const JobDetailsModal = ({ jobId, onClose, onJobChanged }: Props) => {
     const device = job
         ? [job.product_name, job.brand_name, job.model_name].filter(Boolean).join(" / ") || null
         : null;
+    const division = job?.division_id ? (divisions.find(d => d.id === job.division_id) ?? null) : null;
 
     const statusKey = job?.job_status_name.toUpperCase().replace(/ /g, "_") ?? "";
     const statusColorParts = STATUS_COLORS[statusKey]?.trim().split(/\s+/) ?? [];
@@ -206,6 +208,9 @@ export const JobDetailsModal = ({ jobId, onClose, onJobChanged }: Props) => {
                         <div className="relative z-10 mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-600">
                             <span className="inline-flex items-center gap-1.5"><Calendar className="h-3.5 w-3.5" />{job.job_date}</span>
                             <span className="inline-flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" />{currentBranch?.code ?? job.branch_code ?? "—"}</span>
+                            {division && (
+                                <span className="inline-flex items-center gap-1.5"><Building2 className="h-3.5 w-3.5" />{division.name}</span>
+                            )}
                             {job.technician_name && (
                                 <span className="inline-flex items-center gap-1.5"><Wrench className="h-3.5 w-3.5" />{job.technician_name}</span>
                             )}
@@ -282,6 +287,7 @@ export const JobDetailsModal = ({ jobId, onClose, onJobChanged }: Props) => {
                                         ["Alt Job No", job.alternate_job_no],
                                         ["Batch No", (job as JobDetailType & { batch_no?: string | null }).batch_no],
                                         ["Job Type", job.job_type_name],
+                                        ["Division", division?.name],
                                         ["Technician", job.technician_name],
                                         ["Amount", fmtAmount(job.amount)],
                                         ["Estimate", fmtAmount(job.estimate_amount)],
