@@ -1,0 +1,1 @@
+{"action": "LOGIN", "actor": {"type": "admin_user", "username": "capitalch"}, "detail": null, "id": "34f01af2-9459-4e13-a550-7a6fddcea0ed", "outcome": "success", "resource": {"id": null, "name": "service_plus_demo", "type": "session"}, "timestamp": "2026-05-17T04:46:10.231886+00:00"}
