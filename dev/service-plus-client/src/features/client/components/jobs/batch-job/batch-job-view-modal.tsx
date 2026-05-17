@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import type { JobDetailType } from "../../../types/job";
 import { JobAttachDialog } from "../single-job/job-attach-dialog";
+import { useAppSelector } from "@/store/hooks";
+import { selectAvailableDivisions } from "@/store/context-slice";
 
 const thClass = "sticky top-0 z-10 text-[10px] font-semibold uppercase tracking-wide text-[var(--cl-text-muted)] p-2.5 text-left border-b border-[var(--cl-border)] bg-[var(--cl-surface-2)]";
 const tdClass = "p-2.5 text-sm text-[var(--cl-text)] border-b border-[var(--cl-border)]";
@@ -21,8 +23,12 @@ type Props = {
 export const BatchJobViewModal = ({ isOpen, batchNo, jobs, loading, onClose, onPrintBatch, onFileCountChange }: Props) => {
     const [attachJobId, setAttachJobId] = useState<number | null>(null);
     const [attachJobNo, setAttachJobNo] = useState("");
+    const divisions    = useAppSelector(selectAvailableDivisions);
 
     if (!isOpen || !batchNo) return null;
+
+    const firstJob     = jobs[0];
+    const batchDivision = firstJob?.division_id ? divisions.find(d => d.id === firstJob.division_id) : null;
 
     return (
         <>
@@ -42,6 +48,11 @@ export const BatchJobViewModal = ({ isOpen, batchNo, jobs, loading, onClose, onP
                             <span className="text-xs font-normal text-[var(--cl-text-muted)]">
                                 {jobs.length} job{jobs.length !== 1 ? "s" : ""}
                             </span>
+                            {batchDivision && (
+                                <span className="text-xs font-normal text-[var(--cl-text-muted)]">
+                                    · {batchDivision.name}
+                                </span>
+                            )}
                         </DialogTitle>
                     </DialogHeader>
 

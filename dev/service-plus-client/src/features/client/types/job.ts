@@ -112,6 +112,7 @@ export type BatchJobQuickInfoRow = {
     batch_no:      number;
     batch_date:    string;
     customer_name: string | null;
+    division_id:   number | null;
     mobile:        string;
     job_type_name: string;
     job_id:        number;
@@ -165,6 +166,7 @@ export type OpenJobRow = {
     transaction_count:   number;
     job_receive_manner_name:     string | null;
     job_receive_condition_name:  string | null;
+    division_id:                 number | null;
 };
 
 export type JobBoardStatusCount = {

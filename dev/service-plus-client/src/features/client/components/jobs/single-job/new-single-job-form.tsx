@@ -173,7 +173,7 @@ export function NewSingleJobForm({
 
                                 {/* Division selector — only shown when multiple divisions exist */}
                                 {divisions.length > 1 && (
-                                    <div className="space-y-1.5 md:col-span-6 lg:col-span-12">
+                                    <div className="space-y-1.5 md:col-span-6 lg:col-span-6 xl:col-span-3">
                                         <Label className={labelCls}>Division <span className="text-red-500 ml-0.5">*</span></Label>
                                         <select
                                             className={`w-full h-9 rounded-md border text-sm px-2 bg-[var(--cl-surface-2)] text-[var(--cl-text)] ${!watch("division_id") ? "border-red-400" : "border-[var(--cl-border)]"}`}

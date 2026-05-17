@@ -676,7 +676,19 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
                                                 <td className={`${tdClass} text-[var(--cl-text-muted)]`}>
                                                     {(page - 1) * PAGE_SIZE + idx + 1}
                                                 </td>
-                                                <td className={`${tdClass} whitespace-nowrap`}>{job.job_date}</td>
+                                                <td className={`${tdClass} whitespace-nowrap`}>
+                                                    <div className="flex flex-col gap-0.5">
+                                                        <span>{job.job_date}</span>
+                                                        {job.division_id && (() => {
+                                                            const dv = availableDivisions.find(d => d.id === job.division_id);
+                                                            return dv ? (
+                                                                <span className="font-mono text-[10px] font-semibold text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-950/40 rounded px-1 py-0.5 w-fit">
+                                                                    {dv.code}
+                                                                </span>
+                                                            ) : null;
+                                                        })()}
+                                                    </div>
+                                                </td>
                                                 <td className={tdClass}>
                                                     <div className="flex flex-col gap-0.5">
                                                         <div className="font-mono font-medium text-[var(--cl-text)]">

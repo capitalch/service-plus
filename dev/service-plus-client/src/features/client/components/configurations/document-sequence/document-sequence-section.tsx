@@ -89,8 +89,7 @@ export const DocumentSequenceSection = () => {
             return;
         }
         void loadSequences(currentBranch.id, activeTab);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [currentBranch?.id, activeTab, dbName, schema]);
+    }, [currentBranch?.id, activeTab, dbName, schema, availableDivisions.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const loadSequences = async (branchId: number, tab: 'branch' | number) => {
         if (!dbName || !schema) return;
@@ -98,6 +97,9 @@ export const DocumentSequenceSection = () => {
         try {
             let rows: SequenceRow[];
             if (tab === 'branch') {
+                const sqlId = availableDivisions.length > 1
+                    ? SQL_MAP.GET_BRANCH_ONLY_DOCUMENT_SEQUENCES
+                    : SQL_MAP.GET_DOCUMENT_SEQUENCES;
                 const res = await apolloClient.query<GenericQueryData<SequenceRow>>({
                     fetchPolicy: "network-only",
                     query: GRAPHQL_MAP.genericQuery,
@@ -106,7 +108,7 @@ export const DocumentSequenceSection = () => {
                         schema,
                         value: graphQlUtils.buildGenericQueryValue({
                             sqlArgs: { branch_id: branchId },
-                            sqlId: SQL_MAP.GET_DOCUMENT_SEQUENCES,
+                            sqlId,
                         }),
                     },
                 });
@@ -119,7 +121,7 @@ export const DocumentSequenceSection = () => {
                         db_name: dbName,
                         schema,
                         value: graphQlUtils.buildGenericQueryValue({
-                            sqlArgs: { division_id: tab },
+                            sqlArgs: { branch_id: branchId, division_id: tab },
                             sqlId: SQL_MAP.GET_DOCUMENT_SEQUENCES_BY_DIVISION,
                         }),
                     },
@@ -215,11 +217,11 @@ export const DocumentSequenceSection = () => {
             </div>
 
             {/* Tabs — Branch + per division (when divisions exist) */}
-            {availableDivisions.length > 0 && (
+            {availableDivisions.length > 1 && (
                 <div className="flex gap-1 border-b border-[var(--cl-border)] pb-0">
                     <button
                         type="button"
-                        className={`px-4 py-2 text-xs font-semibold rounded-t-md border border-b-0 transition-colors ${
+                        className={`px-4 py-2 text-xs font-semibold rounded-t-md border border-b-0 transition-colors cursor-pointer ${
                             activeTab === 'branch'
                                 ? 'border-[var(--cl-border)] bg-[var(--cl-surface)] text-[var(--cl-text)]'
                                 : 'border-transparent text-[var(--cl-text-muted)] hover:text-[var(--cl-text)]'
@@ -232,7 +234,7 @@ export const DocumentSequenceSection = () => {
                         <button
                             key={d.id}
                             type="button"
-                            className={`px-4 py-2 text-xs font-semibold rounded-t-md border border-b-0 transition-colors ${
+                            className={`px-4 py-2 text-xs font-semibold rounded-t-md border border-b-0 transition-colors cursor-pointer ${
                                 activeTab === d.id
                                     ? 'border-[var(--cl-border)] bg-[var(--cl-surface)] text-[var(--cl-text)]'
                                     : 'border-transparent text-[var(--cl-text-muted)] hover:text-[var(--cl-text)]'

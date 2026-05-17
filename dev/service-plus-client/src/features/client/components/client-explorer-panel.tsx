@@ -140,7 +140,7 @@ function JobsExplorer() {
                 </CollapsibleGroup>
                 <TreeItem icon={ClipboardList} label="Job Search" />
                 <TreeItem icon={BarChart3}     label="Job Pipeline" />
-                <TreeItem icon={FileText}      label="Ready for Delivery" />
+                <TreeItem icon={FileText}      label="Final for Delivery" />
                 <TreeItem icon={Truck}         label="Deliver Job" />
                 <TreeItem icon={RotateCcw}     label="Opening Jobs" />
                 <TreeItem icon={Receipt}       label="Receipts" />

@@ -27,17 +27,17 @@ import type { JobDetailType, JobLookupRow } from "@/features/client/types/job";
 import type { DocumentSequenceRow } from "@/features/client/types/sales";
 import type { JobInvoiceFormLine, JobInvoiceLineType, JobInvoiceType } from "@/features/client/types/job-invoice";
 import {
-    readyForDeliverySchema,
-    getReadyForDeliveryDefaultValues,
-    type ReadyForDeliveryFormValues,
-} from "./ready-for-delivery-schema";
+    finalForDeliverySchema,
+    getFinalForDeliveryDefaultValues,
+    type FinalForDeliveryFormValues,
+} from "./final-for-delivery-schema";
 
 // ─── Local types ──────────────────────────────────────────────────────────────
 
 type SubView = "list" | "invoice";
 type GenericQueryData<T> = { genericQuery: T[] | null };
 
-type ReadyJobRow = {
+type FinalJobRow = {
     id:               number;
     job_no:           string;
     alternate_job_no: string | null;
@@ -135,7 +135,7 @@ function buildLinePayload(line: JobInvoiceFormLine, isIgst: boolean) {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export const ReadyForDeliverySection = () => {
+export const FinalForDeliverySection = () => {
     const dbName             = useAppSelector(selectDbName);
     const schema             = useAppSelector(selectSchema);
     const currentBranch      = useAppSelector(selectCurrentBranch);
@@ -153,19 +153,19 @@ export const ReadyForDeliverySection = () => {
     const [search,   setSearch]   = useState("");
     const [searchQ,  setSearchQ]  = useState("");
     const [page,     setPage]     = useState(1);
-    const [rows,     setRows]     = useState<ReadyJobRow[]>([]);
+    const [rows,     setRows]     = useState<FinalJobRow[]>([]);
     const [total,    setTotal]    = useState(0);
     const [loading,  setLoading]  = useState(false);
 
     // ── Meta ────────────────────────────────────────────────────────────────
-    const [docSequence,   setDocSequence]   = useState<DocumentSequenceRow | null>(null);
-    const [jobDocSeq,     setJobDocSeq]     = useState<DocumentSequenceRow | null>(null);
-    const [allStates,     setAllStates]     = useState<StateRow[]>([]);
-    const [readyStatusId, setReadyStatusId] = useState<number | null>(null);
-    const [metaLoaded,    setMetaLoaded]    = useState(false);
+    const [docSequence,  setDocSequence]  = useState<DocumentSequenceRow | null>(null);
+    const [jobDocSeq,    setJobDocSeq]    = useState<DocumentSequenceRow | null>(null);
+    const [allStates,    setAllStates]    = useState<StateRow[]>([]);
+    const [finalStatusId, setFinalStatusId] = useState<number | null>(null);
+    const [metaLoaded,   setMetaLoaded]   = useState(false);
 
     // ── Invoice state ───────────────────────────────────────────────────────
-    // const [selectedRow,      setSelectedRow]      = useState<ReadyJobRow | null>(null);
+    // const [selectedRow,      setSelectedRow]      = useState<FinalJobRow | null>(null);
     const [selectedJob,      setSelectedJob]      = useState<JobDetailType | null>(null);
     const [existingInvoice,  setExistingInvoice]  = useState<JobInvoiceType | null>(null);
     const [isIgst,           setIsIgst]           = useState(false);
@@ -173,10 +173,10 @@ export const ReadyForDeliverySection = () => {
     const [loadingDetail,    setLoadingDetail]    = useState(false);
     const [loadingParts,     setLoadingParts]     = useState(false);
 
-    const form = useForm<ReadyForDeliveryFormValues>({
-        defaultValues: getReadyForDeliveryDefaultValues(),
+    const form = useForm<FinalForDeliveryFormValues>({
+        defaultValues: getFinalForDeliveryDefaultValues(),
         mode:          "onChange",
-        resolver:      zodResolver(readyForDeliverySchema) as any,
+        resolver:      zodResolver(finalForDeliverySchema) as any,
     });
 
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -223,8 +223,8 @@ export const ReadyForDeliverySection = () => {
             setAllStates(stateRes.data?.genericQuery ?? []);
 
             const statuses = statusRes.data?.genericQuery ?? [];
-            const readyStatus = statuses.find(s => s.code === "READY");
-            setReadyStatusId(readyStatus?.id ?? null);
+            const finalStatus = statuses.find(s => s.code === "READY");
+            setFinalStatusId(finalStatus?.id ?? null);
 
             const defaultStateCode = effectiveStateCode ?? "";
             form.setValue("supply_state_code", defaultStateCode, { shouldValidate: true });
@@ -240,13 +240,13 @@ export const ReadyForDeliverySection = () => {
         try {
             const commonArgs = { branch_id: bid, division_id: divisionId, from_date: from, to_date: to, search: q };
             const [dataRes, countRes] = await Promise.all([
-                apolloClient.query<GenericQueryData<ReadyJobRow>>({
+                apolloClient.query<GenericQueryData<FinalJobRow>>({
                     fetchPolicy: "network-only",
                     query:       GRAPHQL_MAP.genericQuery,
                     variables:   {
                         db_name: dbName, schema,
                         value: graphQlUtils.buildGenericQueryValue({
-                            sqlId:   SQL_MAP.GET_READY_JOBS_PAGED,
+                            sqlId:   SQL_MAP.GET_FINAL_JOBS_PAGED,
                             sqlArgs: { ...commonArgs, limit: PAGE_SIZE, offset: (pg - 1) * PAGE_SIZE },
                         }),
                     },
@@ -256,14 +256,14 @@ export const ReadyForDeliverySection = () => {
                     query:       GRAPHQL_MAP.genericQuery,
                     variables:   {
                         db_name: dbName, schema,
-                        value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_READY_JOBS_COUNT, sqlArgs: commonArgs }),
+                        value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_FINAL_JOBS_COUNT, sqlArgs: commonArgs }),
                     },
                 }),
             ]);
             setRows(dataRes.data?.genericQuery ?? []);
             setTotal(Number(countRes.data?.genericQuery?.[0]?.total ?? 0));
         } catch {
-            toast.error(MESSAGES.ERROR_READY_JOBS_LOAD_FAILED);
+            toast.error(MESSAGES.ERROR_FINAL_JOBS_LOAD_FAILED);
         } finally {
             setLoading(false);
         }
@@ -281,7 +281,7 @@ export const ReadyForDeliverySection = () => {
     }
 
     // ── Open invoice view for a row ─────────────────────────────────────────
-    async function handleRowClick(row: ReadyJobRow) {
+    async function handleRowClick(row: FinalJobRow) {
         if (!dbName || !schema) return;
         setLoadingDetail(true);
         try {
@@ -333,7 +333,7 @@ export const ReadyForDeliverySection = () => {
                 setIsIgst(hasIgst);
                 setLines(invoice.lines?.length ? invoice.lines.map(dbLineToFormLine) : [emptyFormLine()]);
             } else {
-                form.reset(getReadyForDeliveryDefaultValues(jobDivision?.gst_state_code ?? effectiveStateCode ?? ""));
+                form.reset(getFinalForDeliveryDefaultValues(jobDivision?.gst_state_code ?? effectiveStateCode ?? ""));
                 setIsIgst(false);
                 setLines([emptyFormLine()]);
             }
@@ -405,10 +405,10 @@ export const ReadyForDeliverySection = () => {
     }, [lines, isIgst]);
 
     // ── Save ─────────────────────────────────────────────────────────────────
-    async function executeSave(values: ReadyForDeliveryFormValues) {
+    async function executeSave(values: FinalForDeliveryFormValues) {
         if (!selectedJob || !dbName || !schema) return;
-        if (!readyStatusId) {
-            toast.error("Ready for Delivery status not configured. Check job status codes.");
+        if (!finalStatusId) {
+            toast.error("Final for Delivery status not configured. Check job status codes.");
             return;
         }
 
@@ -441,7 +441,7 @@ export const ReadyForDeliverySection = () => {
                     },
                     xDetails: [
                         { tableName: "job_invoice_line", fkeyName: "job_invoice_id", xData: linePayloads },
-                        { tableName: "job", xData: { id: selectedJob.id, job_status_id: readyStatusId } },
+                        { tableName: "job", xData: { id: selectedJob.id, job_status_id: finalStatusId } },
                         { tableName: "document_sequence", xData: { id: activeSeq.id, next_number: activeSeq.next_number + 1 } },
                     ],
                 };
@@ -470,7 +470,7 @@ export const ReadyForDeliverySection = () => {
                     },
                     xDetails: [
                         lineDetail,
-                        { tableName: "job", xData: { id: selectedJob.id, job_status_id: readyStatusId } },
+                        { tableName: "job", xData: { id: selectedJob.id, job_status_id: finalStatusId } },
                     ],
                 };
             }
@@ -497,7 +497,7 @@ export const ReadyForDeliverySection = () => {
     if (subView === "invoice" && selectedJob) {
         const activeSeq = jobDocSeq ?? docSequence;
         const invoiceNo = existingInvoice?.invoice_no ?? (activeSeq ? buildInvoiceNo(activeSeq) : "—");
-        const canSave   = form.formState.isValid && linesValid && !form.formState.isSubmitting && !!readyStatusId;
+        const canSave   = form.formState.isValid && linesValid && !form.formState.isSubmitting && !!finalStatusId;
 
         return (
             <motion.div
@@ -528,7 +528,7 @@ export const ReadyForDeliverySection = () => {
                         onClick={() => void form.handleSubmit(executeSave)()}
                     >
                         {form.formState.isSubmitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-                        Save Invoice &amp; Mark Ready
+                        Save Invoice &amp; Mark Final
                     </Button>
                 </div>
 
@@ -571,12 +571,12 @@ export const ReadyForDeliverySection = () => {
                             />
                         </div>
                         <div>
-                            <Label className="mb-1.5 block text-sm font-medium text-[var(--cl-text)]" htmlFor="rfd-inv-date">
+                            <Label className="mb-1.5 block text-sm font-medium text-[var(--cl-text)]" htmlFor="ffd-inv-date">
                                 Invoice Date <span className="text-red-500">*</span>
                             </Label>
                             <Input
                                 className="h-9 border-[var(--cl-border)] bg-[var(--cl-surface)] text-sm"
-                                id="rfd-inv-date"
+                                id="ffd-inv-date"
                                 type="date"
                                 {...form.register("invoice_date")}
                             />
@@ -598,8 +598,8 @@ export const ReadyForDeliverySection = () => {
                         </div>
                         <div className="flex items-end pb-1">
                             <div className="flex items-center gap-2">
-                                <Switch checked={isIgst} id="rfd-igst" onCheckedChange={v => setIsIgst(v)} />
-                                <Label className="text-sm text-[var(--cl-text)] cursor-pointer" htmlFor="rfd-igst">IGST</Label>
+                                <Switch checked={isIgst} id="ffd-igst" onCheckedChange={v => setIsIgst(v)} />
+                                <Label className="text-sm text-[var(--cl-text)] cursor-pointer" htmlFor="ffd-igst">IGST</Label>
                             </div>
                         </div>
                     </div>
@@ -798,7 +798,7 @@ export const ReadyForDeliverySection = () => {
                         <CheckCircle2 className="h-4 w-4" />
                     </div>
                     <div className="flex items-baseline gap-2">
-                        <h1 className="text-lg font-bold text-[var(--cl-text)]">Ready for Delivery</h1>
+                        <h1 className="text-lg font-bold text-[var(--cl-text)]">Final for Delivery</h1>
                         <span className="text-xs text-[var(--cl-text-muted)]">
                             {loading ? "Loading…" : `(${total})`}
                         </span>

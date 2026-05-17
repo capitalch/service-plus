@@ -546,62 +546,6 @@ async def resolve_feed_bu_seed_data_helper(
     return {"code": code}
 
 
-async def resolve_migrate_bu_schema_helper(
-    db_name: str, schema: str, value: str
-) -> dict:
-    """
-    Apply BU_MIGRATE_DDL to upgrade an existing schema from the pre-division layout.
-    Fully idempotent — safe to re-run on already-migrated schemas.
-
-    Value payload (URL-encoded JSON): { code }
-    """
-    payload = _decode_value(value, "migrateBuSchema")
-
-    code: str = (payload.get("code") or "").lower().strip()
-
-    if not code:
-        raise ValidationException(
-            message=AppMessages.REQUIRED_FIELD_MISSING,
-            extensions={"field": "code"},
-        )
-
-    if not re.match(r"^[a-z0-9_]{3,9}$", code):
-        raise ValidationException(
-            message=AppMessages.INVALID_INPUT,
-            extensions={
-                "detail": "Code must be 3–9 alphanumeric/underscore characters",
-                "field": "code",
-            },
-        )
-
-    rows = await exec_sql(
-        db_name=db_name,
-        schema="security",
-        sql=SqlStore.CHECK_SCHEMA_EXISTS,
-        sql_args={"code": code},
-    )
-    if not (rows and rows[0].get("exists")):
-        raise ValidationException(
-            message=AppMessages.RESOURCE_NOT_FOUND,
-            extensions={"detail": f"Schema '{code}' does not exist", "field": "code"},
-        )
-
-    logger.info("Migrating schema '%s' in db '%s'", code, db_name)
-    await exec_sql(
-        db_name=db_name,
-        schema=code,
-        sql=SqlBu.BU_MIGRATE_DDL,
-    )
-
-    await audit_logger.log(
-        action=AuditAction.MIGRATE_BU_SCHEMA,
-        resource_name=code,
-        resource_type="bu_schema",
-    )
-    logger.info("Schema '%s' migrated successfully", code)
-    return {"code": code}
-
-
 async def resolve_delete_bu_schema_helper(
     db_name: str, schema: str, value: str
 ) -> dict:

@@ -18,7 +18,7 @@ import { SQL_MAP } from "@/constants/sql-map";
 import { selectCurrentUser, selectDbName } from "@/features/auth/store/auth-slice";
 import { apolloClient } from "@/lib/apollo-client";
 import { encodeObj, graphQlUtils } from "@/lib/graphql-utils";
-import { selectCurrentBranch, selectSchema } from "@/store/context-slice";
+import { selectCurrentBranch, selectSchema, selectAvailableDivisions } from "@/store/context-slice";
 import { useAppSelector } from "@/store/hooks";
 import { useDebounce } from "@/hooks/use-debounce";
 import type { JobBoardStatusCount, OpenJobRow, TechnicianRow } from "@/features/client/types/job";
@@ -69,10 +69,11 @@ const thClass = "sticky top-0 z-20 text-xs font-semibold uppercase tracking-wide
 const tdClass = "p-3 text-sm text-[var(--cl-text)] border-b border-[var(--cl-border)]";
 
 export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Props) => {
-    const dbName = useAppSelector(selectDbName);
-    const schema = useAppSelector(selectSchema);
+    const dbName        = useAppSelector(selectDbName);
+    const schema        = useAppSelector(selectSchema);
     const currentBranch = useAppSelector(selectCurrentBranch);
-    const currentUser = useAppSelector(selectCurrentUser);
+    const currentUser   = useAppSelector(selectCurrentUser);
+    const divisions     = useAppSelector(selectAvailableDivisions);
     const branchId = currentBranch?.id ?? null;
 
     const [searchInput, setSearchInput] = useState("");
@@ -167,6 +168,7 @@ export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Prop
             const xData = {
                 id: job.id,
                 job_status_id: transition.targetId,
+                division_id: payload.division_id,
                 technician_id: payload.technician_id,
                 amount: job.amount,
                 estimate_amount: transition.fields.includes("E") ? payload.estimate_amount : job.estimate_amount,
@@ -327,7 +329,19 @@ export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Prop
                                             transition={{ delay: idx * 0.015, duration: 0.15 }}
                                         >
                                             <td className={`${tdClass} text-[var(--cl-text-muted)]`}>{(page - 1) * PAGE_SIZE + idx + 1}</td>
-                                            <td className={tdClass}>{row.job_date}</td>
+                                            <td className={`${tdClass} whitespace-nowrap`}>
+                                                <div className="flex flex-col gap-0.5">
+                                                    <span>{row.job_date}</span>
+                                                    {row.division_id && (() => {
+                                                        const dv = divisions.find(d => d.id === row.division_id);
+                                                        return dv ? (
+                                                            <span className="font-mono text-[10px] font-semibold text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-950/40 rounded px-1 py-0.5 w-fit">
+                                                                {dv.code}
+                                                            </span>
+                                                        ) : null;
+                                                    })()}
+                                                </div>
+                                            </td>
                                             <td className={tdClass}>
                                                 <div className="flex flex-col gap-0.5">
                                                     <div className="flex flex-wrap items-center gap-1">
@@ -487,6 +501,7 @@ export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Prop
 
             {pendingTran && (
                 <StatusTransitionModal
+                    divisions={divisions}
                     job={pendingTran.job}
                     transition={pendingTran.transition}
                     technicians={technicians}

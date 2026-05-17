@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import {MoreHorizontalIcon,
+import {AlertTriangleIcon, MoreHorizontalIcon,
     PencilIcon,
     RefreshCwIcon,
     SearchIcon, X} from "lucide-react";
 import { toast } from "sonner";
 
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -29,7 +30,7 @@ import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
-import { selectSchema } from "@/store/context-slice";
+import { selectAvailableDivisions, selectDefaultDivisionId, selectSchema } from "@/store/context-slice";
 import { EditAppSettingDialog } from "./edit-app-setting-dialog";
 import type { AppSettingRecord } from "@/features/client/types/app-setting";
 
@@ -59,8 +60,13 @@ function displayValue(v: unknown): string {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export const AppSettingsSection = () => {
-    const dbName = useAppSelector(selectDbName);
-    const schema = useAppSelector(selectSchema);
+    const dbName             = useAppSelector(selectDbName);
+    const schema             = useAppSelector(selectSchema);
+    const availableDivisions = useAppSelector(selectAvailableDivisions);
+    const defaultDivisionId  = useAppSelector(selectDefaultDivisionId);
+
+    const isDefaultDivisionInactive = availableDivisions.length > 0
+        && !availableDivisions.some(d => d.id === defaultDivisionId);
 
     const [editRecord,   setEditRecord]   = useState<AppSettingRecord | null>(null);
     const [loading,      setLoading]      = useState(false);
@@ -175,6 +181,19 @@ export const AppSettingsSection = () => {
                     )}
                 </div>
 
+                {/* Warning: default_division_id points to inactive/missing division */}
+                {isDefaultDivisionInactive && (
+                    <Alert variant="warning" className="flex items-start gap-2 py-2.5">
+                        <AlertTriangleIcon className="mt-0.5 h-4 w-4 shrink-0 text-yellow-600" />
+                        <AlertDescription className="text-xs text-yellow-800">
+                            <span className="font-semibold">default_division_id</span> is set to{" "}
+                            <span className="font-mono">{defaultDivisionId}</span>, which does not match any active
+                            division in this branch. The app will fall back to no default division until this is
+                            corrected.
+                        </AlertDescription>
+                    </Alert>
+                )}
+
                 {/* Table */}
                 {loading && records.length === 0 ? (
                     <div className="flex flex-col gap-2">
@@ -214,7 +233,11 @@ export const AppSettingsSection = () => {
                                         displayRecords.map((record, idx) => (
                                             <motion.tr
                                                 animate="visible"
-                                                className="border-b border-[var(--cl-border)] transition-colors last:border-b-0 hover:bg-[var(--cl-surface-3)]"
+                                                className={`border-b border-[var(--cl-border)] transition-colors last:border-b-0 hover:bg-[var(--cl-surface-3)] ${
+                                                    isDefaultDivisionInactive && record.setting_key === "default_division_id"
+                                                        ? "bg-yellow-50/60 dark:bg-yellow-900/10"
+                                                        : ""
+                                                }`}
                                                 custom={idx}
                                                 initial="hidden"
                                                 key={record.id}

@@ -147,6 +147,7 @@ export const DivisionSection = () => {
             const q = search.toLowerCase();
             rows = rows.filter(r =>
                 r.name.toLowerCase().includes(q) ||
+                r.code.toLowerCase().includes(q) ||
                 (r.city?.toLowerCase().includes(q) ?? false) ||
                 (r.phone?.toLowerCase().includes(q) ?? false) ||
                 (r.gstin?.toLowerCase().includes(q) ?? false)
@@ -262,6 +263,7 @@ export const DivisionSection = () => {
                                 <TableHeader>
                                     <TableRow className="sticky top-0 z-10 bg-[var(--cl-surface-3)] hover:bg-[var(--cl-surface-3)]">
                                         <TableHead className={`w-8 text-center ${thClass}`}>#</TableHead>
+                                        <TableHead className={thSortClass} onClick={() => handleSort("code")}>Code<SortIcon col="code" /></TableHead>
                                         <TableHead className={thSortClass} onClick={() => handleSort("name")}>Name<SortIcon col="name" /></TableHead>
                                         <TableHead className={thSortClass} onClick={() => handleSort("city")}>City<SortIcon col="city" /></TableHead>
                                         <TableHead className={thClass}>Phone</TableHead>
@@ -288,6 +290,7 @@ export const DivisionSection = () => {
                                                 variants={rowVariants}
                                             >
                                                 <TableCell className="text-center text-xs text-[var(--cl-text-muted)]">{idx + 1}</TableCell>
+                                                <TableCell className="font-mono text-xs font-semibold text-[var(--cl-text)]">{division.code}</TableCell>
                                                 <TableCell className="font-medium text-[var(--cl-text)]">{division.name}</TableCell>
                                                 <TableCell className="text-sm text-[var(--cl-text-muted)]">{division.city ?? "—"}</TableCell>
                                                 <TableCell className="text-sm text-[var(--cl-text-muted)]">{division.phone ?? "—"}</TableCell>

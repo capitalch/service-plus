@@ -46,6 +46,7 @@ type BatchGroup = {
     batch_no:     number;
     batch_date:   string;
     customer_name: string | null;
+    division_id:  number | null;
     mobile:       string;
     job_count:    number;
     jobs:         JobInBatchRow[];
@@ -468,6 +469,7 @@ export const BatchJobSection = ({ initialEditBatchNo, onEditBatchNoApplied, onRe
                 batch_no: job.batch_no,
                 batch_date: job.job_date,
                 customer_name: job.customer_name,
+                division_id: job.division_id ?? null,
                 mobile: job.mobile,
                 job_count: 0,
                 jobs: [],
@@ -647,6 +649,7 @@ export const BatchJobSection = ({ initialEditBatchNo, onEditBatchNoApplied, onRe
                                         {groupedBatches.map((batch, groupIdx) => (
                                             <BatchGroupRow
                                                 key={batch.batch_no}
+                                                availableDivisions={availableDivisions}
                                                 batch={batch}
                                                 groupIdx={groupIdx}
                                                 page={page}
@@ -844,6 +847,7 @@ export const BatchJobSection = ({ initialEditBatchNo, onEditBatchNoApplied, onRe
 // ─── Batch Group Row Component ────────────────────────────────────────────────
 
 type BatchGroupRowProps = {
+    availableDivisions: DivisionContextType[];
     batch: BatchGroup;
     groupIdx: number;
     page: number;
@@ -855,7 +859,8 @@ type BatchGroupRowProps = {
     onDeleteJob: (jobId: number, jobNo: string, batchNo: number, jobCount: number) => void;
 };
 
-function BatchGroupRow({ batch, onEdit, onView, onPrint, onDelete, onAttachJob, onDeleteJob }: BatchGroupRowProps) {
+function BatchGroupRow({ availableDivisions, batch, onEdit, onView, onPrint, onDelete, onAttachJob, onDeleteJob }: BatchGroupRowProps) {
+    const batchDivision = batch.division_id ? availableDivisions.find(d => d.id === batch.division_id) : null;
     return (
         <>
             {/* Batch Header Row */}
@@ -864,6 +869,11 @@ function BatchGroupRow({ batch, onEdit, onView, onPrint, onDelete, onAttachJob, 
                     <div className="flex items-center gap-3">
                         <span className="font-mono text-sm font-bold text-[var(--cl-accent)]">#{batch.batch_no}</span>
                         <span className="text-xs text-[var(--cl-text-muted)]">{batch.batch_date}</span>
+                        {batchDivision && (
+                            <span className="font-mono text-[10px] font-semibold text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-950/40 rounded px-1.5 py-0.5">
+                                {batchDivision.code}
+                            </span>
+                        )}
                         <span className="text-xs text-[var(--cl-text)]">{batch.customer_name ?? "—"}</span>
                         <span className="text-xs font-mono text-[var(--cl-text-muted)]">{batch.mobile}</span>
                         <span className="ml-auto text-xs font-medium px-2 py-0.5 rounded-full bg-[var(--cl-accent)]/10 text-[var(--cl-accent)]">

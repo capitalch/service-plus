@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import type { TechnicianRow } from "@/features/client/types/job";
+import type { DivisionContextType } from "@/features/client/types/division";
 import { STATUS_COLORS } from "./status-transitions";
 import type { Transition } from "./status-transitions";
 
@@ -20,6 +21,7 @@ type JobSummary = {
     job_no:          string;
     customer_name:   string;
     job_status_name: string;
+    division_id:     number | null;
     technician_id:   number | null;
     job_receive_manner_name:    string | null;
     device_details:             string | null;
@@ -28,6 +30,7 @@ type JobSummary = {
 
 export type TransitionPayload = {
     targetStatusId:   number;
+    division_id:      number | null;
     technician_id:    number | null;
     estimate_amount:  number | null;
     remarks:          string;
@@ -37,6 +40,7 @@ export type TransitionPayload = {
 };
 
 type Props = {
+    divisions:   DivisionContextType[];
     job:         JobSummary;
     transition:  Transition;
     technicians: TechnicianRow[];
@@ -47,6 +51,7 @@ type Props = {
 // ─── Schema ───────────────────────────────────────────────────────────────────
 
 const formSchema = z.object({
+    division_id:      z.string().optional(),
     technician_id:    z.string().optional(),
     estimate_amount:  z.string().optional(),
     remarks:          z.string().optional(),
@@ -59,13 +64,14 @@ const today = new Date().toISOString().slice(0, 10);
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export const StatusTransitionModal = ({ job, transition, technicians, onClose, onSubmit }: Props) => {
+export const StatusTransitionModal = ({ divisions, job, transition, technicians, onClose, onSubmit }: Props) => {
     const { fields } = transition;
     const showEstimate = fields.includes("E");
 
     const form = useForm<FormValues>({
         resolver: zodResolver(formSchema),
         defaultValues: {
+            division_id:      job.division_id ? String(job.division_id) : "",
             technician_id:    job.technician_id ? String(job.technician_id) : "",
             estimate_amount:  "",
             remarks:          "",
@@ -84,6 +90,7 @@ export const StatusTransitionModal = ({ job, transition, technicians, onClose, o
         }
         await onSubmit({
             targetStatusId:   transition.targetId,
+            division_id:      values.division_id ? Number(values.division_id) : null,
             technician_id:    values.technician_id ? Number(values.technician_id) : null,
             estimate_amount:  values.estimate_amount ? Number(values.estimate_amount) : 0,
             remarks:          values.remarks ?? "",
@@ -128,6 +135,28 @@ export const StatusTransitionModal = ({ job, transition, technicians, onClose, o
                 </DialogHeader>
 
                 <div className="space-y-4">
+                    {/* ── Division ───────────────────────────────────────────── */}
+                    {divisions.length > 1 && (
+                        <div className="space-y-1.5">
+                            <Label htmlFor="stm-division">Division</Label>
+                            <Select
+                                value={form.watch("division_id")}
+                                onValueChange={v => form.setValue("division_id", v)}
+                            >
+                                <SelectTrigger id="stm-division" className="h-9">
+                                    <SelectValue placeholder="Select division" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {divisions.map(d => (
+                                        <SelectItem key={d.id} value={String(d.id)}>
+                                            {d.code} — {d.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    )}
+
                     {/* ── Estimate ───────────────────────────────────────────── */}
                     {showEstimate && (
                         <div className="space-y-3 rounded-lg border border-border p-4">

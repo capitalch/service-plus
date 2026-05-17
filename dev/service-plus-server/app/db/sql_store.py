@@ -588,7 +588,7 @@ class SqlStore:
 
     GET_DIVISIONS_BY_BRANCH = """
         with "p_branch_id" as (values(%(branch_id)s::bigint))
-        SELECT d.id, d.branch_id, d.name, d.address_line1, d.address_line2,
+        SELECT d.id, d.branch_id, d.code, d.name, d.address_line1, d.address_line2,
                d.city, d.state_id, d.country, d.pincode, d.phone, d.email,
                d.gstin, d.is_active,
                s.gst_state_code
@@ -600,7 +600,7 @@ class SqlStore:
 
     GET_ACTIVE_DIVISIONS_BY_BRANCH = """
         with "p_branch_id" as (values(%(branch_id)s::bigint))
-        SELECT d.id, d.branch_id, d.name, d.address_line1, d.address_line2,
+        SELECT d.id, d.branch_id, d.code, d.name, d.address_line1, d.address_line2,
                d.city, d.state_id, d.country, d.pincode, d.phone, d.email,
                d.gstin,
                s.gst_state_code, s.id AS state_id
@@ -612,7 +612,7 @@ class SqlStore:
 
     GET_DIVISION_BY_ID = """
         with "p_id" as (values(%(id)s::bigint))
-        SELECT d.id, d.branch_id, d.name, d.address_line1, d.address_line2,
+        SELECT d.id, d.branch_id, d.code, d.name, d.address_line1, d.address_line2,
                d.city, d.state_id, d.country, d.pincode, d.phone, d.email,
                d.gstin, d.is_active, s.gst_state_code
         FROM division d
@@ -642,6 +642,28 @@ class SqlStore:
         ) AS exists
     """
 
+    CHECK_DIVISION_CODE_EXISTS = """
+        with "p_branch_id" as (values(%(branch_id)s::bigint)),
+             "p_code"      as (values(%(code)s::text))
+        SELECT EXISTS(
+            SELECT 1 FROM division
+            WHERE branch_id = (table "p_branch_id")
+              AND UPPER(code) = UPPER((table "p_code"))
+        ) AS exists
+    """
+
+    CHECK_DIVISION_CODE_EXISTS_EXCLUDE_ID = """
+        with "p_branch_id" as (values(%(branch_id)s::bigint)),
+             "p_code"      as (values(%(code)s::text)),
+             "p_id"        as (values(%(id)s::bigint))
+        SELECT EXISTS(
+            SELECT 1 FROM division
+            WHERE branch_id = (table "p_branch_id")
+              AND UPPER(code) = UPPER((table "p_code"))
+              AND id <> (table "p_id")
+        ) AS exists
+    """
+
     CHECK_DIVISION_IN_USE = """
         with "p_id" as (values(%(id)s::bigint))
         SELECT EXISTS(
@@ -653,17 +675,34 @@ class SqlStore:
         ) AS in_use
     """
 
+    GET_NEXT_DIVISION_ID = """
+        SELECT COALESCE(MAX(id), 0) + 1 AS next_id FROM division
+    """
+
     GET_DOCUMENT_SEQUENCES_BY_DIVISION = """
         with "p_branch_id"   as (values(%(branch_id)s::bigint)),
              "p_division_id" as (values(%(division_id)s::bigint))
-        SELECT ds.id, ds.document_type_id, ds.branch_id, ds.division_id,
-               ds.prefix, ds.next_number, ds.padding, ds.separator,
-               dt.code AS document_type_code, dt.name AS doc_type_name
-        FROM document_sequence ds
-        JOIN document_type dt ON dt.id = ds.document_type_id
-        WHERE ds.branch_id   = (table "p_branch_id")
-          AND ds.division_id = (table "p_division_id")
-        ORDER BY dt.display_order
+        SELECT
+            dt.id   AS document_type_id,
+            dt.name AS document_type_name,
+            dt.code AS document_type_code,
+            ds.id,
+            ds.prefix,
+            ds.next_number,
+            ds.padding,
+            ds.separator,
+            ds.branch_id,
+            ds.division_id
+        FROM document_type dt
+        LEFT JOIN document_sequence ds
+               ON ds.document_type_id = dt.id
+              AND ds.branch_id        = (table "p_branch_id")
+              AND ds.division_id      = (table "p_division_id")
+        WHERE dt.code IN (
+            'SERVICE_INVOICE', 'MONEY_RECEIPT', 'SALES_INVOICE',
+            'SALES_RETURN_INVOICE', 'SERVICE_RETURN_INVOICE'
+        )
+        ORDER BY dt.id
     """
 
     # ── Customer Types ────────────────────────────────────────────────────────
@@ -753,6 +792,23 @@ class SqlStore:
             ds.id as id, ds.prefix, ds.next_number, ds.padding, ds.separator, ds.branch_id
         FROM document_type dt
         LEFT JOIN document_sequence ds ON ds.document_type_id = dt.id AND ds.branch_id = (table "p_branch_id")
+        ORDER BY dt.id
+    """
+
+    GET_BRANCH_ONLY_DOCUMENT_SEQUENCES = """
+        with "p_branch_id" as (values(%(branch_id)s::bigint))
+        SELECT
+            dt.id   AS document_type_id,
+            dt.name AS document_type_name,
+            dt.code AS document_type_code,
+            ds.id   AS id,
+            ds.prefix, ds.next_number, ds.padding, ds.separator, ds.branch_id
+        FROM document_type dt
+        LEFT JOIN document_sequence ds
+               ON ds.document_type_id = dt.id
+              AND ds.branch_id        = (table "p_branch_id")
+              AND ds.division_id IS NULL
+        WHERE dt.code IN ('JOB_SHEET', 'PURCHASE_INVOICE', 'PURCHASE_RETURN_INVOICE')
         ORDER BY dt.id
     """
 
@@ -3074,7 +3130,8 @@ class SqlStore:
             (SELECT COUNT(*) FROM job_image_doc   jid WHERE jid.job_id = j.id)  AS file_count,
             (SELECT COUNT(*) FROM job_transaction jtr WHERE jtr.job_id = j.id)  AS transaction_count,
             jrm.name       AS job_receive_manner_name,
-            jrc.name       AS job_receive_condition_name
+            jrc.name       AS job_receive_condition_name,
+            j.division_id
         FROM job j
         JOIN customer_contact      cc  ON cc.id  = j.customer_contact_id
         JOIN job_type              jt  ON jt.id  = j.job_type_id
@@ -3163,7 +3220,8 @@ class SqlStore:
             (SELECT COUNT(*) FROM job_image_doc   jid WHERE jid.job_id = j.id)  AS file_count,
             (SELECT COUNT(*) FROM job_transaction jtr WHERE jtr.job_id = j.id)  AS transaction_count,
             jrm.name       AS job_receive_manner_name,
-            jrc.name       AS job_receive_condition_name
+            jrc.name       AS job_receive_condition_name,
+            j.division_id
         FROM job j
         JOIN customer_contact      cc  ON cc.id  = j.customer_contact_id
         JOIN job_type              jt  ON jt.id  = j.job_type_id
@@ -3279,6 +3337,7 @@ class SqlStore:
             jrc.name      AS receive_condition_name,
             t.name        AS technician_name,
             j.batch_no    AS batch_no,
+            j.division_id,
             (SELECT COUNT(*) FROM job_image_doc jid WHERE jid.job_id = j.id) AS file_count
         FROM job j
         JOIN customer_contact cc ON cc.id = j.customer_contact_id
@@ -3350,6 +3409,7 @@ class SqlStore:
             jt.name      AS job_type_name,
             js.name      AS job_status_name,
             t.name       AS technician_name,
+            j.division_id,
             (SELECT COUNT(*) FROM job_image_doc jid WHERE jid.job_id = j.id) AS file_count
         FROM job j
         JOIN customer_contact cc ON cc.id = j.customer_contact_id
@@ -3519,6 +3579,7 @@ class SqlStore:
             jt.name                                         AS job_type_name,
             js.name                                         AS job_status_name,
             t.name                                          AS technician_name,
+            j.division_id,
             (SELECT COUNT(*) FROM job_image_doc jid WHERE jid.job_id = j.id) AS file_count
         FROM job j
         JOIN paged_batches           pb  ON pb.batch_no = j.batch_no
@@ -3595,6 +3656,7 @@ class SqlStore:
                  THEN CONCAT(b.name, ' — ', p.name, ' — ', pbm.model_name)
                  ELSE NULL END                              AS device_details,
             j.serial_no,
+            j.division_id,
             (SELECT COUNT(*) FROM job_image_doc jid WHERE jid.job_id = j.id) AS file_count
         FROM job j
         JOIN customer_contact      cc  ON cc.id  = j.customer_contact_id
@@ -3797,9 +3859,9 @@ class SqlStore:
         LIMIT (table "p_limit")
     """
 
-    # ── Ready for Delivery ────────────────────────────────────────────────────
+    # ── Final for Delivery ────────────────────────────────────────────────────
 
-    GET_READY_JOBS_COUNT = """
+    GET_FINAL_JOBS_COUNT = """
         with
             "p_branch_id"   as (values(%(branch_id)s::bigint)),
             "p_division_id" as (values(%(division_id)s::bigint)),
@@ -3821,7 +3883,7 @@ class SqlStore:
            OR  LOWER(COALESCE(j.alternate_job_no, '')) LIKE '%%' || LOWER((table "p_search")) || '%%')
     """
 
-    GET_READY_JOBS_PAGED = """
+    GET_FINAL_JOBS_PAGED = """
         with
             "p_branch_id"   as (values(%(branch_id)s::bigint)),
             "p_division_id" as (values(%(division_id)s::bigint)),

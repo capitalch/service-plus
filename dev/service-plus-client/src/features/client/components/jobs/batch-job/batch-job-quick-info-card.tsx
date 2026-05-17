@@ -11,7 +11,7 @@ import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
-import { selectSchema, selectCurrentBranch } from "@/store/context-slice";
+import { selectSchema, selectCurrentBranch, selectAvailableDivisions } from "@/store/context-slice";
 
 type Props = {
     onAttach?: (jobs: { jobId: number; jobNo: string }[]) => void;
@@ -25,10 +25,11 @@ type Props = {
 type GenericQueryData<T> = { genericQuery: T[] | null };
 
 export function BatchJobQuickInfoCard({ onAttachJob, onEdit, onView, onPrint, refreshTrigger }: Props) {
-    const dbName = useAppSelector(selectDbName);
-    const schema = useAppSelector(selectSchema);
-    const branch = useAppSelector(selectCurrentBranch);
-    const branchId = branch?.id ?? null;
+    const dbName    = useAppSelector(selectDbName);
+    const schema    = useAppSelector(selectSchema);
+    const branch    = useAppSelector(selectCurrentBranch);
+    const divisions = useAppSelector(selectAvailableDivisions);
+    const branchId  = branch?.id ?? null;
 
     const [rows, setRows] = useState<BatchJobQuickInfoRow[]>([]);
     const [loading, setLoading] = useState(false);
@@ -138,6 +139,14 @@ export function BatchJobQuickInfoCard({ onAttachJob, onEdit, onView, onPrint, re
                             </span>
                         )}
                         <span className="text-xs text-[var(--cl-text-muted)] font-medium tabular-nums">{batchDate || "—"}</span>
+                        {rows[0]?.division_id && (() => {
+                            const dv = divisions.find(d => d.id === rows[0].division_id);
+                            return dv ? (
+                                <span className="font-mono text-[10px] font-semibold text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-950/40 rounded px-1 py-0.5">
+                                    {dv.code}
+                                </span>
+                            ) : null;
+                        })()}
                         <span className="text-xs text-[var(--cl-text-muted)]">•</span>
                         <span className="text-xs font-medium text-[var(--cl-text)] truncate">{customerName || "—"}</span>
 

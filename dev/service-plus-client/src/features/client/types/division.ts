@@ -1,6 +1,7 @@
 export type DivisionType = {
     id:             number;
     branch_id:      number;
+    code:           string;
     name:           string;
     address_line1:  string;
     address_line2:  string | null;
@@ -16,7 +17,7 @@ export type DivisionType = {
 };
 
 export type DivisionContextType = Pick<DivisionType,
-    'id' | 'name' | 'address_line1' | 'address_line2' |
+    'id' | 'code' | 'name' | 'address_line1' | 'address_line2' |
     'city' | 'state_id' | 'country' | 'pincode' | 'phone' | 'email' |
     'gstin' | 'gst_state_code'
 >;

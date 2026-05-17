@@ -2,10 +2,10 @@
 -- PostgreSQL database dump
 --
 
-\restrict GzDPzKrPhTSQz7rnIh1lNnAODzW6VfqLVX4I4OjRLqDXzgRmLyrb7krM6pGTyap
+\restrict F2rCOvKtvMpH8jn9Vy87DbJGWFn7KPM7fzFuPZ1K25fHPUQsYwoMvjS0p34RuZ9
 
 -- Dumped from database version 14.6
--- Dumped by pg_dump version 17.9 (Ubuntu 17.9-0ubuntu0.25.10.1)
+-- Dumped by pg_dump version 18.3 (Ubuntu 18.3-1)
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -378,7 +378,8 @@ CREATE TABLE demo1.job (
     batch_no integer,
     estimate_amount numeric(12,2) DEFAULT 0 NOT NULL,
     alternate_job_no text,
-    division_id bigint NOT NULL
+    division_id bigint NOT NULL,
+    CONSTRAINT job_qty_check CHECK ((quantity <> 0))
 );
 
 
@@ -1918,14 +1919,6 @@ ALTER TABLE ONLY demo1.job
 
 
 --
--- Name: job job_qty_check; Type: CHECK CONSTRAINT; Schema: demo1; Owner: webadmin
---
-
-ALTER TABLE demo1.job
-    ADD CONSTRAINT job_qty_check CHECK ((quantity <> 0)) NOT VALID;
-
-
---
 -- Name: job_receive_condition job_receive_condition_code_uidx; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
 --
 
@@ -2880,7 +2873,7 @@ ALTER TABLE ONLY demo1.customer_contact
 --
 
 ALTER TABLE ONLY demo1.division
-    ADD CONSTRAINT division_branch_id_fkey FOREIGN KEY (branch_id) REFERENCES demo1.branch(id) NOT VALID;
+    ADD CONSTRAINT division_branch_id_fkey FOREIGN KEY (branch_id) REFERENCES demo1.branch(id);
 
 
 --
@@ -2936,7 +2929,7 @@ ALTER TABLE ONLY demo1.job
 --
 
 ALTER TABLE ONLY demo1.job
-    ADD CONSTRAINT job_division_id_fkey FOREIGN KEY (division_id) REFERENCES demo1.division(id) NOT VALID;
+    ADD CONSTRAINT job_division_id_fkey FOREIGN KEY (division_id) REFERENCES demo1.division(id);
 
 
 --
@@ -3128,7 +3121,7 @@ ALTER TABLE ONLY demo1.sales_invoice
 --
 
 ALTER TABLE ONLY demo1.sales_invoice
-    ADD CONSTRAINT sales_invoice_division_id_fkey FOREIGN KEY (division_id) REFERENCES demo1.division(id) NOT VALID;
+    ADD CONSTRAINT sales_invoice_division_id_fkey FOREIGN KEY (division_id) REFERENCES demo1.division(id);
 
 
 --
@@ -3471,5 +3464,5 @@ ALTER TABLE ONLY security.user_bu_role
 -- PostgreSQL database dump complete
 --
 
-\unrestrict GzDPzKrPhTSQz7rnIh1lNnAODzW6VfqLVX4I4OjRLqDXzgRmLyrb7krM6pGTyap
+\unrestrict F2rCOvKtvMpH8jn9Vy87DbJGWFn7KPM7fzFuPZ1K25fHPUQsYwoMvjS0p34RuZ9
 

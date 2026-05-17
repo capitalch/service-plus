@@ -116,6 +116,8 @@ export const MESSAGES = {
   ERROR_DIVISION_LOAD_FAILED:    'Failed to load divisions. Please try again.',
   ERROR_DIVISION_NAME_EXISTS:    'This name is already in use for this branch.',
   ERROR_DIVISION_NAME_EXISTS_EDIT: 'This name is already used by another division in this branch.',
+  ERROR_DIVISION_CODE_EXISTS:    'This code is already in use for this branch.',
+  ERROR_DIVISION_CODE_EXISTS_EDIT: 'This code is already used by another division in this branch.',
   ERROR_DIVISION_UPDATE_FAILED:  'Failed to update division. Please try again.',
   SUCCESS_DIVISION_CREATED:      'Division created successfully.',
   SUCCESS_DIVISION_DELETED:      'Division deleted successfully.',
@@ -305,11 +307,6 @@ export const MESSAGES = {
   ERROR_TIMEOUT: 'Request timeout. Please try again.',
   ERROR_UNKNOWN: 'An unexpected error occurred. Please try again.',
 
-  // Company Profile (Configurations)
-  ERROR_COMPANY_PROFILE_LOAD_FAILED: 'Failed to load company profile. Please try again.',
-  ERROR_COMPANY_PROFILE_SAVE_FAILED: 'Failed to save company profile. Please try again.',
-  SUCCESS_COMPANY_PROFILE_SAVED:     'Company profile saved successfully.',
-
   // Document Sequences (Configurations)
   ERROR_DOCUMENT_SEQUENCE_LOAD_FAILED: 'Failed to load document sequences. Please try again.',
   ERROR_DOCUMENT_SEQUENCE_SAVE_FAILED: 'Failed to save document sequences. Please try again.',
@@ -440,12 +437,12 @@ export const MESSAGES = {
   SUCCESS_RECEIPT_CREATED:             'Receipt created successfully.',
   SUCCESS_RECEIPT_DELETED:             'Receipt deleted successfully.',
   SUCCESS_RECEIPT_UPDATED:             'Receipt updated successfully.',
-  // Ready for Delivery
-  ERROR_READY_JOBS_LOAD_FAILED:        'Failed to load ready jobs. Please try again.',
+  // Final for Delivery
+  ERROR_FINAL_JOBS_LOAD_FAILED:        'Failed to load final jobs. Please try again.',
   ERROR_JOB_INVOICE_LOAD_FAILED:       'Failed to load job invoice. Please try again.',
   ERROR_JOB_INVOICE_SAVE_FAILED:       'Failed to save job invoice. Please try again.',
   ERROR_JOB_INVOICE_LINE_REQUIRED:     'Add at least one invoice line.',
-  SUCCESS_JOB_INVOICE_SAVED:           'Invoice saved and job marked as Ready for Delivery.',
+  SUCCESS_JOB_INVOICE_SAVED:           'Invoice saved and job marked as Final for Delivery.',
   // Deliver Job
   ERROR_DELIVERABLE_JOBS_LOAD_FAILED:  'Failed to load jobs for delivery. Please try again.',
   ERROR_JOB_DELIVERY_DETAIL_FAILED:    'Failed to load job delivery details. Please try again.',

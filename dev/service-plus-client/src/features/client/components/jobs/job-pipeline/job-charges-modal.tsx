@@ -122,7 +122,7 @@ export const JobChargesModal = ({ job, dbName, schema, onClose, onSaved }: Props
             gq<PartItem>(SQL_MAP.GET_JOB_PART_USED_BY_JOB, { job_id: job.id }),
             gq<ChargeItem>(SQL_MAP.GET_JOB_ADDITIONAL_CHARGES_BY_JOB, { job_id: job.id }),
             gq<BrandOption>(SQL_MAP.GET_ALL_BRANDS, {}),
-            gq<{ setting_value: unknown }>(SQL_MAP.GET_APP_SETTING_BY_KEY, { setting_key: "MARKUP_PERCENT_OVER_COST" }),
+            gq<{ setting_value: unknown }>(SQL_MAP.GET_APP_SETTING_BY_KEY, { setting_key: "markup_percent_over_cost" }),
         ]).then(([partsRes, chargesRes, brandsRes, markupRes]) => {
             const parts   = partsRes.data?.genericQuery   ?? [];
             const charges = chargesRes.data?.genericQuery ?? [];

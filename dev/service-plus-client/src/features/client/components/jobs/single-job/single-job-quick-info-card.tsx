@@ -8,7 +8,7 @@ import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
-import { selectSchema, selectCurrentBranch } from "@/store/context-slice";
+import { selectSchema, selectCurrentBranch, selectAvailableDivisions } from "@/store/context-slice";
 
 type QuickInfoCardProps = {
     onView?: (job: JobSearchRow) => void;
@@ -23,9 +23,10 @@ type GenericQueryData<T> = { genericQuery: T[] | null };
 const JOB_COMMON_ARGS = { search: "", from_date: "2000-01-01", to_date: "3000-12-31", limit: 1 };
 
 export function SingleJobQuickInfoCard({ onView, onPrint, onAttach, onEdit, refreshTrigger }: QuickInfoCardProps) {
-    const dbName = useAppSelector(selectDbName);
-    const schema = useAppSelector(selectSchema);
-    const branch = useAppSelector(selectCurrentBranch);
+    const dbName    = useAppSelector(selectDbName);
+    const schema    = useAppSelector(selectSchema);
+    const branch    = useAppSelector(selectCurrentBranch);
+    const divisions = useAppSelector(selectAvailableDivisions);
     const branchId = branch?.id ?? null;
 
     const [currentJob, setCurrentJob] = useState<JobSearchRow | null>(null);
@@ -241,6 +242,14 @@ export function SingleJobQuickInfoCard({ onView, onPrint, onAttach, onEdit, refr
                         <span className="text-xs text-[var(--cl-text-muted)] font-medium tabular-nums">
                             {currentJob.job_date || "—"}
                         </span>
+                        {currentJob.division_id && (() => {
+                            const dv = divisions.find(d => d.id === currentJob.division_id);
+                            return dv ? (
+                                <span className="font-mono text-[10px] font-semibold text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-950/40 rounded px-1 py-0.5">
+                                    {dv.code}
+                                </span>
+                            ) : null;
+                        })()}
                         {currentJob.file_count > 0 && (
                             <button
                                 type="button"

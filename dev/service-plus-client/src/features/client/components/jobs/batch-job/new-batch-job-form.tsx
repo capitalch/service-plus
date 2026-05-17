@@ -133,6 +133,22 @@ export function NewBatchJobForm({
             <Card className="border-[var(--cl-border)] shadow-md bg-[var(--cl-surface)] !overflow-visible">
                 <CardContent className="py-2 px-3 flex flex-wrap lg:flex-nowrap items-end gap-2 !overflow-visible">
 
+                    {divisions.length > 1 && (
+                        <div className="space-y-0.5 shrink-0 w-44">
+                            <Label className={labelCls}>Division <span className="text-red-500">*</span></Label>
+                            <select
+                                className={`w-full h-8 rounded-md border text-xs px-2 bg-[var(--cl-surface-2)] text-[var(--cl-text)] ${!watch("division_id") ? "border-red-400" : "border-[var(--cl-border)]"}`}
+                                value={watch("division_id") ?? ""}
+                                onChange={e => setValue("division_id", e.target.value ? Number(e.target.value) : (undefined as unknown as number), { shouldValidate: true })}
+                            >
+                                <option value="">Select…</option>
+                                {divisions.map(d => (
+                                    <option key={d.id} value={d.id}>{d.name}{d.gstin ? " (GST)" : " (Non-GST)"}</option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
+
                     <div className="space-y-0.5 shrink-0">
                         <Label className={labelCls}>Batch No</Label>
                         <Input readOnly className="h-8 w-20 bg-[var(--cl-surface-2)] font-mono text-[var(--cl-accent)] font-bold cursor-not-allowed opacity-80 text-xs" value={editBatchNo ? `#${editBatchNo}` : "Auto"} />
@@ -167,22 +183,6 @@ export function NewBatchJobForm({
                             {receiveMannners.filter(r => r.is_active).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
                         </select>
                     </div>
-
-                    {divisions.length > 1 && (
-                        <div className="space-y-0.5 shrink-0 w-44">
-                            <Label className={labelCls}>Division <span className="text-red-500">*</span></Label>
-                            <select
-                                className={`w-full h-8 rounded-md border text-xs px-2 bg-[var(--cl-surface-2)] text-[var(--cl-text)] ${!watch("division_id") ? "border-red-400" : "border-[var(--cl-border)]"}`}
-                                value={watch("division_id") ?? ""}
-                                onChange={e => setValue("division_id", e.target.value ? Number(e.target.value) : (undefined as unknown as number), { shouldValidate: true })}
-                            >
-                                <option value="">Select…</option>
-                                {divisions.map(d => (
-                                    <option key={d.id} value={d.id}>{d.name}{d.gstin ? " (GST)" : " (Non-GST)"}</option>
-                                ))}
-                            </select>
-                        </div>
-                    )}
                 </CardContent>
             </Card>
 

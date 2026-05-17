@@ -29,18 +29,16 @@ import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
-import { selectSchema } from "@/store/context-slice";
-import { divisionSchema } from "./division-schema";
-import type { DivisionFormValues } from "./division-schema";
-import type { DivisionType } from "@/features/client/types/division";
+import { selectCurrentBranch, selectSchema } from "@/store/context-slice";
+import { addDivisionSchema } from "./division-schema";
+import type { AddDivisionFormValues } from "./division-schema";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type EditDivisionDialogPropsType = {
-    division:     DivisionType;
+type AddDivisionDialogPropsType = {
     onOpenChange: (open: boolean) => void;
-    onSuccess:    () => void;
-    open:         boolean;
+    onSuccess:   () => void;
+    open:        boolean;
 };
 
 type CheckQueryDataType = {
@@ -65,58 +63,50 @@ function FieldError({ message }: { message?: string }) {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export const EditDivisionDialog = ({
-    division,
+export const AddDivisionDialog = ({
     onOpenChange,
     onSuccess,
     open,
-}: EditDivisionDialogPropsType) => {
+}: AddDivisionDialogPropsType) => {
     const [checkingName, setCheckingName] = useState(false);
     const [nameTaken,    setNameTaken]    = useState<boolean | null>(null);
+    const [checkingCode, setCheckingCode] = useState(false);
+    const [codeTaken,    setCodeTaken]    = useState<boolean | null>(null);
     const [states,       setStates]       = useState<StateType[]>([]);
-    const dbName = useAppSelector(selectDbName);
-    const schema = useAppSelector(selectSchema);
+    const [suggestedId,  setSuggestedId]  = useState<number | null>(null);
+    const dbName        = useAppSelector(selectDbName);
+    const schema        = useAppSelector(selectSchema);
+    const currentBranch = useAppSelector(selectCurrentBranch);
 
-    const form = useForm<DivisionFormValues>({
+    const form = useForm<AddDivisionFormValues>({
         defaultValues: {
-            address_line1: division.address_line1,
-            address_line2: division.address_line2 ?? "",
-            city:          division.city ?? "",
-            country:       division.country ?? "",
-            email:         division.email ?? "",
-            gstin:         division.gstin ?? "",
-            is_active:     division.is_active,
-            name:          division.name,
-            phone:         division.phone ?? "",
-            pincode:       division.pincode ?? "",
-            state_id:      division.state_id,
+            id:            0,
+            code:          "",
+            address_line1: "",
+            address_line2: "",
+            city:          "",
+            country:       "",
+            email:         "",
+            gstin:         "",
+            is_active:     true,
+            name:          "",
+            phone:         "",
+            pincode:       "",
+            state_id:      0,
         },
         mode:     "onChange",
-        resolver: zodResolver(divisionSchema) as any,
+        resolver: zodResolver(addDivisionSchema) as any,
     });
 
     const { formState: { errors } } = form;
     const nameValue     = useWatch({ control: form.control, name: "name" });
     const debouncedName = useDebounce(nameValue, 1200);
+    const codeValue     = useWatch({ control: form.control, name: "code" });
+    const debouncedCode = useDebounce(codeValue, 1200);
 
-    // Pre-fill and fetch states on open
+    // Fetch states and suggested ID on open
     useEffect(() => {
-        if (!open) return;
-        form.reset({
-            address_line1: division.address_line1,
-            address_line2: division.address_line2 ?? "",
-            city:          division.city ?? "",
-            country:       division.country ?? "",
-            email:         division.email ?? "",
-            gstin:         division.gstin ?? "",
-            is_active:     division.is_active,
-            name:          division.name,
-            phone:         division.phone ?? "",
-            pincode:       division.pincode ?? "",
-            state_id:      division.state_id,
-        });
-        setNameTaken(null);
-        if (!dbName || !schema) return;
+        if (!open || !dbName || !schema) return;
         apolloClient
             .query<StatesQueryDataType>({
                 fetchPolicy: "network-only",
@@ -129,13 +119,65 @@ export const EditDivisionDialog = ({
             })
             .then((res) => setStates(res.data?.genericQuery ?? []))
             .catch(() => toast.error(MESSAGES.ERROR_STATES_LOAD_FAILED));
+        apolloClient
+            .query<{ genericQuery: { next_id: number }[] | null }>({
+                fetchPolicy: "network-only",
+                query: GRAPHQL_MAP.genericQuery,
+                variables: {
+                    db_name: dbName,
+                    schema,
+                    value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_NEXT_DIVISION_ID }),
+                },
+            })
+            .then((res) => setSuggestedId(res.data?.genericQuery?.[0]?.next_id ?? null))
+            .catch(() => setSuggestedId(null));
     }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    // Name uniqueness check (exclude current id)
+    // Reset on close
     useEffect(() => {
-        if (!debouncedName || !dbName || !schema) { setNameTaken(null); return; }
+        if (!open) {
+            setCheckingName(false);
+            setNameTaken(null);
+            setCheckingCode(false);
+            setCodeTaken(null);
+            setSuggestedId(null);
+            setStates([]);
+            form.reset();
+        }
+    }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // Code uniqueness check within branch
+    useEffect(() => {
+        if (!debouncedCode || !dbName || !schema || !currentBranch) { setCodeTaken(null); return; }
+        if (form.getFieldState("code").invalid) { setCodeTaken(null); return; }
+        setCheckingCode(true);
+        apolloClient
+            .query<CheckQueryDataType>({
+                fetchPolicy: "network-only",
+                query: GRAPHQL_MAP.genericQuery,
+                variables: {
+                    db_name: dbName,
+                    schema,
+                    value: graphQlUtils.buildGenericQueryValue({
+                        sqlArgs: { branch_id: currentBranch.id, code: debouncedCode },
+                        sqlId:   SQL_MAP.CHECK_DIVISION_CODE_EXISTS,
+                    }),
+                },
+            })
+            .then((res) => {
+                const exists = res.data?.genericQuery?.[0]?.exists ?? false;
+                setCodeTaken(exists);
+                if (exists) form.setError("code", { message: MESSAGES.ERROR_DIVISION_CODE_EXISTS, type: "manual" });
+                else form.clearErrors("code");
+            })
+            .catch(() => setCodeTaken(null))
+            .finally(() => setCheckingCode(false));
+    }, [debouncedCode]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // Name uniqueness check within branch
+    useEffect(() => {
+        if (!debouncedName || !dbName || !schema || !currentBranch) { setNameTaken(null); return; }
         if (form.getFieldState("name").invalid) { setNameTaken(null); return; }
-        if (debouncedName.toLowerCase() === division.name.toLowerCase()) { setNameTaken(false); return; }
         setCheckingName(true);
         apolloClient
             .query<CheckQueryDataType>({
@@ -145,23 +187,23 @@ export const EditDivisionDialog = ({
                     db_name: dbName,
                     schema,
                     value: graphQlUtils.buildGenericQueryValue({
-                        sqlArgs: { branch_id: division.branch_id, id: division.id, name: debouncedName },
-                        sqlId:   SQL_MAP.CHECK_DIVISION_NAME_EXISTS_EXCLUDE_ID,
+                        sqlArgs: { branch_id: currentBranch.id, name: debouncedName },
+                        sqlId:   SQL_MAP.CHECK_DIVISION_NAME_EXISTS,
                     }),
                 },
             })
             .then((res) => {
                 const exists = res.data?.genericQuery?.[0]?.exists ?? false;
                 setNameTaken(exists);
-                if (exists) form.setError("name", { message: MESSAGES.ERROR_DIVISION_NAME_EXISTS_EDIT, type: "manual" });
+                if (exists) form.setError("name", { message: MESSAGES.ERROR_DIVISION_NAME_EXISTS, type: "manual" });
                 else form.clearErrors("name");
             })
             .catch(() => setNameTaken(null))
             .finally(() => setCheckingName(false));
     }, [debouncedName]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    async function onSubmit(data: DivisionFormValues) {
-        if (!dbName || !schema) return;
+    async function onSubmit(data: AddDivisionFormValues) {
+        if (!dbName || !schema || !currentBranch) return;
         try {
             await apolloClient.mutate({
                 mutation: GRAPHQL_MAP.genericUpdate,
@@ -171,13 +213,16 @@ export const EditDivisionDialog = ({
                     value: graphQlUtils.buildGenericUpdateValue({
                         tableName: "division",
                         xData: {
+                            id:            data.id,
+                            isIdInsert:    true,
                             address_line1: data.address_line1,
                             address_line2: data.address_line2 || null,
+                            branch_id:     currentBranch.id,
                             city:          data.city || null,
                             country:       data.country || null,
                             email:         data.email || null,
                             gstin:         data.gstin || null,
-                            id:            division.id,
+                            code:          data.code,
                             is_active:     data.is_active,
                             name:          data.name,
                             phone:         data.phone || null,
@@ -187,18 +232,20 @@ export const EditDivisionDialog = ({
                     }),
                 },
             });
-            toast.success(MESSAGES.SUCCESS_DIVISION_UPDATED);
+            toast.success(MESSAGES.SUCCESS_DIVISION_CREATED);
             onSuccess();
             onOpenChange(false);
         } catch {
-            toast.error(MESSAGES.ERROR_DIVISION_UPDATE_FAILED);
+            toast.error(MESSAGES.ERROR_DIVISION_CREATE_FAILED);
         }
     }
 
     const submitDisabled =
         checkingName ||
+        checkingCode ||
         Object.keys(errors).length > 0 ||
         nameTaken === true ||
+        codeTaken === true ||
         form.formState.isSubmitting;
 
     return (
@@ -206,22 +253,74 @@ export const EditDivisionDialog = ({
             <DialogContent aria-describedby={undefined} className="sm:max-w-lg">
                 <DialogHeader>
                     <DialogTitle className="text-base font-semibold text-foreground">
-                        Edit Division
+                        Add Division
                     </DialogTitle>
                 </DialogHeader>
 
                 <form className="flex flex-col gap-4 pt-1" onSubmit={form.handleSubmit(onSubmit)}>
+                    {/* ID */}
+                    <div className="flex flex-col gap-1.5">
+                        <div className="flex items-baseline justify-between">
+                            <Label htmlFor="dv_id">
+                                ID <span className="text-red-500">*</span>
+                            </Label>
+                            {suggestedId !== null && (
+                                <button
+                                    className="text-xs text-sky-600 hover:underline focus:outline-none cursor-pointer"
+                                    type="button"
+                                    onClick={() => form.setValue("id", suggestedId, { shouldValidate: true })}
+                                >
+                                    Use suggested: {suggestedId}
+                                </button>
+                            )}
+                        </div>
+                        <Input
+                            autoComplete="off"
+                            id="dv_id"
+                            placeholder="Enter a unique integer ID"
+                            type="number"
+                            {...form.register("id")}
+                        />
+                        <p className="text-xs text-[var(--cl-text-muted)]">
+                            Permanent numeric identifier for this division. Used in document numbering and cannot be changed later.
+                        </p>
+                        <FieldError message={errors.id?.message} />
+                    </div>
+
+                    {/* Code */}
+                    <div className="flex flex-col gap-1.5">
+                        <Label htmlFor="dv_code">
+                            Code <span className="text-red-500">*</span>
+                        </Label>
+                        <div className="relative">
+                            <Input
+                                autoComplete="off"
+                                className="pr-8 font-mono uppercase"
+                                id="dv_code"
+                                placeholder="e.g. MAIN (2–10 uppercase letters/digits/underscores)"
+                                {...form.register("code", { setValueAs: (v: string) => v.toUpperCase() })}
+                            />
+                            {checkingCode && (
+                                <Loader2 className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-slate-400" />
+                            )}
+                            {!checkingCode && codeTaken === false && !errors.code && (
+                                <Check className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-500" />
+                            )}
+                        </div>
+                        <FieldError message={errors.code?.message} />
+                    </div>
+
                     {/* Name */}
                     <div className="flex flex-col gap-1.5">
-                        <Label htmlFor="edv_name">
+                        <Label htmlFor="dv_name">
                             Name <span className="text-red-500">*</span>
                         </Label>
                         <div className="relative">
                             <Input
                                 autoComplete="off"
                                 className="pr-8"
-                                id="edv_name"
-                                placeholder="Division name"
+                                id="dv_name"
+                                placeholder="e.g. Main Division"
                                 {...form.register("name")}
                             />
                             {checkingName && (
@@ -236,12 +335,12 @@ export const EditDivisionDialog = ({
 
                     {/* Address line 1 */}
                     <div className="flex flex-col gap-1.5">
-                        <Label htmlFor="edv_addr1">
+                        <Label htmlFor="dv_addr1">
                             Address <span className="text-red-500">*</span>
                         </Label>
                         <Input
                             autoComplete="off"
-                            id="edv_addr1"
+                            id="dv_addr1"
                             placeholder="Street address"
                             {...form.register("address_line1")}
                         />
@@ -250,10 +349,10 @@ export const EditDivisionDialog = ({
 
                     {/* Address line 2 */}
                     <div className="flex flex-col gap-1.5">
-                        <Label htmlFor="edv_addr2">Address Line 2</Label>
+                        <Label htmlFor="dv_addr2">Address Line 2</Label>
                         <Input
                             autoComplete="off"
-                            id="edv_addr2"
+                            id="dv_addr2"
                             placeholder="Apartment, suite, etc."
                             {...form.register("address_line2")}
                         />
@@ -262,14 +361,13 @@ export const EditDivisionDialog = ({
                     <div className="grid grid-cols-2 gap-4">
                         {/* State */}
                         <div className="flex flex-col gap-1.5">
-                            <Label htmlFor="edv_state">
+                            <Label htmlFor="dv_state">
                                 State <span className="text-red-500">*</span>
                             </Label>
                             <Select
-                                defaultValue={String(division.state_id)}
                                 onValueChange={(v) => form.setValue("state_id", Number(v), { shouldValidate: true })}
                             >
-                                <SelectTrigger id="edv_state">
+                                <SelectTrigger id="dv_state">
                                     <SelectValue placeholder="Select state" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -285,10 +383,10 @@ export const EditDivisionDialog = ({
 
                         {/* City */}
                         <div className="flex flex-col gap-1.5">
-                            <Label htmlFor="edv_city">City</Label>
+                            <Label htmlFor="dv_city">City</Label>
                             <Input
                                 autoComplete="off"
-                                id="edv_city"
+                                id="dv_city"
                                 placeholder="City"
                                 {...form.register("city")}
                             />
@@ -298,10 +396,10 @@ export const EditDivisionDialog = ({
                     <div className="grid grid-cols-2 gap-4">
                         {/* Country */}
                         <div className="flex flex-col gap-1.5">
-                            <Label htmlFor="edv_country">Country</Label>
+                            <Label htmlFor="dv_country">Country</Label>
                             <Input
                                 autoComplete="off"
-                                id="edv_country"
+                                id="dv_country"
                                 placeholder="Country"
                                 {...form.register("country")}
                             />
@@ -309,10 +407,10 @@ export const EditDivisionDialog = ({
 
                         {/* Pincode */}
                         <div className="flex flex-col gap-1.5">
-                            <Label htmlFor="edv_pin">Pincode</Label>
+                            <Label htmlFor="dv_pin">Pincode</Label>
                             <Input
                                 autoComplete="off"
-                                id="edv_pin"
+                                id="dv_pin"
                                 placeholder="Pincode"
                                 {...form.register("pincode")}
                             />
@@ -322,10 +420,10 @@ export const EditDivisionDialog = ({
                     <div className="grid grid-cols-2 gap-4">
                         {/* Phone */}
                         <div className="flex flex-col gap-1.5">
-                            <Label htmlFor="edv_phone">Phone</Label>
+                            <Label htmlFor="dv_phone">Phone</Label>
                             <Input
                                 autoComplete="off"
-                                id="edv_phone"
+                                id="dv_phone"
                                 placeholder="Phone number"
                                 {...form.register("phone")}
                             />
@@ -333,10 +431,10 @@ export const EditDivisionDialog = ({
 
                         {/* Email */}
                         <div className="flex flex-col gap-1.5">
-                            <Label htmlFor="edv_email">Email</Label>
+                            <Label htmlFor="dv_email">Email</Label>
                             <Input
                                 autoComplete="off"
-                                id="edv_email"
+                                id="dv_email"
                                 placeholder="division@example.com"
                                 type="email"
                                 {...form.register("email")}
@@ -347,11 +445,11 @@ export const EditDivisionDialog = ({
 
                     {/* GSTIN */}
                     <div className="flex flex-col gap-1.5">
-                        <Label htmlFor="edv_gstin">GSTIN</Label>
+                        <Label htmlFor="dv_gstin">GSTIN</Label>
                         <Input
                             autoComplete="off"
                             className="font-mono uppercase"
-                            id="edv_gstin"
+                            id="dv_gstin"
                             placeholder="15-character GSTIN (leave blank for non-GST)"
                             {...form.register("gstin")}
                         />
@@ -373,7 +471,7 @@ export const EditDivisionDialog = ({
                             type="submit"
                         >
                             {form.formState.isSubmitting ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : null}
-                            Save Changes
+                            Add Division
                         </Button>
                     </DialogFooter>
                 </form>

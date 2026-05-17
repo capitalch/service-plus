@@ -15,7 +15,7 @@ import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
-import { selectCurrentBranch, selectSchema } from "@/store/context-slice";
+import { selectCurrentBranch, selectSchema, selectAvailableDivisions } from "@/store/context-slice";
 import type { JobSearchRow } from "@/features/client/types/job";
 import { JobAttachDialog } from "../single-job/job-attach-dialog";
 import { JobDetailsModal } from "../job-pipeline/job-details-modal";
@@ -40,6 +40,7 @@ export const JobSearchSection = () => {
     const dbName       = useAppSelector(selectDbName);
     const schema       = useAppSelector(selectSchema);
     const globalBranch = useAppSelector(selectCurrentBranch);
+    const divisions    = useAppSelector(selectAvailableDivisions);
     const branchId     = globalBranch?.id ?? null;
 
     const [search,       setSearch]       = useState("");
@@ -275,7 +276,19 @@ export const JobSearchSection = () => {
                                         <td className={`${tdClass} text-[var(--cl-text-muted)]`}>
                                             {(page - 1) * PAGE_SIZE + idx + 1}
                                         </td>
-                                        <td className={tdClass}>{job.job_date}</td>
+                                        <td className={`${tdClass} whitespace-nowrap`}>
+                                            <div className="flex flex-col gap-0.5">
+                                                <span>{job.job_date}</span>
+                                                {job.division_id && (() => {
+                                                    const dv = divisions.find(d => d.id === job.division_id);
+                                                    return dv ? (
+                                                        <span className="font-mono text-[10px] font-semibold text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-950/40 rounded px-1 py-0.5 w-fit">
+                                                            {dv.code}
+                                                        </span>
+                                                    ) : null;
+                                                })()}
+                                            </div>
+                                        </td>
                                         <td className={tdClass}>
                                             <div className="flex flex-col gap-0.5">
                                                 <div className="font-mono font-medium text-[var(--cl-accent)]">

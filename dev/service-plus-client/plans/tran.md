@@ -1,20 +1,6 @@
-# implementation of division in branch
-- Read the tran-division.md and plan-division.md and plan-company-id.md.
-- Purpose is to implement divisions in a branch, with separate series of job invoices and sale invoices for each division.
-- If I do like this:
-    - Let the company_info table be renamed appropriately for divisions
-    - Each row in the table will represent a division.
-    - All the masters are common for all divisions.
-    - Job table will have one division_id field. User will select a division while creating a job. By default default_division_id from app_settings table will be selected for division_id.
-    - The division details will reflect in job view and job sheet
-    - User will be able to change division at any time before ready for delivery is done or before is_final is true.
-    - Need to incorporate independent series for sale invoices and job invoices for each division.
-    - Purchase invoices are not affected by divisions.
-- If a division has gstin no, then it is implicitly assumed that GST invoice has to be made for that division. else non-gst.
-- Division for a job can be changed only before is_final is true.
-- if division changes from a non-gst to gst or vice versa, then GST calculation in sale and job invoice for that job will also change accordingly.
-- If in app_settings table "default_division_id" field is set to a division_id, then by default that division will be selected for a job. Else division_id will be 1.
-- In app_settings if 'force_gst_on_parts_for_non_gst_invoices' is true then GST should be applied on parts, in non gst billings. In that case, the cost_price will be implicitly taken as cost_price * 1.18. User can change this. Also tax_rate for service and labor will be 0 in case of non gst billings.
-- Taking into consideration all requirements, please plan out entire implementation process with every details required to implement it.
-- Write your comprehensive plan to plans/plan.md file for changes at database level, server side code and client side code.
-- Consider all possible cases and scenarios to handle all cases.
+# Mo
+- I added "code" column in division table
+- Implement code for division in CRUD operations. Make correct changes at client and server side.
+- Single job: view, Show division code in date column below date value. Also show division in view modal for a job
+- Batch jobs: view, show division code in batch header. Also show division in view modal for a batch job
+- 

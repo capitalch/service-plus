@@ -13,7 +13,7 @@ import {
 import type { JobDetailType } from "../../../types/job";
 import { Badge } from "@/components/ui/badge";
 import { useAppSelector } from "@/store/hooks";
-import { selectAvailableBranches } from "@/store/context-slice";
+import { selectAvailableBranches, selectAvailableDivisions } from "@/store/context-slice";
 import { JobAttachDialog } from "./job-attach-dialog";
 
 type JobViewModalPropsType = {
@@ -52,7 +52,8 @@ const SectionCard = ({ title, icon: Icon, children, className = "" }: { title: s
 );
 
 export const SingleJobViewModal = ({ isOpen, job, onClose, onPrint }: JobViewModalPropsType) => {
-    const branches = useAppSelector(selectAvailableBranches);
+    const branches  = useAppSelector(selectAvailableBranches);
+    const divisions = useAppSelector(selectAvailableDivisions);
     const [showAttach, setShowAttach] = useState(false);
     const [fileCount, setFileCount] = useState(job?.file_count ?? 0);
 
@@ -60,7 +61,8 @@ export const SingleJobViewModal = ({ isOpen, job, onClose, onPrint }: JobViewMod
 
     if (!job) return null;
 
-    const branchCode = job.branch_code || branches.find(b => b.id === job.branch_id)?.code;
+    const branchCode   = job.branch_code || branches.find(b => b.id === job.branch_id)?.code;
+    const jobDivision  = job.division_id ? divisions.find(d => d.id === job.division_id) : null;
 
     return (
         <>
@@ -86,7 +88,7 @@ export const SingleJobViewModal = ({ isOpen, job, onClose, onPrint }: JobViewMod
                                         <h2 className="text-base md:text-lg font-black tracking-tightest text-slate-900 dark:text-white uppercase leading-none">
                                             JOB <span className="text-indigo-600">#{job.job_no}</span>
                                         </h2>
-                                        <Badge className="bg-emerald-500 text-white dark:bg-emerald-600/30 dark:text-emerald-400 border-none py-0.5 px-3 text-[9px] uppercase font-black tracking-widest rounded-full">
+                                        <Badge className="bg-emerald-500 text-white dark:bg-emerald-600/30 dark:text-emerald-400 border-none px-4 py-0.5 text-[9px] uppercase font-black tracking-widest rounded-sm">
                                             {job.job_status_name}
                                         </Badge>
                                         {fileCount > 0 && (
@@ -111,6 +113,15 @@ export const SingleJobViewModal = ({ isOpen, job, onClose, onPrint }: JobViewMod
                                             <Hash className="h-3 w-3 text-indigo-500" />
                                             Branch: <span className="text-slate-600 dark:text-slate-300">{branchCode || job.branch_id}</span>
                                         </span>
+                                        {jobDivision && (
+                                            <>
+                                                <div className="hidden sm:block w-1 h-1 rounded-full bg-slate-200 dark:bg-slate-800" />
+                                                <span className="flex items-center gap-1">
+                                                    <Hash className="h-3 w-3 text-indigo-500" />
+                                                    Division: <span className="text-slate-600 dark:text-slate-300">{jobDivision.name}</span>
+                                                </span>
+                                            </>
+                                        )}
                                     </div>
                                 </div>
                             </div>

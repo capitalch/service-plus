@@ -1,4 +1,9 @@
-# QA round
+- Division
+								- CRUD division
+								- JOB crud: division
+								- Batch job: division
+	- Job invoice: division
+	- parts invoice division
 - Jobs
 	- There is gap found in job numbers
 							- job pipeline
