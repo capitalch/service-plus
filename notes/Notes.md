@@ -1,5 +1,9 @@
 ## Service management software
 
+# Calculation of cost price in charges modal window:
+- If user gives a part code, it is searched in spare_part_master for cost_price and gst_rate
+- Take gst_rate from spare_part_master OR default_gst_rate and apply the value of force_gst_on_parts_for_non_gst_invoices to calculate the cost_price. Set sale_price based on value of 
+force_gst_on_parts_for_non_gst_invoices
 # Modification in Ready for delivery feature
 - Remove date filters
 
