@@ -140,7 +140,7 @@ function JobsExplorer() {
                 </CollapsibleGroup>
                 <TreeItem icon={ClipboardList} label="Job Search" />
                 <TreeItem icon={BarChart3}     label="Job Pipeline" />
-                <TreeItem icon={FileText}      label="Final for Delivery" />
+                <TreeItem icon={FileText}      label="Final a Job" />
                 <TreeItem icon={Truck}         label="Deliver Job" />
                 <TreeItem icon={RotateCcw}     label="Opening Jobs" />
                 <TreeItem icon={Receipt}       label="Receipts" />
@@ -172,6 +172,7 @@ function MastersExplorer() {
                 <TreeItem icon={RotateCcw}     label="Job Receive Manner" />
                 <TreeItem icon={Truck}         label="Job Delivery Manner" />
                 <TreeItem icon={Settings2}     label="Job Receive Condition" />
+                <TreeItem icon={Receipt}       label="Job Additional Charges" />
             </CollapsibleGroup>
             <CollapsibleGroup label="Product & Parts" defaultOpen={false}>
                 <TreeItem icon={Tag}      label="Brand" />

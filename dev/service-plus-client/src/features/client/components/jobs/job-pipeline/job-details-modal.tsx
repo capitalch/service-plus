@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Building2, Calendar, FileText, Loader2, MapPin, Package, ReceiptText, RotateCcw, User, Wrench } from "lucide-react";
+import { Building2, Calendar, FileText, Loader2, MapPin, Package, Paperclip, ReceiptText, RotateCcw, User, Wrench } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import { encodeObj, graphQlUtils } from "@/lib/graphql-utils";
 import { selectAvailableDivisions, selectCurrentBranch, selectSchema } from "@/store/context-slice";
 import { useAppSelector } from "@/store/hooks";
 import type { JobDetailType, JobTransactionRow } from "@/features/client/types/job";
+import { JobAttachDialog } from "../single-job/job-attach-dialog";
 import { STATUS_COLORS } from "./status-transitions";
 import { UndoTransactionDialog } from "./undo-transaction-dialog";
 
@@ -39,6 +40,13 @@ type AdditionalChargeRow = {
     description:   string | null;
     cost_price:    number;
     selling_price: number;
+};
+
+type JobFileRow = {
+    id:         number;
+    url:        string;
+    about:      string;
+    created_at: string;
 };
 
 function fmtAmount(val: number | null | undefined) {
@@ -92,6 +100,8 @@ export const JobDetailsModal = ({ jobId, onClose, onJobChanged }: Props) => {
     const [transactions, setTransactions] = useState<JobTransactionRow[]>([]);
     const [parts,        setParts]        = useState<PartUsedRow[]>([]);
     const [charges,      setCharges]      = useState<AdditionalChargeRow[]>([]);
+    const [files,      setFiles]      = useState<JobFileRow[]>([]);
+    const [attachOpen, setAttachOpen] = useState(false);
     const [loading,   setLoading]  = useState(true);
     const [undoing,   setUndoing]  = useState(false);
     const [showUndo,  setShowUndo] = useState(false);
@@ -113,16 +123,29 @@ export const JobDetailsModal = ({ jobId, onClose, onJobChanged }: Props) => {
             gq(SQL_MAP.GET_JOB_TRANSACTIONS_BY_JOB,       { job_id: jobId }),
             gq(SQL_MAP.GET_JOB_PART_USED_BY_JOB,          { job_id: jobId }),
             gq(SQL_MAP.GET_JOB_ADDITIONAL_CHARGES_BY_JOB, { job_id: jobId }),
-        ]).then(([jobRes, tranRes, partsRes, chargesRes]) => {
+            gq(SQL_MAP.GET_JOB_IMAGE_DOCS,                { job_id: jobId }),
+        ]).then(([jobRes, tranRes, partsRes, chargesRes, filesRes]) => {
             setJob((jobRes.data?.genericQuery?.[0] ?? null) as JobDetailType | null);
             setTransactions((tranRes.data?.genericQuery ?? []) as JobTransactionRow[]);
             setParts((partsRes.data?.genericQuery ?? []) as PartUsedRow[]);
             setCharges((chargesRes.data?.genericQuery ?? []) as AdditionalChargeRow[]);
+            setFiles((filesRes.data?.genericQuery ?? []) as JobFileRow[]);
         }).catch(() => {
             toast.error("Failed to load job details.");
         }).finally(() => {
             setLoading(false);
         });
+    }, [dbName, schema, jobId]);
+
+    const loadFiles = useCallback(() => {
+        if (!dbName || !schema) return;
+        apolloClient.query<GenericQueryData<JobFileRow>>({
+            fetchPolicy: "network-only",
+            query:       GRAPHQL_MAP.genericQuery,
+            variables:   { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_JOB_IMAGE_DOCS, sqlArgs: { job_id: jobId } }) },
+        }).then(res => {
+            setFiles((res.data?.genericQuery ?? []) as JobFileRow[]);
+        }).catch(() => {});
     }, [dbName, schema, jobId]);
 
     useEffect(() => { loadData(); }, [loadData]);
@@ -327,6 +350,60 @@ export const JobDetailsModal = ({ jobId, onClose, onJobChanged }: Props) => {
                                 </div>
                             </div>
 
+                            {/* ── Attachments ── */}
+                            <div className="rounded-lg bg-white shadow-sm overflow-hidden">
+                                <div className="flex items-center justify-between px-4 py-2.5 border-b border-blue-200/60 bg-gradient-to-r from-blue-50/80 to-white">
+                                    <div className="flex items-center gap-2">
+                                        <Paperclip className="h-4 w-4 text-blue-600" />
+                                        <h3 className="text-xs font-bold uppercase tracking-wider text-blue-700">Attachments</h3>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        {files.length > 0 && (
+                                            <span className="inline-flex items-center justify-center rounded-sm bg-blue-100 px-2.5 py-0.5 text-[11px] font-bold text-blue-700 border border-blue-200">
+                                                {files.length}
+                                            </span>
+                                        )}
+                                        <Button
+                                            className="h-6 px-2 text-[11px] text-blue-700 border-blue-300 hover:bg-blue-50"
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => setAttachOpen(true)}
+                                        >
+                                            <Paperclip className="h-3 w-3 mr-1" />
+                                            {files.length === 0 ? "Attach Files" : "View / Attach"}
+                                        </Button>
+                                    </div>
+                                </div>
+                                {files.length === 0 ? (
+                                    <div className="flex flex-col items-center justify-center gap-2 py-5">
+                                        <p className="text-sm text-slate-400">No files attached.</p>
+                                        <Button
+                                            className="h-7 px-3 text-xs text-blue-700 border-blue-300 hover:bg-blue-50"
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => setAttachOpen(true)}
+                                        >
+                                            <Paperclip className="h-3 w-3 mr-1" />
+                                            Attach Files
+                                        </Button>
+                                    </div>
+                                ) : (
+                                    <div className="divide-y divide-slate-100">
+                                        {files.map(f => (
+                                            <div
+                                                key={f.id}
+                                                className="flex cursor-pointer items-center gap-3 px-4 py-2.5 transition-colors hover:bg-blue-50/40"
+                                                onClick={() => setAttachOpen(true)}
+                                            >
+                                                <Paperclip className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+                                                <span className="flex-1 truncate text-sm text-slate-700">{f.about || "Attachment"}</span>
+                                                <span className="whitespace-nowrap text-[11px] text-slate-400">{f.created_at}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+
                             {/* ── Parts Used ── */}
                             {parts.length > 0 && (
                                 <div className="rounded-lg bg-white shadow-sm overflow-hidden">
@@ -491,6 +568,15 @@ export const JobDetailsModal = ({ jobId, onClose, onJobChanged }: Props) => {
                 </div>
             </DialogContent>
         </Dialog>
+
+        {attachOpen && job && (
+            <JobAttachDialog
+                jobId={jobId}
+                jobNo={job.job_no}
+                onClose={() => { setAttachOpen(false); loadFiles(); }}
+                onFilesChanged={() => loadFiles()}
+            />
+        )}
 
         {showUndo && job && (
             <UndoTransactionDialog

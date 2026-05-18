@@ -5,7 +5,7 @@ import { DeliverJobSection } from "../components/jobs/deliver-job/deliver-job-se
 import { JobSearchSection } from "../components/jobs/job-search/job-search-section";
 import { OpeningJobSection } from "../components/jobs/opening-job/opening-job-section";
 import { PartUsedSection } from "../components/jobs/part-used/part-used-section";
-import { FinalForDeliverySection } from "../components/jobs/final-for-delivery/final-for-delivery-section";
+import { FinalAJobSection } from "../components/jobs/final-a-job/final-a-job-section";
 import { ReceiptsSection } from "../components/jobs/receipts/receipts-section";
 import { SingleJobSection } from "../components/jobs/single-job/single-job-section";
 import { JobPipelineSection } from "../components/jobs/job-pipeline/job-pipeline-section";
@@ -55,8 +55,8 @@ function JobsContent() {
             return <ReceiptsSection />;
         case "Job Pipeline":
             return <JobPipelineSection />;
-        case "Final for Delivery":
-            return <FinalForDeliverySection />;
+        case "Final a Job":
+            return <FinalAJobSection />;
         case "Deliver Job":
             return <DeliverJobSection />;
         case "Job Search":

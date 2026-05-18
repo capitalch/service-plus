@@ -1266,6 +1266,7 @@ async def resolve_create_job_batch_helper(
                     "job_receive_condition_id": job.get("job_receive_condition_id"),
                     "remarks": job.get("remarks"),
                     "quantity": job.get("quantity", 1),
+                    "alternate_job_no": job.get("alternate_job_no") or None,
                 }
                 job_id = await process_data(job_data, cur, "job", None, None)
                 logger.info("Batch job created with id=%s, job_no=%s", job_id, job_no)
@@ -1337,7 +1338,8 @@ async def resolve_update_job_batch_helper(
                 await cur.execute(
                     "UPDATE job SET job_type_id=%s, product_brand_model_id=%s, serial_no=%s,"
                     " problem_reported=%s, warranty_card_no=%s,"
-                    " job_receive_condition_id=%s, remarks=%s, quantity=%s WHERE id=%s",
+                    " job_receive_condition_id=%s, remarks=%s, quantity=%s,"
+                    " alternate_job_no=%s WHERE id=%s",
                     (
                         job.get("job_type_id"),
                         job.get("product_brand_model_id"),
@@ -1347,6 +1349,7 @@ async def resolve_update_job_batch_helper(
                         job.get("job_receive_condition_id"),
                         job.get("remarks"),
                         job.get("quantity", 1),
+                        job.get("alternate_job_no") or None,
                         job_id,
                     ),
                 )

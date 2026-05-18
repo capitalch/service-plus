@@ -61,9 +61,10 @@ class SqlBu:
             START WITH 1 INCREMENT BY 1 NO MINVALUE NO MAXVALUE CACHE 1
         );
 
-        CREATE TABLE company_info (
-            id integer NOT NULL,
-            company_name text NOT NULL,
+        CREATE TABLE division (
+            id bigint NOT NULL,
+            code text NOT NULL,
+            name text NOT NULL,
             address_line1 text NOT NULL,
             address_line2 text,
             city text,
@@ -75,7 +76,9 @@ class SqlBu:
             gstin text,
             is_active boolean DEFAULT true NOT NULL,
             created_at timestamp with time zone DEFAULT now() NOT NULL,
-            updated_at timestamp with time zone DEFAULT now() NOT NULL
+            updated_at timestamp with time zone DEFAULT now() NOT NULL,
+            branch_id bigint NOT NULL,
+            CONSTRAINT division_code_check CHECK ((code ~ '^[A-Z0-9_]+$'::text))
         );
 
         CREATE TABLE customer_contact (
@@ -122,7 +125,8 @@ class SqlBu:
             padding smallint DEFAULT 5 NOT NULL,
             separator text DEFAULT '/'::text NOT NULL,
             created_at timestamp with time zone DEFAULT now() NOT NULL,
-            updated_at timestamp with time zone DEFAULT now() NOT NULL
+            updated_at timestamp with time zone DEFAULT now() NOT NULL,
+            division_id bigint
         );
 
         ALTER TABLE document_sequence ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
@@ -175,7 +179,8 @@ class SqlBu:
             last_transaction_id bigint,
             is_final boolean DEFAULT false NOT NULL,
             quantity integer DEFAULT 1 NOT NULL,
-            batch_no integer
+            batch_no integer,
+            division_id bigint NOT NULL
         );
 
         ALTER TABLE job ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
@@ -220,7 +225,6 @@ class SqlBu:
         CREATE TABLE job_invoice (
             id bigint NOT NULL,
             job_id bigint NOT NULL,
-            company_id smallint NOT NULL,
             invoice_no text NOT NULL,
             invoice_date date DEFAULT CURRENT_DATE NOT NULL,
             supply_state_code character(2) NOT NULL,
@@ -450,21 +454,21 @@ class SqlBu:
             id bigint NOT NULL,
             invoice_no text NOT NULL,
             invoice_date date NOT NULL,
-            company_id bigint NOT NULL,
+            division_id bigint NOT NULL,
             customer_contact_id bigint,
             customer_name text NOT NULL,
             customer_gstin text,
             customer_state_code character(2) NOT NULL,
-            taxable_amount numeric(14,2) NOT NULL,
+            aggregate_amount numeric(14,2) NOT NULL,
             cgst_amount numeric(14,2) DEFAULT 0 NOT NULL,
             sgst_amount numeric(14,2) DEFAULT 0 NOT NULL,
             igst_amount numeric(14,2) DEFAULT 0 NOT NULL,
             total_tax numeric(14,2) NOT NULL,
             total_amount numeric(14,2) NOT NULL,
-            branch_id bigint NOT NULL,
             remarks text,
             created_at timestamp with time zone DEFAULT now() NOT NULL,
-            updated_at timestamp with time zone DEFAULT now() NOT NULL
+            updated_at timestamp with time zone DEFAULT now() NOT NULL,
+            is_return boolean DEFAULT false NOT NULL
         );
 
         ALTER TABLE sales_invoice ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
@@ -481,13 +485,14 @@ class SqlBu:
             quantity numeric(12,2) NOT NULL,
             unit_price numeric(12,2) NOT NULL,
             gst_rate numeric(5,2) DEFAULT 0 NOT NULL,
-            taxable_amount numeric(12,2) NOT NULL,
+            aggregate_amount numeric(12,2) NOT NULL,
             cgst_amount numeric(12,2) DEFAULT 0 NOT NULL,
             sgst_amount numeric(12,2) DEFAULT 0 NOT NULL,
             igst_amount numeric(12,2) DEFAULT 0 NOT NULL,
             total_amount numeric(12,2) NOT NULL,
             created_at timestamp with time zone DEFAULT now() NOT NULL,
             updated_at timestamp with time zone DEFAULT now() NOT NULL,
+            remarks text,
             CONSTRAINT sales_invoice_line_quantity_check CHECK ((quantity > (0)::numeric)),
             CONSTRAINT sales_invoice_line_unit_price_check CHECK ((unit_price >= (0)::numeric))
         );
@@ -655,12 +660,13 @@ class SqlBu:
         ALTER TABLE ONLY branch ADD CONSTRAINT branch_pkey PRIMARY KEY (id);
         ALTER TABLE ONLY brand ADD CONSTRAINT brand_code_key UNIQUE (code);
         ALTER TABLE ONLY brand ADD CONSTRAINT brand_pkey PRIMARY KEY (id);
-        ALTER TABLE ONLY company_info ADD CONSTRAINT company_info_pkey PRIMARY KEY (id);
+        ALTER TABLE ONLY division ADD CONSTRAINT division_pkey PRIMARY KEY (id);
+        ALTER TABLE ONLY division ADD CONSTRAINT division_name_branch_uidx UNIQUE (branch_id, name);
+        ALTER TABLE ONLY division ADD CONSTRAINT division_code_branch_uidx UNIQUE (branch_id, code);
         ALTER TABLE ONLY customer_contact ADD CONSTRAINT customer_contact_pkey PRIMARY KEY (id);
         ALTER TABLE ONLY customer_type ADD CONSTRAINT customer_type_code_uidx UNIQUE (code);
         ALTER TABLE ONLY customer_type ADD CONSTRAINT customer_type_pkey PRIMARY KEY (id);
         ALTER TABLE ONLY document_sequence ADD CONSTRAINT document_sequence_pkey PRIMARY KEY (id);
-        ALTER TABLE ONLY document_sequence ADD CONSTRAINT document_sequence_unique UNIQUE (document_type_id, branch_id);
         ALTER TABLE ONLY document_type ADD CONSTRAINT document_type_code_uidx UNIQUE (code);
         ALTER TABLE ONLY document_type ADD CONSTRAINT document_type_pkey PRIMARY KEY (id);
         ALTER TABLE ONLY financial_year ADD CONSTRAINT financial_year_pkey PRIMARY KEY (id);
@@ -668,7 +674,7 @@ class SqlBu:
         ALTER TABLE ONLY job ADD CONSTRAINT job_branch_job_no_uidx UNIQUE (branch_id, job_no);
         ALTER TABLE ONLY job_delivery_manner ADD CONSTRAINT job_delivery_manner_code_uidx UNIQUE (code);
         ALTER TABLE ONLY job_delivery_manner ADD CONSTRAINT job_delivery_manner_pkey PRIMARY KEY (id);
-        ALTER TABLE ONLY job_invoice ADD CONSTRAINT job_invoice_company_no_uidx UNIQUE (company_id, invoice_no);
+        ALTER TABLE ONLY job_invoice ADD CONSTRAINT job_invoice_invoice_no_uidx UNIQUE (invoice_no);
         ALTER TABLE ONLY job_invoice_line ADD CONSTRAINT job_invoice_line_pkey PRIMARY KEY (id);
         ALTER TABLE ONLY job_invoice ADD CONSTRAINT job_invoice_pkey PRIMARY KEY (id);
         ALTER TABLE ONLY job ADD CONSTRAINT job_no_uidx UNIQUE (job_no);
@@ -691,7 +697,7 @@ class SqlBu:
         ALTER TABLE ONLY purchase_invoice_line ADD CONSTRAINT purchase_invoice_line_pkey PRIMARY KEY (id);
         ALTER TABLE ONLY purchase_invoice ADD CONSTRAINT purchase_invoice_pkey PRIMARY KEY (id);
         ALTER TABLE ONLY purchase_invoice ADD CONSTRAINT purchase_invoice_supplier_no_uidx UNIQUE (supplier_id, invoice_no);
-        ALTER TABLE ONLY sales_invoice ADD CONSTRAINT sales_invoice_company_no_uidx UNIQUE (company_id, invoice_no);
+        ALTER TABLE ONLY sales_invoice ADD CONSTRAINT sales_invoice_division_no_uidx UNIQUE (division_id, invoice_no);
         ALTER TABLE ONLY sales_invoice_line ADD CONSTRAINT sales_invoice_line_pkey PRIMARY KEY (id);
         ALTER TABLE ONLY sales_invoice ADD CONSTRAINT sales_invoice_pkey PRIMARY KEY (id);
         ALTER TABLE ONLY spare_part_master ADD CONSTRAINT spare_part_code_brand_unique UNIQUE (brand_id, part_code);
@@ -712,7 +718,9 @@ class SqlBu:
         -- Indexes
         CREATE INDEX branch_state_idx ON branch USING btree (state_id);
         CREATE INDEX idx_customer_contact_mobile ON customer_contact USING btree (mobile);
+        CREATE UNIQUE INDEX document_sequence_unique ON document_sequence (document_type_id, branch_id, COALESCE(division_id, 0));
         CREATE INDEX idx_job_delivery_date ON job USING btree (delivery_date);
+        CREATE INDEX idx_job_division ON job USING btree (division_id);
         CREATE INDEX idx_job_invoice_job ON job_invoice USING btree (job_id);
         CREATE INDEX idx_job_invoice_line_invoice ON job_invoice_line USING btree (job_invoice_id);
         CREATE INDEX idx_job_invoice_line_part ON job_invoice_line USING btree (part_code);
@@ -742,15 +750,17 @@ class SqlBu:
 
         -- Foreign key constraints
         ALTER TABLE ONLY branch ADD CONSTRAINT branch_state_fk FOREIGN KEY (state_id) REFERENCES state(id) ON DELETE RESTRICT;
-        ALTER TABLE ONLY company_info ADD CONSTRAINT company_info_state_fk FOREIGN KEY (state_id) REFERENCES state(id) ON DELETE RESTRICT;
+        ALTER TABLE ONLY division ADD CONSTRAINT division_branch_fk FOREIGN KEY (branch_id) REFERENCES branch(id) ON DELETE RESTRICT;
+        ALTER TABLE ONLY division ADD CONSTRAINT division_state_fk FOREIGN KEY (state_id) REFERENCES state(id) ON DELETE RESTRICT;
         ALTER TABLE ONLY customer_contact ADD CONSTRAINT customer_contact_state_fk FOREIGN KEY (state_id) REFERENCES state(id) ON DELETE RESTRICT;
         ALTER TABLE ONLY customer_contact ADD CONSTRAINT customer_contact_type_fk FOREIGN KEY (customer_type_id) REFERENCES customer_type(id) ON DELETE RESTRICT;
         ALTER TABLE ONLY document_sequence ADD CONSTRAINT document_sequence_branch_fk FOREIGN KEY (branch_id) REFERENCES branch(id) ON DELETE RESTRICT;
+        ALTER TABLE ONLY document_sequence ADD CONSTRAINT document_sequence_division_fk FOREIGN KEY (division_id) REFERENCES division(id) ON DELETE RESTRICT;
         ALTER TABLE ONLY document_sequence ADD CONSTRAINT document_sequence_type_fk FOREIGN KEY (document_type_id) REFERENCES document_type(id) ON DELETE RESTRICT;
         ALTER TABLE ONLY job_additional_charge ADD CONSTRAINT job_additional_charge_job_id_fkey FOREIGN KEY (job_id) REFERENCES job(id) ON DELETE CASCADE;
         ALTER TABLE ONLY job ADD CONSTRAINT job_branch_fk FOREIGN KEY (branch_id) REFERENCES branch(id) ON DELETE RESTRICT;
+        ALTER TABLE ONLY job ADD CONSTRAINT job_division_fk FOREIGN KEY (division_id) REFERENCES division(id) ON DELETE RESTRICT;
         ALTER TABLE ONLY job ADD CONSTRAINT job_customer_fk FOREIGN KEY (customer_contact_id) REFERENCES customer_contact(id) ON DELETE RESTRICT;
-        ALTER TABLE ONLY job_invoice ADD CONSTRAINT job_invoice_company_fk FOREIGN KEY (company_id) REFERENCES company_info(id) ON DELETE RESTRICT;
         ALTER TABLE ONLY job_invoice ADD CONSTRAINT job_invoice_job_fk FOREIGN KEY (job_id) REFERENCES job(id) ON DELETE RESTRICT;
         ALTER TABLE ONLY job_invoice_line ADD CONSTRAINT job_invoice_line_invoice_fk FOREIGN KEY (job_invoice_id) REFERENCES job_invoice(id) ON DELETE CASCADE;
         ALTER TABLE ONLY job_part_used ADD CONSTRAINT job_part_used_job_fk FOREIGN KEY (job_id) REFERENCES job(id) ON DELETE RESTRICT;
@@ -771,8 +781,7 @@ class SqlBu:
         ALTER TABLE ONLY purchase_invoice_line ADD CONSTRAINT purchase_invoice_line_invoice_fk FOREIGN KEY (purchase_invoice_id) REFERENCES purchase_invoice(id) ON DELETE CASCADE;
         ALTER TABLE ONLY purchase_invoice_line ADD CONSTRAINT purchase_invoice_line_part_fk FOREIGN KEY (part_id) REFERENCES spare_part_master(id) ON DELETE RESTRICT;
         ALTER TABLE ONLY purchase_invoice ADD CONSTRAINT purchase_invoice_supplier_fk FOREIGN KEY (supplier_id) REFERENCES supplier(id) ON DELETE RESTRICT;
-        ALTER TABLE ONLY sales_invoice ADD CONSTRAINT sales_invoice_branch_fk FOREIGN KEY (branch_id) REFERENCES branch(id) ON DELETE RESTRICT;
-        ALTER TABLE ONLY sales_invoice ADD CONSTRAINT sales_invoice_company_fk FOREIGN KEY (company_id) REFERENCES company_info(id) ON DELETE RESTRICT;
+        ALTER TABLE ONLY sales_invoice ADD CONSTRAINT sales_invoice_division_fk FOREIGN KEY (division_id) REFERENCES division(id) ON DELETE RESTRICT;
         ALTER TABLE ONLY sales_invoice ADD CONSTRAINT sales_invoice_customer_fk FOREIGN KEY (customer_contact_id) REFERENCES customer_contact(id) ON DELETE RESTRICT;
         ALTER TABLE ONLY sales_invoice_line ADD CONSTRAINT sales_invoice_line_invoice_fk FOREIGN KEY (sales_invoice_id) REFERENCES sales_invoice(id) ON DELETE CASCADE;
         ALTER TABLE ONLY sales_invoice_line ADD CONSTRAINT sales_invoice_line_part_fk FOREIGN KEY (part_id) REFERENCES spare_part_master(id) ON DELETE RESTRICT;
@@ -978,8 +987,10 @@ class SqlBu:
         ON CONFLICT (id) DO NOTHING;
 
         INSERT INTO app_setting (id, setting_key, setting_value, description, is_editable) VALUES
-            (1, 'default_gst_rate',             '18',   'Default GST rate (%) applied to invoices', true),
-            (2, 'to_show_parts_in_job_invoice',  'true', 'Show parts line items in job invoice',     true),
-            (3, 'MARKUP_PERCENT_OVER_COST',     '20', 'Default markup percent over cost price to get selling price', true)
+            (1, 'default_gst_rate',                          '18',    'Default GST rate (%) applied to invoices',                                                       true),
+            (2, 'to_show_parts_in_job_invoice',              'true',  'Show parts line items in job invoice',                                                           true),
+            (3, 'markup_percent_over_cost',                  '20',    'Default markup percent over cost price to get selling price',                                    true),
+            (4, 'default_division_id',                       '1',     'Default division selected when creating a new job',                                              true),
+            (5, 'force_gst_on_parts_for_non_gst_invoices',  'false', 'For non-GST invoices, apply 18% GST implicitly on part cost price; service/labor tax = 0',      true)
         ON CONFLICT (id) DO NOTHING;
     """

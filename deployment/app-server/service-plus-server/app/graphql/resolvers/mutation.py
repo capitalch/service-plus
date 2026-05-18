@@ -121,6 +121,7 @@ async def resolve_feed_bu_seed_data(
         )
 
 
+
 @mutation.field("deleteBuSchema")
 async def resolve_delete_bu_schema(
     _, info, db_name: str = "", schema: str = "security", value: str = ""

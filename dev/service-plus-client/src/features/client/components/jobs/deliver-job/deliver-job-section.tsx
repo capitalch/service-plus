@@ -404,7 +404,7 @@ export const DeliverJobSection = () => {
                             </div>
                         ) : (
                             <p className="text-sm text-amber-600 dark:text-amber-400">
-                                No invoice found — create one in Final for Delivery first.
+                                No invoice found — create one in Final a Job first.
                             </p>
                         )}
                     </div>

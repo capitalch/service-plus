@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict F2rCOvKtvMpH8jn9Vy87DbJGWFn7KPM7fzFuPZ1K25fHPUQsYwoMvjS0p34RuZ9
+\restrict FMQ3jtbPHh4AIUVqczY5w5scmMnnwASfl72xyub7LoO6YqEi9seDhgWayYbe8nU
 
 -- Dumped from database version 14.6
 -- Dumped by pg_dump version 18.3 (Ubuntu 18.3-1)
@@ -105,6 +105,18 @@ ALTER FUNCTION demo1.fn_maintain_stock_balance() OWNER TO webadmin;
 SET default_tablespace = '';
 
 SET default_table_access_method = heap;
+
+--
+-- Name: additional_charge; Type: TABLE; Schema: demo1; Owner: webadmin
+--
+
+CREATE TABLE demo1.additional_charge (
+    id smallint NOT NULL,
+    name text NOT NULL
+);
+
+
+ALTER TABLE demo1.additional_charge OWNER TO webadmin;
 
 --
 -- Name: app_setting; Type: TABLE; Schema: demo1; Owner: webadmin
@@ -272,7 +284,8 @@ CREATE TABLE demo1.division (
     is_active boolean DEFAULT true NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
-    branch_id bigint NOT NULL
+    branch_id bigint NOT NULL,
+    code text NOT NULL
 );
 
 
@@ -511,12 +524,11 @@ CREATE TABLE demo1.job_invoice (
     invoice_no text NOT NULL,
     invoice_date date DEFAULT CURRENT_DATE NOT NULL,
     supply_state_code character(2) NOT NULL,
-    taxable_amount numeric(14,2) NOT NULL,
+    aggregate numeric(14,2) NOT NULL,
     cgst_amount numeric(14,2) DEFAULT 0 NOT NULL,
     sgst_amount numeric(14,2) DEFAULT 0 NOT NULL,
     igst_amount numeric(14,2) DEFAULT 0 NOT NULL,
-    total_tax numeric(14,2) NOT NULL,
-    total_amount numeric(14,2) NOT NULL,
+    amount numeric(14,2) NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL
 );
@@ -549,19 +561,17 @@ CREATE TABLE demo1.job_invoice_line (
     part_code text,
     hsn_code text NOT NULL,
     quantity numeric(10,2) NOT NULL,
-    unit_price numeric(12,2) NOT NULL,
-    taxable_amount numeric(12,2) NOT NULL,
-    cgst_rate numeric(5,2) DEFAULT 0 NOT NULL,
-    sgst_rate numeric(5,2) DEFAULT 0 NOT NULL,
-    igst_rate numeric(5,2) DEFAULT 0 NOT NULL,
+    price numeric(12,2) NOT NULL,
+    aggregate numeric(12,2) NOT NULL,
+    gst_rate numeric(5,2) DEFAULT 0 NOT NULL,
     cgst_amount numeric(12,2) DEFAULT 0 NOT NULL,
     sgst_amount numeric(12,2) DEFAULT 0 NOT NULL,
     igst_amount numeric(12,2) DEFAULT 0 NOT NULL,
-    total_amount numeric(12,2) NOT NULL,
+    amount numeric(12,2) NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     CONSTRAINT job_invoice_line_quantity_check CHECK ((quantity > (0)::numeric)),
-    CONSTRAINT job_invoice_line_unit_price_check CHECK ((unit_price >= (0)::numeric))
+    CONSTRAINT job_invoice_line_unit_price_check CHECK ((price >= (0)::numeric))
 );
 
 
@@ -918,12 +928,11 @@ CREATE TABLE demo1.sales_invoice (
     customer_name text NOT NULL,
     customer_gstin text,
     customer_state_code character(2) NOT NULL,
-    aggregate_amount numeric(14,2) NOT NULL,
+    aggregate numeric(14,2) NOT NULL,
     cgst_amount numeric(14,2) DEFAULT 0 NOT NULL,
     sgst_amount numeric(14,2) DEFAULT 0 NOT NULL,
     igst_amount numeric(14,2) DEFAULT 0 NOT NULL,
-    total_tax numeric(14,2) NOT NULL,
-    total_amount numeric(14,2) NOT NULL,
+    amount numeric(14,2) NOT NULL,
     remarks text,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
@@ -959,18 +968,17 @@ CREATE TABLE demo1.sales_invoice_line (
     item_description text NOT NULL,
     hsn_code text NOT NULL,
     quantity numeric(12,2) NOT NULL,
-    unit_price numeric(12,2) NOT NULL,
+    price numeric(12,2) NOT NULL,
     gst_rate numeric(5,2) DEFAULT 0 NOT NULL,
-    aggregate_amount numeric(12,2) NOT NULL,
+    amount numeric(12,2) NOT NULL,
     cgst_amount numeric(12,2) DEFAULT 0 NOT NULL,
     sgst_amount numeric(12,2) DEFAULT 0 NOT NULL,
     igst_amount numeric(12,2) DEFAULT 0 NOT NULL,
-    total_amount numeric(12,2) NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     remarks text,
     CONSTRAINT sales_invoice_line_quantity_check CHECK ((quantity > (0)::numeric)),
-    CONSTRAINT sales_invoice_line_unit_price_check CHECK ((unit_price >= (0)::numeric))
+    CONSTRAINT sales_invoice_line_unit_price_check CHECK ((price >= (0)::numeric))
 );
 
 
@@ -1703,6 +1711,22 @@ ALTER TABLE security."user" ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
 
 
 --
+-- Name: additional_charge additional_charge_name_key; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.additional_charge
+    ADD CONSTRAINT additional_charge_name_key UNIQUE (name);
+
+
+--
+-- Name: additional_charge additional_charge_pkey; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.additional_charge
+    ADD CONSTRAINT additional_charge_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: app_setting app_setting_key_uidx; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
 --
 
@@ -1775,11 +1799,27 @@ ALTER TABLE ONLY demo1.customer_type
 
 
 --
+-- Name: division division_branch_id_code_key; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.division
+    ADD CONSTRAINT division_branch_id_code_key UNIQUE (branch_id, code);
+
+
+--
 -- Name: division division_branch_id_name_key; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
 --
 
 ALTER TABLE ONLY demo1.division
     ADD CONSTRAINT division_branch_id_name_key UNIQUE (branch_id, name);
+
+
+--
+-- Name: division division_code_check; Type: CHECK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE demo1.division
+    ADD CONSTRAINT division_code_check CHECK ((code ~ '^[A-Z0-9_]+$'::text)) NOT VALID;
 
 
 --
@@ -2394,6 +2434,13 @@ CREATE INDEX branch_state_idx ON demo1.branch USING btree (state_id);
 --
 
 CREATE INDEX customer_contact_email_idx ON demo1.customer_contact USING btree (email) WITH (deduplicate_items='true');
+
+
+--
+-- Name: division_code_idx; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX division_code_idx ON demo1.division USING btree (code) WITH (deduplicate_items='true');
 
 
 --
@@ -3464,5 +3511,5 @@ ALTER TABLE ONLY security.user_bu_role
 -- PostgreSQL database dump complete
 --
 
-\unrestrict F2rCOvKtvMpH8jn9Vy87DbJGWFn7KPM7fzFuPZ1K25fHPUQsYwoMvjS0p34RuZ9
+\unrestrict FMQ3jtbPHh4AIUVqczY5w5scmMnnwASfl72xyub7LoO6YqEi9seDhgWayYbe8nU
 

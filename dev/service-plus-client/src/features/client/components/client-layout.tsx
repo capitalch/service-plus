@@ -173,7 +173,7 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
                 )}
 
                 <main className={`absolute bottom-6 right-0 top-9.5 flex flex-col p-4 pt-3 sm:p-6 sm:pt-4 transition-[left] duration-200 ${mainLeft}`}>
-                    <div className="mb-3 flex items-center justify-between sm:mb-4 gap-4">
+                    <div className="mb-3 flex items-center justify-between sm:mb-2 gap-4">
                         <p className="text-xs font-bold text-[var(--cl-accent-text)] tracking-wider">
                             {displayTitle}
                         </p>
@@ -183,9 +183,12 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
                                     <span className="ml-1 text-[10px] font-bold text-emerald-500 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20 leading-none">GST</span>
                                 )}
                                 <Building2 className="h-4 w-4 text-[var(--cl-accent)]" />
-                                <span className="text-sm font-bold text-[var(--cl-text)] tracking-tight uppercase">
-                                    {currentDivision.name}
-                                </span>
+                                <div className="flex flex-col leading-none">
+                                    <span className="text-sm font-bold text-[var(--cl-text)] tracking-tight uppercase">
+                                        {currentDivision.name}
+                                    </span>
+                                    <span className="text-[10px] leading-none text-[var(--cl-text-muted)]">(Default division)</span>
+                                </div>
                             </div>
                         )}
                     </div>

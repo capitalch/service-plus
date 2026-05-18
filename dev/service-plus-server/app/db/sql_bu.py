@@ -211,6 +211,12 @@ class SqlBu:
             START WITH 1 INCREMENT BY 1 NO MINVALUE NO MAXVALUE CACHE 1
         );
 
+        CREATE TABLE additional_charge (
+            id smallint NOT NULL,
+            name text NOT NULL,
+            CONSTRAINT additional_charge_pkey PRIMARY KEY (id)
+        );
+
         CREATE TABLE job_delivery_manner (
             id smallint NOT NULL,
             code text NOT NULL,
@@ -830,6 +836,22 @@ class SqlBu:
             (5, 'OTHER',          'Other',          true),
             (6, 'NOT_APPLICABLE', 'Not Applicable', true)
         ON CONFLICT (id) DO NOTHING;
+
+        INSERT INTO additional_charge (id, name) VALUES
+            (1,'Labour Charge'),
+            (2,'Service Charge'),
+            (3,'Inspection Fee'),
+            (4,'Installation Charge'),
+            (5,'Travelling Charge'),
+            (6,'Courier Charge'),
+            (7,'Packing & Forwarding'),
+            (8,'Calibration Fee'),
+            (9,'Emergency Service Charge'),
+            (10,'AMC Visit Charge'),
+            (11,'Software Installation'),
+            (12,'Data Recovery Charge'),
+            (13,'Handling Charge'),
+            (14,'Miscellaneous');
 
         INSERT INTO job_receive_condition (id, code, name, description, is_system, display_order) VALUES
             (1,  'DEAD',           'Dead',                        'Item is completely dead',                                           true, 1),

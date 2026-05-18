@@ -126,6 +126,13 @@ class SqlStore:
         ) AS in_use
     """
 
+    GET_ALL_ADDITIONAL_CHARGES = """
+        with "dummy" as (values(1::int))
+        SELECT id, name
+        FROM additional_charge
+        ORDER BY name
+    """
+
     GET_ALL_BRANDS = """
         with "dummy" as (values(1::int))
         -- with "dummy" as (values(1::int)) -- Test line
@@ -3859,9 +3866,9 @@ class SqlStore:
         LIMIT (table "p_limit")
     """
 
-    # ── Final for Delivery ────────────────────────────────────────────────────
+    # ── Final a Job ────────────────────────────────────────────────────
 
-    GET_FINAL_JOBS_COUNT = """
+    GET_COMPLETED_JOBS_COUNT = """
         with
             "p_branch_id"   as (values(%(branch_id)s::bigint)),
             "p_division_id" as (values(%(division_id)s::bigint)),
@@ -3875,7 +3882,7 @@ class SqlStore:
         LEFT JOIN brand           b   ON b.id   = pbm.brand_id
         LEFT JOIN product         p   ON p.id   = pbm.product_id
         WHERE j.branch_id = (table "p_branch_id")
-          AND ((table "p_division_id") IS NULL OR j.division_id = (table "p_division_id"))
+          --AND ((table "p_division_id") IS NULL OR j.division_id = (table "p_division_id"))
           AND js.code = 'COMPLETED_OK'
           AND ((table "p_search") = ''
            OR  LOWER(j.job_no::text)                     LIKE '%%' || LOWER((table "p_search")) || '%%'
@@ -3891,7 +3898,7 @@ class SqlStore:
            OR  LOWER(COALESCE(pbm.model_name, ''))       LIKE '%%' || LOWER((table "p_search")) || '%%')
     """
 
-    GET_FINAL_JOBS_PAGED = """
+    GET_COMPLETED_JOBS_PAGED = """
         with
             "p_branch_id"   as (values(%(branch_id)s::bigint)),
             "p_division_id" as (values(%(division_id)s::bigint)),
@@ -3925,7 +3932,7 @@ class SqlStore:
         LEFT JOIN brand           b   ON b.id   = pbm.brand_id
         LEFT JOIN product         p   ON p.id   = pbm.product_id
         WHERE j.branch_id = (table "p_branch_id")
-          AND ((table "p_division_id") IS NULL OR j.division_id = (table "p_division_id"))
+          --AND ((table "p_division_id") IS NULL OR j.division_id = (table "p_division_id"))
           AND js.code = 'COMPLETED_OK'
           AND ((table "p_search") = ''
            OR  LOWER(j.job_no::text)                     LIKE '%%' || LOWER((table "p_search")) || '%%'

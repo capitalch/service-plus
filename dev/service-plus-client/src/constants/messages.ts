@@ -437,12 +437,12 @@ export const MESSAGES = {
   SUCCESS_RECEIPT_CREATED:             'Receipt created successfully.',
   SUCCESS_RECEIPT_DELETED:             'Receipt deleted successfully.',
   SUCCESS_RECEIPT_UPDATED:             'Receipt updated successfully.',
-  // Final for Delivery
+  // Final a Job
   ERROR_FINAL_JOBS_LOAD_FAILED:        'Failed to load final jobs. Please try again.',
   ERROR_JOB_INVOICE_LOAD_FAILED:       'Failed to load job invoice. Please try again.',
   ERROR_JOB_INVOICE_SAVE_FAILED:       'Failed to save job invoice. Please try again.',
   ERROR_JOB_INVOICE_LINE_REQUIRED:     'Add at least one invoice line.',
-  SUCCESS_JOB_INVOICE_SAVED:           'Invoice saved and job marked as Final for Delivery.',
+  SUCCESS_JOB_INVOICE_SAVED:           'Invoice saved and job marked as Final a Job.',
   // Deliver Job
   ERROR_DELIVERABLE_JOBS_LOAD_FAILED:  'Failed to load jobs for delivery. Please try again.',
   ERROR_JOB_DELIVERY_DETAIL_FAILED:    'Failed to load job delivery details. Please try again.',

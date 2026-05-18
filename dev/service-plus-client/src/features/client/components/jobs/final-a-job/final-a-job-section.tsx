@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { motion } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
@@ -29,7 +30,7 @@ import {
     type FinalJobRow,
     type EditableChargeLine,
     emptyChargeLine,
-} from "./final-for-delivery-schema";
+} from "./final-a-job-schema";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -71,6 +72,70 @@ type AdditionalChargeRow = {
     selling_price: number;
 };
 
+// ─── Change Division Modal ────────────────────────────────────────────────────
+
+type ChangeDivisionModalProps = {
+    open:              boolean;
+    currentDivisionId: number | null;
+    divisions:         { id: number; name: string }[];
+    onApply:           (id: number) => Promise<void>;
+    onClose:           () => void;
+};
+
+function ChangeDivisionModal({ open, currentDivisionId, divisions, onApply, onClose }: ChangeDivisionModalProps) {
+    const [pending, setPending] = useState<number | null>(currentDivisionId);
+    const [saving,  setSaving]  = useState(false);
+
+    useEffect(() => {
+        if (open) setPending(currentDivisionId);
+    }, [open, currentDivisionId]);
+
+    async function handleApply() {
+        if (!pending) return;
+        setSaving(true);
+        try {
+            await onApply(pending);
+            onClose();
+        } catch {
+            // error already toasted by parent
+        } finally {
+            setSaving(false);
+        }
+    }
+
+    return (
+        <Dialog open={open} onOpenChange={v => { if (!v && !saving) onClose(); }}>
+            <DialogContent className="sm:max-w-xs">
+                <DialogHeader>
+                    <DialogTitle>Change Division</DialogTitle>
+                </DialogHeader>
+                <div className="py-2">
+                    <Select
+                        disabled={saving}
+                        value={pending ? String(pending) : ""}
+                        onValueChange={v => setPending(Number(v))}
+                    >
+                        <SelectTrigger className="w-full text-sm border-[var(--cl-border)] bg-[var(--cl-surface)]">
+                            <SelectValue placeholder="Select division" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {divisions.map(d => (
+                                <SelectItem key={d.id} value={String(d.id)}>{d.name}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+                <DialogFooter>
+                    <Button disabled={saving} variant="outline" onClick={onClose}>Cancel</Button>
+                    <Button disabled={!pending || saving} onClick={() => void handleApply()}>
+                        {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Apply"}
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const PAGE_SIZE   = 50;
@@ -87,7 +152,7 @@ function emptyPartLine(): EditablePartLine {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export const FinalForDeliverySection = () => {
+export const FinalAJobSection = () => {
     const dbName             = useAppSelector(selectDbName);
     const schema             = useAppSelector(selectSchema);
     const currentBranch      = useAppSelector(selectCurrentBranch);
@@ -114,9 +179,10 @@ export const FinalForDeliverySection = () => {
     const [selectedDivisionId, setSelectedDivisionId] = useState<number | null>(null);
     const [loadingDetail,      setLoadingDetail]      = useState(false);
     const [submitting,         setSubmitting]         = useState(false);
+    const [changeDivOpen,      setChangeDivOpen]      = useState(false);
 
     // Unified editable parts
-    const [partLines,        setPartLines]        = useState<EditablePartLine[]>([emptyPartLine()]);
+    const [partLines,        setPartLines]        = useState<EditablePartLine[]>([]);
     const [deletedPartIds,   setDeletedPartIds]   = useState<number[]>([]);
 
     // Additional charges (full CRUD)
@@ -182,7 +248,7 @@ export const FinalForDeliverySection = () => {
                     variables:   {
                         db_name: dbName, schema,
                         value: graphQlUtils.buildGenericQueryValue({
-                            sqlId:   SQL_MAP.GET_FINAL_JOBS_PAGED,
+                            sqlId:   SQL_MAP.GET_COMPLETED_JOBS_PAGED,
                             sqlArgs: { ...commonArgs, limit: PAGE_SIZE, offset: (pg - 1) * PAGE_SIZE },
                         }),
                     },
@@ -192,7 +258,7 @@ export const FinalForDeliverySection = () => {
                     query:       GRAPHQL_MAP.genericQuery,
                     variables:   {
                         db_name: dbName, schema,
-                        value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_FINAL_JOBS_COUNT, sqlArgs: commonArgs }),
+                        value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_COMPLETED_JOBS_COUNT, sqlArgs: commonArgs }),
                     },
                 }),
             ]);
@@ -263,7 +329,7 @@ export const FinalForDeliverySection = () => {
                         selling_price: String(p.selling_price ?? 0),
                         remarks:       p.remarks ?? "",
                     }))
-                    : [emptyPartLine()],
+                    : [],
             );
             setDeletedPartIds([]);
             setChargeLines(charges.map(c => ({
@@ -289,8 +355,30 @@ export const FinalForDeliverySection = () => {
         setSelectedJob(null);
         setSelectedRow(null);
         setSelectedDivisionId(null);
-        setPartLines([emptyPartLine()]);
+        setPartLines([]);
         setDeletedPartIds([]);
+    }
+
+    // ── Change division (saves to DB + refreshes job detail) ────────────────
+    async function handleChangeDivision(newDivisionId: number) {
+        if (!dbName || !schema || !selectedJob) return;
+        await apolloClient.mutate({
+            mutation:  GRAPHQL_MAP.genericUpdate,
+            variables: {
+                db_name: dbName,
+                schema,
+                value: encodeObj({ tableName: "job", xData: { id: selectedJob.id, division_id: newDivisionId } }),
+            },
+        });
+        const jobRes = await apolloClient.query<GenericQueryData<JobDetailType>>({
+            fetchPolicy: "network-only",
+            query:       GRAPHQL_MAP.genericQuery,
+            variables:   { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_JOB_DETAIL, sqlArgs: { id: selectedJob.id } }) },
+        });
+        const refreshed = jobRes.data?.genericQuery?.[0];
+        if (refreshed) setSelectedJob(refreshed);
+        setSelectedDivisionId(newDivisionId);
+        toast.success("Division updated.");
     }
 
     // ── Part mutations ──────────────────────────────────────────────────────
@@ -299,7 +387,7 @@ export const FinalForDeliverySection = () => {
     }
 
     function removePartLine(key: string, id?: number) {
-        setPartLines(prev => prev.length > 1 ? prev.filter(l => l._key !== key) : [emptyPartLine()]);
+        setPartLines(prev => prev.filter(l => l._key !== key));
         if (id !== undefined) setDeletedPartIds(prev => [...prev, id]);
     }
 
@@ -444,6 +532,7 @@ export const FinalForDeliverySection = () => {
         const isGst      = isGstDivision(division);
 
         return (
+            <>
             <motion.div
                 animate={{ opacity: 1 }}
                 className="flex min-h-0 flex-1 flex-col overflow-hidden"
@@ -467,21 +556,23 @@ export const FinalForDeliverySection = () => {
                         <span className="text-sm font-medium text-[var(--cl-text)]">{selectedJob.customer_name}</span>
                     </div>
                     <div className="flex-1" />
-                    {/* Division selector */}
-                    <Select
-                        value={selectedDivisionId ? String(selectedDivisionId) : "__none__"}
-                        onValueChange={v => setSelectedDivisionId(v === "__none__" ? null : Number(v))}
-                    >
-                        <SelectTrigger className="h-8 w-44 text-xs border-[var(--cl-border)] bg-[var(--cl-surface)]">
-                            <SelectValue placeholder="Select division" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="__none__">No division</SelectItem>
-                            {availableDivisions.map(d => (
-                                <SelectItem key={d.id} value={String(d.id)}>{d.name}</SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
+                    {/* Division display + change button */}
+                    <div className="flex items-center gap-2">
+                        <div className="flex flex-col leading-none">
+                            <span className="text-[10px] uppercase tracking-wider text-[var(--cl-text-muted)]">Division</span>
+                            <span className="text-xs font-semibold text-[var(--cl-text)]">
+                                {division?.name ?? <span className="italic text-[var(--cl-text-muted)]">No division</span>}
+                            </span>
+                        </div>
+                        <Button
+                            className="h-7 px-2 text-xs"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setChangeDivOpen(true)}
+                        >
+                            Change Division
+                        </Button>
+                    </div>
                     {/* GST / Non-GST badge */}
                     <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-bold tracking-wide ${isGst ? "bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-400" : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400"}`}>
                         {isGst ? "GST" : "NON-GST"}
@@ -513,7 +604,17 @@ export const FinalForDeliverySection = () => {
 
                     {/* Job Summary */}
                     <div className="rounded-lg border border-[var(--cl-border)] bg-[var(--cl-surface-2)] px-4 py-4">
-                        <p className="mb-3 text-[10px] font-semibold uppercase tracking-widest text-[var(--cl-text-muted)]">Job Summary</p>
+                        <div className="mb-3 flex items-center gap-2">
+                            <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--cl-text-muted)]">Job Summary</p>
+                            <button
+                                type="button"
+                                className="flex items-center gap-1 text-[10px] font-medium text-[var(--cl-accent)] hover:underline cursor-pointer"
+                                onClick={() => setViewJobId(selectedJob.id)}
+                            >
+                                <Eye className="h-3 w-3" />
+                                View Details
+                            </button>
+                        </div>
                         <div className="grid grid-cols-2 gap-x-6 gap-y-2 sm:grid-cols-3 lg:grid-cols-4">
                             {([
                                 ["Job No",     selectedJob.alternate_job_no ? `${selectedJob.job_no} · Alt: ${selectedJob.alternate_job_no}` : selectedJob.job_no],
@@ -523,7 +624,7 @@ export const FinalForDeliverySection = () => {
                                 ["Technician", selectedJob.technician_name ?? "—"],
                                 ["Job Type",   selectedJob.job_type_name],
                                 ["Status",     selectedJob.job_status_name],
-                                ["Amount",     selectedJob.amount != null ? `₹${Number(selectedJob.amount).toFixed(2)}` : "—"],
+                                ["Amount / Estimate", `${selectedJob.amount != null ? `₹${Number(selectedJob.amount).toFixed(2)}` : "—"}  ·  Est: ${selectedJob.estimate_amount != null ? `₹${Number(selectedJob.estimate_amount).toFixed(2)}` : "—"}`],
                             ] as [string, string][]).map(([lbl, val]) => (
                                 <div key={lbl}>
                                     <p className="text-[10px] uppercase tracking-wider text-[var(--cl-text-muted)]">{lbl}</p>
@@ -531,12 +632,6 @@ export const FinalForDeliverySection = () => {
                                 </div>
                             ))}
                         </div>
-                        {selectedJob.problem_reported && (
-                            <div className="mt-3 border-t border-[var(--cl-border)] pt-3">
-                                <p className="text-[10px] uppercase tracking-wider text-[var(--cl-text-muted)]">Problem Reported</p>
-                                <p className="mt-0.5 text-sm text-[var(--cl-text)] leading-relaxed">{selectedJob.problem_reported}</p>
-                            </div>
-                        )}
                     </div>
 
                     {/* Parts Used — unified editable table */}
@@ -544,18 +639,31 @@ export const FinalForDeliverySection = () => {
                         <div className="px-4 py-2.5 border-b border-[var(--cl-border)] bg-[var(--cl-surface-2)]/60">
                             <p className="text-xs font-bold uppercase tracking-wider text-[var(--cl-text-muted)]">Parts Used</p>
                         </div>
-                        <div className="overflow-x-auto pb-1">
+                        {!isWarranty && partLines.length === 0 && (
+                            <div className="flex items-center justify-center py-6">
+                                <Button
+                                    className="h-8 gap-1.5 text-xs border-emerald-300 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-700 dark:text-emerald-400 dark:hover:bg-emerald-950/30"
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={addPartLine}
+                                >
+                                    <Plus className="h-3.5 w-3.5" /> Add Part
+                                </Button>
+                            </div>
+                        )}
+                        {partLines.length > 0 && <div className="overflow-x-auto pb-1">
                             <table className="min-w-[780px] w-full border-collapse text-sm">
                                 <thead>
                                     <tr>
                                         <th className={pthClass} style={{ width: "3%" }}>#</th>
-                                        <th className={pthClass} style={{ width: "14%" }}>Brand</th>
-                                        <th className={pthClass} style={{ width: "18%" }}>Part Code <span className="text-red-500">*</span></th>
-                                        <th className={pthClass} style={{ width: "20%" }}>Part Name</th>
-                                        <th className={`${pthClass} text-right`} style={{ width: "8%" }}>Qty <span className="text-red-500">*</span></th>
-                                        <th className={`${pthClass} text-right`} style={{ width: "9%" }}>Cost Price</th>
-                                        <th className={`${pthClass} text-right`} style={{ width: "9%" }}>Selling Price</th>
-                                        <th className={pthClass} style={{ width: "14%" }}>Remarks</th>
+                                        <th className={pthClass} style={{ width: "13%" }}>Brand</th>
+                                        <th className={pthClass} style={{ width: "16%" }}>Part Code <span className="text-red-500">*</span></th>
+                                        <th className={pthClass} style={{ width: "18%" }}>Part Name</th>
+                                        <th className={`${pthClass} text-right`} style={{ width: "8%" }}>Cost Pr</th>
+                                        <th className={`${pthClass} text-right`} style={{ width: "7%" }}>Qty <span className="text-red-500">*</span></th>
+                                        <th className={`${pthClass} text-right`} style={{ width: "8%" }}>Sale Pr</th>
+                                        <th className={`${pthClass} text-right`} style={{ width: "8%" }}>Amount</th>
+                                        <th className={pthClass} style={{ width: "12%" }}>Remarks</th>
                                         {!isWarranty && <th className={pthClass} style={{ width: "5%" }}></th>}
                                     </tr>
                                 </thead>
@@ -616,21 +724,9 @@ export const FinalForDeliverySection = () => {
                                                     onChange={e => updatePartLine(line._key, { part_name: e.target.value })}
                                                 />
                                             </td>
-                                            <td className={ptdClass}>
+                                            <td className={`${ptdClass} text-right`}>
                                                 <Input
-                                                    className={`h-7 w-20 border-[var(--cl-border)] bg-[var(--cl-surface)] text-xs text-right ${line.quantity <= 0 ? "border-red-500" : ""}`}
-                                                    disabled={isWarranty}
-                                                    min={0.01}
-                                                    step="0.01"
-                                                    type="number"
-                                                    value={line.quantity}
-                                                    onChange={e => updatePartLine(line._key, { quantity: parseFloat(e.target.value) || 0 })}
-                                                    onFocus={e => e.target.select()}
-                                                />
-                                            </td>
-                                            <td className={ptdClass}>
-                                                <Input
-                                                    className="h-7 w-20 border-[var(--cl-border)] bg-[var(--cl-surface)] text-xs text-right"
+                                                    className="h-7 w-full border-[var(--cl-border)] bg-[var(--cl-surface)] text-xs text-right"
                                                     disabled={isWarranty}
                                                     min="0"
                                                     step="0.01"
@@ -640,9 +736,21 @@ export const FinalForDeliverySection = () => {
                                                     onFocus={e => e.target.select()}
                                                 />
                                             </td>
-                                            <td className={ptdClass}>
+                                            <td className={`${ptdClass} text-right`}>
                                                 <Input
-                                                    className="h-7 w-20 border-[var(--cl-border)] bg-[var(--cl-surface)] text-xs text-right"
+                                                    className={`h-7 w-full border-[var(--cl-border)] bg-[var(--cl-surface)] text-xs text-right ${line.quantity <= 0 ? "border-red-500" : ""}`}
+                                                    disabled={isWarranty}
+                                                    min={0.01}
+                                                    step="0.01"
+                                                    type="number"
+                                                    value={line.quantity}
+                                                    onChange={e => updatePartLine(line._key, { quantity: parseFloat(e.target.value) || 0 })}
+                                                    onFocus={e => e.target.select()}
+                                                />
+                                            </td>
+                                            <td className={`${ptdClass} text-right`}>
+                                                <Input
+                                                    className="h-7 w-full border-[var(--cl-border)] bg-[var(--cl-surface)] text-xs text-right"
                                                     disabled={isWarranty}
                                                     min="0"
                                                     step="0.01"
@@ -651,6 +759,9 @@ export const FinalForDeliverySection = () => {
                                                     onChange={e => updatePartLine(line._key, { selling_price: e.target.value })}
                                                     onFocus={e => e.target.select()}
                                                 />
+                                            </td>
+                                            <td className={`${ptdClass} pr-2 text-right tabular-nums text-xs font-semibold text-[var(--cl-text)]`}>
+                                                {((parseFloat(line.selling_price) || 0) * line.quantity).toFixed(2)}
                                             </td>
                                             <td className={ptdClass}>
                                                 <Input
@@ -689,7 +800,7 @@ export const FinalForDeliverySection = () => {
                                     ))}
                                 </tbody>
                             </table>
-                        </div>
+                        </div>}
                         {deletedPartIds.length > 0 && (
                             <p className="px-4 py-2 text-xs text-red-500">
                                 {deletedPartIds.length} part{deletedPartIds.length !== 1 ? "s" : ""} marked for removal.
@@ -699,17 +810,22 @@ export const FinalForDeliverySection = () => {
 
                     {/* Additional Charges */}
                     <div className="rounded-lg border border-[var(--cl-border)] bg-[var(--cl-surface)] overflow-hidden">
-                        <div className="flex items-center justify-between px-4 py-2.5 border-b border-[var(--cl-border)] bg-[var(--cl-surface-2)]/60">
+                        <div className="px-4 py-2.5 border-b border-[var(--cl-border)] bg-[var(--cl-surface-2)]/60">
                             <p className="text-xs font-bold uppercase tracking-wider text-[var(--cl-text-muted)]">Additional Charges</p>
-                            {!isWarranty && (
-                                <Button className="h-7 gap-1 px-2.5 text-xs" size="sm" variant="outline" onClick={addChargeLine}>
-                                    <Plus className="h-3 w-3" /> Add Charge
-                                </Button>
-                            )}
                         </div>
-                        {chargeLines.length === 0 ? (
-                            <p className="px-4 py-4 text-sm text-[var(--cl-text-muted)] italic">No additional charges.</p>
-                        ) : (
+                        {!isWarranty && chargeLines.length === 0 && (
+                            <div className="flex items-center justify-center py-6">
+                                <Button
+                                    className="h-8 gap-1.5 text-xs border-emerald-300 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-700 dark:text-emerald-400 dark:hover:bg-emerald-950/30"
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={addChargeLine}
+                                >
+                                    <Plus className="h-3.5 w-3.5" /> Add Charge
+                                </Button>
+                            </div>
+                        )}
+                        {chargeLines.length > 0 && (
                             <div className="overflow-x-auto">
                                 <table className="min-w-full border-collapse text-sm">
                                     <thead>
@@ -777,16 +893,27 @@ export const FinalForDeliverySection = () => {
                                                     />
                                                 </td>
                                                 {!isWarranty && (
-                                                    <td className={tdClass}>
-                                                        <Button
-                                                            className="h-6 w-6 p-0 text-[var(--cl-text-muted)] hover:text-red-500 hover:bg-red-500/10 opacity-0 group-hover:opacity-100"
-                                                            size="icon"
-                                                            title="Remove charge"
-                                                            variant="ghost"
-                                                            onClick={() => removeChargeLine(c._key, c.id)}
-                                                        >
-                                                            <Trash2 className="h-3.5 w-3.5" />
-                                                        </Button>
+                                                    <td className={`${tdClass} px-1`}>
+                                                        <div className="flex items-center gap-0.5">
+                                                            <Button
+                                                                className="h-6 w-6 p-0 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
+                                                                size="icon"
+                                                                title="Add row"
+                                                                variant="ghost"
+                                                                onClick={addChargeLine}
+                                                            >
+                                                                <Plus className="h-3.5 w-3.5" />
+                                                            </Button>
+                                                            <Button
+                                                                className="h-6 w-6 p-0 text-[var(--cl-text-muted)] hover:text-red-500 hover:bg-red-500/10"
+                                                                size="icon"
+                                                                title="Remove charge"
+                                                                variant="ghost"
+                                                                onClick={() => removeChargeLine(c._key, c.id)}
+                                                            >
+                                                                <Trash2 className="h-3.5 w-3.5" />
+                                                            </Button>
+                                                        </div>
                                                     </td>
                                                 )}
                                             </tr>
@@ -799,6 +926,18 @@ export const FinalForDeliverySection = () => {
 
                 </div>
             </motion.div>
+            {viewJobId !== null && (
+                <JobDetailsModal jobId={viewJobId} onClose={() => setViewJobId(null)} />
+            )}
+
+            <ChangeDivisionModal
+                currentDivisionId={selectedDivisionId}
+                divisions={availableDivisions}
+                open={changeDivOpen}
+                onApply={handleChangeDivision}
+                onClose={() => setChangeDivOpen(false)}
+            />
+            </>
         );
     }
 
@@ -819,7 +958,7 @@ export const FinalForDeliverySection = () => {
                         <CheckCircle2 className="h-4 w-4" />
                     </div>
                     <div className="flex items-baseline gap-2">
-                        <h1 className="text-lg font-bold text-[var(--cl-text)]">Final for Delivery</h1>
+                        <h1 className="text-lg font-bold text-[var(--cl-text)]">Final a Job</h1>
                         <span className="text-xs text-[var(--cl-text-muted)]">
                             {loading ? "Loading…" : `(${total})`}
                         </span>

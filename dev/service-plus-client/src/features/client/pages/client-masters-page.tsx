@@ -2,6 +2,7 @@ import { motion } from "framer-motion";
 
 import { ClientLayout } from "@/features/client/components/client-layout";
 import { useClientSelection } from "@/features/client/components/client-layout";
+import { AdditionalChargeSection } from "@/features/client/components/masters/additional-charge/additional-charge-section";
 import { BranchSection } from "@/features/client/components/masters/branch/branch-section";
 import { CustomerSection } from "@/features/client/components/masters/customer/customer-section";
 import { FinancialYearSection } from "@/features/client/components/masters/financial-year/financial-year-section";
@@ -47,6 +48,7 @@ function ComingSoon({ label }: { label: string }) {
 function MastersContent() {
     const { selected } = useClientSelection();
 
+    if (selected === "Job Additional Charges") return <AdditionalChargeSection />;
     if (selected === "Brand") return <LookupSection config={BRAND_CONFIG} />;
     if (selected === "Branch") return <BranchSection />;
     if (selected === "Customer") return <CustomerSection />;
