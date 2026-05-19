@@ -4,7 +4,7 @@
 - If user gives a part code, it is searched in spare_part_master for cost_price and gst_rate
 - Take gst_rate from spare_part_master OR default_gst_rate and apply the value of force_gst_on_parts_for_non_gst_invoices to calculate the cost_price. Set sale_price based on value of 
 force_gst_on_parts_for_non_gst_invoices
-# Modification in "Final a Job" feature
+# Modification 1 in "Final a Job" feature
 ## Price
 - If user gives a part code, it is searched in spare_part_master for cost_price and gst_rate
 - effective gst rate = gst_rate from spare_part_master OR default_gst_rate
@@ -19,9 +19,13 @@ force_gst_on_parts_for_non_gst_invoices
 - For gst
         - if gst_rate in spare_part_master is 0 then default_gst_rate is taken
 ## Function
+- Internally use a calculate method which does all the calculations of gst sale price, gst, aggregate, amount,summary etc. This method is fired when any of the user input changes, including change of division, but except when user changes gst sale price. When user changes gst sale price then sale price is back calculated and then calculate metod is fired. The purpose is to keep UI updated against any user input or change.
 
+# Modification 2 in "Final a Job" feature
+- The idea is to create a job-invoice when user does final a job.
+- When an invoice is created then is_final is true and user thereafter cannot make any changes to job.
+- The job_invoice and job_invoice_lines tables are populated from the data in job_part_used and job_additional_charge. Applicable gst values are calculated and populated in these invoice tables appropriately. These tables are updated when save and mark final button is clicked.
         
-
 # Logic for status change
 
 - For "Assigned" as target status, selection of technician through drop down is mandatory in modal window if not already selected earlier.

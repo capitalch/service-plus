@@ -1,292 +1,168 @@
-# Plan: Modify "Final for Delivery" Feature
+# Plan: Pricing Logic & Calculate Method — Final a Job
 
-## Overview
+## Context
 
-Rebuild the "Final for Delivery" section so it:
-- Shows only `COMPLETED_OK` jobs (no date filters)
-- Has a rich search identical to Job Search / Job Pipeline
-- Grid rows with a **View** icon (job details modal) and a **Final** button (opens Final sub-view)
-- Final sub-view: editable parts-used + additional-charges, GST/Non-GST FAB, warranty lock, saves `is_final = true`
+When a technician finalises a job, part prices must be computed correctly based on:
+- Whether the division is GST or non-GST
+- Whether `force_gst_on_parts_for_non_gst_invoices` is enabled
+- The `gst_rate` from the spare part master (falling back to `default_gst_rate` when 0)
 
----
-
-## Server-side Changes
-
-### 1. `GET_FINAL_JOBS_PAGED` SQL
-
-**Current behaviour:** filters by date range + division + some status (likely not `COMPLETED_OK`).
-
-**Changes required:**
-- Remove `from_date` and `to_date` parameters entirely.
-- Add hard filter: `j.job_status_id = (SELECT id FROM {schema}.job_status WHERE code = 'COMPLETED_OK')` (or use a passed-in status code constant on the server — whichever pattern the server uses).
-- Expand the `search` ILIKE to cover: `job_no`, `alternate_job_no`, `customer_name`, `mobile`, `email`, `city`, `technician_name`, `serial_no`, and device string (`product_name || ' ' || brand_name || ' ' || model_name`).
-- Return the same columns as `GET_JOB_SEARCH_PAGED` plus `is_final`, so the client can reuse `JobSearchRow`-compatible typing. Required additions to the SELECT:
-  - `jt.code AS job_type_code`
-  - `COALESCE(p.name || ' / ' || b.name || ' / ' || m.name, '') AS device_details`
-  - `j.serial_no`
-  - `j.batch_no`
-  - `j.is_closed`
-  - `j.is_final`
-  - `j.division_id`
-  - `COUNT(jid.id) AS file_count` (left-join `job_image_doc`)
-  - `j.alternate_job_no`
-
-**Signature after change:**
-```
-GET_FINAL_JOBS_PAGED(branch_id, division_id, search, limit, offset)
-```
-
-### 2. `GET_FINAL_JOBS_COUNT` SQL
-
-Same changes as `GET_FINAL_JOBS_PAGED` (remove dates, add `COMPLETED_OK` filter, expand search), but SELECT only `COUNT(*) AS total`.
-
-**Signature after change:**
-```
-GET_FINAL_JOBS_COUNT(branch_id, division_id, search)
-```
-
-### 3. No new SQL queries needed
-
-All other data fetching reuses existing SQL IDs already mapped on the client:
-- `GET_JOB_DETAIL` — job detail for the View modal and Final tab header
-- `GET_JOB_PART_USED_BY_JOB` — existing parts for the editable table
-- `GET_JOB_ADDITIONAL_CHARGES_BY_JOB` — existing charges for the editable table
-- `GET_JOB_PARTS_FOR_INVOICE` — auto-populate parts from stock (already used in current FinalForDelivery)
-
-### 4. Save Final — `genericUpdate` payload
-
-No new mutation needed. Use `GRAPHQL_MAP.genericUpdate` with a compound `xDetails` payload:
-
-```
-{
-  tableName: "job",
-  xData: { id: <job_id>, is_final: true },
-  xDetails: [
-    {
-      tableName:  "job_part_used",
-      fkeyName:   "job_id",
-      deletedIds: [...ids of removed rows],
-      xData:      [...upsert rows: { id? (if existing), job_id, part_id, branch_id, quantity, remarks }]
-    },
-    {
-      tableName:  "job_additional_charge",
-      fkeyName:   "job_id",
-      deletedIds: [...ids of removed rows],
-      xData:      [...upsert rows: { id? (if existing), job_id, charge_name, ref_no, description, cost_price, selling_price }]
-    }
-  ]
-}
-```
-
-If `job_part_used` requires a `stock_transaction_type_id` or `branch_id` on insert (check DB schema — `requiredForInsert: ['id', 'job_id', 'charge_name']` for charges; for `job_part_used` look up the schema), include those. The existing `part-used-section.tsx` already handles this pattern — mirror it.
+All derived fields (sale_pr_gst, aggregate, amount, profit, summaries) must stay in sync
+whenever any input changes. A single `calculatePartLine()` helper encapsulates all this
+logic; every onChange wires through it.
 
 ---
 
-## Client-side Changes
+## Existing Infrastructure (no new code needed)
 
-### File: `final-for-delivery-section.tsx`
+| Item | Location |
+|------|----------|
+| `selectDefaultGstRate` | `src/store/context-slice.ts:154` |
+| `selectForceGstOnPartsForNonGst` | `src/store/context-slice.ts:155` |
+| `PartRow.gst_rate` | `src/features/client/components/inventory/part-code-input.tsx:35` |
+| Reference pricing logic | `src/features/client/components/inventory/sales-entry/new-sales-invoice.tsx:449–468` |
 
-#### 1. Remove date filter state and UI
-- Delete: `fromDate`, `toDate`, `setFromDate`, `setToDate` state.
-- Delete: `currentFinancialYearRange()` import/call.
-- Remove date inputs from the toolbar entirely.
-- Remove `from_date` / `to_date` from `loadData` args and `commonArgs`.
+Both selectors are populated from app_settings by `bu-branch-switcher.tsx`.
 
-#### 2. Expand `FinalJobRow` type
-Replace the current lean `FinalJobRow` with a type that mirrors `JobSearchRow` (add `job_type_code`, `device_details`, `serial_no`, `batch_no`, `is_closed`, `is_final`, `file_count`, `alternate_job_no`). This is what the new SQL will return.
+---
+
+## File to Modify
+
+`src/features/client/components/jobs/final-a-job/final-a-job-section.tsx`
+
+---
+
+## Changes
+
+### 1. Import `selectForceGstOnPartsForNonGst`
+
+Add to the existing `selectAvailableDivisions, …` import line (context-slice).
+
+### 2. Select the setting in the component body
 
 ```ts
-type FinalJobRow = {
-    id:               number;
-    job_no:           string;
-    alternate_job_no: string | null;
-    job_date:         string;
-    job_type_name:    string;
-    job_type_code:    string;
-    customer_name:    string;
-    mobile:           string;
-    device_details:   string | null;
-    serial_no:        string | null;
-    batch_no:         number | null;
-    amount:           number | null;
-    is_closed:        boolean;
-    is_final:         boolean;
-    technician_name:  string | null;
-    division_id:      number | null;
-    file_count:       number;
-};
+const forceGstOnPartsForNonGst = useAppSelector(selectForceGstOnPartsForNonGst);
 ```
 
-#### 3. Expand search placeholder
-Change placeholder from `"Job no, alt job no, customer or mobile…"` to:
-`"Job no, alt job no, customer, mobile, email, city, technician, serial no, device…"`
+### 3. Derive `isGst` at component scope
 
-#### 4. Rebuild the data grid (list view)
-
-Replace current simple grid with Job-Search-style grid:
-
-| # | Date | Job No | Customer | Mobile | Device Details | Job Type | Amount | Actions |
-|---|------|--------|----------|--------|---------------|----------|--------|---------|
-
-- **Date cell**: same as Job Search — date on top, division code badge below (sky color) if `row.division_id`.
-- **Job No cell**: job_no in accent mono + `CLOSED` badge if `is_closed` + alt job no sub-line + batch badge if `batch_no` + file-count button if `file_count > 0`.
-- **Status column**: removed — all rows are COMPLETED_OK, no need to show it.
-- **Actions cell** (sticky right): two buttons:
-  - Eye icon (`Eye` from lucide) — opens `JobDetailsModal` for the job. Same pattern as `job-search-section.tsx` using `viewJobId` state.
-  - `Flag` or `CheckSquare` icon button labelled **"Final"** — sets `finalJobRow` state and switches to `subView = "final"`.
-
-#### 5. Add `SubView` states
-```ts
-type SubView = "list" | "final";
-```
-Remove the `"invoice"` subview entirely (that whole invoice creation flow is removed from this feature — it was the old purpose; the new purpose is just finalising parts/charges and setting `is_final`).
-
-Clean up all invoice-related state: `docSequence`, `jobDocSeq`, `allStates`, `finalStatusId`, `existingInvoice`, `lines`, `isIgst`, `totals`, `executeSave` invoice logic, meta-loading useEffect for document sequences and states.
-
-#### 6. Final sub-view — new component (or inline)
-
-Render when `subView === "final" && selectedJob !== null`.
-
-**Header bar** (same style as current invoice header):
-- Back button → `setSubView("list")`
-- Job no + customer name
-- GST / Non-GST FAB (floating badge on the right):
-  - Derive: `const division = availableDivisions.find(d => d.id === selectedJob.division_id) ?? null`
-  - `isGstDivision(division)` → show green `"GST"` badge
-  - else → show gray `"NON-GST"` badge
-- Save button (disabled for warranty, disabled while submitting)
-
-**Body — Job Summary card** (same as current invoice view's Job Summary card):
-- Job No, Job Date, Customer, Mobile, Technician, Status, Amount, Problem Reported
-
-**Body — Parts Used section**:
-
-Load `GET_JOB_PART_USED_BY_JOB` on sub-view open. Store as `existingParts: ExistingPartRow[]` and `partLines: EditablePartLine[]` (same shape as used in `part-used-section.tsx`).
+Currently `isGst` is derived inside the `final` subview render block. Move it to component scope so `handlePartSelect` and `handleChangeDivision` can reference it.
 
 ```ts
-type ExistingPartRow = {
-    id:        number;
-    part_id:   number;
-    part_code: string;
-    part_name: string;
-    uom:       string;
-    quantity:  number;
-    remarks:   string | null;
-};
-type EditablePartLine = {
-    _key:      string;
-    id?:       number;       // present for existing rows
-    part_id:   number | null;
-    part_code: string;
-    part_name: string;
-    uom:       string;
-    quantity:  number;
-    remarks:   string;
-};
+const selectedDivision = availableDivisions.find(d => d.id === selectedDivisionId) ?? null;
+const isGst            = isGstDivision(selectedDivision);
 ```
 
-Editable table columns: Part Code, Part Name, UOM, Qty, Remarks, Delete.
-- Part Code / Part Name: use `PartCodeInput` or a simple searchable combobox (mirror `new-part-used-form.tsx`).
-- "Add line" button below table.
-- **Entire section is read-only when `isWarranty`** (`selectedJob.job_type_code === "UNDER_WARRANTY"`): inputs disabled, add/delete buttons hidden, banner "Warranty job — charges cannot be modified."
-
-**Body — Additional Charges section**:
-
-Load `GET_JOB_ADDITIONAL_CHARGES_BY_JOB` on sub-view open. Store as `chargeLines: EditableChargeLine[]`.
+### 4. `calculatePartLine()` pure helper (add near `emptyPartLine`)
 
 ```ts
-type EditableChargeLine = {
-    _key:          string;
-    id?:           number;
-    charge_name:   string;
-    ref_no:        string;
-    description:   string;
-    cost_price:    string;    // string for input binding
-    selling_price: string;
+type CalcInput = {
+    cost_price_raw:  number;   // raw cost from DB / user input
+    selling_price:   number;   // sale price ex-GST
+    gst_rate_master: number;   // gst_rate on the line (from DB or user)
+    isGst:           boolean;
+    defaultGstRate:  number;
+    forceGstOnParts: boolean;  // = !isGst && forceGstOnPartsForNonGst
 };
-```
 
-Editable table columns: Charge Name*, Ref No, Description, Cost Price, Selling Price*, Delete.
-- "Add line" button below table.
-- **Same warranty lock** — all inputs disabled, buttons hidden.
+type CalcResult = Pick<EditablePartLine, 'cost_price' | 'selling_price' | 'gst_rate' | 'sale_pr_gst'>;
 
-**Save logic** (`handleSaveFinal`):
-1. Guard: if `isWarranty` return immediately (button should already be disabled).
-2. Build `deletedPartIds` = IDs from `existingParts` that are no longer in `partLines`.
-3. Build part upsert rows: map `partLines` → `{ id? (existing), job_id, part_id, branch_id: currentBranch.id, quantity, remarks }`.
-4. Build `deletedChargeIds` = IDs from `existingCharges` that are no longer in `chargeLines`.
-5. Build charge upsert rows: map `chargeLines` → `{ id?, job_id, charge_name, ref_no, description, cost_price, selling_price }`.
-6. Call `genericUpdate` with compound payload (see Server-side §4).
-7. On success: toast, call `loadData(...)`, `setSubView("list")`.
+function calculatePartLine(input: CalcInput): CalcResult {
+    const { cost_price_raw, selling_price, gst_rate_master,
+            isGst, defaultGstRate, forceGstOnParts } = input;
 
-**`loadFinalData` function** (called when Final sub-view opens):
-```ts
-async function loadFinalData(row: FinalJobRow) {
-    // parallel fetch: GET_JOB_DETAIL + GET_JOB_PART_USED_BY_JOB + GET_JOB_ADDITIONAL_CHARGES_BY_JOB
-    setLoadingDetail(true);
-    try {
-        const [jobRes, partsRes, chargesRes] = await Promise.all([...]);
-        setSelectedJob(jobRes...);
-        setExistingParts(partsRes...);
-        setPartLines(partsRes... mapped to EditablePartLine);
-        setExistingCharges(chargesRes...);
-        setChargeLines(chargesRes... mapped to EditableChargeLine);
-        setSubView("final");
-    } finally {
-        setLoadingDetail(false);
+    if (isGst) {
+        const effectiveGst = gst_rate_master === 0 ? defaultGstRate : gst_rate_master;
+        return {
+            cost_price:    String(cost_price_raw),
+            selling_price: String(selling_price),
+            gst_rate:      String(effectiveGst),
+            sale_pr_gst:   (selling_price * (1 + effectiveGst / 100)).toFixed(2),
+        };
+    } else {
+        // Non-GST: gst_rate stored as 0 always
+        const effectiveGst = gst_rate_master === 0 ? defaultGstRate : gst_rate_master;
+        const costAdj = forceGstOnParts
+            ? cost_price_raw * (1 + effectiveGst / 100)
+            : cost_price_raw;
+        const markup  = selling_price - cost_price_raw;  // preserve profit margin
+        const saleAdj = costAdj + markup;
+        return {
+            cost_price:    costAdj.toFixed(2),
+            selling_price: saleAdj.toFixed(2),
+            gst_rate:      "0",
+            sale_pr_gst:   saleAdj.toFixed(2),   // no GST on top for non-GST division
+        };
     }
 }
 ```
 
-#### 7. Meta loading simplification
+### 5. `handlePartSelect` — apply pricing on part selection
 
-The meta `useEffect` currently loads document sequences, all states, and job statuses. After the rebuild:
-- Remove document sequences loading (no invoice creation).
-- Remove all-states loading (no supply state selection).
-- Remove job statuses / `finalStatusId` (no longer needed — we set `is_final` directly, not via status change).
-- The meta `useEffect` can be removed entirely if nothing else needs it.
+Replace the current simple field copy with a call to `calculatePartLine`:
 
-#### 8. Imports cleanup
-- Remove: `Switch`, `Select`/`SelectContent`/`SelectItem`/`SelectTrigger`/`SelectValue`, `Label`, `Wand2`, `Save`, `Plus`, `Trash2` (if not reused in new table).
-- Add: `Eye`, `Flag` (or `CheckSquare`) from lucide.
-- Remove imports for `finalForDeliverySchema`, `getFinalForDeliveryDefaultValues`, `FinalForDeliveryFormValues` — delete or repurpose `final-for-delivery-schema.ts`.
-- Remove imports for `JobInvoiceFormLine`, `JobInvoiceLineType`, `JobInvoiceType` from job-invoice types.
-- Keep: `JobDetailsModal` import (add it — currently not imported in this file).
+```ts
+function handlePartSelect(key: string, part: PartRow) {
+    const costRaw  = Number(part.cost_price    ?? 0);
+    const saleRaw  = Number(part.selling_price ?? 0);
+    const result   = calculatePartLine({
+        cost_price_raw:  costRaw,
+        selling_price:   saleRaw,
+        gst_rate_master: Number(part.gst_rate ?? 0),
+        isGst,
+        defaultGstRate,
+        forceGstOnParts: !isGst && forceGstOnPartsForNonGst,
+    });
+    updatePartLine(key, {
+        part_id:   part.id,
+        part_code: part.part_code,
+        part_name: part.part_name,
+        brand_id:  part.brand_id,
+        ...result,
+    });
+}
+```
+
+### 6. Recalculate on every pricing input change
+
+Each pricing field onChange calls `calculatePartLine` and applies the full result:
+
+| Field changed | `cost_price_raw` | `selling_price` | `gst_rate_master` | Notes |
+|---|---|---|---|---|
+| `cost_price` | new value | current `selling_price` | current `gst_rate` | straightforward |
+| `selling_price` | current `cost_price` | new value | current `gst_rate` | straightforward |
+| `gst_rate` | current `cost_price` | current `selling_price` | new value | straightforward |
+| `sale_pr_gst` | current `cost_price` | back-calc: `spg / (1 + gst/100)` | current `gst_rate` | back-calc first |
+| `quantity` | — | — | — | no recalc needed (qty doesn't affect prices) |
+
+### 7. Recalculate on division change (`handleChangeDivision`)
+
+After updating `selectedDivisionId`, re-run `calculatePartLine` over all `partLines`:
+
+```ts
+const newDiv    = availableDivisions.find(d => d.id === newDivisionId) ?? null;
+const newIsGst  = isGstDivision(newDiv);
+setPartLines(prev => prev.map(l => ({
+    ...l,
+    ...calculatePartLine({
+        cost_price_raw:  parseFloat(l.cost_price)    || 0,
+        selling_price:   parseFloat(l.selling_price) || 0,
+        gst_rate_master: parseFloat(l.gst_rate)      || 0,
+        isGst:           newIsGst,
+        defaultGstRate,
+        forceGstOnParts: !newIsGst && forceGstOnPartsForNonGst,
+    }),
+})));
+```
 
 ---
 
-## New / Modified Files Summary
+## Verification
 
-| File | Change |
-|------|--------|
-| `final-for-delivery-section.tsx` | Major rewrite: remove date filters, invoice flow; add new grid, Final sub-view |
-| `final-for-delivery-schema.ts` | Remove invoice-related schemas; add `EditablePartLine`, `EditableChargeLine` types |
-| `plans/plan.md` | This file |
-| Server: `GET_FINAL_JOBS_PAGED` SQL | Remove dates, add COMPLETED_OK filter, expand search, add columns |
-| Server: `GET_FINAL_JOBS_COUNT` SQL | Same filter/search changes, SELECT COUNT only |
-
----
-
-## UI / UX Notes
-
-- **GST FAB**: position as a small pill badge in the Final sub-view header bar, right-aligned. `"GST"` in `bg-green-100 text-green-700`, `"NON-GST"` in `bg-slate-100 text-slate-600`.
-- **Warranty banner**: show a yellow info bar inside the Final tab body (below job summary, above Parts Used) when `isWarranty`:  
-  `"This is a warranty job. Parts used and additional charges cannot be modified."`
-- **Save button label**: `"Save & Mark Final"`. Disabled when `isWarranty` or submitting.
-- **View icon button**: ghost icon button with `Eye` icon, tooltip `"View Job Details"`. Clicking it opens `JobDetailsModal` (the same modal already used in Job Search and Job Pipeline).
-- **Final button**: small outlined button with `Flag` icon labelled `"Final"`. Changes to a spinner while `loadingDetail`.
-- **Pagination and search debounce**: keep as-is (PAGE_SIZE=50, DEBOUNCE_MS=1600).
-- **Division badge in Date cell**: same sky-colored code badge as Job Search.
-
----
-
-## Implementation Order
-
-1. Server: update `GET_FINAL_JOBS_PAGED` and `GET_FINAL_JOBS_COUNT` SQL.
-2. Client: update `FinalJobRow` type.
-3. Client: remove date state/UI, update `loadData` signature.
-4. Client: rebuild list-view grid (Job-Search style + two action buttons).
-5. Client: implement `loadFinalData` + Final sub-view (job summary + editable parts + editable charges + GST FAB + warranty guard).
-6. Client: implement `handleSaveFinal` with `genericUpdate` compound payload.
-7. Client: wire up `JobDetailsModal` for the eye icon.
-8. Client: clean up schema file and unused imports.
+1. GST division + part with `gst_rate=18` → sale_pr_gst = selling_price × 1.18; CGST/SGST = aggregate × 9%.
+2. GST division + part with `gst_rate=0` → effective rate = `default_gst_rate`; all derived fields use it.
+3. Non-GST + `force_gst=false` → `gst_rate=0`, `sale_pr_gst = selling_price`, cost unchanged.
+4. Non-GST + `force_gst=true` → `cost_price` baked with GST; `sale_price = new_cost + markup`; `gst_rate=0`.
+5. Change division GST→Non-GST mid-flow → all part lines recalculate immediately.
+6. Edit `sale_pr_gst` manually → `selling_price` back-calculates, all derived fields update.
+7. Edit `cost_price` manually → `sale_pr_gst` updates; profit updates.
