@@ -506,7 +506,7 @@ export const PurchaseEntrySection = () => {
                                 <span className={`text-[10.5px] font-bold uppercase tracking-tighter ${
                                     isGstRegistered ? 'text-emerald-700' : 'text-red-700'
                                 }`}>
-                                    {isGstRegistered ? 'GST' : 'No-GST'}
+                                    {isGstRegistered ? 'GST' : 'Non-GST'}
                                 </span>
                             </div>
                         )}

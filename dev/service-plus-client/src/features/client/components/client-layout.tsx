@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import type { ReactNode } from "react";
-import { Building2 } from "lucide-react";
+import { Building2, CheckCircle2, XCircle } from "lucide-react";
 import { useLocation } from "react-router-dom";
 
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
@@ -179,9 +179,17 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
                         </p>
                         {currentDivision && (
                             <div className="flex items-center gap-2.5">
-                                {isGstMode && (
-                                    <span className="ml-1 text-[10px] font-bold text-emerald-500 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20 leading-none">GST</span>
-                                )}
+                                <div className={`flex items-center gap-1 px-1.5 py-1 rounded-sm border shadow-sm ${
+                                    isGstMode ? "bg-emerald-500/10 border-emerald-500/20" : "bg-red-500/10 border-red-500/20"
+                                }`}>
+                                    {isGstMode
+                                        ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                                        : <XCircle      className="h-3.5 w-3.5 text-red-600" />
+                                    }
+                                    <span className={`text-[10.5px] font-bold uppercase tracking-tighter ${isGstMode ? "text-emerald-700" : "text-red-700"}`}>
+                                        {isGstMode ? "GST" : "Non-GST"}
+                                    </span>
+                                </div>
                                 <Building2 className="h-4 w-4 text-[var(--cl-accent)]" />
                                 <div className="flex flex-col leading-none">
                                     <span className="text-sm font-bold text-[var(--cl-text)] tracking-tight uppercase">

@@ -699,7 +699,7 @@ export const SalesEntrySection = () => {
                                     : <XCircle className="h-3.5 w-3.5 text-red-600" />
                                 }
                                 <span className={`text-[10.5px] font-bold uppercase tracking-tighter ${isGstMode ? "text-emerald-700" : "text-red-700"}`}>
-                                    {isGstMode ? "GST" : "No-GST"}
+                                    {isGstMode ? "GST" : "Non-GST"}
                                 </span>
                             </div>
                         )}

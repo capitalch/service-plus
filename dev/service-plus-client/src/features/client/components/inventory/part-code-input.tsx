@@ -49,6 +49,7 @@ export type PartCodeInputProps = {
     brandId: number | null;
     selectedBrandId: number | null;
     brandName?: string;
+    showName?: boolean;
     onChange: (code: string) => void;
     onClear: () => void;
     onSelect: (part: PartRow) => void;
@@ -76,6 +77,7 @@ export const PartCodeInput = forwardRef<HTMLInputElement, PartCodeInputProps>(({
     brandId,
     selectedBrandId,
     brandName,
+    showName = true,
     onChange,
     onClear,
     onSelect,
@@ -344,7 +346,7 @@ export const PartCodeInput = forwardRef<HTMLInputElement, PartCodeInputProps>(({
                         )}
                     </div>
                 </div>
-                {partId && partName && (
+                {showName && partId && partName && (
                     <div className="flex items-center px-1 overflow-hidden h-3 animate-in fade-in slide-in-from-top-1 duration-200">
                         <span className="truncate text-[10px] font-bold text-[var(--cl-accent,#007acc)]/70 tracking-tight" title={partName}>{partName}</span>
                     </div>

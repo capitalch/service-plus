@@ -4,17 +4,23 @@
 - If user gives a part code, it is searched in spare_part_master for cost_price and gst_rate
 - Take gst_rate from spare_part_master OR default_gst_rate and apply the value of force_gst_on_parts_for_non_gst_invoices to calculate the cost_price. Set sale_price based on value of 
 force_gst_on_parts_for_non_gst_invoices
-# Modification in "Final for delivery" feature
-- Remove date filters
-- Make search box functionality same as that of Job Search, but for only completed_ok jobs
-- The data grid will only show thos jobs whose status are completed_ok
-- The data format for data grid will be same as "Job Search"
-- Each row will have a view icon, which will show job details modal same as in "Job Pipeline" job-details-modal
-- Each row will also have a final button which will open a Final tab with back button, similar to as in Job Pipeline
-- Final tab will have job details. Here the user will check and alter parts used and additional charges. This screen is to make the charges against a job final. After saving is_final will be set true.
-- If associated division has gst, then indicate GST else indicate non-gst in a fab
-- in warranty jobs will not be allowed to set charges
-- Create compatible and nice UI.
+# Modification in "Final a Job" feature
+## Price
+- If user gives a part code, it is searched in spare_part_master for cost_price and gst_rate
+- effective gst rate = gst_rate from spare_part_master OR default_gst_rate
+- For non-gst
+        - gst rate is always 0
+        - if force_gst_on_parts_for_non_gst_invoices is true
+                cost price = cost *(1 + (effective gst rate)/100)
+                sale price = cost price + markup
+        - else
+                cost price = cost
+                sale price = cost price + markup
+- For gst
+        - if gst_rate in spare_part_master is 0 then default_gst_rate is taken
+## Function
+
+        
 
 # Logic for status change
 

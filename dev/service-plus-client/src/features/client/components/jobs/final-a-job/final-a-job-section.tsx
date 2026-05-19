@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
     AlertTriangle, ArrowLeft, CheckCheck, CheckCircle2,
     ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon,
-    Eye, Loader2, Paperclip, Plus, RefreshCw, Search, Trash2, X,
+    Eye, Loader2, Paperclip, Plus, RefreshCw, Search, Trash2, X, XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
@@ -139,6 +139,12 @@ function ChangeDivisionModal({ open, currentDivisionId, divisions, onApply, onCl
     );
 }
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function fmtCurrency(n: number): string {
+    return n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const PAGE_SIZE   = 50;
@@ -146,8 +152,7 @@ const DEBOUNCE_MS = 1600;
 
 const thClass  = "sticky top-0 z-20 text-xs font-semibold uppercase tracking-wide text-[var(--cl-text-muted)] p-3 text-left border-b border-[var(--cl-border)] bg-[var(--cl-surface-2)]";
 const tdClass  = "p-3 text-sm text-[var(--cl-text)] border-b border-[var(--cl-border)]";
-const pthClass = "sticky top-0 z-20 text-xs font-extrabold uppercase tracking-widest text-[var(--cl-text)] py-2 px-2 text-left border-b border-[var(--cl-border)] bg-zinc-200/60 dark:bg-zinc-800/60";
-const ptdClass = "p-0.5 border-b border-[var(--cl-border)]";
+
 
 function emptyPartLine(gstRate = 0): EditablePartLine {
     return { _key: crypto.randomUUID(), brand_id: null, part_id: null, part_code: "", part_name: "", cost_price: "0", selling_price: "0", sale_pr_gst: "0", gst_rate: String(gstRate), quantity: 1, remarks: "" };
@@ -539,6 +544,12 @@ export const FinalAJobSection = () => {
         const division   = availableDivisions.find(d => d.id === selectedDivisionId) ?? null;
         const isGst      = isGstDivision(division);
 
+        const partsTotal       = partLines.reduce((sum, l) => { const agg = (parseFloat(l.selling_price) || 0) * l.quantity; return sum + agg * (1 + (parseFloat(l.gst_rate) || 0) / 100); }, 0);
+        const profitTotal      = partLines.reduce((sum, l) => sum + ((parseFloat(l.selling_price) || 0) - (parseFloat(l.cost_price) || 0)) * l.quantity, 0);
+        const chargesCostTotal = chargeLines.reduce((sum, c) => sum + (parseFloat(c.cost_price) || 0), 0);
+        const chargesSaleTotal = chargeLines.reduce((sum, c) => sum + (parseFloat(c.selling_price) || 0), 0);
+        const grandTotal       = partsTotal + chargesSaleTotal;
+
         return (
             <>
             <motion.div
@@ -592,9 +603,17 @@ export const FinalAJobSection = () => {
                         </Button>
                     </div>
                     {/* GST / Non-GST badge */}
-                    <span className={`inline-flex items-center rounded-xs px-2 py-1 text-xs font-medium tracking-widest uppercase ring-2 ${isGst ? "bg-emerald-50 ring-emerald-200/50 dark:bg-emerald-500 dark:ring-emerald-400/40" : "bg-pink-100  ring-pink-200/40 dark:bg-slate-600 dark:ring-slate-500/40"}`}>
-                        {isGst ? "GST" : "NON-GST"}
-                    </span>
+                    <div className={`flex items-center gap-1 px-1.5 py-1 rounded-sm border shadow-sm ${
+                        isGst ? "bg-emerald-500/10 border-emerald-500/20" : "bg-red-500/10 border-red-500/20"
+                    }`}>
+                        {isGst
+                            ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                            : <XCircle      className="h-3.5 w-3.5 text-red-600" />
+                        }
+                        <span className={`text-[10.5px] font-bold uppercase tracking-tighter ${isGst ? "text-emerald-700" : "text-red-700"}`}>
+                            {isGst ? "GST" : "Non-GST"}
+                        </span>
+                    </div>
                     {!isWarranty && (
                         <Button
                             className="h-8 gap-1.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-bold uppercase tracking-wider disabled:opacity-40"
@@ -669,195 +688,96 @@ export const FinalAJobSection = () => {
                                 </Button>
                             </div>
                         )}
-                        {partLines.length > 0 && <div className="overflow-x-auto pb-1">
-                            <table className="min-w-[780px] w-full border-collapse text-sm">
-                                <thead>
-                                    <tr>
-                                        <th className={pthClass} style={{ width: "3%" }}>#</th>
-                                        <th className={pthClass} style={{ width: "13%" }}>Brand</th>
-                                        <th className={pthClass} style={{ width: "16%" }}>Part Code <span className="text-red-500">*</span></th>
-                                        <th className={pthClass} style={{ width: "16%" }}>Part Name</th>
-                                        <th className={pthClass} style={{ width: "10%" }}>Remarks</th>
-                                        <th className={`${pthClass} text-right`} style={{ width: "7%" }}>Cost Pr</th>
-                                        <th className={`${pthClass} text-right`} style={{ width: "5%" }}>GST%</th>
-                                        <th className={`${pthClass} text-right`} style={{ width: "5%" }}>Qty <span className="text-red-500">*</span></th>
-                                        <th className={`${pthClass} text-right`} style={{ width: "7%" }}>Sale Pr</th>
-                                        <th className={`${pthClass} text-right`} style={{ width: "7%" }}>Sale Pr GST</th>
-                                        <th className={`${pthClass} text-right`} style={{ width: "7%" }}>Aggregate</th>
-                                        <th className={`${pthClass} text-right`} style={{ width: "7%" }}>Amount</th>
-                                        {!isWarranty && <th className={pthClass} style={{ width: "5%" }}></th>}
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {partLines.map((line, idx) => (
-                                        <tr key={line._key} className="hover:bg-[var(--cl-surface-2)]/30">
-                                            <td className={`${ptdClass} pl-3 text-xs text-[var(--cl-text-muted)]`}>{idx + 1}</td>
-                                            <td className={ptdClass}>
-                                                {isWarranty ? (
-                                                    <span className="px-2 text-xs text-[var(--cl-text-muted)]">
-                                                        {brands.find(b => b.id === line.brand_id)?.name ?? "—"}
-                                                    </span>
-                                                ) : (
-                                                    <Select
-                                                        value={line.brand_id ? String(line.brand_id) : ""}
-                                                        onValueChange={v => updatePartLine(line._key, { brand_id: Number(v), part_id: null, part_code: "", part_name: "" })}
-                                                    >
-                                                        <SelectTrigger className="h-7 text-xs bg-transparent border-[var(--cl-border)]">
-                                                            <SelectValue placeholder="Select brand" />
-                                                        </SelectTrigger>
-                                                        <SelectContent>
-                                                            {brands.map(b => (
-                                                                <SelectItem key={b.id} value={String(b.id)}>{b.name}</SelectItem>
-                                                            ))}
-                                                        </SelectContent>
-                                                    </Select>
-                                                )}
-                                            </td>
-                                            <td className={ptdClass}>
-                                                {isWarranty ? (
-                                                    <span className="px-2 font-mono text-xs font-semibold text-[var(--cl-accent)]">{line.part_code || "—"}</span>
-                                                ) : (
-                                                    <PartCodeInput
-                                                        brandId={line.brand_id}
-                                                        partCode={line.part_code}
-                                                        partId={line.part_id}
-                                                        partName={line.part_name}
-                                                        selectedBrandId={line.brand_id}
-                                                        brandName={brands.find(b => b.id === line.brand_id)?.name}
-                                                        onChange={code => {
-                                                            if (!code.trim()) {
-                                                                updatePartLine(line._key, { part_code: "", part_id: null, part_name: "" });
-                                                            } else {
-                                                                updatePartLine(line._key, { part_code: code });
-                                                            }
-                                                        }}
-                                                        onClear={() => updatePartLine(line._key, { part_code: "", part_id: null, part_name: "" })}
-                                                        onSelect={part => handlePartSelect(line._key, part)}
+                        {partLines.length > 0 && (
+                            <div className="flex flex-col gap-1 bg-white">
+                                {partLines.map((line, idx) => {
+                                    const aggregate = (parseFloat(line.selling_price) || 0) * line.quantity;
+                                    const gstRate   = parseFloat(line.gst_rate) || 0;
+                                    const amount    = aggregate * (1 + gstRate / 100);
+                                    const cgst      = aggregate * gstRate / 200;
+                                    const sgst      = cgst;
+                                    const igst      = aggregate * gstRate / 100;
+                                    const profit    = ((parseFloat(line.selling_price) || 0) - (parseFloat(line.cost_price) || 0)) * line.quantity;
+                                    return (
+                                        <div key={line._key} className="px-1 py-3 space-y-2.5 bg-[var(--cl-surface)] hover:bg-[var(--cl-surface-2)]/50 transition-colors">
+                                            {/* ── Identity row ── */}
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                <span className="w-5 shrink-0 text-center text-xs font-semibold text-[var(--cl-text-muted)]">{idx + 1}</span>
+                                                {/* Brand */}
+                                                <div className="w-36 shrink-0">
+                                                    {isWarranty ? (
+                                                        <span className="text-xs text-[var(--cl-text-muted)]">{brands.find(b => b.id === line.brand_id)?.name ?? "—"}</span>
+                                                    ) : (
+                                                        <Select
+                                                            value={line.brand_id ? String(line.brand_id) : ""}
+                                                            onValueChange={v => updatePartLine(line._key, { brand_id: Number(v), part_id: null, part_code: "", part_name: "" })}
+                                                        >
+                                                            <SelectTrigger className="h-7 text-xs bg-transparent border-[var(--cl-border)]">
+                                                                <SelectValue placeholder="Brand" />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                {brands.map(b => (
+                                                                    <SelectItem key={b.id} value={String(b.id)}>{b.name}</SelectItem>
+                                                                ))}
+                                                            </SelectContent>
+                                                        </Select>
+                                                    )}
+                                                </div>
+                                                {/* Part Code */}
+                                                <div className="w-44 shrink-0">
+                                                    {isWarranty ? (
+                                                        <span className="font-mono text-xs font-semibold text-[var(--cl-accent)]">{line.part_code || "—"}</span>
+                                                    ) : (
+                                                        <PartCodeInput
+                                                            brandId={line.brand_id}
+                                                            partCode={line.part_code}
+                                                            partId={line.part_id}
+                                                            partName={line.part_name}
+                                                            selectedBrandId={line.brand_id}
+                                                            brandName={brands.find(b => b.id === line.brand_id)?.name}
+                                                            showName={false}
+                                                            onChange={code => {
+                                                                if (!code.trim()) {
+                                                                    updatePartLine(line._key, { part_code: "", part_id: null, part_name: "" });
+                                                                } else {
+                                                                    updatePartLine(line._key, { part_code: code });
+                                                                }
+                                                            }}
+                                                            onClear={() => updatePartLine(line._key, { part_code: "", part_id: null, part_name: "" })}
+                                                            onSelect={part => handlePartSelect(line._key, part)}
+                                                        />
+                                                    )}
+                                                </div>
+                                                {/* Part Name */}
+                                                <div className="min-w-[140px] flex-1">
+                                                    <Input
+                                                        className="h-7 border-[var(--cl-border)] bg-white text-xs"
+                                                        disabled={isWarranty}
+                                                        placeholder="Part name"
+                                                        value={line.part_name}
+                                                        onChange={e => updatePartLine(line._key, { part_name: e.target.value })}
                                                     />
-                                                )}
-                                            </td>
-                                            <td className={ptdClass}>
-                                                <Input
-                                                    className="h-7 min-w-[100px] border-[var(--cl-border)] bg-white text-xs"
-                                                    disabled={isWarranty}
-                                                    placeholder="Part name"
-                                                    value={line.part_name}
-                                                    onChange={e => updatePartLine(line._key, { part_name: e.target.value })}
-                                                />
-                                            </td>
-                                            <td className={ptdClass}>
-                                                <Input
-                                                    className="h-7 border-[var(--cl-border)] bg-white text-xs"
-                                                    disabled={isWarranty}
-                                                    placeholder="Remarks…"
-                                                    value={line.remarks}
-                                                    onChange={e => updatePartLine(line._key, { remarks: e.target.value })}
-                                                />
-                                            </td>
-                                            <td className={`${ptdClass} text-right`}>
-                                                <Input
-                                                    className="h-7 w-full border-[var(--cl-border)] bg-white text-xs text-right"
-                                                    disabled={isWarranty}
-                                                    min="0"
-                                                    step="0.01"
-                                                    type="number"
-                                                    value={line.cost_price}
-                                                    onChange={e => updatePartLine(line._key, { cost_price: e.target.value })}
-                                                    onFocus={e => e.target.select()}
-                                                />
-                                            </td>
-                                            {/* GST% — syncs sale_pr_gst on change */}
-                                            <td className={`${ptdClass} text-right`}>
-                                                <Input
-                                                    className="h-7 w-full border-[var(--cl-border)] bg-white text-xs text-right"
-                                                    disabled={isWarranty}
-                                                    min="0"
-                                                    step="0.01"
-                                                    type="number"
-                                                    value={line.gst_rate}
-                                                    onChange={e => {
-                                                        const gst = e.target.value;
-                                                        const sp = parseFloat(line.selling_price) || 0;
-                                                        updatePartLine(line._key, {
-                                                            gst_rate: gst,
-                                                            sale_pr_gst: (sp * (1 + (parseFloat(gst) || 0) / 100)).toFixed(2),
-                                                        });
-                                                    }}
-                                                    onFocus={e => e.target.select()}
-                                                />
-                                            </td>
-                                            <td className={`${ptdClass} text-right`}>
-                                                <Input
-                                                    className={`h-7 w-full border-[var(--cl-border)] bg-white text-xs text-right ${line.quantity <= 0 ? "border-red-500" : ""}`}
-                                                    disabled={isWarranty}
-                                                    min={0.01}
-                                                    step="0.01"
-                                                    type="number"
-                                                    value={line.quantity}
-                                                    onChange={e => updatePartLine(line._key, { quantity: parseFloat(e.target.value) || 0 })}
-                                                    onFocus={e => e.target.select()}
-                                                />
-                                            </td>
-                                            {/* Sale Pr — syncs sale_pr_gst on change */}
-                                            <td className={`${ptdClass} text-right`}>
-                                                <Input
-                                                    className="h-7 w-full border-[var(--cl-border)] bg-white text-xs text-right"
-                                                    disabled={isWarranty}
-                                                    min="0"
-                                                    step="0.01"
-                                                    type="number"
-                                                    value={line.selling_price}
-                                                    onChange={e => {
-                                                        const sp = e.target.value;
-                                                        const gst = parseFloat(line.gst_rate) || 0;
-                                                        updatePartLine(line._key, {
-                                                            selling_price: sp,
-                                                            sale_pr_gst: ((parseFloat(sp) || 0) * (1 + gst / 100)).toFixed(2),
-                                                        });
-                                                    }}
-                                                    onFocus={e => e.target.select()}
-                                                />
-                                            </td>
-                                            {/* Sale Pr GST — back-calculates selling_price on change */}
-                                            <td className={`${ptdClass} text-right`}>
-                                                <Input
-                                                    className="h-7 w-full border-[var(--cl-border)] bg-white text-xs text-right"
-                                                    disabled={isWarranty}
-                                                    min="0"
-                                                    step="0.01"
-                                                    type="number"
-                                                    value={line.sale_pr_gst}
-                                                    onChange={e => {
-                                                        const spgst = e.target.value;
-                                                        const gst = parseFloat(line.gst_rate) || 0;
-                                                        updatePartLine(line._key, {
-                                                            sale_pr_gst: spgst,
-                                                            selling_price: ((parseFloat(spgst) || 0) / (1 + gst / 100)).toFixed(2),
-                                                        });
-                                                    }}
-                                                    onFocus={e => e.target.select()}
-                                                />
-                                            </td>
-                                            <td className={`${ptdClass} pr-2 text-right tabular-nums text-xs text-[var(--cl-text-muted)]`}>
-                                                {((parseFloat(line.selling_price) || 0) * line.quantity).toFixed(2)}
-                                            </td>
-                                            <td className={`${ptdClass} pr-2 text-right tabular-nums text-xs font-semibold text-[var(--cl-text)]`}>
-                                                {(() => {
-                                                    const agg = (parseFloat(line.selling_price) || 0) * line.quantity;
-                                                    return (agg * (1 + (parseFloat(line.gst_rate) || 0) / 100)).toFixed(2);
-                                                })()}
-                                            </td>
-                                            {!isWarranty && (
-                                                <td className={`${ptdClass} px-1`}>
-                                                    <div className="flex items-center gap-0.5">
+                                                </div>
+                                                {/* Remarks */}
+                                                <div className="min-w-[120px] flex-1">
+                                                    <Input
+                                                        className="h-7 border-[var(--cl-border)] bg-white text-xs"
+                                                        disabled={isWarranty}
+                                                        placeholder="Remarks…"
+                                                        value={line.remarks}
+                                                        onChange={e => updatePartLine(line._key, { remarks: e.target.value })}
+                                                    />
+                                                </div>
+                                                {/* Actions */}
+                                                {!isWarranty && (
+                                                    <div className="flex items-center gap-1.5 shrink-0 ml-auto">
                                                         <Button
-                                                            className="h-6 w-6 p-0 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
+                                                            className="h-8 w-8 p-0 rounded-full bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm"
                                                             size="icon"
                                                             title="Add row"
-                                                            variant="ghost"
                                                             onClick={addPartLine}
                                                         >
-                                                            <Plus className="h-3.5 w-3.5" />
+                                                            <Plus className="h-4.5 w-4.5" />
                                                         </Button>
                                                         <Button
                                                             className="h-6 w-6 p-0 text-[var(--cl-text-muted)] hover:text-red-500 hover:bg-red-500/10"
@@ -869,17 +789,142 @@ export const FinalAJobSection = () => {
                                                             <Trash2 className="h-3.5 w-3.5" />
                                                         </Button>
                                                     </div>
-                                                </td>
-                                            )}
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>}
+                                                )}
+                                            </div>
+                                            {/* ── Pricing row ── */}
+                                            <div className="flex flex-wrap items-center gap-x-3 gap-y-2 pl-7">
+                                                <div className="flex items-center gap-1.5">
+                                                    <span className="text-[10px] font-medium uppercase tracking-wide text-[var(--cl-text-muted)] whitespace-nowrap">Cost</span>
+                                                    <Input
+                                                        className="h-6 w-20 border-[var(--cl-border)] bg-white text-xs text-right"
+                                                        disabled={isWarranty}
+                                                        min="0" step="0.01" type="number"
+                                                        value={line.cost_price}
+                                                        onChange={e => updatePartLine(line._key, { cost_price: e.target.value })}
+                                                        onFocus={e => e.target.select()}
+                                                    />
+                                                </div>
+                                                <div className="flex items-center gap-1.5">
+                                                    <span className="text-[10px] font-medium uppercase tracking-wide text-[var(--cl-text-muted)] whitespace-nowrap">GST%</span>
+                                                    <Input
+                                                        className="h-6 w-14 border-[var(--cl-border)] bg-white text-xs text-right"
+                                                        disabled={isWarranty}
+                                                        min="0" step="0.01" type="number"
+                                                        value={line.gst_rate}
+                                                        onChange={e => {
+                                                            const gst = e.target.value;
+                                                            const sp = parseFloat(line.selling_price) || 0;
+                                                            updatePartLine(line._key, {
+                                                                gst_rate: gst,
+                                                                sale_pr_gst: (sp * (1 + (parseFloat(gst) || 0) / 100)).toFixed(2),
+                                                            });
+                                                        }}
+                                                        onFocus={e => e.target.select()}
+                                                    />
+                                                </div>
+                                                <div className="flex items-center gap-1.5">
+                                                    <span className="text-[10px] font-medium uppercase tracking-wide text-[var(--cl-text-muted)] whitespace-nowrap">Qty</span>
+                                                    <Input
+                                                        className={`h-6 w-16 border-[var(--cl-border)] bg-white text-xs text-right ${line.quantity <= 0 ? "border-red-500" : ""}`}
+                                                        disabled={isWarranty}
+                                                        min={0.01} step="0.01" type="number"
+                                                        value={line.quantity}
+                                                        onChange={e => updatePartLine(line._key, { quantity: parseFloat(e.target.value) || 0 })}
+                                                        onFocus={e => e.target.select()}
+                                                    />
+                                                </div>
+                                                <div className="flex items-center gap-1.5">
+                                                    <span className="text-[10px] font-medium uppercase tracking-wide text-[var(--cl-text-muted)] whitespace-nowrap">Sale</span>
+                                                    <Input
+                                                        className="h-6 w-20 border-[var(--cl-border)] bg-white text-xs text-right"
+                                                        disabled={isWarranty}
+                                                        min="0" step="0.01" type="number"
+                                                        value={line.selling_price}
+                                                        onChange={e => {
+                                                            const sp = e.target.value;
+                                                            const gst = parseFloat(line.gst_rate) || 0;
+                                                            updatePartLine(line._key, {
+                                                                selling_price: sp,
+                                                                sale_pr_gst: ((parseFloat(sp) || 0) * (1 + gst / 100)).toFixed(2),
+                                                            });
+                                                        }}
+                                                        onFocus={e => e.target.select()}
+                                                    />
+                                                </div>
+                                                <div className="flex items-center gap-1.5">
+                                                    <span className="text-[10px] font-medium uppercase tracking-wide text-[var(--cl-text-muted)] whitespace-nowrap">+GST</span>
+                                                    <Input
+                                                        className="h-6 w-20 border-[var(--cl-border)] bg-white text-xs text-right"
+                                                        disabled={isWarranty}
+                                                        min="0" step="0.01" type="number"
+                                                        value={line.sale_pr_gst}
+                                                        onChange={e => {
+                                                            const spgst = e.target.value;
+                                                            const gst = parseFloat(line.gst_rate) || 0;
+                                                            updatePartLine(line._key, {
+                                                                sale_pr_gst: spgst,
+                                                                selling_price: ((parseFloat(spgst) || 0) / (1 + gst / 100)).toFixed(2),
+                                                            });
+                                                        }}
+                                                        onFocus={e => e.target.select()}
+                                                    />
+                                                </div>
+                                                {/* GST breakdown (read-only) */}
+                                                <div className="flex items-center gap-3 border-l border-[var(--cl-border)] pl-3">
+                                                    <div className="flex items-center gap-1">
+                                                        <span className="text-[10px] font-medium uppercase tracking-wide text-[var(--cl-text-muted)] whitespace-nowrap">CGST</span>
+                                                        <span className="tabular-nums text-xs text-[var(--cl-text)]">{cgst.toFixed(2)}</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-1">
+                                                        <span className="text-[10px] font-medium uppercase tracking-wide text-[var(--cl-text-muted)] whitespace-nowrap">SGST</span>
+                                                        <span className="tabular-nums text-xs text-[var(--cl-text)]">{sgst.toFixed(2)}</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-1">
+                                                        <span className="text-[10px] font-medium uppercase tracking-wide text-[var(--cl-text-muted)] whitespace-nowrap">IGST</span>
+                                                        <span className="tabular-nums text-xs text-[var(--cl-text)]">{igst.toFixed(2)}</span>
+                                                    </div>
+                                                </div>
+                                                {/* Computed totals */}
+                                                <div className="ml-auto flex items-center gap-4">
+                                                    <div className="flex items-center gap-1">
+                                                        <span className="text-[10px] text-[var(--cl-text-muted)]">Agg</span>
+                                                        <span className="tabular-nums text-sm text-[var(--cl-text-muted)]">{aggregate.toFixed(2)}</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-1">
+                                                        <span className="text-[10px] text-[var(--cl-text-muted)]">Profit</span>
+                                                        <span className={`tabular-nums text-sm font-semibold ${profit < 0 ? "text-red-600" : "text-emerald-600"}`}>
+                                                            {profit < 0 ? "-" : ""}₹{fmtCurrency(Math.abs(profit))}
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex items-center gap-1 rounded bg-[var(--cl-surface-2)] px-2 py-0.5">
+                                                        <span className="text-[10px] text-[var(--cl-text-muted)]">Amt</span>
+                                                        <span className="tabular-nums text-sm font-bold text-[var(--cl-text)]">₹{fmtCurrency(amount)}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
                         {deletedPartIds.length > 0 && (
                             <p className="px-4 py-2 text-xs text-red-500">
                                 {deletedPartIds.length} part{deletedPartIds.length !== 1 ? "s" : ""} marked for removal.
                             </p>
+                        )}
+                        {partLines.length > 0 && (
+                            <div className="flex items-center justify-end gap-6 px-4 py-2.5 border-t-2 border-[var(--cl-border)] bg-[var(--cl-surface-2)]/60">
+                                <div className="flex items-center gap-1.5">
+                                    <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--cl-text-muted)]">Profit</span>
+                                    <span className={`tabular-nums text-sm font-semibold ${profitTotal < 0 ? "text-red-600" : "text-emerald-600"}`}>
+                                        {profitTotal < 0 ? "-" : ""}₹{fmtCurrency(Math.abs(profitTotal))}
+                                    </span>
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                    <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--cl-text-muted)]">Parts Total</span>
+                                    <span className="tabular-nums text-base font-bold text-[var(--cl-text)]">₹{fmtCurrency(partsTotal)}</span>
+                                </div>
+                            </div>
                         )}
                     </div>
 
@@ -908,9 +953,9 @@ export const FinalAJobSection = () => {
                                             <th className={thClass}>#</th>
                                             <th className={thClass}>Charge Name <span className="text-red-500">*</span></th>
                                             <th className={thClass}>Ref No</th>
-                                            <th className={thClass}>Description</th>
+                                            <th className={`${thClass} w-full`}>Description</th>
                                             <th className={`${thClass} text-right`}>Cost Price</th>
-                                            <th className={`${thClass} text-right`}>Selling Price <span className="text-red-500">*</span></th>
+                                            <th className={`${thClass} text-right`}>Sale Price <span className="text-red-500">*</span></th>
                                             {!isWarranty && <th className={thClass}></th>}
                                         </tr>
                                     </thead>
@@ -945,39 +990,42 @@ export const FinalAJobSection = () => {
                                                         onChange={e => updateChargeLine(c._key, "description", e.target.value)}
                                                     />
                                                 </td>
-                                                <td className={tdClass}>
-                                                    <Input
-                                                        className="h-7 w-24 border-[var(--cl-border)] bg-white text-xs text-right"
-                                                        disabled={isWarranty}
-                                                        min="0"
-                                                        step="0.01"
-                                                        type="number"
-                                                        value={c.cost_price}
-                                                        onChange={e => updateChargeLine(c._key, "cost_price", e.target.value)}
-                                                    />
+                                                <td className={`${tdClass} text-right`}>
+                                                    <div className="flex justify-end">
+                                                        <Input
+                                                            className="h-7 w-24 border-[var(--cl-border)] bg-white text-xs text-right"
+                                                            disabled={isWarranty}
+                                                            min="0"
+                                                            step="0.01"
+                                                            type="number"
+                                                            value={c.cost_price}
+                                                            onChange={e => updateChargeLine(c._key, "cost_price", e.target.value)}
+                                                        />
+                                                    </div>
                                                 </td>
-                                                <td className={tdClass}>
-                                                    <Input
-                                                        className="h-7 w-24 border-[var(--cl-border)] bg-white text-xs text-right"
-                                                        disabled={isWarranty}
-                                                        min="0"
-                                                        step="0.01"
-                                                        type="number"
-                                                        value={c.selling_price}
-                                                        onChange={e => updateChargeLine(c._key, "selling_price", e.target.value)}
-                                                    />
+                                                <td className={`${tdClass} text-right`}>
+                                                    <div className="flex justify-end">
+                                                        <Input
+                                                            className="h-7 w-24 border-[var(--cl-border)] bg-white text-xs text-right"
+                                                            disabled={isWarranty}
+                                                            min="0"
+                                                            step="0.01"
+                                                            type="number"
+                                                            value={c.selling_price}
+                                                            onChange={e => updateChargeLine(c._key, "selling_price", e.target.value)}
+                                                        />
+                                                    </div>
                                                 </td>
                                                 {!isWarranty && (
-                                                    <td className={`${tdClass} px-1`}>
-                                                        <div className="flex items-center gap-0.5">
+                                                    <td className={`${tdClass} px-1 align-middle`}>
+                                                        <div className="flex items-center gap-1.5">
                                                             <Button
-                                                                className="h-6 w-6 p-0 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
+                                                                className="h-8 w-8 p-0 rounded-full bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm"
                                                                 size="icon"
                                                                 title="Add row"
-                                                                variant="ghost"
                                                                 onClick={addChargeLine}
                                                             >
-                                                                <Plus className="h-3.5 w-3.5" />
+                                                                <Plus className="h-4.5 w-4.5" />
                                                             </Button>
                                                             <Button
                                                                 className="h-6 w-6 p-0 text-[var(--cl-text-muted)] hover:text-red-500 hover:bg-red-500/10"
@@ -994,9 +1042,44 @@ export const FinalAJobSection = () => {
                                             </tr>
                                         ))}
                                     </tbody>
+                                    <tfoot>
+                                        <tr className="bg-[var(--cl-surface-2)]/60">
+                                            <td colSpan={4} className="p-3 text-xs font-semibold uppercase tracking-wide text-[var(--cl-text-muted)] text-right border-t-2 border-[var(--cl-border)]">Total</td>
+                                            <td className="p-3 text-right border-t-2 border-[var(--cl-border)]">
+                                                <span className="tabular-nums text-sm font-semibold text-[var(--cl-text)]">₹{fmtCurrency(chargesCostTotal)}</span>
+                                            </td>
+                                            <td className="p-3 text-right border-t-2 border-[var(--cl-border)]">
+                                                <span className="tabular-nums text-sm font-bold text-[var(--cl-text)]">₹{fmtCurrency(chargesSaleTotal)}</span>
+                                            </td>
+                                            {!isWarranty && <td className="border-t-2 border-[var(--cl-border)]" />}
+                                        </tr>
+                                    </tfoot>
                                 </table>
                             </div>
                         )}
+                    </div>
+
+                    {/* Grand Summary */}
+                    <div className="rounded-lg border-2 border-[var(--cl-accent)]/30 bg-[var(--cl-surface)] overflow-hidden">
+                        <div className="flex flex-wrap items-center justify-between gap-4 px-4 py-3">
+                            <p className="text-xs font-bold uppercase tracking-wider text-[var(--cl-text-muted)]">Grand Total</p>
+                            <div className="flex flex-wrap items-center gap-4">
+                                <div className="flex items-center gap-1.5">
+                                    <span className="text-[10px] font-medium uppercase tracking-wide text-[var(--cl-text-muted)]">Parts</span>
+                                    <span className="tabular-nums text-sm font-semibold text-[var(--cl-text)]">₹{fmtCurrency(partsTotal)}</span>
+                                </div>
+                                <span className="text-[var(--cl-text-muted)]">+</span>
+                                <div className="flex items-center gap-1.5">
+                                    <span className="text-[10px] font-medium uppercase tracking-wide text-[var(--cl-text-muted)]">Charges</span>
+                                    <span className="tabular-nums text-sm font-semibold text-[var(--cl-text)]">₹{fmtCurrency(chargesSaleTotal)}</span>
+                                </div>
+                                <span className="text-[var(--cl-text-muted)]">=</span>
+                                <div className="flex items-center gap-2 rounded bg-[var(--cl-accent)]/10 px-3 py-1">
+                                    <span className="text-xs font-bold uppercase tracking-wide text-[var(--cl-accent)]">Total</span>
+                                    <span className="tabular-nums text-lg font-bold text-[var(--cl-accent)]">₹{fmtCurrency(grandTotal)}</span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                 </div>
