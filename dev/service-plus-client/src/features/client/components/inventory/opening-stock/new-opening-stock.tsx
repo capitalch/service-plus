@@ -40,7 +40,7 @@ type Props = {
 
 const thClass = "sticky top-0 z-20 text-xs font-extrabold uppercase tracking-widest text-[var(--cl-text)] py-2 px-2 text-left border-b border-[var(--cl-border)] bg-zinc-200/60 dark:bg-zinc-800/60 backdrop-blur-sm shadow-[0_1px_0_var(--cl-border)]";
 const tdClass = "p-0.5 border-b border-[var(--cl-border)]";
-const inputCls = "h-7 border-[var(--cl-border)] bg-[var(--cl-surface)] text-sm px-2";
+const inputCls = "h-7 border-[var(--cl-border)] bg-white text-sm px-2";
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -273,7 +273,7 @@ export function NewOpeningStock({
                                             {/* Qty */}
                                             <td className={tdClass}>
                                                 <Input
-                                                    className={`${inputCls} border-transparent bg-transparent text-right hover:border-[var(--cl-border)] focus:bg-[var(--cl-surface)] ${(line?.qty ?? 0) <= 0 ? "border-red-500 ring-red-500/10 shadow-[0_0_0_1px_rgba(239,68,68,0.2)] focus:border-red-500" : ""}`}
+                                                    className={`${inputCls} border-transparent bg-transparent text-right hover:border-[var(--cl-border)] focus:bg-white ${(line?.qty ?? 0) <= 0 ? "border-red-500 ring-red-500/10 shadow-[0_0_0_1px_rgba(239,68,68,0.2)] focus:border-red-500" : ""}`}
                                                     min={0}
                                                     step="0.001"
                                                     type="number"
@@ -285,7 +285,7 @@ export function NewOpeningStock({
                                             {/* Unit Cost */}
                                             <td className={tdClass}>
                                                 <Input
-                                                    className={`${inputCls} border-transparent bg-transparent text-right hover:border-[var(--cl-border)] focus:bg-[var(--cl-surface)]`}
+                                                    className={`${inputCls} border-transparent bg-transparent text-right hover:border-[var(--cl-border)] focus:bg-white`}
                                                     min={0}
                                                     step="0.01"
                                                     type="number"
@@ -297,7 +297,7 @@ export function NewOpeningStock({
                                             {/* Line Remarks */}
                                             <td className={tdClass}>
                                                 <Input
-                                                    className={`${inputCls} border-transparent bg-transparent hover:border-[var(--cl-border)] focus:bg-[var(--cl-surface)]`}
+                                                    className={`${inputCls} border-transparent bg-transparent hover:border-[var(--cl-border)] focus:bg-white`}
                                                     placeholder="Optional..."
                                                     {...register(`lines.${idx}.remarks`)}
                                                 />

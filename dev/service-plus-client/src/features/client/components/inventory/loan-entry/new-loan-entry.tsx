@@ -40,7 +40,7 @@ type Props = {
 
 const COLS = "grid-cols-[2.5rem_minmax(0,2fr)_minmax(0,2fr)_6.5rem_5rem_minmax(0,2fr)_5.5rem]";
 const hdrCellCls = "text-[11px] font-extrabold uppercase tracking-widest text-[var(--cl-text)] py-3 px-2 flex items-center justify-left border-b border-r border-[var(--cl-border)] last:border-r-0 bg-zinc-200/50 dark:bg-zinc-800/50";
-const inputCls = "h-8 border-[var(--cl-border)] bg-[var(--cl-surface)] text-sm px-2";
+const inputCls = "h-8 border-[var(--cl-border)] bg-white text-sm px-2";
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -260,7 +260,7 @@ export function NewLoanEntry({
                                         {/* Loan To */}
                                         <div className="p-1 border-r border-[var(--cl-border)]/30">
                                             <Input
-                                                className={`${inputCls} bg-transparent border-transparent hover:border-[var(--cl-border)] focus:bg-[var(--cl-surface)] ${!line?.loan_to?.trim() ? "border-red-500 focus:border-red-500 ring-red-500/10" : ""}`}
+                                                className={`${inputCls} bg-transparent border-transparent hover:border-[var(--cl-border)] focus:bg-white ${!line?.loan_to?.trim() ? "border-red-500 focus:border-red-500 ring-red-500/10" : ""}`}
                                                 placeholder="Technician / Agency"
                                                 {...register(`lines.${idx}.loan_to`)}
                                             />
@@ -295,7 +295,7 @@ export function NewLoanEntry({
                                         {/* Qty */}
                                         <div className="p-1 border-r border-[var(--cl-border)]/30">
                                             <Input
-                                                className={`${inputCls} bg-transparent border-transparent hover:border-[var(--cl-border)] focus:bg-[var(--cl-surface)] text-right px-3 ${(line?.qty ?? 0) <= 0 ? "border-red-500 focus:border-red-500 ring-red-500/10 shadow-[0_0_0_1px_rgba(239,68,68,0.2)]" : ""}`}
+                                                className={`${inputCls} bg-transparent border-transparent hover:border-[var(--cl-border)] focus:bg-white text-right px-3 ${(line?.qty ?? 0) <= 0 ? "border-red-500 focus:border-red-500 ring-red-500/10 shadow-[0_0_0_1px_rgba(239,68,68,0.2)]" : ""}`}
                                                 min={0}
                                                 step="0.01"
                                                 type="number"
@@ -307,7 +307,7 @@ export function NewLoanEntry({
                                         {/* Line Remarks */}
                                         <div className="p-1 border-r border-[var(--cl-border)]/30">
                                             <Input
-                                                className={`${inputCls} bg-transparent border-transparent hover:border-[var(--cl-border)] focus:bg-[var(--cl-surface)]`}
+                                                className={`${inputCls} bg-transparent border-transparent hover:border-[var(--cl-border)] focus:bg-white`}
                                                 placeholder="Optional..."
                                                 {...register(`lines.${idx}.remarks`)}
                                             />

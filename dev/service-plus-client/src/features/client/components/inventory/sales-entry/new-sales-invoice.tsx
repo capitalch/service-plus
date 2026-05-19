@@ -79,7 +79,7 @@ function formatNumber(num: number): string {
 
 const thClass = "sticky top-0 z-20 text-xs font-extrabold uppercase tracking-widest text-[var(--cl-text)] py-2 px-2 text-left border-b border-[var(--cl-border)] bg-zinc-200/60 dark:bg-zinc-800/60 backdrop-blur-sm shadow-[0_1px_0_var(--cl-border)]";
 const tdClass = "p-0.5 border-b border-[var(--cl-border)]";
-const inputCls = "h-7 border-[var(--cl-border)] bg-[var(--cl-surface)] text-sm px-2";
+const inputCls = "h-7 border-[var(--cl-border)] bg-white text-sm px-2";
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -476,7 +476,7 @@ export function NewSalesInvoice({
                                                 <td className={tdClass}>
                                                     <Input
                                                         ref={el => { hsnInputRefs.current[idx] = el; }}
-                                                        className={`${inputCls} bg-transparent border-transparent hover:border-[var(--cl-border)] focus:bg-[var(--cl-surface)] ${(line.unit_price > 0 || line.gst_rate > 0) && !line.hsn_code.trim() ? "border-red-500 focus:border-red-500 ring-red-500/10 shadow-[0_0_0_1px_rgba(239,68,68,0.2)]" : ""}`}
+                                                        className={`${inputCls} bg-transparent border-transparent hover:border-[var(--cl-border)] focus:bg-white ${(line.unit_price > 0 || line.gst_rate > 0) && !line.hsn_code.trim() ? "border-red-500 focus:border-red-500 ring-red-500/10 shadow-[0_0_0_1px_rgba(239,68,68,0.2)]" : ""}`}
                                                         placeholder="HSN"
                                                         value={line.hsn_code}
                                                         onChange={e => updateLine(idx, { hsn_code: e.target.value })}
@@ -486,7 +486,7 @@ export function NewSalesInvoice({
                                                 {/* Qty */}
                                                 <td className={tdClass}>
                                                     <Input
-                                                        className={`${inputCls} bg-transparent border-transparent hover:border-[var(--cl-border)] focus:bg-[var(--cl-surface)] text-right ${line.quantity <= 0 ? "border-red-500 focus:border-red-500 ring-red-500/10 shadow-[0_0_0_1px_rgba(239,68,68,0.2)]" : ""}`}
+                                                        className={`${inputCls} bg-transparent border-transparent hover:border-[var(--cl-border)] focus:bg-white text-right ${line.quantity <= 0 ? "border-red-500 focus:border-red-500 ring-red-500/10 shadow-[0_0_0_1px_rgba(239,68,68,0.2)]" : ""}`}
                                                         min={0}
                                                         step="0.01"
                                                         type="number"
@@ -499,7 +499,7 @@ export function NewSalesInvoice({
                                                 {/* Price */}
                                                 <td className={tdClass}>
                                                     <Input
-                                                        className={`${inputCls} bg-transparent border-transparent hover:border-[var(--cl-border)] focus:bg-[var(--cl-surface)] text-right font-medium`}
+                                                        className={`${inputCls} bg-transparent border-transparent hover:border-[var(--cl-border)] focus:bg-white text-right font-medium`}
                                                         min={0}
                                                         step="0.01"
                                                         type="number"
@@ -517,7 +517,7 @@ export function NewSalesInvoice({
                                                 {/* GST % */}
                                                 <td className={tdClass}>
                                                     <Input
-                                                        className={`${inputCls} bg-transparent border-transparent hover:border-[var(--cl-border)] focus:bg-[var(--cl-surface)] text-right font-semibold text-[var(--cl-accent)]`}
+                                                        className={`${inputCls} bg-transparent border-transparent hover:border-[var(--cl-border)] focus:bg-white text-right font-semibold text-[var(--cl-accent)]`}
                                                         min={0}
                                                         step="0.01"
                                                         type="number"
@@ -550,7 +550,7 @@ export function NewSalesInvoice({
                                                 {/* Remarks */}
                                                 <td className={tdClass}>
                                                     <Input
-                                                        className={`${inputCls} bg-transparent border-transparent hover:border-[var(--cl-border)] focus:bg-[var(--cl-surface)]`}
+                                                        className={`${inputCls} bg-transparent border-transparent hover:border-[var(--cl-border)] focus:bg-white`}
                                                         placeholder="Remarks"
                                                         value={line.remarks}
                                                         onChange={e => updateLine(idx, { remarks: e.target.value })}

@@ -206,7 +206,7 @@ export const ConsumptionSection = () => {
                         value={selectedBranch}
                         onValueChange={handleFilterChange(setSelectedBranch)}
                     >
-                        <SelectTrigger className="h-9 bg-[var(--cl-surface)]">
+                        <SelectTrigger className="h-9 bg-white">
                             <SelectValue placeholder="Select a branch" />
                         </SelectTrigger>
                         <SelectContent>
@@ -223,14 +223,14 @@ export const ConsumptionSection = () => {
             {/* Toolbar */}
             <div className="flex flex-wrap items-center gap-2">
                 <Input
-                    className="h-9 w-36 border-[var(--cl-border)] bg-[var(--cl-surface)]"
+                    className="h-9 w-36 border-[var(--cl-border)] bg-white"
                     disabled={loading}
                     type="date"
                     value={fromDate}
                     onChange={e => handleFilterChange(setFromDate)(e.target.value)}
                 />
                 <Input
-                    className="h-9 w-36 border-[var(--cl-border)] bg-[var(--cl-surface)]"
+                    className="h-9 w-36 border-[var(--cl-border)] bg-white"
                     disabled={loading}
                     type="date"
                     value={toDate}
@@ -239,7 +239,7 @@ export const ConsumptionSection = () => {
                 <div className="relative flex-1 sm:w-72 sm:flex-none">
                     <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--cl-text-muted)]" />
                     <Input
-                        className="h-9 border-[var(--cl-border)] bg-[var(--cl-surface)] pl-9 shadow-sm"
+                        className="h-9 border-[var(--cl-border)] bg-white pl-9 shadow-sm"
                         placeholder="Search by job no, part code, or part name…"
                         value={search}
                         onChange={e => handleSearchChange(e.target.value)}

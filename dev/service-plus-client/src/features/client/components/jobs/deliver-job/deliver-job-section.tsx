@@ -448,7 +448,7 @@ export const DeliverJobSection = () => {
                                     Delivery Date <span className="text-red-500">*</span>
                                 </Label>
                                 <Input
-                                    className="h-9 border-[var(--cl-border)] bg-[var(--cl-surface)] text-sm"
+                                    className="h-9 border-[var(--cl-border)] bg-white text-sm"
                                     id="dj-delivery-date"
                                     type="date"
                                     {...form.register("delivery_date")}
@@ -457,7 +457,7 @@ export const DeliverJobSection = () => {
                             <div>
                                 <Label className="mb-1.5 block text-sm font-medium text-[var(--cl-text)]">Delivery Manner</Label>
                                 <Select value={form.watch("delivery_manner")} onValueChange={v => form.setValue("delivery_manner", v, { shouldValidate: true })}>
-                                    <SelectTrigger className="h-9 border-[var(--cl-border)] bg-[var(--cl-surface)] text-sm">
+                                    <SelectTrigger className="h-9 border-[var(--cl-border)] bg-white text-sm">
                                         <SelectValue placeholder="Select manner" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -472,7 +472,7 @@ export const DeliverJobSection = () => {
                                     Transaction Remarks
                                 </Label>
                                 <Textarea
-                                    className="h-9 min-h-[36px] border-[var(--cl-border)] bg-[var(--cl-surface)] text-sm resize-none"
+                                    className="h-9 min-h-[36px] border-[var(--cl-border)] bg-white text-sm resize-none"
                                     id="dj-txn-notes"
                                     placeholder="Optional remarks…"
                                     rows={1}
@@ -492,7 +492,7 @@ export const DeliverJobSection = () => {
                                     Payment Date
                                 </Label>
                                 <Input
-                                    className="h-9 border-[var(--cl-border)] bg-[var(--cl-surface)] text-sm"
+                                    className="h-9 border-[var(--cl-border)] bg-white text-sm"
                                     id="dj-pay-date"
                                     type="date"
                                     {...form.register("payment_date")}
@@ -501,7 +501,7 @@ export const DeliverJobSection = () => {
                             <div>
                                 <Label className="mb-1.5 block text-sm font-medium text-[var(--cl-text)]">Payment Mode</Label>
                                 <Select value={form.watch("payment_mode")} onValueChange={v => form.setValue("payment_mode", v, { shouldValidate: true })}>
-                                    <SelectTrigger className="h-9 border-[var(--cl-border)] bg-[var(--cl-surface)] text-sm">
+                                    <SelectTrigger className="h-9 border-[var(--cl-border)] bg-white text-sm">
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -516,7 +516,7 @@ export const DeliverJobSection = () => {
                                     Amount
                                 </Label>
                                 <Input
-                                    className="h-9 border-[var(--cl-border)] bg-[var(--cl-surface)] text-sm text-right tabular-nums"
+                                    className="h-9 border-[var(--cl-border)] bg-white text-sm text-right tabular-nums"
                                     id="dj-pay-amount"
                                     min="0"
                                     step="0.01"
@@ -529,7 +529,7 @@ export const DeliverJobSection = () => {
                                     Reference No
                                 </Label>
                                 <Input
-                                    className="h-9 border-[var(--cl-border)] bg-[var(--cl-surface)] text-sm"
+                                    className="h-9 border-[var(--cl-border)] bg-white text-sm"
                                     id="dj-ref-no"
                                     placeholder="Optional"
                                     {...form.register("payment_reference")}
@@ -540,7 +540,7 @@ export const DeliverJobSection = () => {
                                     Remarks
                                 </Label>
                                 <Input
-                                    className="h-9 border-[var(--cl-border)] bg-[var(--cl-surface)] text-sm"
+                                    className="h-9 border-[var(--cl-border)] bg-white text-sm"
                                     id="dj-remarks"
                                     placeholder="Optional"
                                     {...form.register("payment_remarks")}
@@ -586,7 +586,7 @@ export const DeliverJobSection = () => {
             <div className="flex flex-wrap items-center gap-2 px-4 py-1 bg-[var(--cl-surface-2)]/30">
                 <div className="flex items-center gap-1">
                     <Input
-                        className="h-8 w-32 border-[var(--cl-border)] bg-[var(--cl-surface)] text-xs"
+                        className="h-8 w-32 border-[var(--cl-border)] bg-white text-xs"
                         disabled={loading}
                         type="date"
                         value={fromDate}
@@ -594,7 +594,7 @@ export const DeliverJobSection = () => {
                     />
                     <span className="text-[var(--cl-text-muted)] text-xs">—</span>
                     <Input
-                        className="h-8 w-32 border-[var(--cl-border)] bg-[var(--cl-surface)] text-xs"
+                        className="h-8 w-32 border-[var(--cl-border)] bg-white text-xs"
                         disabled={loading}
                         type="date"
                         value={toDate}
@@ -604,7 +604,7 @@ export const DeliverJobSection = () => {
                 <div className="relative flex-1 sm:max-w-xs">
                     <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--cl-text-muted)]" />
                     <Input
-                        className="h-8 border-[var(--cl-border)] bg-[var(--cl-surface)] pl-8 text-xs"
+                        className="h-8 border-[var(--cl-border)] bg-white pl-8 text-xs"
                         placeholder="Job no, alt job no, customer or mobile…"
                         value={search}
                         onChange={e => handleSearchChange(e.target.value)}

@@ -3707,7 +3707,7 @@ class SqlStore:
 
     GET_JOB_PART_USED_BY_JOB = """
         with "p_job_id" as (values(%(job_id)s::bigint))
-        SELECT jpu.id, jpu.part_id, jpu.quantity, jpu.cost_price, jpu.selling_price, jpu.remarks,
+        SELECT jpu.id, jpu.part_id, jpu.quantity, jpu.cost_price, jpu.selling_price, jpu.gst_rate, jpu.remarks,
                sp.part_code, sp.part_name, sp.uom, sp.brand_id
         FROM job_part_used jpu
         JOIN spare_part_master sp ON sp.id = jpu.part_id

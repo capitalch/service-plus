@@ -55,7 +55,7 @@ export function NewReceiptForm({ initial }: NewReceiptFormPropsType) {
                         Payment Date <span className="text-red-500">*</span>
                     </Label>
                     <Input
-                        className="h-9 border-[var(--cl-border)] bg-[var(--cl-surface)] text-sm"
+                        className="h-9 border-[var(--cl-border)] bg-white text-sm"
                         id="receipt-payment-date"
                         type="date"
                         {...form.register("payment_date")}
@@ -71,7 +71,7 @@ export function NewReceiptForm({ initial }: NewReceiptFormPropsType) {
                         value={watch("payment_mode")}
                         onValueChange={v => setValue("payment_mode", v, { shouldValidate: true })}
                     >
-                        <SelectTrigger className="h-9 border-[var(--cl-border)] bg-[var(--cl-surface)] text-sm">
+                        <SelectTrigger className="h-9 border-[var(--cl-border)] bg-white text-sm">
                             <SelectValue placeholder="Select mode" />
                         </SelectTrigger>
                         <SelectContent>
@@ -91,7 +91,7 @@ export function NewReceiptForm({ initial }: NewReceiptFormPropsType) {
                         Amount <span className="text-red-500">*</span>
                     </Label>
                     <Input
-                        className="h-9 border-[var(--cl-border)] bg-[var(--cl-surface)] text-sm"
+                        className="h-9 border-[var(--cl-border)] bg-white text-sm"
                         id="receipt-amount"
                         min="0.01"
                         placeholder="0.00"
@@ -107,7 +107,7 @@ export function NewReceiptForm({ initial }: NewReceiptFormPropsType) {
                         Reference No
                     </Label>
                     <Input
-                        className="h-9 border-[var(--cl-border)] bg-[var(--cl-surface)] text-sm"
+                        className="h-9 border-[var(--cl-border)] bg-white text-sm"
                         id="receipt-ref-no"
                         placeholder="Cheque / UPI ref…"
                         type="text"
@@ -122,7 +122,7 @@ export function NewReceiptForm({ initial }: NewReceiptFormPropsType) {
                     Remarks
                 </Label>
                 <Textarea
-                    className="min-h-[72px] border-[var(--cl-border)] bg-[var(--cl-surface)] text-sm"
+                    className="min-h-[72px] border-[var(--cl-border)] bg-white text-sm"
                     id="receipt-remarks"
                     placeholder="Optional remarks…"
                     {...form.register("remarks")}

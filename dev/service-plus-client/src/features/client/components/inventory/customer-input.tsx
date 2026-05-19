@@ -30,7 +30,7 @@ export type CustomerInputProps = {
     states:         StateOption[];
 };
 
-const inputCls = "h-7 border-[var(--cl-border)] bg-[var(--cl-surface)] text-sm px-2";
+const inputCls = "h-7 border-[var(--cl-border)] bg-white text-sm px-2";
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -140,7 +140,7 @@ export function CustomerInput({
 
                     <Input
                         ref={inputRef}
-                        className={`${inputCls} w-full pl-9 pr-14 border-transparent hover:border-[var(--cl-border)] focus:border-[var(--cl-accent)] focus:bg-[var(--cl-surface)] transition-all ${customerId ? "bg-[var(--cl-accent)]/5 border-[var(--cl-accent)]/20 text-[var(--cl-accent)] font-bold" : "border-[var(--cl-border)]"}`}
+                        className={`${inputCls} w-full pl-9 pr-14 border-transparent hover:border-[var(--cl-border)] focus:border-[var(--cl-accent)] focus:bg-white transition-all ${customerId ? "bg-[var(--cl-accent)]/5 border-[var(--cl-accent)]/20 text-[var(--cl-accent)] font-bold" : "border-[var(--cl-border)]"}`}
                         placeholder="Customer name or mobile…"
                         value={customerName}
                         onChange={e => onChange(e.target.value)}

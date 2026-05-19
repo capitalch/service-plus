@@ -281,6 +281,7 @@ class SqlBu:
             job_id bigint NOT NULL,
             part_id bigint NOT NULL,
             quantity numeric(10,2) NOT NULL,
+            gst_rate numeric(5,2) DEFAULT 0 NOT NULL,
             created_at timestamp with time zone DEFAULT now() NOT NULL,
             updated_at timestamp with time zone DEFAULT now() NOT NULL,
             CONSTRAINT job_part_used_quantity_check CHECK ((quantity > (0)::numeric))

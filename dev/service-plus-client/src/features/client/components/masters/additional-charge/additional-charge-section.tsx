@@ -63,7 +63,7 @@ function NameDialog({ title, value, saving, idValue, onIdChange, onChange, onSav
                             </label>
                             <Input
                                 autoFocus
-                                className={`border-[var(--cl-border)] bg-[var(--cl-surface)] text-sm ${idInvalid ? "border-red-500" : ""}`}
+                                className={`border-[var(--cl-border)] bg-white text-sm ${idInvalid ? "border-red-500" : ""}`}
                                 disabled={saving}
                                 min={1}
                                 placeholder="e.g. 15"
@@ -80,7 +80,7 @@ function NameDialog({ title, value, saving, idValue, onIdChange, onChange, onSav
                         </label>
                         <Input
                             autoFocus={!hasId}
-                            className="border-[var(--cl-border)] bg-[var(--cl-surface)] text-sm"
+                            className="border-[var(--cl-border)] bg-white text-sm"
                             disabled={saving}
                             placeholder="Charge name"
                             value={value}
@@ -278,7 +278,7 @@ export const AdditionalChargeSection = () => {
                 <div className="relative flex-1 max-w-xs">
                     <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--cl-text-muted)]" />
                     <Input
-                        className="h-8 border-[var(--cl-border)] bg-[var(--cl-surface)] pl-8 pr-8 text-xs"
+                        className="h-8 border-[var(--cl-border)] bg-white pl-8 pr-8 text-xs"
                         placeholder="Search charges…"
                         value={search}
                         onChange={e => setSearch(e.target.value)}

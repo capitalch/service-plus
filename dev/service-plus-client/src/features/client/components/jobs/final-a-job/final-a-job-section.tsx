@@ -17,7 +17,7 @@ import { SQL_MAP } from "@/constants/sql-map";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { apolloClient } from "@/lib/apollo-client";
 import { encodeObj, graphQlUtils } from "@/lib/graphql-utils";
-import { selectAvailableDivisions, selectCurrentBranch, selectCurrentDivision, selectSchema } from "@/store/context-slice";
+import { selectAvailableDivisions, selectCurrentBranch, selectCurrentDivision, selectDefaultGstRate, selectSchema } from "@/store/context-slice";
 import { useAppSelector } from "@/store/hooks";
 import type { JobDetailType } from "@/features/client/types/job";
 import { isGstDivision } from "@/features/client/types/division";
@@ -47,6 +47,7 @@ type LoadedPartRow = {
     quantity:      number;
     cost_price:    number | null;
     selling_price: number | null;
+    gst_rate:      number | null;
     remarks:       string | null;
 };
 
@@ -57,9 +58,11 @@ type EditablePartLine = {
     part_id:       number | null;
     part_code:     string;
     part_name:     string;
-    quantity:      number;
     cost_price:    string;
     selling_price: string;
+    sale_pr_gst:   string;
+    gst_rate:      string;
+    quantity:      number;
     remarks:       string;
 };
 
@@ -115,7 +118,7 @@ function ChangeDivisionModal({ open, currentDivisionId, divisions, onApply, onCl
                         value={pending ? String(pending) : ""}
                         onValueChange={v => setPending(Number(v))}
                     >
-                        <SelectTrigger className="w-full text-sm border-[var(--cl-border)] bg-[var(--cl-surface)]">
+                        <SelectTrigger className="w-full text-sm border-[var(--cl-border)] bg-white">
                             <SelectValue placeholder="Select division" />
                         </SelectTrigger>
                         <SelectContent>
@@ -146,8 +149,8 @@ const tdClass  = "p-3 text-sm text-[var(--cl-text)] border-b border-[var(--cl-bo
 const pthClass = "sticky top-0 z-20 text-xs font-extrabold uppercase tracking-widest text-[var(--cl-text)] py-2 px-2 text-left border-b border-[var(--cl-border)] bg-zinc-200/60 dark:bg-zinc-800/60";
 const ptdClass = "p-0.5 border-b border-[var(--cl-border)]";
 
-function emptyPartLine(): EditablePartLine {
-    return { _key: crypto.randomUUID(), brand_id: null, part_id: null, part_code: "", part_name: "", quantity: 1, cost_price: "0", selling_price: "0", remarks: "" };
+function emptyPartLine(gstRate = 0): EditablePartLine {
+    return { _key: crypto.randomUUID(), brand_id: null, part_id: null, part_code: "", part_name: "", cost_price: "0", selling_price: "0", sale_pr_gst: "0", gst_rate: String(gstRate), quantity: 1, remarks: "" };
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -158,6 +161,7 @@ export const FinalAJobSection = () => {
     const currentBranch      = useAppSelector(selectCurrentBranch);
     const availableDivisions = useAppSelector(selectAvailableDivisions);
     const currentDivision    = useAppSelector(selectCurrentDivision);
+    const defaultGstRate     = useAppSelector(selectDefaultGstRate);
     const branchId           = currentBranch?.id ?? null;
 
     // ── List state ──────────────────────────────────────────────────────────
@@ -324,9 +328,11 @@ export const FinalAJobSection = () => {
                         part_id:       p.part_id,
                         part_code:     p.part_code,
                         part_name:     p.part_name,
-                        quantity:      Number(p.quantity),
                         cost_price:    String(p.cost_price ?? 0),
                         selling_price: String(p.selling_price ?? 0),
+                        sale_pr_gst:   ((p.selling_price ?? 0) * (1 + (p.gst_rate ?? 0) / 100)).toFixed(2),
+                        gst_rate:      String(p.gst_rate ?? 0),
+                        quantity:      Number(p.quantity),
                         remarks:       p.remarks ?? "",
                     }))
                     : [],
@@ -383,7 +389,7 @@ export const FinalAJobSection = () => {
 
     // ── Part mutations ──────────────────────────────────────────────────────
     function addPartLine() {
-        setPartLines(prev => [...prev, emptyPartLine()]);
+        setPartLines(prev => [...prev, emptyPartLine(defaultGstRate)]);
     }
 
     function removePartLine(key: string, id?: number) {
@@ -453,9 +459,10 @@ export const FinalAJobSection = () => {
                     id:            l.id,
                     job_id:        selectedJob.id,
                     part_id:       l.part_id,
-                    quantity:      l.quantity,
                     cost_price:    parseFloat(l.cost_price)    || 0,
                     selling_price: parseFloat(l.selling_price) || 0,
+                    gst_rate:      parseFloat(l.gst_rate)      || 0,
+                    quantity:      l.quantity,
                     remarks:       l.remarks.trim() || null,
                 }));
 
@@ -463,9 +470,10 @@ export const FinalAJobSection = () => {
             const newInserts = newParts.map(l => ({
                 job_id:        selectedJob.id,
                 part_id:       l.part_id,
-                quantity:      l.quantity,
                 cost_price:    parseFloat(l.cost_price)    || 0,
                 selling_price: parseFloat(l.selling_price) || 0,
+                gst_rate:      parseFloat(l.gst_rate)      || 0,
+                quantity:      l.quantity,
                 remarks:       l.remarks.trim() || null,
                 xDetails: {
                     tableName: "stock_transaction",
@@ -556,9 +564,9 @@ export const FinalAJobSection = () => {
                         <span className="text-sm font-medium text-[var(--cl-text)]">{selectedJob.customer_name}</span>
                     </div>
                     <div className="flex-1" />
-                    {/* Division display + change button */}
+                    {/* Division display + change button + refresh */}
                     <div className="flex items-center gap-2">
-                        <div className="flex flex-col leading-none">
+                        <div className="flex items-center gap-2 leading-none">
                             <span className="text-[10px] uppercase tracking-wider text-[var(--cl-text-muted)]">Division</span>
                             <span className="text-xs font-semibold text-[var(--cl-text)]">
                                 {division?.name ?? <span className="italic text-[var(--cl-text-muted)]">No division</span>}
@@ -572,9 +580,19 @@ export const FinalAJobSection = () => {
                         >
                             Change Division
                         </Button>
+                        <Button
+                            className="h-7 w-7 p-0 text-[var(--cl-text-muted)] hover:text-[var(--cl-accent)]"
+                            disabled={loadingDetail || submitting}
+                            size="icon"
+                            title="Refresh"
+                            variant="ghost"
+                            onClick={() => void handleOpenFinal(selectedRow)}
+                        >
+                            {loadingDetail ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                        </Button>
                     </div>
                     {/* GST / Non-GST badge */}
-                    <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-bold tracking-wide ${isGst ? "bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-400" : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400"}`}>
+                    <span className={`inline-flex items-center rounded-xs px-2 py-1 text-xs font-medium tracking-widest uppercase ring-2 ${isGst ? "bg-emerald-50 ring-emerald-200/50 dark:bg-emerald-500 dark:ring-emerald-400/40" : "bg-pink-100  ring-pink-200/40 dark:bg-slate-600 dark:ring-slate-500/40"}`}>
                         {isGst ? "GST" : "NON-GST"}
                     </span>
                     {!isWarranty && (
@@ -592,7 +610,7 @@ export const FinalAJobSection = () => {
                     )}
                 </div>
 
-                <div className="flex-1 overflow-y-auto space-y-5 p-4">
+                <div className="flex-1 overflow-y-auto space-y-5 py-4">
 
                     {/* Warranty banner */}
                     {isWarranty && (
@@ -658,12 +676,15 @@ export const FinalAJobSection = () => {
                                         <th className={pthClass} style={{ width: "3%" }}>#</th>
                                         <th className={pthClass} style={{ width: "13%" }}>Brand</th>
                                         <th className={pthClass} style={{ width: "16%" }}>Part Code <span className="text-red-500">*</span></th>
-                                        <th className={pthClass} style={{ width: "18%" }}>Part Name</th>
-                                        <th className={`${pthClass} text-right`} style={{ width: "8%" }}>Cost Pr</th>
-                                        <th className={`${pthClass} text-right`} style={{ width: "7%" }}>Qty <span className="text-red-500">*</span></th>
-                                        <th className={`${pthClass} text-right`} style={{ width: "8%" }}>Sale Pr</th>
-                                        <th className={`${pthClass} text-right`} style={{ width: "8%" }}>Amount</th>
-                                        <th className={pthClass} style={{ width: "12%" }}>Remarks</th>
+                                        <th className={pthClass} style={{ width: "16%" }}>Part Name</th>
+                                        <th className={pthClass} style={{ width: "10%" }}>Remarks</th>
+                                        <th className={`${pthClass} text-right`} style={{ width: "7%" }}>Cost Pr</th>
+                                        <th className={`${pthClass} text-right`} style={{ width: "5%" }}>GST%</th>
+                                        <th className={`${pthClass} text-right`} style={{ width: "5%" }}>Qty <span className="text-red-500">*</span></th>
+                                        <th className={`${pthClass} text-right`} style={{ width: "7%" }}>Sale Pr</th>
+                                        <th className={`${pthClass} text-right`} style={{ width: "7%" }}>Sale Pr GST</th>
+                                        <th className={`${pthClass} text-right`} style={{ width: "7%" }}>Aggregate</th>
+                                        <th className={`${pthClass} text-right`} style={{ width: "7%" }}>Amount</th>
                                         {!isWarranty && <th className={pthClass} style={{ width: "5%" }}></th>}
                                     </tr>
                                 </thead>
@@ -717,16 +738,25 @@ export const FinalAJobSection = () => {
                                             </td>
                                             <td className={ptdClass}>
                                                 <Input
-                                                    className="h-7 min-w-[100px] border-[var(--cl-border)] bg-[var(--cl-surface)] text-xs"
+                                                    className="h-7 min-w-[100px] border-[var(--cl-border)] bg-white text-xs"
                                                     disabled={isWarranty}
                                                     placeholder="Part name"
                                                     value={line.part_name}
                                                     onChange={e => updatePartLine(line._key, { part_name: e.target.value })}
                                                 />
                                             </td>
+                                            <td className={ptdClass}>
+                                                <Input
+                                                    className="h-7 border-[var(--cl-border)] bg-white text-xs"
+                                                    disabled={isWarranty}
+                                                    placeholder="Remarks…"
+                                                    value={line.remarks}
+                                                    onChange={e => updatePartLine(line._key, { remarks: e.target.value })}
+                                                />
+                                            </td>
                                             <td className={`${ptdClass} text-right`}>
                                                 <Input
-                                                    className="h-7 w-full border-[var(--cl-border)] bg-[var(--cl-surface)] text-xs text-right"
+                                                    className="h-7 w-full border-[var(--cl-border)] bg-white text-xs text-right"
                                                     disabled={isWarranty}
                                                     min="0"
                                                     step="0.01"
@@ -736,9 +766,29 @@ export const FinalAJobSection = () => {
                                                     onFocus={e => e.target.select()}
                                                 />
                                             </td>
+                                            {/* GST% — syncs sale_pr_gst on change */}
                                             <td className={`${ptdClass} text-right`}>
                                                 <Input
-                                                    className={`h-7 w-full border-[var(--cl-border)] bg-[var(--cl-surface)] text-xs text-right ${line.quantity <= 0 ? "border-red-500" : ""}`}
+                                                    className="h-7 w-full border-[var(--cl-border)] bg-white text-xs text-right"
+                                                    disabled={isWarranty}
+                                                    min="0"
+                                                    step="0.01"
+                                                    type="number"
+                                                    value={line.gst_rate}
+                                                    onChange={e => {
+                                                        const gst = e.target.value;
+                                                        const sp = parseFloat(line.selling_price) || 0;
+                                                        updatePartLine(line._key, {
+                                                            gst_rate: gst,
+                                                            sale_pr_gst: (sp * (1 + (parseFloat(gst) || 0) / 100)).toFixed(2),
+                                                        });
+                                                    }}
+                                                    onFocus={e => e.target.select()}
+                                                />
+                                            </td>
+                                            <td className={`${ptdClass} text-right`}>
+                                                <Input
+                                                    className={`h-7 w-full border-[var(--cl-border)] bg-white text-xs text-right ${line.quantity <= 0 ? "border-red-500" : ""}`}
                                                     disabled={isWarranty}
                                                     min={0.01}
                                                     step="0.01"
@@ -748,29 +798,54 @@ export const FinalAJobSection = () => {
                                                     onFocus={e => e.target.select()}
                                                 />
                                             </td>
+                                            {/* Sale Pr — syncs sale_pr_gst on change */}
                                             <td className={`${ptdClass} text-right`}>
                                                 <Input
-                                                    className="h-7 w-full border-[var(--cl-border)] bg-[var(--cl-surface)] text-xs text-right"
+                                                    className="h-7 w-full border-[var(--cl-border)] bg-white text-xs text-right"
                                                     disabled={isWarranty}
                                                     min="0"
                                                     step="0.01"
                                                     type="number"
                                                     value={line.selling_price}
-                                                    onChange={e => updatePartLine(line._key, { selling_price: e.target.value })}
+                                                    onChange={e => {
+                                                        const sp = e.target.value;
+                                                        const gst = parseFloat(line.gst_rate) || 0;
+                                                        updatePartLine(line._key, {
+                                                            selling_price: sp,
+                                                            sale_pr_gst: ((parseFloat(sp) || 0) * (1 + gst / 100)).toFixed(2),
+                                                        });
+                                                    }}
                                                     onFocus={e => e.target.select()}
                                                 />
                                             </td>
-                                            <td className={`${ptdClass} pr-2 text-right tabular-nums text-xs font-semibold text-[var(--cl-text)]`}>
+                                            {/* Sale Pr GST — back-calculates selling_price on change */}
+                                            <td className={`${ptdClass} text-right`}>
+                                                <Input
+                                                    className="h-7 w-full border-[var(--cl-border)] bg-white text-xs text-right"
+                                                    disabled={isWarranty}
+                                                    min="0"
+                                                    step="0.01"
+                                                    type="number"
+                                                    value={line.sale_pr_gst}
+                                                    onChange={e => {
+                                                        const spgst = e.target.value;
+                                                        const gst = parseFloat(line.gst_rate) || 0;
+                                                        updatePartLine(line._key, {
+                                                            sale_pr_gst: spgst,
+                                                            selling_price: ((parseFloat(spgst) || 0) / (1 + gst / 100)).toFixed(2),
+                                                        });
+                                                    }}
+                                                    onFocus={e => e.target.select()}
+                                                />
+                                            </td>
+                                            <td className={`${ptdClass} pr-2 text-right tabular-nums text-xs text-[var(--cl-text-muted)]`}>
                                                 {((parseFloat(line.selling_price) || 0) * line.quantity).toFixed(2)}
                                             </td>
-                                            <td className={ptdClass}>
-                                                <Input
-                                                    className="h-7 border-[var(--cl-border)] bg-[var(--cl-surface)] text-xs"
-                                                    disabled={isWarranty}
-                                                    placeholder="Remarks…"
-                                                    value={line.remarks}
-                                                    onChange={e => updatePartLine(line._key, { remarks: e.target.value })}
-                                                />
+                                            <td className={`${ptdClass} pr-2 text-right tabular-nums text-xs font-semibold text-[var(--cl-text)]`}>
+                                                {(() => {
+                                                    const agg = (parseFloat(line.selling_price) || 0) * line.quantity;
+                                                    return (agg * (1 + (parseFloat(line.gst_rate) || 0) / 100)).toFixed(2);
+                                                })()}
                                             </td>
                                             {!isWarranty && (
                                                 <td className={`${ptdClass} px-1`}>
@@ -845,7 +920,7 @@ export const FinalAJobSection = () => {
                                                 <td className={`${tdClass} text-[var(--cl-text-muted)]`}>{idx + 1}</td>
                                                 <td className={tdClass}>
                                                     <Input
-                                                        className="h-7 min-w-[140px] border-[var(--cl-border)] bg-[var(--cl-surface)] text-xs"
+                                                        className="h-7 min-w-[140px] border-[var(--cl-border)] bg-white text-xs"
                                                         disabled={isWarranty}
                                                         placeholder="Charge name"
                                                         value={c.charge_name}
@@ -854,7 +929,7 @@ export const FinalAJobSection = () => {
                                                 </td>
                                                 <td className={tdClass}>
                                                     <Input
-                                                        className="h-7 w-28 border-[var(--cl-border)] bg-[var(--cl-surface)] text-xs"
+                                                        className="h-7 w-28 border-[var(--cl-border)] bg-white text-xs"
                                                         disabled={isWarranty}
                                                         placeholder="Ref no"
                                                         value={c.ref_no}
@@ -863,7 +938,7 @@ export const FinalAJobSection = () => {
                                                 </td>
                                                 <td className={tdClass}>
                                                     <Input
-                                                        className="h-7 min-w-[160px] border-[var(--cl-border)] bg-[var(--cl-surface)] text-xs"
+                                                        className="h-7 min-w-[160px] border-[var(--cl-border)] bg-white text-xs"
                                                         disabled={isWarranty}
                                                         placeholder="Description"
                                                         value={c.description}
@@ -872,7 +947,7 @@ export const FinalAJobSection = () => {
                                                 </td>
                                                 <td className={tdClass}>
                                                     <Input
-                                                        className="h-7 w-24 border-[var(--cl-border)] bg-[var(--cl-surface)] text-xs text-right"
+                                                        className="h-7 w-24 border-[var(--cl-border)] bg-white text-xs text-right"
                                                         disabled={isWarranty}
                                                         min="0"
                                                         step="0.01"
@@ -883,7 +958,7 @@ export const FinalAJobSection = () => {
                                                 </td>
                                                 <td className={tdClass}>
                                                     <Input
-                                                        className="h-7 w-24 border-[var(--cl-border)] bg-[var(--cl-surface)] text-xs text-right"
+                                                        className="h-7 w-24 border-[var(--cl-border)] bg-white text-xs text-right"
                                                         disabled={isWarranty}
                                                         min="0"
                                                         step="0.01"
@@ -971,7 +1046,7 @@ export const FinalAJobSection = () => {
                 <div className="relative flex-1 sm:max-w-lg">
                     <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--cl-text-muted)]" />
                     <Input
-                        className="h-8 border-[var(--cl-border)] bg-[var(--cl-surface)] pl-8 pr-8 text-xs"
+                        className="h-8 border-[var(--cl-border)] bg-white pl-8 pr-8 text-xs"
                         placeholder="Job no, alt job no, customer, mobile, email, city, technician, serial no, device…"
                         value={search}
                         onChange={e => handleSearchChange(e.target.value)}

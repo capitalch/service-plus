@@ -1,4 +1,4 @@
-# Modification in "Final for delivery" feature
+# Modification in "Final a Job" feature
 - Remove date filters
 - Make search box functionality same as that of Job Search, but for only completed_ok jobs
 - The data grid will only show thos jobs whose status are completed_ok

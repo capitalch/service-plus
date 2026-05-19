@@ -29,7 +29,7 @@ type GenericQueryData<T> = { genericQuery: T[] | null };
 
 const thClass = "sticky top-0 z-20 text-xs font-extrabold uppercase tracking-widest text-[var(--cl-text)] py-2 px-2 text-left border-b border-[var(--cl-border)] bg-zinc-200/60 dark:bg-zinc-800/60";
 const tdClass = "p-0.5 border-b border-[var(--cl-border)]";
-const inputCls = "h-7 border-[var(--cl-border)] bg-[var(--cl-surface)] text-sm px-2";
+const inputCls = "h-7 border-[var(--cl-border)] bg-white text-sm px-2";
 
 // ─── Component ────────────────────────────────────────────────────────────────
 

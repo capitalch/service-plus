@@ -372,7 +372,7 @@ export const PartUsedSection = () => {
                                 value={selectedBranch}
                                 onValueChange={v => { setSelectedBranch(v); setPage(1); }}
                             >
-                                <SelectTrigger className="h-8 bg-[var(--cl-surface)] text-xs">
+                                <SelectTrigger className="h-8 bg-white text-xs">
                                     <SelectValue placeholder="Branch" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -383,13 +383,13 @@ export const PartUsedSection = () => {
                             </Select>
                         </div>
                         <div className="flex items-center gap-1">
-                            <Input className="h-8 w-32 border-[var(--cl-border)] bg-[var(--cl-surface)] text-xs" disabled={loading} type="date" value={fromDate} onChange={e => { setFromDate(e.target.value); setPage(1); }} />
+                            <Input className="h-8 w-32 border-[var(--cl-border)] bg-white text-xs" disabled={loading} type="date" value={fromDate} onChange={e => { setFromDate(e.target.value); setPage(1); }} />
                             <span className="text-[var(--cl-text-muted)] text-xs">—</span>
-                            <Input className="h-8 w-32 border-[var(--cl-border)] bg-[var(--cl-surface)] text-xs" disabled={loading} type="date" value={toDate}   onChange={e => { setToDate(e.target.value); setPage(1); }} />
+                            <Input className="h-8 w-32 border-[var(--cl-border)] bg-white text-xs" disabled={loading} type="date" value={toDate}   onChange={e => { setToDate(e.target.value); setPage(1); }} />
                         </div>
                         <div className="relative flex-1 sm:max-w-xs">
                             <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--cl-text-muted)]" />
-                            <Input className="h-8 border-[var(--cl-border)] bg-[var(--cl-surface)] pl-8 text-xs" placeholder="Job no, part code or part name…" value={search} onChange={e => handleSearchChange(e.target.value)} />
+                            <Input className="h-8 border-[var(--cl-border)] bg-white pl-8 text-xs" placeholder="Job no, part code or part name…" value={search} onChange={e => handleSearchChange(e.target.value)} />
                             {search && (
                                 <button
                                     className="absolute right-2.5 top-1/2 flex h-4 w-4 -translate-y-1/2 items-center justify-center rounded-full bg-[var(--cl-text-muted)] text-[var(--cl-surface)] hover:bg-[var(--cl-text)] focus:outline-none"
