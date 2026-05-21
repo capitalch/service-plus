@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict FMQ3jtbPHh4AIUVqczY5w5scmMnnwASfl72xyub7LoO6YqEi9seDhgWayYbe8nU
+\restrict BNbrUh7j4alWPPEeYX9Vgmw2v2hOHReTBFRe4tRnuVTgcPf9JveOetAojQf0bek
 
 -- Dumped from database version 14.6
 -- Dumped by pg_dump version 18.3 (Ubuntu 18.3-1)
@@ -112,7 +112,8 @@ SET default_table_access_method = heap;
 
 CREATE TABLE demo1.additional_charge (
     id smallint NOT NULL,
-    name text NOT NULL
+    name text NOT NULL,
+    hsn_code text[]
 );
 
 
@@ -411,6 +412,9 @@ CREATE TABLE demo1.job_additional_charge (
     cost_price numeric(12,2) DEFAULT 0 NOT NULL,
     selling_price numeric(12,2) DEFAULT 0 NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
+    hsn_code text,
+    gst_rate numeric(5,2) DEFAULT 0 NOT NULL,
+    quantity numeric(12,2) DEFAULT 1 NOT NULL,
     CONSTRAINT job_add_charge_cost_check CHECK ((cost_price >= (0)::numeric)),
     CONSTRAINT job_add_charge_sell_check CHECK ((selling_price >= (0)::numeric))
 );
@@ -559,7 +563,6 @@ CREATE TABLE demo1.job_invoice_line (
     job_invoice_id bigint NOT NULL,
     description text NOT NULL,
     part_code text,
-    hsn_code text NOT NULL,
     quantity numeric(10,2) NOT NULL,
     price numeric(12,2) NOT NULL,
     aggregate numeric(12,2) NOT NULL,
@@ -570,6 +573,7 @@ CREATE TABLE demo1.job_invoice_line (
     amount numeric(12,2) NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    hsn_code text,
     CONSTRAINT job_invoice_line_quantity_check CHECK ((quantity > (0)::numeric)),
     CONSTRAINT job_invoice_line_unit_price_check CHECK ((price >= (0)::numeric))
 );
@@ -605,6 +609,8 @@ CREATE TABLE demo1.job_part_used (
     remarks text,
     cost_price numeric(12,2) DEFAULT 0 NOT NULL,
     selling_price numeric(12,2) DEFAULT 0 NOT NULL,
+    gst_rate numeric(5,2) DEFAULT 0 NOT NULL,
+    hsn_code text,
     CONSTRAINT job_part_used_quantity_check CHECK ((quantity > (0)::numeric))
 );
 
@@ -3511,5 +3517,5 @@ ALTER TABLE ONLY security.user_bu_role
 -- PostgreSQL database dump complete
 --
 
-\unrestrict FMQ3jtbPHh4AIUVqczY5w5scmMnnwASfl72xyub7LoO6YqEi9seDhgWayYbe8nU
+\unrestrict BNbrUh7j4alWPPEeYX9Vgmw2v2hOHReTBFRe4tRnuVTgcPf9JveOetAojQf0bek
 

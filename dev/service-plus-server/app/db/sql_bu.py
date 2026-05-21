@@ -199,6 +199,9 @@ class SqlBu:
             charge_name text NOT NULL,
             ref_no text,
             description text,
+            hsn_code text,
+            gst_rate numeric(5,2) DEFAULT 0 NOT NULL,
+            quantity numeric(10,2) DEFAULT 1 NOT NULL,
             cost_price numeric(12,2) DEFAULT 0 NOT NULL,
             selling_price numeric(12,2) DEFAULT 0 NOT NULL,
             created_at timestamp with time zone DEFAULT now() NOT NULL,
@@ -214,6 +217,7 @@ class SqlBu:
         CREATE TABLE additional_charge (
             id smallint NOT NULL,
             name text NOT NULL,
+            hsn_code text,
             CONSTRAINT additional_charge_pkey PRIMARY KEY (id)
         );
 
@@ -282,6 +286,7 @@ class SqlBu:
             part_id bigint NOT NULL,
             quantity numeric(10,2) NOT NULL,
             gst_rate numeric(5,2) DEFAULT 0 NOT NULL,
+            hsn_code text,
             created_at timestamp with time zone DEFAULT now() NOT NULL,
             updated_at timestamp with time zone DEFAULT now() NOT NULL,
             CONSTRAINT job_part_used_quantity_check CHECK ((quantity > (0)::numeric))
@@ -838,21 +843,21 @@ class SqlBu:
             (6, 'NOT_APPLICABLE', 'Not Applicable', true)
         ON CONFLICT (id) DO NOTHING;
 
-        INSERT INTO additional_charge (id, name) VALUES
-            (1,'Labour Charge'),
-            (2,'Service Charge'),
-            (3,'Inspection Fee'),
-            (4,'Installation Charge'),
-            (5,'Travelling Charge'),
-            (6,'Courier Charge'),
-            (7,'Packing & Forwarding'),
-            (8,'Calibration Fee'),
-            (9,'Emergency Service Charge'),
-            (10,'AMC Visit Charge'),
-            (11,'Software Installation'),
-            (12,'Data Recovery Charge'),
-            (13,'Handling Charge'),
-            (14,'Miscellaneous');
+        INSERT INTO additional_charge (id, name, hsn_code) VALUES
+            (1,'Labour Charge','998726'),
+            (2,'Service Charge','998726'),
+            (3,'Inspection Fee','998726'),
+            (4,'Installation Charge','998726'),
+            (5,'Travelling Charge','998726'),
+            (6,'Courier Charge','998726'),
+            (7,'Packing & Forwarding','998726'),
+            (8,'Calibration Fee','998726'),
+            (9,'Emergency Service Charge','998726'),
+            (10,'AMC Visit Charge','998726'),
+            (11,'Software Installation','998726'),
+            (12,'Data Recovery Charge','998726'),
+            (13,'Handling Charge','998726'),
+            (14,'Miscellaneous','998726');
 
         INSERT INTO job_receive_condition (id, code, name, description, is_system, display_order) VALUES
             (1,  'DEAD',           'Dead',                        'Item is completely dead',                                           true, 1),

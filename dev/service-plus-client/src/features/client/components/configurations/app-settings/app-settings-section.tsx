@@ -1,20 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import {AlertTriangleIcon, MoreHorizontalIcon,
-    PencilIcon,
-    RefreshCwIcon,
-    SearchIcon, X} from "lucide-react";
+import { AlertTriangleIcon, PencilIcon, RefreshCwIcon, SearchIcon, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import {
     Table,
@@ -216,7 +207,7 @@ export const AppSettingsSection = () => {
                                         <TableHead className={thClass}>Value</TableHead>
                                         <TableHead className={thClass}>Description</TableHead>
                                         <TableHead className={thClass}>Editable</TableHead>
-                                        <TableHead className={thClass}>Actions</TableHead>
+                                        <TableHead className={thClass}></TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -266,30 +257,16 @@ export const AppSettingsSection = () => {
                                                     )}
                                                 </TableCell>
                                                 <TableCell>
-                                                    <DropdownMenu>
-                                                        <DropdownMenuTrigger asChild>
-                                                            <Button
-                                                                className="h-7 w-7 cursor-pointer text-[var(--cl-text-muted)] hover:text-[var(--cl-text)]"
-                                                                size="icon"
-                                                                variant="ghost"
-                                                            >
-                                                                <MoreHorizontalIcon className="h-4 w-4" />
-                                                                <span className="sr-only">Actions</span>
-                                                            </Button>
-                                                        </DropdownMenuTrigger>
-                                                        <DropdownMenuContent align="end" className="w-44">
-                                                            <DropdownMenuItem
-                                                                className={record.is_editable
-                                                                    ? "cursor-pointer text-sky-600 focus:text-sky-600"
-                                                                    : "cursor-not-allowed opacity-40"}
-                                                                disabled={!record.is_editable}
-                                                                onClick={() => record.is_editable && setEditRecord(record)}
-                                                            >
-                                                                <PencilIcon className="mr-1.5 h-3.5 w-3.5" />
-                                                                Edit
-                                                            </DropdownMenuItem>
-                                                        </DropdownMenuContent>
-                                                    </DropdownMenu>
+                                                    <Button
+                                                        className="h-7 w-7 text-[var(--cl-text-muted)] hover:text-sky-600 disabled:opacity-30"
+                                                        disabled={!record.is_editable}
+                                                        size="icon"
+                                                        title="Edit"
+                                                        variant="ghost"
+                                                        onClick={() => setEditRecord(record)}
+                                                    >
+                                                        <PencilIcon className="h-3.5 w-3.5" />
+                                                    </Button>
                                                 </TableCell>
                                             </motion.tr>
                                         ))

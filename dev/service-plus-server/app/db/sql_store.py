@@ -128,7 +128,7 @@ class SqlStore:
 
     GET_ALL_ADDITIONAL_CHARGES = """
         with "dummy" as (values(1::int))
-        SELECT id, name
+        SELECT id, name, hsn_code
         FROM additional_charge
         ORDER BY name
     """
@@ -3708,7 +3708,8 @@ class SqlStore:
     GET_JOB_PART_USED_BY_JOB = """
         with "p_job_id" as (values(%(job_id)s::bigint))
         SELECT jpu.id, jpu.part_id, jpu.quantity, jpu.cost_price, jpu.selling_price, jpu.gst_rate, jpu.remarks,
-               sp.part_code, sp.part_name, sp.uom, sp.brand_id
+               sp.part_code, sp.part_name, sp.uom, sp.brand_id,
+               COALESCE(jpu.hsn_code, sp.hsn_code) as hsn_code
         FROM job_part_used jpu
         JOIN spare_part_master sp ON sp.id = jpu.part_id
         WHERE jpu.job_id = (table "p_job_id")
@@ -3717,7 +3718,7 @@ class SqlStore:
 
     GET_JOB_ADDITIONAL_CHARGES_BY_JOB = """
         with "p_job_id" as (values(%(job_id)s::bigint))
-        SELECT id, charge_name, ref_no, description, cost_price, selling_price
+        SELECT id, charge_name, ref_no, description, hsn_code, gst_rate, quantity, cost_price, selling_price
         FROM job_additional_charge
         WHERE job_id = (table "p_job_id")
         ORDER BY id

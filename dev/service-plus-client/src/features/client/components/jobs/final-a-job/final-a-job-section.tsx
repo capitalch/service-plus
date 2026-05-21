@@ -17,7 +17,7 @@ import { SQL_MAP } from "@/constants/sql-map";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { apolloClient } from "@/lib/apollo-client";
 import { encodeObj, graphQlUtils } from "@/lib/graphql-utils";
-import { selectAvailableDivisions, selectCurrentBranch, selectCurrentDivision, selectDefaultGstRate, selectSchema } from "@/store/context-slice";
+import { selectAvailableDivisions, selectCurrentBranch, selectCurrentDivision, selectDefaultGstRate, selectForceGstOnPartsForNonGst, selectSchema } from "@/store/context-slice";
 import { useAppSelector } from "@/store/hooks";
 import type { JobDetailType } from "@/features/client/types/job";
 import { isGstDivision } from "@/features/client/types/division";
@@ -49,6 +49,7 @@ type LoadedPartRow = {
     selling_price: number | null;
     gst_rate:      number | null;
     remarks:       string | null;
+    hsn_code:      string | null;
 };
 
 type EditablePartLine = {
@@ -64,6 +65,7 @@ type EditablePartLine = {
     gst_rate:      string;
     quantity:      number;
     remarks:       string;
+    hsn_code:      string;
 };
 
 type AdditionalChargeRow = {
@@ -71,6 +73,9 @@ type AdditionalChargeRow = {
     charge_name:   string;
     ref_no:        string | null;
     description:   string | null;
+    hsn_code:      string | null;
+    gst_rate:      number;
+    quantity:      number;
     cost_price:    number;
     selling_price: number;
 };
@@ -150,24 +155,72 @@ function fmtCurrency(n: number): string {
 const PAGE_SIZE   = 50;
 const DEBOUNCE_MS = 1600;
 
-const thClass  = "sticky top-0 z-20 text-xs font-semibold uppercase tracking-wide text-[var(--cl-text-muted)] p-3 text-left border-b border-[var(--cl-border)] bg-[var(--cl-surface-2)]";
-const tdClass  = "p-3 text-sm text-[var(--cl-text)] border-b border-[var(--cl-border)]";
+const thClass  = "sticky top-0 z-20 text-xs font-semibold uppercase tracking-wide text-[var(--cl-text-muted)] px-1.5 py-1.5 text-left border-b border-[var(--cl-border)] bg-[var(--cl-surface-2)]";
+const tdClass  = "px-1.5 py-1 text-sm text-[var(--cl-text)] border-b border-[var(--cl-border)]";
 
 
 function emptyPartLine(gstRate = 0): EditablePartLine {
-    return { _key: crypto.randomUUID(), brand_id: null, part_id: null, part_code: "", part_name: "", cost_price: "0", selling_price: "0", sale_pr_gst: "0", gst_rate: String(gstRate), quantity: 1, remarks: "" };
+    return { _key: crypto.randomUUID(), brand_id: null, part_id: null, part_code: "", part_name: "", cost_price: "0", selling_price: "0", sale_pr_gst: "0", gst_rate: String(gstRate), quantity: 1, remarks: "", hsn_code: "" };
+}
+
+// ─── Pricing helpers ──────────────────────────────────────────────────────────
+
+function applyMarkup(cost: number, markupPct: number): number {
+    return Math.round(cost * (1 + markupPct / 100) * 100) / 100;
+}
+
+function computePartPricesOnSelect(
+    part: PartRow,
+    isGst: boolean,
+    forceGstOnPartsForNonGst: boolean,
+    defaultGstRate: number,
+    markupPct: number,
+): Pick<EditablePartLine, "cost_price" | "selling_price" | "sale_pr_gst" | "gst_rate"> {
+    const rawCost        = part.cost_price ?? 0;
+    const masterSelling  = (part.selling_price != null && part.selling_price > 0) ? part.selling_price : null;
+    const effectiveGstRate = (part.gst_rate ?? 0) > 0 ? (part.gst_rate ?? 0) : defaultGstRate;
+
+    if (!isGst) {
+        if (forceGstOnPartsForNonGst) {
+            const adjustedCost = rawCost * (1 + effectiveGstRate / 100);
+            const markupAmt    = masterSelling != null ? masterSelling - rawCost : rawCost * markupPct / 100;
+            const sale         = adjustedCost + markupAmt;
+            return { cost_price: adjustedCost.toFixed(2), selling_price: sale.toFixed(2), gst_rate: "0", sale_pr_gst: sale.toFixed(2) };
+        }
+        const sale = masterSelling ?? applyMarkup(rawCost, markupPct);
+        return { cost_price: rawCost.toFixed(2), selling_price: sale.toFixed(2), gst_rate: "0", sale_pr_gst: sale.toFixed(2) };
+    }
+
+    const sale = masterSelling ?? applyMarkup(rawCost, markupPct);
+    return {
+        cost_price:    rawCost.toFixed(2),
+        selling_price: sale.toFixed(2),
+        gst_rate:      String(effectiveGstRate),
+        sale_pr_gst:   (sale * (1 + effectiveGstRate / 100)).toFixed(2),
+    };
+}
+
+function calculateLinePricing(
+    line: EditablePartLine,
+    patch: Partial<Pick<EditablePartLine, "selling_price" | "gst_rate" | "cost_price">>,
+    isGst: boolean,
+): Partial<EditablePartLine> {
+    const sp      = parseFloat(patch.selling_price ?? line.selling_price) || 0;
+    const gstRate = isGst ? (parseFloat(patch.gst_rate ?? line.gst_rate) || 0) : 0;
+    return { ...patch, gst_rate: String(gstRate), sale_pr_gst: (sp * (1 + gstRate / 100)).toFixed(2) };
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export const FinalAJobSection = () => {
-    const dbName             = useAppSelector(selectDbName);
-    const schema             = useAppSelector(selectSchema);
-    const currentBranch      = useAppSelector(selectCurrentBranch);
-    const availableDivisions = useAppSelector(selectAvailableDivisions);
-    const currentDivision    = useAppSelector(selectCurrentDivision);
-    const defaultGstRate     = useAppSelector(selectDefaultGstRate);
-    const branchId           = currentBranch?.id ?? null;
+    const dbName                  = useAppSelector(selectDbName);
+    const schema                  = useAppSelector(selectSchema);
+    const currentBranch           = useAppSelector(selectCurrentBranch);
+    const availableDivisions      = useAppSelector(selectAvailableDivisions);
+    const currentDivision         = useAppSelector(selectCurrentDivision);
+    const defaultGstRate          = useAppSelector(selectDefaultGstRate);
+    const forceGstOnPartsForNonGst = useAppSelector(selectForceGstOnPartsForNonGst);
+    const branchId                = currentBranch?.id ?? null;
 
     // ── List state ──────────────────────────────────────────────────────────
     const [subView,  setSubView]  = useState<SubView>("list");
@@ -201,10 +254,16 @@ export const FinalAJobSection = () => {
     // Meta
     const [brands,           setBrands]           = useState<BrandOption[]>([]);
     const [jobConsumeTypeId, setJobConsumeTypeId] = useState<number | null>(null);
+    const [markupPct,        setMarkupPct]        = useState(0);
+    const [forceIgst,        setForceIgst]        = useState(false);
 
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const scrollRef   = useRef<HTMLDivElement>(null);
     const [maxHeight, setMaxHeight] = useState(0);
+
+    // Derived: effective division and GST flag for the currently-open job
+    const division = availableDivisions.find(d => d.id === selectedDivisionId) ?? null;
+    const isGst    = isGstDivision(division);
 
     const recalc = useCallback(() => {
         if (scrollRef.current) {
@@ -224,7 +283,7 @@ export const FinalAJobSection = () => {
         if (!dbName || !schema) return;
         const fetchMeta = async () => {
             try {
-                const [brandsRes, txnRes] = await Promise.all([
+                const [brandsRes, txnRes, markupRes] = await Promise.all([
                     apolloClient.query<GenericQueryData<BrandOption>>({
                         fetchPolicy: "network-only",
                         query:       GRAPHQL_MAP.genericQuery,
@@ -235,10 +294,18 @@ export const FinalAJobSection = () => {
                         query:       GRAPHQL_MAP.genericQuery,
                         variables:   { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_STOCK_TRANSACTION_TYPES }) },
                     }),
+                    apolloClient.query<GenericQueryData<{ setting_value: unknown }>>({
+                        fetchPolicy: "network-only",
+                        query:       GRAPHQL_MAP.genericQuery,
+                        variables:   { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_APP_SETTING_BY_KEY, sqlArgs: { setting_key: "markup_percent_over_cost" } }) },
+                    }),
                 ]);
                 setBrands(brandsRes.data?.genericQuery ?? []);
                 const consume = txnRes.data?.genericQuery?.find(t => t.code === "JOB_CONSUME");
                 setJobConsumeTypeId(consume?.id ?? null);
+                const rawMarkup = markupRes.data?.genericQuery?.[0]?.setting_value;
+                const pct = rawMarkup != null ? Number(rawMarkup) : 0;
+                setMarkupPct(isNaN(pct) ? 0 : pct);
             } catch { /* silent */ }
         };
         void fetchMeta();
@@ -339,6 +406,7 @@ export const FinalAJobSection = () => {
                         gst_rate:      String(p.gst_rate ?? 0),
                         quantity:      Number(p.quantity),
                         remarks:       p.remarks ?? "",
+                        hsn_code:      p.hsn_code ?? "",
                     }))
                     : [],
             );
@@ -349,8 +417,12 @@ export const FinalAJobSection = () => {
                 charge_name:   c.charge_name,
                 ref_no:        c.ref_no ?? "",
                 description:   c.description ?? "",
+                hsn_code:      c.hsn_code ?? "",
+                gst_rate:      String(c.gst_rate ?? 0),
+                quantity:      String(c.quantity ?? 1),
                 cost_price:    String(c.cost_price),
                 selling_price: String(c.selling_price),
+                sale_pr_gst:   (c.selling_price * (1 + (c.gst_rate ?? 0) / 100)).toFixed(2),
             })));
             setDeletedChargeIds([]);
             setSubView("final");
@@ -389,12 +461,15 @@ export const FinalAJobSection = () => {
         const refreshed = jobRes.data?.genericQuery?.[0];
         if (refreshed) setSelectedJob(refreshed);
         setSelectedDivisionId(newDivisionId);
+        const newDivision = availableDivisions.find(d => d.id === newDivisionId) ?? null;
+        const newIsGst    = isGstDivision(newDivision);
+        setPartLines(prev => prev.map(line => ({ ...line, ...calculateLinePricing(line, {}, newIsGst) })));
         toast.success("Division updated.");
     }
 
     // ── Part mutations ──────────────────────────────────────────────────────
     function addPartLine() {
-        setPartLines(prev => [...prev, emptyPartLine(defaultGstRate)]);
+        setPartLines(prev => [...prev, emptyPartLine(isGst ? defaultGstRate : 0)]);
     }
 
     function removePartLine(key: string, id?: number) {
@@ -407,19 +482,20 @@ export const FinalAJobSection = () => {
     }
 
     function handlePartSelect(key: string, part: PartRow) {
+        const pricePatch = computePartPricesOnSelect(part, isGst, forceGstOnPartsForNonGst, defaultGstRate, markupPct);
         updatePartLine(key, {
-            part_id:       part.id,
-            part_code:     part.part_code,
-            part_name:     part.part_name,
-            brand_id:      part.brand_id,
-            cost_price:    String(part.cost_price ?? 0),
-            selling_price: String(part.selling_price ?? 0),
+            part_id:   part.id,
+            part_code: part.part_code,
+            part_name: part.part_name,
+            brand_id:  part.brand_id,
+            hsn_code:  part.hsn_code ?? "",
+            ...pricePatch,
         });
     }
 
     // ── Charge mutations ────────────────────────────────────────────────────
     function addChargeLine() {
-        setChargeLines(prev => [...prev, emptyChargeLine()]);
+        setChargeLines(prev => [...prev, emptyChargeLine(isGst ? defaultGstRate : 0)]);
     }
 
     function removeChargeLine(key: string, id?: number) {
@@ -443,6 +519,15 @@ export const FinalAJobSection = () => {
 
         setSubmitting(true);
         try {
+            if (isGst) {
+                const missingHsnParts   = partLines.filter(l => l.part_id && !l.hsn_code.trim()).length;
+                const missingHsnCharges = chargeLines.filter(c => c.charge_name.trim() && !c.hsn_code.trim()).length;
+                if (missingHsnParts > 0 || missingHsnCharges > 0) {
+                    toast.error("HSN is required for all parts and charges in a GST invoice.");
+                    return;
+                }
+            }
+
             const chargeUpsertRows = chargeLines
                 .filter(c => c.charge_name.trim())
                 .map(c => ({
@@ -451,6 +536,9 @@ export const FinalAJobSection = () => {
                     charge_name:   c.charge_name.trim(),
                     ref_no:        c.ref_no.trim() || null,
                     description:   c.description.trim() || null,
+                    hsn_code:      isGst ? (c.hsn_code.trim() || null) : null,
+                    gst_rate:      isGst ? (parseFloat(c.gst_rate) || 0) : 0,
+                    quantity:      parseFloat(c.quantity) || 1,
                     cost_price:    parseFloat(c.cost_price)    || 0,
                     selling_price: parseFloat(c.selling_price) || 0,
                 }));
@@ -469,6 +557,7 @@ export const FinalAJobSection = () => {
                     gst_rate:      parseFloat(l.gst_rate)      || 0,
                     quantity:      l.quantity,
                     remarks:       l.remarks.trim() || null,
+                    hsn_code:      isGst ? (l.hsn_code.trim() || null) : null,
                 }));
 
             // New part inserts (no id, valid part_id) with stock transactions
@@ -480,6 +569,7 @@ export const FinalAJobSection = () => {
                 gst_rate:      parseFloat(l.gst_rate)      || 0,
                 quantity:      l.quantity,
                 remarks:       l.remarks.trim() || null,
+                hsn_code:      isGst ? (l.hsn_code.trim() || null) : null,
                 xDetails: {
                     tableName: "stock_transaction",
                     fkeyName:  "job_part_used_id",
@@ -541,14 +631,28 @@ export const FinalAJobSection = () => {
 
     if (subView === "final" && selectedJob && selectedRow) {
         const isWarranty = selectedRow.job_type_code === "UNDER_WARRANTY";
-        const division   = availableDivisions.find(d => d.id === selectedDivisionId) ?? null;
-        const isGst      = isGstDivision(division);
 
         const partsTotal       = partLines.reduce((sum, l) => { const agg = (parseFloat(l.selling_price) || 0) * l.quantity; return sum + agg * (1 + (parseFloat(l.gst_rate) || 0) / 100); }, 0);
         const profitTotal      = partLines.reduce((sum, l) => sum + ((parseFloat(l.selling_price) || 0) - (parseFloat(l.cost_price) || 0)) * l.quantity, 0);
-        const chargesCostTotal = chargeLines.reduce((sum, c) => sum + (parseFloat(c.cost_price) || 0), 0);
-        const chargesSaleTotal = chargeLines.reduce((sum, c) => sum + (parseFloat(c.selling_price) || 0), 0);
-        const grandTotal       = partsTotal + chargesSaleTotal;
+        const partsQtyTotal    = partLines.reduce((sum, l) => sum + l.quantity, 0);
+        const partsGstTotal    = isGst ? partLines.reduce((sum, l) => { const agg = (parseFloat(l.selling_price) || 0) * l.quantity; return sum + agg * (parseFloat(l.gst_rate) || 0) / 100; }, 0) : 0;
+        const partsCgstTotal   = forceIgst ? 0 : partsGstTotal / 2;
+        const partsSgstTotal   = forceIgst ? 0 : partsGstTotal / 2;
+        const partsIgstTotal   = forceIgst ? partsGstTotal : 0;
+        const chargesCostTotal = chargeLines.reduce((sum, c) => sum + (parseFloat(c.cost_price) || 0) * (parseFloat(c.quantity) || 1), 0);
+        const chargesSaleTotal = chargeLines.reduce((sum, c) => sum + (parseFloat(c.selling_price) || 0) * (parseFloat(c.quantity) || 1), 0);
+        const chargesGstTotal  = isGst ? chargeLines.reduce((sum, c) => {
+            const sp  = (parseFloat(c.selling_price) || 0) * (parseFloat(c.quantity) || 1);
+            const gst = sp * (parseFloat(c.gst_rate) || 0) / 100;
+            return sum + gst;
+        }, 0) : 0;
+        const chargesAmountTotal = chargesSaleTotal + chargesGstTotal;
+        const chargesCgstTotal   = forceIgst ? 0 : chargesGstTotal / 2;
+        const chargesSgstTotal   = forceIgst ? 0 : chargesGstTotal / 2;
+        const chargesIgstTotal   = forceIgst ? chargesGstTotal : 0;
+        const chargesProfitTotal = chargeLines.reduce((sum, c) => sum + ((parseFloat(c.selling_price) || 0) - (parseFloat(c.cost_price) || 0)) * (parseFloat(c.quantity) || 1), 0);
+        const chargesQtyTotal    = chargeLines.reduce((sum, c) => sum + (parseFloat(c.quantity) || 1), 0);
+        const grandTotal       = partsTotal + chargesAmountTotal;
 
         return (
             <>
@@ -673,8 +777,19 @@ export const FinalAJobSection = () => {
 
                     {/* Parts Used — unified editable table */}
                     <div className="rounded-lg border border-[var(--cl-border)] bg-[var(--cl-surface)] overflow-hidden">
-                        <div className="px-4 py-2.5 border-b border-[var(--cl-border)] bg-[var(--cl-surface-2)]/60">
+                        <div className="px-4 py-2.5 border-b border-[var(--cl-border)] bg-[var(--cl-surface-2)]/60 flex items-center justify-between">
                             <p className="text-xs font-bold uppercase tracking-wider text-[var(--cl-text-muted)]">Parts Used</p>
+                            {isGst && (
+                                <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                                    <input
+                                        type="checkbox"
+                                        checked={forceIgst}
+                                        className="h-3.5 w-3.5 accent-[var(--cl-accent)] cursor-pointer"
+                                        onChange={e => setForceIgst(e.target.checked)}
+                                    />
+                                    <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--cl-text-muted)]">Force IGST</span>
+                                </label>
+                            )}
                         </div>
                         {!isWarranty && partLines.length === 0 && (
                             <div className="flex items-center justify-center py-6">
@@ -694,9 +809,10 @@ export const FinalAJobSection = () => {
                                     const aggregate = (parseFloat(line.selling_price) || 0) * line.quantity;
                                     const gstRate   = parseFloat(line.gst_rate) || 0;
                                     const amount    = aggregate * (1 + gstRate / 100);
-                                    const cgst      = aggregate * gstRate / 200;
-                                    const sgst      = cgst;
-                                    const igst      = aggregate * gstRate / 100;
+                                    const gstAmt    = aggregate * gstRate / 100;
+                                    const cgst      = forceIgst ? 0 : gstAmt / 2;
+                                    const sgst      = forceIgst ? 0 : gstAmt / 2;
+                                    const igst      = forceIgst ? gstAmt : 0;
                                     const profit    = ((parseFloat(line.selling_price) || 0) - (parseFloat(line.cost_price) || 0)) * line.quantity;
                                     return (
                                         <div key={line._key} className="px-1 py-3 space-y-2.5 bg-[var(--cl-surface)] hover:bg-[var(--cl-surface-2)]/50 transition-colors">
@@ -758,6 +874,19 @@ export const FinalAJobSection = () => {
                                                         onChange={e => updatePartLine(line._key, { part_name: e.target.value })}
                                                     />
                                                 </div>
+                                                {/* HSN — only for GST invoices */}
+                                                {isGst && (
+                                                    <div className="w-28 shrink-0">
+                                                        <Input
+                                                            className={`h-7 font-mono border-[var(--cl-border)] bg-white text-xs ${!isWarranty && !line.hsn_code.trim() ? "border-red-400 focus:border-red-500" : ""}`}
+                                                            disabled={isWarranty}
+                                                            maxLength={8}
+                                                            placeholder="HSN"
+                                                            value={line.hsn_code}
+                                                            onChange={e => updatePartLine(line._key, { hsn_code: e.target.value.replace(/\D/g, "").slice(0, 8) })}
+                                                        />
+                                                    </div>
+                                                )}
                                                 {/* Remarks */}
                                                 <div className="min-w-[120px] flex-1">
                                                     <Input
@@ -796,7 +925,7 @@ export const FinalAJobSection = () => {
                                                 <div className="flex items-center gap-1.5">
                                                     <span className="text-[10px] font-medium uppercase tracking-wide text-[var(--cl-text-muted)] whitespace-nowrap">Cost</span>
                                                     <Input
-                                                        className="h-6 w-20 border-[var(--cl-border)] bg-white text-xs text-right"
+                                                        className="h-6 w-24 border-[var(--cl-border)] bg-white text-xs text-right"
                                                         disabled={isWarranty}
                                                         min="0" step="0.01" type="number"
                                                         value={line.cost_price}
@@ -812,12 +941,7 @@ export const FinalAJobSection = () => {
                                                         min="0" step="0.01" type="number"
                                                         value={line.gst_rate}
                                                         onChange={e => {
-                                                            const gst = e.target.value;
-                                                            const sp = parseFloat(line.selling_price) || 0;
-                                                            updatePartLine(line._key, {
-                                                                gst_rate: gst,
-                                                                sale_pr_gst: (sp * (1 + (parseFloat(gst) || 0) / 100)).toFixed(2),
-                                                            });
+                                                            updatePartLine(line._key, calculateLinePricing(line, { gst_rate: e.target.value }, isGst));
                                                         }}
                                                         onFocus={e => e.target.select()}
                                                     />
@@ -836,17 +960,12 @@ export const FinalAJobSection = () => {
                                                 <div className="flex items-center gap-1.5">
                                                     <span className="text-[10px] font-medium uppercase tracking-wide text-[var(--cl-text-muted)] whitespace-nowrap">Sale</span>
                                                     <Input
-                                                        className="h-6 w-20 border-[var(--cl-border)] bg-white text-xs text-right"
+                                                        className="h-6 w-24 border-[var(--cl-border)] bg-white text-xs text-right"
                                                         disabled={isWarranty}
                                                         min="0" step="0.01" type="number"
                                                         value={line.selling_price}
                                                         onChange={e => {
-                                                            const sp = e.target.value;
-                                                            const gst = parseFloat(line.gst_rate) || 0;
-                                                            updatePartLine(line._key, {
-                                                                selling_price: sp,
-                                                                sale_pr_gst: ((parseFloat(sp) || 0) * (1 + gst / 100)).toFixed(2),
-                                                            });
+                                                            updatePartLine(line._key, calculateLinePricing(line, { selling_price: e.target.value }, isGst));
                                                         }}
                                                         onFocus={e => e.target.select()}
                                                     />
@@ -854,17 +973,15 @@ export const FinalAJobSection = () => {
                                                 <div className="flex items-center gap-1.5">
                                                     <span className="text-[10px] font-medium uppercase tracking-wide text-[var(--cl-text-muted)] whitespace-nowrap">+GST</span>
                                                     <Input
-                                                        className="h-6 w-20 border-[var(--cl-border)] bg-white text-xs text-right"
+                                                        className="h-6 w-24 border-[var(--cl-border)] bg-white text-xs text-right"
                                                         disabled={isWarranty}
                                                         min="0" step="0.01" type="number"
                                                         value={line.sale_pr_gst}
                                                         onChange={e => {
-                                                            const spgst = e.target.value;
-                                                            const gst = parseFloat(line.gst_rate) || 0;
-                                                            updatePartLine(line._key, {
-                                                                sale_pr_gst: spgst,
-                                                                selling_price: ((parseFloat(spgst) || 0) / (1 + gst / 100)).toFixed(2),
-                                                            });
+                                                            const spgst   = e.target.value;
+                                                            const gstRate = isGst ? (parseFloat(line.gst_rate) || 0) : 0;
+                                                            const backCalcSp = ((parseFloat(spgst) || 0) / (1 + gstRate / 100)).toFixed(2);
+                                                            updatePartLine(line._key, { sale_pr_gst: spgst, selling_price: backCalcSp });
                                                         }}
                                                         onFocus={e => e.target.select()}
                                                     />
@@ -913,12 +1030,34 @@ export const FinalAJobSection = () => {
                             </p>
                         )}
                         {partLines.length > 0 && (
-                            <div className="flex items-center justify-end gap-6 px-4 py-2.5 border-t-2 border-[var(--cl-border)] bg-[var(--cl-surface-2)]/60">
-                                <div className="flex items-center gap-1.5">
-                                    <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--cl-text-muted)]">Profit</span>
-                                    <span className={`tabular-nums text-sm font-semibold ${profitTotal < 0 ? "text-red-600" : "text-emerald-600"}`}>
-                                        {profitTotal < 0 ? "-" : ""}₹{fmtCurrency(Math.abs(profitTotal))}
-                                    </span>
+                            <div className="flex items-center justify-between gap-6 px-4 py-2.5 border-t-2 border-[var(--cl-border)] bg-[var(--cl-surface-2)]/60">
+                                <div className="flex items-center gap-4">
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--cl-text-muted)]">Profit</span>
+                                        <span className={`tabular-nums text-sm font-semibold ${profitTotal < 0 ? "text-red-600" : "text-emerald-600"}`}>
+                                            {profitTotal < 0 ? "-" : ""}₹{fmtCurrency(Math.abs(profitTotal))}
+                                        </span>
+                                    </div>
+                                    {isGst && (
+                                        <>
+                                            <div className="flex items-center gap-1.5">
+                                                <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--cl-text-muted)]">CGST</span>
+                                                <span className="tabular-nums text-sm font-semibold text-[var(--cl-text)]">₹{fmtCurrency(partsCgstTotal)}</span>
+                                            </div>
+                                            <div className="flex items-center gap-1.5">
+                                                <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--cl-text-muted)]">SGST</span>
+                                                <span className="tabular-nums text-sm font-semibold text-[var(--cl-text)]">₹{fmtCurrency(partsSgstTotal)}</span>
+                                            </div>
+                                            <div className="flex items-center gap-1.5">
+                                                <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--cl-text-muted)]">IGST</span>
+                                                <span className="tabular-nums text-sm font-semibold text-[var(--cl-text)]">₹{fmtCurrency(partsIgstTotal)}</span>
+                                            </div>
+                                        </>
+                                    )}
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--cl-text-muted)]">Qty</span>
+                                        <span className="tabular-nums text-sm font-semibold text-[var(--cl-text)]">{fmtCurrency(partsQtyTotal)}</span>
+                                    </div>
                                 </div>
                                 <div className="flex items-center gap-1.5">
                                     <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--cl-text-muted)]">Parts Total</span>
@@ -953,9 +1092,14 @@ export const FinalAJobSection = () => {
                                             <th className={thClass}>#</th>
                                             <th className={thClass}>Charge Name <span className="text-red-500">*</span></th>
                                             <th className={thClass}>Ref No</th>
-                                            <th className={`${thClass} w-full`}>Description</th>
-                                            <th className={`${thClass} text-right`}>Cost Price</th>
-                                            <th className={`${thClass} text-right`}>Sale Price <span className="text-red-500">*</span></th>
+                                            <th className={`${thClass} w-full min-w-[80px]`}>Description</th>
+                                            {isGst && <th className={thClass}>HSN <span className="text-red-500">*</span></th>}
+                                            <th className={`${thClass} text-right`}>Cost</th>
+                                            <th className={`${thClass} text-right`}>Sale <span className="text-red-500">*</span></th>
+                                            {isGst && <th className={`${thClass} text-right`}>GST%</th>}
+                                            {isGst && <th className={`${thClass} text-right`}>Sale+GST</th>}
+                                            <th className={`${thClass} text-right`}>Qty</th>
+                                            <th className={`${thClass} text-right w-32`}>Amount</th>
                                             {!isWarranty && <th className={thClass}></th>}
                                         </tr>
                                     </thead>
@@ -974,7 +1118,7 @@ export const FinalAJobSection = () => {
                                                 </td>
                                                 <td className={tdClass}>
                                                     <Input
-                                                        className="h-7 w-28 border-[var(--cl-border)] bg-white text-xs"
+                                                        className="h-7 w-20 border-[var(--cl-border)] bg-white text-xs"
                                                         disabled={isWarranty}
                                                         placeholder="Ref no"
                                                         value={c.ref_no}
@@ -983,23 +1127,34 @@ export const FinalAJobSection = () => {
                                                 </td>
                                                 <td className={tdClass}>
                                                     <Input
-                                                        className="h-7 min-w-[160px] border-[var(--cl-border)] bg-white text-xs"
+                                                        className="h-7 min-w-[80px] border-[var(--cl-border)] bg-white text-xs"
                                                         disabled={isWarranty}
                                                         placeholder="Description"
                                                         value={c.description}
                                                         onChange={e => updateChargeLine(c._key, "description", e.target.value)}
                                                     />
                                                 </td>
+                                                {isGst && (
+                                                    <td className={tdClass}>
+                                                        <Input
+                                                            className={`h-7 w-24 font-mono border-[var(--cl-border)] bg-white text-xs ${!isWarranty && !c.hsn_code.trim() ? "border-red-400 focus:border-red-500" : ""}`}
+                                                            disabled={isWarranty}
+                                                            maxLength={8}
+                                                            placeholder="HSN"
+                                                            value={c.hsn_code}
+                                                            onChange={e => updateChargeLine(c._key, "hsn_code", e.target.value.replace(/\D/g, "").slice(0, 8))}
+                                                        />
+                                                    </td>
+                                                )}
                                                 <td className={`${tdClass} text-right`}>
                                                     <div className="flex justify-end">
                                                         <Input
                                                             className="h-7 w-24 border-[var(--cl-border)] bg-white text-xs text-right"
                                                             disabled={isWarranty}
-                                                            min="0"
-                                                            step="0.01"
-                                                            type="number"
+                                                            min="0" step="0.01" type="number"
                                                             value={c.cost_price}
                                                             onChange={e => updateChargeLine(c._key, "cost_price", e.target.value)}
+                                                            onFocus={e => e.target.select()}
                                                         />
                                                     </div>
                                                 </td>
@@ -1008,13 +1163,73 @@ export const FinalAJobSection = () => {
                                                         <Input
                                                             className="h-7 w-24 border-[var(--cl-border)] bg-white text-xs text-right"
                                                             disabled={isWarranty}
-                                                            min="0"
-                                                            step="0.01"
-                                                            type="number"
+                                                            min="0" step="0.01" type="number"
                                                             value={c.selling_price}
-                                                            onChange={e => updateChargeLine(c._key, "selling_price", e.target.value)}
+                                                            onChange={e => {
+                                                                const sp      = e.target.value;
+                                                                const gstRate = isGst ? (parseFloat(c.gst_rate) || 0) : 0;
+                                                                setChargeLines(prev => prev.map(cl => cl._key === c._key
+                                                                    ? { ...cl, selling_price: sp, sale_pr_gst: ((parseFloat(sp) || 0) * (1 + gstRate / 100)).toFixed(2) }
+                                                                    : cl));
+                                                            }}
+                                                            onFocus={e => e.target.select()}
                                                         />
                                                     </div>
+                                                </td>
+                                                {isGst && (
+                                                    <td className={`${tdClass} text-right`}>
+                                                        <div className="flex justify-end">
+                                                            <Input
+                                                                className="h-7 w-16 border-[var(--cl-border)] bg-white text-xs text-right"
+                                                                disabled={isWarranty}
+                                                                min="0" step="0.01" type="number"
+                                                                value={c.gst_rate}
+                                                                onChange={e => {
+                                                                    const gr      = e.target.value;
+                                                                    const gstRate = parseFloat(gr) || 0;
+                                                                    setChargeLines(prev => prev.map(cl => cl._key === c._key
+                                                                        ? { ...cl, gst_rate: gr, sale_pr_gst: ((parseFloat(cl.selling_price) || 0) * (1 + gstRate / 100)).toFixed(2) }
+                                                                        : cl));
+                                                                }}
+                                                                onFocus={e => e.target.select()}
+                                                            />
+                                                        </div>
+                                                    </td>
+                                                )}
+                                                {isGst && (
+                                                    <td className={`${tdClass} text-right`}>
+                                                        <div className="flex justify-end">
+                                                            <Input
+                                                                className="h-7 w-24 border-[var(--cl-border)] bg-white text-xs text-right"
+                                                                disabled={isWarranty}
+                                                                min="0" step="0.01" type="number"
+                                                                value={c.sale_pr_gst}
+                                                                onChange={e => {
+                                                                    const spg     = e.target.value;
+                                                                    const gstRate = parseFloat(c.gst_rate) || 0;
+                                                                    setChargeLines(prev => prev.map(cl => cl._key === c._key
+                                                                        ? { ...cl, sale_pr_gst: spg, selling_price: ((parseFloat(spg) || 0) / (1 + gstRate / 100)).toFixed(2) }
+                                                                        : cl));
+                                                                }}
+                                                                onFocus={e => e.target.select()}
+                                                            />
+                                                        </div>
+                                                    </td>
+                                                )}
+                                                <td className={`${tdClass} text-right`}>
+                                                    <div className="flex justify-end">
+                                                        <Input
+                                                            className={`h-7 w-12 border-[var(--cl-border)] bg-white text-xs text-right ${(parseFloat(c.quantity) || 0) <= 0 ? "border-red-500" : ""}`}
+                                                            disabled={isWarranty}
+                                                            min="0.01" step="0.01" type="number"
+                                                            value={c.quantity}
+                                                            onChange={e => updateChargeLine(c._key, "quantity", e.target.value)}
+                                                            onFocus={e => e.target.select()}
+                                                        />
+                                                    </div>
+                                                </td>
+                                                <td className={`${tdClass} text-right tabular-nums text-sm font-bold text-[var(--cl-accent)] w-32`}>
+                                                    ₹{fmtCurrency((parseFloat(c.sale_pr_gst) || parseFloat(c.selling_price) || 0) * (parseFloat(c.quantity) || 1))}
                                                 </td>
                                                 {!isWarranty && (
                                                     <td className={`${tdClass} px-1 align-middle`}>
@@ -1044,14 +1259,42 @@ export const FinalAJobSection = () => {
                                     </tbody>
                                     <tfoot>
                                         <tr className="bg-[var(--cl-surface-2)]/60">
-                                            <td colSpan={4} className="p-3 text-xs font-semibold uppercase tracking-wide text-[var(--cl-text-muted)] text-right border-t-2 border-[var(--cl-border)]">Total</td>
-                                            <td className="p-3 text-right border-t-2 border-[var(--cl-border)]">
-                                                <span className="tabular-nums text-sm font-semibold text-[var(--cl-text)]">₹{fmtCurrency(chargesCostTotal)}</span>
+                                            <td colSpan={100} className="px-2 py-1 border-t-2 border-[var(--cl-border)]">
+                                                <div className="flex items-center justify-between gap-6">
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="flex items-center gap-1.5">
+                                                            <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--cl-text-muted)]">Profit</span>
+                                                            <span className={`tabular-nums text-sm font-semibold ${chargesProfitTotal < 0 ? "text-red-600" : "text-emerald-600"}`}>
+                                                                {chargesProfitTotal < 0 ? "-" : ""}₹{fmtCurrency(Math.abs(chargesProfitTotal))}
+                                                            </span>
+                                                        </div>
+                                                        {isGst && (
+                                                            <>
+                                                                <div className="flex items-center gap-1.5">
+                                                                    <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--cl-text-muted)]">CGST</span>
+                                                                    <span className="tabular-nums text-sm font-semibold text-[var(--cl-text)]">₹{fmtCurrency(chargesCgstTotal)}</span>
+                                                                </div>
+                                                                <div className="flex items-center gap-1.5">
+                                                                    <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--cl-text-muted)]">SGST</span>
+                                                                    <span className="tabular-nums text-sm font-semibold text-[var(--cl-text)]">₹{fmtCurrency(chargesSgstTotal)}</span>
+                                                                </div>
+                                                                <div className="flex items-center gap-1.5">
+                                                                    <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--cl-text-muted)]">IGST</span>
+                                                                    <span className="tabular-nums text-sm font-semibold text-[var(--cl-text)]">₹{fmtCurrency(chargesIgstTotal)}</span>
+                                                                </div>
+                                                            </>
+                                                        )}
+                                                        <div className="flex items-center gap-1.5">
+                                                            <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--cl-text-muted)]">Qty</span>
+                                                            <span className="tabular-nums text-sm font-semibold text-[var(--cl-text)]">{fmtCurrency(chargesQtyTotal)}</span>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-center gap-1.5">
+                                                        <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--cl-text-muted)]">Charges Total</span>
+                                                        <span className="tabular-nums text-base font-bold text-[var(--cl-text)]">₹{fmtCurrency(chargesAmountTotal)}</span>
+                                                    </div>
+                                                </div>
                                             </td>
-                                            <td className="p-3 text-right border-t-2 border-[var(--cl-border)]">
-                                                <span className="tabular-nums text-sm font-bold text-[var(--cl-text)]">₹{fmtCurrency(chargesSaleTotal)}</span>
-                                            </td>
-                                            {!isWarranty && <td className="border-t-2 border-[var(--cl-border)]" />}
                                         </tr>
                                     </tfoot>
                                 </table>

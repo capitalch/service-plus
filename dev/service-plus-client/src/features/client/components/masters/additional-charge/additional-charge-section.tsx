@@ -16,7 +16,7 @@ import { useAppSelector } from "@/store/hooks";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type AdditionalChargeRow = { id: number; name: string };
+type AdditionalChargeRow = { id: number; name: string; hsn_code: string | null };
 type GenericQueryData<T> = { genericQuery: T[] | null };
 
 // ─── Row animation ────────────────────────────────────────────────────────────
@@ -33,21 +33,24 @@ const rowVariants = {
 // ─── Dialogs ──────────────────────────────────────────────────────────────────
 
 type NameDialogProps = {
-    title:       string;
-    value:       string;
-    saving:      boolean;
-    idValue?:    string;
-    onIdChange?: (v: string) => void;
-    onChange:    (v: string) => void;
-    onSave:      () => void;
-    onClose:     () => void;
+    title:        string;
+    value:        string;
+    hsnValue:     string;
+    saving:       boolean;
+    idValue?:     string;
+    onIdChange?:  (v: string) => void;
+    onChange:     (v: string) => void;
+    onHsnChange:  (v: string) => void;
+    onSave:       () => void;
+    onClose:      () => void;
 };
 
-function NameDialog({ title, value, saving, idValue, onIdChange, onChange, onSave, onClose }: NameDialogProps) {
-    const hasId     = idValue !== undefined && onIdChange !== undefined;
-    const idNum     = hasId ? parseInt(idValue, 10) : NaN;
-    const idInvalid = hasId && (isNaN(idNum) || idNum <= 0);
-    const canSave   = value.trim() && (!hasId || !idInvalid);
+function NameDialog({ title, value, hsnValue, saving, idValue, onIdChange, onChange, onHsnChange, onSave, onClose }: NameDialogProps) {
+    const hasId      = idValue !== undefined && onIdChange !== undefined;
+    const idNum      = hasId ? parseInt(idValue, 10) : NaN;
+    const idInvalid  = hasId && (isNaN(idNum) || idNum <= 0);
+    const hsnInvalid = hsnValue.trim().length > 8;
+    const canSave    = value.trim() && (!hasId || !idInvalid) && !hsnInvalid;
 
     return (
         <Dialog open onOpenChange={v => { if (!v && !saving) onClose(); }}>
@@ -85,6 +88,19 @@ function NameDialog({ title, value, saving, idValue, onIdChange, onChange, onSav
                             placeholder="Charge name"
                             value={value}
                             onChange={e => onChange(e.target.value)}
+                            onKeyDown={e => { if (e.key === "Enter" && canSave) onSave(); }}
+                        />
+                    </div>
+                    <div className="space-y-1">
+                        <label className="text-xs font-medium text-[var(--cl-text-muted)] uppercase tracking-wider">HSN</label>
+                        <Input
+                            className={`border-[var(--cl-border)] bg-white text-sm font-mono ${hsnInvalid ? "border-red-500" : ""}`}
+                            disabled={saving}
+                            maxLength={8}
+                            placeholder="e.g. 998726"
+                            value={hsnValue}
+                            onChange={e => onHsnChange(e.target.value.replace(/\D/g, "").slice(0, 8))}
+                            onFocus={e => e.target.select()}
                             onKeyDown={e => { if (e.key === "Enter" && canSave) onSave(); }}
                         />
                     </div>
@@ -147,10 +163,12 @@ export const AdditionalChargeSection = () => {
     const [addOpen, setAddOpen] = useState(false);
     const [addId,   setAddId]   = useState("");
     const [addName, setAddName] = useState("");
+    const [addHsn,  setAddHsn]  = useState("");
 
     // Edit
     const [editRow,  setEditRow]  = useState<AdditionalChargeRow | null>(null);
     const [editName, setEditName] = useState("");
+    const [editHsn,  setEditHsn]  = useState("");
 
     // Delete
     const [deleteRow, setDeleteRow] = useState<AdditionalChargeRow | null>(null);
@@ -179,21 +197,23 @@ export const AdditionalChargeSection = () => {
 
     const filtered = useMemo(() => {
         const q = search.trim().toLowerCase();
-        return q ? rows.filter(r => r.name.toLowerCase().includes(q)) : rows;
+        return q ? rows.filter(r => r.name.toLowerCase().includes(q) || (r.hsn_code ?? "").includes(q)) : rows;
     }, [rows, search]);
 
     async function handleAdd() {
-        const id = parseInt(addId, 10);
+        const id       = parseInt(addId, 10);
+        const hsn_code = addHsn.trim() || null;
         if (!dbName || !schema || !addName.trim() || isNaN(id) || id <= 0) return;
         setSaving(true);
         try {
             await apolloClient.mutate({
                 mutation:  GRAPHQL_MAP.genericUpdate,
-                variables: { db_name: dbName, schema, value: encodeObj({ tableName: "additional_charge", xData: { id, name: addName.trim(), isIdInsert: true } }) },
+                variables: { db_name: dbName, schema, value: encodeObj({ tableName: "additional_charge", xData: { id, name: addName.trim(), hsn_code, isIdInsert: true } }) },
             });
             toast.success("Charge added.");
             setAddOpen(false);
             setAddName("");
+            setAddHsn("");
             void loadData();
         } catch {
             toast.error("Failed to add charge.");
@@ -204,11 +224,12 @@ export const AdditionalChargeSection = () => {
 
     async function handleEdit() {
         if (!dbName || !schema || !editRow || !editName.trim()) return;
+        const hsn_code = editHsn.trim() || null;
         setSaving(true);
         try {
             await apolloClient.mutate({
                 mutation:  GRAPHQL_MAP.genericUpdate,
-                variables: { db_name: dbName, schema, value: encodeObj({ tableName: "additional_charge", xData: { id: editRow.id, name: editName.trim() } }) },
+                variables: { db_name: dbName, schema, value: encodeObj({ tableName: "additional_charge", xData: { id: editRow.id, name: editName.trim(), hsn_code } }) },
             });
             toast.success("Charge updated.");
             setEditRow(null);
@@ -266,6 +287,7 @@ export const AdditionalChargeSection = () => {
                         const nextId = rows.length > 0 ? Math.max(...rows.map(r => r.id)) + 1 : 1;
                         setAddId(String(nextId));
                         setAddName("");
+                        setAddHsn("");
                         setAddOpen(true);
                     }}
                 >
@@ -315,6 +337,7 @@ export const AdditionalChargeSection = () => {
                             <tr>
                                 <th className={thClass} style={{ width: "4%" }}>#</th>
                                 <th className={thClass}>Name</th>
+                                <th className={thClass} style={{ width: "12%" }}>HSN</th>
                                 <th className={`${thClass} text-right`} style={{ width: "10%" }}>Actions</th>
                             </tr>
                         </thead>
@@ -324,12 +347,13 @@ export const AdditionalChargeSection = () => {
                                     <tr key={i} className="animate-pulse">
                                         <td className={tdClass}><div className="h-4 w-6 rounded bg-[var(--cl-border)]" /></td>
                                         <td className={tdClass}><div className="h-4 w-48 rounded bg-[var(--cl-border)]" /></td>
+                                        <td className={tdClass}><div className="h-4 w-20 rounded bg-[var(--cl-border)]" /></td>
                                         <td className={tdClass}></td>
                                     </tr>
                                 ))
                             ) : filtered.length === 0 ? (
                                 <tr>
-                                    <td colSpan={3} className="px-4 py-12 text-center text-sm text-[var(--cl-text-muted)]">
+                                    <td colSpan={4} className="px-4 py-12 text-center text-sm text-[var(--cl-text-muted)]">
                                         {search ? "No charges match your search." : "No charges yet. Click Add Charge to create one."}
                                     </td>
                                 </tr>
@@ -344,6 +368,7 @@ export const AdditionalChargeSection = () => {
                                 >
                                     <td className={`${tdClass} text-[var(--cl-text-muted)]`}>{idx + 1}</td>
                                     <td className={tdClass}>{row.name}</td>
+                                    <td className={`${tdClass} font-mono text-xs`}>{row.hsn_code ?? <span className="text-[var(--cl-text-muted)]">—</span>}</td>
                                     <td className={`${tdClass} text-right`}>
                                         <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                             <Button
@@ -351,7 +376,7 @@ export const AdditionalChargeSection = () => {
                                                 size="icon"
                                                 title="Edit"
                                                 variant="ghost"
-                                                onClick={() => { setEditRow(row); setEditName(row.name); }}
+                                                onClick={() => { setEditRow(row); setEditName(row.name); setEditHsn(row.hsn_code ?? ""); }}
                                             >
                                                 <Pencil className="h-3.5 w-3.5" />
                                             </Button>
@@ -376,12 +401,14 @@ export const AdditionalChargeSection = () => {
             {/* Add dialog */}
             {addOpen && (
                 <NameDialog
+                    hsnValue={addHsn}
                     idValue={addId}
                     saving={saving}
                     title="Add Charge"
                     value={addName}
                     onChange={setAddName}
                     onClose={() => setAddOpen(false)}
+                    onHsnChange={setAddHsn}
                     onIdChange={setAddId}
                     onSave={() => void handleAdd()}
                 />
@@ -390,11 +417,13 @@ export const AdditionalChargeSection = () => {
             {/* Edit dialog */}
             {editRow && (
                 <NameDialog
+                    hsnValue={editHsn}
                     saving={saving}
                     title="Edit Charge"
                     value={editName}
                     onChange={setEditName}
                     onClose={() => setEditRow(null)}
+                    onHsnChange={setEditHsn}
                     onSave={() => void handleEdit()}
                 />
             )}

@@ -24,17 +24,25 @@ export type EditableChargeLine = {
     charge_name:   string;
     ref_no:        string;
     description:   string;
+    hsn_code:      string;
+    gst_rate:      string;
+    quantity:           string;
     cost_price:    string;
     selling_price: string;
+    sale_pr_gst:   string;
 };
 
-export function emptyChargeLine(): EditableChargeLine {
+export function emptyChargeLine(gstRate = 0): EditableChargeLine {
     return {
         _key:          crypto.randomUUID(),
         charge_name:   "",
         ref_no:        "",
         description:   "",
+        hsn_code:      "",
+        gst_rate:      String(gstRate),
+        quantity:           "1",
         cost_price:    "0",
         selling_price: "0",
+        sale_pr_gst:   "0",
     };
 }

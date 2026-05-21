@@ -1,168 +1,139 @@
-# Plan: Pricing Logic & Calculate Method — Final a Job
+# Plan: Final-a-Job — Price Calculation & Calculate Method
 
-## Context
+## Overview
 
-When a technician finalises a job, part prices must be computed correctly based on:
-- Whether the division is GST or non-GST
-- Whether `force_gst_on_parts_for_non_gst_invoices` is enabled
-- The `gst_rate` from the spare part master (falling back to `default_gst_rate` when 0)
-
-All derived fields (sale_pr_gst, aggregate, amount, profit, summaries) must stay in sync
-whenever any input changes. A single `calculatePartLine()` helper encapsulates all this
-logic; every onChange wires through it.
+Modify `final-a-job-section.tsx` to:
+1. Apply correct GST/Non-GST pricing logic when a part is selected (sourcing `cost_price` and `gst_rate` from `spare_part_master`)
+2. Introduce a central `calculateLinePricing` helper that is called on every pricing input change, keeping all derived fields (`sale_pr_gst`, `gst_rate`) consistent
+3. Re-run `calculateLinePricing` on every part line when the division changes
 
 ---
 
-## Existing Infrastructure (no new code needed)
+## Sale Price Determination (Markup Logic)
 
-| Item | Location |
-|------|----------|
-| `selectDefaultGstRate` | `src/store/context-slice.ts:154` |
-| `selectForceGstOnPartsForNonGst` | `src/store/context-slice.ts:155` |
-| `PartRow.gst_rate` | `src/features/client/components/inventory/part-code-input.tsx:35` |
-| Reference pricing logic | `src/features/client/components/inventory/sales-entry/new-sales-invoice.tsx:449–468` |
+Sale price is always derived from cost price via one of two routes:
 
-Both selectors are populated from app_settings by `bu-branch-switcher.tsx`.
+1. **If `spare_part_master.selling_price` is set and > 0** → use it directly as `sale_price`
+2. **Otherwise** → `sale_price = Math.round(cost_price × (1 + markupPct / 100) × 100) / 100`
+
+where `markupPct` is the value of setting key `markup_percent_over_cost` (from `all_setting`, fetched via `GET_APP_SETTING_BY_KEY`).
+
+This is the same pattern already used in `job-charges-modal.tsx`:
+```ts
+function applyMarkup(cost: number, pct: number): number {
+    return Math.round(cost * (1 + pct / 100) * 100) / 100;
+}
+const masterSelling = (part.selling_price != null && part.selling_price > 0) ? part.selling_price : null;
+const sale_price    = masterSelling ?? applyMarkup(cost, markupPct);
+```
 
 ---
 
-## File to Modify
+## New Pure Helper Functions (outside component)
 
-`src/features/client/components/jobs/final-a-job/final-a-job-section.tsx`
+### `applyMarkup(cost, markupPct)`
+```ts
+Math.round(cost * (1 + markupPct / 100) * 100) / 100
+```
+
+### `computePartPricesOnSelect(part, isGst, forceGstOnPartsForNonGst, defaultGstRate, markupPct)`
+
+Called when a part is picked from the part-code lookup.
+
+```
+rawCost          = part.cost_price ?? 0
+masterSelling    = part.selling_price > 0 ? part.selling_price : null
+effectiveGstRate = (part.gst_rate > 0) ? part.gst_rate : defaultGstRate
+
+Non-GST division:
+  gst_rate  = 0  (always)
+  if forceGstOnPartsForNonGst:
+    cost_price    = rawCost × (1 + effectiveGstRate / 100)
+    markupAmt     = masterSelling != null
+                      ? masterSelling - rawCost          ← preserve original markup amount
+                      : rawCost × markupPct / 100        ← markup on raw cost
+    selling_price = cost_price + markupAmt
+  else:
+    cost_price    = rawCost
+    selling_price = masterSelling ?? applyMarkup(rawCost, markupPct)
+  sale_pr_gst = selling_price   (gst_rate=0, so no GST uplift)
+
+GST division:
+  gst_rate      = effectiveGstRate
+  cost_price    = rawCost
+  selling_price = masterSelling ?? applyMarkup(rawCost, markupPct)
+  sale_pr_gst   = selling_price × (1 + effectiveGstRate / 100)
+```
+
+### `calculateLinePricing(line, patch, isGst)`
+
+Central "calculate" method. Given a line + a partial user-input patch, computes the consistent set of pricing fields to store.
+
+- Derives `selling_price` and `gst_rate` from `{ ...line, ...patch }`
+- Forces `gst_rate = 0` for non-GST divisions
+- Returns `{ ...patch, gst_rate, sale_pr_gst }` where `sale_pr_gst = selling_price × (1 + gst_rate/100)`
+
+The **one exception**: when the user edits `sale_pr_gst` directly, `selling_price` is **back-calculated** first (`selling_price = sale_pr_gst / (1 + gst_rate/100)`), then both fields are stored. This ensures bidirectional consistency.
 
 ---
 
-## Changes
+## Component Changes
 
-### 1. Import `selectForceGstOnPartsForNonGst`
-
-Add to the existing `selectAvailableDivisions, …` import line (context-slice).
-
-### 2. Select the setting in the component body
-
+### 1. Selectors
+Add alongside existing selectors:
 ```ts
 const forceGstOnPartsForNonGst = useAppSelector(selectForceGstOnPartsForNonGst);
 ```
 
-### 3. Derive `isGst` at component scope
-
-Currently `isGst` is derived inside the `final` subview render block. Move it to component scope so `handlePartSelect` and `handleChangeDivision` can reference it.
-
+### 2. New state: `markupPct`
 ```ts
-const selectedDivision = availableDivisions.find(d => d.id === selectedDivisionId) ?? null;
-const isGst            = isGstDivision(selectedDivision);
+const [markupPct, setMarkupPct] = useState(0);
 ```
 
-### 4. `calculatePartLine()` pure helper (add near `emptyPartLine`)
+Loaded inside the existing `fetchMeta` effect (alongside brands + JOB_CONSUME type), using `GET_APP_SETTING_BY_KEY` with `setting_key: "markup_percent_over_cost"` — same as `job-charges-modal.tsx`.
+
+### 3. Derived `division` + `isGst` in component body
+Move out of the conditional render block so handlers can access them:
 
 ```ts
-type CalcInput = {
-    cost_price_raw:  number;   // raw cost from DB / user input
-    selling_price:   number;   // sale price ex-GST
-    gst_rate_master: number;   // gst_rate on the line (from DB or user)
-    isGst:           boolean;
-    defaultGstRate:  number;
-    forceGstOnParts: boolean;  // = !isGst && forceGstOnPartsForNonGst
-};
-
-type CalcResult = Pick<EditablePartLine, 'cost_price' | 'selling_price' | 'gst_rate' | 'sale_pr_gst'>;
-
-function calculatePartLine(input: CalcInput): CalcResult {
-    const { cost_price_raw, selling_price, gst_rate_master,
-            isGst, defaultGstRate, forceGstOnParts } = input;
-
-    if (isGst) {
-        const effectiveGst = gst_rate_master === 0 ? defaultGstRate : gst_rate_master;
-        return {
-            cost_price:    String(cost_price_raw),
-            selling_price: String(selling_price),
-            gst_rate:      String(effectiveGst),
-            sale_pr_gst:   (selling_price * (1 + effectiveGst / 100)).toFixed(2),
-        };
-    } else {
-        // Non-GST: gst_rate stored as 0 always
-        const effectiveGst = gst_rate_master === 0 ? defaultGstRate : gst_rate_master;
-        const costAdj = forceGstOnParts
-            ? cost_price_raw * (1 + effectiveGst / 100)
-            : cost_price_raw;
-        const markup  = selling_price - cost_price_raw;  // preserve profit margin
-        const saleAdj = costAdj + markup;
-        return {
-            cost_price:    costAdj.toFixed(2),
-            selling_price: saleAdj.toFixed(2),
-            gst_rate:      "0",
-            sale_pr_gst:   saleAdj.toFixed(2),   // no GST on top for non-GST division
-        };
-    }
-}
+const division = availableDivisions.find(d => d.id === selectedDivisionId) ?? null;
+const isGst    = isGstDivision(division);
 ```
 
-### 5. `handlePartSelect` — apply pricing on part selection
+Remove the duplicate lines from the render section.
 
-Replace the current simple field copy with a call to `calculatePartLine`:
+### 4. `handlePartSelect`
+Replace direct field copy with `computePartPricesOnSelect`:
 
 ```ts
-function handlePartSelect(key: string, part: PartRow) {
-    const costRaw  = Number(part.cost_price    ?? 0);
-    const saleRaw  = Number(part.selling_price ?? 0);
-    const result   = calculatePartLine({
-        cost_price_raw:  costRaw,
-        selling_price:   saleRaw,
-        gst_rate_master: Number(part.gst_rate ?? 0),
-        isGst,
-        defaultGstRate,
-        forceGstOnParts: !isGst && forceGstOnPartsForNonGst,
-    });
-    updatePartLine(key, {
-        part_id:   part.id,
-        part_code: part.part_code,
-        part_name: part.part_name,
-        brand_id:  part.brand_id,
-        ...result,
-    });
-}
+const pricePatch = computePartPricesOnSelect(part, isGst, forceGstOnPartsForNonGst, defaultGstRate, markupPct);
+updatePartLine(key, { part_id, part_code, part_name, brand_id, ...pricePatch });
 ```
 
-### 6. Recalculate on every pricing input change
+### 5. `addPartLine`
+Pass `isGst ? defaultGstRate : 0` so new empty lines start with the correct GST rate.
 
-Each pricing field onChange calls `calculatePartLine` and applies the full result:
-
-| Field changed | `cost_price_raw` | `selling_price` | `gst_rate_master` | Notes |
-|---|---|---|---|---|
-| `cost_price` | new value | current `selling_price` | current `gst_rate` | straightforward |
-| `selling_price` | current `cost_price` | new value | current `gst_rate` | straightforward |
-| `gst_rate` | current `cost_price` | current `selling_price` | new value | straightforward |
-| `sale_pr_gst` | current `cost_price` | back-calc: `spg / (1 + gst/100)` | current `gst_rate` | back-calc first |
-| `quantity` | — | — | — | no recalc needed (qty doesn't affect prices) |
-
-### 7. Recalculate on division change (`handleChangeDivision`)
-
-After updating `selectedDivisionId`, re-run `calculatePartLine` over all `partLines`:
+### 6. `handleChangeDivision`
+After saving the new division to DB and refreshing the job, recalculate all part lines:
 
 ```ts
-const newDiv    = availableDivisions.find(d => d.id === newDivisionId) ?? null;
-const newIsGst  = isGstDivision(newDiv);
-setPartLines(prev => prev.map(l => ({
-    ...l,
-    ...calculatePartLine({
-        cost_price_raw:  parseFloat(l.cost_price)    || 0,
-        selling_price:   parseFloat(l.selling_price) || 0,
-        gst_rate_master: parseFloat(l.gst_rate)      || 0,
-        isGst:           newIsGst,
-        defaultGstRate,
-        forceGstOnParts: !newIsGst && forceGstOnPartsForNonGst,
-    }),
-})));
+const newDivision = availableDivisions.find(d => d.id === newDivisionId) ?? null;
+const newIsGst    = isGstDivision(newDivision);
+setPartLines(prev => prev.map(line => ({ ...line, ...calculateLinePricing(line, {}, newIsGst) })));
 ```
+
+### 7. Pricing input `onChange` handlers
+Replace inline calculations with calls to `calculateLinePricing`:
+
+| Input            | After                                                                                     |
+|-----------------|-------------------------------------------------------------------------------------------|
+| `gst_rate`      | `updatePartLine(key, calculateLinePricing(line, { gst_rate }, isGst))`                   |
+| `selling_price` | `updatePartLine(key, calculateLinePricing(line, { selling_price }, isGst))`              |
+| `sale_pr_gst`   | back-calc `selling_price = spgst/(1+gst/100)`, then `updatePartLine(key, { sale_pr_gst, selling_price })` |
+| `cost_price`    | direct `updatePartLine` — no pricing recalc (cost doesn't affect sale_pr_gst)            |
 
 ---
 
-## Verification
+## Files Modified
 
-1. GST division + part with `gst_rate=18` → sale_pr_gst = selling_price × 1.18; CGST/SGST = aggregate × 9%.
-2. GST division + part with `gst_rate=0` → effective rate = `default_gst_rate`; all derived fields use it.
-3. Non-GST + `force_gst=false` → `gst_rate=0`, `sale_pr_gst = selling_price`, cost unchanged.
-4. Non-GST + `force_gst=true` → `cost_price` baked with GST; `sale_price = new_cost + markup`; `gst_rate=0`.
-5. Change division GST→Non-GST mid-flow → all part lines recalculate immediately.
-6. Edit `sale_pr_gst` manually → `selling_price` back-calculates, all derived fields update.
-7. Edit `cost_price` manually → `sale_pr_gst` updates; profit updates.
+- `src/features/client/components/jobs/final-a-job/final-a-job-section.tsx`
