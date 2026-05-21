@@ -14,6 +14,7 @@ import {
     selectIsGstMode,
     selectSchema,
     setDefaultGstRate,
+    setDefaultHsnForSparePart,
 } from "@/store/context-slice";
 import { ClientActivityBar } from "./client-activity-bar";
 import { ClientExplorerPanel } from "./client-explorer-panel";
@@ -127,11 +128,15 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
             variables:   { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_APP_SETTINGS }) },
         }).then(res => {
             const settings = res.data?.genericQuery ?? [];
-            const raw = settings.find(s => s.setting_key === 'default_gst_rate')?.setting_value;
-            // setting_value is stored as a JSON-encoded string (e.g. "18"), parse it first
-            let parsed: unknown = raw;
-            if (typeof raw === 'string') { try { parsed = JSON.parse(raw); } catch { /* keep raw */ } }
-            dispatch(setDefaultGstRate(Number(parsed ?? 0)));
+            const rawGst = settings.find(s => s.setting_key === 'default_gst_rate')?.setting_value;
+            let parsedGst: unknown = rawGst;
+            if (typeof rawGst === 'string') { try { parsedGst = JSON.parse(rawGst); } catch { /* keep raw */ } }
+            dispatch(setDefaultGstRate(Number(parsedGst ?? 0)));
+
+            const rawHsn = settings.find(s => s.setting_key === 'default_hsn_for_spare_part')?.setting_value;
+            let parsedHsn: unknown = rawHsn;
+            if (typeof rawHsn === 'string') { try { parsedHsn = JSON.parse(rawHsn); } catch { /* keep raw */ } }
+            dispatch(setDefaultHsnForSparePart(String(parsedHsn ?? "")));
         }).catch(() => {/* silently ignore */});
     }, [dbName, schema]); // eslint-disable-line react-hooks/exhaustive-deps
 

@@ -34,6 +34,7 @@ type ContextStateType = {
     currentDivision:          DivisionContextType | null;
     defaultDivisionId:        number;
     defaultGstRate:           number;
+    defaultHsnForSparePart:   string;
     forceGstOnPartsForNonGst: boolean;
     isGstRegistered:          boolean;
 };
@@ -52,6 +53,7 @@ const initialState: ContextStateType = {
     currentDivision:          null,
     defaultDivisionId:        1,
     defaultGstRate:           0,
+    defaultHsnForSparePart:   "",
     forceGstOnPartsForNonGst: false,
     isGstRegistered:          false,
 };
@@ -96,6 +98,10 @@ export const contextSlice = createSlice({
             state.defaultGstRate = action.payload;
         },
 
+        setDefaultHsnForSparePart: (state, action: PayloadAction<string>) => {
+            state.defaultHsnForSparePart = action.payload;
+        },
+
         setIsGstRegistered: (state, action: PayloadAction<boolean>) => {
             state.isGstRegistered = action.payload;
         },
@@ -133,6 +139,7 @@ export const {
     setCurrentDivision,
     setDefaultDivisionId,
     setDefaultGstRate,
+    setDefaultHsnForSparePart,
     setForceGstOnPartsForNonGst,
     setIsGstRegistered,
 } = contextSlice.actions;
@@ -151,7 +158,8 @@ export const selectCurrentBranch         = (state: ContextRootState) => state.co
 export const selectCurrentBu             = (state: ContextRootState) => state.context.currentBu;
 export const selectCurrentDivision       = (state: ContextRootState) => state.context.currentDivision;
 export const selectDefaultDivisionId     = (state: ContextRootState) => state.context.defaultDivisionId;
-export const selectDefaultGstRate        = (state: ContextRootState) => state.context.defaultGstRate;
+export const selectDefaultGstRate           = (state: ContextRootState) => state.context.defaultGstRate;
+export const selectDefaultHsnForSparePart   = (state: ContextRootState) => state.context.defaultHsnForSparePart;
 export const selectForceGstOnPartsForNonGst = (state: ContextRootState) => state.context.forceGstOnPartsForNonGst;
 export const selectIsGstRegistered       = (state: ContextRootState) => state.context.isGstRegistered;
 export const selectIsGstMode             = (state: ContextRootState): boolean =>
