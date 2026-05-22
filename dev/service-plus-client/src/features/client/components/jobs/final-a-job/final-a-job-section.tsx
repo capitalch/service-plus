@@ -314,15 +314,17 @@ function scaleCharges(
         const qty        = parseFloat(c.quantity) || 1;
         const gstRate    = isGst ? (parseFloat(c.gst_rate) || 0) : 0;
         const multiplier = 1 + gstRate / 100;
-        let sp: number;
         if (i < active.length - 1) {
-            const spg = rowAmounts[i] / qty;
-            sp        = parseFloat((gstRate > 0 ? spg / multiplier : spg).toFixed(2));
-            runningTotal += sp * qty * multiplier;
+            const spg     = rowAmounts[i] / qty;
+            const sp      = parseFloat((gstRate > 0 ? spg / multiplier : spg).toFixed(2));
+            const saleGst = parseFloat((sp * multiplier).toFixed(2));
+            runningTotal += saleGst * qty;
+            patch.set(c._key, { selling_price: sp.toFixed(2), sale_pr_gst: saleGst.toFixed(2) });
         } else {
-            sp = parseFloat(((newTotal - runningTotal) / (qty * multiplier)).toFixed(2));
+            const saleGstPerUnit = parseFloat(((newTotal - runningTotal) / qty).toFixed(2));
+            const sp = parseFloat((gstRate > 0 ? saleGstPerUnit / multiplier : saleGstPerUnit).toFixed(2));
+            patch.set(c._key, { selling_price: sp.toFixed(2), sale_pr_gst: saleGstPerUnit.toFixed(2) });
         }
-        patch.set(c._key, { selling_price: sp.toFixed(2), sale_pr_gst: (sp * multiplier).toFixed(2) });
     });
     return allCharges.map(c => { const p = patch.get(c._key); return p ? { ...c, ...p } : c; });
 }
@@ -346,17 +348,19 @@ function scaleParts(
         const gstRate    = parseFloat(l.gst_rate) || 0;
         const multiplier = 1 + gstRate / 100;
         const costPrice  = parseFloat(l.cost_price) || 0;
-        let finalSp: number;
         if (i < active.length - 1) {
-            const spg = rowAmounts[i] / l.quantity;
-            const sp  = gstRate > 0 ? spg / multiplier : spg;
-            finalSp   = parseFloat(Math.max(sp, costPrice).toFixed(2));
-            runningTotal += finalSp * l.quantity * multiplier;
+            const spg     = rowAmounts[i] / l.quantity;
+            const sp      = gstRate > 0 ? spg / multiplier : spg;
+            const finalSp = parseFloat(Math.max(sp, costPrice).toFixed(2));
+            const saleGst = parseFloat((finalSp * multiplier).toFixed(2));
+            runningTotal += saleGst * l.quantity;
+            patch.set(l._key, { selling_price: finalSp.toFixed(2), sale_pr_gst: saleGst.toFixed(2) });
         } else {
-            const sp = (newTotal - runningTotal) / (l.quantity * multiplier);
-            finalSp  = parseFloat(Math.max(sp, costPrice).toFixed(2));
+            const saleGstPerUnit = parseFloat(((newTotal - runningTotal) / l.quantity).toFixed(2));
+            const sp      = gstRate > 0 ? saleGstPerUnit / multiplier : saleGstPerUnit;
+            const finalSp = parseFloat(Math.max(sp, costPrice).toFixed(2));
+            patch.set(l._key, { selling_price: finalSp.toFixed(2), sale_pr_gst: saleGstPerUnit.toFixed(2) });
         }
-        patch.set(l._key, { selling_price: finalSp.toFixed(2), sale_pr_gst: (finalSp * multiplier).toFixed(2) });
     });
     return allParts.map(l => { const p = patch.get(l._key); return p ? { ...l, ...p } : l; });
 }
@@ -367,14 +371,8 @@ function computeBackCalc(
     chargeLines: EditableChargeLine[],
     isGst: boolean,
 ): { newPartLines?: EditablePartLine[]; newChargeLines?: EditableChargeLine[] } {
-    const partsTotal = partLines.reduce((s, l) => {
-        const agg = (parseFloat(l.selling_price) || 0) * l.quantity;
-        return s + agg * (1 + (parseFloat(l.gst_rate) || 0) / 100);
-    }, 0);
-    const chargesTotal = chargeLines.reduce((s, c) => {
-        const sp = (parseFloat(c.selling_price) || 0) * (parseFloat(c.quantity) || 1);
-        return s + sp + (isGst ? sp * (parseFloat(c.gst_rate) || 0) / 100 : 0);
-    }, 0);
+    const partsTotal   = partLines.reduce((s, l) => s + (parseFloat(l.sale_pr_gst) || 0) * l.quantity, 0);
+    const chargesTotal = chargeLines.reduce((s, c) => s + (parseFloat(c.sale_pr_gst) || 0) * (parseFloat(c.quantity) || 1), 0);
     const diff = target - partsTotal - chargesTotal;
     if (Math.abs(diff) < 0.005) return {};
 
@@ -391,8 +389,7 @@ function computeBackCalc(
             newPartLines = scaleParts(partLines, activeParts, curPartsAmt, curPartsAmt + diff);
             const actualNewPartsTotal = newPartLines.reduce((s, l) => {
                 if (l.part_id === null) return s;
-                const agg = (parseFloat(l.selling_price) || 0) * l.quantity;
-                return s + agg * (1 + (parseFloat(l.gst_rate) || 0) / 100);
+                return s + (parseFloat(l.sale_pr_gst) || 0) * l.quantity;
             }, 0);
             remainingDiff = target - actualNewPartsTotal - chargesTotal;
             if (Math.abs(remainingDiff) < 0.005) return { newPartLines };
@@ -403,10 +400,7 @@ function computeBackCalc(
     const activeCharges = chargeLines.filter(c => c.charge_name.trim() !== "");
     if (activeCharges.length === 0) return { newPartLines };
 
-    const curChargesAmt = activeCharges.reduce((s, c) => {
-        const sp = (parseFloat(c.selling_price) || 0) * (parseFloat(c.quantity) || 1);
-        return s + sp + (isGst ? sp * (parseFloat(c.gst_rate) || 0) / 100 : 0);
-    }, 0);
+    const curChargesAmt = activeCharges.reduce((s, c) => s + (parseFloat(c.sale_pr_gst) || 0) * (parseFloat(c.quantity) || 1), 0);
     const newChargesAmt = curChargesAmt + remainingDiff;
 
     if (newChargesAmt >= 0) {
@@ -869,7 +863,7 @@ export const FinalAJobSection = () => {
     if (subView === "final" && selectedJob && selectedRow) {
         const isWarranty = selectedRow.job_type_code === "UNDER_WARRANTY";
 
-        const partsTotal = partLines.reduce((sum, l) => { const agg = (parseFloat(l.selling_price) || 0) * l.quantity; return sum + agg * (1 + (parseFloat(l.gst_rate) || 0) / 100); }, 0);
+        const partsTotal = partLines.reduce((sum, l) => sum + (parseFloat(l.sale_pr_gst) || 0) * l.quantity, 0);
         const profitTotal = partLines.reduce((sum, l) => sum + ((parseFloat(l.selling_price) || 0) - (parseFloat(l.cost_price) || 0)) * l.quantity, 0);
         const partsQtyTotal = partLines.reduce((sum, l) => sum + l.quantity, 0);
         const partsGstTotal = isGst ? partLines.reduce((sum, l) => { const agg = (parseFloat(l.selling_price) || 0) * l.quantity; return sum + agg * (parseFloat(l.gst_rate) || 0) / 100; }, 0) : 0;
@@ -883,7 +877,7 @@ export const FinalAJobSection = () => {
             const gst = sp * (parseFloat(c.gst_rate) || 0) / 100;
             return sum + gst;
         }, 0) : 0;
-        const chargesAmountTotal = chargesSaleTotal + chargesGstTotal;
+        const chargesAmountTotal = chargeLines.reduce((sum, c) => sum + (parseFloat(c.sale_pr_gst) || 0) * (parseFloat(c.quantity) || 1), 0);
         const chargesCgstTotal = forceIgst ? 0 : chargesGstTotal / 2;
         const chargesSgstTotal = forceIgst ? 0 : chargesGstTotal / 2;
         const chargesIgstTotal = forceIgst ? chargesGstTotal : 0;
