@@ -120,7 +120,7 @@ function ChargeNameCombobox({ value, options, disabled, onChange, onSelect }: {
         <>
             <div className="relative inline-flex items-center">
                 <Input
-                    className="h-7 w-52 border-[var(--cl-border)] bg-white text-xs pr-6"
+                    className="h-7 w-52 border-(--cl-border) bg-white text-xs pr-6"
                     disabled={disabled}
                     placeholder="Charge name"
                     ref={inputRef}
@@ -139,7 +139,7 @@ function ChargeNameCombobox({ value, options, disabled, onChange, onSelect }: {
             {open && filtered.length > 0 && createPortal(
                 <div
                     ref={dropdownRef}
-                    className="fixed z-[9999] max-h-48 overflow-y-auto rounded-lg border border-[var(--cl-border)] bg-white shadow-xl"
+                    className="fixed z-9999 max-h-48 overflow-y-auto rounded-lg border border-(--cl-border) bg-white shadow-xl"
                     style={{ top: dropPos.top, left: dropPos.left, minWidth: Math.max(dropPos.width, 220) }}
                     onMouseDown={e => e.preventDefault()}
                 >
@@ -151,7 +151,7 @@ function ChargeNameCombobox({ value, options, disabled, onChange, onSelect }: {
                             onClick={() => { onSelect(o.name, o.hsn_code ?? ""); setOpen(false); }}
                         >
                             <span className="font-medium">{o.name}</span>
-                            {o.hsn_code && <span className="ml-auto font-mono text-[10px] text-[var(--cl-text-muted)]">{o.hsn_code}</span>}
+                            {o.hsn_code && <span className="ml-auto font-mono text-[10px] text-(--cl-text-muted)">{o.hsn_code}</span>}
                         </button>
                     ))}
                 </div>,
@@ -204,7 +204,7 @@ function ChangeDivisionModal({ open, currentDivisionId, divisions, onApply, onCl
                         value={pending ? String(pending) : ""}
                         onValueChange={v => setPending(Number(v))}
                     >
-                        <SelectTrigger className="w-full text-sm border-[var(--cl-border)] bg-white">
+                        <SelectTrigger className="w-full text-sm border-(--cl-border) bg-white">
                             <SelectValue placeholder="Select division" />
                         </SelectTrigger>
                         <SelectContent>
@@ -236,8 +236,8 @@ function fmtCurrency(n: number): string {
 const PAGE_SIZE = 50;
 const DEBOUNCE_MS = 1600;
 
-const thClass = "sticky top-0 z-20 text-xs font-semibold uppercase tracking-wide text-[var(--cl-text-muted)] px-1.5 py-1.5 text-left border-b border-[var(--cl-border)] bg-[var(--cl-surface-2)]";
-const tdClass = "px-1.5 py-1 text-sm text-[var(--cl-text)] border-b border-[var(--cl-border)]";
+const thClass = "sticky top-0 z-20 text-xs font-semibold uppercase tracking-wide text-(--cl-text-muted) px-1.5 py-1.5 text-left border-b border-(--cl-border) bg-(--cl-surface-2)";
+const tdClass = "px-1.5 py-1 text-sm text-(--cl-text) border-b border-(--cl-border)";
 
 
 function emptyPartLine(gstRate = 0, hsn = ""): EditablePartLine {
@@ -870,7 +870,7 @@ export const FinalAJobSection = () => {
         const partsCgstTotal = forceIgst ? 0 : partsGstTotal / 2;
         const partsSgstTotal = forceIgst ? 0 : partsGstTotal / 2;
         const partsIgstTotal = forceIgst ? partsGstTotal : 0;
-        const chargesCostTotal = chargeLines.reduce((sum, c) => sum + (parseFloat(c.cost_price) || 0) * (parseFloat(c.quantity) || 1), 0);
+        // const chargesCostTotal = chargeLines.reduce((sum, c) => sum + (parseFloat(c.cost_price) || 0) * (parseFloat(c.quantity) || 1), 0);
         const chargesSaleTotal = chargeLines.reduce((sum, c) => sum + (parseFloat(c.selling_price) || 0) * (parseFloat(c.quantity) || 1), 0);
         const chargesGstTotal = isGst ? chargeLines.reduce((sum, c) => {
             const sp = (parseFloat(c.selling_price) || 0) * (parseFloat(c.quantity) || 1);
@@ -899,9 +899,9 @@ export const FinalAJobSection = () => {
                     transition={{ duration: 0.2 }}
                 >
                     {/* Header */}
-                    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-[var(--cl-border)] bg-[var(--cl-surface)] py-2">
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-(--cl-border) bg-(--cl-surface) py-2">
                         <Button
-                            className="h-8 gap-1.5 font-semibold text-[var(--cl-accent)] border border-[var(--cl-accent)] hover:bg-[var(--cl-accent)] hover:text-white transition-colors"
+                            className="h-8 gap-1.5 font-semibold text-(--cl-accent) border border-(--cl-accent) hover:bg-(--cl-accent) hover:text-white transition-colors"
                             disabled={submitting}
                             size="sm"
                             variant="outline"
@@ -911,16 +911,16 @@ export const FinalAJobSection = () => {
                             Back
                         </Button>
                         <div className="flex items-baseline gap-2">
-                            <span className="font-mono font-bold text-[var(--cl-accent)] text-sm">#{selectedJob.job_no}</span>
-                            <span className="text-sm font-medium text-[var(--cl-text)]">{selectedJob.customer_name}</span>
+                            <span className="font-mono font-bold text-(--cl-accent) text-sm">#{selectedJob.job_no}</span>
+                            <span className="text-sm font-medium text-(--cl-text)">{selectedJob.customer_name}</span>
                         </div>
                         <div className="flex-1" />
                         {/* Division display + change button + refresh */}
                         <div className="flex items-center gap-2">
                             <div className="flex items-center gap-2 leading-none">
-                                <span className="text-[10px] uppercase tracking-wider text-[var(--cl-text-muted)]">Division</span>
-                                <span className="text-xs font-semibold text-[var(--cl-text)]">
-                                    {division?.name ?? <span className="italic text-[var(--cl-text-muted)]">No division</span>}
+                                <span className="text-[10px] uppercase tracking-wider text-(--cl-text-muted)">Division</span>
+                                <span className="text-xs font-semibold text-(--cl-text)">
+                                    {division?.name ?? <span className="italic text-(--cl-text-muted)">No division</span>}
                                 </span>
                             </div>
                             <Button
@@ -932,7 +932,7 @@ export const FinalAJobSection = () => {
                                 Change Division
                             </Button>
                             <Button
-                                className="h-7 w-7 p-0 text-[var(--cl-text-muted)] hover:text-[var(--cl-accent)]"
+                                className="h-7 w-7 p-0 text-(--cl-text-muted) hover:text-(--cl-accent)"
                                 disabled={loadingDetail || submitting}
                                 size="icon"
                                 title="Refresh"
@@ -979,12 +979,12 @@ export const FinalAJobSection = () => {
                         )}
 
                         {/* Job Summary */}
-                        <div className="rounded-lg border border-[var(--cl-border)] bg-[var(--cl-surface-2)] px-4 py-4">
+                        <div className="rounded-lg border border-(--cl-border) bg-(--cl-surface-2) px-4 py-4">
                             <div className="mb-3 flex items-center gap-2">
-                                <p className="text-[10px] font-semibold uppercase tracking-widest text-[var(--cl-text-muted)]">Job Summary</p>
+                                <p className="text-[10px] font-semibold uppercase tracking-widest text-(--cl-text-muted)">Job Summary</p>
                                 <button
                                     type="button"
-                                    className="flex items-center gap-1 text-[10px] font-medium text-[var(--cl-accent)] hover:underline cursor-pointer"
+                                    className="flex items-center gap-1 text-[10px] font-medium text-(--cl-accent) hover:underline cursor-pointer"
                                     onClick={() => setViewJobId(selectedJob.id)}
                                 >
                                     <Eye className="h-3 w-3" />
@@ -1003,26 +1003,26 @@ export const FinalAJobSection = () => {
                                     ["Amount / Estimate", `${selectedJob.amount != null ? `₹${Number(selectedJob.amount).toFixed(2)}` : "—"}  ·  Est: ${selectedJob.estimate_amount != null ? `₹${Number(selectedJob.estimate_amount).toFixed(2)}` : "—"}`],
                                 ] as [string, string][]).map(([lbl, val]) => (
                                     <div key={lbl}>
-                                        <p className="text-[10px] uppercase tracking-wider text-[var(--cl-text-muted)]">{lbl}</p>
-                                        <p className="text-sm font-medium text-[var(--cl-text)]">{val}</p>
+                                        <p className="text-[10px] uppercase tracking-wider text-(--cl-text-muted)">{lbl}</p>
+                                        <p className="text-sm font-medium text-(--cl-text)">{val}</p>
                                     </div>
                                 ))}
                             </div>
                         </div>
 
                         {/* Parts Used — unified editable table */}
-                        <div className="rounded-lg border border-[var(--cl-border)] bg-[var(--cl-surface)] overflow-hidden">
-                            <div className="px-4 py-2.5 border-b border-[var(--cl-border)] bg-[var(--cl-surface-2)]/60 flex items-center justify-between">
-                                <p className="text-xs font-bold uppercase tracking-wider text-[var(--cl-text-muted)]">Parts Used</p>
+                        <div className="rounded-lg border border-(--cl-border) bg-(--cl-surface) overflow-hidden">
+                            <div className="px-4 py-2.5 border-b border-(--cl-border) bg-(--cl-surface-2)/60 flex items-center justify-between">
+                                <p className="text-xs font-bold uppercase tracking-wider text-(--cl-text-muted)">Parts Used</p>
                                 {isGst && (
                                     <label className="flex items-center gap-1.5 cursor-pointer select-none">
                                         <input
                                             type="checkbox"
                                             checked={forceIgst}
-                                            className="h-3.5 w-3.5 accent-[var(--cl-accent)] cursor-pointer"
+                                            className="h-3.5 w-3.5 accent-(--cl-accent) cursor-pointer"
                                             onChange={e => setForceIgst(e.target.checked)}
                                         />
-                                        <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--cl-text-muted)]">Force IGST</span>
+                                        <span className="text-[10px] font-semibold uppercase tracking-wide text-(--cl-text-muted)">Force IGST</span>
                                     </label>
                                 )}
                             </div>
@@ -1044,26 +1044,26 @@ export const FinalAJobSection = () => {
                                         const aggregate = (parseFloat(line.selling_price) || 0) * line.quantity;
                                         const gstRate = parseFloat(line.gst_rate) || 0;
                                         const amount = aggregate * (1 + gstRate / 100);
-                                        const gstAmt = aggregate * gstRate / 100;
-                                        const cgst = forceIgst ? 0 : gstAmt / 2;
-                                        const sgst = forceIgst ? 0 : gstAmt / 2;
-                                        const igst = forceIgst ? gstAmt : 0;
+                                        // const gstAmt = aggregate * gstRate / 100;
+                                        // const cgst = forceIgst ? 0 : gstAmt / 2;
+                                        // const sgst = forceIgst ? 0 : gstAmt / 2;
+                                        // const igst = forceIgst ? gstAmt : 0;
                                         const profit = ((parseFloat(line.selling_price) || 0) - (parseFloat(line.cost_price) || 0)) * line.quantity;
                                         return (
-                                            <div key={line._key} className="px-1 py-3 space-y-2.5 bg-[var(--cl-surface)] hover:bg-[var(--cl-surface-2)]/50 transition-colors">
+                                            <div key={line._key} className="px-1 py-3 space-y-2.5 bg-(--cl-surface) hover:bg-(--cl-surface-2)/50 transition-colors">
                                                 {/* ── Identity row ── */}
                                                 <div className="flex flex-wrap items-center gap-2">
-                                                    <span className="w-5 shrink-0 text-center text-xs font-semibold text-[var(--cl-text-muted)]">{idx + 1}</span>
+                                                    <span className="w-5 shrink-0 text-center text-xs font-semibold text-(--cl-text-muted)">{idx + 1}</span>
                                                     {/* Brand */}
                                                     <div className="w-36 shrink-0">
                                                         {isWarranty ? (
-                                                            <span className="text-xs text-[var(--cl-text-muted)]">{brands.find(b => b.id === line.brand_id)?.name ?? "—"}</span>
+                                                            <span className="text-xs text-(--cl-text-muted)">{brands.find(b => b.id === line.brand_id)?.name ?? "—"}</span>
                                                         ) : (
                                                             <Select
                                                                 value={line.brand_id ? String(line.brand_id) : ""}
                                                                 onValueChange={v => updatePartLine(line._key, { brand_id: Number(v), part_id: null, part_code: "", part_name: "" })}
                                                             >
-                                                                <SelectTrigger className="h-7 text-xs bg-transparent border-[var(--cl-border)]">
+                                                                <SelectTrigger className="h-7 text-xs bg-transparent border-(--cl-border)">
                                                                     <SelectValue placeholder="Brand" />
                                                                 </SelectTrigger>
                                                                 <SelectContent>
@@ -1077,7 +1077,7 @@ export const FinalAJobSection = () => {
                                                     {/* Part Code */}
                                                     <div className="w-56 shrink-0">
                                                         {isWarranty ? (
-                                                            <span className="font-mono text-xs font-semibold text-[var(--cl-accent)]">{line.part_code || "—"}</span>
+                                                            <span className="font-mono text-xs font-semibold text-(--cl-accent)">{line.part_code || "—"}</span>
                                                         ) : (
                                                             <PartCodeInput
                                                                 brandId={line.brand_id}
@@ -1102,7 +1102,7 @@ export const FinalAJobSection = () => {
                                                     {/* Part Name */}
                                                     <div className="min-w-[140px] flex-1">
                                                         <Input
-                                                            className="h-7 border-[var(--cl-border)] bg-white text-xs"
+                                                            className="h-7 border-(--cl-border) bg-white text-xs"
                                                             disabled={isWarranty}
                                                             placeholder="Part name"
                                                             value={line.part_name}
@@ -1112,9 +1112,9 @@ export const FinalAJobSection = () => {
                                                     {/* HSN — only for GST invoices */}
                                                     {isGst && (
                                                         <div className="relative w-28 shrink-0">
-                                                            <span className="absolute -top-3 left-0 text-[10px] text-[var(--cl-text-muted)] leading-none pointer-events-none">HSN</span>
+                                                            <span className="absolute -top-3 left-0 text-[10px] text-(--cl-text-muted) leading-none pointer-events-none">HSN</span>
                                                             <Input
-                                                                className={`h-7 font-mono border-[var(--cl-border)] bg-white text-xs ${!isWarranty && !line.hsn_code.trim() ? "border-red-400 focus:border-red-500" : ""}`}
+                                                                className={`h-7 font-mono border-(--cl-border) bg-white text-xs ${!isWarranty && !line.hsn_code.trim() ? "border-red-400 focus:border-red-500" : ""}`}
                                                                 disabled={isWarranty}
                                                                 maxLength={8}
                                                                 placeholder="HSN"
@@ -1126,7 +1126,7 @@ export const FinalAJobSection = () => {
                                                     {/* Remarks */}
                                                     <div className="min-w-[120px] flex-1">
                                                         <Input
-                                                            className="h-7 border-[var(--cl-border)] bg-white text-xs"
+                                                            className="h-7 border-(--cl-border) bg-white text-xs"
                                                             disabled={isWarranty}
                                                             placeholder="Remarks…"
                                                             value={line.remarks}
@@ -1145,7 +1145,7 @@ export const FinalAJobSection = () => {
                                                                 <Plus className="h-4.5 w-4.5" />
                                                             </Button>
                                                             <Button
-                                                                className="h-6 w-6 p-0 text-[var(--cl-text-muted)] hover:text-red-500 hover:bg-red-500/10"
+                                                                className="h-6 w-6 p-0 text-(--cl-text-muted) hover:text-red-500 hover:bg-red-500/10"
                                                                 size="icon"
                                                                 title="Remove part"
                                                                 variant="ghost"
@@ -1160,7 +1160,7 @@ export const FinalAJobSection = () => {
                                                 <div className="flex flex-wrap items-center gap-x-3 gap-y-2 pl-7">
                                                     {/* Profit — extreme left */}
                                                     <div className="flex items-center gap-1">
-                                                        <span className="text-[10px] text-[var(--cl-text-muted)]">Profit</span>
+                                                        <span className="text-[10px] text-(--cl-text-muted)">Profit</span>
                                                         <span className={`tabular-nums text-sm font-semibold ${profit < 0 ? "text-red-600" : "text-emerald-600"}`}>
                                                             {profit < 0 ? "-" : ""}₹{fmtCurrency(Math.abs(profit))}
                                                         </span>
@@ -1168,9 +1168,9 @@ export const FinalAJobSection = () => {
                                                     {/* Inputs + Amt — pushed to the right */}
                                                     <div className="ml-auto flex flex-wrap items-center gap-x-3 gap-y-2">
                                                         <div className="flex items-center gap-1.5">
-                                                            <span className="text-[10px] font-medium uppercase tracking-wide text-[var(--cl-text-muted)] whitespace-nowrap">GST%</span>
+                                                            <span className="text-[10px] font-medium uppercase tracking-wide text-(--cl-text-muted) whitespace-nowrap">GST%</span>
                                                             <Input
-                                                                className="h-6 w-14 border-[var(--cl-border)] bg-white text-xs text-right"
+                                                                className="h-6 w-14 border-(--cl-border) bg-white text-xs text-right"
                                                                 disabled={isWarranty}
                                                                 min="0" step="0.01" type="number"
                                                                 value={line.gst_rate}
@@ -1181,9 +1181,9 @@ export const FinalAJobSection = () => {
                                                             />
                                                         </div>
                                                         <div className="flex items-center gap-1.5">
-                                                            <span className="text-[10px] font-medium uppercase tracking-wide text-[var(--cl-text-muted)] whitespace-nowrap">Qty</span>
+                                                            <span className="text-[10px] font-medium uppercase tracking-wide text-(--cl-text-muted) whitespace-nowrap">Qty</span>
                                                             <Input
-                                                                className={`h-6 w-16 border-[var(--cl-border)] bg-white text-xs text-right ${line.quantity <= 0 ? "border-red-500" : ""}`}
+                                                                className={`h-6 w-16 border-(--cl-border) bg-white text-xs text-right ${line.quantity <= 0 ? "border-red-500" : ""}`}
                                                                 disabled={isWarranty}
                                                                 min={0.01} step="0.01" type="number"
                                                                 value={line.quantity}
@@ -1192,9 +1192,9 @@ export const FinalAJobSection = () => {
                                                             />
                                                         </div>
                                                         <div className="flex items-center gap-1.5">
-                                                            <span className="text-[10px] font-medium uppercase tracking-wide text-[var(--cl-text-muted)] whitespace-nowrap">Cost</span>
+                                                            <span className="text-[10px] font-medium uppercase tracking-wide text-(--cl-text-muted) whitespace-nowrap">Cost</span>
                                                             <Input
-                                                                className="h-6 w-24 border-[var(--cl-border)] bg-white text-xs text-right"
+                                                                className="h-6 w-24 border-(--cl-border) bg-white text-xs text-right"
                                                                 disabled={isWarranty}
                                                                 min="0" step="0.01" type="number"
                                                                 value={line.cost_price}
@@ -1203,9 +1203,9 @@ export const FinalAJobSection = () => {
                                                             />
                                                         </div>
                                                         <div className="flex items-center gap-1.5">
-                                                            <span className="text-[10px] font-medium uppercase tracking-wide text-[var(--cl-text-muted)] whitespace-nowrap">Sale</span>
+                                                            <span className="text-[10px] font-medium uppercase tracking-wide text-(--cl-text-muted) whitespace-nowrap">Sale</span>
                                                             <Input
-                                                                className="h-6 w-24 border-[var(--cl-border)] bg-white text-xs text-right"
+                                                                className="h-6 w-24 border-(--cl-border) bg-white text-xs text-right"
                                                                 disabled={isWarranty}
                                                                 min="0" step="0.01" type="number"
                                                                 value={line.selling_price}
@@ -1216,9 +1216,9 @@ export const FinalAJobSection = () => {
                                                             />
                                                         </div>
                                                         <div className="flex items-center gap-1.5">
-                                                            <span className="text-[10px] font-medium uppercase tracking-wide text-[var(--cl-text-muted)] whitespace-nowrap">+GST</span>
+                                                            <span className="text-[10px] font-medium uppercase tracking-wide text-(--cl-text-muted) whitespace-nowrap">+GST</span>
                                                             <Input
-                                                                className="h-6 w-24 border-[var(--cl-border)] bg-white text-xs text-right"
+                                                                className="h-6 w-24 border-(--cl-border) bg-white text-xs text-right"
                                                                 disabled={isWarranty}
                                                                 min="0" step="0.01" type="number"
                                                                 value={line.sale_pr_gst}
@@ -1231,9 +1231,9 @@ export const FinalAJobSection = () => {
                                                                 onFocus={e => e.target.select()}
                                                             />
                                                         </div>
-                                                        <div className="flex items-center gap-1 rounded bg-[var(--cl-surface-2)] px-2 py-0.5">
-                                                            <span className="text-[10px] text-[var(--cl-text-muted)]">Amt</span>
-                                                            <span className="tabular-nums text-sm text-[var(--cl-text)]">₹{fmtCurrency(amount)}</span>
+                                                        <div className="flex items-center gap-1 rounded bg-(--cl-surface-2) px-2 py-0.5">
+                                                            <span className="text-[10px] text-(--cl-text-muted)">Amt</span>
+                                                            <span className="tabular-nums text-sm text-(--cl-text)">₹{fmtCurrency(amount)}</span>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -1248,48 +1248,48 @@ export const FinalAJobSection = () => {
                                 </p>
                             )}
                             {partLines.length > 0 && (
-                                <div className="flex items-center justify-between gap-6 px-2 py-2.5 border-t-2 border-[var(--cl-border)] bg-[var(--cl-surface-2)]/60">
+                                <div className="flex items-center justify-between gap-6 px-2 py-2.5 border-t-2 border-(--cl-border) bg-(--cl-surface-2)/60">
                                     <div className="flex items-center gap-4">
                                         <div className="flex items-center gap-1.5">
-                                            <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--cl-text-muted)]">Profit</span>
+                                            <span className="text-[10px] font-semibold uppercase tracking-wide text-(--cl-text-muted)">Profit</span>
                                             <span className={`tabular-nums text-sm font-semibold ${profitTotal < 0 ? "text-red-600" : "text-emerald-600"}`}>
                                                 {profitTotal < 0 ? "-" : ""}₹{fmtCurrency(Math.abs(profitTotal))}
                                             </span>
                                         </div>
                                         <div className="flex items-center gap-1.5">
-                                            <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--cl-text-muted)]">Qty</span>
-                                            <span className="tabular-nums text-sm font-semibold text-[var(--cl-text)]">{fmtCurrency(partsQtyTotal)}</span>
+                                            <span className="text-[10px] font-semibold uppercase tracking-wide text-(--cl-text-muted)">Qty</span>
+                                            <span className="tabular-nums text-sm font-semibold text-(--cl-text)">{fmtCurrency(partsQtyTotal)}</span>
                                         </div>
                                         {isGst && (
                                             <>
                                                 <div className="flex items-center gap-1.5">
-                                                    <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--cl-text-muted)]">CGST</span>
-                                                    <span className="tabular-nums text-sm font-semibold text-[var(--cl-text)]">₹{fmtCurrency(partsCgstTotal)}</span>
+                                                    <span className="text-[10px] font-semibold uppercase tracking-wide text-(--cl-text-muted)">CGST</span>
+                                                    <span className="tabular-nums text-sm font-semibold text-(--cl-text)">₹{fmtCurrency(partsCgstTotal)}</span>
                                                 </div>
                                                 <div className="flex items-center gap-1.5">
-                                                    <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--cl-text-muted)]">SGST</span>
-                                                    <span className="tabular-nums text-sm font-semibold text-[var(--cl-text)]">₹{fmtCurrency(partsSgstTotal)}</span>
+                                                    <span className="text-[10px] font-semibold uppercase tracking-wide text-(--cl-text-muted)">SGST</span>
+                                                    <span className="tabular-nums text-sm font-semibold text-(--cl-text)">₹{fmtCurrency(partsSgstTotal)}</span>
                                                 </div>
                                                 <div className="flex items-center gap-1.5">
-                                                    <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--cl-text-muted)]">IGST</span>
-                                                    <span className="tabular-nums text-sm font-semibold text-[var(--cl-text)]">₹{fmtCurrency(partsIgstTotal)}</span>
+                                                    <span className="text-[10px] font-semibold uppercase tracking-wide text-(--cl-text-muted)">IGST</span>
+                                                    <span className="tabular-nums text-sm font-semibold text-(--cl-text)">₹{fmtCurrency(partsIgstTotal)}</span>
                                                 </div>
                                             </>
                                         )}
 
                                     </div>
                                     <div className="flex items-center gap-1.5">
-                                        <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--cl-text-muted)]">Parts Total</span>
-                                        <span className="tabular-nums text-base font-bold text-[var(--cl-text)]">₹{fmtCurrency(partsTotal)}</span>
+                                        <span className="text-[10px] font-semibold uppercase tracking-wide text-(--cl-text-muted)">Parts Total</span>
+                                        <span className="tabular-nums text-base font-bold text-(--cl-text)">₹{fmtCurrency(partsTotal)}</span>
                                     </div>
                                 </div>
                             )}
                         </div>
 
                         {/* Additional Charges */}
-                        <div className="rounded-lg border border-[var(--cl-border)] bg-[var(--cl-surface)] overflow-hidden">
-                            <div className="px-4 py-2.5 border-b border-[var(--cl-border)] bg-[var(--cl-surface-2)]/60">
-                                <p className="text-xs font-bold uppercase tracking-wider text-[var(--cl-text-muted)]">Additional Charges</p>
+                        <div className="rounded-lg border border-(--cl-border) bg-(--cl-surface) overflow-hidden">
+                            <div className="px-4 py-2.5 border-b border-(--cl-border) bg-(--cl-surface-2)/60">
+                                <p className="text-xs font-bold uppercase tracking-wider text-(--cl-text-muted)">Additional Charges</p>
                             </div>
                             {!isWarranty && chargeLines.length === 0 && (
                                 <div className="flex items-center justify-center py-6">
@@ -1325,7 +1325,7 @@ export const FinalAJobSection = () => {
                                         <tbody>
                                             {chargeLines.map((c, idx) => (
                                                 <tr key={c._key} className="group">
-                                                    <td className={`${tdClass} text-[var(--cl-text-muted)]`}>{idx + 1}</td>
+                                                    <td className={`${tdClass} text-(--cl-text-muted)`}>{idx + 1}</td>
                                                     <td className={tdClass}>
                                                         <ChargeNameCombobox
                                                             value={c.charge_name}
@@ -1337,7 +1337,7 @@ export const FinalAJobSection = () => {
                                                     </td>
                                                     <td className={tdClass}>
                                                         <Input
-                                                            className="h-7 w-20 border-[var(--cl-border)] bg-white text-xs"
+                                                            className="h-7 w-20 border-(--cl-border) bg-white text-xs"
                                                             disabled={isWarranty}
                                                             placeholder="Ref no"
                                                             value={c.ref_no}
@@ -1346,7 +1346,7 @@ export const FinalAJobSection = () => {
                                                     </td>
                                                     <td className={tdClass}>
                                                         <Input
-                                                            className="h-7 min-w-[80px] border-[var(--cl-border)] bg-white text-xs"
+                                                            className="h-7 min-w-[80px] border-(--cl-border) bg-white text-xs"
                                                             disabled={isWarranty}
                                                             placeholder="Description"
                                                             value={c.description}
@@ -1356,7 +1356,7 @@ export const FinalAJobSection = () => {
                                                     {isGst && (
                                                         <td className={tdClass}>
                                                             <Input
-                                                                className={`h-7 w-24 font-mono border-[var(--cl-border)] bg-white text-xs ${!isWarranty && !c.hsn_code.trim() ? "border-red-400 focus:border-red-500" : ""}`}
+                                                                className={`h-7 w-24 font-mono border-(--cl-border) bg-white text-xs ${!isWarranty && !c.hsn_code.trim() ? "border-red-400 focus:border-red-500" : ""}`}
                                                                 disabled={isWarranty}
                                                                 maxLength={8}
                                                                 placeholder="HSN"
@@ -1369,7 +1369,7 @@ export const FinalAJobSection = () => {
                                                         <td className={`${tdClass} text-right`}>
                                                             <div className="flex justify-end">
                                                                 <Input
-                                                                    className="h-7 w-16 border-[var(--cl-border)] bg-white text-xs text-right"
+                                                                    className="h-7 w-16 border-(--cl-border) bg-white text-xs text-right"
                                                                     disabled={isWarranty}
                                                                     min="0" step="0.01" type="number"
                                                                     value={c.gst_rate}
@@ -1388,7 +1388,7 @@ export const FinalAJobSection = () => {
                                                     <td className={`${tdClass} text-right`}>
                                                         <div className="flex justify-end">
                                                             <Input
-                                                                className={`h-7 w-12 border-[var(--cl-border)] bg-white text-xs text-right ${(parseFloat(c.quantity) || 0) <= 0 ? "border-red-500" : ""}`}
+                                                                className={`h-7 w-12 border-(--cl-border) bg-white text-xs text-right ${(parseFloat(c.quantity) || 0) <= 0 ? "border-red-500" : ""}`}
                                                                 disabled={isWarranty}
                                                                 min="0.01" step="0.01" type="number"
                                                                 value={c.quantity}
@@ -1400,7 +1400,7 @@ export const FinalAJobSection = () => {
                                                     <td className={`${tdClass} text-right`}>
                                                         <div className="flex justify-end">
                                                             <Input
-                                                                className="h-7 w-24 border-[var(--cl-border)] bg-white text-xs text-right"
+                                                                className="h-7 w-24 border-(--cl-border) bg-white text-xs text-right"
                                                                 disabled={isWarranty}
                                                                 min="0" step="0.01" type="number"
                                                                 value={c.cost_price}
@@ -1412,7 +1412,7 @@ export const FinalAJobSection = () => {
                                                     <td className={`${tdClass} text-right`}>
                                                         <div className="flex justify-end">
                                                             <Input
-                                                                className="h-7 w-24 border-[var(--cl-border)] bg-white text-xs text-right"
+                                                                className="h-7 w-24 border-(--cl-border) bg-white text-xs text-right"
                                                                 disabled={isWarranty}
                                                                 min="0" step="0.01" type="number"
                                                                 value={c.selling_price}
@@ -1431,7 +1431,7 @@ export const FinalAJobSection = () => {
                                                         <td className={`${tdClass} text-right`}>
                                                             <div className="flex justify-end">
                                                                 <Input
-                                                                    className="h-7 w-24 border-[var(--cl-border)] bg-white text-xs text-right"
+                                                                    className="h-7 w-24 border-(--cl-border) bg-white text-xs text-right"
                                                                     disabled={isWarranty}
                                                                     min="0" step="0.01" type="number"
                                                                     value={c.sale_pr_gst}
@@ -1448,7 +1448,7 @@ export const FinalAJobSection = () => {
                                                         </td>
                                                     )}
 
-                                                    <td className={`${tdClass} text-right tabular-nums text-sm text-[var(--cl-accent)] w-32`}>
+                                                    <td className={`${tdClass} text-right tabular-nums text-sm text-(--cl-accent) w-32`}>
                                                         ₹{fmtCurrency((parseFloat(c.sale_pr_gst) || parseFloat(c.selling_price) || 0) * (parseFloat(c.quantity) || 1))}
                                                     </td>
                                                     {!isWarranty && (
@@ -1463,7 +1463,7 @@ export const FinalAJobSection = () => {
                                                                     <Plus className="h-4.5 w-4.5" />
                                                                 </Button>
                                                                 <Button
-                                                                    className="h-6 w-6 p-0 text-[var(--cl-text-muted)] hover:text-red-500 hover:bg-red-500/10"
+                                                                    className="h-6 w-6 p-0 text-(--cl-text-muted) hover:text-red-500 hover:bg-red-500/10"
                                                                     size="icon"
                                                                     title="Remove charge"
                                                                     variant="ghost"
@@ -1478,40 +1478,40 @@ export const FinalAJobSection = () => {
                                             ))}
                                         </tbody>
                                         <tfoot>
-                                            <tr className="bg-[var(--cl-surface-2)]/60">
-                                                <td colSpan={100} className="px-2 py-1 border-t-2 border-[var(--cl-border)]">
+                                            <tr className="bg-(--cl-surface-2)/60">
+                                                <td colSpan={100} className="px-2 py-1 border-t-2 border-(--cl-border)">
                                                     <div className="flex items-center justify-between gap-6">
                                                         <div className="flex items-center gap-4">
                                                             <div className="flex items-center gap-1.5">
-                                                                <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--cl-text-muted)]">Profit</span>
+                                                                <span className="text-[10px] font-semibold uppercase tracking-wide text-(--cl-text-muted)">Profit</span>
                                                                 <span className={`tabular-nums text-sm font-semibold ${chargesProfitTotal < 0 ? "text-red-600" : "text-emerald-600"}`}>
                                                                     {chargesProfitTotal < 0 ? "-" : ""}₹{fmtCurrency(Math.abs(chargesProfitTotal))}
                                                                 </span>
                                                             </div>
                                                             <div className="flex items-center gap-1.5">
-                                                                <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--cl-text-muted)]">Qty</span>
-                                                                <span className="tabular-nums text-sm font-semibold text-[var(--cl-text)]">{fmtCurrency(chargesQtyTotal)}</span>
+                                                                <span className="text-[10px] font-semibold uppercase tracking-wide text-(--cl-text-muted)">Qty</span>
+                                                                <span className="tabular-nums text-sm font-semibold text-(--cl-text)">{fmtCurrency(chargesQtyTotal)}</span>
                                                             </div>
                                                             {isGst && (
                                                                 <>
                                                                     <div className="flex items-center gap-1.5">
-                                                                        <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--cl-text-muted)]">CGST</span>
-                                                                        <span className="tabular-nums text-sm font-semibold text-[var(--cl-text)]">₹{fmtCurrency(chargesCgstTotal)}</span>
+                                                                        <span className="text-[10px] font-semibold uppercase tracking-wide text-(--cl-text-muted)">CGST</span>
+                                                                        <span className="tabular-nums text-sm font-semibold text-(--cl-text)">₹{fmtCurrency(chargesCgstTotal)}</span>
                                                                     </div>
                                                                     <div className="flex items-center gap-1.5">
-                                                                        <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--cl-text-muted)]">SGST</span>
-                                                                        <span className="tabular-nums text-sm font-semibold text-[var(--cl-text)]">₹{fmtCurrency(chargesSgstTotal)}</span>
+                                                                        <span className="text-[10px] font-semibold uppercase tracking-wide text-(--cl-text-muted)">SGST</span>
+                                                                        <span className="tabular-nums text-sm font-semibold text-(--cl-text)">₹{fmtCurrency(chargesSgstTotal)}</span>
                                                                     </div>
                                                                     <div className="flex items-center gap-1.5">
-                                                                        <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--cl-text-muted)]">IGST</span>
-                                                                        <span className="tabular-nums text-sm font-semibold text-[var(--cl-text)]">₹{fmtCurrency(chargesIgstTotal)}</span>
+                                                                        <span className="text-[10px] font-semibold uppercase tracking-wide text-(--cl-text-muted)">IGST</span>
+                                                                        <span className="tabular-nums text-sm font-semibold text-(--cl-text)">₹{fmtCurrency(chargesIgstTotal)}</span>
                                                                     </div>
                                                                 </>
                                                             )}
                                                         </div>
                                                         <div className="flex items-center gap-1.5">
-                                                            <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--cl-text-muted)]">Charges Total</span>
-                                                            <span className="tabular-nums text-base font-bold text-[var(--cl-text)]">₹{fmtCurrency(chargesAmountTotal)}</span>
+                                                            <span className="text-[10px] font-semibold uppercase tracking-wide text-(--cl-text-muted)">Charges Total</span>
+                                                            <span className="tabular-nums text-base font-bold text-(--cl-text)">₹{fmtCurrency(chargesAmountTotal)}</span>
                                                         </div>
                                                     </div>
                                                 </td>
@@ -1523,47 +1523,47 @@ export const FinalAJobSection = () => {
                         </div>
 
                         {/* Grand Summary */}
-                        <div className="rounded-lg border-2 border-[var(--cl-accent)]/30 bg-[var(--cl-surface)] overflow-hidden">
+                        <div className="rounded-lg border-2 border-(--cl-accent)/30 bg-(--cl-surface) overflow-hidden">
                             <div className="flex items-stretch">
                                 {/* Section 1: responsive stat chips */}
                                 <div className="flex flex-1 flex-wrap items-center gap-x-4 gap-y-1.5 px-3 py-3">
                                     <div className="flex items-center gap-1.5">
-                                        <span className="text-[10px] font-medium uppercase tracking-wide text-[var(--cl-text-muted)]">Profit</span>
+                                        <span className="text-[10px] font-medium uppercase tracking-wide text-(--cl-text-muted)">Profit</span>
                                         <span className={`tabular-nums text-sm font-semibold ${grandProfitTotal < 0 ? "text-red-600" : "text-emerald-600"}`}>
                                             {grandProfitTotal < 0 ? "-" : ""}₹{fmtCurrency(Math.abs(grandProfitTotal))}
                                         </span>
                                     </div>
                                     <div className="flex items-center gap-1.5">
-                                        <span className="text-[10px] font-medium uppercase tracking-wide text-[var(--cl-text-muted)]">Qty</span>
-                                        <span className="tabular-nums text-sm font-semibold text-[var(--cl-text)]">{fmtCurrency(grandQtyTotal)}</span>
+                                        <span className="text-[10px] font-medium uppercase tracking-wide text-(--cl-text-muted)">Qty</span>
+                                        <span className="tabular-nums text-sm font-semibold text-(--cl-text)">{fmtCurrency(grandQtyTotal)}</span>
                                     </div>
                                     {isGst && (
                                         <>
                                             <div className="flex items-center gap-1.5">
-                                                <span className="text-[10px] font-medium uppercase tracking-wide text-[var(--cl-text-muted)]">CGST</span>
-                                                <span className="tabular-nums text-sm font-semibold text-[var(--cl-text)]">₹{fmtCurrency(grandCgstTotal)}</span>
+                                                <span className="text-[10px] font-medium uppercase tracking-wide text-(--cl-text-muted)">CGST</span>
+                                                <span className="tabular-nums text-sm font-semibold text-(--cl-text)">₹{fmtCurrency(grandCgstTotal)}</span>
                                             </div>
                                             <div className="flex items-center gap-1.5">
-                                                <span className="text-[10px] font-medium uppercase tracking-wide text-[var(--cl-text-muted)]">SGST</span>
-                                                <span className="tabular-nums text-sm font-semibold text-[var(--cl-text)]">₹{fmtCurrency(grandSgstTotal)}</span>
+                                                <span className="text-[10px] font-medium uppercase tracking-wide text-(--cl-text-muted)">SGST</span>
+                                                <span className="tabular-nums text-sm font-semibold text-(--cl-text)">₹{fmtCurrency(grandSgstTotal)}</span>
                                             </div>
                                             <div className="flex items-center gap-1.5">
-                                                <span className="text-[10px] font-medium uppercase tracking-wide text-[var(--cl-text-muted)]">IGST</span>
-                                                <span className="tabular-nums text-sm font-semibold text-[var(--cl-text)]">₹{fmtCurrency(grandIgstTotal)}</span>
+                                                <span className="text-[10px] font-medium uppercase tracking-wide text-(--cl-text-muted)">IGST</span>
+                                                <span className="tabular-nums text-sm font-semibold text-(--cl-text)">₹{fmtCurrency(grandIgstTotal)}</span>
                                             </div>
                                         </>
                                     )}
                                     <div className="flex items-center gap-1.5">
-                                        <span className="text-[10px] font-medium uppercase tracking-wide text-[var(--cl-text-muted)]">Parts</span>
-                                        <span className="tabular-nums text-sm font-semibold text-[var(--cl-text)]">₹{fmtCurrency(partsTotal)}</span>
+                                        <span className="text-[10px] font-medium uppercase tracking-wide text-(--cl-text-muted)">Parts</span>
+                                        <span className="tabular-nums text-sm font-semibold text-(--cl-text)">₹{fmtCurrency(partsTotal)}</span>
                                     </div>
                                     <div className="flex items-center gap-1.5">
-                                        <span className="text-[10px] font-medium uppercase tracking-wide text-[var(--cl-text-muted)]">Charges</span>
-                                        <span className="tabular-nums text-sm font-semibold text-[var(--cl-text)]">₹{fmtCurrency(chargesSaleTotal)}</span>
+                                        <span className="text-[10px] font-medium uppercase tracking-wide text-(--cl-text-muted)">Charges</span>
+                                        <span className="tabular-nums text-sm font-semibold text-(--cl-text)">₹{fmtCurrency(chargesSaleTotal)}</span>
                                     </div>
                                 </div>
                                 {/* Vertical divider */}
-                                <div className="w-px self-stretch bg-[var(--cl-border)]" />
+                                <div className="w-px self-stretch bg-(--cl-border)" />
                                 {/* Section 2: total + back-calc */}
                                 {(() => {
                                     const backCalcNum = parseFloat(backCalcTarget);
@@ -1579,7 +1579,7 @@ export const FinalAJobSection = () => {
                                                     </div>
                                                 ) : <div />}
                                                 <div className="flex items-center gap-2">
-                                                    <span className="text-xs font-bold uppercase tracking-wide text-[var(--cl-accent)]">Total</span>
+                                                    <span className="text-xs font-bold uppercase tracking-wide text-(--cl-accent)">Total</span>
                                                     <span className="tabular-nums text-md font-bold ">₹{fmtCurrency(grandTotal)}</span>
                                                 </div>
                                             </div>
@@ -1600,7 +1600,7 @@ export const FinalAJobSection = () => {
                                                         Back Calculate
                                                     </Button>
                                                     <Input
-                                                        className="h-8 w-36 text-right text-base font-bold border-[var(--cl-border)] bg-white"
+                                                        className="h-8 w-36 text-right text-base font-bold border-(--cl-border) bg-white"
                                                         min="0" step="0.01" type="number"
                                                         placeholder="Target amount"
                                                         value={backCalcTarget}
@@ -1643,14 +1643,14 @@ export const FinalAJobSection = () => {
                 transition={{ duration: 0.25 }}
             >
                 {/* Header */}
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-3 border-b border-[var(--cl-border)] bg-[var(--cl-surface)] px-4 py-1">
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-3 border-b border-(--cl-border) bg-(--cl-surface) px-4 py-1">
                     <div className="flex items-center gap-3">
-                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-[var(--cl-accent)]/10 text-[var(--cl-accent)]">
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-(--cl-accent)/10 text-(--cl-accent)">
                             <CheckCircle2 className="h-4 w-4" />
                         </div>
                         <div className="flex items-baseline gap-2">
-                            <h1 className="text-lg font-bold text-[var(--cl-text)]">Final a Job</h1>
-                            <span className="text-xs text-[var(--cl-text-muted)]">
+                            <h1 className="text-lg font-bold text-(--cl-text)">Final a Job</h1>
+                            <span className="text-xs text-(--cl-text-muted)">
                                 {loading ? "Loading…" : `(${total})`}
                             </span>
                         </div>
@@ -1658,18 +1658,18 @@ export const FinalAJobSection = () => {
                 </div>
 
                 {/* Toolbar */}
-                <div className="flex flex-wrap items-center gap-2 px-4 py-1 bg-[var(--cl-surface-2)]/30">
+                <div className="flex flex-wrap items-center gap-2 px-4 py-1 bg-(--cl-surface-2)/30">
                     <div className="relative flex-1 sm:max-w-lg">
-                        <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--cl-text-muted)]" />
+                        <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-(--cl-text-muted)" />
                         <Input
-                            className="h-8 border-[var(--cl-border)] bg-white pl-8 pr-8 text-xs"
+                            className="h-8 border-(--cl-border) bg-white pl-8 pr-8 text-xs"
                             placeholder="Job no, alt job no, customer, mobile, email, city, technician, serial no, device…"
                             value={search}
                             onChange={e => handleSearchChange(e.target.value)}
                         />
                         {search && (
                             <button
-                                className="absolute right-2.5 top-1/2 flex h-4 w-4 -translate-y-1/2 items-center justify-center rounded-full bg-[var(--cl-text-muted)] text-[var(--cl-surface)] hover:bg-[var(--cl-text)] focus:outline-none"
+                                className="absolute right-2.5 top-1/2 flex h-4 w-4 -translate-y-1/2 items-center justify-center rounded-full bg-(--cl-text-muted) text-(--cl-surface) hover:bg-(--cl-text) focus:outline-none"
                                 type="button"
                                 onClick={() => handleSearchChange("")}
                             >
@@ -1689,7 +1689,7 @@ export const FinalAJobSection = () => {
                 </div>
 
                 {/* Grid */}
-                <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-[var(--cl-border)] bg-[var(--cl-surface)] shadow-sm mx-4">
+                <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-(--cl-border) bg-(--cl-surface) shadow-sm mx-4">
                     <div ref={scrollRef} className="flex-1 overflow-x-auto overflow-y-auto" style={{ maxHeight: maxHeight || undefined }}>
                         {loading ? (
                             <table className="min-w-full border-collapse">
@@ -1704,14 +1704,14 @@ export const FinalAJobSection = () => {
                                     {Array.from({ length: 8 }).map((_, i) => (
                                         <tr key={i} className="animate-pulse">
                                             {Array.from({ length: 9 }).map((__, j) => (
-                                                <td key={j} className={tdClass}><div className="h-4 w-16 rounded bg-[var(--cl-border)]" /></td>
+                                                <td key={j} className={tdClass}><div className="h-4 w-16 rounded bg-(--cl-border)" /></td>
                                             ))}
                                         </tr>
                                     ))}
                                 </tbody>
                             </table>
                         ) : rows.length === 0 ? (
-                            <div className="flex h-32 items-center justify-center text-sm text-[var(--cl-text-muted)]">
+                            <div className="flex h-32 items-center justify-center text-sm text-(--cl-text-muted)">
                                 No Completed OK jobs found.
                             </div>
                         ) : (
@@ -1726,19 +1726,19 @@ export const FinalAJobSection = () => {
                                         <th className={`${thClass} w-40`}>Device Details</th>
                                         <th className={thClass}>Job Type</th>
                                         <th className={`${thClass} text-right`}>Amount</th>
-                                        <th className={`${thClass} sticky right-0 z-20 !bg-[var(--cl-surface-2)]`}>Actions</th>
+                                        <th className={`${thClass} sticky right-0 z-20 bg-(--cl-surface-2)!`}>Actions</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-[var(--cl-border)] bg-[var(--cl-surface)]">
+                                <tbody className="divide-y divide-(--cl-border) bg-(--cl-surface)">
                                     {rows.map((row, idx) => (
                                         <motion.tr
                                             key={row.id}
                                             animate={{ opacity: 1 }}
-                                            className="group transition-colors hover:bg-[var(--cl-accent)]/5"
+                                            className="group transition-colors hover:bg-(--cl-accent)/5"
                                             initial={{ opacity: 0 }}
                                             transition={{ delay: idx * 0.015, duration: 0.15 }}
                                         >
-                                            <td className={`${tdClass} text-[var(--cl-text-muted)]`}>{(page - 1) * PAGE_SIZE + idx + 1}</td>
+                                            <td className={`${tdClass} text-(--cl-text-muted)`}>{(page - 1) * PAGE_SIZE + idx + 1}</td>
 
                                             {/* Date + division badge */}
                                             <td className={`${tdClass} whitespace-nowrap`}>
@@ -1758,14 +1758,14 @@ export const FinalAJobSection = () => {
                                             {/* Job No + badges */}
                                             <td className={tdClass}>
                                                 <div className="flex flex-col gap-0.5">
-                                                    <div className="font-mono font-semibold text-[var(--cl-accent)]">
+                                                    <div className="font-mono font-semibold text-(--cl-accent)">
                                                         #{row.job_no}
                                                         {row.is_final && (
                                                             <span className="ml-1.5 text-[10px] font-bold text-emerald-600 bg-emerald-100 dark:bg-emerald-950/40 rounded px-1 py-0.5">FINAL</span>
                                                         )}
                                                     </div>
                                                     {row.alternate_job_no && (
-                                                        <span className="text-[10px] text-[var(--cl-text-muted)]">Alt: {row.alternate_job_no}</span>
+                                                        <span className="text-[10px] text-(--cl-text-muted)">Alt: {row.alternate_job_no}</span>
                                                     )}
                                                     {row.batch_no != null && (
                                                         <span className="text-[9px] font-bold text-violet-600 dark:text-violet-400 w-fit bg-violet-50 dark:bg-violet-950/40 rounded px-1 py-0.5">Batch #{row.batch_no}</span>
@@ -1787,19 +1787,19 @@ export const FinalAJobSection = () => {
                                             <td className={`${tdClass} font-mono text-xs`}>{row.mobile}</td>
 
                                             {/* Device details */}
-                                            <td className={`${tdClass} max-w-[10rem]`}>
+                                            <td className={`${tdClass} max-w-40`}>
                                                 <div className="flex flex-col gap-0.5">
                                                     {row.device_details && (
                                                         <span className="text-xs leading-snug">{row.device_details}</span>
                                                     )}
                                                     {row.serial_no && (
-                                                        <span className="font-mono text-[10px] text-[var(--cl-text-muted)]">S/N: {row.serial_no}</span>
+                                                        <span className="font-mono text-[10px] text-(--cl-text-muted)">S/N: {row.serial_no}</span>
                                                     )}
                                                 </div>
                                             </td>
 
                                             <td className={tdClass}>
-                                                <span className="text-xs text-[var(--cl-text-muted)]">{row.job_type_name}</span>
+                                                <span className="text-xs text-(--cl-text-muted)">{row.job_type_name}</span>
                                             </td>
 
                                             <td className={`${tdClass} text-right tabular-nums`}>
@@ -1807,10 +1807,10 @@ export const FinalAJobSection = () => {
                                             </td>
 
                                             {/* Actions */}
-                                            <td className={`${tdClass} sticky right-0 z-10 bg-[var(--cl-surface)] group-hover:bg-[var(--cl-surface-2)]`}>
+                                            <td className={`${tdClass} sticky right-0 z-10 bg-(--cl-surface) group-hover:bg-(--cl-surface-2)`}>
                                                 <div className="flex items-center gap-1">
                                                     <Button
-                                                        className="h-7 w-7 p-0 text-[var(--cl-text-muted)] hover:text-[var(--cl-accent)]"
+                                                        className="h-7 w-7 p-0 text-(--cl-text-muted) hover:text-(--cl-accent)"
                                                         size="icon"
                                                         title="View job details"
                                                         variant="ghost"
@@ -1842,8 +1842,8 @@ export const FinalAJobSection = () => {
                     </div>
 
                     {/* Pagination */}
-                    <div className="flex items-center justify-between border-t border-[var(--cl-border)] px-4 py-2">
-                        <span className="text-xs text-[var(--cl-text-muted)]">
+                    <div className="flex items-center justify-between border-t border-(--cl-border) px-4 py-2">
+                        <span className="text-xs text-(--cl-text-muted)">
                             {total === 0 ? "No jobs" : `Showing ${(page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, total)} of ${total} (Page ${page} of ${totalPages})`}
                         </span>
                         <div className="flex items-center gap-1">
