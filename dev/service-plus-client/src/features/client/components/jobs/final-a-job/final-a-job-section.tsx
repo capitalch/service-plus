@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
     AlertTriangle, ArrowLeft, CheckCheck, CheckCircle2,
     ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon,
@@ -17,7 +18,7 @@ import { SQL_MAP } from "@/constants/sql-map";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { apolloClient } from "@/lib/apollo-client";
 import { encodeObj, graphQlUtils } from "@/lib/graphql-utils";
-import { selectAvailableDivisions, selectCurrentBranch, selectCurrentDivision, selectDefaultGstRate, selectDefaultHsnForSparePart, selectForceGstOnPartsForNonGst, selectSchema } from "@/store/context-slice";
+import { selectAvailableDivisions, selectCurrentBranch, selectCurrentDivision, selectDefaultGstRate, selectDefaultHsnForSparePart, selectDefaultHsnForServiceCharge, selectForceGstOnPartsForNonGst, selectSchema } from "@/store/context-slice";
 import { useAppSelector } from "@/store/hooks";
 import type { JobDetailType } from "@/features/client/types/job";
 import { isGstDivision } from "@/features/client/types/division";
@@ -79,6 +80,86 @@ type AdditionalChargeRow = {
     cost_price: number;
     selling_price: number;
 };
+
+type AdditionalChargeMasterRow = { id: number; name: string; hsn_code: string | null };
+
+// ─── ChargeNameCombobox ───────────────────────────────────────────────────────
+
+function ChargeNameCombobox({ value, options, disabled, onChange, onSelect }: {
+    value:     string;
+    options:   AdditionalChargeMasterRow[];
+    disabled?: boolean;
+    onChange:  (name: string) => void;
+    onSelect:  (name: string, hsnCode: string) => void;
+}) {
+    const [open, setOpen]       = useState(false);
+    const [dropPos, setDropPos] = useState({ top: 0, left: 0, width: 0 });
+    const inputRef              = useRef<HTMLInputElement>(null);
+    const dropdownRef           = useRef<HTMLDivElement>(null);
+
+    const filtered = options.filter(o => !value || o.name.toLowerCase().includes(value.toLowerCase()));
+
+    function openDropdown() {
+        if (!inputRef.current) return;
+        const rect = inputRef.current.getBoundingClientRect();
+        setDropPos({ top: rect.bottom + window.scrollY + 2, left: rect.left + window.scrollX, width: rect.width });
+        setOpen(true);
+    }
+
+    useEffect(() => {
+        if (!open) return;
+        function handleClick(e: MouseEvent) {
+            const t = e.target as Node;
+            if (!inputRef.current?.contains(t) && !dropdownRef.current?.contains(t)) setOpen(false);
+        }
+        document.addEventListener("mousedown", handleClick);
+        return () => document.removeEventListener("mousedown", handleClick);
+    }, [open]);
+
+    return (
+        <>
+            <div className="relative inline-flex items-center">
+                <Input
+                    className="h-7 w-52 border-[var(--cl-border)] bg-white text-xs pr-6"
+                    disabled={disabled}
+                    placeholder="Charge name"
+                    ref={inputRef}
+                    value={value}
+                    onChange={e => { onChange(e.target.value); openDropdown(); }}
+                    onFocus={openDropdown}
+                    onClick={openDropdown}
+                />
+                {value && !disabled && (
+                    <X
+                        className="absolute right-1.5 h-3.5 w-3.5 cursor-pointer text-gray-400 hover:text-red-500"
+                        onMouseDown={e => { e.preventDefault(); onChange(""); setOpen(false); }}
+                    />
+                )}
+            </div>
+            {open && filtered.length > 0 && createPortal(
+                <div
+                    ref={dropdownRef}
+                    className="fixed z-[9999] max-h-48 overflow-y-auto rounded-lg border border-[var(--cl-border)] bg-white shadow-xl"
+                    style={{ top: dropPos.top, left: dropPos.left, minWidth: Math.max(dropPos.width, 220) }}
+                    onMouseDown={e => e.preventDefault()}
+                >
+                    {filtered.map(o => (
+                        <button
+                            key={o.id}
+                            className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-blue-50 hover:text-blue-700"
+                            type="button"
+                            onClick={() => { onSelect(o.name, o.hsn_code ?? ""); setOpen(false); }}
+                        >
+                            <span className="font-medium">{o.name}</span>
+                            {o.hsn_code && <span className="ml-auto font-mono text-[10px] text-[var(--cl-text-muted)]">{o.hsn_code}</span>}
+                        </button>
+                    ))}
+                </div>,
+                document.body
+            )}
+        </>
+    );
+}
 
 // ─── Change Division Modal ────────────────────────────────────────────────────
 
@@ -159,8 +240,8 @@ const thClass = "sticky top-0 z-20 text-xs font-semibold uppercase tracking-wide
 const tdClass = "px-1.5 py-1 text-sm text-[var(--cl-text)] border-b border-[var(--cl-border)]";
 
 
-function emptyPartLine(gstRate = 0): EditablePartLine {
-    return { _key: crypto.randomUUID(), brand_id: null, part_id: null, part_code: "", part_name: "", cost_price: "0", selling_price: "0", sale_pr_gst: "0", gst_rate: String(gstRate), quantity: 1, remarks: "", hsn_code: "" };
+function emptyPartLine(gstRate = 0, hsn = ""): EditablePartLine {
+    return { _key: crypto.randomUUID(), brand_id: null, part_id: null, part_code: "", part_name: "", cost_price: "0", selling_price: "0", sale_pr_gst: "0", gst_rate: String(gstRate), quantity: 1, remarks: "", hsn_code: hsn };
 }
 
 // ─── Pricing helpers ──────────────────────────────────────────────────────────
@@ -210,6 +291,139 @@ function calculateLinePricing(
     return { ...patch, gst_rate: String(gstRate), sale_pr_gst: (sp * (1 + gstRate / 100)).toFixed(2) };
 }
 
+// ─── Back-calculate helpers ───────────────────────────────────────────────────
+
+function scaleCharges(
+    allCharges: EditableChargeLine[],
+    active: EditableChargeLine[],
+    curTotal: number,
+    newTotal: number,
+    isGst: boolean,
+): EditableChargeLine[] {
+    const rowAmounts: number[] = active.map(c => {
+        const sp  = (parseFloat(c.selling_price) || 0) * (parseFloat(c.quantity) || 1);
+        const gst = isGst ? sp * (parseFloat(c.gst_rate) || 0) / 100 : 0;
+        return curTotal > 0 ? Math.max(0, (sp + gst) * newTotal / curTotal) : newTotal / active.length;
+    });
+    const sumHead = rowAmounts.slice(0, -1).reduce((s, v) => s + v, 0);
+    rowAmounts[rowAmounts.length - 1] = Math.max(0, newTotal - sumHead);
+
+    const patch = new Map<string, Pick<EditableChargeLine, "selling_price" | "sale_pr_gst">>();
+    let runningTotal = 0;
+    active.forEach((c, i) => {
+        const qty        = parseFloat(c.quantity) || 1;
+        const gstRate    = isGst ? (parseFloat(c.gst_rate) || 0) : 0;
+        const multiplier = 1 + gstRate / 100;
+        let sp: number;
+        if (i < active.length - 1) {
+            const spg = rowAmounts[i] / qty;
+            sp        = parseFloat((gstRate > 0 ? spg / multiplier : spg).toFixed(2));
+            runningTotal += sp * qty * multiplier;
+        } else {
+            sp = parseFloat(((newTotal - runningTotal) / (qty * multiplier)).toFixed(2));
+        }
+        patch.set(c._key, { selling_price: sp.toFixed(2), sale_pr_gst: (sp * multiplier).toFixed(2) });
+    });
+    return allCharges.map(c => { const p = patch.get(c._key); return p ? { ...c, ...p } : c; });
+}
+
+function scaleParts(
+    allParts: EditablePartLine[],
+    active: EditablePartLine[],
+    curTotal: number,
+    newTotal: number,
+): EditablePartLine[] {
+    if (curTotal <= 0) return allParts;
+    const rowAmounts: number[] = active.map(l =>
+        Math.max(0, (parseFloat(l.sale_pr_gst) || 0) * l.quantity * newTotal / curTotal)
+    );
+    const sumHead = rowAmounts.slice(0, -1).reduce((s, v) => s + v, 0);
+    rowAmounts[rowAmounts.length - 1] = Math.max(0, newTotal - sumHead);
+
+    const patch = new Map<string, Pick<EditablePartLine, "selling_price" | "sale_pr_gst">>();
+    let runningTotal = 0;
+    active.forEach((l, i) => {
+        const gstRate    = parseFloat(l.gst_rate) || 0;
+        const multiplier = 1 + gstRate / 100;
+        const costPrice  = parseFloat(l.cost_price) || 0;
+        let finalSp: number;
+        if (i < active.length - 1) {
+            const spg = rowAmounts[i] / l.quantity;
+            const sp  = gstRate > 0 ? spg / multiplier : spg;
+            finalSp   = parseFloat(Math.max(sp, costPrice).toFixed(2));
+            runningTotal += finalSp * l.quantity * multiplier;
+        } else {
+            const sp = (newTotal - runningTotal) / (l.quantity * multiplier);
+            finalSp  = parseFloat(Math.max(sp, costPrice).toFixed(2));
+        }
+        patch.set(l._key, { selling_price: finalSp.toFixed(2), sale_pr_gst: (finalSp * multiplier).toFixed(2) });
+    });
+    return allParts.map(l => { const p = patch.get(l._key); return p ? { ...l, ...p } : l; });
+}
+
+function computeBackCalc(
+    target: number,
+    partLines: EditablePartLine[],
+    chargeLines: EditableChargeLine[],
+    isGst: boolean,
+): { newPartLines?: EditablePartLine[]; newChargeLines?: EditableChargeLine[] } {
+    const partsTotal = partLines.reduce((s, l) => {
+        const agg = (parseFloat(l.selling_price) || 0) * l.quantity;
+        return s + agg * (1 + (parseFloat(l.gst_rate) || 0) / 100);
+    }, 0);
+    const chargesTotal = chargeLines.reduce((s, c) => {
+        const sp = (parseFloat(c.selling_price) || 0) * (parseFloat(c.quantity) || 1);
+        return s + sp + (isGst ? sp * (parseFloat(c.gst_rate) || 0) / 100 : 0);
+    }, 0);
+    const diff = target - partsTotal - chargesTotal;
+    if (Math.abs(diff) < 0.005) return {};
+
+    const activeParts = partLines.filter(l => l.part_id !== null);
+
+    // Phase 1 — adjust parts (selling_price floored at cost_price, so no profit loss)
+    let newPartLines: EditablePartLine[] | undefined;
+    let remainingDiff = diff;
+
+    if (activeParts.length > 0) {
+        const curPartsAmt = activeParts.reduce((s, l) =>
+            s + (parseFloat(l.sale_pr_gst) || 0) * l.quantity, 0);
+        if (curPartsAmt > 0) {
+            newPartLines = scaleParts(partLines, activeParts, curPartsAmt, curPartsAmt + diff);
+            const actualNewPartsTotal = newPartLines.reduce((s, l) => {
+                if (l.part_id === null) return s;
+                const agg = (parseFloat(l.selling_price) || 0) * l.quantity;
+                return s + agg * (1 + (parseFloat(l.gst_rate) || 0) / 100);
+            }, 0);
+            remainingDiff = target - actualNewPartsTotal - chargesTotal;
+            if (Math.abs(remainingDiff) < 0.005) return { newPartLines };
+        }
+    }
+
+    // Phase 2 — adjust charges for any remaining diff the part floor couldn't absorb
+    const activeCharges = chargeLines.filter(c => c.charge_name.trim() !== "");
+    if (activeCharges.length === 0) return { newPartLines };
+
+    const curChargesAmt = activeCharges.reduce((s, c) => {
+        const sp = (parseFloat(c.selling_price) || 0) * (parseFloat(c.quantity) || 1);
+        return s + sp + (isGst ? sp * (parseFloat(c.gst_rate) || 0) / 100 : 0);
+    }, 0);
+    const newChargesAmt = curChargesAmt + remainingDiff;
+
+    if (newChargesAmt >= 0) {
+        return {
+            newPartLines,
+            newChargeLines: scaleCharges(chargeLines, activeCharges, curChargesAmt, newChargesAmt, isGst),
+        };
+    }
+
+    // Remaining diff would make charges negative — zero them out (best achievable)
+    return {
+        newPartLines,
+        newChargeLines: chargeLines.map(c =>
+            c.charge_name.trim() ? { ...c, selling_price: "0", sale_pr_gst: "0" } : c),
+    };
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export const FinalAJobSection = () => {
@@ -220,6 +434,7 @@ export const FinalAJobSection = () => {
     const currentDivision = useAppSelector(selectCurrentDivision);
     const defaultGstRate = useAppSelector(selectDefaultGstRate);
     const defaultHsnForSparePart = useAppSelector(selectDefaultHsnForSparePart);
+    const defaultHsnForServiceCharge = useAppSelector(selectDefaultHsnForServiceCharge);
     const forceGstOnPartsForNonGst = useAppSelector(selectForceGstOnPartsForNonGst);
     const branchId = currentBranch?.id ?? null;
 
@@ -254,9 +469,11 @@ export const FinalAJobSection = () => {
 
     // Meta
     const [brands, setBrands] = useState<BrandOption[]>([]);
+    const [additionalChargeOptions, setAdditionalChargeOptions] = useState<AdditionalChargeMasterRow[]>([]);
     const [jobConsumeTypeId, setJobConsumeTypeId] = useState<number | null>(null);
     const [markupPct, setMarkupPct] = useState(0);
     const [forceIgst, setForceIgst] = useState(false);
+    const [backCalcTarget, setBackCalcTarget] = useState("");
 
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const scrollRef = useRef<HTMLDivElement>(null);
@@ -284,7 +501,7 @@ export const FinalAJobSection = () => {
         if (!dbName || !schema) return;
         const fetchMeta = async () => {
             try {
-                const [brandsRes, txnRes, markupRes] = await Promise.all([
+                const [brandsRes, txnRes, markupRes, additionalChargesRes] = await Promise.all([
                     apolloClient.query<GenericQueryData<BrandOption>>({
                         fetchPolicy: "network-only",
                         query: GRAPHQL_MAP.genericQuery,
@@ -300,6 +517,11 @@ export const FinalAJobSection = () => {
                         query: GRAPHQL_MAP.genericQuery,
                         variables: { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_APP_SETTING_BY_KEY, sqlArgs: { setting_key: "markup_percent_over_cost" } }) },
                     }),
+                    apolloClient.query<GenericQueryData<AdditionalChargeMasterRow>>({
+                        fetchPolicy: "network-only",
+                        query: GRAPHQL_MAP.genericQuery,
+                        variables: { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_ALL_ADDITIONAL_CHARGES }) },
+                    }),
                 ]);
                 setBrands(brandsRes.data?.genericQuery ?? []);
                 const consume = txnRes.data?.genericQuery?.find(t => t.code === "JOB_CONSUME");
@@ -307,6 +529,7 @@ export const FinalAJobSection = () => {
                 const rawMarkup = markupRes.data?.genericQuery?.[0]?.setting_value;
                 const pct = rawMarkup != null ? Number(rawMarkup) : 0;
                 setMarkupPct(isNaN(pct) ? 0 : pct);
+                setAdditionalChargeOptions(additionalChargesRes.data?.genericQuery ?? []);
             } catch { /* silent */ }
         };
         void fetchMeta();
@@ -473,7 +696,7 @@ export const FinalAJobSection = () => {
 
     // ── Part mutations ──────────────────────────────────────────────────────
     function addPartLine() {
-        setPartLines(prev => [...prev, emptyPartLine(isGst ? defaultGstRate : 0)]);
+        setPartLines(prev => [...prev, emptyPartLine(isGst ? defaultGstRate : 0, defaultHsnForSparePart)]);
     }
 
     function removePartLine(key: string, id?: number) {
@@ -499,7 +722,7 @@ export const FinalAJobSection = () => {
 
     // ── Charge mutations ────────────────────────────────────────────────────
     function addChargeLine() {
-        setChargeLines(prev => [...prev, emptyChargeLine(isGst ? defaultGstRate : 0)]);
+        setChargeLines(prev => [...prev, emptyChargeLine(isGst ? defaultGstRate : 0, defaultHsnForServiceCharge)]);
     }
 
     function removeChargeLine(key: string, id?: number) {
@@ -509,6 +732,10 @@ export const FinalAJobSection = () => {
 
     function updateChargeLine(key: string, field: keyof EditableChargeLine, value: string) {
         setChargeLines(prev => prev.map(c => c._key === key ? { ...c, [field]: value } : c));
+    }
+
+    function patchChargeLine(key: string, patch: Partial<EditableChargeLine>) {
+        setChargeLines(prev => prev.map(c => c._key === key ? { ...c, ...patch } : c));
     }
 
     // ── Save final ──────────────────────────────────────────────────────────
@@ -663,6 +890,11 @@ export const FinalAJobSection = () => {
         const chargesProfitTotal = chargeLines.reduce((sum, c) => sum + ((parseFloat(c.selling_price) || 0) - (parseFloat(c.cost_price) || 0)) * (parseFloat(c.quantity) || 1), 0);
         const chargesQtyTotal = chargeLines.reduce((sum, c) => sum + (parseFloat(c.quantity) || 1), 0);
         const grandTotal = partsTotal + chargesAmountTotal;
+        const grandProfitTotal = profitTotal + chargesProfitTotal;
+        const grandQtyTotal = partsQtyTotal + chargesQtyTotal;
+        const grandCgstTotal = partsCgstTotal + chargesCgstTotal;
+        const grandSgstTotal = partsSgstTotal + chargesSgstTotal;
+        const grandIgstTotal = partsIgstTotal + chargesIgstTotal;
 
         return (
             <>
@@ -932,94 +1164,78 @@ export const FinalAJobSection = () => {
                                                 </div>
                                                 {/* ── Pricing row ── */}
                                                 <div className="flex flex-wrap items-center gap-x-3 gap-y-2 pl-7">
-                                                    <div className="flex items-center gap-1.5">
-                                                        <span className="text-[10px] font-medium uppercase tracking-wide text-[var(--cl-text-muted)] whitespace-nowrap">Cost</span>
-                                                        <Input
-                                                            className="h-6 w-24 border-[var(--cl-border)] bg-white text-xs text-right"
-                                                            disabled={isWarranty}
-                                                            min="0" step="0.01" type="number"
-                                                            value={line.cost_price}
-                                                            onChange={e => updatePartLine(line._key, { cost_price: e.target.value })}
-                                                            onFocus={e => e.target.select()}
-                                                        />
+                                                    {/* Profit — extreme left */}
+                                                    <div className="flex items-center gap-1">
+                                                        <span className="text-[10px] text-[var(--cl-text-muted)]">Profit</span>
+                                                        <span className={`tabular-nums text-sm font-semibold ${profit < 0 ? "text-red-600" : "text-emerald-600"}`}>
+                                                            {profit < 0 ? "-" : ""}₹{fmtCurrency(Math.abs(profit))}
+                                                        </span>
                                                     </div>
-                                                    <div className="flex items-center gap-1.5">
-                                                        <span className="text-[10px] font-medium uppercase tracking-wide text-[var(--cl-text-muted)] whitespace-nowrap">GST%</span>
-                                                        <Input
-                                                            className="h-6 w-14 border-[var(--cl-border)] bg-white text-xs text-right"
-                                                            disabled={isWarranty}
-                                                            min="0" step="0.01" type="number"
-                                                            value={line.gst_rate}
-                                                            onChange={e => {
-                                                                updatePartLine(line._key, calculateLinePricing(line, { gst_rate: e.target.value }, isGst));
-                                                            }}
-                                                            onFocus={e => e.target.select()}
-                                                        />
-                                                    </div>
-                                                    <div className="flex items-center gap-1.5">
-                                                        <span className="text-[10px] font-medium uppercase tracking-wide text-[var(--cl-text-muted)] whitespace-nowrap">Qty</span>
-                                                        <Input
-                                                            className={`h-6 w-16 border-[var(--cl-border)] bg-white text-xs text-right ${line.quantity <= 0 ? "border-red-500" : ""}`}
-                                                            disabled={isWarranty}
-                                                            min={0.01} step="0.01" type="number"
-                                                            value={line.quantity}
-                                                            onChange={e => updatePartLine(line._key, { quantity: parseFloat(e.target.value) || 0 })}
-                                                            onFocus={e => e.target.select()}
-                                                        />
-                                                    </div>
-                                                    <div className="flex items-center gap-1.5">
-                                                        <span className="text-[10px] font-medium uppercase tracking-wide text-[var(--cl-text-muted)] whitespace-nowrap">Sale</span>
-                                                        <Input
-                                                            className="h-6 w-24 border-[var(--cl-border)] bg-white text-xs text-right"
-                                                            disabled={isWarranty}
-                                                            min="0" step="0.01" type="number"
-                                                            value={line.selling_price}
-                                                            onChange={e => {
-                                                                updatePartLine(line._key, calculateLinePricing(line, { selling_price: e.target.value }, isGst));
-                                                            }}
-                                                            onFocus={e => e.target.select()}
-                                                        />
-                                                    </div>
-                                                    <div className="flex items-center gap-1.5">
-                                                        <span className="text-[10px] font-medium uppercase tracking-wide text-[var(--cl-text-muted)] whitespace-nowrap">+GST</span>
-                                                        <Input
-                                                            className="h-6 w-24 border-[var(--cl-border)] bg-white text-xs text-right"
-                                                            disabled={isWarranty}
-                                                            min="0" step="0.01" type="number"
-                                                            value={line.sale_pr_gst}
-                                                            onChange={e => {
-                                                                const spgst = e.target.value;
-                                                                const gstRate = isGst ? (parseFloat(line.gst_rate) || 0) : 0;
-                                                                const backCalcSp = ((parseFloat(spgst) || 0) / (1 + gstRate / 100)).toFixed(2);
-                                                                updatePartLine(line._key, { sale_pr_gst: spgst, selling_price: backCalcSp });
-                                                            }}
-                                                            onFocus={e => e.target.select()}
-                                                        />
-                                                    </div>
-                                                    {/* Computed totals */}
-                                                    <div className="ml-auto flex items-center gap-4">
-                                                        {/* GST breakdown (read-only) */}
-                                                        {isGst && (
-                                                            <div className="flex items-center gap-3 border-r border-[var(--cl-border)] pr-3">
-                                                                <div className="flex items-center gap-1">
-                                                                    <span className="text-[10px] font-medium uppercase tracking-wide text-[var(--cl-text-muted)] whitespace-nowrap">CGST</span>
-                                                                    <span className="tabular-nums text-xs text-[var(--cl-text)]">{cgst.toFixed(2)}</span>
-                                                                </div>
-                                                                <div className="flex items-center gap-1">
-                                                                    <span className="text-[10px] font-medium uppercase tracking-wide text-[var(--cl-text-muted)] whitespace-nowrap">SGST</span>
-                                                                    <span className="tabular-nums text-xs text-[var(--cl-text)]">{sgst.toFixed(2)}</span>
-                                                                </div>
-                                                                <div className="flex items-center gap-1">
-                                                                    <span className="text-[10px] font-medium uppercase tracking-wide text-[var(--cl-text-muted)] whitespace-nowrap">IGST</span>
-                                                                    <span className="tabular-nums text-xs text-[var(--cl-text)]">{igst.toFixed(2)}</span>
-                                                                </div>
-                                                            </div>
-                                                        )}
-                                                        <div className="flex items-center gap-1">
-                                                            <span className="text-[10px] text-[var(--cl-text-muted)]">Profit</span>
-                                                            <span className={`tabular-nums text-sm font-semibold ${profit < 0 ? "text-red-600" : "text-emerald-600"}`}>
-                                                                {profit < 0 ? "-" : ""}₹{fmtCurrency(Math.abs(profit))}
-                                                            </span>
+                                                    {/* Inputs + Amt — pushed to the right */}
+                                                    <div className="ml-auto flex flex-wrap items-center gap-x-3 gap-y-2">
+                                                        <div className="flex items-center gap-1.5">
+                                                            <span className="text-[10px] font-medium uppercase tracking-wide text-[var(--cl-text-muted)] whitespace-nowrap">GST%</span>
+                                                            <Input
+                                                                className="h-6 w-14 border-[var(--cl-border)] bg-white text-xs text-right"
+                                                                disabled={isWarranty}
+                                                                min="0" step="0.01" type="number"
+                                                                value={line.gst_rate}
+                                                                onChange={e => {
+                                                                    updatePartLine(line._key, calculateLinePricing(line, { gst_rate: e.target.value }, isGst));
+                                                                }}
+                                                                onFocus={e => e.target.select()}
+                                                            />
+                                                        </div>
+                                                        <div className="flex items-center gap-1.5">
+                                                            <span className="text-[10px] font-medium uppercase tracking-wide text-[var(--cl-text-muted)] whitespace-nowrap">Qty</span>
+                                                            <Input
+                                                                className={`h-6 w-16 border-[var(--cl-border)] bg-white text-xs text-right ${line.quantity <= 0 ? "border-red-500" : ""}`}
+                                                                disabled={isWarranty}
+                                                                min={0.01} step="0.01" type="number"
+                                                                value={line.quantity}
+                                                                onChange={e => updatePartLine(line._key, { quantity: parseFloat(e.target.value) || 0 })}
+                                                                onFocus={e => e.target.select()}
+                                                            />
+                                                        </div>
+                                                        <div className="flex items-center gap-1.5">
+                                                            <span className="text-[10px] font-medium uppercase tracking-wide text-[var(--cl-text-muted)] whitespace-nowrap">Cost</span>
+                                                            <Input
+                                                                className="h-6 w-24 border-[var(--cl-border)] bg-white text-xs text-right"
+                                                                disabled={isWarranty}
+                                                                min="0" step="0.01" type="number"
+                                                                value={line.cost_price}
+                                                                onChange={e => updatePartLine(line._key, { cost_price: e.target.value })}
+                                                                onFocus={e => e.target.select()}
+                                                            />
+                                                        </div>
+                                                        <div className="flex items-center gap-1.5">
+                                                            <span className="text-[10px] font-medium uppercase tracking-wide text-[var(--cl-text-muted)] whitespace-nowrap">Sale</span>
+                                                            <Input
+                                                                className="h-6 w-24 border-[var(--cl-border)] bg-white text-xs text-right"
+                                                                disabled={isWarranty}
+                                                                min="0" step="0.01" type="number"
+                                                                value={line.selling_price}
+                                                                onChange={e => {
+                                                                    updatePartLine(line._key, calculateLinePricing(line, { selling_price: e.target.value }, isGst));
+                                                                }}
+                                                                onFocus={e => e.target.select()}
+                                                            />
+                                                        </div>
+                                                        <div className="flex items-center gap-1.5">
+                                                            <span className="text-[10px] font-medium uppercase tracking-wide text-[var(--cl-text-muted)] whitespace-nowrap">+GST</span>
+                                                            <Input
+                                                                className="h-6 w-24 border-[var(--cl-border)] bg-white text-xs text-right"
+                                                                disabled={isWarranty}
+                                                                min="0" step="0.01" type="number"
+                                                                value={line.sale_pr_gst}
+                                                                onChange={e => {
+                                                                    const spgst = e.target.value;
+                                                                    const gstRate = isGst ? (parseFloat(line.gst_rate) || 0) : 0;
+                                                                    const backCalcSp = ((parseFloat(spgst) || 0) / (1 + gstRate / 100)).toFixed(2);
+                                                                    updatePartLine(line._key, { sale_pr_gst: spgst, selling_price: backCalcSp });
+                                                                }}
+                                                                onFocus={e => e.target.select()}
+                                                            />
                                                         </div>
                                                         <div className="flex items-center gap-1 rounded bg-[var(--cl-surface-2)] px-2 py-0.5">
                                                             <span className="text-[10px] text-[var(--cl-text-muted)]">Amt</span>
@@ -1117,12 +1333,12 @@ export const FinalAJobSection = () => {
                                                 <tr key={c._key} className="group">
                                                     <td className={`${tdClass} text-[var(--cl-text-muted)]`}>{idx + 1}</td>
                                                     <td className={tdClass}>
-                                                        <Input
-                                                            className="h-7 min-w-[140px] border-[var(--cl-border)] bg-white text-xs"
-                                                            disabled={isWarranty}
-                                                            placeholder="Charge name"
+                                                        <ChargeNameCombobox
                                                             value={c.charge_name}
-                                                            onChange={e => updateChargeLine(c._key, "charge_name", e.target.value)}
+                                                            options={additionalChargeOptions}
+                                                            disabled={isWarranty}
+                                                            onChange={name => updateChargeLine(c._key, "charge_name", name)}
+                                                            onSelect={(name, hsnCode) => patchChargeLine(c._key, { charge_name: name, hsn_code: hsnCode || defaultHsnForServiceCharge })}
                                                         />
                                                     </td>
                                                     <td className={tdClass}>
@@ -1314,24 +1530,94 @@ export const FinalAJobSection = () => {
 
                         {/* Grand Summary */}
                         <div className="rounded-lg border-2 border-[var(--cl-accent)]/30 bg-[var(--cl-surface)] overflow-hidden">
-                            <div className="flex flex-wrap items-center justify-between gap-4 px-2 py-3">
-                                <p className="text-xs font-bold uppercase tracking-wider text-[var(--cl-text-muted)]">Grand Total</p>
-                                <div className="flex flex-wrap items-center gap-4">
+                            <div className="flex items-stretch">
+                                {/* Section 1: responsive stat chips */}
+                                <div className="flex flex-1 flex-wrap items-center gap-x-4 gap-y-1.5 px-3 py-3">
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="text-[10px] font-medium uppercase tracking-wide text-[var(--cl-text-muted)]">Profit</span>
+                                        <span className={`tabular-nums text-sm font-semibold ${grandProfitTotal < 0 ? "text-red-600" : "text-emerald-600"}`}>
+                                            {grandProfitTotal < 0 ? "-" : ""}₹{fmtCurrency(Math.abs(grandProfitTotal))}
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="text-[10px] font-medium uppercase tracking-wide text-[var(--cl-text-muted)]">Qty</span>
+                                        <span className="tabular-nums text-sm font-semibold text-[var(--cl-text)]">{fmtCurrency(grandQtyTotal)}</span>
+                                    </div>
+                                    {isGst && (
+                                        <>
+                                            <div className="flex items-center gap-1.5">
+                                                <span className="text-[10px] font-medium uppercase tracking-wide text-[var(--cl-text-muted)]">CGST</span>
+                                                <span className="tabular-nums text-sm font-semibold text-[var(--cl-text)]">₹{fmtCurrency(grandCgstTotal)}</span>
+                                            </div>
+                                            <div className="flex items-center gap-1.5">
+                                                <span className="text-[10px] font-medium uppercase tracking-wide text-[var(--cl-text-muted)]">SGST</span>
+                                                <span className="tabular-nums text-sm font-semibold text-[var(--cl-text)]">₹{fmtCurrency(grandSgstTotal)}</span>
+                                            </div>
+                                            <div className="flex items-center gap-1.5">
+                                                <span className="text-[10px] font-medium uppercase tracking-wide text-[var(--cl-text-muted)]">IGST</span>
+                                                <span className="tabular-nums text-sm font-semibold text-[var(--cl-text)]">₹{fmtCurrency(grandIgstTotal)}</span>
+                                            </div>
+                                        </>
+                                    )}
                                     <div className="flex items-center gap-1.5">
                                         <span className="text-[10px] font-medium uppercase tracking-wide text-[var(--cl-text-muted)]">Parts</span>
                                         <span className="tabular-nums text-sm font-semibold text-[var(--cl-text)]">₹{fmtCurrency(partsTotal)}</span>
                                     </div>
-                                    <span className="text-[var(--cl-text-muted)]">+</span>
                                     <div className="flex items-center gap-1.5">
                                         <span className="text-[10px] font-medium uppercase tracking-wide text-[var(--cl-text-muted)]">Charges</span>
                                         <span className="tabular-nums text-sm font-semibold text-[var(--cl-text)]">₹{fmtCurrency(chargesSaleTotal)}</span>
                                     </div>
-                                    <span className="text-[var(--cl-text-muted)]">=</span>
-                                    <div className="flex items-center gap-2 rounded py-1">
-                                        <span className="text-xs font-bold uppercase tracking-wide text-[var(--cl-accent)]">Total</span>
-                                        <span className="tabular-nums text-lg font-bold text-[var(--cl-accent)]">₹{fmtCurrency(grandTotal)}</span>
-                                    </div>
                                 </div>
+                                {/* Vertical divider */}
+                                <div className="w-px self-stretch bg-[var(--cl-border)]" />
+                                {/* Section 2: total + back-calc */}
+                                {(() => {
+                                    const backCalcNum = parseFloat(backCalcTarget);
+                                    const isTallied = backCalcTarget !== "" && !isNaN(backCalcNum) && Math.abs(grandTotal - backCalcNum) < 0.005;
+                                    return (
+                                        <div className="flex shrink-0 flex-col justify-center gap-2 px-4 py-3">
+                                            {/* Row 1: Tallied + Total */}
+                                            <div className="flex items-center justify-between gap-4">
+                                                {!isWarranty && isTallied ? (
+                                                    <div className="flex items-center gap-1 text-emerald-600">
+                                                        <CheckCircle2 className="h-4 w-4" />
+                                                        <span className="text-xs font-semibold">Tallied</span>
+                                                    </div>
+                                                ) : <div />}
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-xs font-bold uppercase tracking-wide text-[var(--cl-accent)]">Total</span>
+                                                    <span className="tabular-nums text-md font-bold ">₹{fmtCurrency(grandTotal)}</span>
+                                                </div>
+                                            </div>
+                                            {/* Row 2: Back Calculate button + target input */}
+                                            {!isWarranty && (
+                                                <div className="flex items-center gap-2">
+                                                    <Button
+                                                        className="h-7 shrink-0 text-xs"
+                                                        disabled={!backCalcTarget || isNaN(backCalcNum) || backCalcNum < 0}
+                                                        size="sm"
+                                                        variant="outline"
+                                                        onClick={() => {
+                                                            const result = computeBackCalc(backCalcNum, partLines, chargeLines, isGst);
+                                                            if (result.newPartLines)  setPartLines(result.newPartLines);
+                                                            if (result.newChargeLines) setChargeLines(result.newChargeLines);
+                                                        }}
+                                                    >
+                                                        Back Calculate
+                                                    </Button>
+                                                    <Input
+                                                        className="h-8 w-36 text-right text-base font-bold border-[var(--cl-border)] bg-white"
+                                                        min="0" step="0.01" type="number"
+                                                        placeholder="Target amount"
+                                                        value={backCalcTarget}
+                                                        onChange={e => setBackCalcTarget(e.target.value)}
+                                                        onFocus={e => e.target.select()}
+                                                    />
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })()}
                             </div>
                         </div>
 

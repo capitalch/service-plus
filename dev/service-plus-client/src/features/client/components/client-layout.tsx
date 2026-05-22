@@ -15,6 +15,7 @@ import {
     selectSchema,
     setDefaultGstRate,
     setDefaultHsnForSparePart,
+    setDefaultHsnForServiceCharge,
 } from "@/store/context-slice";
 import { ClientActivityBar } from "./client-activity-bar";
 import { ClientExplorerPanel } from "./client-explorer-panel";
@@ -137,6 +138,11 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
             let parsedHsn: unknown = rawHsn;
             if (typeof rawHsn === 'string') { try { parsedHsn = JSON.parse(rawHsn); } catch { /* keep raw */ } }
             dispatch(setDefaultHsnForSparePart(String(parsedHsn ?? "")));
+
+            const rawSvcHsn = settings.find(s => s.setting_key === 'default_hsn_for_service_charge')?.setting_value;
+            let parsedSvcHsn: unknown = rawSvcHsn;
+            if (typeof rawSvcHsn === 'string') { try { parsedSvcHsn = JSON.parse(rawSvcHsn); } catch { /* keep raw */ } }
+            dispatch(setDefaultHsnForServiceCharge(String(parsedSvcHsn ?? "")));
         }).catch(() => {/* silently ignore */});
     }, [dbName, schema]); // eslint-disable-line react-hooks/exhaustive-deps
 

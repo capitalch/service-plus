@@ -857,7 +857,10 @@ class SqlBu:
             (11,'Software Installation','998726'),
             (12,'Data Recovery Charge','998726'),
             (13,'Handling Charge','998726'),
-            (14,'Miscellaneous','998726');
+            (14,'Miscellaneous','998726'),
+            (15,'Diagnosis Charge','998726'),
+            (16,'Spare Parts','998726'),
+            (17,'Transportation Charge','998726');
 
         INSERT INTO job_receive_condition (id, code, name, description, is_system, display_order) VALUES
             (1,  'DEAD',           'Dead',                        'Item is completely dead',                                           true, 1),

@@ -34,7 +34,8 @@ type ContextStateType = {
     currentDivision:          DivisionContextType | null;
     defaultDivisionId:        number;
     defaultGstRate:           number;
-    defaultHsnForSparePart:   string;
+    defaultHsnForSparePart:      string;
+    defaultHsnForServiceCharge:  string;
     forceGstOnPartsForNonGst: boolean;
     isGstRegistered:          boolean;
 };
@@ -53,7 +54,8 @@ const initialState: ContextStateType = {
     currentDivision:          null,
     defaultDivisionId:        1,
     defaultGstRate:           0,
-    defaultHsnForSparePart:   "",
+    defaultHsnForSparePart:     "",
+    defaultHsnForServiceCharge: "",
     forceGstOnPartsForNonGst: false,
     isGstRegistered:          false,
 };
@@ -102,6 +104,10 @@ export const contextSlice = createSlice({
             state.defaultHsnForSparePart = action.payload;
         },
 
+        setDefaultHsnForServiceCharge: (state, action: PayloadAction<string>) => {
+            state.defaultHsnForServiceCharge = action.payload;
+        },
+
         setIsGstRegistered: (state, action: PayloadAction<boolean>) => {
             state.isGstRegistered = action.payload;
         },
@@ -140,6 +146,7 @@ export const {
     setDefaultDivisionId,
     setDefaultGstRate,
     setDefaultHsnForSparePart,
+    setDefaultHsnForServiceCharge,
     setForceGstOnPartsForNonGst,
     setIsGstRegistered,
 } = contextSlice.actions;
@@ -159,7 +166,8 @@ export const selectCurrentBu             = (state: ContextRootState) => state.co
 export const selectCurrentDivision       = (state: ContextRootState) => state.context.currentDivision;
 export const selectDefaultDivisionId     = (state: ContextRootState) => state.context.defaultDivisionId;
 export const selectDefaultGstRate           = (state: ContextRootState) => state.context.defaultGstRate;
-export const selectDefaultHsnForSparePart   = (state: ContextRootState) => state.context.defaultHsnForSparePart;
+export const selectDefaultHsnForSparePart      = (state: ContextRootState) => state.context.defaultHsnForSparePart;
+export const selectDefaultHsnForServiceCharge  = (state: ContextRootState) => state.context.defaultHsnForServiceCharge;
 export const selectForceGstOnPartsForNonGst = (state: ContextRootState) => state.context.forceGstOnPartsForNonGst;
 export const selectIsGstRegistered       = (state: ContextRootState) => state.context.isGstRegistered;
 export const selectIsGstMode             = (state: ContextRootState): boolean =>

@@ -32,13 +32,13 @@ export type EditableChargeLine = {
     sale_pr_gst:   string;
 };
 
-export function emptyChargeLine(gstRate = 0): EditableChargeLine {
+export function emptyChargeLine(gstRate = 0, hsn = ""): EditableChargeLine {
     return {
         _key:          crypto.randomUUID(),
         charge_name:   "",
         ref_no:        "",
         description:   "",
-        hsn_code:      "",
+        hsn_code:      hsn,
         gst_rate:      String(gstRate),
         quantity:           "1",
         cost_price:    "0",
