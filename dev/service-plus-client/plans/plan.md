@@ -1,166 +1,418 @@
-# Final A Job — Back Calculate Feature
+# Final A Job — Comprehensive Enhancement Plan
 
 ## Overview
 
-In the Grand Summary section (Job Summary), add a **target amount input** and a **Back Calculate button** on the extreme right. When the user types a desired final total and clicks Back Calculate, the system adjusts row values to make `grandTotal` match the target. A visual indicator confirms when the tally is achieved.
+Two independent enhancements to the "Final a Job" feature:
+
+1. **Tab Structure** — Add a second tab "Finalized Jobs" showing already-finalized (is_final=true, is_closed=false) jobs with View and Edit actions.
+2. **Invoice Creation** — When saving & marking final (or editing), atomically write `job_invoice` + `job_invoice_line` rows alongside the existing parts/charges/job updates.
 
 ---
 
-## UI Changes
+## 1. Tab Structure
 
-**Location:** Grand Summary bar — extreme right, after the existing Parts + Charges = Total group.
+### 1.1 Where
 
-```
-[ Grand Total  Profit  Qty  CGST  SGST  IGST ]   [ Parts + Charges = Total ]   [ <input>       ]
-                                                                                  [ Back Calculate ]
-                                                                                  [ ✓ Tallied      ]
-```
+`src/features/client/pages/client-jobs-page.tsx` — no change needed.  
+`src/features/client/components/jobs/final-a-job/final-a-job-section.tsx` — all changes here.
 
-- A numeric `<Input>` (large, right-aligned) for the user to type the target amount.
-- A **Back Calculate** `<Button>` below the input.
-- A green **✓ Tallied** indicator (using `CheckCircle2` icon) shown when `|grandTotal − target| < 0.005`.
-
----
-
-## State
-
-| Addition | Type | Purpose |
-|---|---|---|
-| `backCalcTarget` | `string` | Controlled input value for the target amount |
-
-`isTallied` is **derived** (not state):
-```typescript
-const backCalcTargetNum = parseFloat(backCalcTarget);
-const isTallied = backCalcTarget !== "" && !isNaN(backCalcTargetNum)
-    && Math.abs(grandTotal - backCalcTargetNum) < 0.005;
-```
-
----
-
-## Algorithm — `computeBackCalc` (pure helper, outside component)
-
-Single entry-point function. Returns `{ newPartLines?, newChargeLines? }` — caller applies them to state.
-
-```
-computeBackCalc(target, partLines, chargeLines, isGst):
-
-  1. Recompute partsTotal and chargesTotal from current state.
-  2. diff = target − (partsTotal + chargesTotal)
-  3. If |diff| < 0.005 → return {} (already tallied)
-
-  4. activeCharges = chargeLines where charge_name.trim() ≠ ""
-
-  ── Phase 1: Adjust additional charges ──────────────────────────────
-  5. If activeCharges.length > 0:
-       curChargesAmt = sum of (selling_price × qty × (1 + gst_rate/100)) for activeCharges
-       newChargesAmt = curChargesAmt + diff
-
-       If newChargesAmt ≥ 0:
-         → return { newChargeLines: scaleCharges(chargeLines, activeCharges,
-                                                  curChargesAmt, newChargesAmt, isGst) }
-
-  ── Phase 2: Zero charges + adjust parts ────────────────────────────
-  6. activeParts = partLines where part_id ≠ null
-     If activeParts.length = 0 → return {} (nothing to adjust)
-
-  7. newChargeLines = set selling_price = "0", sale_pr_gst = "0" on all activeCharges
-
-  8. curPartsAmt = sum of (sale_pr_gst × quantity) for activeParts
-     If curPartsAmt ≤ 0 → return { newChargeLines } (can't scale from zero)
-
-  9. return {
-       newPartLines:  scaleParts(partLines, activeParts, curPartsAmt, target),
-       newChargeLines,
-     }
-```
-
----
-
-## Helper — `scaleCharges`
-
-Proportionally rescales `selling_price` and `sale_pr_gst` of active charge rows so their total equals `newTotal`.
-
-```
-scaleCharges(allCharges, active, curTotal, newTotal, isGst):
-
-  For each active charge:
-    curRowAmt = selling_price × qty × (1 + gst_rate/100)
-    if curTotal > 0:
-      newRowAmt = max(0, curRowAmt × newTotal / curTotal)
-    else:
-      newRowAmt = newTotal / active.length     ← even split when starting from zero
-
-  Last row absorbs rounding remainder:
-    newRowAmts[last] = max(0, newTotal − sum(newRowAmts[0..n-2]))
-
-  Back-calculate per row:
-    sale_pr_gst_per_unit = newRowAmt / qty
-    selling_price        = sale_pr_gst_per_unit / (1 + gst_rate/100)
-
-  Return allCharges with active rows patched.
-```
-
-No negative-value guard needed here since `newTotal ≥ 0` is enforced before calling.
-
----
-
-## Helper — `scaleParts`
-
-Proportionally rescales `selling_price` and `sale_pr_gst` of active part rows so their total equals `newTotal`, while ensuring **profit does not go negative** (i.e. `selling_price ≥ cost_price`).
-
-```
-scaleParts(allParts, active, curTotal, newTotal):
-
-  For each active part:
-    curRowAmt = sale_pr_gst × quantity
-    newRowAmt = max(0, curRowAmt × newTotal / curTotal)
-
-  Last row absorbs rounding remainder.
-
-  Back-calculate per row:
-    sale_pr_gst_per_unit = newRowAmt / quantity
-    selling_price        = sale_pr_gst_per_unit / (1 + gst_rate/100)
-
-    // No negative profit:
-    finalSp  = max(selling_price, cost_price)
-    finalSpg = finalSp × (1 + gst_rate/100)
-
-  Return allParts with active rows patched.
-```
-
-> Note: Enforcing the profit floor means the final `grandTotal` may not exactly equal `target` when parts are constrained. The `isTallied` indicator uses a tolerance of `0.005` to account for rounding.
-
----
-
-## Handler (inside component)
+### 1.2 New State
 
 ```typescript
-function handleBackCalculate() {
-    const target = parseFloat(backCalcTarget);
-    if (isNaN(target) || target < 0) return;
-    const result = computeBackCalc(target, partLines, chargeLines, isGst);
-    if (result.newPartLines)  setPartLines(result.newPartLines);
-    if (result.newChargeLines) setChargeLines(result.newChargeLines);
+// Tab
+const [activeTab, setActiveTab] = useState<"pending" | "finalized">("pending");
+
+// Finalized Jobs list
+const [finalizedRows, setFinalizedRows]         = useState<FinalizedJobRow[]>([]);
+const [finalizedTotal, setFinalizedTotal]       = useState(0);
+const [finalizedPage, setFinalizedPage]         = useState(1);
+const [finalizedSearch, setFinalizedSearch]     = useState("");
+const [finalizedSearchQ, setFinalizedSearchQ]   = useState("");
+const [finalizedFromDate, setFinalizedFromDate] = useState(financialYearStart()); // same helper as deliver-job
+const [finalizedToDate, setFinalizedToDate]     = useState(todayStr());
+const [finalizedLoading, setFinalizedLoading]   = useState(false);
+
+// Edit mode
+const [isEditMode, setIsEditMode]               = useState(false);
+const [existingInvoiceId, setExistingInvoiceId] = useState<number | null>(null);
+```
+
+### 1.3 New Type
+
+Add near `FinalJobRow` in `final-a-job-schema.ts`:
+
+```typescript
+export type FinalizedJobRow = {
+    id:               number;
+    job_no:           string;
+    alternate_job_no: string | null;
+    job_date:         string;
+    customer_name:    string;
+    mobile:           string;
+    job_status_name:  string;
+    technician_name:  string | null;
+    invoice_no:       string | null;
+    invoice_total:    number | null;
+    last_transaction_id: number | null;
+    amount:           number | null;
+};
+```
+
+### 1.4 SQL — reuse existing IDs (no new SQL needed)
+
+The "Finalized Jobs" list uses the same `GET_DELIVERABLE_JOBS_PAGED` / `GET_DELIVERABLE_JOBS_COUNT` that the Deliver Job section uses. These already filter `is_final = true AND is_closed = false`.  
+`SQL_MAP` keys used: `SQL_MAP.GET_DELIVERABLE_JOBS_COUNT`, `SQL_MAP.GET_DELIVERABLE_JOBS_PAGED`.  
+Args: `{ branch_id, from_date, to_date, search, limit, offset }`.
+
+### 1.5 Data Load Function
+
+```typescript
+async function loadFinalizedData() {
+    if (!branchId || !dbName || !schema) return;
+    setFinalizedLoading(true);
+    try {
+        const args = {
+            branch_id:  branchId,
+            from_date:  finalizedFromDate,
+            to_date:    finalizedToDate,
+            search:     finalizedSearchQ,
+            limit:      PAGE_SIZE,
+            offset:     (finalizedPage - 1) * PAGE_SIZE,
+        };
+        const [countRes, rowsRes] = await Promise.all([
+            apolloClient.query({ fetchPolicy: 'network-only', query: GRAPHQL_MAP.genericQuery,
+                variables: { db_name: dbName, schema,
+                    value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_DELIVERABLE_JOBS_COUNT, sqlArgs: args }) } }),
+            apolloClient.query({ fetchPolicy: 'network-only', query: GRAPHQL_MAP.genericQuery,
+                variables: { db_name: dbName, schema,
+                    value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_DELIVERABLE_JOBS_PAGED, sqlArgs: args }) } }),
+        ]);
+        setFinalizedTotal(Number(countRes.data?.genericQuery?.[0]?.total ?? 0));
+        setFinalizedRows(rowsRes.data?.genericQuery ?? []);
+    } finally {
+        setFinalizedLoading(false);
+    }
+}
+```
+
+Call `loadFinalizedData()` via `useEffect` whenever `activeTab === "finalized"` and dependencies change (branch, dates, searchQ, page).
+
+### 1.6 Tab Bar UI
+
+Render at the top of the motion.div content **when `subView === "list"`**:
+
+```tsx
+{subView === "list" && (
+    <div className="flex border-b border-[var(--cl-border)] mb-4 shrink-0">
+        {[
+            { key: "pending",   label: "Final a Job"     },
+            { key: "finalized", label: "Finalized Jobs"  },
+        ].map(t => (
+            <button
+                key={t.key}
+                className={`px-5 py-2 text-sm font-medium border-b-2 transition-colors ${
+                    activeTab === t.key
+                        ? "border-[var(--cl-accent)] text-[var(--cl-accent)]"
+                        : "border-transparent text-[var(--cl-text-muted)] hover:text-[var(--cl-text)]"
+                }`}
+                onClick={() => setActiveTab(t.key as "pending" | "finalized")}
+            >
+                {t.label}
+            </button>
+        ))}
+    </div>
+)}
+```
+
+### 1.7 "Finalized Jobs" List View
+
+When `subView === "list" && activeTab === "finalized"`, render a list with:
+
+- **Filters row**: date-range pickers (from/to) + search input
+- **Table columns**: Job No | Date | Customer | Mobile | Technician | Status | Invoice No | Invoice Total | Actions
+- **Actions per row**:
+  - Eye icon → `setViewJobId(row.id)` (existing `JobDetailsModal`)
+  - Pencil icon → `handleOpenFinalForEdit(row)`
+- **Pagination**: same pattern as existing "pending" list
+
+### 1.8 `handleOpenFinalForEdit`
+
+```typescript
+async function handleOpenFinalForEdit(row: FinalizedJobRow) {
+    setIsEditMode(true);
+    await handleOpenFinal(row as unknown as FinalJobRow); // reuses existing loader
+
+    // Fetch existing invoice to get its ID (for delete+reinsert on save)
+    if (!dbName || !schema) return;
+    try {
+        const res = await apolloClient.query({
+            fetchPolicy: 'network-only',
+            query: GRAPHQL_MAP.genericQuery,
+            variables: {
+                db_name: dbName, schema,
+                value: graphQlUtils.buildGenericQueryValue({
+                    sqlId: SQL_MAP.GET_JOB_INVOICE_BY_JOB,
+                    sqlArgs: { job_id: row.id },
+                }),
+            },
+        });
+        const inv = res.data?.genericQuery?.[0];
+        setExistingInvoiceId(inv?.id ?? null);
+        // Restore forceIgst from existing invoice (igst_amount > 0 means IGST was used)
+        if (inv) setForceIgst(Number(inv.igst_amount) > 0);
+    } catch { /* leave defaults */ }
+}
+```
+
+### 1.9 Edit Mode Visual Indicator
+
+In the "final" subview header (after the existing header div), add:
+
+```tsx
+{isEditMode && (
+    <div className="flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-800 shrink-0">
+        <Edit2 className="h-4 w-4 shrink-0" />
+        Edit mode — changes will update parts, charges, and the invoice.
+    </div>
+)}
+```
+
+### 1.10 "Save" Button in Edit Mode
+
+Replace `"Save & Mark Final"` label with `"Save Changes"` when `isEditMode`:
+
+```tsx
+{isEditMode ? "Save Changes" : "Save & Mark Final"}
+```
+
+The button calls `isEditMode ? handleSaveEdit() : handleSaveFinal()`.
+
+### 1.11 Back Navigation from Edit Mode
+
+When back button clicked while `isEditMode`:
+```typescript
+function handleBack() {
+    setSubView("list");
+    if (isEditMode) {
+        setIsEditMode(false);
+        setExistingInvoiceId(null);
+        setActiveTab("finalized");
+    }
+    // reset part/charge state as before
 }
 ```
 
 ---
 
-## Edge Cases
+## 2. Invoice Creation
 
-| Scenario | Behaviour |
-|---|---|
-| `target === grandTotal` | No-op; `isTallied` shows immediately |
-| No active charges, target < partsTotal | Scale parts down (floored at cost_price per row) |
-| All charges already at 0 and diff > 0 | Even-split the new total across charge rows |
-| No active charges AND no active parts | Nothing changes |
-| Negative target entered | Button disabled / guard in handler |
-| `curPartsAmt === 0` (all parts at 0 sale) | Phase 2 returns `newChargeLines` only, parts unchanged |
+### 2.1 Pure Helper — `computeInvoicePayload`
+
+Add outside the component (alongside `scaleCharges`, `scaleParts`):
+
+```typescript
+function computeInvoicePayload(
+    partLines:    EditablePartLine[],
+    chargeLines:  EditableChargeLine[],
+    jobNo:        string,
+    isGst:        boolean,
+    forceIgst:    boolean,
+    stateCode:    string | null,
+): {
+    invoiceHeader: Record<string, unknown>;
+    invoiceLines:  Record<string, unknown>[];
+} {
+    const today      = new Date().toISOString().split("T")[0];
+    const supplyCode = (stateCode ?? "00").substring(0, 2);
+    const lines: Record<string, unknown>[] = [];
+    let taxable = 0, cgst = 0, sgst = 0, igst = 0;
+
+    // Part lines
+    for (const l of partLines.filter(l => l.part_id !== null)) {
+        const sp       = parseFloat(l.selling_price) || 0;
+        const qty      = l.quantity;
+        const gstRate  = isGst ? (parseFloat(l.gst_rate) || 0) : 0;
+        const rowTax   = sp * qty;
+        const cgstRate = isGst && !forceIgst ? gstRate / 2 : 0;
+        const sgstRate = isGst && !forceIgst ? gstRate / 2 : 0;
+        const igstRate = isGst && forceIgst  ? gstRate     : 0;
+        const rc = rowTax * cgstRate / 100;
+        const rs = rowTax * sgstRate / 100;
+        const ri = rowTax * igstRate / 100;
+        lines.push({
+            description:    l.part_name || l.part_code || "",
+            part_code:      l.part_code || null,
+            hsn_code:       l.hsn_code  || null,
+            quantity:       qty,
+            unit_price:     sp,
+            taxable_amount: rowTax,
+            cgst_rate: cgstRate, sgst_rate: sgstRate, igst_rate: igstRate,
+            cgst_amount: rc, sgst_amount: rs, igst_amount: ri,
+            total_amount: rowTax + rc + rs + ri,
+        });
+        taxable += rowTax; cgst += rc; sgst += rs; igst += ri;
+    }
+
+    // Charge lines (part_code = null)
+    for (const c of chargeLines.filter(c => c.charge_name.trim() !== "")) {
+        const sp       = parseFloat(c.selling_price) || 0;
+        const qty      = parseFloat(c.quantity) || 1;
+        const gstRate  = isGst ? (parseFloat(c.gst_rate) || 0) : 0;
+        const rowTax   = sp * qty;
+        const cgstRate = isGst && !forceIgst ? gstRate / 2 : 0;
+        const sgstRate = isGst && !forceIgst ? gstRate / 2 : 0;
+        const igstRate = isGst && forceIgst  ? gstRate     : 0;
+        const rc = rowTax * cgstRate / 100;
+        const rs = rowTax * sgstRate / 100;
+        const ri = rowTax * igstRate / 100;
+        lines.push({
+            description:    c.charge_name,
+            part_code:      null,
+            hsn_code:       c.hsn_code || null,
+            quantity:       qty,
+            unit_price:     sp,
+            taxable_amount: rowTax,
+            cgst_rate: cgstRate, sgst_rate: sgstRate, igst_rate: igstRate,
+            cgst_amount: rc, sgst_amount: rs, igst_amount: ri,
+            total_amount: rowTax + rc + rs + ri,
+        });
+        taxable += rowTax; cgst += rc; sgst += rs; igst += ri;
+    }
+
+    const totalTax = cgst + sgst + igst;
+    return {
+        invoiceHeader: {
+            invoice_no:      jobNo,          // job_no used as invoice_no (unique)
+            invoice_date:    today,
+            supply_state_code: supplyCode,
+            taxable_amount:  taxable,
+            cgst_amount:     cgst,
+            sgst_amount:     sgst,
+            igst_amount:     igst,
+            total_tax:       totalTax,
+            total_amount:    taxable + totalTax,
+        },
+        invoiceLines: lines,
+    };
+}
+```
+
+### 2.2 Modify `handleSaveFinal`
+
+After building `xDetails` for parts and charges (around line 834), append invoice:
+
+```typescript
+// Build invoice payload
+const { invoiceHeader, invoiceLines } = computeInvoicePayload(
+    partLines, chargeLines, selectedJob.job_no, isGst, forceIgst, effectiveGstStateCode
+);
+xDetails.push({
+    tableName: "job_invoice",
+    fkeyName:  "job_id",
+    xData: [{
+        ...invoiceHeader,
+        xDetails: {
+            tableName: "job_invoice_line",
+            fkeyName:  "job_invoice_id",
+            xData:     invoiceLines,
+        },
+    }],
+});
+```
+
+Mutation root stays:
+```typescript
+{ tableName: "job", xData: { id: selectedJob.id, is_final: true, division_id: selectedDivisionId }, xDetails }
+```
+
+Success toast updated: `"Job marked as final and invoice created."`
+
+### 2.3 New `handleSaveEdit`
+
+Same validation as `handleSaveFinal`, same `xDetails` for parts/charges, PLUS for invoice:
+
+```typescript
+const { invoiceHeader, invoiceLines } = computeInvoicePayload(
+    partLines, chargeLines, selectedJob.job_no, isGst, forceIgst, effectiveGstStateCode
+);
+xDetails.push({
+    tableName: "job_invoice",
+    fkeyName:  "job_id",
+    ...(existingInvoiceId !== null ? { deletedIds: [existingInvoiceId] } : {}),
+    xData: [{
+        ...invoiceHeader,
+        xDetails: {
+            tableName: "job_invoice_line",
+            fkeyName:  "job_invoice_id",
+            xData:     invoiceLines,
+        },
+    }],
+});
+
+await apolloClient.mutate({
+    mutation: GRAPHQL_MAP.genericUpdate,
+    variables: {
+        db_name: dbName, schema,
+        value: encodeObj({
+            tableName: "job",
+            xData: { id: selectedJob.id, is_final: true, division_id: selectedDivisionId },
+            xDetails,
+        }),
+    },
+});
+
+toast.success("Finalized job updated.");
+setIsEditMode(false);
+setExistingInvoiceId(null);
+setSubView("list");
+setActiveTab("finalized");
+void loadFinalizedData();
+```
 
 ---
 
-## Files Changed
+## 3. Selector needed
 
-| File | Change |
+Add `selectEffectiveGstStateCode` to the imports from `@/store/context-slice` — already exists in the slice.
+
+```typescript
+const effectiveGstStateCode = useAppSelector(selectEffectiveGstStateCode);
+```
+
+---
+
+## 4. Files Changed
+
+| File | What changes |
 |---|---|
-| `final-a-job-section.tsx` | Add `scaleCharges`, `scaleParts`, `computeBackCalc` helpers; add `backCalcTarget` state; add UI to Grand Summary |
+| `final-a-job-section.tsx` | New state, tab UI, finalized list view, `handleOpenFinalForEdit`, `handleSaveEdit`, `computeInvoicePayload`, invoice xDetails in `handleSaveFinal`, edit mode banner |
+| `final-a-job-schema.ts` | Add `FinalizedJobRow` type |
+| `sql-map.ts` | No change — reuse `GET_DELIVERABLE_JOBS_COUNT/PAGED` |
+| Server | No change — `genericUpdate` already handles nested inserts/deletes |
+
+---
+
+## 5. Edge Cases
+
+| Case | Handling |
+|---|---|
+| Warranty job opened for edit | Keep all fields disabled (same `isWarranty` check) |
+| Job has no parts and no charges | Invoice created with zero lines and zero totals |
+| Non-GST division | All GST amounts = 0, supply_state_code = "00" |
+| No existing invoice when editing | `existingInvoiceId = null`; omit `deletedIds`; just insert new invoice |
+| invoice_no uniqueness | Job_no is unique per job; delete-then-insert prevents conflict |
+| `forceIgst` not restorable | Infer from `existing_invoice.igst_amount > 0`; user can toggle if wrong |
+
+---
+
+## 6. Verification
+
+1. Tab "Final a Job" works exactly as before (no regression).
+2. Tab "Finalized Jobs" loads with date filters, search, pagination.
+3. View icon → JobDetailsModal opens correctly.
+4. Edit icon → opens final view with amber banner; button shows "Save Changes".
+5. Save Changes: parts/charges updated, old invoice deleted, new invoice inserted — verify in DB.
+6. Save & Mark Final (new job): job_invoice + job_invoice_line rows created — verify in DB.
+7. GST job: cgst/sgst/igst amounts correct; forceIgst=true → all goes to igst.
+8. Non-GST job: all gst amounts = 0 in invoice.
+9. `tsc --noEmit` passes.

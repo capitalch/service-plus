@@ -17,14 +17,16 @@ export type Json = unknown;
 export interface AdditionalCharge {
   id: number;
   name: string;
+  hsn_code: string | null;
 }
 export interface AdditionalChargeInput {
   id: number;
   name: string;
+  hsn_code?: string | null;
 }
 const additional_charge = {
   tableName: 'additional_charge',
-  columns: ['id', 'name'],
+  columns: ['id', 'name', 'hsn_code'],
   requiredForInsert: ['id', 'name'],
   primaryKey: 'id',
   foreignKeys: {},
@@ -383,6 +385,7 @@ export interface Job {
   estimate_amount: number;
   alternate_job_no: string | null;
   division_id: number;
+  is_posted: boolean;
 }
 export interface JobInput {
   id: number;
@@ -416,10 +419,11 @@ export interface JobInput {
   estimate_amount?: number;
   alternate_job_no?: string | null;
   division_id: number;
+  is_posted?: boolean;
 }
 const job = {
   tableName: 'job',
-  columns: ['id', 'job_no', 'job_date', 'customer_contact_id', 'branch_id', 'technician_id', 'job_status_id', 'job_type_id', 'job_receive_manner_id', 'job_receive_condition_id', 'product_brand_model_id', 'serial_no', 'problem_reported', 'diagnosis', 'work_done', 'remarks', 'amount', 'delivery_date', 'is_closed', 'warranty_card_no', 'is_active', 'created_at', 'updated_at', 'address_snapshot', 'last_transaction_id', 'is_final', 'quantity', 'batch_no', 'estimate_amount', 'alternate_job_no', 'division_id'],
+  columns: ['id', 'job_no', 'job_date', 'customer_contact_id', 'branch_id', 'technician_id', 'job_status_id', 'job_type_id', 'job_receive_manner_id', 'job_receive_condition_id', 'product_brand_model_id', 'serial_no', 'problem_reported', 'diagnosis', 'work_done', 'remarks', 'amount', 'delivery_date', 'is_closed', 'warranty_card_no', 'is_active', 'created_at', 'updated_at', 'address_snapshot', 'last_transaction_id', 'is_final', 'quantity', 'batch_no', 'estimate_amount', 'alternate_job_no', 'division_id', 'is_posted'],
   requiredForInsert: ['id', 'job_no', 'customer_contact_id', 'branch_id', 'job_status_id', 'job_type_id', 'job_receive_manner_id', 'product_brand_model_id', 'division_id'],
   primaryKey: 'id',
   foreignKeys: {
@@ -447,6 +451,9 @@ export interface JobAdditionalCharge {
   cost_price: number;
   selling_price: number;
   created_at: Date;
+  hsn_code: string | null;
+  gst_rate: number;
+  quantity: number;
 }
 export interface JobAdditionalChargeInput {
   id: number;
@@ -457,10 +464,13 @@ export interface JobAdditionalChargeInput {
   cost_price?: number;
   selling_price?: number;
   created_at?: Date;
+  hsn_code?: string | null;
+  gst_rate?: number;
+  quantity?: number;
 }
 const job_additional_charge = {
   tableName: 'job_additional_charge',
-  columns: ['id', 'job_id', 'charge_name', 'ref_no', 'description', 'cost_price', 'selling_price', 'created_at'],
+  columns: ['id', 'job_id', 'charge_name', 'ref_no', 'description', 'cost_price', 'selling_price', 'created_at', 'hsn_code', 'gst_rate', 'quantity'],
   requiredForInsert: ['id', 'job_id', 'charge_name'],
   primaryKey: 'id',
   foreignKeys: { job_id: { table: 'job', column: 'id', $type: null as unknown as Job }, },
@@ -569,7 +579,6 @@ export interface JobInvoiceLine {
   job_invoice_id: number;
   description: string;
   part_code: string | null;
-  hsn_code: string;
   quantity: number;
   price: number;
   aggregate: number;
@@ -580,13 +589,13 @@ export interface JobInvoiceLine {
   amount: number;
   created_at: Date;
   updated_at: Date;
+  hsn_code: string | null;
 }
 export interface JobInvoiceLineInput {
   id: number;
   job_invoice_id: number;
   description: string;
   part_code?: string | null;
-  hsn_code: string;
   quantity: number;
   price: number;
   aggregate: number;
@@ -597,11 +606,12 @@ export interface JobInvoiceLineInput {
   amount: number;
   created_at?: Date;
   updated_at?: Date;
+  hsn_code?: string | null;
 }
 const job_invoice_line = {
   tableName: 'job_invoice_line',
-  columns: ['id', 'job_invoice_id', 'description', 'part_code', 'hsn_code', 'quantity', 'price', 'aggregate', 'gst_rate', 'cgst_amount', 'sgst_amount', 'igst_amount', 'amount', 'created_at', 'updated_at'],
-  requiredForInsert: ['id', 'job_invoice_id', 'description', 'hsn_code', 'quantity', 'price', 'aggregate', 'amount'],
+  columns: ['id', 'job_invoice_id', 'description', 'part_code', 'quantity', 'price', 'aggregate', 'gst_rate', 'cgst_amount', 'sgst_amount', 'igst_amount', 'amount', 'created_at', 'updated_at', 'hsn_code'],
+  requiredForInsert: ['id', 'job_invoice_id', 'description', 'quantity', 'price', 'aggregate', 'amount'],
   primaryKey: 'id',
   foreignKeys: { job_invoice_id: { table: 'job_invoice', column: 'id', $type: null as unknown as JobInvoice }, },
   $type: null as unknown as JobInvoiceLine,
@@ -619,6 +629,8 @@ export interface JobPartUsed {
   remarks: string | null;
   cost_price: number;
   selling_price: number;
+  gst_rate: number;
+  hsn_code: string | null;
 }
 export interface JobPartUsedInput {
   id: number;
@@ -630,10 +642,12 @@ export interface JobPartUsedInput {
   remarks?: string | null;
   cost_price?: number;
   selling_price?: number;
+  gst_rate?: number;
+  hsn_code?: string | null;
 }
 const job_part_used = {
   tableName: 'job_part_used',
-  columns: ['id', 'job_id', 'part_id', 'quantity', 'created_at', 'updated_at', 'remarks', 'cost_price', 'selling_price'],
+  columns: ['id', 'job_id', 'part_id', 'quantity', 'created_at', 'updated_at', 'remarks', 'cost_price', 'selling_price', 'gst_rate', 'hsn_code'],
   requiredForInsert: ['id', 'job_id', 'part_id', 'quantity'],
   primaryKey: 'id',
   foreignKeys: {
@@ -1031,6 +1045,7 @@ export interface SalesInvoice {
   updated_at: Date;
   is_return: boolean;
   division_id: number;
+  is_posted: boolean;
 }
 export interface SalesInvoiceInput {
   id: number;
@@ -1050,10 +1065,11 @@ export interface SalesInvoiceInput {
   updated_at?: Date;
   is_return?: boolean;
   division_id: number;
+  is_posted?: boolean;
 }
 const sales_invoice = {
   tableName: 'sales_invoice',
-  columns: ['id', 'invoice_no', 'invoice_date', 'customer_contact_id', 'customer_name', 'customer_gstin', 'customer_state_code', 'aggregate', 'cgst_amount', 'sgst_amount', 'igst_amount', 'amount', 'remarks', 'created_at', 'updated_at', 'is_return', 'division_id'],
+  columns: ['id', 'invoice_no', 'invoice_date', 'customer_contact_id', 'customer_name', 'customer_gstin', 'customer_state_code', 'aggregate', 'cgst_amount', 'sgst_amount', 'igst_amount', 'amount', 'remarks', 'created_at', 'updated_at', 'is_return', 'division_id', 'is_posted'],
   requiredForInsert: ['id', 'invoice_no', 'invoice_date', 'customer_contact_id', 'customer_name', 'customer_state_code', 'aggregate', 'amount', 'division_id'],
   primaryKey: 'id',
   foreignKeys: {

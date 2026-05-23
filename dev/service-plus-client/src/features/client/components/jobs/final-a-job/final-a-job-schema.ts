@@ -1,3 +1,24 @@
+export type FinalizedJobRow = {
+    id:               number;
+    job_no:           string;
+    alternate_job_no: string | null;
+    job_date:         string;
+    customer_name:    string;
+    mobile:           string;
+    job_status_name:  string;
+    technician_name:  string | null;
+    invoice_no:       string | null;
+    invoice_total:    number | null;
+    last_transaction_id: number | null;
+    amount:           number | null;
+    division_id:      number | null;
+    file_count:       number;
+    batch_no:         number | null;
+    device_details:   string | null;
+    serial_no:        string | null;
+    is_posted:        boolean;
+};
+
 export type FinalJobRow = {
     id:               number;
     job_no:           string;
@@ -16,6 +37,24 @@ export type FinalJobRow = {
     technician_name:  string | null;
     division_id:      number | null;
     file_count:       number;
+};
+
+export type AdditionalChargeMasterRow = { id: number; name: string; hsn_code: string | null };
+
+export type EditablePartLine = {
+    _key:          string;
+    id?:           number;
+    brand_id:      number | null;
+    part_id:       number | null;
+    part_code:     string;
+    part_name:     string;
+    cost_price:    string;
+    selling_price: string;
+    sale_pr_gst:   string;
+    gst_rate:      string;
+    quantity:      number;
+    remarks:       string;
+    hsn_code:      string;
 };
 
 export type EditableChargeLine = {

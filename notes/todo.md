@@ -1,21 +1,28 @@
-- Division
+- Trace transfer
+	- used is_posted flag in job and 
+- Job sales return
+- 
+- Final a Job
+							- Undo final
+								- delete invoice
+								- set is_final false
+	- Save
+								- Bug: job existing in both grids: Final a job and finalised jobs
+							- Division
 								- CRUD division
 								- JOB crud: division
 								- Batch job: division
-	- Job invoice: division
-	- parts invoice division
+								- Job invoice: division
+	- parts invoice: implement division
 - Jobs
-	- There is gap found in job numbers
 							- job pipeline
 								- for job type: demo, inspection: No spare parts can be provided
 								- job update: should be in a transaction. Recheck mutation at server
 								- data saving test
 								- Undo last transaction
 								- Unique index for customer
-	- implement alternate job no
-	- implement multiple company name options
-	
-	- Trace transfer
+								- implement alternate job no
+								- implement multiple company name options
 							- Separate file server
 								- Folder hierarchy as client/bu/branch/job_no
 								- Final deployment of file server with deploy script
@@ -50,13 +57,13 @@
 								- View MODAL -> print pdf or print All not working
 								- view mode: 1.1,1.2 -> 3.1, 3.2
 								- Single job view mode: all the jobs in a batch should have different demarkation
-	- Job list search
-		- Remove date filter
-		- Make search stronger
-		- Remove delete from Actions
-		- Add job view
-			- Job details
-			- Job transactions
+							- Job list search
+								- Remove date filter
+								- Make search stronger
+								- Remove delete from Actions
+								- Add job view
+									- Job details
+									- Job transactions
 # To Do
 - Jobs
 	- New job

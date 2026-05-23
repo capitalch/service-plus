@@ -3885,6 +3885,7 @@ class SqlStore:
         WHERE j.branch_id = (table "p_branch_id")
           --AND ((table "p_division_id") IS NULL OR j.division_id = (table "p_division_id"))
           AND js.code = 'COMPLETED_OK'
+          AND j.is_final = false
           AND ((table "p_search") = ''
            OR  LOWER(j.job_no::text)                     LIKE '%%' || LOWER((table "p_search")) || '%%'
            OR  LOWER(COALESCE(j.alternate_job_no, ''))   LIKE '%%' || LOWER((table "p_search")) || '%%'
@@ -3935,6 +3936,7 @@ class SqlStore:
         WHERE j.branch_id = (table "p_branch_id")
           --AND ((table "p_division_id") IS NULL OR j.division_id = (table "p_division_id"))
           AND js.code = 'COMPLETED_OK'
+          AND j.is_final = false
           AND ((table "p_search") = ''
            OR  LOWER(j.job_no::text)                     LIKE '%%' || LOWER((table "p_search")) || '%%'
            OR  LOWER(COALESCE(j.alternate_job_no, ''))   LIKE '%%' || LOWER((table "p_search")) || '%%'
@@ -3955,26 +3957,24 @@ class SqlStore:
     GET_JOB_INVOICE_BY_JOB = """
         with "p_job_id" as (values(%(job_id)s::bigint))
         SELECT ji.id, ji.job_id, ji.invoice_no, ji.invoice_date,
-               ji.supply_state_code, ji.taxable_amount, ji.cgst_amount, ji.sgst_amount,
-               ji.igst_amount, ji.total_tax, ji.total_amount,
+               ji.supply_state_code, ji.aggregate, ji.cgst_amount, ji.sgst_amount,
+               ji.igst_amount, ji.amount,
                COALESCE(
                    json_agg(
                        json_build_object(
-                           'id',             jil.id,
+                           'id',          jil.id,
                            'job_invoice_id', jil.job_invoice_id,
-                           'description',    jil.description,
-                           'part_code',      jil.part_code,
-                           'hsn_code',       jil.hsn_code,
-                           'quantity',       jil.quantity,
-                           'unit_price',     jil.unit_price,
-                           'taxable_amount', jil.taxable_amount,
-                           'cgst_rate',      jil.cgst_rate,
-                           'sgst_rate',      jil.sgst_rate,
-                           'igst_rate',      jil.igst_rate,
-                           'cgst_amount',    jil.cgst_amount,
-                           'sgst_amount',    jil.sgst_amount,
-                           'igst_amount',    jil.igst_amount,
-                           'total_amount',   jil.total_amount
+                           'description', jil.description,
+                           'part_code',   jil.part_code,
+                           'hsn_code',    jil.hsn_code,
+                           'quantity',    jil.quantity,
+                           'price',       jil.price,
+                           'aggregate',   jil.aggregate,
+                           'gst_rate',    jil.gst_rate,
+                           'cgst_amount', jil.cgst_amount,
+                           'sgst_amount', jil.sgst_amount,
+                           'igst_amount', jil.igst_amount,
+                           'amount',      jil.amount
                        ) ORDER BY jil.id
                    ) FILTER (WHERE jil.id IS NOT NULL),
                    '[]'::json
@@ -3999,51 +3999,65 @@ class SqlStore:
     GET_DELIVERABLE_JOBS_COUNT = """
         with
             "p_branch_id" as (values(%(branch_id)s::bigint)),
-            "p_from_date" as (values(%(from_date)s::date)),
-            "p_to_date"   as (values(%(to_date)s::date)),
             "p_search"    as (values(%(search)s::text))
         SELECT COUNT(*) AS total
         FROM job j
-        JOIN customer_contact cc ON cc.id = j.customer_contact_id
+        JOIN customer_contact      cc  ON cc.id  = j.customer_contact_id
+        LEFT JOIN technician       t   ON t.id   = j.technician_id
+        LEFT JOIN product_brand_model pbm ON pbm.id = j.product_brand_model_id
+        LEFT JOIN brand            b   ON b.id   = pbm.brand_id
+        LEFT JOIN product          p   ON p.id   = pbm.product_id
         WHERE j.branch_id = (table "p_branch_id")
-          AND j.job_date BETWEEN (table "p_from_date") AND (table "p_to_date")
           AND j.is_final  = true
           AND j.is_closed = false
           AND ((table "p_search") = ''
-           OR  LOWER(j.job_no::text)                LIKE '%%' || LOWER((table "p_search")) || '%%'
-           OR  LOWER(cc.mobile)                     LIKE '%%' || LOWER((table "p_search")) || '%%'
-           OR  LOWER(cc.full_name)                  LIKE '%%' || LOWER((table "p_search")) || '%%'
-           OR  LOWER(COALESCE(j.alternate_job_no, '')) LIKE '%%' || LOWER((table "p_search")) || '%%')
+           OR  LOWER(j.job_no::text)                   LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(cc.mobile)                        LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(cc.full_name)                     LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(COALESCE(j.alternate_job_no, '')) LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(COALESCE(t.name, ''))             LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(COALESCE(j.serial_no, ''))        LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(COALESCE(b.name, ''))             LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(COALESCE(p.name, ''))             LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(COALESCE(pbm.model_name, ''))     LIKE '%%' || LOWER((table "p_search")) || '%%')
     """
 
     GET_DELIVERABLE_JOBS_PAGED = """
         with
             "p_branch_id" as (values(%(branch_id)s::bigint)),
-            "p_from_date" as (values(%(from_date)s::date)),
-            "p_to_date"   as (values(%(to_date)s::date)),
             "p_search"    as (values(%(search)s::text)),
             "p_limit"     as (values(%(limit)s::int)),
             "p_offset"    as (values(%(offset)s::int))
         SELECT j.id, j.job_no, j.alternate_job_no, j.job_date, j.amount, j.last_transaction_id,
+               j.division_id, j.batch_no, j.serial_no, j.is_posted,
+               TRIM(CONCAT_WS(' ', p.name, b.name, pbm.model_name, j.serial_no)) AS device_details,
                cc.full_name  AS customer_name, cc.mobile,
                js.name       AS job_status_name,
                t.name        AS technician_name,
-               ji.total_amount AS invoice_total,
-               ji.invoice_no
+               ji.amount     AS invoice_total,
+               ji.invoice_no,
+               (SELECT COUNT(*) FROM job_image_doc jid WHERE jid.job_id = j.id) AS file_count
         FROM job j
-        JOIN customer_contact cc ON cc.id = j.customer_contact_id
-        JOIN job_status        js ON js.id = j.job_status_id
-        LEFT JOIN technician   t  ON t.id  = j.technician_id
-        LEFT JOIN job_invoice  ji ON ji.job_id = j.id
+        JOIN customer_contact      cc  ON cc.id  = j.customer_contact_id
+        JOIN job_status            js  ON js.id  = j.job_status_id
+        LEFT JOIN technician       t   ON t.id   = j.technician_id
+        LEFT JOIN job_invoice      ji  ON ji.job_id = j.id
+        LEFT JOIN product_brand_model pbm ON pbm.id = j.product_brand_model_id
+        LEFT JOIN brand            b   ON b.id   = pbm.brand_id
+        LEFT JOIN product          p   ON p.id   = pbm.product_id
         WHERE j.branch_id = (table "p_branch_id")
-          AND j.job_date BETWEEN (table "p_from_date") AND (table "p_to_date")
           AND j.is_final  = true
           AND j.is_closed = false
           AND ((table "p_search") = ''
-           OR  LOWER(j.job_no::text)                LIKE '%%' || LOWER((table "p_search")) || '%%'
-           OR  LOWER(cc.mobile)                     LIKE '%%' || LOWER((table "p_search")) || '%%'
-           OR  LOWER(cc.full_name)                  LIKE '%%' || LOWER((table "p_search")) || '%%'
-           OR  LOWER(COALESCE(j.alternate_job_no, '')) LIKE '%%' || LOWER((table "p_search")) || '%%')
+           OR  LOWER(j.job_no::text)                   LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(cc.mobile)                        LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(cc.full_name)                     LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(COALESCE(j.alternate_job_no, '')) LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(COALESCE(t.name, ''))             LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(COALESCE(j.serial_no, ''))        LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(COALESCE(b.name, ''))             LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(COALESCE(p.name, ''))             LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(COALESCE(pbm.model_name, ''))     LIKE '%%' || LOWER((table "p_search")) || '%%')
         ORDER BY j.job_date DESC, j.id DESC
         LIMIT  (table "p_limit")
         OFFSET (table "p_offset")
@@ -4060,7 +4074,7 @@ class SqlStore:
             ji.id        AS invoice_id,
             ji.invoice_no,
             ji.invoice_date,
-            ji.total_amount AS invoice_total,
+            ji.amount AS invoice_total,
             COALESCE(
                 json_agg(
                     json_build_object(
@@ -4082,5 +4096,5 @@ class SqlStore:
         LEFT JOIN job_payment  jp ON jp.job_id = j.id
         WHERE j.id = (table "p_job_id")
         GROUP BY j.id, cc.full_name, cc.mobile, js.name, t.name,
-                 ji.id, ji.invoice_no, ji.invoice_date, ji.total_amount
+                 ji.id, ji.invoice_no, ji.invoice_date, ji.amount
     """

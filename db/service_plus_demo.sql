@@ -2,10 +2,10 @@
 -- PostgreSQL database dump
 --
 
-\restrict BNbrUh7j4alWPPEeYX9Vgmw2v2hOHReTBFRe4tRnuVTgcPf9JveOetAojQf0bek
+\restrict 89ck5oMcKNLirJsY1kYguXzHaQtPxNN7VA2gXeIhGUtwa9LpPbLVDtsi6296e0e
 
 -- Dumped from database version 14.6
--- Dumped by pg_dump version 18.3 (Ubuntu 18.3-1)
+-- Dumped by pg_dump version 18.4 (Ubuntu 18.4-0ubuntu0.26.04.1)
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -113,7 +113,7 @@ SET default_table_access_method = heap;
 CREATE TABLE demo1.additional_charge (
     id smallint NOT NULL,
     name text NOT NULL,
-    hsn_code text[]
+    hsn_code text
 );
 
 
@@ -393,6 +393,7 @@ CREATE TABLE demo1.job (
     estimate_amount numeric(12,2) DEFAULT 0 NOT NULL,
     alternate_job_no text,
     division_id bigint NOT NULL,
+    is_posted boolean DEFAULT false NOT NULL,
     CONSTRAINT job_qty_check CHECK ((quantity <> 0))
 );
 
@@ -943,7 +944,8 @@ CREATE TABLE demo1.sales_invoice (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     is_return boolean DEFAULT false NOT NULL,
-    division_id bigint NOT NULL
+    division_id bigint NOT NULL,
+    is_posted boolean DEFAULT false NOT NULL
 );
 
 
@@ -2625,6 +2627,13 @@ CREATE INDEX job_customer_idx ON demo1.job USING btree (customer_contact_id);
 
 
 --
+-- Name: job_is_posted_idx; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX job_is_posted_idx ON demo1.job USING btree (is_posted) WITH (deduplicate_items='true');
+
+
+--
 -- Name: job_job_date_idx; Type: INDEX; Schema: demo1; Owner: webadmin
 --
 
@@ -2657,6 +2666,13 @@ CREATE INDEX job_technician_idx ON demo1.job USING btree (technician_id);
 --
 
 CREATE INDEX job_transaction_transaction_date_idx ON demo1.job_transaction USING btree (transaction_date) WITH (deduplicate_items='true');
+
+
+--
+-- Name: sales_invoice_is_posted_idx; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX sales_invoice_is_posted_idx ON demo1.sales_invoice USING btree (is_posted) WITH (deduplicate_items='true');
 
 
 --
@@ -3517,5 +3533,5 @@ ALTER TABLE ONLY security.user_bu_role
 -- PostgreSQL database dump complete
 --
 
-\unrestrict BNbrUh7j4alWPPEeYX9Vgmw2v2hOHReTBFRe4tRnuVTgcPf9JveOetAojQf0bek
+\unrestrict 89ck5oMcKNLirJsY1kYguXzHaQtPxNN7VA2gXeIhGUtwa9LpPbLVDtsi6296e0e
 

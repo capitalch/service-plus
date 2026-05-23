@@ -38,7 +38,10 @@
       "Bash(bash /tmp/analyze_rhf2.sh)",
       "Bash(chmod +x /tmp/analyze_rhf3.sh)",
       "Bash(bash /tmp/analyze_rhf3.sh)",
-      "Bash(git -C /home/sushant/projects/service-plus/dev/service-plus-server show 7391ec2:dev/service-plus-server/app/db/sql_bu.py)"
+      "Bash(git -C /home/sushant/projects/service-plus/dev/service-plus-server show 7391ec2:dev/service-plus-server/app/db/sql_bu.py)",
+      "Bash(sed -n '899p' /home/sushant/projects/service-plus/dev/service-plus-client/src/features/client/components/jobs/final-a-job/final-a-job-section.tsx)",
+      "Bash(sed -n '1635p' /home/sushant/projects/service-plus/dev/service-plus-client/src/features/client/components/jobs/final-a-job/final-a-job-section.tsx)",
+      "Bash(sed -n '1636p' /home/sushant/projects/service-plus/dev/service-plus-client/src/features/client/components/jobs/final-a-job/final-a-job-section.tsx)"
     ]
   }
 }
