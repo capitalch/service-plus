@@ -4,22 +4,15 @@
 - If user gives a part code, it is searched in spare_part_master for cost_price and gst_rate
 - Take gst_rate from spare_part_master OR default_gst_rate and apply the value of force_gst_on_parts_for_non_gst_invoices to calculate the cost_price. Set sale_price based on value of 
 force_gst_on_parts_for_non_gst_invoices
-# Modification 1 in "Final a Job" feature
-## Price
-- If user gives a part code, it is searched in spare_part_master for cost_price and gst_rate
-- effective gst rate = gst_rate from spare_part_master OR default_gst_rate
-- For non-gst
-        - gst rate is always 0
-        - if force_gst_on_parts_for_non_gst_invoices is true
-                cost price = cost *(1 + (effective gst rate)/100)
-                sale price = cost price + markup
-        - else
-                cost price = cost
-                sale price = cost price + markup
-- For gst
-        - if gst_rate in spare_part_master is 0 then default_gst_rate is taken
-## Function
-- Internally use a calculate method which does all the calculations of gst sale price, gst, aggregate, amount,summary etc. This method is fired when any of the user input changes, including change of division, but except when user changes gst sale price. When user changes gst sale price then sale price is back calculated and then calculate metod is fired. The purpose is to keep UI updated against any user input or change.
+# Modifications for "Final A Job" functionality
+- For Final a Job menu item, there will be two tabs: 1) final a job 2) Already final jobs. Give correct names for tabs. Default tab is final a job, whose functionality is already implemented.
+- The second tab already Final jobs will show all jobs with is_final and not is_closed status. Actions in each row will show view and edit icons. View will work as usual to show job details modal. Edit will open the same screen as opened when final button is clicked in "Final a Job". This screen will open in edit mode. Some visual indication should be there for edit mode. User will be allowed to edit the data
+# Functionality of "Save and mark final" for Jobs > Final A job
+- Data is saved in two tables job_part_used and job_additional_charge
+- is_final is set true in job table
+- Also a new row is added to job_invoice and corresponding details in job_invoice_line. For job_additional_charge, the part_code is null in job_invoice_line. All hsn and gst entries are properly populated in job_invoice and job_invoice_line tables
+- All the above entries are in a database transaction
+- At the time of edit a job final entry, data is updated in job_part_used and job_additional_charge tables. For updates to job_invoice and job_invoice_line, invoice is at first deleted against the job and then reinserted
 
 # Modification 2 in "Final a Job" feature
 - The idea is to create a job-invoice when user does final a job.
