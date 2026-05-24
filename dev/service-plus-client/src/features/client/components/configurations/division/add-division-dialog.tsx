@@ -281,7 +281,7 @@ export const AddDivisionDialog = ({
                             type="number"
                             {...form.register("id")}
                         />
-                        <p className="text-xs text-[var(--cl-text-muted)]">
+                        <p className="text-xs text-(--cl-text-muted)">
                             Permanent numeric identifier for this division. Used in document numbering and cannot be changed later.
                         </p>
                         <FieldError message={errors.id?.message} />

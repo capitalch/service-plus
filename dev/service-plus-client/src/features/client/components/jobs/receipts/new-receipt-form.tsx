@@ -35,7 +35,7 @@ export function NewReceiptForm({ initial }: NewReceiptFormPropsType) {
         <div className="space-y-4 p-1">
             {/* Job */}
             <div>
-                <Label className="mb-1.5 block text-sm font-medium text-[var(--cl-text)]">
+                <Label className="mb-1.5 block text-sm font-medium text-(--cl-text)">
                     Job <span className="text-red-500">*</span>
                 </Label>
                 <JobLookupCombobox
@@ -51,11 +51,11 @@ export function NewReceiptForm({ initial }: NewReceiptFormPropsType) {
             {/* Payment Date + Payment Mode */}
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
-                    <Label className="mb-1.5 block text-sm font-medium text-[var(--cl-text)]" htmlFor="receipt-payment-date">
+                    <Label className="mb-1.5 block text-sm font-medium text-(--cl-text)" htmlFor="receipt-payment-date">
                         Payment Date <span className="text-red-500">*</span>
                     </Label>
                     <Input
-                        className="h-9 border-[var(--cl-border)] bg-white text-sm"
+                        className="h-9 border-(--cl-border) bg-white text-sm"
                         id="receipt-payment-date"
                         type="date"
                         {...form.register("payment_date")}
@@ -64,14 +64,14 @@ export function NewReceiptForm({ initial }: NewReceiptFormPropsType) {
                 </div>
 
                 <div>
-                    <Label className="mb-1.5 block text-sm font-medium text-[var(--cl-text)]">
+                    <Label className="mb-1.5 block text-sm font-medium text-(--cl-text)">
                         Payment Mode <span className="text-red-500">*</span>
                     </Label>
                     <Select
                         value={watch("payment_mode")}
                         onValueChange={v => setValue("payment_mode", v, { shouldValidate: true })}
                     >
-                        <SelectTrigger className="h-9 border-[var(--cl-border)] bg-white text-sm">
+                        <SelectTrigger className="h-9 border-(--cl-border) bg-white text-sm">
                             <SelectValue placeholder="Select mode" />
                         </SelectTrigger>
                         <SelectContent>
@@ -87,11 +87,11 @@ export function NewReceiptForm({ initial }: NewReceiptFormPropsType) {
             {/* Amount + Reference No */}
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
-                    <Label className="mb-1.5 block text-sm font-medium text-[var(--cl-text)]" htmlFor="receipt-amount">
+                    <Label className="mb-1.5 block text-sm font-medium text-(--cl-text)" htmlFor="receipt-amount">
                         Amount <span className="text-red-500">*</span>
                     </Label>
                     <Input
-                        className="h-9 border-[var(--cl-border)] bg-white text-sm"
+                        className="h-9 border-(--cl-border) bg-white text-sm"
                         id="receipt-amount"
                         min="0.01"
                         placeholder="0.00"
@@ -103,11 +103,11 @@ export function NewReceiptForm({ initial }: NewReceiptFormPropsType) {
                 </div>
 
                 <div>
-                    <Label className="mb-1.5 block text-sm font-medium text-[var(--cl-text)]" htmlFor="receipt-ref-no">
+                    <Label className="mb-1.5 block text-sm font-medium text-(--cl-text)" htmlFor="receipt-ref-no">
                         Reference No
                     </Label>
                     <Input
-                        className="h-9 border-[var(--cl-border)] bg-white text-sm"
+                        className="h-9 border-(--cl-border) bg-white text-sm"
                         id="receipt-ref-no"
                         placeholder="Cheque / UPI ref…"
                         type="text"
@@ -118,11 +118,11 @@ export function NewReceiptForm({ initial }: NewReceiptFormPropsType) {
 
             {/* Remarks */}
             <div>
-                <Label className="mb-1.5 block text-sm font-medium text-[var(--cl-text)]" htmlFor="receipt-remarks">
+                <Label className="mb-1.5 block text-sm font-medium text-(--cl-text)" htmlFor="receipt-remarks">
                     Remarks
                 </Label>
                 <Textarea
-                    className="min-h-[72px] border-[var(--cl-border)] bg-white text-sm"
+                    className="min-h-[72px] border-(--cl-border) bg-white text-sm"
                     id="receipt-remarks"
                     placeholder="Optional remarks…"
                     {...form.register("remarks")}
@@ -130,7 +130,7 @@ export function NewReceiptForm({ initial }: NewReceiptFormPropsType) {
             </div>
 
             {isSubmitting && (
-                <div className="flex items-center gap-2 text-xs text-[var(--cl-text-muted)]">
+                <div className="flex items-center gap-2 text-xs text-(--cl-text-muted)">
                     <Loader2 className="h-3.5 w-3.5 animate-spin" /> Saving…
                 </div>
             )}

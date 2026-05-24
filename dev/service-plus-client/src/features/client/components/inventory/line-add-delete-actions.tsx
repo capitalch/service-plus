@@ -11,7 +11,7 @@ export function LineAddDeleteActions({ onAdd, onDelete, disableDelete }: LineAdd
         <>
             <button
                 type="button"
-                className="cursor-pointer text-[var(--cl-accent)] hover:bg-[var(--cl-accent)]/10 hover:scale-110 active:scale-95 transition-all p-1.5 rounded-full"
+                className="cursor-pointer text-(--cl-accent) hover:bg-(--cl-accent)/10 hover:scale-110 active:scale-95 transition-all p-1.5 rounded-full"
                 onClick={onAdd}
                 title="Add row below"
             >

@@ -42,7 +42,7 @@ type Props = {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const labelCls = "text-xs font-extrabold text-[var(--cl-text)] uppercase tracking-widest";
+const labelCls = "text-xs font-extrabold text-(--cl-text) uppercase tracking-widest";
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -79,7 +79,7 @@ export function NewBatchJobForm({
                     warranty_card_no:         r.warranty_card_no ?? "",
                     job_receive_condition_id: r.job_receive_condition_id ?? null,
                     remarks:                  r.remarks ?? "",
-                    quantity:                 r.quantity ?? 1,
+                    qty:                 r.qty ?? 1,
                     isDeletable:              r.transaction_count <= 1,
                     file_count:               r.file_count ?? 0,
                 })),
@@ -106,12 +106,12 @@ export function NewBatchJobForm({
 
     if (!branchId) {
         return (
-            <div className="flex flex-col items-center justify-center py-20 bg-[var(--cl-surface-2)]/30 rounded-xl border-2 border-dashed border-[var(--cl-border)] text-center">
-                <div className="bg-[var(--cl-accent)]/5 p-5 rounded-full mb-4">
-                    <Plus className="h-12 w-12 text-[var(--cl-accent)] opacity-40" />
+            <div className="flex flex-col items-center justify-center py-20 bg-(--cl-surface-2)/30 rounded-xl border-2 border-dashed border-(--cl-border) text-center">
+                <div className="bg-(--cl-accent)/5 p-5 rounded-full mb-4">
+                    <Plus className="h-12 w-12 text-(--cl-accent) opacity-40" />
                 </div>
-                <h3 className="text-lg font-semibold text-[var(--cl-text)] mb-2">No Branch Selected</h3>
-                <p className="text-[var(--cl-text-muted)] max-w-md px-6">
+                <h3 className="text-lg font-semibold text-(--cl-text) mb-2">No Branch Selected</h3>
+                <p className="text-(--cl-text-muted) max-w-md px-6">
                     Please select a branch from the global header to create a batch job.
                 </p>
             </div>
@@ -125,19 +125,19 @@ export function NewBatchJobForm({
             exit={{ opacity: 0, y: -10 }}
             className="flex flex-col gap-3"
         >
-            <p className="text-[10px] font-black uppercase tracking-[0.15em] text-[var(--cl-text-muted)]">
+            <p className="text-[10px] font-black uppercase tracking-[0.15em] text-(--cl-text-muted)">
                 Batch Details
             </p>
 
             {/* Shared header card — single compact row */}
-            <Card className="border-[var(--cl-border)] shadow-md bg-[var(--cl-surface)] !overflow-visible">
+            <Card className="border-(--cl-border) shadow-md bg-(--cl-surface) !overflow-visible">
                 <CardContent className="py-2 px-3 flex flex-wrap lg:flex-nowrap items-end gap-2 !overflow-visible">
 
                     {divisions.length > 1 && (
                         <div className="space-y-0.5 shrink-0 w-44">
                             <Label className={labelCls}>Division <span className="text-red-500">*</span></Label>
                             <select
-                                className={`w-full h-8 rounded-md border text-xs px-2 bg-[var(--cl-surface-2)] text-[var(--cl-text)] ${!watch("division_id") ? "border-red-400" : "border-[var(--cl-border)]"}`}
+                                className={`w-full h-8 rounded-md border text-xs px-2 bg-(--cl-surface-2) text-(--cl-text) ${!watch("division_id") ? "border-red-400" : "border-(--cl-border)"}`}
                                 value={watch("division_id") ?? ""}
                                 onChange={e => setValue("division_id", e.target.value ? Number(e.target.value) : (undefined as unknown as number), { shouldValidate: true })}
                             >
@@ -151,12 +151,12 @@ export function NewBatchJobForm({
 
                     <div className="space-y-0.5 shrink-0">
                         <Label className={labelCls}>Batch No</Label>
-                        <Input readOnly className="h-8 w-20 bg-[var(--cl-surface-2)] font-mono text-[var(--cl-accent)] font-bold cursor-not-allowed opacity-80 text-xs" value={editBatchNo ? `#${editBatchNo}` : "Auto"} />
+                        <Input readOnly className="h-8 w-20 bg-(--cl-surface-2) font-mono text-(--cl-accent) font-bold cursor-not-allowed opacity-80 text-xs" value={editBatchNo ? `#${editBatchNo}` : "Auto"} />
                     </div>
 
                     <div className="space-y-0.5 shrink-0">
                         <Label className={labelCls}>Date</Label>
-                        <Input type="date" className="h-8 w-36 bg-[var(--cl-surface-2)] text-xs" {...form.register("batch_date")} />
+                        <Input type="date" className="h-8 w-36 bg-(--cl-surface-2) text-xs" {...form.register("batch_date")} />
                     </div>
 
                     <div className="space-y-0.5 flex-1 min-w-[180px]">
@@ -175,7 +175,7 @@ export function NewBatchJobForm({
                     <div className="space-y-0.5 shrink-0 w-44">
                         <Label className={labelCls}>Receive Manner <span className="text-red-500">*</span></Label>
                         <select
-                            className={`w-full h-8 rounded-md border text-xs px-2 bg-[var(--cl-surface-2)] text-[var(--cl-text)] ${!watch("receive_manner_id") ? "border-red-400" : "border-[var(--cl-border)]"}`}
+                            className={`w-full h-8 rounded-md border text-xs px-2 bg-(--cl-surface-2) text-(--cl-text) ${!watch("receive_manner_id") ? "border-red-400" : "border-(--cl-border)"}`}
                             value={watch("receive_manner_id") ?? ""}
                             onChange={e => setValue("receive_manner_id", e.target.value ? Number(e.target.value) : (undefined as unknown as number), { shouldValidate: true })}
                         >
@@ -188,7 +188,7 @@ export function NewBatchJobForm({
 
             {/* Job rows */}
             <div className="flex items-center justify-between">
-                <p className="text-[10px] font-black uppercase tracking-[0.15em] text-[var(--cl-text-muted)]">
+                <p className="text-[10px] font-black uppercase tracking-[0.15em] text-(--cl-text-muted)">
                     Jobs in Batch
                 </p>
                 {fields.length < 2 && (
@@ -197,7 +197,7 @@ export function NewBatchJobForm({
             </div>
 
             {/* Column headers */}
-            <div className="hidden md:grid grid-cols-[32px_1fr_130px_100px_100px_60px_70px_32px_32px] gap-x-2 px-3 text-[10px] font-bold uppercase tracking-widest text-[var(--cl-text-muted)]">
+            <div className="hidden md:grid grid-cols-[32px_1fr_130px_100px_100px_60px_70px_32px_32px] gap-x-2 px-3 text-[10px] font-bold uppercase tracking-widest text-(--cl-text-muted)">
                 <span>#</span>
                 <span>Product / Model</span>
                 <span>Job Type</span>
@@ -221,11 +221,11 @@ export function NewBatchJobForm({
                                 exit={{ opacity: 0, y: -8 }}
                                 transition={{ duration: 0.15 }}
                             >
-                                <Card className="border-[var(--cl-border)] bg-[var(--cl-surface)] border-l-4 border-l-[var(--cl-accent)] overflow-visible">
+                                <Card className="border-(--cl-border) bg-(--cl-surface) border-l-4 border-l-(--cl-accent) overflow-visible">
                                     {/* Compact single-line row */}
                                     <div className="grid grid-cols-[32px_1fr] md:grid-cols-[32px_1fr_130px_100px_100px_60px_70px_32px_32px] gap-x-2 items-center px-3 py-2">
                                         {/* Index badge */}
-                                        <span className="flex items-center justify-center h-5 w-5 rounded-full bg-[var(--cl-accent)]/10 text-[var(--cl-accent)] text-[10px] font-bold shrink-0">
+                                        <span className="flex items-center justify-center h-5 w-5 rounded-full bg-(--cl-accent)/10 text-(--cl-accent) text-[10px] font-bold shrink-0">
                                             {idx + 1}
                                         </span>
 
@@ -262,7 +262,7 @@ export function NewBatchJobForm({
 
                                         {/* Job Type */}
                                         <select
-                                            className={`h-8 w-full rounded-md border text-xs px-1.5 bg-[var(--cl-surface-2)] text-[var(--cl-text)] hidden md:block ${!watch(`rows.${idx}.job_type_id`) ? "border-red-400" : "border-[var(--cl-border)]"}`}
+                                            className={`h-8 w-full rounded-md border text-xs px-1.5 bg-(--cl-surface-2) text-(--cl-text) hidden md:block ${!watch(`rows.${idx}.job_type_id`) ? "border-red-400" : "border-(--cl-border)"}`}
                                             value={watch(`rows.${idx}.job_type_id`) ?? ""}
                                             onChange={e => {
                                                 const newId = e.target.value ? Number(e.target.value) : (undefined as unknown as number);
@@ -277,14 +277,14 @@ export function NewBatchJobForm({
 
                                         {/* Serial No */}
                                         <Input
-                                            className="h-8 text-xs bg-[var(--cl-surface-2)] hidden md:block"
+                                            className="h-8 text-xs bg-(--cl-surface-2) hidden md:block"
                                             placeholder="Serial…"
                                             {...register(`rows.${idx}.serial_no`)}
                                         />
 
                                         {/* Receive Condition */}
                                         <select
-                                            className="h-8 w-full rounded-md border border-[var(--cl-border)] text-xs px-1.5 bg-[var(--cl-surface-2)] text-[var(--cl-text)] hidden md:block"
+                                            className="h-8 w-full rounded-md border border-(--cl-border) text-xs px-1.5 bg-(--cl-surface-2) text-(--cl-text) hidden md:block"
                                             {...register(`rows.${idx}.job_receive_condition_id`, { valueAsNumber: true })}
                                         >
                                             <option value="">Condition…</option>
@@ -296,8 +296,8 @@ export function NewBatchJobForm({
                                         {/* Qty */}
                                         <Input
                                             type="number" min={1}
-                                            className={`h-8 text-xs bg-[var(--cl-surface-2)] hidden md:block ${(watch(`rows.${idx}.quantity`) ?? 0) < 1 ? "border-red-400" : ""}`}
-                                            {...register(`rows.${idx}.quantity`, { valueAsNumber: true })}
+                                            className={`h-8 text-xs bg-(--cl-surface-2) hidden md:block ${(watch(`rows.${idx}.qty`) ?? 0) < 1 ? "border-red-400" : ""}`}
+                                            {...register(`rows.${idx}.qty`, { valueAsNumber: true })}
                                         />
 
                                         {/* Attach files */}
@@ -319,7 +319,7 @@ export function NewBatchJobForm({
                                         <button
                                             type="button"
                                             onClick={() => toggleExpand(field.localId)}
-                                            className="flex items-center justify-center h-7 w-7 rounded text-[var(--cl-text-muted)] hover:bg-[var(--cl-accent)]/10 hover:text-[var(--cl-accent)] transition-colors"
+                                            className="flex items-center justify-center h-7 w-7 rounded text-(--cl-text-muted) hover:bg-(--cl-accent)/10 hover:text-(--cl-accent) transition-colors"
                                             title={isExpanded ? "Collapse" : "Expand"}
                                         >
                                             {isExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
@@ -349,12 +349,12 @@ export function NewBatchJobForm({
                                                 transition={{ duration: 0.2 }}
                                                 className="overflow-hidden"
                                             >
-                                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 px-3 pb-3 pt-1 border-t border-[var(--cl-border)]/50">
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 px-3 pb-3 pt-1 border-t border-(--cl-border)/50">
                                                     {/* Mobile-only fields (hidden in compact row on md+) */}
                                                     <div className="space-y-1 md:hidden">
                                                         <Label className={labelCls}>Job Type <span className="text-red-500">*</span></Label>
                                                         <select
-                                                            className={`w-full h-8 rounded-md border text-xs px-1.5 bg-[var(--cl-surface-2)] text-[var(--cl-text)] ${!watch(`rows.${idx}.job_type_id`) ? "border-red-400" : "border-[var(--cl-border)]"}`}
+                                                            className={`w-full h-8 rounded-md border text-xs px-1.5 bg-(--cl-surface-2) text-(--cl-text) ${!watch(`rows.${idx}.job_type_id`) ? "border-red-400" : "border-(--cl-border)"}`}
                                                             value={watch(`rows.${idx}.job_type_id`) ?? ""}
                                                             onChange={e => {
                                                                 const newId = e.target.value ? Number(e.target.value) : (undefined as unknown as number);
@@ -369,12 +369,12 @@ export function NewBatchJobForm({
                                                     </div>
                                                     <div className="space-y-1 md:hidden">
                                                         <Label className={labelCls}>Serial No</Label>
-                                                        <Input className="h-8 text-xs bg-[var(--cl-surface-2)]" placeholder="Optional…" {...register(`rows.${idx}.serial_no`)} />
+                                                        <Input className="h-8 text-xs bg-(--cl-surface-2)" placeholder="Optional…" {...register(`rows.${idx}.serial_no`)} />
                                                     </div>
                                                     <div className="space-y-1 md:hidden">
                                                         <Label className={labelCls}>Receive Condition</Label>
                                                         <select
-                                                            className="w-full h-8 rounded-md border border-[var(--cl-border)] text-xs px-1.5 bg-[var(--cl-surface-2)] text-[var(--cl-text)]"
+                                                            className="w-full h-8 rounded-md border border-(--cl-border) text-xs px-1.5 bg-(--cl-surface-2) text-(--cl-text)"
                                                             {...register(`rows.${idx}.job_receive_condition_id`, { valueAsNumber: true })}
                                                         >
                                                             <option value="">None</option>
@@ -387,23 +387,23 @@ export function NewBatchJobForm({
                                                         <Label className={labelCls}>Qty</Label>
                                                         <Input
                                                             type="number" min={1}
-                                                            className="h-8 text-xs bg-[var(--cl-surface-2)]"
-                                                            {...register(`rows.${idx}.quantity`, { valueAsNumber: true })}
+                                                            className="h-8 text-xs bg-(--cl-surface-2)"
+                                                            {...register(`rows.${idx}.qty`, { valueAsNumber: true })}
                                                         />
                                                     </div>
 
                                                     {/* Always expanded fields */}
                                                     <div className="space-y-1 sm:col-span-2">
                                                         <Label className={labelCls}>Problem Reported</Label>
-                                                        <Textarea rows={2} className="bg-[var(--cl-surface-2)] resize-none text-xs" placeholder="Describe the problem…" {...register(`rows.${idx}.problem_reported`)} />
+                                                        <Textarea rows={2} className="bg-(--cl-surface-2) resize-none text-xs" placeholder="Describe the problem…" {...register(`rows.${idx}.problem_reported`)} />
                                                     </div>
                                                     <div className="space-y-1">
                                                         <Label className={labelCls}>Remarks</Label>
-                                                        <Input className="h-8 text-xs bg-[var(--cl-surface-2)]" placeholder="Optional…" {...register(`rows.${idx}.remarks`)} />
+                                                        <Input className="h-8 text-xs bg-(--cl-surface-2)" placeholder="Optional…" {...register(`rows.${idx}.remarks`)} />
                                                     </div>
                                                     <div className="space-y-1">
                                                         <Label className={labelCls}>Alt Job No</Label>
-                                                        <Input className="h-8 text-xs bg-[var(--cl-surface-2)]" placeholder="Optional…" {...register(`rows.${idx}.alternate_job_no`)} />
+                                                        <Input className="h-8 text-xs bg-(--cl-surface-2)" placeholder="Optional…" {...register(`rows.${idx}.alternate_job_no`)} />
                                                     </div>
                                                     <div className="space-y-1">
                                                         <Label className={labelCls}>Warranty Card No</Label>
@@ -411,7 +411,7 @@ export function NewBatchJobForm({
                                                             const rowIsWarranty = jobTypes.find(t => t.id === watch(`rows.${idx}.job_type_id`))?.code === "UNDER_WARRANTY";
                                                             return (
                                                                 <Input
-                                                                    className="h-8 text-xs bg-[var(--cl-surface-2)]"
+                                                                    className="h-8 text-xs bg-(--cl-surface-2)"
                                                                     disabled={!rowIsWarranty}
                                                                     placeholder={rowIsWarranty ? "Card number…" : "N/A"}
                                                                     {...register(`rows.${idx}.warranty_card_no`)}
@@ -434,18 +434,18 @@ export function NewBatchJobForm({
             <div className="flex items-center gap-3 pt-1">
                 <Button
                     type="button" variant="outline" size="default"
-                    className="gap-2 text-sm font-semibold border-2 border-dashed border-[var(--cl-accent)]/30 text-[var(--cl-accent)] hover:bg-[var(--cl-accent)]/5 hover:border-[var(--cl-accent)]"
+                    className="gap-2 text-sm font-semibold border-2 border-dashed border-(--cl-accent)/30 text-(--cl-accent) hover:bg-(--cl-accent)/5 hover:border-(--cl-accent)"
                     onClick={handleAddRow}
                 >
                     <Plus className="h-4 w-4" />
                     Add Job
                 </Button>
-                <span className="text-xs text-[var(--cl-text-muted)]">
+                <span className="text-xs text-(--cl-text-muted)">
                     {fields.length} job{fields.length !== 1 ? "s" : ""} in this batch
                     {fields.length < 2 && <span className="text-red-500 ml-1.5">· min. 2 required</span>}
                 </span>
                 {isSubmitting && (
-                    <span className="flex items-center gap-1.5 text-xs text-[var(--cl-text-muted)] ml-2">
+                    <span className="flex items-center gap-1.5 text-xs text-(--cl-text-muted) ml-2">
                         <Loader2 className="h-3.5 w-3.5 animate-spin" /> Saving…
                     </span>
                 )}

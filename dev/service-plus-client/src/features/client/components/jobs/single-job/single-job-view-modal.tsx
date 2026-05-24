@@ -186,7 +186,7 @@ export const SingleJobViewModal = ({ isOpen, job, onClose, onPrint }: JobViewMod
                                         <InfoRow label="Brand / Model" value={`${job.brand_name} ${job.model_name}`} highlight />
                                         <div className="grid grid-cols-2 gap-2">
                                             <InfoRow label="Category" value={job.product_name} />
-                                            <InfoRow label="Qty" value={job.quantity} />
+                                            <InfoRow label="Qty" value={job.qty} />
                                         </div>
                                         <InfoRow label="Serial Number" value={job.serial_no} isMono />
                                         <InfoRow label="Warranty Info" value={job.warranty_card_no} />

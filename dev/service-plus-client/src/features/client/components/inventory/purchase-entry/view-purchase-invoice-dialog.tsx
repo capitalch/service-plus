@@ -105,7 +105,7 @@ export const ViewPurchaseInvoiceDialog = ({ invoice, open, onOpenChange, onShowP
 
                 {loading ? (
                     <div className="flex h-40 items-center justify-center">
-                        <Loader2 className="h-6 w-6 animate-spin text-[var(--cl-accent)]" />
+                        <Loader2 className="h-6 w-6 animate-spin text-(--cl-accent)" />
                     </div>
                 ) : detail ? (
                     <div className="space-y-4">
@@ -138,11 +138,11 @@ export const ViewPurchaseInvoiceDialog = ({ invoice, open, onOpenChange, onShowP
                                 <tbody className="bg-white">
                                     {lines.map((line, idx) => (
                                         <tr key={line.id} className="hover:bg-zinc-50/80 transition-colors">
-                                            <td className={`${tdClass} text-[var(--cl-text-muted)]`}>{idx + 1}</td>
+                                            <td className={`${tdClass} text-(--cl-text-muted)`}>{idx + 1}</td>
                                             <td className={`${tdClass} font-mono`}>{line.part_code}</td>
                                             <td className={tdClass}>{line.part_name}</td>
                                             <td className={`${tdClass} font-mono text-xs`}>{line.hsn_code}</td>
-                                            <td className={`${tdClass} text-right`}>{Number(line.quantity).toFixed(2)}</td>
+                                            <td className={`${tdClass} text-right`}>{Number(line.qty).toFixed(2)}</td>
                                             <td className={`${tdClass} text-right`}>{formatCurrency(line.unit_price)}</td>
                                             <td className={`${tdClass} text-right`}>{formatCurrency(line.aggregate_amount)}</td>
                                             <td className={`${tdClass} text-right text-xs`}>{formatCurrency(line.cgst_amount)}</td>
@@ -159,7 +159,7 @@ export const ViewPurchaseInvoiceDialog = ({ invoice, open, onOpenChange, onShowP
                                         <td className="p-2 text-right text-sm text-zinc-900 font-bold">{formatCurrency(totalCgst)}</td>
                                         <td className="p-2 text-right text-sm text-zinc-900 font-bold">{formatCurrency(totalSgst)}</td>
                                         <td className="p-2 text-right text-sm text-zinc-900 font-bold">{formatCurrency(totalIgst)}</td>
-                                        <td className="p-2 text-right text-sm text-[var(--cl-accent)] font-extrabold">{formatCurrency(computedTotal)}</td>
+                                        <td className="p-2 text-right text-sm text-(--cl-accent) font-extrabold">{formatCurrency(computedTotal)}</td>
                                     </tr>
                                 </tfoot>
                             </table>

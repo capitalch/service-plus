@@ -35,8 +35,8 @@ function TreeItem({ icon: Icon, iconColor, label }: TreeItemProps) {
             onClick={() => onSelect(label, group || undefined)}
             className={`group flex cursor-pointer items-center gap-2 rounded px-2 py-2 transition-colors duration-150 ${
                 isActive
-                    ? 'bg-[var(--cl-accent)] text-white shadow-md'
-                    : 'text-[var(--cl-text-muted)] hover:bg-[var(--cl-hover)] hover:text-[var(--cl-text)]'
+                    ? 'bg-(--cl-accent) text-white shadow-md'
+                    : 'text-(--cl-text-muted) hover:bg-(--cl-hover) hover:text-(--cl-text)'
             }`}
         >
             <Icon className={`h-4 w-4 shrink-0 ${iconColor ?? (isActive ? 'text-white' : '')}`} />
@@ -62,13 +62,13 @@ function CollapsibleGroup({ children, defaultOpen = true, label }: CollapsibleGr
     return (
         <section>
             <button
-                className="mb-1 flex w-full cursor-pointer items-center gap-1.5 rounded border-l-2 border-[var(--cl-accent)] px-2 py-1.5 text-left transition-colors hover:bg-[var(--cl-hover)]"
+                className="mb-1 flex w-full cursor-pointer items-center gap-1.5 rounded border-l-2 border-(--cl-accent) px-2 py-1.5 text-left transition-colors hover:bg-(--cl-hover)"
                 onClick={() => setOpen(o => !o)}
             >
                 {open
-                    ? <ChevronDown className="h-3.5 w-3.5 shrink-0 text-[var(--cl-accent-text)]" />
-                    : <ChevronRight className="h-3.5 w-3.5 shrink-0 text-[var(--cl-accent-text)]" />}
-                <p className="text-xs font-bold uppercase tracking-wide text-[var(--cl-accent-text)]">{label}</p>
+                    ? <ChevronDown className="h-3.5 w-3.5 shrink-0 text-(--cl-accent-text)" />
+                    : <ChevronRight className="h-3.5 w-3.5 shrink-0 text-(--cl-accent-text)" />}
+                <p className="text-xs font-bold uppercase tracking-wide text-(--cl-accent-text)">{label}</p>
             </button>
             {open && (
                 <GroupContext.Provider value={label}>
@@ -249,16 +249,16 @@ export const ClientExplorerPanel = ({ activeSection }: Props) => {
     const translateClass = explorerOpen ? 'translate-x-0' : '-translate-x-full';
 
     return (
-        <aside className={`fixed top-12 z-30 flex h-[calc(100%-4.5rem)] w-64 flex-col border-r border-[var(--cl-border)] bg-[var(--cl-surface)] transition-transform duration-200 ease-in-out left-0 md:left-16 ${translateClass}`}>
-            <div className="border-b border-[var(--cl-border)] px-3 pb-3 pt-4">
+        <aside className={`fixed top-12 z-30 flex h-[calc(100%-4.5rem)] w-64 flex-col border-r border-(--cl-border) bg-(--cl-surface) transition-transform duration-200 ease-in-out left-0 md:left-16 ${translateClass}`}>
+            <div className="border-b border-(--cl-border) px-3 pb-3 pt-4">
                 <div className="flex items-center justify-between">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--cl-accent-text)]">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-(--cl-accent-text)">
                         {SECTION_TITLES[activeSection]}
                     </p>
                     {/* Close button — only useful on mobile/tablet overlay */}
                     <button
                         onClick={toggleExplorer}
-                        className="rounded p-0.5 text-[var(--cl-text-muted)] transition-colors hover:bg-[var(--cl-hover)] hover:text-[var(--cl-text)] lg:hidden"
+                        className="rounded p-0.5 text-(--cl-text-muted) transition-colors hover:bg-(--cl-hover) hover:text-(--cl-text) lg:hidden"
                     >
                         <ChevronRight className="h-3.5 w-3.5" />
                     </button>
@@ -266,7 +266,7 @@ export const ClientExplorerPanel = ({ activeSection }: Props) => {
             </div>
 
             {/* Mobile section nav — hidden on md+ since top nav covers it */}
-            <div className="border-b border-[var(--cl-border)] px-2 py-2 md:hidden">
+            <div className="border-b border-(--cl-border) px-2 py-2 md:hidden">
                 <div className="grid grid-cols-3 gap-1">
                     {MOBILE_NAV_ITEMS.map(({ label, section, to, end }) => (
                         <NavLink
@@ -276,8 +276,8 @@ export const ClientExplorerPanel = ({ activeSection }: Props) => {
                             onClick={toggleExplorer}
                             className={`rounded px-2 py-1.5 text-center text-[10px] font-semibold uppercase tracking-wide transition-colors ${
                                 activeSection === section
-                                    ? 'bg-[var(--cl-accent)] text-white'
-                                    : 'text-[var(--cl-text-muted)] hover:bg-[var(--cl-hover)] hover:text-[var(--cl-text)]'
+                                    ? 'bg-(--cl-accent) text-white'
+                                    : 'text-(--cl-text-muted) hover:bg-(--cl-hover) hover:text-(--cl-text)'
                             }`}
                         >
                             {label}

@@ -205,7 +205,7 @@ export function SingleJobQuickInfoCard({ onView, onPrint, onAttach, onEdit, refr
 
     if (loading || !isReady) {
         return (
-            <div className="w-full rounded-xl border border-[var(--cl-border)] bg-[var(--cl-surface-2)] px-4 py-3 flex items-center gap-2 text-xs text-[var(--cl-text-muted)]">
+            <div className="w-full rounded-xl border border-(--cl-border) bg-(--cl-surface-2) px-4 py-3 flex items-center gap-2 text-xs text-(--cl-text-muted)">
                 <Loader2 className="h-4 w-4 animate-spin" />
                 Loading last job…
             </div>
@@ -217,13 +217,13 @@ export function SingleJobQuickInfoCard({ onView, onPrint, onAttach, onEdit, refr
     }
 
     return (
-        <div className="w-full rounded-xl border border-[var(--cl-border)] bg-gradient-to-r from-[var(--cl-surface-2)] to-[var(--cl-surface)] shadow-sm">
+        <div className="w-full rounded-xl border border-(--cl-border) bg-gradient-to-r from-(--cl-surface-2) to-(--cl-surface) shadow-sm">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-4 py-3 gap-3">
                 {/* Left: job info — two rows */}
                 <div className="flex-1 min-w-0 w-full sm:w-auto">
                     {/* Row 1: Job number + date + file badge */}
                     <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-mono text-base font-bold text-[var(--cl-text)] tracking-tight">
+                        <span className="font-mono text-base font-bold text-(--cl-text) tracking-tight">
                             {currentJob.job_no}
                         </span>
                         {isLatestJob ? (
@@ -239,7 +239,7 @@ export function SingleJobQuickInfoCard({ onView, onPrint, onAttach, onEdit, refr
                                 Position {currentOffset + 1}
                             </span>
                         )}
-                        <span className="text-xs text-[var(--cl-text-muted)] font-medium tabular-nums">
+                        <span className="text-xs text-(--cl-text-muted) font-medium tabular-nums">
                             {currentJob.job_date || "—"}
                         </span>
                         {currentJob.division_id && (() => {
@@ -264,23 +264,23 @@ export function SingleJobQuickInfoCard({ onView, onPrint, onAttach, onEdit, refr
                     </div>
                     {/* Row 2: Device details */}
                     <div className="flex items-center gap-1.5 mt-1 min-w-0">
-                        <span className="text-xs font-medium text-[var(--cl-text)] truncate">
+                        <span className="text-xs font-medium text-(--cl-text) truncate">
                             {currentJob.device_details || "—"}
                         </span>
                     </div>
                     {/* Row 3: Job type • Receive condition • Customer */}
                     <div className="flex items-center gap-1.5 mt-0.5 min-w-0">
-                        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-[var(--cl-accent)]/10 text-[var(--cl-accent)]">
+                        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-(--cl-accent)/10 text-(--cl-accent)">
                             {currentJob.job_type_name}
                         </span>
                         {currentJob.receive_condition_name && (
                             <>
-                                <span className="text-[10px] text-[var(--cl-text-muted)] shrink-0">•</span>
-                                <span className="text-[10px] text-[var(--cl-text-muted)]">{currentJob.receive_condition_name}</span>
+                                <span className="text-[10px] text-(--cl-text-muted) shrink-0">•</span>
+                                <span className="text-[10px] text-(--cl-text-muted)">{currentJob.receive_condition_name}</span>
                             </>
                         )}
-                        <span className="text-[10px] text-[var(--cl-text-muted)] shrink-0">•</span>
-                        <span className="text-xs text-[var(--cl-text-muted)] truncate">
+                        <span className="text-[10px] text-(--cl-text-muted) shrink-0">•</span>
+                        <span className="text-xs text-(--cl-text-muted) truncate">
                             {currentJob.customer_name || "—"}
                         </span>
                     </div>
@@ -327,9 +327,9 @@ export function SingleJobQuickInfoCard({ onView, onPrint, onAttach, onEdit, refr
                         </Button>
                     </div>
 
-                    <div className="h-6 w-px bg-[var(--cl-border)] shrink-0" />
+                    <div className="h-6 w-px bg-(--cl-border) shrink-0" />
 
-                    <div className="flex items-center gap-1.5 p-1.5 rounded-xl border border-[var(--cl-border)] bg-[var(--cl-surface)] shadow-sm">
+                    <div className="flex items-center gap-1.5 p-1.5 rounded-xl border border-(--cl-border) bg-(--cl-surface) shadow-sm">
                         <NavButton
                             icon={<ChevronsLeftIcon className="h-4 w-4" />}
                             title="Go to oldest job"
@@ -354,7 +354,7 @@ export function SingleJobQuickInfoCard({ onView, onPrint, onAttach, onEdit, refr
                             disabled={isAtLatest || navLoading}
                             onClick={navigateToLatest}
                         />
-                        {navLoading && <Loader2 className="h-4 w-4 animate-spin text-[var(--cl-accent)] ml-0.5 shrink-0" />}
+                        {navLoading && <Loader2 className="h-4 w-4 animate-spin text-(--cl-accent) ml-0.5 shrink-0" />}
                     </div>
                 </div>
             </div>
@@ -376,7 +376,7 @@ function NavButton({ icon, title, disabled, onClick }: NavButtonProps) {
             title={title}
             disabled={disabled}
             onClick={onClick}
-            className="flex items-center justify-center h-9 w-9 rounded-lg border border-transparent text-[var(--cl-text-muted)] hover:bg-[var(--cl-accent)] hover:text-white hover:border-[var(--cl-accent)]/30 transition-all disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-[var(--cl-text-muted)] disabled:hover:border-transparent shrink-0 cursor-pointer"
+            className="flex items-center justify-center h-9 w-9 rounded-lg border border-transparent text-(--cl-text-muted) hover:bg-(--cl-accent) hover:text-white hover:border-(--cl-accent)/30 transition-all disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-(--cl-text-muted) disabled:hover:border-transparent shrink-0 cursor-pointer"
         >
             {icon}
         </button>

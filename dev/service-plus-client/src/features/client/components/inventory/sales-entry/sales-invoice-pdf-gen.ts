@@ -159,7 +159,7 @@ export const generateSalesInvoicePdf = (
         l.part_code,
         l.part_name,
         l.hsn_code,
-        Number(l.quantity).toFixed(2),
+        Number(l.qty).toFixed(2),
         formatCurrency(l.unit_price).replace("₹", ""),
         formatCurrency(l.aggregate_amount).replace("₹", ""),
         formatCurrency(l.cgst_amount).replace("₹", ""),
@@ -168,7 +168,7 @@ export const generateSalesInvoicePdf = (
         formatCurrency(l.total_amount).replace("₹", ""),
     ]);
 
-    const totalQty       = lines.reduce((s, l) => s + Number(l.quantity),        0);
+    const totalQty       = lines.reduce((s, l) => s + Number(l.qty),        0);
     const totalAggregate = lines.reduce((s, l) => s + Number(l.aggregate_amount), 0);
     const totalCgst      = lines.reduce((s, l) => s + Number(l.cgst_amount),      0);
     const totalIgst      = lines.reduce((s, l) => s + Number(l.igst_amount),      0);

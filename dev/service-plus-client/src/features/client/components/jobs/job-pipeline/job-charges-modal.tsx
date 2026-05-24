@@ -45,7 +45,7 @@ const partRowSchema = z.object({
     part_code:     z.string(),
     part_name:     z.string(),
     uom:           z.string(),
-    quantity:      z.number(),
+    qty:      z.number(),
     cost_price:    z.number().nullable(),
     selling_price: z.number().nullable(),
     remarks:       z.string(),
@@ -72,7 +72,7 @@ type ChargeItem  = FormValues["charges"][number];
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function newPartRow(): PartItem {
-    return { id: null, part_id: null, part_code: "", part_name: "", uom: "", quantity: 1, cost_price: null, selling_price: null, remarks: "" };
+    return { id: null, part_id: null, part_code: "", part_name: "", uom: "", qty: 1, cost_price: null, selling_price: null, remarks: "" };
 }
 
 function newChargeRow(): ChargeItem {
@@ -145,7 +145,7 @@ export const JobChargesModal = ({ job, dbName, schema, onClose, onSaved }: Props
         if (row.id == null) return false;
         const orig = originalPartsRef.current.find(r => r.id === row.id);
         if (!orig) return false;
-        return orig.quantity !== row.quantity || orig.cost_price !== row.cost_price
+        return orig.qty !== row.qty || orig.cost_price !== row.cost_price
             || orig.selling_price !== row.selling_price || orig.remarks !== row.remarks;
     }
 
@@ -208,9 +208,9 @@ export const JobChargesModal = ({ job, dbName, schema, onClose, onSaved }: Props
     async function handleSave() {
         const { parts, charges } = getValues();
 
-        const invalidPart = parts.find(p => p.id == null && p.part_id != null && p.quantity <= 0);
+        const invalidPart = parts.find(p => p.id == null && p.part_id != null && p.qty <= 0);
         if (invalidPart) {
-            toast.error("Part quantity must be greater than zero.");
+            toast.error("Part qty must be greater than zero.");
             return;
         }
 
@@ -228,7 +228,7 @@ export const JobChargesModal = ({ job, dbName, schema, onClose, onSaved }: Props
 
         const existingParts   = parts.filter(p => p.id != null);
         const editedParts     = existingParts.filter(isPartEdited);
-        const validNewParts   = parts.filter(p => p.id == null && p.part_id != null && p.quantity > 0);
+        const validNewParts   = parts.filter(p => p.id == null && p.part_id != null && p.qty > 0);
         const editedCharges   = charges.filter(c => c.id != null && isChargeEdited(c));
         const validNewCharges = charges.filter(c => c.id == null && c.charge_name.trim());
 
@@ -251,7 +251,7 @@ export const JobChargesModal = ({ job, dbName, schema, onClose, onSaved }: Props
                 const xData = [
                     ...editedParts.map(p => ({
                         id:            p.id!,
-                        quantity:      p.quantity,
+                        qty:           p.qty,
                         cost_price:    p.cost_price,
                         selling_price: p.selling_price,
                         remarks:       p.remarks || null,
@@ -259,7 +259,7 @@ export const JobChargesModal = ({ job, dbName, schema, onClose, onSaved }: Props
                     ...validNewParts.map(p => ({
                         job_id:        job.id,
                         part_id:       p.part_id,
-                        quantity:      p.quantity,
+                        qty:           p.qty,
                         cost_price:    p.cost_price,
                         selling_price: p.selling_price,
                         remarks:       p.remarks || null,
@@ -444,11 +444,11 @@ export const JobChargesModal = ({ job, dbName, schema, onClose, onSaved }: Props
                                                             onChange={e => handleCostPriceChange(index, e.target.value === "" ? null : e.target.valueAsNumber)} />
                                                     </td>
                                                     <td className={`${tdCls} text-right`}>
-                                                        <Input className={`h-6 w-16 rounded-sm text-xs text-right px-1 ${isNew && row?.part_id != null && (row?.quantity ?? 0) <= 0 ? "border-red-400" : ""}`}
+                                                        <Input className={`h-6 w-16 rounded-sm text-xs text-right px-1 ${isNew && row?.part_id != null && (row?.qty ?? 0) <= 0 ? "border-red-400" : ""}`}
                                                             min={0.01} step="0.01" type="number"
-                                                            value={row?.quantity ?? 1}
+                                                            value={row?.qty ?? 1}
                                                             onFocus={e => e.target.select()}
-                                                            onChange={e => setValue(`parts.${index}.quantity`, e.target.valueAsNumber)} />
+                                                            onChange={e => setValue(`parts.${index}.qty`, e.target.valueAsNumber)} />
                                                     </td>
                                                     <td className={`${tdCls} text-right`}>
                                                         <Input className="h-6 w-20 rounded-sm text-xs text-right px-1" min={0} step="0.01" type="number"

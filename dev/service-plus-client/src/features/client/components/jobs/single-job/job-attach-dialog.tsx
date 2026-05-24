@@ -21,7 +21,7 @@ export const JobAttachDialog = ({ jobId, jobNo, mode = "attach", onClose, onFile
         <Dialog open={jobId !== null} onOpenChange={open => { if (!open) onClose(); }}>
             <DialogContent
                 aria-describedby={undefined}
-                className="sm:max-w-2xl bg-white dark:bg-zinc-950 text-[var(--cl-text)] shadow-2xl border border-[var(--cl-border)]"
+                className="sm:max-w-2xl bg-white dark:bg-zinc-950 text-(--cl-text) shadow-2xl border border-(--cl-border)"
                 onInteractOutside={e => e.preventDefault()}
                 onEscapeKeyDown={e => e.preventDefault()}
             >
@@ -29,7 +29,7 @@ export const JobAttachDialog = ({ jobId, jobNo, mode = "attach", onClose, onFile
                     <DialogTitle className="text-base font-semibold">
                         {title}
                         {jobNo && (
-                            <span className="ml-2 text-sm font-mono font-normal text-[var(--cl-accent)]">
+                            <span className="ml-2 text-sm font-mono font-normal text-(--cl-accent)">
                                 — Job #{jobNo}
                             </span>
                         )}

@@ -178,17 +178,17 @@ export const LookupSection = ({ config }: LookupSectionProps) => {
 
     // ── Sortable header helper ─────────────────────────────────────────────────
 
-    const thClass = "text-xs font-semibold uppercase tracking-wide text-[var(--cl-text-muted)]";
-    const thSortClass = `${thClass} cursor-pointer select-none hover:text-[var(--cl-text)]`;
+    const thClass = "text-xs font-semibold uppercase tracking-wide text-(--cl-text-muted)";
+    const thSortClass = `${thClass} cursor-pointer select-none hover:text-(--cl-text)`;
 
     // ── No schema ──────────────────────────────────────────────────────────────
 
     if (!schema) {
         return (
-            <div className="flex items-center justify-center rounded-lg border border-[var(--cl-border)] bg-[var(--cl-surface-2)] p-20">
+            <div className="flex items-center justify-center rounded-lg border border-(--cl-border) bg-(--cl-surface-2) p-20">
                 <div className="text-center">
-                    <p className="text-sm font-semibold text-[var(--cl-text)]">No Business Unit</p>
-                    <p className="mt-2 text-xs text-[var(--cl-text-muted)]">
+                    <p className="text-sm font-semibold text-(--cl-text)">No Business Unit</p>
+                    <p className="mt-2 text-xs text-(--cl-text-muted)">
                         No business unit is assigned. Please contact your administrator.
                     </p>
                 </div>
@@ -207,12 +207,12 @@ export const LookupSection = ({ config }: LookupSectionProps) => {
                 {/* Page header */}
                 <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
-                        <h1 className="text-xl font-bold text-[var(--cl-text)]">{config.sectionTitle}</h1>
-                        <p className="mt-1 text-sm text-[var(--cl-text-muted)]">{config.sectionDescription}</p>
+                        <h1 className="text-xl font-bold text-(--cl-text)">{config.sectionTitle}</h1>
+                        <p className="mt-1 text-sm text-(--cl-text-muted)">{config.sectionDescription}</p>
                     </div>
                     <div className="flex items-center gap-2">
                         <Button
-                            className="gap-1.5 border border-[var(--cl-border)] bg-[var(--cl-surface-2)] text-[var(--cl-text-muted)] shadow-sm hover:bg-[var(--cl-surface-3)]"
+                            className="gap-1.5 border border-(--cl-border) bg-(--cl-surface-2) text-(--cl-text-muted) shadow-sm hover:bg-(--cl-surface-3)"
                             disabled={loading}
                             size="sm"
                             variant="outline"
@@ -237,7 +237,7 @@ export const LookupSection = ({ config }: LookupSectionProps) => {
                 {/* Search + record count */}
                 <div className="flex items-center gap-3">
                     <div className="relative flex-1">
-                        <SearchIcon className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--cl-text-muted)]" />
+                        <SearchIcon className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-(--cl-text-muted)" />
                         <Input
                             className="h-8 pl-8 text-sm"
                             disabled={loading}
@@ -247,7 +247,7 @@ export const LookupSection = ({ config }: LookupSectionProps) => {
                         />
                             {search && (
                                 <button
-                                    className="absolute right-2.5 top-1/2 flex h-4 w-4 -translate-y-1/2 items-center justify-center rounded-full bg-[var(--cl-text-muted)] text-[var(--cl-surface)] hover:bg-[var(--cl-text)] focus:outline-none"
+                                    className="absolute right-2.5 top-1/2 flex h-4 w-4 -translate-y-1/2 items-center justify-center rounded-full bg-(--cl-text-muted) text-(--cl-surface) hover:bg-(--cl-text) focus:outline-none"
                                     type="button"
                                     onClick={() => setSearch("")}
                                 >
@@ -256,7 +256,7 @@ export const LookupSection = ({ config }: LookupSectionProps) => {
                             )}
                     </div>
                     {!loading && records.length > 0 && (
-                        <p className="shrink-0 text-xs text-[var(--cl-text-muted)]">
+                        <p className="shrink-0 text-xs text-(--cl-text-muted)">
                             {displayRecords.length} of {visibleRecords.length}
                         </p>
                     )}
@@ -266,21 +266,21 @@ export const LookupSection = ({ config }: LookupSectionProps) => {
                 {loading && records.length === 0 ? (
                     <div className="flex flex-col gap-2">
                         {Array.from({ length: 4 }).map((_, i) => (
-                            <div key={i} className="h-12 animate-pulse rounded-lg bg-[var(--cl-surface-2)]" />
+                            <div key={i} className="h-12 animate-pulse rounded-lg bg-(--cl-surface-2)" />
                         ))}
                     </div>
                 ) : records.length === 0 ? (
-                    <div className="rounded-xl border border-[var(--cl-border)] bg-[var(--cl-surface-2)] px-6 py-12 text-center text-sm text-[var(--cl-text-muted)]">
+                    <div className="rounded-xl border border-(--cl-border) bg-(--cl-surface-2) px-6 py-12 text-center text-sm text-(--cl-text-muted)">
                         No records found. Click &quot;Add&quot; to create one.
                     </div>
                 ) : (
                     <div
-                        className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-[var(--cl-border)] bg-[var(--cl-surface-2)] shadow-sm"
+                        className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-(--cl-border) bg-(--cl-surface-2) shadow-sm"
                     >
                         <div className="overflow-x-auto overflow-y-auto">
                             <Table>
                                 <TableHeader>
-                                    <TableRow className="sticky top-0 z-10 bg-[var(--cl-surface-3)] hover:bg-[var(--cl-surface-3)]">
+                                    <TableRow className="sticky top-0 z-10 bg-(--cl-surface-3) hover:bg-(--cl-surface-3)">
                                         <TableHead className={`w-8 text-center ${thClass}`}>#</TableHead>
                                         <TableHead className={thSortClass} onClick={() => handleSort("code")}>
                                             Code<SortIcon col="code" />
@@ -319,7 +319,7 @@ export const LookupSection = ({ config }: LookupSectionProps) => {
                                         <tr>
                                             <td
                                                 colSpan={99}
-                                                className="px-6 py-10 text-center text-sm text-[var(--cl-text-muted)]"
+                                                className="px-6 py-10 text-center text-sm text-(--cl-text-muted)"
                                             >
                                                 No results match &ldquo;{search}&rdquo;.
                                             </td>
@@ -328,23 +328,23 @@ export const LookupSection = ({ config }: LookupSectionProps) => {
                                         displayRecords.map((record, idx) => (
                                             <motion.tr
                                                 animate="visible"
-                                                className="border-b border-[var(--cl-border)] transition-colors last:border-b-0 hover:bg-[var(--cl-surface-3)]"
+                                                className="border-b border-(--cl-border) transition-colors last:border-b-0 hover:bg-(--cl-surface-3)"
                                                 custom={idx}
                                                 initial="hidden"
                                                 key={record.id}
                                                 variants={rowVariants}
                                             >
-                                                <TableCell className="text-center text-xs text-[var(--cl-text-muted)]">{idx + 1}</TableCell>
-                                                <TableCell className="font-mono text-sm font-medium text-[var(--cl-text)]">{record.code}</TableCell>
-                                                <TableCell className="font-medium text-[var(--cl-text)]">{record.name}</TableCell>
+                                                <TableCell className="text-center text-xs text-(--cl-text-muted)">{idx + 1}</TableCell>
+                                                <TableCell className="font-mono text-sm font-medium text-(--cl-text)">{record.code}</TableCell>
+                                                <TableCell className="font-medium text-(--cl-text)">{record.name}</TableCell>
                                                 {config.hasPrefix && (
-                                                    <TableCell className="font-mono text-sm text-[var(--cl-text-muted)]">{record.prefix ?? "—"}</TableCell>
+                                                    <TableCell className="font-mono text-sm text-(--cl-text-muted)">{record.prefix ?? "—"}</TableCell>
                                                 )}
                                                 {config.hasDescription && (
-                                                    <TableCell className="max-w-xs truncate text-sm text-[var(--cl-text-muted)]">{record.description ?? "—"}</TableCell>
+                                                    <TableCell className="max-w-xs truncate text-sm text-(--cl-text-muted)">{record.description ?? "—"}</TableCell>
                                                 )}
                                                 {config.hasDisplayOrder && (
-                                                    <TableCell className="text-sm text-[var(--cl-text-muted)]">{record.display_order ?? "—"}</TableCell>
+                                                    <TableCell className="text-sm text-(--cl-text-muted)">{record.display_order ?? "—"}</TableCell>
                                                 )}
                                                 {config.hasIsActive && (
                                                     <TableCell>
@@ -369,7 +369,7 @@ export const LookupSection = ({ config }: LookupSectionProps) => {
                                                                 System
                                                             </Badge>
                                                         ) : (
-                                                            <span className="text-sm text-[var(--cl-text-muted)]">—</span>
+                                                            <span className="text-sm text-(--cl-text-muted)">—</span>
                                                         )}
                                                     </TableCell>
                                                 )}
@@ -379,7 +379,7 @@ export const LookupSection = ({ config }: LookupSectionProps) => {
                                                             <DropdownMenu>
                                                                 <DropdownMenuTrigger asChild>
                                                                     <Button
-                                                                        className="h-7 w-7 cursor-pointer text-[var(--cl-text-muted)] hover:text-[var(--cl-text)]"
+                                                                        className="h-7 w-7 cursor-pointer text-(--cl-text-muted) hover:text-(--cl-text)"
                                                                         size="icon"
                                                                         variant="ghost"
                                                                     >

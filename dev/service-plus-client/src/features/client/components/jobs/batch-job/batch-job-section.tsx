@@ -57,8 +57,8 @@ type BatchGroup = {
 const PAGE_SIZE = 50;
 const DEBOUNCE_MS = 1600;
 
-const thClass = "sticky top-0 z-20 text-xs font-semibold uppercase tracking-wide text-[var(--cl-text-muted)] p-3 text-left border-b border-[var(--cl-border)] bg-[var(--cl-surface-2)]";
-const tdClass = "p-3 text-sm text-[var(--cl-text)] border-b border-[var(--cl-border)]";
+const thClass = "sticky top-0 z-20 text-xs font-semibold uppercase tracking-wide text-(--cl-text-muted) p-3 text-left border-b border-(--cl-border) bg-(--cl-surface-2)";
+const tdClass = "p-3 text-sm text-(--cl-text) border-b border-(--cl-border)";
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -167,7 +167,7 @@ export const BatchJobSection = ({ initialEditBatchNo, onEditBatchNoApplied, onRe
                     warranty_card_no:         r.warranty_card_no || null,
                     job_receive_condition_id: r.job_receive_condition_id,
                     remarks:                  r.remarks || null,
-                    quantity:                 r.quantity,
+                    qty:                 r.qty,
                 }));
                 const updatedJobs   = formRows.filter(r => r.id).map(r => ({
                     id:                       r.id!,
@@ -179,7 +179,7 @@ export const BatchJobSection = ({ initialEditBatchNo, onEditBatchNoApplied, onRe
                     warranty_card_no:         r.warranty_card_no || null,
                     job_receive_condition_id: r.job_receive_condition_id,
                     remarks:                  r.remarks || null,
-                    quantity:                 r.quantity,
+                    qty:                 r.qty,
                 }));
 
                 const payload = encodeURIComponent(JSON.stringify({
@@ -228,7 +228,7 @@ export const BatchJobSection = ({ initialEditBatchNo, onEditBatchNoApplied, onRe
                         warranty_card_no:         r.warranty_card_no || null,
                         job_receive_condition_id: r.job_receive_condition_id,
                         remarks:                  r.remarks || null,
-                        quantity:                 r.quantity,
+                        qty:                 r.qty,
                     })),
                 }));
 
@@ -491,20 +491,20 @@ export const BatchJobSection = ({ initialEditBatchNo, onEditBatchNoApplied, onRe
             transition={{ duration: 0.25 }}
         >
             {/* Header */}
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-3 border-b border-[var(--cl-border)] bg-[var(--cl-surface)] px-4 py-1">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-3 border-b border-(--cl-border) bg-(--cl-surface) px-4 py-1">
                 <div className="flex items-center gap-3 overflow-hidden">
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-[var(--cl-accent)]/10 text-[var(--cl-accent)]">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-(--cl-accent)/10 text-(--cl-accent)">
                         <Briefcase className="h-4 w-4" />
                     </div>
                     <div className="flex items-baseline gap-2 overflow-hidden">
-                        <h1 className="text-lg font-bold text-[var(--cl-text)] truncate">
+                        <h1 className="text-lg font-bold text-(--cl-text) truncate">
                             Batch Jobs
-                            {mode === "new" && !editBatchNo && <span className="ml-2 text-sm font-medium text-[var(--cl-text-muted)] whitespace-nowrap">— New</span>}
+                            {mode === "new" && !editBatchNo && <span className="ml-2 text-sm font-medium text-(--cl-text-muted) whitespace-nowrap">— New</span>}
                             {mode === "new" &&  editBatchNo && <span className="ml-2 text-sm font-medium text-amber-500 whitespace-nowrap">— Edit #{editBatchNo}</span>}
-                            {mode === "view" && <span className="ml-2 text-sm font-medium text-[var(--cl-text-muted)] whitespace-nowrap">— View</span>}
+                            {mode === "view" && <span className="ml-2 text-sm font-medium text-(--cl-text-muted) whitespace-nowrap">— View</span>}
                         </h1>
                         {mode === "view" && (
-                            <span className="text-xs text-[var(--cl-text-muted)] whitespace-nowrap">
+                            <span className="text-xs text-(--cl-text-muted) whitespace-nowrap">
                                 {loading ? "Loading…" : `(${total})`}
                             </span>
                         )}
@@ -525,7 +525,7 @@ export const BatchJobSection = ({ initialEditBatchNo, onEditBatchNoApplied, onRe
 
                 <div className={`flex items-center gap-2 ${mode !== "new" ? "hidden md:flex md:invisible pointer-events-none" : ""}`}>
                     <Button
-                        className="h-8 gap-1.5 px-3 text-xs font-extrabold uppercase tracking-widest text-[var(--cl-text)]"
+                        className="h-8 gap-1.5 px-3 text-xs font-extrabold uppercase tracking-widest text-(--cl-text)"
                         disabled={submitting} variant="ghost"
                         onClick={() => { setEditBatchNo(null); setEditSourceMode("new"); setEditRows([]); handleReset(); }}
                     >
@@ -597,13 +597,13 @@ export const BatchJobSection = ({ initialEditBatchNo, onEditBatchNoApplied, onRe
             ) : (
                 <>
                     {/* Toolbar */}
-                    <div className="flex flex-wrap items-center gap-2 px-4 py-2 bg-[var(--cl-surface-2)]/30">
+                    <div className="flex flex-wrap items-center gap-2 px-4 py-2 bg-(--cl-surface-2)/30">
                         <div className="relative flex-1 sm:max-w-xs">
-                            <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--cl-text-muted)]" />
-                            <Input className="h-8 border-[var(--cl-border)] bg-white pl-8 text-xs" placeholder="Batch no, customer or mobile…" value={search} onChange={e => handleSearchChange(e.target.value)} />
+                            <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-(--cl-text-muted)" />
+                            <Input className="h-8 border-(--cl-border) bg-white pl-8 text-xs" placeholder="Batch no, customer or mobile…" value={search} onChange={e => handleSearchChange(e.target.value)} />
                             {search && (
                                 <button
-                                    className="absolute right-2.5 top-1/2 flex h-4 w-4 -translate-y-1/2 items-center justify-center rounded-full bg-[var(--cl-text-muted)] text-[var(--cl-surface)] hover:bg-[var(--cl-text)] focus:outline-none"
+                                    className="absolute right-2.5 top-1/2 flex h-4 w-4 -translate-y-1/2 items-center justify-center rounded-full bg-(--cl-text-muted) text-(--cl-surface) hover:bg-(--cl-text) focus:outline-none"
                                     type="button"
                                     onClick={() => handleSearchChange("")}
                                 >
@@ -619,15 +619,15 @@ export const BatchJobSection = ({ initialEditBatchNo, onEditBatchNoApplied, onRe
                     </div>
 
                     {/* Grid */}
-                    <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-[var(--cl-border)] bg-[var(--cl-surface)] shadow-sm">
+                    <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-(--cl-border) bg-(--cl-surface) shadow-sm">
                         <div ref={scrollWrapperRef} className="flex-1 overflow-x-auto overflow-y-auto" style={{ maxHeight: mode === "view" ? maxHeight : undefined }}>
                             {loading ? (
                                 <table className="min-w-full border-collapse">
-                                    <thead><tr className="bg-[var(--cl-surface-2)]">{["#", "Batch", "Date", "Customer", "Mobile", "Device Details", "Job Type", "Status", "Technician", "Amount", "Actions"].map(h => <th key={h} className={thClass}>{h}</th>)}</tr></thead>
-                                    <tbody>{Array.from({ length: 8 }).map((_, i) => (<tr key={i} className="animate-pulse">{Array.from({ length: 11 }).map((__, j) => (<td key={j} className={tdClass}><div className="h-4 w-16 rounded bg-[var(--cl-border)]" /></td>))}</tr>))}</tbody>
+                                    <thead><tr className="bg-(--cl-surface-2)">{["#", "Batch", "Date", "Customer", "Mobile", "Device Details", "Job Type", "Status", "Technician", "Amount", "Actions"].map(h => <th key={h} className={thClass}>{h}</th>)}</tr></thead>
+                                    <tbody>{Array.from({ length: 8 }).map((_, i) => (<tr key={i} className="animate-pulse">{Array.from({ length: 11 }).map((__, j) => (<td key={j} className={tdClass}><div className="h-4 w-16 rounded bg-(--cl-border)" /></td>))}</tr>))}</tbody>
                                 </table>
                             ) : groupedBatches.length === 0 ? (
-                                <div className="flex h-32 items-center justify-center text-sm text-[var(--cl-text-muted)]">No batches found for the selected filters.</div>
+                                <div className="flex h-32 items-center justify-center text-sm text-(--cl-text-muted)">No batches found for the selected filters.</div>
                             ) : (
                                 <table className="min-w-full border-collapse">
                                     <thead className="sticky top-0 z-10">
@@ -642,10 +642,10 @@ export const BatchJobSection = ({ initialEditBatchNo, onEditBatchNoApplied, onRe
                                             <th className={thClass}>Status</th>
                                             <th className={thClass}>Technician</th>
                                             <th className={`${thClass} text-right`}>Amount</th>
-                                            <th className={`${thClass} sticky right-0 z-20 !bg-[var(--cl-surface-2)]`}>Actions</th>
+                                            <th className={`${thClass} sticky right-0 z-20 !bg-(--cl-surface-2)`}>Actions</th>
                                         </tr>
                                     </thead>
-                                    <tbody className="divide-y divide-[var(--cl-border)] bg-[var(--cl-surface)]">
+                                    <tbody className="divide-y divide-(--cl-border) bg-(--cl-surface)">
                                         {groupedBatches.map((batch, groupIdx) => (
                                             <BatchGroupRow
                                                 key={batch.batch_no}
@@ -677,8 +677,8 @@ export const BatchJobSection = ({ initialEditBatchNo, onEditBatchNoApplied, onRe
                         </div>
 
                         {/* Pagination */}
-                        <div className="flex items-center justify-between border-t border-[var(--cl-border)] px-4 py-2">
-                            <span className="text-xs text-[var(--cl-text-muted)]">
+                        <div className="flex items-center justify-between border-t border-(--cl-border) px-4 py-2">
+                            <span className="text-xs text-(--cl-text-muted)">
                                 {total === 0 ? "No batches" : `Showing ${(page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, total)} of ${total} batch${total !== 1 ? "es" : ""} (Page ${page} of ${totalPages})`}
                             </span>
                             <div className="flex items-center gap-1">
@@ -692,9 +692,9 @@ export const BatchJobSection = ({ initialEditBatchNo, onEditBatchNoApplied, onRe
 
                     {/* Delete Dialog */}
                     <Dialog open={deleteBatchNo !== null} onOpenChange={open => { if (!open && !deleting) setDeleteBatchNo(null); }}>
-                        <DialogContent aria-describedby={undefined} className="sm:max-w-sm bg-white dark:bg-zinc-950 text-[var(--cl-text)]">
+                        <DialogContent aria-describedby={undefined} className="sm:max-w-sm bg-white dark:bg-zinc-950 text-(--cl-text)">
                             <DialogHeader><DialogTitle>Delete Batch #{deleteBatchNo}</DialogTitle></DialogHeader>
-                            <p className="text-sm text-[var(--cl-text-muted)]">
+                            <p className="text-sm text-(--cl-text-muted)">
                                 This will permanently delete all {deleteJobCount} job{deleteJobCount !== 1 ? "s" : ""} in this batch. This action cannot be undone.
                             </p>
                             <DialogFooter>
@@ -709,14 +709,14 @@ export const BatchJobSection = ({ initialEditBatchNo, onEditBatchNoApplied, onRe
 
                     {/* Delete Single Job Dialog */}
                     <Dialog open={deleteJobId !== null} onOpenChange={open => { if (!open) setDeleteJobId(null); }}>
-                        <DialogContent aria-describedby={undefined} className="sm:max-w-sm bg-white dark:bg-zinc-950 text-[var(--cl-text)]">
+                        <DialogContent aria-describedby={undefined} className="sm:max-w-sm bg-white dark:bg-zinc-950 text-(--cl-text)">
                             <DialogHeader><DialogTitle>Delete Job #{deleteJobNo}</DialogTitle></DialogHeader>
                             {deleteJobCount <= 2 ? (
                                 <p className="text-sm text-red-500">
                                     Cannot delete this job. A batch must have at least 2 jobs. This batch currently has {deleteJobCount} job{deleteJobCount !== 1 ? "s" : ""}.
                                 </p>
                             ) : (
-                                <p className="text-sm text-[var(--cl-text-muted)]">
+                                <p className="text-sm text-(--cl-text-muted)">
                                     This will permanently delete this job. This action cannot be undone.
                                 </p>
                             )}
@@ -737,13 +737,13 @@ export const BatchJobSection = ({ initialEditBatchNo, onEditBatchNoApplied, onRe
             >
                 <DialogContent
                     aria-describedby={undefined}
-                    className="sm:max-w-2xl max-h-[80vh] overflow-y-auto bg-white dark:bg-zinc-950 text-[var(--cl-text)]"
+                    className="sm:max-w-2xl max-h-[80vh] overflow-y-auto bg-white dark:bg-zinc-950 text-(--cl-text)"
                 >
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2">
                             <Paperclip className="h-4 w-4 text-violet-500" />
                             Attach Files
-                            {postSaveBatchNo && <span className="text-sm font-normal text-[var(--cl-text-muted)]">— Batch #{postSaveBatchNo}</span>}
+                            {postSaveBatchNo && <span className="text-sm font-normal text-(--cl-text-muted)">— Batch #{postSaveBatchNo}</span>}
                         </DialogTitle>
                     </DialogHeader>
 
@@ -751,8 +751,8 @@ export const BatchJobSection = ({ initialEditBatchNo, onEditBatchNoApplied, onRe
                         {(postSaveJobs ?? []).map(job => (
                             <div key={job.jobId} className="flex flex-col gap-2">
                                 <div className="flex items-center gap-2">
-                                    <span className="font-mono text-sm font-bold text-[var(--cl-accent)]">{job.jobNo}</span>
-                                    <span className="text-xs text-[var(--cl-text-muted)]">Job ID: {job.jobId}</span>
+                                    <span className="font-mono text-sm font-bold text-(--cl-accent)">{job.jobNo}</span>
+                                    <span className="text-xs text-(--cl-text-muted)">Job ID: {job.jobId}</span>
                                 </div>
                                 <JobImageUpload jobId={job.jobId} />
                             </div>
@@ -777,7 +777,7 @@ export const BatchJobSection = ({ initialEditBatchNo, onEditBatchNoApplied, onRe
         >
             <DialogContent
                 aria-describedby={undefined}
-                className="sm:max-w-2xl max-h-[80vh] overflow-y-auto bg-white dark:bg-zinc-950 text-[var(--cl-text)]"
+                className="sm:max-w-2xl max-h-[80vh] overflow-y-auto bg-white dark:bg-zinc-950 text-(--cl-text)"
             >
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
@@ -864,33 +864,33 @@ function BatchGroupRow({ availableDivisions, batch, onEdit, onView, onPrint, onD
     return (
         <>
             {/* Batch Header Row */}
-            <tr className="bg-[var(--cl-surface-2)]">
+            <tr className="bg-(--cl-surface-2)">
                 <td colSpan={10} className={`${tdClass} font-bold`}>
                     <div className="flex items-center gap-3">
-                        <span className="font-mono text-sm font-bold text-[var(--cl-accent)]">#{batch.batch_no}</span>
-                        <span className="text-xs text-[var(--cl-text-muted)]">{batch.batch_date}</span>
+                        <span className="font-mono text-sm font-bold text-(--cl-accent)">#{batch.batch_no}</span>
+                        <span className="text-xs text-(--cl-text-muted)">{batch.batch_date}</span>
                         {batchDivision && (
                             <span className="font-mono text-[10px] font-semibold text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-950/40 rounded px-1.5 py-0.5">
                                 {batchDivision.code}
                             </span>
                         )}
-                        <span className="text-xs text-[var(--cl-text)]">{batch.customer_name ?? "—"}</span>
-                        <span className="text-xs font-mono text-[var(--cl-text-muted)]">{batch.mobile}</span>
-                        <span className="ml-auto text-xs font-medium px-2 py-0.5 rounded-full bg-[var(--cl-accent)]/10 text-[var(--cl-accent)]">
+                        <span className="text-xs text-(--cl-text)">{batch.customer_name ?? "—"}</span>
+                        <span className="text-xs font-mono text-(--cl-text-muted)">{batch.mobile}</span>
+                        <span className="ml-auto text-xs font-medium px-2 py-0.5 rounded-full bg-(--cl-accent)/10 text-(--cl-accent)">
                             {batch.job_count} job{batch.job_count !== 1 ? "s" : ""}
                         </span>
                     </div>
                 </td>
-                <td className={`${tdClass} sticky right-0 z-20 !bg-[var(--cl-surface-2)] group`}>
+                <td className={`${tdClass} sticky right-0 z-20 !bg-(--cl-surface-2) group`}>
                     <div className="flex items-center justify-center">
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                                <Button className="h-8 w-8 p-0 hover:bg-[var(--cl-accent)]/15" variant="ghost">
+                                <Button className="h-8 w-8 p-0 hover:bg-(--cl-accent)/15" variant="ghost">
                                     <MoreHorizontal className="h-4 w-4" />
                                     <span className="sr-only">Open menu</span>
                                 </Button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-[160px] bg-white dark:bg-zinc-950 border-[var(--cl-border)] shadow-[0_10px_30px_rgba(0,0,0,0.2)] z-50">
+                            <DropdownMenuContent align="end" className="w-[160px] bg-white dark:bg-zinc-950 border-(--cl-border) shadow-[0_10px_30px_rgba(0,0,0,0.2)] z-50">
                                 <DropdownMenuItem className="flex items-center gap-2 cursor-pointer text-blue-500 focus:bg-blue-500/10 focus:text-blue-600" onClick={onView}>
                                     <Eye className="h-4 w-4" />
                                     <span>View Batch</span>
@@ -915,14 +915,14 @@ function BatchGroupRow({ availableDivisions, batch, onEdit, onView, onPrint, onD
 
             {/* Job Rows (indented) */}
             {batch.jobs.map((job, jobIdx) => (
-                <tr key={job.id} className="group transition-colors hover:bg-[var(--cl-accent)]/5">
-                    <td className={`${tdClass} text-[var(--cl-text-muted)] text-xs`}>
+                <tr key={job.id} className="group transition-colors hover:bg-(--cl-accent)/5">
+                    <td className={`${tdClass} text-(--cl-text-muted) text-xs`}>
                         {batch.batch_no}.{jobIdx + 1}
                     </td>
                     <td className={`${tdClass} whitespace-nowrap text-xs`}>{job.job_date}</td>
                     <td className={tdClass}>
                         <div className="flex flex-col gap-0.5">
-                            <div className="font-mono font-medium text-xs text-[var(--cl-accent)]">
+                            <div className="font-mono font-medium text-xs text-(--cl-accent)">
                                 {job.job_no}
                                 {job.is_closed && (
                                     <span className="ml-1.5 text-[9px] font-bold text-emerald-600 bg-emerald-100 dark:bg-emerald-950/40 rounded px-1 py-0.5">CLOSED</span>
@@ -945,7 +945,7 @@ function BatchGroupRow({ availableDivisions, batch, onEdit, onView, onPrint, onD
                     <td className={`${tdClass} text-xs`}>{job.device_details ?? "—"}</td>
                     <td className={`${tdClass} text-xs`}>{job.job_type_name}</td>
                     <td className={`${tdClass} text-xs`}>
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-[var(--cl-accent)]/10 text-[var(--cl-accent)]">
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-(--cl-accent)/10 text-(--cl-accent)">
                             {job.job_status_name}
                         </span>
                     </td>
@@ -953,7 +953,7 @@ function BatchGroupRow({ availableDivisions, batch, onEdit, onView, onPrint, onD
                     <td className={`${tdClass} text-right text-xs`}>
                         {job.amount != null ? `₹${Number(job.amount).toFixed(2)}` : "—"}
                     </td>
-                    <td className={`${tdClass} sticky right-0 z-10 bg-[var(--cl-surface)] group-hover:bg-[var(--cl-surface-2)]`}>
+                    <td className={`${tdClass} sticky right-0 z-10 bg-(--cl-surface) group-hover:bg-(--cl-surface-2)`}>
                         <div className="flex items-center gap-1 justify-center">
                             <Button className="h-7 w-7 p-0 text-violet-500 hover:bg-violet-500/10" variant="ghost" title="Attach Files" onClick={() => onAttachJob(job.id, job.job_no)}>
                                 <Paperclip className="h-3.5 w-3.5" />

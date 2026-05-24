@@ -132,7 +132,7 @@ export const DeleteBrandPartsWizardDialog = ({
         if (statsLoading || !stats) {
             return (
                 <div className="flex items-center justify-center py-10">
-                    <Loader2Icon className="h-5 w-5 animate-spin text-[var(--cl-text-muted)]" />
+                    <Loader2Icon className="h-5 w-5 animate-spin text-(--cl-text-muted)" />
                 </div>
             );
         }
@@ -141,18 +141,18 @@ export const DeleteBrandPartsWizardDialog = ({
 
         return (
             <>
-                <div className="overflow-hidden rounded-lg border border-[var(--cl-border)] bg-[var(--cl-surface-2)]">
-                    <div className="flex items-center justify-between border-b border-[var(--cl-border)] px-4 py-2.5">
-                        <span className="text-sm text-[var(--cl-text-muted)]">Total parts for brand</span>
-                        <span className="font-semibold text-[var(--cl-text)]">{stats.total}</span>
+                <div className="overflow-hidden rounded-lg border border-(--cl-border) bg-(--cl-surface-2)">
+                    <div className="flex items-center justify-between border-b border-(--cl-border) px-4 py-2.5">
+                        <span className="text-sm text-(--cl-text-muted)">Total parts for brand</span>
+                        <span className="font-semibold text-(--cl-text)">{stats.total}</span>
                     </div>
-                    <div className="flex items-center justify-between border-b border-[var(--cl-border)] px-4 py-2.5">
-                        <span className="text-sm text-[var(--cl-text-muted)]">In use (jobs / invoices / stock)</span>
+                    <div className="flex items-center justify-between border-b border-(--cl-border) px-4 py-2.5">
+                        <span className="text-sm text-(--cl-text-muted)">In use (jobs / invoices / stock)</span>
                         <span className="font-semibold text-amber-600">{stats.in_use_count}</span>
                     </div>
                     <div className="flex items-center justify-between px-4 py-2.5">
-                        <span className="text-sm text-[var(--cl-text-muted)]">Safe to delete</span>
-                        <span className={`font-semibold ${nothingToDelete ? "text-[var(--cl-text-muted)]" : "text-red-600"}`}>
+                        <span className="text-sm text-(--cl-text-muted)">Safe to delete</span>
+                        <span className={`font-semibold ${nothingToDelete ? "text-(--cl-text-muted)" : "text-red-600"}`}>
                             {stats.deletable_count}
                         </span>
                     </div>
@@ -167,7 +167,7 @@ export const DeleteBrandPartsWizardDialog = ({
                         </p>
                     </div>
                 ) : (
-                    <p className="text-xs text-[var(--cl-text-muted)]">
+                    <p className="text-xs text-(--cl-text-muted)">
                         Only unused parts will be removed. Parts referenced in any job, invoice, or
                         stock record are left untouched.
                     </p>
@@ -202,7 +202,7 @@ export const DeleteBrandPartsWizardDialog = ({
 
                 <div className="flex flex-col gap-1.5">
                     <Label htmlFor="confirm_brand_name">
-                        Type <span className="font-semibold text-[var(--cl-text)]">{brand.name}</span> to confirm
+                        Type <span className="font-semibold text-(--cl-text)">{brand.name}</span> to confirm
                     </Label>
                     <Input
                         autoComplete="off"
@@ -240,14 +240,14 @@ export const DeleteBrandPartsWizardDialog = ({
                 <div className="flex flex-col items-center gap-3 py-4 text-center">
                     <CheckCircle2Icon className="h-10 w-10 text-emerald-500" />
                     <div>
-                        <p className="font-semibold text-[var(--cl-text)]">Cleanup Complete</p>
-                        <p className="mt-1 text-sm text-[var(--cl-text-muted)]">
-                            <span className="font-semibold text-[var(--cl-text)]">{deletedCount}</span> spare part
+                        <p className="font-semibold text-(--cl-text)">Cleanup Complete</p>
+                        <p className="mt-1 text-sm text-(--cl-text-muted)">
+                            <span className="font-semibold text-(--cl-text)">{deletedCount}</span> spare part
                             {deletedCount !== 1 ? "s" : ""} deleted for brand{" "}
-                            <span className="font-semibold text-[var(--cl-text)]">{brand.name}</span>.
+                            <span className="font-semibold text-(--cl-text)">{brand.name}</span>.
                         </p>
                         {stats && stats.in_use_count > 0 && (
-                            <p className="mt-1 text-xs text-[var(--cl-text-muted)]">
+                            <p className="mt-1 text-xs text-(--cl-text-muted)">
                                 {stats.in_use_count} part{stats.in_use_count !== 1 ? "s were" : " was"} skipped (still in use).
                             </p>
                         )}

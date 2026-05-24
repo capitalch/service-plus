@@ -31,8 +31,8 @@ type ClosedFilter = null | boolean;
 const PAGE_SIZE   = 50;
 const DEBOUNCE_MS = 1600;
 
-const thClass = "sticky top-0 z-20 text-xs font-semibold uppercase tracking-wide text-[var(--cl-text-muted)] p-3 text-left border-b border-[var(--cl-border)] bg-[var(--cl-surface-2)]";
-const tdClass = "p-3 text-sm text-[var(--cl-text)] border-b border-[var(--cl-border)]";
+const thClass = "sticky top-0 z-20 text-xs font-semibold uppercase tracking-wide text-(--cl-text-muted) p-3 text-left border-b border-(--cl-border) bg-(--cl-surface-2)";
+const tdClass = "p-3 text-sm text-(--cl-text) border-b border-(--cl-border)";
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -153,14 +153,14 @@ export const JobSearchSection = () => {
             transition={{ duration: 0.25 }}
         >
             {/* ── Header ─────────────────────────────────────────────────────── */}
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-3 border-b border-[var(--cl-border)] bg-[var(--cl-surface)] py-1">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-3 border-b border-(--cl-border) bg-(--cl-surface) py-1">
                 <div className="flex items-center gap-3 overflow-hidden">
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-[var(--cl-accent)]/10 text-[var(--cl-accent)]">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-(--cl-accent)/10 text-(--cl-accent)">
                         <ClipboardList className="h-4 w-4" />
                     </div>
                     <div className="flex items-baseline gap-2 overflow-hidden">
-                        <h1 className="text-lg font-bold text-[var(--cl-text)] truncate">Job Search</h1>
-                        <span className="text-xs text-[var(--cl-text-muted)] whitespace-nowrap">
+                        <h1 className="text-lg font-bold text-(--cl-text) truncate">Job Search</h1>
+                        <span className="text-xs text-(--cl-text-muted) whitespace-nowrap">
                             {loading ? "Loading…" : `(${total})`}
                         </span>
                     </div>
@@ -168,18 +168,18 @@ export const JobSearchSection = () => {
             </div>
 
             {/* ── Toolbar ────────────────────────────────────────────────────── */}
-            <div className="flex flex-wrap items-center gap-2 px-4 py-2 bg-[var(--cl-surface-2)]/30">
+            <div className="flex flex-wrap items-center gap-2 px-4 py-2 bg-(--cl-surface-2)/30">
                 <div className="relative flex-1 sm:max-w-md">
-                    <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--cl-text-muted)]" />
+                    <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-(--cl-text-muted)" />
                     <Input
-                        className="h-8 border-[var(--cl-border)] bg-[var(--cl-surface)] pl-8 text-xs"
+                        className="h-8 border-(--cl-border) bg-(--cl-surface) pl-8 text-xs"
                         placeholder="Job no, alt job no, customer, mobile, product, brand, model or serial…"
                         value={search}
                         onChange={e => handleSearchChange(e.target.value)}
                     />
                     {search && (
                         <button
-                            className="absolute right-2.5 top-1/2 flex h-4 w-4 -translate-y-1/2 items-center justify-center rounded-full bg-[var(--cl-text-muted)] text-[var(--cl-surface)] hover:bg-[var(--cl-text)] focus:outline-none"
+                            className="absolute right-2.5 top-1/2 flex h-4 w-4 -translate-y-1/2 items-center justify-center rounded-full bg-(--cl-text-muted) text-(--cl-surface) hover:bg-(--cl-text) focus:outline-none"
                             type="button"
                             onClick={() => handleSearchChange("")}
                         >
@@ -189,15 +189,15 @@ export const JobSearchSection = () => {
                 </div>
 
                 {/* Closed filter toggle */}
-                <div className="flex items-center rounded border border-[var(--cl-border)] overflow-hidden">
+                <div className="flex items-center rounded border border-(--cl-border) overflow-hidden">
                     {filterOptions.map(opt => (
                         <button
                             key={String(opt.value)}
                             disabled={loading}
                             className={`px-3 h-8 text-xs font-semibold transition-colors disabled:opacity-50 cursor-pointer
                                 ${closedFilter === opt.value
-                                    ? "bg-[var(--cl-accent)] text-white"
-                                    : "bg-[var(--cl-surface)] text-[var(--cl-text-muted)] hover:bg-[var(--cl-hover)] hover:text-[var(--cl-text)]"
+                                    ? "bg-(--cl-accent) text-white"
+                                    : "bg-(--cl-surface) text-(--cl-text-muted) hover:bg-(--cl-hover) hover:text-(--cl-text)"
                                 }`}
                             onClick={() => handleClosedFilterChange(opt.value)}
                         >
@@ -221,7 +221,7 @@ export const JobSearchSection = () => {
             </div>
 
             {/* ── Data Grid ──────────────────────────────────────────────────── */}
-            <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-[var(--cl-border)] bg-[var(--cl-surface)] shadow-sm">
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-(--cl-border) bg-(--cl-surface) shadow-sm">
                 <div
                     ref={scrollWrapperRef}
                     className="flex-1 overflow-x-auto overflow-y-auto"
@@ -230,7 +230,7 @@ export const JobSearchSection = () => {
                     {loading ? (
                         <table className="min-w-full border-collapse">
                             <thead>
-                                <tr className="bg-[var(--cl-surface-2)]">
+                                <tr className="bg-(--cl-surface-2)">
                                     {["#", "Date", "Job No", "Customer", "Mobile", "Device Details", "Job Type", "Status", "Amount", "Actions"].map(h => (
                                         <th key={h} className={thClass}>{h}</th>
                                     ))}
@@ -240,14 +240,14 @@ export const JobSearchSection = () => {
                                 {Array.from({ length: 12 }).map((_, i) => (
                                     <tr key={i} className="animate-pulse">
                                         {Array.from({ length: 10 }).map((__, j) => (
-                                            <td key={j} className={tdClass}><div className="h-4 w-16 rounded bg-[var(--cl-border)]" /></td>
+                                            <td key={j} className={tdClass}><div className="h-4 w-16 rounded bg-(--cl-border)" /></td>
                                         ))}
                                     </tr>
                                 ))}
                             </tbody>
                         </table>
                     ) : rows.length === 0 ? (
-                        <div className="flex h-32 items-center justify-center text-sm text-[var(--cl-text-muted)]">
+                        <div className="flex h-32 items-center justify-center text-sm text-(--cl-text-muted)">
                             No jobs found for the selected filters.
                         </div>
                     ) : (
@@ -263,17 +263,17 @@ export const JobSearchSection = () => {
                                     <th className={thClass}>Job Type</th>
                                     <th className={thClass}>Status</th>
                                     <th className={`${thClass} text-right`}>Amount</th>
-                                    <th className={`${thClass} sticky right-0 z-20 !bg-[var(--cl-surface-2)]`}>Actions</th>
+                                    <th className={`${thClass} sticky right-0 z-20 !bg-(--cl-surface-2)`}>Actions</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-[var(--cl-border)] bg-[var(--cl-surface)]">
+                            <tbody className="divide-y divide-(--cl-border) bg-(--cl-surface)">
                                 {rows.map((job, idx) => (
                                     <tr
                                         key={job.id}
-                                        className={`group cursor-pointer transition-colors hover:bg-[var(--cl-accent)]/5 ${job.batch_no ? "border-l-2 border-l-violet-400 dark:border-l-violet-500" : ""}`}
+                                        className={`group cursor-pointer transition-colors hover:bg-(--cl-accent)/5 ${job.batch_no ? "border-l-2 border-l-violet-400 dark:border-l-violet-500" : ""}`}
                                         onClick={() => setViewJobId(job.id)}
                                     >
-                                        <td className={`${tdClass} text-[var(--cl-text-muted)]`}>
+                                        <td className={`${tdClass} text-(--cl-text-muted)`}>
                                             {(page - 1) * PAGE_SIZE + idx + 1}
                                         </td>
                                         <td className={`${tdClass} whitespace-nowrap`}>
@@ -291,14 +291,14 @@ export const JobSearchSection = () => {
                                         </td>
                                         <td className={tdClass}>
                                             <div className="flex flex-col gap-0.5">
-                                                <div className="font-mono font-medium text-[var(--cl-accent)]">
+                                                <div className="font-mono font-medium text-(--cl-accent)">
                                                     {job.job_no}
                                                     {job.is_closed && (
                                                         <span className="ml-1.5 text-[10px] font-bold text-emerald-600 bg-emerald-100 dark:bg-emerald-950/40 rounded px-1 py-0.5">CLOSED</span>
                                                     )}
                                                 </div>
                                                 {job.alternate_job_no && (
-                                                    <span className="text-[10px] text-[var(--cl-text-muted)]">Alt: {job.alternate_job_no}</span>
+                                                    <span className="text-[10px] text-(--cl-text-muted)">Alt: {job.alternate_job_no}</span>
                                                 )}
                                                 {job.batch_no != null && (
                                                     <span className="text-[9px] font-bold text-violet-600 dark:text-violet-400 w-fit bg-violet-50 dark:bg-violet-950/40 rounded px-1 py-0.5">Batch #{job.batch_no}</span>
@@ -320,7 +320,7 @@ export const JobSearchSection = () => {
                                         <td className={`${tdClass} text-xs`}>{job.device_details || "—"}</td>
                                         <td className={tdClass}>{job.job_type_name}</td>
                                         <td className={tdClass}>
-                                            <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-[var(--cl-accent)]/10 text-[var(--cl-accent)]">
+                                            <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-(--cl-accent)/10 text-(--cl-accent)">
                                                 {job.job_status_name}
                                             </span>
                                         </td>
@@ -328,13 +328,13 @@ export const JobSearchSection = () => {
                                             {job.amount != null ? `₹${Number(job.amount).toFixed(2)}` : "—"}
                                         </td>
                                         <td
-                                            className={`${tdClass} sticky right-0 z-10 bg-[var(--cl-surface)] group-hover:bg-[var(--cl-surface-2)]`}
+                                            className={`${tdClass} sticky right-0 z-10 bg-(--cl-surface) group-hover:bg-(--cl-surface-2)`}
                                             onClick={e => e.stopPropagation()}
                                         >
                                             <div className="flex items-center justify-center gap-1">
                                                 {/* View details */}
                                                 <Button
-                                                    className="h-8 w-8 p-0 text-[var(--cl-text-muted)] hover:text-[var(--cl-accent)] hover:bg-[var(--cl-accent)]/10"
+                                                    className="h-8 w-8 p-0 text-(--cl-text-muted) hover:text-(--cl-accent) hover:bg-(--cl-accent)/10"
                                                     size="icon"
                                                     title="View job details"
                                                     variant="ghost"
@@ -344,7 +344,7 @@ export const JobSearchSection = () => {
                                                 </Button>
                                                 {/* PDF / Print */}
                                                 <Button
-                                                    className="h-8 w-8 p-0 text-[var(--cl-text-muted)] hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
+                                                    className="h-8 w-8 p-0 text-(--cl-text-muted) hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
                                                     size="icon"
                                                     title="Print / Save as PDF"
                                                     variant="ghost"
@@ -362,11 +362,11 @@ export const JobSearchSection = () => {
                 </div>
 
                 {/* Pagination */}
-                <div className="flex items-center justify-between border-t border-[var(--cl-border)] px-4 py-2">
-                    <span className="text-xs text-[var(--cl-text-muted)]">
+                <div className="flex items-center justify-between border-t border-(--cl-border) px-4 py-2">
+                    <span className="text-xs text-(--cl-text-muted)">
                         {total === 0 ? "No jobs" : `Showing ${(page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, total)} of ${total} jobs (Page ${page} of ${totalPages})`}
                         {closedFilter !== null && (
-                            <span className="ml-2 font-semibold text-[var(--cl-accent)]">
+                            <span className="ml-2 font-semibold text-(--cl-accent)">
                                 ({closedFilterLabel[String(closedFilter)]})
                             </span>
                         )}

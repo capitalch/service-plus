@@ -127,7 +127,7 @@ export const EditAppSettingDialog = ({
                     {/* Key — read-only */}
                     <div className="flex flex-col gap-1.5">
                         <Label>Key</Label>
-                        <div className="rounded-md border border-[var(--cl-border)] bg-[var(--cl-surface-3)] px-3 py-2 font-mono text-sm text-[var(--cl-text-muted)]">
+                        <div className="rounded-md border border-(--cl-border) bg-(--cl-surface-3) px-3 py-2 font-mono text-sm text-(--cl-text-muted)">
                             {record.setting_key}
                         </div>
                     </div>

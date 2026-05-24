@@ -33,8 +33,8 @@ type GenericQueryData<T> = { genericQuery: T[] | null };
 function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
     return (
         <div className="flex items-start justify-between gap-3 py-1.5 text-sm">
-            <span className="shrink-0 text-[var(--cl-text-muted)]">{label}</span>
-            <span className="text-right font-medium text-[var(--cl-text)]">{value ?? "—"}</span>
+            <span className="shrink-0 text-(--cl-text-muted)">{label}</span>
+            <span className="text-right font-medium text-(--cl-text)">{value ?? "—"}</span>
         </div>
     );
 }
@@ -44,8 +44,8 @@ function TabBtn({ active, label, onClick }: { active: boolean; label: string; on
         <button
             className={`flex-1 rounded-md px-2 py-1.5 text-xs font-medium transition-colors ${
                 active
-                    ? "bg-[var(--cl-accent)] text-white shadow cursor-pointer"
-                    : "text-[var(--cl-text-muted)] hover:bg-[var(--cl-hover)] hover:text-[var(--cl-text)] cursor-pointer"
+                    ? "bg-(--cl-accent) text-white shadow cursor-pointer"
+                    : "text-(--cl-text-muted) hover:bg-(--cl-hover) hover:text-(--cl-text) cursor-pointer"
             }`}
             type="button"
             onClick={onClick}
@@ -152,14 +152,14 @@ export const PartFinderDetailPanel = ({ locations, onClose, onRefresh, part }: P
 
     return (
         <>
-            <div className="flex h-full w-[380px] shrink-0 flex-col overflow-hidden rounded-xl border border-[var(--cl-border)] bg-[var(--cl-surface-2)] shadow-xl">
+            <div className="flex h-full w-[380px] shrink-0 flex-col overflow-hidden rounded-xl border border-(--cl-border) bg-(--cl-surface-2) shadow-xl">
 
                 {/* ── Empty state ── */}
                 {!part && (
                     <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 text-center">
-                        <Package className="h-10 w-10 text-[var(--cl-text-muted)] opacity-20" />
-                        <p className="text-sm font-semibold text-[var(--cl-text)]">No part selected</p>
-                        <p className="text-xs text-[var(--cl-text-muted)]">Click a row to view part details</p>
+                        <Package className="h-10 w-10 text-(--cl-text-muted) opacity-20" />
+                        <p className="text-sm font-semibold text-(--cl-text)">No part selected</p>
+                        <p className="text-xs text-(--cl-text-muted)">Click a row to view part details</p>
                     </div>
                 )}
 
@@ -167,13 +167,13 @@ export const PartFinderDetailPanel = ({ locations, onClose, onRefresh, part }: P
                 {part && (
                     <>
                         {/* Header */}
-                        <div className="flex items-start justify-between border-b border-[var(--cl-border)] px-4 py-3">
+                        <div className="flex items-start justify-between border-b border-(--cl-border) px-4 py-3">
                             <div className="min-w-0">
-                                <p className="font-mono text-xs text-[var(--cl-text-muted)]">{part.part_code}</p>
-                                <p className="mt-0.5 line-clamp-2 text-sm font-semibold text-[var(--cl-text)]">{part.part_name}</p>
+                                <p className="font-mono text-xs text-(--cl-text-muted)">{part.part_code}</p>
+                                <p className="mt-0.5 line-clamp-2 text-sm font-semibold text-(--cl-text)">{part.part_name}</p>
                             </div>
                             <button
-                                className="ml-2 shrink-0 rounded p-0.5 text-[var(--cl-text-muted)] transition-colors hover:bg-[var(--cl-hover)] hover:text-[var(--cl-text)]"
+                                className="ml-2 shrink-0 rounded p-0.5 text-(--cl-text-muted) transition-colors hover:bg-(--cl-hover) hover:text-(--cl-text)"
                                 type="button"
                                 onClick={onClose}
                             >
@@ -182,7 +182,7 @@ export const PartFinderDetailPanel = ({ locations, onClose, onRefresh, part }: P
                         </div>
 
                         {/* Tabs */}
-                        <div className="flex gap-1 border-b border-[var(--cl-border)] px-3 py-2">
+                        <div className="flex gap-1 border-b border-(--cl-border) px-3 py-2">
                             <TabBtn active={tab === "overview"} label="Overview" onClick={() => setTab("overview")} />
                             <TabBtn active={tab === "stock"}    label="Stock"    onClick={() => setTab("stock")}    />
                             <TabBtn active={tab === "history"}  label="History"  onClick={() => setTab("history")}  />
@@ -209,15 +209,15 @@ export const PartFinderDetailPanel = ({ locations, onClose, onRefresh, part }: P
                                         }`}>
                                             {part.qty}
                                         </span>
-                                        <span className="text-sm text-[var(--cl-text-muted)]">{part.uom ?? ""}</span>
+                                        <span className="text-sm text-(--cl-text-muted)">{part.uom ?? ""}</span>
                                     </div>
 
                                     <section>
-                                        <p className="mb-1 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-[var(--cl-accent-text)]">
+                                        <p className="mb-1 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-(--cl-accent-text)">
                                             <Package className="h-3.5 w-3.5" />
                                             Part Identity
                                         </p>
-                                        <div className="divide-y divide-[var(--cl-border)] rounded-lg border border-[var(--cl-border)] bg-[var(--cl-surface-3)] px-3">
+                                        <div className="divide-y divide-(--cl-border) rounded-lg border border-(--cl-border) bg-(--cl-surface-3) px-3">
                                             <InfoRow label="Part Code"   value={<span className="font-mono">{part.part_code}</span>} />
                                             <InfoRow label="Part Name"   value={part.part_name} />
                                             <InfoRow label="Description" value={part.part_description} />
@@ -229,11 +229,11 @@ export const PartFinderDetailPanel = ({ locations, onClose, onRefresh, part }: P
                                     </section>
 
                                     <section>
-                                        <p className="mb-1 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-[var(--cl-accent-text)]">
+                                        <p className="mb-1 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-(--cl-accent-text)">
                                             <Tag className="h-3.5 w-3.5" />
                                             Pricing &amp; Tax
                                         </p>
-                                        <div className="divide-y divide-[var(--cl-border)] rounded-lg border border-[var(--cl-border)] bg-[var(--cl-surface-3)] px-3">
+                                        <div className="divide-y divide-(--cl-border) rounded-lg border border-(--cl-border) bg-(--cl-surface-3) px-3">
                                             <InfoRow label="Cost Price" value={part.cost_price != null ? `₹ ${part.cost_price.toFixed(2)}` : null} />
                                             <InfoRow label="MRP"        value={part.mrp        != null ? `₹ ${part.mrp.toFixed(2)}`        : null} />
                                             <InfoRow label="HSN Code"   value={part.hsn_code} />
@@ -242,11 +242,11 @@ export const PartFinderDetailPanel = ({ locations, onClose, onRefresh, part }: P
                                     </section>
 
                                     <section>
-                                        <p className="mb-1 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-[var(--cl-accent-text)]">
+                                        <p className="mb-1 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-(--cl-accent-text)">
                                             <MapPin className="h-3.5 w-3.5" />
                                             Storage
                                         </p>
-                                        <div className="divide-y divide-[var(--cl-border)] rounded-lg border border-[var(--cl-border)] bg-[var(--cl-surface-3)] px-3">
+                                        <div className="divide-y divide-(--cl-border) rounded-lg border border-(--cl-border) bg-(--cl-surface-3) px-3">
                                             <InfoRow label="Primary Location" value={part.primary_location} />
                                             <InfoRow label="Locations"        value={
                                                 part.location_count > 0
@@ -263,12 +263,12 @@ export const PartFinderDetailPanel = ({ locations, onClose, onRefresh, part }: P
                                 <div className="space-y-4">
                                     <div className="flex items-center justify-between">
                                         <div>
-                                            <p className="text-xs text-[var(--cl-text-muted)]">Current Stock</p>
+                                            <p className="text-xs text-(--cl-text-muted)">Current Stock</p>
                                             <p className={`text-2xl font-bold tabular-nums ${
                                                 part.qty <= 0 ? "text-rose-600" : part.qty <= 5 ? "text-amber-600" : "text-emerald-600"
                                             }`}>
                                                 {part.qty}{" "}
-                                                <span className="text-sm font-normal text-[var(--cl-text-muted)]">{part.uom ?? ""}</span>
+                                                <span className="text-sm font-normal text-(--cl-text-muted)">{part.uom ?? ""}</span>
                                             </p>
                                         </div>
                                         <Button
@@ -284,63 +284,63 @@ export const PartFinderDetailPanel = ({ locations, onClose, onRefresh, part }: P
                                     {loadingStock ? (
                                         <div className="space-y-2">
                                             {Array.from({ length: 4 }).map((_, i) => (
-                                                <div key={i} className="h-8 animate-pulse rounded bg-[var(--cl-surface-3)]" />
+                                                <div key={i} className="h-8 animate-pulse rounded bg-(--cl-surface-3)" />
                                             ))}
                                         </div>
                                     ) : (
                                         <>
                                             {/* Snapshot summary */}
-                                            <div className="rounded-lg border border-[var(--cl-border)] bg-[var(--cl-surface-3)] p-3 text-xs">
+                                            <div className="rounded-lg border border-(--cl-border) bg-(--cl-surface-3) p-3 text-xs">
                                                 {stockSummary?.last_snapshot_date ? (
                                                     <>
                                                         <div className="mb-2 flex items-center justify-between">
-                                                            <span className="font-semibold text-[var(--cl-text-muted)]">Last Snapshot</span>
-                                                            <span className="font-mono text-[var(--cl-text)]">{stockSummary.last_snapshot_date}</span>
+                                                            <span className="font-semibold text-(--cl-text-muted)">Last Snapshot</span>
+                                                            <span className="font-mono text-(--cl-text)">{stockSummary.last_snapshot_date}</span>
                                                         </div>
-                                                        <div className="mb-2 flex items-center justify-between border-b border-[var(--cl-border)] pb-2">
-                                                            <span className="text-[var(--cl-text-muted)]">Snapshot Balance</span>
-                                                            <span className="font-bold tabular-nums text-[var(--cl-text)]">{stockSummary.snapshot_closing.toFixed(3)}</span>
+                                                        <div className="mb-2 flex items-center justify-between border-b border-(--cl-border) pb-2">
+                                                            <span className="text-(--cl-text-muted)">Snapshot Balance</span>
+                                                            <span className="font-bold tabular-nums text-(--cl-text)">{stockSummary.snapshot_closing.toFixed(3)}</span>
                                                         </div>
-                                                        <p className="mb-1 font-semibold uppercase tracking-wide text-[var(--cl-accent-text)]">Since snapshot</p>
+                                                        <p className="mb-1 font-semibold uppercase tracking-wide text-(--cl-accent-text)">Since snapshot</p>
                                                         <div className="space-y-1">
                                                             {stockSummary.purchase_in_since > 0 && (
                                                                 <div className="flex justify-between">
-                                                                    <span className="text-[var(--cl-text-muted)]">Purchase In</span>
+                                                                    <span className="text-(--cl-text-muted)">Purchase In</span>
                                                                     <span className="tabular-nums text-emerald-600">+{stockSummary.purchase_in_since.toFixed(3)}</span>
                                                                 </div>
                                                             )}
                                                             {stockSummary.purchase_out_since > 0 && (
                                                                 <div className="flex justify-between">
-                                                                    <span className="text-[var(--cl-text-muted)]">Purchase Return</span>
+                                                                    <span className="text-(--cl-text-muted)">Purchase Return</span>
                                                                     <span className="tabular-nums text-rose-600">-{stockSummary.purchase_out_since.toFixed(3)}</span>
                                                                 </div>
                                                             )}
                                                             {stockSummary.sales_in_since > 0 && (
                                                                 <div className="flex justify-between">
-                                                                    <span className="text-[var(--cl-text-muted)]">Sales Return</span>
+                                                                    <span className="text-(--cl-text-muted)">Sales Return</span>
                                                                     <span className="tabular-nums text-emerald-600">+{stockSummary.sales_in_since.toFixed(3)}</span>
                                                                 </div>
                                                             )}
                                                             {stockSummary.sales_out_since > 0 && (
                                                                 <div className="flex justify-between">
-                                                                    <span className="text-[var(--cl-text-muted)]">Sales Out</span>
+                                                                    <span className="text-(--cl-text-muted)">Sales Out</span>
                                                                     <span className="tabular-nums text-rose-600">-{stockSummary.sales_out_since.toFixed(3)}</span>
                                                                 </div>
                                                             )}
                                                             {stockSummary.adjust_in_since > 0 && (
                                                                 <div className="flex justify-between">
-                                                                    <span className="text-[var(--cl-text-muted)]">Adjustment In</span>
+                                                                    <span className="text-(--cl-text-muted)">Adjustment In</span>
                                                                     <span className="tabular-nums text-emerald-600">+{stockSummary.adjust_in_since.toFixed(3)}</span>
                                                                 </div>
                                                             )}
                                                             {stockSummary.adjust_out_since > 0 && (
                                                                 <div className="flex justify-between">
-                                                                    <span className="text-[var(--cl-text-muted)]">Adjustment Out</span>
+                                                                    <span className="text-(--cl-text-muted)">Adjustment Out</span>
                                                                     <span className="tabular-nums text-rose-600">-{stockSummary.adjust_out_since.toFixed(3)}</span>
                                                                 </div>
                                                             )}
-                                                            <div className="flex justify-between border-t border-[var(--cl-border)] pt-1 font-semibold">
-                                                                <span className="text-[var(--cl-text-muted)]">Net</span>
+                                                            <div className="flex justify-between border-t border-(--cl-border) pt-1 font-semibold">
+                                                                <span className="text-(--cl-text-muted)">Net</span>
                                                                 <span className={`tabular-nums ${stockSummary.net_since_snapshot >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
                                                                     {stockSummary.net_since_snapshot >= 0 ? "+" : ""}{stockSummary.net_since_snapshot.toFixed(3)}
                                                                 </span>
@@ -348,7 +348,7 @@ export const PartFinderDetailPanel = ({ locations, onClose, onRefresh, part }: P
                                                         </div>
                                                     </>
                                                 ) : (
-                                                    <p className="text-center text-[var(--cl-text-muted)]">
+                                                    <p className="text-center text-(--cl-text-muted)">
                                                         No snapshot yet — all balance from live transactions
                                                     </p>
                                                 )}
@@ -356,24 +356,24 @@ export const PartFinderDetailPanel = ({ locations, onClose, onRefresh, part }: P
 
                                             {/* Stock by location table */}
                                             {stockByLoc.length === 0 ? (
-                                                <div className="rounded-lg border border-[var(--cl-border)] bg-[var(--cl-surface-3)] px-4 py-6 text-center text-sm text-[var(--cl-text-muted)]">
+                                                <div className="rounded-lg border border-(--cl-border) bg-(--cl-surface-3) px-4 py-6 text-center text-sm text-(--cl-text-muted)">
                                                     No location data available
                                                 </div>
                                             ) : (
-                                                <div className="overflow-hidden rounded-lg border border-[var(--cl-border)]">
+                                                <div className="overflow-hidden rounded-lg border border-(--cl-border)">
                                                     <table className="w-full text-sm">
-                                                        <thead className="bg-[var(--cl-surface-3)]">
+                                                        <thead className="bg-(--cl-surface-3)">
                                                             <tr>
-                                                                <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[var(--cl-text-muted)]">Location</th>
-                                                                <th className="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wide text-[var(--cl-text-muted)]">Qty</th>
+                                                                <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-(--cl-text-muted)">Location</th>
+                                                                <th className="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wide text-(--cl-text-muted)">Qty</th>
                                                             </tr>
                                                         </thead>
-                                                        <tbody className="divide-y divide-[var(--cl-border)]">
+                                                        <tbody className="divide-y divide-(--cl-border)">
                                                             {stockByLoc.map(loc => (
-                                                                <tr key={loc.location_id} className="hover:bg-[var(--cl-surface-3)]">
-                                                                    <td className="px-3 py-2 text-[var(--cl-text)]">
+                                                                <tr key={loc.location_id} className="hover:bg-(--cl-surface-3)">
+                                                                    <td className="px-3 py-2 text-(--cl-text)">
                                                                         <span className="flex items-center gap-1.5">
-                                                                            <MapPin className="h-3 w-3 text-[var(--cl-text-muted)]" />
+                                                                            <MapPin className="h-3 w-3 text-(--cl-text-muted)" />
                                                                             {loc.location_name}
                                                                         </span>
                                                                     </td>
@@ -399,38 +399,38 @@ export const PartFinderDetailPanel = ({ locations, onClose, onRefresh, part }: P
                                     {loadingHist ? (
                                         <div className="space-y-3">
                                             {Array.from({ length: 5 }).map((_, i) => (
-                                                <div key={i} className="h-16 animate-pulse rounded-lg bg-[var(--cl-surface-3)]" />
+                                                <div key={i} className="h-16 animate-pulse rounded-lg bg-(--cl-surface-3)" />
                                             ))}
                                         </div>
                                     ) : history.length === 0 ? (
-                                        <div className="flex flex-col items-center justify-center rounded-lg border border-[var(--cl-border)] bg-[var(--cl-surface-3)] px-4 py-10 text-center">
-                                            <Clock className="mb-2 h-8 w-8 text-[var(--cl-text-muted)] opacity-40" />
-                                            <p className="text-sm text-[var(--cl-text-muted)]">No location history yet</p>
+                                        <div className="flex flex-col items-center justify-center rounded-lg border border-(--cl-border) bg-(--cl-surface-3) px-4 py-10 text-center">
+                                            <Clock className="mb-2 h-8 w-8 text-(--cl-text-muted) opacity-40" />
+                                            <p className="text-sm text-(--cl-text-muted)">No location history yet</p>
                                         </div>
                                     ) : (
-                                        <div className="relative space-y-3 pl-5 before:absolute before:left-1.5 before:top-2 before:h-[calc(100%-16px)] before:w-px before:bg-[var(--cl-border)]">
+                                        <div className="relative space-y-3 pl-5 before:absolute before:left-1.5 before:top-2 before:h-[calc(100%-16px)] before:w-px before:bg-(--cl-border)">
                                             {history.map(h => (
                                                 <div key={h.id} className="relative">
-                                                    <span className="absolute -left-5 mt-1.5 h-2.5 w-2.5 rounded-full border-2 border-[var(--cl-accent)] bg-[var(--cl-surface-2)]" />
-                                                    <div className="rounded-lg border border-[var(--cl-border)] bg-[var(--cl-surface-3)] p-3">
+                                                    <span className="absolute -left-5 mt-1.5 h-2.5 w-2.5 rounded-full border-2 border-(--cl-accent) bg-(--cl-surface-2)" />
+                                                    <div className="rounded-lg border border-(--cl-border) bg-(--cl-surface-3) p-3">
                                                         <div className="flex items-center justify-between gap-2">
-                                                            <span className="flex items-center gap-1 text-xs font-semibold text-[var(--cl-text)]">
+                                                            <span className="flex items-center gap-1 text-xs font-semibold text-(--cl-text)">
                                                                 <MapPin className="h-3 w-3" />
                                                                 {h.location_name}
                                                             </span>
-                                                            <span className="flex items-center gap-1 text-xs text-[var(--cl-text-muted)]">
+                                                            <span className="flex items-center gap-1 text-xs text-(--cl-text-muted)">
                                                                 <Calendar className="h-3 w-3" />
                                                                 {h.transaction_date}
                                                             </span>
                                                         </div>
                                                         {h.ref_no && (
-                                                            <p className="mt-1 flex items-center gap-1 text-xs text-[var(--cl-text-muted)]">
+                                                            <p className="mt-1 flex items-center gap-1 text-xs text-(--cl-text-muted)">
                                                                 <Hash className="h-3 w-3" />
                                                                 {h.ref_no}
                                                             </p>
                                                         )}
                                                         {h.remarks && (
-                                                            <p className="mt-1 text-xs italic text-[var(--cl-text-muted)]">{h.remarks}</p>
+                                                            <p className="mt-1 text-xs italic text-(--cl-text-muted)">{h.remarks}</p>
                                                         )}
                                                     </div>
                                                 </div>

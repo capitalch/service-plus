@@ -170,7 +170,7 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
         <ThemeContext.Provider value={{ isDark, toggleTheme }}>
         <LayoutContext.Provider value={{ explorerOpen, toggleExplorer }}>
         <ClientSelectionContext.Provider value={{ onSelect, selected, selectedGroup }}>
-            <div className="client-theme relative h-full bg-[var(--cl-bg)] text-[var(--cl-text)]" data-theme={isDark ? 'dark' : 'light'}>
+            <div className="client-theme relative h-full bg-(--cl-bg) text-(--cl-text)" data-theme={isDark ? 'dark' : 'light'}>
                 <ClientTopNav activeSection={activeSection} />
                 <ClientActivityBar activeSection={activeSection} />
                 <ClientExplorerPanel activeSection={activeSection} />
@@ -185,7 +185,7 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
 
                 <main className={`absolute bottom-6 right-0 top-9.5 flex flex-col p-4 pt-3 sm:p-6 sm:pt-4 transition-[left] duration-200 ${mainLeft}`}>
                     <div className="mb-3 flex items-center justify-between sm:mb-2 gap-4">
-                        <p className="text-xs font-bold text-[var(--cl-accent-text)] tracking-wider">
+                        <p className="text-xs font-bold text-(--cl-accent-text) tracking-wider">
                             {displayTitle}
                         </p>
                         {currentDivision && (
@@ -201,12 +201,12 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
                                         {isGstMode ? "GST" : "Non-GST"}
                                     </span>
                                 </div>
-                                <Building2 className="h-4 w-4 text-[var(--cl-accent)]" />
+                                <Building2 className="h-4 w-4 text-(--cl-accent)" />
                                 <div className="flex flex-col leading-none">
-                                    <span className="text-sm font-bold text-[var(--cl-text)] tracking-tight uppercase">
+                                    <span className="text-sm font-bold text-(--cl-text) tracking-tight uppercase">
                                         {currentDivision.name}
                                     </span>
-                                    <span className="text-[10px] leading-none text-[var(--cl-text-muted)]">(Default division)</span>
+                                    <span className="text-[10px] leading-none text-(--cl-text-muted)">(Default division)</span>
                                 </div>
                             </div>
                         )}

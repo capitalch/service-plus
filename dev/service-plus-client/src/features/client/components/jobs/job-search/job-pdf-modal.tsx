@@ -25,7 +25,7 @@ type PartUsedRow = {
     part_code:  string;
     part_name:  string;
     uom:        string;
-    quantity:   number;
+    qty:   number;
     selling_price: number | null;
     remarks:    string | null;
 };
@@ -115,7 +115,7 @@ export const JobPdfModal = ({ jobId, onClose }: Props) => {
         ? [job.product_name, job.brand_name, job.model_name].filter(Boolean).join(" / ") || null
         : null;
 
-    const partsSelling   = parts.reduce((s, p) => s + (Number(p.selling_price ?? 0) * Number(p.quantity)), 0);
+    const partsSelling   = parts.reduce((s, p) => s + (Number(p.selling_price ?? 0) * Number(p.qty)), 0);
     const chargesSelling = charges.reduce((s, c) => s + Number(c.selling_price ?? 0), 0);
     const grandTotal     = partsSelling + chargesSelling;
 
@@ -194,7 +194,7 @@ export const JobPdfModal = ({ jobId, onClose }: Props) => {
                                         {job.warranty_card_no && (
                                             <Chip>{`Warranty: ${job.warranty_card_no}`}</Chip>
                                         )}
-                                        <Chip>{`Qty: ${job.quantity}`}</Chip>
+                                        <Chip>{`Qty: ${job.qty}`}</Chip>
                                     </div>
                                 </Section>
                             </div>
@@ -247,9 +247,9 @@ export const JobPdfModal = ({ jobId, onClose }: Props) => {
                                                     <TD mono>{p.part_code}</TD>
                                                     <TD>{p.part_name}</TD>
                                                     <TD small>{p.uom}</TD>
-                                                    <TD right>{Number(p.quantity).toFixed(2)}</TD>
+                                                    <TD right>{Number(p.qty).toFixed(2)}</TD>
                                                     <TD right small>{fmt(p.selling_price)}</TD>
-                                                    <TD right bold>{p.selling_price != null ? fmt(Number(p.selling_price) * Number(p.quantity)) : "—"}</TD>
+                                                    <TD right bold>{p.selling_price != null ? fmt(Number(p.selling_price) * Number(p.qty)) : "—"}</TD>
                                                 </tr>
                                             ))}
                                         </tbody>

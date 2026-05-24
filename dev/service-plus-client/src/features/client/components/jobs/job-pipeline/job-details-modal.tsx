@@ -29,7 +29,7 @@ type PartUsedRow = {
     part_code: string;
     part_name: string;
     uom:       string;
-    quantity:  number;
+    qty:  number;
     remarks:   string | null;
 };
 
@@ -295,7 +295,7 @@ export const JobDetailsModal = ({ jobId, onClose, onJobChanged }: Props) => {
                                                 </span>
                                             )}
                                             <span className="inline-flex items-center rounded-md bg-violet-50 px-2.5 py-1 text-[11px] font-semibold text-violet-700 border border-violet-200">
-                                                Qty: {job.quantity}
+                                                Qty: {job.qty}
                                             </span>
                                         </div>
                                     </div>
@@ -434,7 +434,7 @@ export const JobDetailsModal = ({ jobId, onClose, onJobChanged }: Props) => {
                                                         <td className="px-3 py-2 text-xs font-mono font-semibold text-slate-800 border-b border-slate-100">{p.part_code}</td>
                                                         <td className="px-3 py-2 text-sm text-slate-700 border-b border-slate-100">{p.part_name}</td>
                                                         <td className="px-3 py-2 text-xs text-slate-500 border-b border-slate-100">{p.uom}</td>
-                                                        <td className="px-3 py-2 text-sm tabular-nums font-semibold text-slate-800 border-b border-slate-100">{Number(p.quantity).toFixed(2)}</td>
+                                                        <td className="px-3 py-2 text-sm tabular-nums font-semibold text-slate-800 border-b border-slate-100">{Number(p.qty).toFixed(2)}</td>
                                                         <td className="px-3 py-2 text-xs text-slate-500 border-b border-slate-100 italic">{p.remarks || "—"}</td>
                                                     </tr>
                                                 ))}

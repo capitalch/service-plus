@@ -12,7 +12,7 @@ export type PurchaseLineType = {
     part_code:           string;
     part_name:           string;
     hsn_code:            string;
-    quantity:            number;
+    qty:                 number;
     unit_price:          number;
     aggregate_amount:    number;
     gst_rate:            number;
@@ -51,7 +51,7 @@ export type PurchaseLineFormItem = {
     part_name:        string;
     uom:              string;
     hsn_code:         string;
-    quantity:         number;
+    qty:         number;
     unit_price:       number;
     gst_rate:         number;
     cgst_rate:        number;

@@ -20,7 +20,7 @@ export type JobInvoiceLineType = {
     description:      string;
     part_code:        string | null;
     hsn_code:         string;
-    quantity:         number;
+    qty:              number;
     unit_price:       number;
     taxable_amount:   number;
     cgst_rate:        number;
@@ -37,7 +37,7 @@ export type JobInvoiceFormLine = {
     description: string;
     part_code:   string;
     hsn_code:    string;
-    quantity:    string;
+    qty:    string;
     unit_price:  string;
     gst_rate:    string;
 };

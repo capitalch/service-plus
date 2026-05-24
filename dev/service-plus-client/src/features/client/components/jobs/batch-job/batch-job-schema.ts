@@ -12,7 +12,7 @@ export const batchJobRowSchema = z.object({
     warranty_card_no:         z.string().default(""),
     job_receive_condition_id: z.number().nullable(),
     remarks:                  z.string().default(""),
-    quantity:                 z.number().min(1).default(1),
+    qty:                 z.number().min(1).default(1),
     isDeletable:              z.boolean().default(true),
     file_count:               z.number().default(0),
 });
@@ -42,7 +42,7 @@ export function getInitialBatchJobRow(): BatchJobRowFormValues {
         warranty_card_no:         "",
         job_receive_condition_id: null,
         remarks:                  "",
-        quantity:                 1,
+        qty:                 1,
         isDeletable:              true,
         file_count:               0,
     };

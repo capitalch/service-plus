@@ -33,8 +33,8 @@ type GenericQueryDataType<T> = { genericQuery: T[] | null };
 const DEBOUNCE_MS = 1600;
 const PAGE_SIZE   = 50;
 
-const thClass = "sticky top-0 z-20 text-xs font-semibold uppercase tracking-wide text-[var(--cl-text-muted)] p-3 text-left border-b border-[var(--cl-border)] bg-[var(--cl-surface-2)]";
-const tdClass = "p-3 text-sm text-[var(--cl-text)] border-b border-[var(--cl-border)]";
+const thClass = "sticky top-0 z-20 text-xs font-semibold uppercase tracking-wide text-(--cl-text-muted) p-3 text-left border-b border-(--cl-border) bg-(--cl-surface-2)";
+const tdClass = "p-3 text-sm text-(--cl-text) border-b border-(--cl-border)";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -49,7 +49,7 @@ function modeBadgeClass(mode: string) {
         case "UPI":          return "bg-purple-500/10 text-purple-600";
         case "Bank Transfer":return "bg-amber-500/10 text-amber-700";
         case "Cheque":       return "bg-slate-500/10 text-slate-600";
-        default:             return "bg-[var(--cl-surface-3)] text-[var(--cl-text-muted)]";
+        default:             return "bg-(--cl-surface-3) text-(--cl-text-muted)";
     }
 }
 
@@ -253,16 +253,16 @@ export const ReceiptsSection = () => {
             transition={{ duration: 0.25 }}
         >
             {/* Header */}
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-3 border-b border-[var(--cl-border)] bg-[var(--cl-surface)] px-4 py-1">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-3 border-b border-(--cl-border) bg-(--cl-surface) px-4 py-1">
                 <div className="flex items-center gap-3">
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-[var(--cl-accent)]/10 text-[var(--cl-accent)]">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-(--cl-accent)/10 text-(--cl-accent)">
                         <DollarSign className="h-4 w-4" />
                     </div>
                     <div className="flex items-baseline gap-2">
-                        <h1 className="text-lg font-bold text-[var(--cl-text)]">
+                        <h1 className="text-lg font-bold text-(--cl-text)">
                             Receipts
                         </h1>
-                        <span className="text-xs text-[var(--cl-text-muted)]">
+                        <span className="text-xs text-(--cl-text-muted)">
                             {loading ? "Loading…" : `(${total})`}
                         </span>
                     </div>
@@ -277,18 +277,18 @@ export const ReceiptsSection = () => {
             </div>
 
             {/* Toolbar */}
-            <div className="flex flex-wrap items-center gap-2 px-4 py-1 bg-[var(--cl-surface-2)]/30">
+            <div className="flex flex-wrap items-center gap-2 px-4 py-1 bg-(--cl-surface-2)/30">
                 <div className="flex items-center gap-1">
                     <Input
-                        className="h-8 w-32 border-[var(--cl-border)] bg-[var(--cl-surface)] text-xs"
+                        className="h-8 w-32 border-(--cl-border) bg-(--cl-surface) text-xs"
                         disabled={loading}
                         type="date"
                         value={fromDate}
                         onChange={e => { setFromDate(e.target.value); setPage(1); }}
                     />
-                    <span className="text-[var(--cl-text-muted)] text-xs">—</span>
+                    <span className="text-(--cl-text-muted) text-xs">—</span>
                     <Input
-                        className="h-8 w-32 border-[var(--cl-border)] bg-[var(--cl-surface)] text-xs"
+                        className="h-8 w-32 border-(--cl-border) bg-(--cl-surface) text-xs"
                         disabled={loading}
                         type="date"
                         value={toDate}
@@ -296,16 +296,16 @@ export const ReceiptsSection = () => {
                     />
                 </div>
                 <div className="relative flex-1 sm:max-w-xs">
-                    <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--cl-text-muted)]" />
+                    <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-(--cl-text-muted)" />
                     <Input
-                        className="h-8 border-[var(--cl-border)] bg-[var(--cl-surface)] pl-8 text-xs"
+                        className="h-8 border-(--cl-border) bg-(--cl-surface) pl-8 text-xs"
                         placeholder="Job no, customer, mode, ref no…"
                         value={search}
                         onChange={e => handleSearchChange(e.target.value)}
                     />
                             {search && (
                                 <button
-                                    className="absolute right-2.5 top-1/2 flex h-4 w-4 -translate-y-1/2 items-center justify-center rounded-full bg-[var(--cl-text-muted)] text-[var(--cl-surface)] hover:bg-[var(--cl-text)] focus:outline-none"
+                                    className="absolute right-2.5 top-1/2 flex h-4 w-4 -translate-y-1/2 items-center justify-center rounded-full bg-(--cl-text-muted) text-(--cl-surface) hover:bg-(--cl-text) focus:outline-none"
                                     type="button"
                                     onClick={() => handleSearchChange("")}
                                 >
@@ -325,7 +325,7 @@ export const ReceiptsSection = () => {
             </div>
 
             {/* Grid */}
-            <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-[var(--cl-border)] bg-[var(--cl-surface)] shadow-sm mx-4">
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-(--cl-border) bg-(--cl-surface) shadow-sm mx-4">
                 <div ref={scrollRef} className="flex-1 overflow-x-auto overflow-y-auto" style={{ maxHeight: maxHeight || undefined }}>
                     {loading ? (
                         <table className="min-w-full border-collapse">
@@ -341,7 +341,7 @@ export const ReceiptsSection = () => {
                                     <tr key={i} className="animate-pulse">
                                         {Array.from({ length: 8 }).map((__, j) => (
                                             <td key={j} className={tdClass}>
-                                                <div className="h-4 w-16 rounded bg-[var(--cl-border)]" />
+                                                <div className="h-4 w-16 rounded bg-(--cl-border)" />
                                             </td>
                                         ))}
                                     </tr>
@@ -349,7 +349,7 @@ export const ReceiptsSection = () => {
                             </tbody>
                         </table>
                     ) : rows.length === 0 ? (
-                        <div className="flex h-32 items-center justify-center text-sm text-[var(--cl-text-muted)]">
+                        <div className="flex h-32 items-center justify-center text-sm text-(--cl-text-muted)">
                             No receipts found for the selected filters.
                         </div>
                     ) : (
@@ -363,23 +363,23 @@ export const ReceiptsSection = () => {
                                     <th className={thClass}>Mode</th>
                                     <th className={`${thClass} text-right`}>Amount</th>
                                     <th className={thClass}>Ref No</th>
-                                    <th className={`${thClass} sticky right-0 z-20 !bg-[var(--cl-surface-2)]`}>Actions</th>
+                                    <th className={`${thClass} sticky right-0 z-20 !bg-(--cl-surface-2)`}>Actions</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-[var(--cl-border)] bg-[var(--cl-surface)]">
+                            <tbody className="divide-y divide-(--cl-border) bg-(--cl-surface)">
                                 {rows.map((row, idx) => (
                                     <motion.tr
                                         key={row.id}
                                         animate={{ opacity: 1 }}
-                                        className="group transition-colors hover:bg-[var(--cl-accent)]/5"
+                                        className="group transition-colors hover:bg-(--cl-accent)/5"
                                         initial={{ opacity: 0 }}
                                         transition={{ delay: idx * 0.02, duration: 0.15 }}
                                     >
-                                        <td className={`${tdClass} text-[var(--cl-text-muted)]`}>{(page - 1) * PAGE_SIZE + idx + 1}</td>
-                                        <td className={`${tdClass} font-mono font-semibold text-[var(--cl-accent)]`}>#{row.job_no}</td>
+                                        <td className={`${tdClass} text-(--cl-text-muted)`}>{(page - 1) * PAGE_SIZE + idx + 1}</td>
+                                        <td className={`${tdClass} font-mono font-semibold text-(--cl-accent)`}>#{row.job_no}</td>
                                         <td className={tdClass}>
                                             <div className="font-medium">{row.customer_name}</div>
-                                            {row.mobile && <div className="text-xs text-[var(--cl-text-muted)]">{row.mobile}</div>}
+                                            {row.mobile && <div className="text-xs text-(--cl-text-muted)">{row.mobile}</div>}
                                         </td>
                                         <td className={tdClass}>{row.payment_date}</td>
                                         <td className={tdClass}>
@@ -390,11 +390,11 @@ export const ReceiptsSection = () => {
                                         <td className={`${tdClass} text-right font-semibold tabular-nums`}>
                                             {formatAmount(row.amount)}
                                         </td>
-                                        <td className={`${tdClass} text-xs text-[var(--cl-text-muted)]`}>{row.reference_no || "—"}</td>
-                                        <td className={`${tdClass} sticky right-0 z-10 bg-[var(--cl-surface)] group-hover:bg-[var(--cl-surface-2)]`}>
+                                        <td className={`${tdClass} text-xs text-(--cl-text-muted)`}>{row.reference_no || "—"}</td>
+                                        <td className={`${tdClass} sticky right-0 z-10 bg-(--cl-surface) group-hover:bg-(--cl-surface-2)`}>
                                             <div className="flex items-center gap-1">
                                                 <Button
-                                                    className="h-7 w-7 p-0 text-[var(--cl-text-muted)] hover:text-[var(--cl-accent)]"
+                                                    className="h-7 w-7 p-0 text-(--cl-text-muted) hover:text-(--cl-accent)"
                                                     size="icon"
                                                     title="Edit"
                                                     variant="ghost"
@@ -421,13 +421,13 @@ export const ReceiptsSection = () => {
                 </div>
 
                 {/* Pagination + Total */}
-                <div className="flex items-center justify-between border-t border-[var(--cl-border)] px-4 py-2 flex-wrap gap-2">
+                <div className="flex items-center justify-between border-t border-(--cl-border) px-4 py-2 flex-wrap gap-2">
                     <div className="flex items-center gap-4">
-                        <span className="text-xs text-[var(--cl-text-muted)]">
+                        <span className="text-xs text-(--cl-text-muted)">
                             {total === 0 ? "No receipts" : `Showing ${(page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, total)} of ${total} receipts (Page ${page} of ${totalPages})`}
                         </span>
                         {rows.length > 0 && (
-                            <span className="text-xs font-semibold text-[var(--cl-text)]">
+                            <span className="text-xs font-semibold text-(--cl-text)">
                                 Page total: {formatAmount(pageTotal)}
                             </span>
                         )}
@@ -486,13 +486,13 @@ export const ReceiptsSection = () => {
                     <DialogHeader>
                         <DialogTitle>Delete Receipt</DialogTitle>
                     </DialogHeader>
-                    <p className="text-sm text-[var(--cl-text-muted)]">
+                    <p className="text-sm text-(--cl-text-muted)">
                         Delete payment of{" "}
-                        <span className="font-semibold text-[var(--cl-text)]">{deleteRow ? formatAmount(deleteRow.amount) : ""}</span>
+                        <span className="font-semibold text-(--cl-text)">{deleteRow ? formatAmount(deleteRow.amount) : ""}</span>
                         {" "}via{" "}
-                        <span className="font-semibold text-[var(--cl-text)]">{deleteRow?.payment_mode}</span>
+                        <span className="font-semibold text-(--cl-text)">{deleteRow?.payment_mode}</span>
                         {" "}for job{" "}
-                        <span className="font-mono font-semibold text-[var(--cl-accent)]">#{deleteRow?.job_no}</span>?
+                        <span className="font-mono font-semibold text-(--cl-accent)">#{deleteRow?.job_no}</span>?
                         This action cannot be undone.
                     </p>
                     <DialogFooter>

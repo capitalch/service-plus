@@ -380,7 +380,7 @@ export interface Job {
   address_snapshot: string | null;
   last_transaction_id: number | null;
   is_final: boolean;
-  quantity: number;
+  qty: number;
   batch_no: number | null;
   estimate_amount: number;
   alternate_job_no: string | null;
@@ -414,7 +414,7 @@ export interface JobInput {
   address_snapshot?: string | null;
   last_transaction_id?: number | null;
   is_final?: boolean;
-  quantity?: number;
+  qty?: number;
   batch_no?: number | null;
   estimate_amount?: number;
   alternate_job_no?: string | null;
@@ -423,7 +423,7 @@ export interface JobInput {
 }
 const job = {
   tableName: 'job',
-  columns: ['id', 'job_no', 'job_date', 'customer_contact_id', 'branch_id', 'technician_id', 'job_status_id', 'job_type_id', 'job_receive_manner_id', 'job_receive_condition_id', 'product_brand_model_id', 'serial_no', 'problem_reported', 'diagnosis', 'work_done', 'remarks', 'amount', 'delivery_date', 'is_closed', 'warranty_card_no', 'is_active', 'created_at', 'updated_at', 'address_snapshot', 'last_transaction_id', 'is_final', 'quantity', 'batch_no', 'estimate_amount', 'alternate_job_no', 'division_id', 'is_posted'],
+  columns: ['id', 'job_no', 'job_date', 'customer_contact_id', 'branch_id', 'technician_id', 'job_status_id', 'job_type_id', 'job_receive_manner_id', 'job_receive_condition_id', 'product_brand_model_id', 'serial_no', 'problem_reported', 'diagnosis', 'work_done', 'remarks', 'amount', 'delivery_date', 'is_closed', 'warranty_card_no', 'is_active', 'created_at', 'updated_at', 'address_snapshot', 'last_transaction_id', 'is_final', 'qty', 'batch_no', 'estimate_amount', 'alternate_job_no', 'division_id', 'is_posted'],
   requiredForInsert: ['id', 'job_no', 'customer_contact_id', 'branch_id', 'job_status_id', 'job_type_id', 'job_receive_manner_id', 'product_brand_model_id', 'division_id'],
   primaryKey: 'id',
   foreignKeys: {
@@ -453,7 +453,7 @@ export interface JobAdditionalCharge {
   created_at: Date;
   hsn_code: string | null;
   gst_rate: number;
-  quantity: number;
+  qty: number;
 }
 export interface JobAdditionalChargeInput {
   id: number;
@@ -466,11 +466,11 @@ export interface JobAdditionalChargeInput {
   created_at?: Date;
   hsn_code?: string | null;
   gst_rate?: number;
-  quantity?: number;
+  qty?: number;
 }
 const job_additional_charge = {
   tableName: 'job_additional_charge',
-  columns: ['id', 'job_id', 'charge_name', 'ref_no', 'description', 'cost_price', 'selling_price', 'created_at', 'hsn_code', 'gst_rate', 'quantity'],
+  columns: ['id', 'job_id', 'charge_name', 'ref_no', 'description', 'cost_price', 'selling_price', 'created_at', 'hsn_code', 'gst_rate', 'qty'],
   requiredForInsert: ['id', 'job_id', 'charge_name'],
   primaryKey: 'id',
   foreignKeys: { job_id: { table: 'job', column: 'id', $type: null as unknown as Job }, },
@@ -579,7 +579,7 @@ export interface JobInvoiceLine {
   job_invoice_id: number;
   description: string;
   part_code: string | null;
-  quantity: number;
+  qty: number;
   price: number;
   aggregate: number;
   gst_rate: number;
@@ -596,7 +596,7 @@ export interface JobInvoiceLineInput {
   job_invoice_id: number;
   description: string;
   part_code?: string | null;
-  quantity: number;
+  qty: number;
   price: number;
   aggregate: number;
   gst_rate?: number;
@@ -610,8 +610,8 @@ export interface JobInvoiceLineInput {
 }
 const job_invoice_line = {
   tableName: 'job_invoice_line',
-  columns: ['id', 'job_invoice_id', 'description', 'part_code', 'quantity', 'price', 'aggregate', 'gst_rate', 'cgst_amount', 'sgst_amount', 'igst_amount', 'amount', 'created_at', 'updated_at', 'hsn_code'],
-  requiredForInsert: ['id', 'job_invoice_id', 'description', 'quantity', 'price', 'aggregate', 'amount'],
+  columns: ['id', 'job_invoice_id', 'description', 'part_code', 'qty', 'price', 'aggregate', 'gst_rate', 'cgst_amount', 'sgst_amount', 'igst_amount', 'amount', 'created_at', 'updated_at', 'hsn_code'],
+  requiredForInsert: ['id', 'job_invoice_id', 'description', 'qty', 'price', 'aggregate', 'amount'],
   primaryKey: 'id',
   foreignKeys: { job_invoice_id: { table: 'job_invoice', column: 'id', $type: null as unknown as JobInvoice }, },
   $type: null as unknown as JobInvoiceLine,
@@ -623,7 +623,7 @@ export interface JobPartUsed {
   id: number;
   job_id: number;
   part_id: number;
-  quantity: number;
+  qty: number;
   created_at: Date;
   updated_at: Date;
   remarks: string | null;
@@ -636,7 +636,7 @@ export interface JobPartUsedInput {
   id: number;
   job_id: number;
   part_id: number;
-  quantity: number;
+  qty: number;
   created_at?: Date;
   updated_at?: Date;
   remarks?: string | null;
@@ -647,8 +647,8 @@ export interface JobPartUsedInput {
 }
 const job_part_used = {
   tableName: 'job_part_used',
-  columns: ['id', 'job_id', 'part_id', 'quantity', 'created_at', 'updated_at', 'remarks', 'cost_price', 'selling_price', 'gst_rate', 'hsn_code'],
-  requiredForInsert: ['id', 'job_id', 'part_id', 'quantity'],
+  columns: ['id', 'job_id', 'part_id', 'qty', 'created_at', 'updated_at', 'remarks', 'cost_price', 'selling_price', 'gst_rate', 'hsn_code'],
+  requiredForInsert: ['id', 'job_id', 'part_id', 'qty'],
   primaryKey: 'id',
   foreignKeys: {
     job_id: { table: 'job', column: 'id', $type: null as unknown as Job },
@@ -982,7 +982,7 @@ export interface PurchaseInvoiceLine {
   purchase_invoice_id: number;
   part_id: number;
   hsn_code: string;
-  quantity: number;
+  qty: number;
   unit_price: number;
   aggregate_amount: number;
   gst_rate: number;
@@ -1000,7 +1000,7 @@ export interface PurchaseInvoiceLineInput {
   purchase_invoice_id: number;
   part_id: number;
   hsn_code: string;
-  quantity: number;
+  qty: number;
   unit_price: number;
   aggregate_amount: number;
   gst_rate?: number;
@@ -1015,8 +1015,8 @@ export interface PurchaseInvoiceLineInput {
 }
 const purchase_invoice_line = {
   tableName: 'purchase_invoice_line',
-  columns: ['id', 'purchase_invoice_id', 'part_id', 'hsn_code', 'quantity', 'unit_price', 'aggregate_amount', 'gst_rate', 'cgst_amount', 'sgst_amount', 'igst_amount', 'total_amount', 'created_at', 'updated_at', 'under_warranty', 'remarks'],
-  requiredForInsert: ['id', 'purchase_invoice_id', 'part_id', 'hsn_code', 'quantity', 'unit_price', 'aggregate_amount', 'total_amount'],
+  columns: ['id', 'purchase_invoice_id', 'part_id', 'hsn_code', 'qty', 'unit_price', 'aggregate_amount', 'gst_rate', 'cgst_amount', 'sgst_amount', 'igst_amount', 'total_amount', 'created_at', 'updated_at', 'under_warranty', 'remarks'],
+  requiredForInsert: ['id', 'purchase_invoice_id', 'part_id', 'hsn_code', 'qty', 'unit_price', 'aggregate_amount', 'total_amount'],
   primaryKey: 'id',
   foreignKeys: {
     purchase_invoice_id: { table: 'purchase_invoice', column: 'id', $type: null as unknown as PurchaseInvoice },
@@ -1087,7 +1087,7 @@ export interface SalesInvoiceLine {
   part_id: number;
   item_description: string;
   hsn_code: string;
-  quantity: number;
+  qty: number;
   price: number;
   gst_rate: number;
   amount: number;
@@ -1104,7 +1104,7 @@ export interface SalesInvoiceLineInput {
   part_id: number;
   item_description: string;
   hsn_code: string;
-  quantity: number;
+  qty: number;
   price: number;
   gst_rate?: number;
   amount: number;
@@ -1117,8 +1117,8 @@ export interface SalesInvoiceLineInput {
 }
 const sales_invoice_line = {
   tableName: 'sales_invoice_line',
-  columns: ['id', 'sales_invoice_id', 'part_id', 'item_description', 'hsn_code', 'quantity', 'price', 'gst_rate', 'amount', 'cgst_amount', 'sgst_amount', 'igst_amount', 'created_at', 'updated_at', 'remarks'],
-  requiredForInsert: ['id', 'sales_invoice_id', 'part_id', 'item_description', 'hsn_code', 'quantity', 'price', 'amount'],
+  columns: ['id', 'sales_invoice_id', 'part_id', 'item_description', 'hsn_code', 'qty', 'price', 'gst_rate', 'amount', 'cgst_amount', 'sgst_amount', 'igst_amount', 'created_at', 'updated_at', 'remarks'],
+  requiredForInsert: ['id', 'sales_invoice_id', 'part_id', 'item_description', 'hsn_code', 'qty', 'price', 'amount'],
   primaryKey: 'id',
   foreignKeys: {
     sales_invoice_id: { table: 'sales_invoice', column: 'id', $type: null as unknown as SalesInvoice },

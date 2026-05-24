@@ -32,7 +32,7 @@ export const ClientActivityBar = ({ activeSection }: Props) => {
     }
 
     return (
-        <aside className="fixed left-0 top-12 z-40 hidden h-[calc(100%-4.5rem)] w-16 flex-col items-center bg-[var(--cl-deep)] py-4 md:flex">
+        <aside className="fixed left-0 top-12 z-40 hidden h-[calc(100%-4.5rem)] w-16 flex-col items-center bg-(--cl-deep) py-4 md:flex">
             <div className="flex w-full flex-col items-center gap-6">
                 {ACTIVITY_ITEMS.map(({ icon: Icon, section, to, title }) => {
                     const isActive = activeSection === section;
@@ -44,8 +44,8 @@ export const ClientActivityBar = ({ activeSection }: Props) => {
                             title={title}
                             className={`flex w-full items-center justify-center py-3 transition-all duration-150 active:scale-90 ${
                                 isActive
-                                    ? 'border-l-2 border-[var(--cl-accent)] bg-[var(--cl-bg)] text-[var(--cl-accent-text)]'
-                                    : 'text-[var(--cl-text-muted)] hover:bg-[var(--cl-hover)] hover:text-[var(--cl-text)]'
+                                    ? 'border-l-2 border-(--cl-accent) bg-(--cl-bg) text-(--cl-accent-text)'
+                                    : 'text-(--cl-text-muted) hover:bg-(--cl-hover) hover:text-(--cl-text)'
                             }`}
                         >
                             <Icon className="h-5 w-5" strokeWidth={isActive ? 2 : 1.5} />
@@ -59,15 +59,15 @@ export const ClientActivityBar = ({ activeSection }: Props) => {
                     <button
                         onClick={handleSwitchToAdmin}
                         title="Switch to Admin Mode"
-                        className="cursor-pointer text-[var(--cl-text-muted)] transition-all hover:text-[var(--cl-accent-text)]"
+                        className="cursor-pointer text-(--cl-text-muted) transition-all hover:text-(--cl-accent-text)"
                     >
                         <ShieldCheck className="h-5 w-5" />
                     </button>
                 )}
-                <button className="cursor-pointer text-[var(--cl-text-muted)] transition-all hover:text-[var(--cl-text)]" title="Account">
+                <button className="cursor-pointer text-(--cl-text-muted) transition-all hover:text-(--cl-text)" title="Account">
                     <UserCircle className="h-5 w-5" />
                 </button>
-                <button className="cursor-pointer text-[var(--cl-text-muted)] transition-all hover:text-[var(--cl-text)]" title="Help">
+                <button className="cursor-pointer text-(--cl-text-muted) transition-all hover:text-(--cl-text)" title="Help">
                     <HelpCircle className="h-5 w-5" />
                 </button>
             </div>

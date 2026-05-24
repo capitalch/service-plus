@@ -109,10 +109,10 @@ export const StockSnapshotTrigger = () => {
 
     return (
         <div className="flex flex-1 items-start justify-start p-6">
-            <Card className="w-full max-w-md border-[var(--cl-border)] bg-[var(--cl-surface)]">
+            <Card className="w-full max-w-md border-(--cl-border) bg-(--cl-surface)">
                 <CardHeader>
-                    <CardTitle className="text-base text-[var(--cl-text)]">Generate Stock Snapshot</CardTitle>
-                    <CardDescription className="text-xs text-[var(--cl-text-muted)]">
+                    <CardTitle className="text-base text-(--cl-text)">Generate Stock Snapshot</CardTitle>
+                    <CardDescription className="text-xs text-(--cl-text-muted)">
                         Regenerate the closing stock snapshot for a specific month.
                     </CardDescription>
 
@@ -127,28 +127,28 @@ export const StockSnapshotTrigger = () => {
 
                 <CardContent className="space-y-6">
                     {/* Current period indicator */}
-                    <p className="text-center text-xs text-[var(--cl-text-muted)]">
+                    <p className="text-center text-xs text-(--cl-text-muted)">
                         Pre-selected period:{" "}
-                        <span className="font-semibold text-[var(--cl-text)]">
+                        <span className="font-semibold text-(--cl-text)">
                             {MONTH_LABELS[defaultMonth]} {defaultYear}
                         </span>
                     </p>
 
                     {/* Year stepper */}
                     <div className="flex flex-col gap-2">
-                        <p className="text-sm font-medium text-[var(--cl-text)]">Year</p>
-                        <div className="flex items-center justify-between rounded-lg border border-[var(--cl-border)] bg-[var(--cl-surface-2)] px-2 py-1.5">
+                        <p className="text-sm font-medium text-(--cl-text)">Year</p>
+                        <div className="flex items-center justify-between rounded-lg border border-(--cl-border) bg-(--cl-surface-2) px-2 py-1.5">
                             <button
-                                className="rounded p-1 text-[var(--cl-text-muted)] transition-colors hover:bg-[var(--cl-hover)] hover:text-[var(--cl-text)] disabled:cursor-not-allowed disabled:opacity-30 cursor-pointer"
+                                className="rounded p-1 text-(--cl-text-muted) transition-colors hover:bg-(--cl-hover) hover:text-(--cl-text) disabled:cursor-not-allowed disabled:opacity-30 cursor-pointer"
                                 disabled={year <= MIN_YEAR}
                                 type="button"
                                 onClick={handleDecrYear}
                             >
                                 <ChevronLeft className="h-4 w-4" />
                             </button>
-                            <span className="text-xl font-bold tabular-nums text-[var(--cl-text)]">{year}</span>
+                            <span className="text-xl font-bold tabular-nums text-(--cl-text)">{year}</span>
                             <button
-                                className="rounded p-1 text-[var(--cl-text-muted)] transition-colors hover:bg-[var(--cl-hover)] hover:text-[var(--cl-text)] disabled:cursor-not-allowed disabled:opacity-30 cursor-pointer"
+                                className="rounded p-1 text-(--cl-text-muted) transition-colors hover:bg-(--cl-hover) hover:text-(--cl-text) disabled:cursor-not-allowed disabled:opacity-30 cursor-pointer"
                                 disabled={year >= currentYear}
                                 type="button"
                                 onClick={handleIncrYear}
@@ -160,17 +160,17 @@ export const StockSnapshotTrigger = () => {
 
                     {/* Month grid */}
                     <div className="flex flex-col gap-2">
-                        <p className="text-sm font-medium text-[var(--cl-text)]">Month</p>
+                        <p className="text-sm font-medium text-(--cl-text)">Month</p>
                         <div className="grid grid-cols-4 gap-1.5">
                             {MONTHS.map(m => (
                                 <button
                                     key={m.value}
                                     className={`cursor-pointer rounded-md px-0 py-2 text-xs font-medium transition-colors ${
                                         month === m.value
-                                            ? "bg-[var(--cl-accent)] text-white shadow-sm"
+                                            ? "bg-(--cl-accent) text-white shadow-sm"
                                             : isMonthDisabled(m.value)
-                                                ? "cursor-not-allowed border border-[var(--cl-border)] bg-[var(--cl-surface-2)] text-[var(--cl-text-muted)] opacity-35"
-                                                : "border border-[var(--cl-border)] bg-[var(--cl-surface-2)] text-[var(--cl-text-muted)] hover:bg-[var(--cl-hover)] hover:text-[var(--cl-text)]"
+                                                ? "cursor-not-allowed border border-(--cl-border) bg-(--cl-surface-2) text-(--cl-text-muted) opacity-35"
+                                                : "border border-(--cl-border) bg-(--cl-surface-2) text-(--cl-text-muted) hover:bg-(--cl-hover) hover:text-(--cl-text)"
                                     }`}
                                     disabled={isMonthDisabled(m.value)}
                                     type="button"
@@ -183,9 +183,9 @@ export const StockSnapshotTrigger = () => {
                     </div>
 
                     {/* Selected period summary */}
-                    <div className="rounded-lg border border-[var(--cl-border)] bg-[var(--cl-surface-3)] px-4 py-2.5 text-center">
-                        <p className="text-xs text-[var(--cl-text-muted)]">Selected period</p>
-                        <p className="mt-0.5 text-sm font-bold text-[var(--cl-text)]">
+                    <div className="rounded-lg border border-(--cl-border) bg-(--cl-surface-3) px-4 py-2.5 text-center">
+                        <p className="text-xs text-(--cl-text-muted)">Selected period</p>
+                        <p className="mt-0.5 text-sm font-bold text-(--cl-text)">
                             {MONTH_LABELS[month]} {year}
                         </p>
                     </div>

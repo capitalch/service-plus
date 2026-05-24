@@ -35,7 +35,7 @@ type ConsumptionRow = {
     part_code:   string;
     part_name:   string;
     uom:         string;
-    quantity:    number;
+    qty:    number;
     branch_name: string;
 };
 
@@ -59,8 +59,8 @@ function currentMonthRange() {
 
 // ─── CSS ──────────────────────────────────────────────────────────────────────
 
-const thClass = "text-xs font-semibold uppercase tracking-wide text-[var(--cl-text-muted)] p-3 text-left border-b border-[var(--cl-border)] bg-[var(--cl-surface-2)]/50";
-const tdClass = "p-3 text-sm text-[var(--cl-text)] border-b border-[var(--cl-border)]";
+const thClass = "text-xs font-semibold uppercase tracking-wide text-(--cl-text-muted) p-3 text-left border-b border-(--cl-border) bg-(--cl-surface-2)/50";
+const tdClass = "p-3 text-sm text-(--cl-text) border-b border-(--cl-border)";
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -188,12 +188,12 @@ export const ConsumptionSection = () => {
             {/* Header */}
             <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-[var(--cl-accent)]/10">
-                        <RotateCcw className="h-5 w-5 text-[var(--cl-accent)]" />
+                    <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-(--cl-accent)/10">
+                        <RotateCcw className="h-5 w-5 text-(--cl-accent)" />
                     </div>
                     <div>
-                        <h1 className="text-xl font-bold text-[var(--cl-text)]">Part Used (Job)</h1>
-                        <p className="mt-1 text-sm text-[var(--cl-text-muted)]">
+                        <h1 className="text-xl font-bold text-(--cl-text)">Part Used (Job)</h1>
+                        <p className="mt-1 text-sm text-(--cl-text-muted)">
                             {loading ? "Loading…" : `${total} record${total !== 1 ? "s" : ""} found`}
                         </p>
                     </div>
@@ -223,30 +223,30 @@ export const ConsumptionSection = () => {
             {/* Toolbar */}
             <div className="flex flex-wrap items-center gap-2">
                 <Input
-                    className="h-9 w-36 border-[var(--cl-border)] bg-white"
+                    className="h-9 w-36 border-(--cl-border) bg-white"
                     disabled={loading}
                     type="date"
                     value={fromDate}
                     onChange={e => handleFilterChange(setFromDate)(e.target.value)}
                 />
                 <Input
-                    className="h-9 w-36 border-[var(--cl-border)] bg-white"
+                    className="h-9 w-36 border-(--cl-border) bg-white"
                     disabled={loading}
                     type="date"
                     value={toDate}
                     onChange={e => handleFilterChange(setToDate)(e.target.value)}
                 />
                 <div className="relative flex-1 sm:w-72 sm:flex-none">
-                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--cl-text-muted)]" />
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-(--cl-text-muted)" />
                     <Input
-                        className="h-9 border-[var(--cl-border)] bg-white pl-9 shadow-sm"
+                        className="h-9 border-(--cl-border) bg-white pl-9 shadow-sm"
                         placeholder="Search by job no, part code, or part name…"
                         value={search}
                         onChange={e => handleSearchChange(e.target.value)}
                     />
                             {search && (
                                 <button
-                                    className="absolute right-2.5 top-1/2 flex h-4 w-4 -translate-y-1/2 items-center justify-center rounded-full bg-[var(--cl-text-muted)] text-[var(--cl-surface)] hover:bg-[var(--cl-text)] focus:outline-none"
+                                    className="absolute right-2.5 top-1/2 flex h-4 w-4 -translate-y-1/2 items-center justify-center rounded-full bg-(--cl-text-muted) text-(--cl-surface) hover:bg-(--cl-text) focus:outline-none"
                                     type="button"
                                     onClick={() => handleSearchChange("")}
                                 >
@@ -267,14 +267,14 @@ export const ConsumptionSection = () => {
             </div>
 
             {/* Data Grid */}
-            <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-[var(--cl-border)] bg-[var(--cl-surface)] shadow-sm">
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-(--cl-border) bg-(--cl-surface) shadow-sm">
                 <div className="flex-1 overflow-x-auto overflow-y-auto">
                     {loading ? (
                         <div className="flex h-32 items-center justify-center">
-                            <Loader2 className="h-6 w-6 animate-spin text-[var(--cl-accent)]" />
+                            <Loader2 className="h-6 w-6 animate-spin text-(--cl-accent)" />
                         </div>
                     ) : rows.length === 0 ? (
-                        <div className="flex h-32 items-center justify-center text-sm text-[var(--cl-text-muted)]">
+                        <div className="flex h-32 items-center justify-center text-sm text-(--cl-text-muted)">
                             No consumption records found for the selected filters.
                         </div>
                     ) : (
@@ -290,13 +290,13 @@ export const ConsumptionSection = () => {
                                     <th className={`${thClass} text-right`}>Qty Used</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-[var(--cl-border)] bg-[var(--cl-surface)]">
+                            <tbody className="divide-y divide-(--cl-border) bg-(--cl-surface)">
                                 {rows.map((row, idx) => (
                                     <tr
                                         key={`${row.job_no}-${row.part_code}-${idx}`}
-                                        className="transition-colors hover:bg-[var(--cl-surface-2)]/50"
+                                        className="transition-colors hover:bg-(--cl-surface-2)/50"
                                     >
-                                        <td className={`${tdClass} text-[var(--cl-text-muted)]`} style={{ width: "5%" }}>
+                                        <td className={`${tdClass} text-(--cl-text-muted)`} style={{ width: "5%" }}>
                                             {(page - 1) * PAGE_SIZE + idx + 1}
                                         </td>
                                         <td className={`${tdClass} font-mono font-medium`} style={{ width: "15%" }}>
@@ -312,12 +312,12 @@ export const ConsumptionSection = () => {
                                             {row.part_name}
                                         </td>
                                         <td className={tdClass} style={{ width: "8%" }}>
-                                            <span className="rounded-md bg-[var(--cl-surface-3)] px-2 py-0.5 text-xs font-semibold">
+                                            <span className="rounded-md bg-(--cl-surface-3) px-2 py-0.5 text-xs font-semibold">
                                                 {row.uom}
                                             </span>
                                         </td>
                                         <td className={`${tdClass} text-right font-medium`} style={{ width: "10%" }}>
-                                            {Number(row.quantity).toFixed(2)}
+                                            {Number(row.qty).toFixed(2)}
                                         </td>
                                     </tr>
                                 ))}
@@ -328,8 +328,8 @@ export const ConsumptionSection = () => {
 
                 {/* Pagination */}
                 {totalPages > 1 && (
-                    <div className="flex items-center justify-between border-t border-[var(--cl-border)] px-4 py-2">
-                        <span className="text-xs text-[var(--cl-text-muted)]">
+                    <div className="flex items-center justify-between border-t border-(--cl-border) px-4 py-2">
+                        <span className="text-xs text-(--cl-text-muted)">
                             {total === 0 ? "No records" : `Showing ${(page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, total)} of ${total} records (Page ${page} of ${totalPages})`}
                         </span>
                         <div className="flex gap-1">

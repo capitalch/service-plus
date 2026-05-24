@@ -68,7 +68,7 @@ function buildSingleJobSheetDoc(job: JobDetailType, division: DivisionContextTyp
             ],
             ["Product:",  job.product_name  ?? "—",     "Brand:",         job.brand_name ?? "—"],
             ["Model:",    job.model_name    ?? "—",      "Serial No:",     job.serial_no  ?? "—"],
-            [{ content: "Qty:", styles: { fontStyle: "bold" } }, { content: String(job.quantity), colSpan: 3 }],
+            [{ content: "Qty:", styles: { fontStyle: "bold" } }, { content: String(job.qty), colSpan: 3 }],
             ["Job Type:", job.job_type_name,             "Warranty Card:", job.warranty_card_no ?? "—"],
             ["Receive Manner:",   job.job_receive_manner_name,   "Condition:",     job.job_receive_condition_name ?? "—"],
         ],
@@ -201,7 +201,7 @@ function buildBatchJobSheetDoc(jobs: JobDetailType[], division: DivisionContextT
             job.job_date,
             [job.product_name, job.brand_name, job.model_name].filter(Boolean).join(" / ") || "—",
             job.job_type_name,
-            String(job.quantity),
+            String(job.qty),
             job.job_receive_condition_name ?? "—",
             job.serial_no ?? "—",
         ]);

@@ -64,32 +64,32 @@ function PartCard({ isSelected, onSelect, part }: CardItemProps) {
             <Card
                 className={`flex cursor-pointer flex-col gap-3 p-4 transition-all duration-150 hover:shadow-md ${
                     isSelected
-                        ? "border-[var(--cl-accent)] bg-[var(--cl-accent)]/5 shadow-md"
-                        : "border-[var(--cl-border)] bg-[var(--cl-surface-2)] hover:border-[var(--cl-accent)]/40"
+                        ? "border-(--cl-accent) bg-(--cl-accent)/5 shadow-md"
+                        : "border-(--cl-border) bg-(--cl-surface-2) hover:border-(--cl-accent)/40"
                 }`}
                 onClick={() => onSelect(part)}
             >
                 {/* Top row: part code + status badge */}
                 <div className="flex items-start justify-between gap-2">
-                    <span className="font-mono text-xs font-medium text-[var(--cl-text-muted)]">{part.part_code}</span>
+                    <span className="font-mono text-xs font-medium text-(--cl-text-muted)">{part.part_code}</span>
                     <StockBadge qty={part.qty} />
                 </div>
 
                 {/* Part name */}
-                <p className="line-clamp-2 text-sm font-semibold leading-snug text-[var(--cl-text)]">
+                <p className="line-clamp-2 text-sm font-semibold leading-snug text-(--cl-text)">
                     {part.part_name}
                 </p>
 
                 {/* Brand + Category */}
                 <div className="flex flex-wrap items-center gap-1.5">
                     {part.brand_name && (
-                        <span className="text-xs text-[var(--cl-text-muted)]">{part.brand_name}</span>
+                        <span className="text-xs text-(--cl-text-muted)">{part.brand_name}</span>
                     )}
                     {part.brand_name && part.category && (
-                        <span className="text-xs text-[var(--cl-text-muted)]">·</span>
+                        <span className="text-xs text-(--cl-text-muted)">·</span>
                     )}
                     {part.category && (
-                        <Badge className="border-[var(--cl-border)] bg-[var(--cl-surface-3)] text-[var(--cl-text-muted)]" variant="outline">
+                        <Badge className="border-(--cl-border) bg-(--cl-surface-3) text-(--cl-text-muted)" variant="outline">
                             {part.category}
                         </Badge>
                     )}
@@ -97,7 +97,7 @@ function PartCard({ isSelected, onSelect, part }: CardItemProps) {
 
                 {/* Model */}
                 {part.model && (
-                    <span className="rounded-md border border-[var(--cl-border)] bg-[var(--cl-surface-3)] px-2 py-0.5 text-xs text-[var(--cl-text-muted)] self-start">
+                    <span className="rounded-md border border-(--cl-border) bg-(--cl-surface-3) px-2 py-0.5 text-xs text-(--cl-text-muted) self-start">
                         {part.model}
                     </span>
                 )}
@@ -105,14 +105,14 @@ function PartCard({ isSelected, onSelect, part }: CardItemProps) {
                 {/* Qty + UOM */}
                 <div className="flex items-baseline gap-1.5">
                     <span className={`text-2xl font-bold tabular-nums ${qtyColor}`}>{part.qty}</span>
-                    <span className="text-xs text-[var(--cl-text-muted)]">{part.uom ?? ""}</span>
+                    <span className="text-xs text-(--cl-text-muted)">{part.uom ?? ""}</span>
                 </div>
 
                 {/* Location */}
                 {part.primary_location && (
                     <div className="flex items-center gap-1.5">
-                        <MapPin className="h-3.5 w-3.5 shrink-0 text-[var(--cl-text-muted)]" />
-                        <span className="text-xs text-[var(--cl-text-muted)]">{part.primary_location}</span>
+                        <MapPin className="h-3.5 w-3.5 shrink-0 text-(--cl-text-muted)" />
+                        <span className="text-xs text-(--cl-text-muted)">{part.primary_location}</span>
                         {part.location_count > 1 && (
                             <Badge className="border-sky-200 bg-sky-50 text-sky-600 dark:border-sky-800 dark:bg-sky-950/30 dark:text-sky-400" variant="outline">
                                 +{part.location_count - 1} more
@@ -133,7 +133,7 @@ export const PartFinderCard = ({ loading, onSelectPart, parts, selectedId }: Pro
         return (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {Array.from({ length: 6 }).map((_, i) => (
-                    <div key={i} className="h-52 animate-pulse rounded-xl border border-[var(--cl-border)] bg-[var(--cl-surface-2)]" />
+                    <div key={i} className="h-52 animate-pulse rounded-xl border border-(--cl-border) bg-(--cl-surface-2)" />
                 ))}
             </div>
         );
@@ -141,10 +141,10 @@ export const PartFinderCard = ({ loading, onSelectPart, parts, selectedId }: Pro
 
     if (parts.length === 0) {
         return (
-            <div className="flex flex-col items-center justify-center rounded-xl border border-[var(--cl-border)] bg-[var(--cl-surface-2)] py-16">
-                <Package className="mb-3 h-10 w-10 text-[var(--cl-text-muted)] opacity-40" />
-                <p className="text-sm font-medium text-[var(--cl-text-muted)]">No parts found</p>
-                <p className="mt-1 text-xs text-[var(--cl-text-muted)] opacity-70">Try adjusting your filters or search term</p>
+            <div className="flex flex-col items-center justify-center rounded-xl border border-(--cl-border) bg-(--cl-surface-2) py-16">
+                <Package className="mb-3 h-10 w-10 text-(--cl-text-muted) opacity-40" />
+                <p className="text-sm font-medium text-(--cl-text-muted)">No parts found</p>
+                <p className="mt-1 text-xs text-(--cl-text-muted) opacity-70">Try adjusting your filters or search term</p>
             </div>
         );
     }

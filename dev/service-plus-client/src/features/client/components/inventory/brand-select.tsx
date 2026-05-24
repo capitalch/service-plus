@@ -26,15 +26,15 @@ export function BrandSelect({
 }: BrandSelectProps) {
     return (
         <div className="flex items-center gap-1.5">
-            <span className="hidden lg:inline text-[10px] font-black uppercase text-[var(--cl-text-muted)] opacity-70 tracking-tight">
+            <span className="hidden lg:inline text-[10px] font-black uppercase text-(--cl-text-muted) opacity-70 tracking-tight">
                 Brand
             </span>
             <Select disabled={disabled} value={value} onValueChange={onValueChange}>
                 <SelectTrigger
-                    className={`h-9 w-[130px] bg-[var(--cl-surface-2)] text-xs font-bold border-2 transition-all ${
+                    className={`h-9 w-[130px] bg-(--cl-surface-2) text-xs font-bold border-2 transition-all ${
                         highlightEmpty && !value
                             ? "border-red-500"
-                            : "border-[var(--cl-border)] focus:border-[var(--cl-accent)]"
+                            : "border-(--cl-border) focus:border-(--cl-accent)"
                     }`}
                 >
                     <SelectValue placeholder="Brand" />

@@ -178,7 +178,7 @@ class SqlBu:
             address_snapshot text,
             last_transaction_id bigint,
             is_final boolean DEFAULT false NOT NULL,
-            quantity integer DEFAULT 1 NOT NULL,
+            qty integer DEFAULT 1 NOT NULL,
             batch_no integer,
             division_id bigint NOT NULL
         );
@@ -201,7 +201,7 @@ class SqlBu:
             description text,
             hsn_code text,
             gst_rate numeric(5,2) DEFAULT 0 NOT NULL,
-            quantity numeric(10,2) DEFAULT 1 NOT NULL,
+            qty numeric(10,2) DEFAULT 1 NOT NULL,
             cost_price numeric(12,2) DEFAULT 0 NOT NULL,
             selling_price numeric(12,2) DEFAULT 0 NOT NULL,
             created_at timestamp with time zone DEFAULT now() NOT NULL,
@@ -259,7 +259,7 @@ class SqlBu:
             description text NOT NULL,
             part_code text,
             hsn_code text NOT NULL,
-            quantity numeric(10,2) NOT NULL,
+            qty numeric(10,2) NOT NULL,
             unit_price numeric(12,2) NOT NULL,
             taxable_amount numeric(12,2) NOT NULL,
             cgst_rate numeric(5,2) DEFAULT 0 NOT NULL,
@@ -271,7 +271,7 @@ class SqlBu:
             total_amount numeric(12,2) NOT NULL,
             created_at timestamp with time zone DEFAULT now() NOT NULL,
             updated_at timestamp with time zone DEFAULT now() NOT NULL,
-            CONSTRAINT job_invoice_line_quantity_check CHECK ((quantity > (0)::numeric)),
+            CONSTRAINT job_invoice_line_qty_check CHECK ((qty > (0)::numeric)),
             CONSTRAINT job_invoice_line_unit_price_check CHECK ((unit_price >= (0)::numeric))
         );
 
@@ -284,12 +284,12 @@ class SqlBu:
             id bigint NOT NULL,
             job_id bigint NOT NULL,
             part_id bigint NOT NULL,
-            quantity numeric(10,2) NOT NULL,
+            qty numeric(10,2) NOT NULL,
             gst_rate numeric(5,2) DEFAULT 0 NOT NULL,
             hsn_code text,
             created_at timestamp with time zone DEFAULT now() NOT NULL,
             updated_at timestamp with time zone DEFAULT now() NOT NULL,
-            CONSTRAINT job_part_used_quantity_check CHECK ((quantity > (0)::numeric))
+            CONSTRAINT job_part_used_qty_check CHECK ((qty > (0)::numeric))
         );
 
         ALTER TABLE job_part_used ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
@@ -441,7 +441,7 @@ class SqlBu:
             purchase_invoice_id bigint NOT NULL,
             part_id bigint NOT NULL,
             hsn_code text NOT NULL,
-            quantity numeric(12,2) NOT NULL,
+            qty numeric(12,2) NOT NULL,
             unit_price numeric(12,2) NOT NULL,
             aggregate_amount numeric(12,2) NOT NULL,
             cgst_rate numeric(5,2) DEFAULT 0 NOT NULL,
@@ -453,7 +453,7 @@ class SqlBu:
             total_amount numeric(12,2) NOT NULL,
             created_at timestamp with time zone DEFAULT now() NOT NULL,
             updated_at timestamp with time zone DEFAULT now() NOT NULL,
-            CONSTRAINT purchase_invoice_line_quantity_check CHECK ((quantity > (0)::numeric)),
+            CONSTRAINT purchase_invoice_line_qty_check CHECK ((qty > (0)::numeric)),
             CONSTRAINT purchase_invoice_line_unit_price_check CHECK ((unit_price >= (0)::numeric))
         );
 
@@ -494,7 +494,7 @@ class SqlBu:
             part_id bigint NOT NULL,
             item_description text NOT NULL,
             hsn_code text NOT NULL,
-            quantity numeric(12,2) NOT NULL,
+            qty numeric(12,2) NOT NULL,
             unit_price numeric(12,2) NOT NULL,
             gst_rate numeric(5,2) DEFAULT 0 NOT NULL,
             aggregate_amount numeric(12,2) NOT NULL,
@@ -505,7 +505,7 @@ class SqlBu:
             created_at timestamp with time zone DEFAULT now() NOT NULL,
             updated_at timestamp with time zone DEFAULT now() NOT NULL,
             remarks text,
-            CONSTRAINT sales_invoice_line_quantity_check CHECK ((quantity > (0)::numeric)),
+            CONSTRAINT sales_invoice_line_qty_check CHECK ((qty > (0)::numeric)),
             CONSTRAINT sales_invoice_line_unit_price_check CHECK ((unit_price >= (0)::numeric))
         );
 

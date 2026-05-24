@@ -57,7 +57,7 @@ type Props = {
     refreshTrigger?: number;
 };
 
-const labelCls = "text-xs font-extrabold text-[var(--cl-text)] uppercase tracking-widest";
+const labelCls = "text-xs font-extrabold text-(--cl-text) uppercase tracking-widest";
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -114,7 +114,7 @@ export function NewSingleJobForm({
                 model_id: d.product_brand_model_id ?? (undefined as unknown as number),
                 alternate_job_no: d.alternate_job_no ?? "",
                 serial_no: d.serial_no ?? "",
-                quantity: d.quantity,
+                qty: d.qty,
                 problem_reported: d.problem_reported ?? "",
                 warranty_card_no: d.warranty_card_no ?? "",
                 remarks: d.remarks ?? "",
@@ -132,12 +132,12 @@ export function NewSingleJobForm({
             className="flex flex-col gap-3 overflow-y-auto"
         >
             {!branchId ? (
-                <div className="flex flex-col items-center justify-center py-20 bg-[var(--cl-surface-2)]/30 rounded-xl border-2 border-dashed border-[var(--cl-border)] text-center">
-                    <div className="bg-[var(--cl-accent)]/5 p-5 rounded-full mb-4">
-                        <Plus className="h-12 w-12 text-[var(--cl-accent)] opacity-40" />
+                <div className="flex flex-col items-center justify-center py-20 bg-(--cl-surface-2)/30 rounded-xl border-2 border-dashed border-(--cl-border) text-center">
+                    <div className="bg-(--cl-accent)/5 p-5 rounded-full mb-4">
+                        <Plus className="h-12 w-12 text-(--cl-accent) opacity-40" />
                     </div>
-                    <h3 className="text-lg font-semibold text-[var(--cl-text)] mb-2">No Branch Selected</h3>
-                    <p className="text-[var(--cl-text-muted)] max-w-md px-6">
+                    <h3 className="text-lg font-semibold text-(--cl-text) mb-2">No Branch Selected</h3>
+                    <p className="text-(--cl-text-muted) max-w-md px-6">
                         Please select a branch from the global header to create a new job.
                     </p>
                 </div>
@@ -153,7 +153,7 @@ export function NewSingleJobForm({
 
                     <div className="flex items-start gap-3 flex-col">
                     <div className="flex items-center justify-between w-full">
-                        <p className="text-[10px] font-black uppercase tracking-[0.15em] text-[var(--cl-text-muted)]">
+                        <p className="text-[10px] font-black uppercase tracking-[0.15em] text-(--cl-text-muted)">
                             Job Details
                         </p>
                         {editJob && (
@@ -168,7 +168,7 @@ export function NewSingleJobForm({
                         )}
                     </div>
 
-                        <Card className="border-[var(--cl-border)] shadow-md bg-[var(--cl-surface)] !overflow-visible flex-1 w-full">
+                        <Card className="border-(--cl-border) shadow-md bg-(--cl-surface) !overflow-visible flex-1 w-full">
                             <CardContent className="grid grid-cols-1 md:grid-cols-6 lg:grid-cols-12 gap-x-3 gap-y-3 !overflow-visible">
 
                                 {/* Division selector — only shown when multiple divisions exist */}
@@ -176,7 +176,7 @@ export function NewSingleJobForm({
                                     <div className="space-y-1.5 md:col-span-6 lg:col-span-6 xl:col-span-3">
                                         <Label className={labelCls}>Division <span className="text-red-500 ml-0.5">*</span></Label>
                                         <select
-                                            className={`w-full h-9 rounded-md border text-sm px-2 bg-[var(--cl-surface-2)] text-[var(--cl-text)] ${!watch("division_id") ? "border-red-400" : "border-[var(--cl-border)]"}`}
+                                            className={`w-full h-9 rounded-md border text-sm px-2 bg-(--cl-surface-2) text-(--cl-text) ${!watch("division_id") ? "border-red-400" : "border-(--cl-border)"}`}
                                             value={watch("division_id") ?? ""}
                                             onChange={e => setValue("division_id", e.target.value ? Number(e.target.value) : (undefined as unknown as number), { shouldValidate: true })}
                                         >
@@ -193,7 +193,7 @@ export function NewSingleJobForm({
                                     <Label className={labelCls}>Job No</Label>
                                     <Input
                                         readOnly
-                                        className="bg-[var(--cl-surface-2)] font-mono text-[var(--cl-accent)] font-bold cursor-not-allowed opacity-80"
+                                        className="bg-(--cl-surface-2) font-mono text-(--cl-accent) font-bold cursor-not-allowed opacity-80"
                                         value={editJob?.job_no ?? "AUTO"}
                                     />
                                 </div>
@@ -201,7 +201,7 @@ export function NewSingleJobForm({
                                 <div className="space-y-1.5 md:col-span-6 lg:col-span-6 xl:col-span-3">
                                     <Label className={labelCls}>Alt Job No</Label>
                                     <Input
-                                        className="bg-[var(--cl-surface-2)]"
+                                        className="bg-(--cl-surface-2)"
                                         placeholder="Optional…"
                                         {...form.register("alternate_job_no")}
                                     />
@@ -210,7 +210,7 @@ export function NewSingleJobForm({
                                 <div className="space-y-1.5 md:col-span-6 lg:col-span-6 xl:col-span-3">
                                     <Label className={labelCls}>Job Date</Label>
                                     <Input
-                                        className="bg-[var(--cl-surface-2)]"
+                                        className="bg-(--cl-surface-2)"
                                         type="date"
                                         {...form.register("job_date")}
                                     />
@@ -249,7 +249,7 @@ export function NewSingleJobForm({
                                         Receive Manner <span className="text-red-500 ml-0.5">*</span>
                                     </Label>
                                     <select
-                                        className={`w-full h-9 rounded-md border text-sm px-2 bg-[var(--cl-surface-2)] text-[var(--cl-text)] ${!watch("receive_manner_id") ? "border-red-400" : "border-[var(--cl-border)]"}`}
+                                        className={`w-full h-9 rounded-md border text-sm px-2 bg-(--cl-surface-2) text-(--cl-text) ${!watch("receive_manner_id") ? "border-red-400" : "border-(--cl-border)"}`}
                                         value={watch("receive_manner_id") ?? ""}
                                         onChange={e => setValue("receive_manner_id", e.target.value ? Number(e.target.value) : (undefined as unknown as number), { shouldValidate: true })}
                                     >
@@ -266,7 +266,7 @@ export function NewSingleJobForm({
                                         Job Type <span className="text-red-500 ml-0.5">*</span>
                                     </Label>
                                     <select
-                                        className={`w-full h-9 rounded-md border text-sm px-2 bg-[var(--cl-surface-2)] text-[var(--cl-text)] ${!watch("job_type_id") ? "border-red-400" : "border-[var(--cl-border)]"}`}
+                                        className={`w-full h-9 rounded-md border text-sm px-2 bg-(--cl-surface-2) text-(--cl-text) ${!watch("job_type_id") ? "border-red-400" : "border-(--cl-border)"}`}
                                         value={watch("job_type_id") ?? ""}
                                         onChange={e => {
                                             const newId = e.target.value ? Number(e.target.value) : (undefined as unknown as number);
@@ -285,7 +285,7 @@ export function NewSingleJobForm({
                                 <div className="space-y-1.5 md:col-span-6 lg:col-span-6 xl:col-span-3">
                                     <Label className={labelCls}>Receive Condition</Label>
                                     <select
-                                        className="w-full h-9 rounded-md border border-[var(--cl-border)] text-sm px-2 bg-[var(--cl-surface-2)] text-[var(--cl-text)]"
+                                        className="w-full h-9 rounded-md border border-(--cl-border) text-sm px-2 bg-(--cl-surface-2) text-(--cl-text)"
                                         value={watch("receive_condition_id") ?? ""}
                                         onChange={e => setValue("receive_condition_id", e.target.value ? Number(e.target.value) : undefined, { shouldValidate: false })}
                                     >
@@ -335,10 +335,10 @@ export function NewSingleJobForm({
                                         Qty <span className="text-red-500 ml-0.5">*</span>
                                     </Label>
                                     <Input
-                                        className={`bg-[var(--cl-surface-2)] ${errors.quantity ? "border-red-400" : ""}`}
+                                        className={`bg-(--cl-surface-2) ${errors.qty ? "border-red-400" : ""}`}
                                         type="number"
                                         min={1}
-                                        {...form.register("quantity", { valueAsNumber: true })}
+                                        {...form.register("qty", { valueAsNumber: true })}
                                     />
                                 </div>
 
@@ -346,7 +346,7 @@ export function NewSingleJobForm({
                                 <div className="space-y-1.5 md:col-span-6 lg:col-span-6 xl:col-span-3">
                                     <Label className={labelCls}>Serial No</Label>
                                     <Input
-                                        className="bg-[var(--cl-surface-2)]"
+                                        className="bg-(--cl-surface-2)"
                                         placeholder="Optional…"
                                         {...form.register("serial_no")}
                                     />
@@ -356,7 +356,7 @@ export function NewSingleJobForm({
                                     <Label className={labelCls}>Warranty Card No</Label>
                                     <Input
                                         disabled={!isWarranty}
-                                        className={`bg-[var(--cl-surface-2)] ${!isWarranty ? "opacity-50 cursor-not-allowed" : ""}`}
+                                        className={`bg-(--cl-surface-2) ${!isWarranty ? "opacity-50 cursor-not-allowed" : ""}`}
                                         placeholder={isWarranty ? "Card number…" : "N/A"}
                                         {...form.register("warranty_card_no")}
                                     />
@@ -367,7 +367,7 @@ export function NewSingleJobForm({
                                     <Label className={labelCls}>Problem Reported</Label>
                                     <Textarea
                                         rows={3}
-                                        className="bg-[var(--cl-surface-2)] resize-none border-[var(--cl-border)]"
+                                        className="bg-(--cl-surface-2) resize-none border-(--cl-border)"
                                         placeholder="Describe the problem reported by the customer (optional)…"
                                         {...form.register("problem_reported")}
                                     />
@@ -378,7 +378,7 @@ export function NewSingleJobForm({
                                     <Label className={labelCls}>Remarks</Label>
                                     <Textarea
                                         rows={3}
-                                        className="bg-[var(--cl-surface-2)] resize-none"
+                                        className="bg-(--cl-surface-2) resize-none"
                                         placeholder="Optional…"
                                         {...form.register("remarks")}
                                     />
@@ -390,7 +390,7 @@ export function NewSingleJobForm({
                     </div>
 
                     {isSubmitting && (
-                        <div className="flex items-center justify-center gap-2 py-2 text-sm text-[var(--cl-text-muted)]">
+                        <div className="flex items-center justify-center gap-2 py-2 text-sm text-(--cl-text-muted)">
                             <Loader2 className="h-4 w-4 animate-spin" /> Saving…
                         </div>
                     )}

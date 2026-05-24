@@ -37,9 +37,9 @@ type Props = {
 
 // ─── CSS ──────────────────────────────────────────────────────────────────────
 
-const thClass = "sticky top-0 z-20 text-xs font-extrabold uppercase tracking-widest text-[var(--cl-text)] py-2 px-2 text-left border-b border-[var(--cl-border)] bg-zinc-200/60 dark:bg-zinc-800/60 backdrop-blur-sm shadow-[0_1px_0_var(--cl-border)]";
-const tdClass = "p-0.5 border-b border-[var(--cl-border)]";
-const inputCls = "h-7 border-[var(--cl-border)] bg-white text-sm px-2";
+const thClass = "sticky top-0 z-20 text-xs font-extrabold uppercase tracking-widest text-(--cl-text) py-2 px-2 text-left border-b border-(--cl-border) bg-zinc-200/60 dark:bg-zinc-800/60 backdrop-blur-sm shadow-[0_1px_0_var(--cl-border)]";
+const tdClass = "p-0.5 border-b border-(--cl-border)";
+const inputCls = "h-7 border-(--cl-border) bg-white text-sm px-2";
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -152,71 +152,71 @@ export function NewStockAdjustment({
             className="flex min-h-fit md:min-h-0 md:flex-1 flex-col gap-2 pb-0 md:overflow-hidden"
         >
             {!branchId ? (
-                <div className="flex flex-col items-center justify-center py-20 bg-[var(--cl-surface-2)]/30 rounded-xl border-2 border-dashed border-[var(--cl-border)] text-center">
-                    <div className="bg-[var(--cl-accent)]/5 p-5 rounded-full mb-4">
-                        <Plus className="h-12 w-12 text-[var(--cl-accent)] opacity-40" />
+                <div className="flex flex-col items-center justify-center py-20 bg-(--cl-surface-2)/30 rounded-xl border-2 border-dashed border-(--cl-border) text-center">
+                    <div className="bg-(--cl-accent)/5 p-5 rounded-full mb-4">
+                        <Plus className="h-12 w-12 text-(--cl-accent) opacity-40" />
                     </div>
-                    <h3 className="text-lg font-semibold text-[var(--cl-text)] mb-2">No Branch Selected</h3>
-                    <p className="text-[var(--cl-text-muted)] max-w-md px-6">
+                    <h3 className="text-lg font-semibold text-(--cl-text) mb-2">No Branch Selected</h3>
+                    <p className="text-(--cl-text-muted) max-w-md px-6">
                         Please select a target branch from the global header to start recording a stock adjustment.
                     </p>
                 </div>
             ) : (
                 <>
                     {/* Section label */}
-                    <p className="text-[10px] font-black uppercase tracking-[0.15em] text-[var(--cl-text-muted)] px-1 mb-1 flex items-center gap-2">
+                    <p className="text-[10px] font-black uppercase tracking-[0.15em] text-(--cl-text-muted) px-1 mb-1 flex items-center gap-2">
                         Adjustment Details
                         {editAdjustment && <span className="px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 border border-amber-500/20">Edit</span>}
                     </p>
 
                     {/* Header card */}
-                    <Card className="border-[var(--cl-border)] bg-[var(--cl-surface)] shadow-md !overflow-visible">
+                    <Card className="border-(--cl-border) bg-(--cl-surface) shadow-md !overflow-visible">
                         <CardContent className="pt-4 !overflow-visible">
                             <div className="grid grid-cols-1 md:grid-cols-6 lg:grid-cols-12 gap-x-2 gap-y-2">
                             {/* Date */}
                             <div className="space-y-2 md:col-span-1 lg:col-span-2">
-                                <Label className="text-xs font-extrabold text-[var(--cl-text)] uppercase tracking-widest">
+                                <Label className="text-xs font-extrabold text-(--cl-text) uppercase tracking-widest">
                                     Date <span className="text-red-500 ml-0.5">*</span>
                                 </Label>
                                 <Input
                                     {...register("adjustment_date")}
-                                    className={`bg-[var(--cl-surface-2)] ${!adjustmentDate ? "border-red-500 focus:border-red-500 ring-red-500/10" : ""}`}
+                                    className={`bg-(--cl-surface-2) ${!adjustmentDate ? "border-red-500 focus:border-red-500 ring-red-500/10" : ""}`}
                                     type="date"
                                 />
                             </div>
 
                             {/* Reason */}
                             <div className="space-y-2 md:col-span-3 lg:col-span-4">
-                                <Label className="text-xs font-extrabold text-[var(--cl-text)] uppercase tracking-widest">
+                                <Label className="text-xs font-extrabold text-(--cl-text) uppercase tracking-widest">
                                     Reason <span className="text-red-500 ml-0.5">*</span>
                                 </Label>
                                 <Input
                                     {...register("adjustment_reason")}
-                                    className={`bg-[var(--cl-surface-2)] ${!adjustmentReason?.trim() ? "border-red-500 focus:border-red-500 ring-red-500/10" : ""}`}
+                                    className={`bg-(--cl-surface-2) ${!adjustmentReason?.trim() ? "border-red-500 focus:border-red-500 ring-red-500/10" : ""}`}
                                     placeholder="e.g. Physical count correction"
                                 />
                             </div>
 
                             {/* Ref No */}
                             <div className="space-y-2 md:col-span-2 lg:col-span-3">
-                                <Label className="text-xs font-extrabold text-[var(--cl-text)] uppercase tracking-widest">
+                                <Label className="text-xs font-extrabold text-(--cl-text) uppercase tracking-widest">
                                     Ref No
                                 </Label>
                                 <Input
                                     {...register("ref_no")}
-                                    className="bg-[var(--cl-surface-2)]"
+                                    className="bg-(--cl-surface-2)"
                                     placeholder="Optional reference"
                                 />
                             </div>
 
                             {/* Remarks */}
                             <div className="space-y-2 md:col-span-6 lg:col-span-3">
-                                <Label className="text-xs font-extrabold text-[var(--cl-text)] uppercase tracking-widest">
+                                <Label className="text-xs font-extrabold text-(--cl-text) uppercase tracking-widest">
                                     Remarks
                                 </Label>
                                 <Input
                                     {...register("remarks")}
-                                    className="bg-[var(--cl-surface-2)]"
+                                    className="bg-(--cl-surface-2)"
                                     placeholder="Optional..."
                                 />
                             </div>
@@ -225,10 +225,10 @@ export function NewStockAdjustment({
                     </Card>
 
                     {/* Section label */}
-                    <p className="text-[10px] font-black uppercase tracking-[0.15em] text-[var(--cl-text-muted)] px-1 my-2">Line Items</p>
+                    <p className="text-[10px] font-black uppercase tracking-[0.15em] text-(--cl-text-muted) px-1 my-2">Line Items</p>
 
                     {/* Lines table */}
-                    <Card className="border-[var(--cl-border)] bg-[var(--cl-surface)] shadow-sm flex flex-col min-h-0 md:flex-1 relative">
+                    <Card className="border-(--cl-border) bg-(--cl-surface) shadow-sm flex flex-col min-h-0 md:flex-1 relative">
                         <div
                             ref={scrollWrapperRef}
                             className="w-full overflow-x-auto overflow-y-auto pb-4"
@@ -236,7 +236,7 @@ export function NewStockAdjustment({
                         >
                             <table className="min-w-[700px] w-full border-collapse text-sm sticky-header">
                                 <thead>
-                                    <tr className="bg-[var(--cl-surface-2)]/50">
+                                    <tr className="bg-(--cl-surface-2)/50">
                                         <th className={thClass} style={{ width: "3%" }}>#</th>
                                         <th className={thClass} style={{ width: "25%" }}>Part <span className="text-red-500 ml-0.5">*</span></th>
                                         <th className={thClass} style={{ width: "12%" }}>IN / OUT <span className="text-red-500 ml-0.5">*</span></th>
@@ -245,10 +245,10 @@ export function NewStockAdjustment({
                                         <th className={`${thClass} text-left`} style={{ width: "15%" }}></th>
                                     </tr>
                                 </thead>
-                                <tbody className="bg-[var(--cl-surface)]">
+                                <tbody className="bg-(--cl-surface)">
                                     {fields.map((line, idx) => (
-                                        <tr key={line.id} className="hover:bg-[var(--cl-surface-2)]/30 group transition-colors">
-                                            <td className={`${tdClass} pl-4 text-xs font-medium text-[var(--cl-text-muted)]`}>{idx + 1}</td>
+                                        <tr key={line.id} className="hover:bg-(--cl-surface-2)/30 group transition-colors">
+                                            <td className={`${tdClass} pl-4 text-xs font-medium text-(--cl-text-muted)`}>{idx + 1}</td>
 
                                             {/* Part */}
                                             <td className={tdClass}>
@@ -287,7 +287,7 @@ export function NewStockAdjustment({
                                                         className={`flex-1 rounded px-2 py-1 text-xs font-bold transition-all cursor-pointer ${
                                                             line.dr_cr === "D"
                                                                 ? "bg-emerald-600 text-white shadow"
-                                                                : "bg-[var(--cl-surface-2)] text-[var(--cl-text-muted)] hover:bg-emerald-600/20"
+                                                                : "bg-(--cl-surface-2) text-(--cl-text-muted) hover:bg-emerald-600/20"
                                                         }`}
                                                     >
                                                         IN
@@ -298,7 +298,7 @@ export function NewStockAdjustment({
                                                         className={`flex-1 rounded px-2 py-1 text-xs font-bold transition-all cursor-pointer ${
                                                             line.dr_cr === "C"
                                                                 ? "bg-red-500 text-white shadow"
-                                                                : "bg-[var(--cl-surface-2)] text-[var(--cl-text-muted)] hover:bg-red-500/20"
+                                                                : "bg-(--cl-surface-2) text-(--cl-text-muted) hover:bg-red-500/20"
                                                         }`}
                                                     >
                                                         OUT
@@ -310,7 +310,7 @@ export function NewStockAdjustment({
                                             <td className={tdClass}>
                                                 <Input
                                                     ref={el => { qtyInputRefs.current[idx] = el; }}
-                                                    className={`${inputCls} bg-transparent border-transparent hover:border-[var(--cl-border)] focus:bg-white text-right ${line.qty <= 0 ? "border-red-500 focus:border-red-500 ring-red-500/10 shadow-[0_0_0_1px_rgba(239,68,68,0.2)]" : ""}`}
+                                                    className={`${inputCls} bg-transparent border-transparent hover:border-(--cl-border) focus:bg-white text-right ${line.qty <= 0 ? "border-red-500 focus:border-red-500 ring-red-500/10 shadow-[0_0_0_1px_rgba(239,68,68,0.2)]" : ""}`}
                                                     min={0}
                                                     step="0.01"
                                                     type="number"
@@ -323,7 +323,7 @@ export function NewStockAdjustment({
                                             {/* Line Remarks */}
                                             <td className={tdClass}>
                                                 <Input
-                                                    className={`${inputCls} bg-transparent border-transparent hover:border-[var(--cl-border)] focus:bg-white`}
+                                                    className={`${inputCls} bg-transparent border-transparent hover:border-(--cl-border) focus:bg-white`}
                                                     placeholder="Optional..."
                                                     value={line.remarks ?? ""}
                                                     onChange={e => updateLine(idx, { remarks: e.target.value })}
@@ -346,33 +346,33 @@ export function NewStockAdjustment({
                             </table>
                         </div>
                         {fields.length === 0 && (
-                            <div className="py-12 text-center text-[var(--cl-text-muted)] text-sm italic">
+                            <div className="py-12 text-center text-(--cl-text-muted) text-sm italic">
                                 No line items added yet. Click the "+" icon to insert a row.
                             </div>
                         )}
                     </Card>
 
                     {/* ── Summary Bar ── */}
-                    <div ref={summaryRef} className="rounded-lg border border-[var(--cl-border)] bg-[var(--cl-surface-2)]/40 px-4 py-2.5 flex flex-wrap items-center gap-x-6 gap-y-1 justify-end">
+                    <div ref={summaryRef} className="rounded-lg border border-(--cl-border) bg-(--cl-surface-2)/40 px-4 py-2.5 flex flex-wrap items-center gap-x-6 gap-y-1 justify-end">
                         <div className="flex items-center gap-1.5">
-                            <span className="text-[10px] font-black uppercase tracking-widest text-[var(--cl-text-muted)]">Lines</span>
-                            <span className="font-mono font-semibold text-sm text-[var(--cl-text)]">{fields.length}</span>
+                            <span className="text-[10px] font-black uppercase tracking-widest text-(--cl-text-muted)">Lines</span>
+                            <span className="font-mono font-semibold text-sm text-(--cl-text)">{fields.length}</span>
                         </div>
                         <div className="flex items-center gap-1.5">
                             <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600">IN</span>
-                            <span className="font-mono font-semibold text-sm text-[var(--cl-text)]">
+                            <span className="font-mono font-semibold text-sm text-(--cl-text)">
                                 {fields.filter(l => l.dr_cr === "D").reduce((s, l) => s + l.qty, 0)}
                             </span>
                         </div>
                         <div className="flex items-center gap-1.5">
                             <span className="text-[10px] font-black uppercase tracking-widest text-red-500">OUT</span>
-                            <span className="font-mono font-semibold text-sm text-[var(--cl-text)]">
+                            <span className="font-mono font-semibold text-sm text-(--cl-text)">
                                 {fields.filter(l => l.dr_cr === "C").reduce((s, l) => s + l.qty, 0)}
                             </span>
                         </div>
-                        <div className="flex items-center gap-1.5 border-l border-[var(--cl-border)] pl-4">
-                            <span className="text-[10px] font-black uppercase tracking-widest text-[var(--cl-text-muted)]">Net</span>
-                            <span className="font-mono font-black text-base text-[var(--cl-accent)]">
+                        <div className="flex items-center gap-1.5 border-l border-(--cl-border) pl-4">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-(--cl-text-muted)">Net</span>
+                            <span className="font-mono font-black text-base text-(--cl-accent)">
                                 {fields.filter(l => l.dr_cr === "D").reduce((s, l) => s + l.qty, 0) -
                                  fields.filter(l => l.dr_cr === "C").reduce((s, l) => s + l.qty, 0)}
                             </span>

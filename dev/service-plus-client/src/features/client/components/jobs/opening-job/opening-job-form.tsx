@@ -47,7 +47,7 @@ type Props = {
     onRefreshModels:   () => void;
 };
 
-const labelCls = "text-xs font-extrabold text-[var(--cl-text)] uppercase tracking-widest";
+const labelCls = "text-xs font-extrabold text-(--cl-text) uppercase tracking-widest";
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -98,7 +98,7 @@ export function OpeningJobForm({
                 receive_condition_id: d.job_receive_condition_id ?? null,
                 model_id:             d.product_brand_model_id ?? null,
                 serial_no:            d.serial_no ?? "",
-                quantity:             d.quantity,
+                qty:             d.qty,
                 problem_reported:     d.problem_reported,
                 warranty_card_no:     d.warranty_card_no ?? "",
                 job_status_id:        d.job_status_id ?? (undefined as unknown as number),
@@ -123,22 +123,22 @@ export function OpeningJobForm({
             initial={{ opacity: 0, y: 10 }}
         >
             {!branchId ? (
-                <div className="flex flex-col items-center justify-center py-20 bg-[var(--cl-surface-2)]/30 rounded-xl border-2 border-dashed border-[var(--cl-border)] text-center">
-                    <div className="bg-[var(--cl-accent)]/5 p-5 rounded-full mb-4">
-                        <Plus className="h-12 w-12 text-[var(--cl-accent)] opacity-40" />
+                <div className="flex flex-col items-center justify-center py-20 bg-(--cl-surface-2)/30 rounded-xl border-2 border-dashed border-(--cl-border) text-center">
+                    <div className="bg-(--cl-accent)/5 p-5 rounded-full mb-4">
+                        <Plus className="h-12 w-12 text-(--cl-accent) opacity-40" />
                     </div>
-                    <h3 className="text-lg font-semibold text-[var(--cl-text)] mb-2">No Branch Selected</h3>
-                    <p className="text-[var(--cl-text-muted)] max-w-md px-6">
+                    <h3 className="text-lg font-semibold text-(--cl-text) mb-2">No Branch Selected</h3>
+                    <p className="text-(--cl-text-muted) max-w-md px-6">
                         Please select a branch from the global header to create an opening job.
                     </p>
                 </div>
             ) : (
                 <>
                     {/* ── Job Details ─────────────────────────────────────────── */}
-                    <p className="text-[10px] font-black uppercase tracking-[0.15em] text-[var(--cl-text-muted)]">
+                    <p className="text-[10px] font-black uppercase tracking-[0.15em] text-(--cl-text-muted)">
                         Job Details
                     </p>
-                    <Card className="border-[var(--cl-border)] shadow-md bg-[var(--cl-surface)] !overflow-visible">
+                    <Card className="border-(--cl-border) shadow-md bg-(--cl-surface) !overflow-visible">
                         <CardContent className="pt-2 grid grid-cols-1 md:grid-cols-6 lg:grid-cols-12 gap-x-3 gap-y-3 !overflow-visible">
 
                             {/* Job No */}
@@ -147,7 +147,7 @@ export function OpeningJobForm({
                                     Job No <span className="text-red-500 ml-0.5">*</span>
                                 </Label>
                                 <Input
-                                    className={`bg-[var(--cl-surface-2)] font-mono ${errors.job_no ? "border-red-400" : "border-[var(--cl-border)]"}`}
+                                    className={`bg-(--cl-surface-2) font-mono ${errors.job_no ? "border-red-400" : "border-(--cl-border)"}`}
                                     placeholder="e.g. 001 or Z-001"
                                     {...register("job_no")}
                                 />
@@ -156,7 +156,7 @@ export function OpeningJobForm({
                             {/* Job Date */}
                             <div className="space-y-1.5 md:col-span-3 lg:col-span-3">
                                 <Label className={labelCls}>Job Date</Label>
-                                <Input className="bg-[var(--cl-surface-2)]" type="date" {...register("job_date")} />
+                                <Input className="bg-(--cl-surface-2)" type="date" {...register("job_date")} />
                             </div>
 
                             {/* Customer */}
@@ -186,7 +186,7 @@ export function OpeningJobForm({
                             {/* Mobile (read-only) */}
                             <div className="space-y-1.5 md:col-span-3 lg:col-span-3">
                                 <Label className={labelCls}>Mobile</Label>
-                                <Input readOnly className="bg-[var(--cl-surface-2)] font-mono opacity-70 cursor-not-allowed" placeholder="—" value={watch("mobile") ?? ""} />
+                                <Input readOnly className="bg-(--cl-surface-2) font-mono opacity-70 cursor-not-allowed" placeholder="—" value={watch("mobile") ?? ""} />
                             </div>
 
                             {/* Job Type */}
@@ -195,7 +195,7 @@ export function OpeningJobForm({
                                     Job Type <span className="text-red-500 ml-0.5">*</span>
                                 </Label>
                                 <select
-                                    className={`w-full h-9 rounded-md border text-sm px-2 bg-[var(--cl-surface-2)] text-[var(--cl-text)] ${!watch("job_type_id") ? "border-red-400" : "border-[var(--cl-border)]"}`}
+                                    className={`w-full h-9 rounded-md border text-sm px-2 bg-(--cl-surface-2) text-(--cl-text) ${!watch("job_type_id") ? "border-red-400" : "border-(--cl-border)"}`}
                                     value={watch("job_type_id") ?? ""}
                                     onChange={e => {
                                         const newId   = e.target.value ? Number(e.target.value) : (undefined as unknown as number);
@@ -217,7 +217,7 @@ export function OpeningJobForm({
                                     Receive Manner <span className="text-red-500 ml-0.5">*</span>
                                 </Label>
                                 <select
-                                    className={`w-full h-9 rounded-md border text-sm px-2 bg-[var(--cl-surface-2)] text-[var(--cl-text)] ${!watch("receive_manner_id") ? "border-red-400" : "border-[var(--cl-border)]"}`}
+                                    className={`w-full h-9 rounded-md border text-sm px-2 bg-(--cl-surface-2) text-(--cl-text) ${!watch("receive_manner_id") ? "border-red-400" : "border-(--cl-border)"}`}
                                     value={watch("receive_manner_id") ?? ""}
                                     onChange={e => setValue("receive_manner_id", e.target.value ? Number(e.target.value) : (undefined as unknown as number), { shouldValidate: true })}
                                 >
@@ -232,7 +232,7 @@ export function OpeningJobForm({
                             <div className="space-y-1.5 md:col-span-3 lg:col-span-3">
                                 <Label className={labelCls}>Receive Condition</Label>
                                 <select
-                                    className="w-full h-9 rounded-md border border-[var(--cl-border)] text-sm px-2 bg-[var(--cl-surface-2)] text-[var(--cl-text)]"
+                                    className="w-full h-9 rounded-md border border-(--cl-border) text-sm px-2 bg-(--cl-surface-2) text-(--cl-text)"
                                     value={watch("receive_condition_id") ?? ""}
                                     onChange={e => setValue("receive_condition_id", e.target.value ? Number(e.target.value) : null, { shouldValidate: false })}
                                 >
@@ -279,7 +279,7 @@ export function OpeningJobForm({
                             {/* Serial No */}
                             <div className="space-y-1.5 md:col-span-3 lg:col-span-3">
                                 <Label className={labelCls}>Serial No</Label>
-                                <Input className="bg-[var(--cl-surface-2)]" placeholder="Optional…" {...register("serial_no")} />
+                                <Input className="bg-(--cl-surface-2)" placeholder="Optional…" {...register("serial_no")} />
                             </div>
 
                             {/* Warranty Card No */}
@@ -287,7 +287,7 @@ export function OpeningJobForm({
                                 <Label className={labelCls}>Warranty Card No</Label>
                                 <Input
                                     disabled={!isWarranty}
-                                    className={`bg-[var(--cl-surface-2)] ${!isWarranty ? "opacity-50 cursor-not-allowed" : ""}`}
+                                    className={`bg-(--cl-surface-2) ${!isWarranty ? "opacity-50 cursor-not-allowed" : ""}`}
                                     placeholder={isWarranty ? "Card number…" : "N/A"}
                                     {...register("warranty_card_no")}
                                 />
@@ -300,7 +300,7 @@ export function OpeningJobForm({
                                 </Label>
                                 <Textarea
                                     rows={3}
-                                    className={`bg-[var(--cl-surface-2)] resize-none ${errors.problem_reported ? "border-red-400" : "border-[var(--cl-border)]"}`}
+                                    className={`bg-(--cl-surface-2) resize-none ${errors.problem_reported ? "border-red-400" : "border-(--cl-border)"}`}
                                     placeholder="Describe the problem reported by the customer…"
                                     {...register("problem_reported")}
                                 />
@@ -309,17 +309,17 @@ export function OpeningJobForm({
                             {/* Qty */}
                             <div className="space-y-1.5 md:col-span-3 lg:col-span-3">
                                 <Label className={labelCls}>Qty</Label>
-                                <Input className="bg-[var(--cl-surface-2)]" min={1} type="number" {...register("quantity", { valueAsNumber: true })} />
+                                <Input className="bg-(--cl-surface-2)" min={1} type="number" {...register("qty", { valueAsNumber: true })} />
                             </div>
 
                         </CardContent>
                     </Card>
 
                     {/* ── Status / Progress ───────────────────────────────────── */}
-                    <p className="text-[10px] font-black uppercase tracking-[0.15em] text-[var(--cl-text-muted)]">
+                    <p className="text-[10px] font-black uppercase tracking-[0.15em] text-(--cl-text-muted)">
                         Status / Progress
                     </p>
-                    <Card className="border-[var(--cl-border)] shadow-md bg-[var(--cl-surface)] !overflow-visible">
+                    <Card className="border-(--cl-border) shadow-md bg-(--cl-surface) !overflow-visible">
                         <CardContent className="pt-2 grid grid-cols-1 md:grid-cols-6 lg:grid-cols-12 gap-x-3 gap-y-3 !overflow-visible">
 
                             {/* Job Status */}
@@ -328,7 +328,7 @@ export function OpeningJobForm({
                                     Job Status <span className="text-red-500 ml-0.5">*</span>
                                 </Label>
                                 <select
-                                    className={`w-full h-9 rounded-md border text-sm px-2 bg-[var(--cl-surface-2)] text-[var(--cl-text)] ${!watch("job_status_id") ? "border-red-400" : "border-[var(--cl-border)]"}`}
+                                    className={`w-full h-9 rounded-md border text-sm px-2 bg-(--cl-surface-2) text-(--cl-text) ${!watch("job_status_id") ? "border-red-400" : "border-(--cl-border)"}`}
                                     value={watch("job_status_id") ?? ""}
                                     onChange={e => setValue("job_status_id", e.target.value ? Number(e.target.value) : (undefined as unknown as number), { shouldValidate: true })}
                                 >
@@ -343,7 +343,7 @@ export function OpeningJobForm({
                             <div className="space-y-1.5 md:col-span-3 lg:col-span-3">
                                 <Label className={labelCls}>Technician</Label>
                                 <select
-                                    className="w-full h-9 rounded-md border border-[var(--cl-border)] text-sm px-2 bg-[var(--cl-surface-2)] text-[var(--cl-text)]"
+                                    className="w-full h-9 rounded-md border border-(--cl-border) text-sm px-2 bg-(--cl-surface-2) text-(--cl-text)"
                                     value={watch("technician_id") ?? ""}
                                     onChange={e => setValue("technician_id", e.target.value ? Number(e.target.value) : null, { shouldValidate: false })}
                                 >
@@ -357,41 +357,41 @@ export function OpeningJobForm({
                             {/* Amount */}
                             <div className="space-y-1.5 md:col-span-3 lg:col-span-3">
                                 <Label className={labelCls}>Amount</Label>
-                                <Input className="bg-[var(--cl-surface-2)]" min={0} placeholder="Optional…" step="0.01" type="number" {...register("amount")} />
+                                <Input className="bg-(--cl-surface-2)" min={0} placeholder="Optional…" step="0.01" type="number" {...register("amount")} />
                             </div>
 
                             {/* Delivery Date */}
                             <div className="space-y-1.5 md:col-span-3 lg:col-span-3">
                                 <Label className={labelCls}>Delivery Date</Label>
-                                <Input className="bg-[var(--cl-surface-2)]" type="date" {...register("delivery_date")} />
+                                <Input className="bg-(--cl-surface-2)" type="date" {...register("delivery_date")} />
                             </div>
 
                             {/* Diagnosis */}
                             <div className="space-y-1.5 md:col-span-6 lg:col-span-6">
                                 <Label className={labelCls}>Diagnosis</Label>
-                                <Textarea rows={3} className="bg-[var(--cl-surface-2)] resize-none border-[var(--cl-border)]" placeholder="Optional…" {...register("diagnosis")} />
+                                <Textarea rows={3} className="bg-(--cl-surface-2) resize-none border-(--cl-border)" placeholder="Optional…" {...register("diagnosis")} />
                             </div>
 
                             {/* Work Done */}
                             <div className="space-y-1.5 md:col-span-6 lg:col-span-6">
                                 <Label className={labelCls}>Work Done</Label>
-                                <Textarea rows={3} className="bg-[var(--cl-surface-2)] resize-none border-[var(--cl-border)]" placeholder="Optional…" {...register("work_done")} />
+                                <Textarea rows={3} className="bg-(--cl-surface-2) resize-none border-(--cl-border)" placeholder="Optional…" {...register("work_done")} />
                             </div>
 
                             {/* Remarks */}
                             <div className="space-y-1.5 md:col-span-12 lg:col-span-12">
                                 <Label className={labelCls}>Remarks</Label>
-                                <Textarea rows={2} className="bg-[var(--cl-surface-2)] resize-none border-[var(--cl-border)]" placeholder="Optional…" {...register("remarks")} />
+                                <Textarea rows={2} className="bg-(--cl-surface-2) resize-none border-(--cl-border)" placeholder="Optional…" {...register("remarks")} />
                             </div>
 
                             {/* Toggles: Is Closed / Is Final */}
                             <div className="flex flex-wrap items-center gap-6 md:col-span-12 lg:col-span-12">
                                 <label className="flex items-center gap-2 cursor-pointer select-none">
-                                    <input className="h-4 w-4 accent-[var(--cl-accent)]" type="checkbox" {...register("is_closed")} />
+                                    <input className="h-4 w-4 accent-(--cl-accent)" type="checkbox" {...register("is_closed")} />
                                     <span className={labelCls}>Is Closed</span>
                                 </label>
                                 <label className="flex items-center gap-2 cursor-pointer select-none">
-                                    <input className="h-4 w-4 accent-[var(--cl-accent)]" type="checkbox" {...register("is_final")} />
+                                    <input className="h-4 w-4 accent-(--cl-accent)" type="checkbox" {...register("is_final")} />
                                     <span className={labelCls}>Is Final</span>
                                 </label>
                             </div>
@@ -400,7 +400,7 @@ export function OpeningJobForm({
                     </Card>
 
                     {isSubmitting && (
-                        <div className="flex items-center justify-center gap-2 py-2 text-sm text-[var(--cl-text-muted)]">
+                        <div className="flex items-center justify-center gap-2 py-2 text-sm text-(--cl-text-muted)">
                             <Loader2 className="h-4 w-4 animate-spin" /> Saving…
                         </div>
                     )}

@@ -99,14 +99,14 @@ export const AppSettingsSection = () => {
         );
     }, [records, search]);
 
-    const thClass = "text-xs font-semibold uppercase tracking-wide text-[var(--cl-text-muted)]";
+    const thClass = "text-xs font-semibold uppercase tracking-wide text-(--cl-text-muted)";
 
     if (!schema) {
         return (
-            <div className="flex items-center justify-center rounded-lg border border-[var(--cl-border)] bg-[var(--cl-surface-2)] p-20">
+            <div className="flex items-center justify-center rounded-lg border border-(--cl-border) bg-(--cl-surface-2) p-20">
                 <div className="text-center">
-                    <p className="text-sm font-semibold text-[var(--cl-text)]">No Business Unit</p>
-                    <p className="mt-2 text-xs text-[var(--cl-text-muted)]">
+                    <p className="text-sm font-semibold text-(--cl-text)">No Business Unit</p>
+                    <p className="mt-2 text-xs text-(--cl-text-muted)">
                         No business unit is assigned. Please contact your administrator.
                     </p>
                 </div>
@@ -125,14 +125,14 @@ export const AppSettingsSection = () => {
                 {/* Header */}
                 <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
-                        <h1 className="text-xl font-bold text-[var(--cl-text)]">App Settings</h1>
-                        <p className="mt-1 text-sm text-[var(--cl-text-muted)]">
+                        <h1 className="text-xl font-bold text-(--cl-text)">App Settings</h1>
+                        <p className="mt-1 text-sm text-(--cl-text-muted)">
                             System-wide configuration settings for this business unit.
                         </p>
                     </div>
                     <div className="flex items-center gap-2">
                         <Button
-                            className="gap-1.5 border border-[var(--cl-border)] bg-[var(--cl-surface-2)] text-[var(--cl-text-muted)] shadow-sm hover:bg-[var(--cl-surface-3)]"
+                            className="gap-1.5 border border-(--cl-border) bg-(--cl-surface-2) text-(--cl-text-muted) shadow-sm hover:bg-(--cl-surface-3)"
                             disabled={loading}
                             size="sm"
                             variant="outline"
@@ -147,7 +147,7 @@ export const AppSettingsSection = () => {
                 {/* Search + count */}
                 <div className="flex items-center gap-3">
                     <div className="relative flex-1">
-                        <SearchIcon className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--cl-text-muted)]" />
+                        <SearchIcon className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-(--cl-text-muted)" />
                         <Input
                             className="h-8 pl-8 text-sm"
                             disabled={loading}
@@ -157,7 +157,7 @@ export const AppSettingsSection = () => {
                         />
                             {search && (
                                 <button
-                                    className="absolute right-2.5 top-1/2 flex h-4 w-4 -translate-y-1/2 items-center justify-center rounded-full bg-[var(--cl-text-muted)] text-[var(--cl-surface)] hover:bg-[var(--cl-text)] focus:outline-none"
+                                    className="absolute right-2.5 top-1/2 flex h-4 w-4 -translate-y-1/2 items-center justify-center rounded-full bg-(--cl-text-muted) text-(--cl-surface) hover:bg-(--cl-text) focus:outline-none"
                                     type="button"
                                     onClick={() => setSearch("")}
                                 >
@@ -166,7 +166,7 @@ export const AppSettingsSection = () => {
                             )}
                     </div>
                     {!loading && records.length > 0 && (
-                        <p className="shrink-0 text-xs text-[var(--cl-text-muted)]">
+                        <p className="shrink-0 text-xs text-(--cl-text-muted)">
                             {displayRecords.length} of {records.length}
                         </p>
                     )}
@@ -189,19 +189,19 @@ export const AppSettingsSection = () => {
                 {loading && records.length === 0 ? (
                     <div className="flex flex-col gap-2">
                         {Array.from({ length: 4 }).map((_, i) => (
-                            <div key={i} className="h-12 animate-pulse rounded-lg bg-[var(--cl-surface-2)]" />
+                            <div key={i} className="h-12 animate-pulse rounded-lg bg-(--cl-surface-2)" />
                         ))}
                     </div>
                 ) : records.length === 0 ? (
-                    <div className="rounded-xl border border-[var(--cl-border)] bg-[var(--cl-surface-2)] px-6 py-12 text-center text-sm text-[var(--cl-text-muted)]">
+                    <div className="rounded-xl border border-(--cl-border) bg-(--cl-surface-2) px-6 py-12 text-center text-sm text-(--cl-text-muted)">
                         No settings found.
                     </div>
                 ) : (
-                    <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-[var(--cl-border)] bg-[var(--cl-surface-2)] shadow-sm">
+                    <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-(--cl-border) bg-(--cl-surface-2) shadow-sm">
                         <div className="overflow-x-auto overflow-y-auto">
                             <Table>
                                 <TableHeader>
-                                    <TableRow className="sticky top-0 z-10 bg-[var(--cl-surface-3)] hover:bg-[var(--cl-surface-3)]">
+                                    <TableRow className="sticky top-0 z-10 bg-(--cl-surface-3) hover:bg-(--cl-surface-3)">
                                         <TableHead className={`w-8 text-center ${thClass}`}>#</TableHead>
                                         <TableHead className={thClass}>Key</TableHead>
                                         <TableHead className={thClass}>Value</TableHead>
@@ -215,7 +215,7 @@ export const AppSettingsSection = () => {
                                         <tr>
                                             <td
                                                 colSpan={6}
-                                                className="px-6 py-10 text-center text-sm text-[var(--cl-text-muted)]"
+                                                className="px-6 py-10 text-center text-sm text-(--cl-text-muted)"
                                             >
                                                 No results match &ldquo;{search}&rdquo;.
                                             </td>
@@ -224,7 +224,7 @@ export const AppSettingsSection = () => {
                                         displayRecords.map((record, idx) => (
                                             <motion.tr
                                                 animate="visible"
-                                                className={`border-b border-[var(--cl-border)] transition-colors last:border-b-0 hover:bg-[var(--cl-surface-3)] ${
+                                                className={`border-b border-(--cl-border) transition-colors last:border-b-0 hover:bg-(--cl-surface-3) ${
                                                     isDefaultDivisionInactive && record.setting_key === "default_division_id"
                                                         ? "bg-yellow-50/60 dark:bg-yellow-900/10"
                                                         : ""
@@ -234,10 +234,10 @@ export const AppSettingsSection = () => {
                                                 key={record.id}
                                                 variants={rowVariants}
                                             >
-                                                <TableCell className="text-center text-xs text-[var(--cl-text-muted)]">{idx + 1}</TableCell>
-                                                <TableCell className="font-mono text-sm font-medium text-[var(--cl-text)]">{record.setting_key}</TableCell>
-                                                <TableCell className="font-mono text-sm text-[var(--cl-text-muted)]">{displayValue(record.setting_value)}</TableCell>
-                                                <TableCell className="max-w-xs truncate text-sm text-[var(--cl-text-muted)]">{record.description ?? "—"}</TableCell>
+                                                <TableCell className="text-center text-xs text-(--cl-text-muted)">{idx + 1}</TableCell>
+                                                <TableCell className="font-mono text-sm font-medium text-(--cl-text)">{record.setting_key}</TableCell>
+                                                <TableCell className="font-mono text-sm text-(--cl-text-muted)">{displayValue(record.setting_value)}</TableCell>
+                                                <TableCell className="max-w-xs truncate text-sm text-(--cl-text-muted)">{record.description ?? "—"}</TableCell>
                                                 <TableCell>
                                                     {record.is_editable ? (
                                                         <Badge
@@ -258,7 +258,7 @@ export const AppSettingsSection = () => {
                                                 </TableCell>
                                                 <TableCell>
                                                     <Button
-                                                        className="h-7 w-7 text-[var(--cl-text-muted)] hover:text-sky-600 disabled:opacity-30"
+                                                        className="h-7 w-7 text-(--cl-text-muted) hover:text-sky-600 disabled:opacity-30"
                                                         disabled={!record.is_editable}
                                                         size="icon"
                                                         title="Edit"

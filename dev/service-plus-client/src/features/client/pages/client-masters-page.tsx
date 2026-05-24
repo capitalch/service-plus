@@ -31,13 +31,13 @@ function ComingSoon({ label }: { label: string }) {
     return (
         <motion.div
             animate={{ opacity: 1 }}
-            className="flex items-center justify-center rounded-lg border border-[var(--cl-border)] bg-[var(--cl-surface-2)] p-20"
+            className="flex items-center justify-center rounded-lg border border-(--cl-border) bg-(--cl-surface-2) p-20"
             initial={{ opacity: 0 }}
             transition={{ duration: 0.25 }}
         >
             <div className="text-center">
-                <p className="text-sm font-semibold text-[var(--cl-text)]">{label}</p>
-                <p className="mt-2 text-xs text-[var(--cl-text-muted)]">Coming soon.</p>
+                <p className="text-sm font-semibold text-(--cl-text)">{label}</p>
+                <p className="mt-2 text-xs text-(--cl-text-muted)">Coming soon.</p>
             </div>
         </motion.div>
     );

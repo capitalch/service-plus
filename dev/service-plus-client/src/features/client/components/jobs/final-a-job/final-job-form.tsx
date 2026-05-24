@@ -21,7 +21,6 @@ import {
 } from "./final-a-job-schema";
 import { fmtCurrency, thClass, tdClass, calculateLinePricing } from "./final-a-job-helpers";
 import { ChargeNameCombobox } from "./charge-name-combobox";
-import { ChangeDivisionModal } from "./change-division-modal";
 
 // ─── Back-calculate helpers (only used in this view) ─────────────────────────
 
@@ -33,7 +32,7 @@ function scaleCharges(
     isGst: boolean,
 ): EditableChargeLine[] {
     const rowAmounts = active.map(c => {
-        const sp = (parseFloat(c.selling_price) || 0) * (parseFloat(c.quantity) || 1);
+        const sp = (parseFloat(c.selling_price) || 0) * (parseFloat(c.qty) || 1);
         const gst = isGst ? sp * (parseFloat(c.gst_rate) || 0) / 100 : 0;
         return curTotal > 0 ? Math.max(0, (sp + gst) * newTotal / curTotal) : newTotal / active.length;
     });
@@ -43,7 +42,7 @@ function scaleCharges(
     const patch = new Map<string, Pick<EditableChargeLine, "selling_price" | "sale_pr_gst">>();
     let runningTotal = 0;
     active.forEach((c, i) => {
-        const qty = parseFloat(c.quantity) || 1;
+        const qty = parseFloat(c.qty) || 1;
         const gstRate = isGst ? (parseFloat(c.gst_rate) || 0) : 0;
         const multiplier = 1 + gstRate / 100;
         if (i < active.length - 1) {
@@ -69,7 +68,7 @@ function scaleParts(
 ): EditablePartLine[] {
     if (curTotal <= 0) return allParts;
     const rowAmounts = active.map(l =>
-        Math.max(0, (parseFloat(l.sale_pr_gst) || 0) * l.quantity * newTotal / curTotal)
+        Math.max(0, (parseFloat(l.sale_pr_gst) || 0) * l.qty * newTotal / curTotal)
     );
     const sumHead = rowAmounts.slice(0, -1).reduce((s, v) => s + v, 0);
     rowAmounts[rowAmounts.length - 1] = Math.max(0, newTotal - sumHead);
@@ -81,14 +80,14 @@ function scaleParts(
         const multiplier = 1 + gstRate / 100;
         const costPrice = parseFloat(l.cost_price) || 0;
         if (i < active.length - 1) {
-            const spg = rowAmounts[i] / l.quantity;
+            const spg = rowAmounts[i] / l.qty;
             const sp = gstRate > 0 ? spg / multiplier : spg;
             const finalSp = parseFloat(Math.max(sp, costPrice).toFixed(2));
             const saleGst = parseFloat((finalSp * multiplier).toFixed(2));
-            runningTotal += saleGst * l.quantity;
+            runningTotal += saleGst * l.qty;
             patch.set(l._key, { selling_price: finalSp.toFixed(2), sale_pr_gst: saleGst.toFixed(2) });
         } else {
-            const saleGstPerUnit = parseFloat(((newTotal - runningTotal) / l.quantity).toFixed(2));
+            const saleGstPerUnit = parseFloat(((newTotal - runningTotal) / l.qty).toFixed(2));
             const sp = gstRate > 0 ? saleGstPerUnit / multiplier : saleGstPerUnit;
             const finalSp = parseFloat(Math.max(sp, costPrice).toFixed(2));
             patch.set(l._key, { selling_price: finalSp.toFixed(2), sale_pr_gst: saleGstPerUnit.toFixed(2) });
@@ -103,8 +102,8 @@ function computeBackCalc(
     chargeLines: EditableChargeLine[],
     isGst: boolean,
 ): { newPartLines?: EditablePartLine[]; newChargeLines?: EditableChargeLine[] } {
-    const partsTotal = partLines.reduce((s, l) => s + (parseFloat(l.sale_pr_gst) || 0) * l.quantity, 0);
-    const chargesTotal = chargeLines.reduce((s, c) => s + (parseFloat(c.sale_pr_gst) || 0) * (parseFloat(c.quantity) || 1), 0);
+    const partsTotal = partLines.reduce((s, l) => s + (parseFloat(l.sale_pr_gst) || 0) * l.qty, 0);
+    const chargesTotal = chargeLines.reduce((s, c) => s + (parseFloat(c.sale_pr_gst) || 0) * (parseFloat(c.qty) || 1), 0);
     const diff = target - partsTotal - chargesTotal;
     if (Math.abs(diff) < 0.005) return {};
 
@@ -113,12 +112,12 @@ function computeBackCalc(
     let remainingDiff = diff;
 
     if (activeParts.length > 0) {
-        const curPartsAmt = activeParts.reduce((s, l) => s + (parseFloat(l.sale_pr_gst) || 0) * l.quantity, 0);
+        const curPartsAmt = activeParts.reduce((s, l) => s + (parseFloat(l.sale_pr_gst) || 0) * l.qty, 0);
         if (curPartsAmt > 0) {
             newPartLines = scaleParts(partLines, activeParts, curPartsAmt, curPartsAmt + diff);
             const actualNewPartsTotal = newPartLines.reduce((s, l) => {
                 if (l.part_id === null) return s;
-                return s + (parseFloat(l.sale_pr_gst) || 0) * l.quantity;
+                return s + (parseFloat(l.sale_pr_gst) || 0) * l.qty;
             }, 0);
             remainingDiff = target - actualNewPartsTotal - chargesTotal;
             if (Math.abs(remainingDiff) < 0.005) return { newPartLines };
@@ -128,7 +127,7 @@ function computeBackCalc(
     const activeCharges = chargeLines.filter(c => c.charge_name.trim() !== "");
     if (activeCharges.length === 0) return { newPartLines };
 
-    const curChargesAmt = activeCharges.reduce((s, c) => s + (parseFloat(c.sale_pr_gst) || 0) * (parseFloat(c.quantity) || 1), 0);
+    const curChargesAmt = activeCharges.reduce((s, c) => s + (parseFloat(c.sale_pr_gst) || 0) * (parseFloat(c.qty) || 1), 0);
     const newChargesAmt = curChargesAmt + remainingDiff;
 
     if (newChargesAmt >= 0) {
@@ -152,7 +151,6 @@ export type FinalJobFormProps = {
     isEditMode: boolean;
     submitting: boolean;
     loadingDetail: boolean;
-    changeDivOpen: boolean;
     selectedDivisionId: number | null;
     division: DivisionContextType | null;
     isGst: boolean;
@@ -170,7 +168,6 @@ export type FinalJobFormProps = {
 
     setForceIgst: (v: boolean) => void;
     setBackCalcTarget: (v: string) => void;
-    setChangeDivOpen: (v: boolean) => void;
     setChargeLines: Dispatch<SetStateAction<EditableChargeLine[]>>;
     setPartLines: Dispatch<SetStateAction<EditablePartLine[]>>;
     setViewJobId: (id: number | null) => void;
@@ -186,37 +183,37 @@ export type FinalJobFormProps = {
     onRemoveCharge: (key: string, id?: number) => void;
     onUpdateCharge: (key: string, field: keyof EditableChargeLine, value: string) => void;
     onPatchCharge: (key: string, patch: Partial<EditableChargeLine>) => void;
-    onChangeDivision: (id: number) => Promise<void>;
+    onDivisionChange: (id: number) => void;
 };
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function FinalJobForm({
-    selectedJob, selectedRow, isEditMode, submitting, loadingDetail, changeDivOpen,
-    selectedDivisionId, division, isGst, availableDivisions, brands, additionalChargeOptions,
+    selectedJob, selectedRow, isEditMode, submitting, loadingDetail,
+    selectedDivisionId, isGst, availableDivisions, brands, additionalChargeOptions,
     partLines, chargeLines, deletedPartIds, forceIgst, backCalcTarget,
     defaultHsnForServiceCharge, viewJobId,
-    setForceIgst, setBackCalcTarget, setChangeDivOpen, setChargeLines, setPartLines, setViewJobId,
+    setForceIgst, setBackCalcTarget, setChargeLines, setPartLines, setViewJobId,
     onBack, onSave, onRefresh, onAddPart, onRemovePart, onUpdatePart, onPartSelect,
-    onAddCharge, onRemoveCharge, onUpdateCharge, onPatchCharge, onChangeDivision,
+    onAddCharge, onRemoveCharge, onUpdateCharge, onPatchCharge, onDivisionChange,
 }: FinalJobFormProps) {
     const isWarranty = selectedRow.job_type_code === "UNDER_WARRANTY";
 
-    const partsTotal = partLines.reduce((s, l) => s + (parseFloat(l.sale_pr_gst) || 0) * l.quantity, 0);
-    const profitTotal = partLines.reduce((s, l) => s + ((parseFloat(l.selling_price) || 0) - (parseFloat(l.cost_price) || 0)) * l.quantity, 0);
-    const partsQtyTotal = partLines.reduce((s, l) => s + l.quantity, 0);
-    const partsGstTotal = isGst ? partLines.reduce((s, l) => { const agg = (parseFloat(l.selling_price) || 0) * l.quantity; return s + agg * (parseFloat(l.gst_rate) || 0) / 100; }, 0) : 0;
+    const partsTotal = partLines.reduce((s, l) => s + (parseFloat(l.sale_pr_gst) || 0) * l.qty, 0);
+    const profitTotal = partLines.reduce((s, l) => s + ((parseFloat(l.selling_price) || 0) - (parseFloat(l.cost_price) || 0)) * l.qty, 0);
+    const partsQtyTotal = partLines.reduce((s, l) => s + l.qty, 0);
+    const partsGstTotal = isGst ? partLines.reduce((s, l) => { const agg = (parseFloat(l.selling_price) || 0) * l.qty; return s + agg * (parseFloat(l.gst_rate) || 0) / 100; }, 0) : 0;
     const partsCgstTotal = forceIgst ? 0 : partsGstTotal / 2;
     const partsSgstTotal = forceIgst ? 0 : partsGstTotal / 2;
     const partsIgstTotal = forceIgst ? partsGstTotal : 0;
-    const chargesSaleTotal = chargeLines.reduce((s, c) => s + (parseFloat(c.selling_price) || 0) * (parseFloat(c.quantity) || 1), 0);
-    const chargesGstTotal = isGst ? chargeLines.reduce((s, c) => { const sp = (parseFloat(c.selling_price) || 0) * (parseFloat(c.quantity) || 1); return s + sp * (parseFloat(c.gst_rate) || 0) / 100; }, 0) : 0;
-    const chargesAmountTotal = chargeLines.reduce((s, c) => s + (parseFloat(c.sale_pr_gst) || 0) * (parseFloat(c.quantity) || 1), 0);
+    const chargesSaleTotal = chargeLines.reduce((s, c) => s + (parseFloat(c.selling_price) || 0) * (parseFloat(c.qty) || 1), 0);
+    const chargesGstTotal = isGst ? chargeLines.reduce((s, c) => { const sp = (parseFloat(c.selling_price) || 0) * (parseFloat(c.qty) || 1); return s + sp * (parseFloat(c.gst_rate) || 0) / 100; }, 0) : 0;
+    const chargesAmountTotal = chargeLines.reduce((s, c) => s + (parseFloat(c.sale_pr_gst) || 0) * (parseFloat(c.qty) || 1), 0);
     const chargesCgstTotal = forceIgst ? 0 : chargesGstTotal / 2;
     const chargesSgstTotal = forceIgst ? 0 : chargesGstTotal / 2;
     const chargesIgstTotal = forceIgst ? chargesGstTotal : 0;
-    const chargesProfitTotal = chargeLines.reduce((s, c) => s + ((parseFloat(c.selling_price) || 0) - (parseFloat(c.cost_price) || 0)) * (parseFloat(c.quantity) || 1), 0);
-    const chargesQtyTotal = chargeLines.reduce((s, c) => s + (parseFloat(c.quantity) || 1), 0);
+    const chargesProfitTotal = chargeLines.reduce((s, c) => s + ((parseFloat(c.selling_price) || 0) - (parseFloat(c.cost_price) || 0)) * (parseFloat(c.qty) || 1), 0);
+    const chargesQtyTotal = chargeLines.reduce((s, c) => s + (parseFloat(c.qty) || 1), 0);
     const grandTotal = partsTotal + chargesAmountTotal;
     const grandProfitTotal = profitTotal + chargesProfitTotal;
     const grandQtyTotal = partsQtyTotal + chargesQtyTotal;
@@ -252,18 +249,20 @@ export function FinalJobForm({
                     <div className="flex items-center gap-2">
                         <div className="flex items-center gap-2 leading-none">
                             <span className="text-[10px] uppercase tracking-wider text-(--cl-text-muted)">Division</span>
-                            <span className="text-xs font-semibold text-(--cl-text)">
-                                {division?.name ?? <span className="italic text-(--cl-text-muted)">No division</span>}
-                            </span>
+                            <Select
+                                value={selectedDivisionId ? String(selectedDivisionId) : ""}
+                                onValueChange={v => onDivisionChange(Number(v))}
+                            >
+                                <SelectTrigger className="h-7 w-40 text-xs">
+                                    <SelectValue placeholder="Select division" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {availableDivisions.map(d => (
+                                        <SelectItem key={d.id} value={String(d.id)}>{d.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                         </div>
-                        <Button
-                            className="h-7 px-2 text-xs"
-                            size="sm"
-                            variant="outline"
-                            onClick={() => setChangeDivOpen(true)}
-                        >
-                            Change Division
-                        </Button>
                         <Button
                             className="h-7 w-7 p-0 text-(--cl-text-muted) hover:text-(--cl-accent)"
                             disabled={loadingDetail || submitting}
@@ -378,10 +377,10 @@ export function FinalJobForm({
                         {partLines.length > 0 && (
                             <div className="flex flex-col gap-1 bg-white">
                                 {partLines.map((line, idx) => {
-                                    const aggregate = (parseFloat(line.selling_price) || 0) * line.quantity;
+                                    const aggregate = (parseFloat(line.selling_price) || 0) * line.qty;
                                     const gstRate = parseFloat(line.gst_rate) || 0;
                                     const amount = aggregate * (1 + gstRate / 100);
-                                    const profit = ((parseFloat(line.selling_price) || 0) - (parseFloat(line.cost_price) || 0)) * line.quantity;
+                                    const profit = ((parseFloat(line.selling_price) || 0) - (parseFloat(line.cost_price) || 0)) * line.qty;
                                     return (
                                         <div key={line._key} className="px-1 py-3 space-y-2.5 bg-(--cl-surface) hover:bg-(--cl-surface-2)/50 transition-colors">
                                             {/* Identity row */}
@@ -489,25 +488,27 @@ export function FinalJobForm({
                                                     </span>
                                                 </div>
                                                 <div className="ml-auto flex flex-wrap items-center gap-x-3 gap-y-2">
-                                                    <div className="flex items-center gap-1.5">
-                                                        <span className="text-[10px] font-medium uppercase tracking-wide text-(--cl-text-muted) whitespace-nowrap">GST%</span>
-                                                        <Input
-                                                            className="h-6 w-14 border-(--cl-border) bg-white text-xs text-right"
-                                                            disabled={isWarranty}
-                                                            min="0" step="0.01" type="number"
-                                                            value={line.gst_rate}
-                                                            onChange={e => onUpdatePart(line._key, calculateLinePricing(line, { gst_rate: e.target.value }, isGst))}
-                                                            onFocus={e => e.target.select()}
-                                                        />
-                                                    </div>
+                                                    {isGst && (
+                                                        <div className="flex items-center gap-1.5">
+                                                            <span className="text-[10px] font-medium uppercase tracking-wide text-(--cl-text-muted) whitespace-nowrap">GST%</span>
+                                                            <Input
+                                                                className="h-6 w-14 border-(--cl-border) bg-white text-xs text-right"
+                                                                disabled={isWarranty}
+                                                                min="0" step="0.01" type="number"
+                                                                value={line.gst_rate}
+                                                                onChange={e => onUpdatePart(line._key, calculateLinePricing(line, { gst_rate: e.target.value }, isGst))}
+                                                                onFocus={e => e.target.select()}
+                                                            />
+                                                        </div>
+                                                    )}
                                                     <div className="flex items-center gap-1.5">
                                                         <span className="text-[10px] font-medium uppercase tracking-wide text-(--cl-text-muted) whitespace-nowrap">Qty</span>
                                                         <Input
-                                                            className={`h-6 w-16 border-(--cl-border) bg-white text-xs text-right ${line.quantity <= 0 ? "border-red-500" : ""}`}
+                                                            className={`h-6 w-16 border-(--cl-border) bg-white text-xs text-right ${line.qty <= 0 ? "border-red-500" : ""}`}
                                                             disabled={isWarranty}
                                                             min={0.01} step="0.01" type="number"
-                                                            value={line.quantity}
-                                                            onChange={e => onUpdatePart(line._key, { quantity: parseFloat(e.target.value) || 0 })}
+                                                            value={line.qty}
+                                                            onChange={e => onUpdatePart(line._key, { qty: parseFloat(e.target.value) || 0 })}
                                                             onFocus={e => e.target.select()}
                                                         />
                                                     </div>
@@ -533,21 +534,23 @@ export function FinalJobForm({
                                                             onFocus={e => e.target.select()}
                                                         />
                                                     </div>
-                                                    <div className="flex items-center gap-1.5">
-                                                        <span className="text-[10px] font-medium uppercase tracking-wide text-(--cl-text-muted) whitespace-nowrap">+GST</span>
-                                                        <Input
-                                                            className="h-6 w-24 border-(--cl-border) bg-white text-xs text-right"
-                                                            disabled={isWarranty}
-                                                            min="0" step="0.01" type="number"
-                                                            value={line.sale_pr_gst}
-                                                            onChange={e => {
-                                                                const spgst = e.target.value;
-                                                                const gr = isGst ? (parseFloat(line.gst_rate) || 0) : 0;
-                                                                onUpdatePart(line._key, { sale_pr_gst: spgst, selling_price: ((parseFloat(spgst) || 0) / (1 + gr / 100)).toFixed(2) });
-                                                            }}
-                                                            onFocus={e => e.target.select()}
-                                                        />
-                                                    </div>
+                                                    {isGst && (
+                                                        <div className="flex items-center gap-1.5">
+                                                            <span className="text-[10px] font-medium uppercase tracking-wide text-(--cl-text-muted) whitespace-nowrap">+GST</span>
+                                                            <Input
+                                                                className="h-6 w-24 border-(--cl-border) bg-white text-xs text-right"
+                                                                disabled={isWarranty}
+                                                                min="0" step="0.01" type="number"
+                                                                value={line.sale_pr_gst}
+                                                                onChange={e => {
+                                                                    const spgst = e.target.value;
+                                                                    const gr = parseFloat(line.gst_rate) || 0;
+                                                                    onUpdatePart(line._key, { sale_pr_gst: spgst, selling_price: ((parseFloat(spgst) || 0) / (1 + gr / 100)).toFixed(2) });
+                                                                }}
+                                                                onFocus={e => e.target.select()}
+                                                            />
+                                                        </div>
+                                                    )}
                                                     <div className="flex items-center gap-1 rounded bg-(--cl-surface-2) px-2 py-0.5">
                                                         <span className="text-[10px] text-(--cl-text-muted)">Amt</span>
                                                         <span className="tabular-nums text-sm text-(--cl-text)">₹{fmtCurrency(amount)}</span>
@@ -704,10 +707,10 @@ export function FinalJobForm({
                                                         className="h-7 w-16 border-(--cl-border) bg-white text-xs text-right"
                                                         disabled={isWarranty}
                                                         min="0.01" step="0.01" type="number"
-                                                        value={c.quantity}
+                                                        value={c.qty}
                                                         onChange={e => {
                                                             const qty = e.target.value;
-                                                            onUpdateCharge(c._key, "quantity", qty);
+                                                            onUpdateCharge(c._key, "qty", qty);
                                                         }}
                                                         onFocus={e => e.target.select()}
                                                     />
@@ -761,7 +764,7 @@ export function FinalJobForm({
                                                     </td>
                                                 )}
                                                 <td className={`${tdClass} text-right tabular-nums text-sm text-(--cl-accent) w-32`}>
-                                                    ₹{fmtCurrency((parseFloat(c.sale_pr_gst) || parseFloat(c.selling_price) || 0) * (parseFloat(c.quantity) || 1))}
+                                                    ₹{fmtCurrency((parseFloat(c.sale_pr_gst) || parseFloat(c.selling_price) || 0) * (parseFloat(c.qty) || 1))}
                                                 </td>
                                                 {!isWarranty && (
                                                     <td className={`${tdClass} px-1 align-middle`}>
@@ -886,13 +889,37 @@ export function FinalJobForm({
                                                     <span className="text-xs font-semibold">Tallied</span>
                                                 </div>
                                             ) : <div />}
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-xs font-bold uppercase tracking-wide text-(--cl-accent)">Total</span>
-                                                <span className="tabular-nums text-md font-bold">₹{fmtCurrency(grandTotal)}</span>
+                                            <div className="flex items-center gap-4">
+                                                <div className="flex items-center gap-1.5">
+                                                    <span className="text-xs font-medium uppercase tracking-wide text-(--cl-text-muted)">Calculated</span>
+                                                    <span className="tabular-nums text-sm font-semibold text-(--cl-text)">₹{fmtCurrency(grandTotal)}</span>
+                                                </div>
+                                                <div className="flex items-center gap-1.5">
+                                                    <span className="text-xs font-bold uppercase tracking-wide text-(--cl-accent)">Total</span>
+                                                    <span className="tabular-nums text-md font-bold">
+                                                        {(() => {
+                                                            const effectiveTotal = (backCalcTarget !== "" && !isNaN(backCalcNum) && backCalcNum > 0)
+                                                                ? backCalcNum
+                                                                : (selectedJob.amount != null && Number(selectedJob.amount) > 0)
+                                                                    ? Number(selectedJob.amount)
+                                                                    : grandTotal;
+                                                            return `₹${fmtCurrency(effectiveTotal)}`;
+                                                        })()}
+                                                    </span>
+                                                </div>
                                             </div>
                                         </div>
                                         {!isWarranty && (
-                                            <div className="flex items-center gap-2">
+                                            <div className="flex items-center justify-end gap-2">
+                                                <Button
+                                                    className="h-7 shrink-0 text-xs"
+                                                    disabled={!backCalcTarget}
+                                                    size="sm"
+                                                    variant="outline"
+                                                    onClick={() => setBackCalcTarget("")}
+                                                >
+                                                    Clear
+                                                </Button>
                                                 <Button
                                                     className="h-7 shrink-0 text-xs"
                                                     disabled={!backCalcTarget || isNaN(backCalcNum) || backCalcNum < 0}
@@ -928,13 +955,6 @@ export function FinalJobForm({
             {viewJobId !== null && (
                 <JobDetailsModal jobId={viewJobId} onClose={() => setViewJobId(null)} />
             )}
-            <ChangeDivisionModal
-                currentDivisionId={selectedDivisionId}
-                divisions={availableDivisions}
-                open={changeDivOpen}
-                onApply={onChangeDivision}
-                onClose={() => setChangeDivOpen(false)}
-            />
         </>
     );
 }

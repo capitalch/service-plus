@@ -1265,7 +1265,7 @@ async def resolve_create_job_batch_helper(
                     "warranty_card_no": job.get("warranty_card_no"),
                     "job_receive_condition_id": job.get("job_receive_condition_id"),
                     "remarks": job.get("remarks"),
-                    "quantity": job.get("quantity", 1),
+                    "qty": job.get("qty", 1),
                     "alternate_job_no": job.get("alternate_job_no") or None,
                 }
                 job_id = await process_data(job_data, cur, "job", None, None)
@@ -1338,7 +1338,7 @@ async def resolve_update_job_batch_helper(
                 await cur.execute(
                     "UPDATE job SET job_type_id=%s, product_brand_model_id=%s, serial_no=%s,"
                     " problem_reported=%s, warranty_card_no=%s,"
-                    " job_receive_condition_id=%s, remarks=%s, quantity=%s,"
+                    " job_receive_condition_id=%s, remarks=%s, qty=%s,"
                     " alternate_job_no=%s WHERE id=%s",
                     (
                         job.get("job_type_id"),
@@ -1348,7 +1348,7 @@ async def resolve_update_job_batch_helper(
                         job.get("warranty_card_no"),
                         job.get("job_receive_condition_id"),
                         job.get("remarks"),
-                        job.get("quantity", 1),
+                        job.get("qty", 1),
                         job.get("alternate_job_no") or None,
                         job_id,
                     ),
@@ -1379,7 +1379,7 @@ async def resolve_update_job_batch_helper(
                         " (branch_id, batch_no, job_no, job_date, customer_contact_id,"
                         "  job_type_id, job_receive_manner_id, job_status_id,"
                         "  product_brand_model_id, serial_no, problem_reported,"
-                        "  warranty_card_no, job_receive_condition_id, remarks, quantity)"
+                        "  warranty_card_no, job_receive_condition_id, remarks, qty)"
                         " VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
                         (
                             branch_id,
@@ -1396,7 +1396,7 @@ async def resolve_update_job_batch_helper(
                             job.get("warranty_card_no"),
                             job.get("job_receive_condition_id"),
                             job.get("remarks"),
-                            job.get("quantity", 1),
+                            job.get("qty", 1),
                         ),
                     )
                     new_job_id = (await cur.fetchone())["id"]

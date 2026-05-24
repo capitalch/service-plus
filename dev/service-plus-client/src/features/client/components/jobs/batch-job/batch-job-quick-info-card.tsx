@@ -94,7 +94,7 @@ export function BatchJobQuickInfoCard({ onAttachJob, onEdit, onView, onPrint, re
 
     if (loading || !isReady) {
         return (
-            <div className="w-full rounded-xl border border-[var(--cl-border)] bg-[var(--cl-surface-2)] px-4 py-3 flex items-center gap-2 text-xs text-[var(--cl-text-muted)]">
+            <div className="w-full rounded-xl border border-(--cl-border) bg-(--cl-surface-2) px-4 py-3 flex items-center gap-2 text-xs text-(--cl-text-muted)">
                 <Loader2 className="h-4 w-4 animate-spin" />
                 Loading last batch…
             </div>
@@ -103,7 +103,7 @@ export function BatchJobQuickInfoCard({ onAttachJob, onEdit, onView, onPrint, re
 
     if (rows.length === 0) {
         return (
-            <div className="w-full rounded-xl border border-dashed border-[var(--cl-border)] bg-[var(--cl-surface-2)] px-4 py-6 text-center text-xs text-[var(--cl-text-muted)]">
+            <div className="w-full rounded-xl border border-dashed border-(--cl-border) bg-(--cl-surface-2) px-4 py-6 text-center text-xs text-(--cl-text-muted)">
                 No batch jobs created yet.
             </div>
         );
@@ -114,13 +114,13 @@ export function BatchJobQuickInfoCard({ onAttachJob, onEdit, onView, onPrint, re
     const customerName = rows[0].customer_name;
 
     return (
-        <div className="w-full rounded-xl border border-[var(--cl-border)] bg-gradient-to-r from-[var(--cl-surface-2)] to-[var(--cl-surface)] shadow-sm">
+        <div className="w-full rounded-xl border border-(--cl-border) bg-gradient-to-r from-(--cl-surface-2) to-(--cl-surface) shadow-sm">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-4 py-3 gap-3">
                 {/* Left: batch info */}
                 <div className="flex-1 min-w-0 w-full">
                     {/* Header row */}
                     <div className="flex items-center gap-2 flex-wrap mb-2">
-                        <span className="font-mono text-sm font-bold text-[var(--cl-text)] tracking-tight">
+                        <span className="font-mono text-sm font-bold text-(--cl-text) tracking-tight">
                             Batch #{batchNo}
                         </span>
                         {isAtLatest && (
@@ -138,7 +138,7 @@ export function BatchJobQuickInfoCard({ onAttachJob, onEdit, onView, onPrint, re
                                 Position {offset + 1}
                             </span>
                         )}
-                        <span className="text-xs text-[var(--cl-text-muted)] font-medium tabular-nums">{batchDate || "—"}</span>
+                        <span className="text-xs text-(--cl-text-muted) font-medium tabular-nums">{batchDate || "—"}</span>
                         {rows[0]?.division_id && (() => {
                             const dv = divisions.find(d => d.id === rows[0].division_id);
                             return dv ? (
@@ -147,8 +147,8 @@ export function BatchJobQuickInfoCard({ onAttachJob, onEdit, onView, onPrint, re
                                 </span>
                             ) : null;
                         })()}
-                        <span className="text-xs text-[var(--cl-text-muted)]">•</span>
-                        <span className="text-xs font-medium text-[var(--cl-text)] truncate">{customerName || "—"}</span>
+                        <span className="text-xs text-(--cl-text-muted)">•</span>
+                        <span className="text-xs font-medium text-(--cl-text) truncate">{customerName || "—"}</span>
 
                     </div>
 
@@ -156,19 +156,19 @@ export function BatchJobQuickInfoCard({ onAttachJob, onEdit, onView, onPrint, re
                     <div className="flex flex-col gap-1">
                         {rows.map(row => (
                             <div key={row.job_id} className="flex items-center gap-2 text-xs min-w-0">
-                                <span className="font-mono font-semibold text-[var(--cl-accent)] shrink-0 w-24 truncate">
+                                <span className="font-mono font-semibold text-(--cl-accent) shrink-0 w-24 truncate">
                                     {row.job_no}
                                 </span>
-                                <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-[var(--cl-accent)]/10 text-[var(--cl-accent)] shrink-0">
+                                <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-(--cl-accent)/10 text-(--cl-accent) shrink-0">
                                     {row.job_type_name}
                                 </span>
-                                <span className="text-[var(--cl-text)] truncate flex-1">
+                                <span className="text-(--cl-text) truncate flex-1">
                                     {row.device_details || "—"}
                                 </span>
                                 {row.serial_no && (
                                     <>
-                                        <span className="text-[var(--cl-text-muted)] shrink-0">·</span>
-                                        <span className="text-[var(--cl-text-muted)] font-mono shrink-0">{row.serial_no}</span>
+                                        <span className="text-(--cl-text-muted) shrink-0">·</span>
+                                        <span className="text-(--cl-text-muted) font-mono shrink-0">{row.serial_no}</span>
                                     </>
                                 )}
                                 {(row.file_count ?? 0) > 0 ? (
@@ -236,9 +236,9 @@ export function BatchJobQuickInfoCard({ onAttachJob, onEdit, onView, onPrint, re
                         </Button> */}
                     </div>
 
-                    <div className="h-6 w-px bg-[var(--cl-border)] shrink-0" />
+                    <div className="h-6 w-px bg-(--cl-border) shrink-0" />
 
-                    <div className="flex items-center gap-1.5 p-1.5 rounded-xl border border-[var(--cl-border)] bg-[var(--cl-surface)] shadow-sm">
+                    <div className="flex items-center gap-1.5 p-1.5 rounded-xl border border-(--cl-border) bg-(--cl-surface) shadow-sm">
                         <NavButton
                             icon={<ChevronsLeftIcon className="h-4 w-4" />}
                             title="Oldest batch"
@@ -263,7 +263,7 @@ export function BatchJobQuickInfoCard({ onAttachJob, onEdit, onView, onPrint, re
                             disabled={isAtLatest || navLoading}
                             onClick={() => void fetchBatch(0, true)}
                         />
-                        {navLoading && <Loader2 className="h-4 w-4 animate-spin text-[var(--cl-accent)] ml-0.5 shrink-0" />}
+                        {navLoading && <Loader2 className="h-4 w-4 animate-spin text-(--cl-accent) ml-0.5 shrink-0" />}
                     </div>
                 </div>
             </div>
@@ -285,7 +285,7 @@ function NavButton({ icon, title, disabled, onClick }: NavButtonProps) {
             title={title}
             disabled={disabled}
             onClick={onClick}
-            className="flex items-center justify-center h-9 w-9 rounded-lg border border-transparent text-[var(--cl-text-muted)] hover:bg-[var(--cl-accent)] hover:text-white hover:border-[var(--cl-accent)]/30 transition-all disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-[var(--cl-text-muted)] disabled:hover:border-transparent shrink-0 cursor-pointer"
+            className="flex items-center justify-center h-9 w-9 rounded-lg border border-transparent text-(--cl-text-muted) hover:bg-(--cl-accent) hover:text-white hover:border-(--cl-accent)/30 transition-all disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-(--cl-text-muted) disabled:hover:border-transparent shrink-0 cursor-pointer"
         >
             {icon}
         </button>

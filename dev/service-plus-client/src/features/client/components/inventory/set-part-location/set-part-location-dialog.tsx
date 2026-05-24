@@ -61,8 +61,8 @@ function today(): string {
     return new Date().toISOString().slice(0, 10);
 }
 
-const thCls = "text-xs font-semibold uppercase tracking-wide text-[var(--cl-text-muted)] px-2 py-1.5 text-left border-b border-[var(--cl-border)] bg-[var(--cl-surface-3)]";
-const tdCls = "px-2 py-1 border-b border-[var(--cl-border)] text-sm align-top";
+const thCls = "text-xs font-semibold uppercase tracking-wide text-(--cl-text-muted) px-2 py-1.5 text-left border-b border-(--cl-border) bg-(--cl-surface-3)";
+const tdCls = "px-2 py-1 border-b border-(--cl-border) text-sm align-top";
 
 const setPartLocationSchema = z.object({
     txn_date: z.string().min(1),
@@ -139,7 +139,7 @@ function LocationRow({ allPartCodes, branchId, canRemove, dbName, index, line, l
 
     return (
         <tr>
-            <td className={`${tdCls} w-8 text-center text-xs text-[var(--cl-text-muted)]`}>{index + 1}</td>
+            <td className={`${tdCls} w-8 text-center text-xs text-(--cl-text-muted)`}>{index + 1}</td>
             <td className={tdCls}>
                 <div className="flex flex-col gap-0.5">
                     <Input
@@ -150,15 +150,15 @@ function LocationRow({ allPartCodes, branchId, canRemove, dbName, index, line, l
                         onChange={(e) => onUpdate(line._key, { error: null, part_code: e.target.value, part_id: null, part_name: "" })}
                     />
                     {line.validating && (
-                        <span className="flex items-center gap-1 text-xs text-[var(--cl-text-muted)]">
+                        <span className="flex items-center gap-1 text-xs text-(--cl-text-muted)">
                             <Loader2 className="h-3 w-3 animate-spin" /> Checking…
                         </span>
                     )}
                     {line.error && <span className="text-xs text-red-500">{line.error}</span>}
                 </div>
             </td>
-            <td className={`${tdCls} text-[var(--cl-text-muted)]`}>
-                {line.part_name || <span className="text-[var(--cl-text-muted)] opacity-40">—</span>}
+            <td className={`${tdCls} text-(--cl-text-muted)`}>
+                {line.part_name || <span className="text-(--cl-text-muted) opacity-40">—</span>}
             </td>
             <td className={tdCls}>
                 <Select
@@ -315,8 +315,8 @@ export const SetPartLocationDialog = ({ locations, onOpenChange, onSuccess, open
                     </div>
 
                     {/* ── Apply to All ──────────────────────────────────────── */}
-                    <div className="flex items-center gap-3 rounded-lg border border-[var(--cl-border)] bg-[var(--cl-surface-2)] px-3 py-2">
-                        <span className="shrink-0 text-sm font-medium text-[var(--cl-text)]">Apply location to all rows:</span>
+                    <div className="flex items-center gap-3 rounded-lg border border-(--cl-border) bg-(--cl-surface-2) px-3 py-2">
+                        <span className="shrink-0 text-sm font-medium text-(--cl-text)">Apply location to all rows:</span>
                         <Select
                             value={applyToAll ? String(applyToAll) : ""}
                             onValueChange={(v) => handleApplyToAll(Number(v))}
@@ -335,7 +335,7 @@ export const SetPartLocationDialog = ({ locations, onOpenChange, onSuccess, open
                     </div>
 
                     {/* ── Lines table ───────────────────────────────────────── */}
-                    <div className="overflow-x-auto rounded-lg border border-[var(--cl-border)]">
+                    <div className="overflow-x-auto rounded-lg border border-(--cl-border)">
                         <table className="w-full">
                             <thead>
                                 <tr>

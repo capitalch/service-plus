@@ -7,7 +7,7 @@ export const newPartUsedLineSchema = z.object({
     part_code: z.string().default(""),
     part_name: z.string().default(""),
     uom:       z.string().default(""),
-    quantity:  z.number().min(0).default(1),
+    qty:  z.number().min(0).default(1),
     remarks:   z.string().default(""),
 });
 
@@ -35,7 +35,7 @@ export function getInitialPartUsedLine(): NewPartUsedLineFormValues {
         part_code: "",
         part_name: "",
         uom:       "",
-        quantity:  1,
+        qty:  1,
         remarks:   "",
     };
 }
@@ -57,6 +57,6 @@ export type ExistingLine = {
     part_code: string;
     part_name: string;
     uom:       string;
-    quantity:  number;
+    qty:  number;
     remarks:   string | null;
 };

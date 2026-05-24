@@ -37,9 +37,9 @@ type GenericQueryData<T> = {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const thClass     = "sticky top-0 z-20 text-xs font-semibold uppercase tracking-wide text-[var(--cl-text-muted)] p-3 text-left border-b border-[var(--cl-border)] bg-[var(--cl-surface-2)]";
-const thSortClass = `${thClass} cursor-pointer select-none hover:text-[var(--cl-text)] transition-colors`;
-const tdClass     = "p-3 text-sm text-[var(--cl-text)] border-b border-[var(--cl-border)]";
+const thClass     = "sticky top-0 z-20 text-xs font-semibold uppercase tracking-wide text-(--cl-text-muted) p-3 text-left border-b border-(--cl-border) bg-(--cl-surface-2)";
+const thSortClass = `${thClass} cursor-pointer select-none hover:text-(--cl-text) transition-colors`;
+const tdClass     = "p-3 text-sm text-(--cl-text) border-b border-(--cl-border)";
 
 const PAGE_SIZE = 50;
 
@@ -189,11 +189,11 @@ export const StockOverviewSection = () => {
             {/* Header */}
             <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-[var(--cl-accent)]/10">
-                        <Package className="h-5 w-5 text-[var(--cl-accent)]" />
+                    <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-(--cl-accent)/10">
+                        <Package className="h-5 w-5 text-(--cl-accent)" />
                     </div>
                     <div>
-                        <h1 className="text-xl font-bold text-[var(--cl-text)]">Stock Overview</h1>
+                        <h1 className="text-xl font-bold text-(--cl-text)">Stock Overview</h1>
                     </div>
                 </div>
             </div>
@@ -201,16 +201,16 @@ export const StockOverviewSection = () => {
             {/* Toolbar (Search & Brand) */}
             <div className="flex flex-wrap items-center gap-3">
                 <div className="relative flex-1 sm:w-80 sm:flex-none">
-                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--cl-text-muted)]" />
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-(--cl-text-muted)" />
                     <Input
-                        className="h-10 border-[var(--cl-border)] bg-[var(--cl-surface)] pl-9 shadow-sm"
+                        className="h-10 border-(--cl-border) bg-(--cl-surface) pl-9 shadow-sm"
                         placeholder="Search parts by name, code, or category..."
                         value={search}
                         onChange={e => setSearch(e.target.value)}
                     />
                             {search && (
                                 <button
-                                    className="absolute right-2.5 top-1/2 flex h-4 w-4 -translate-y-1/2 items-center justify-center rounded-full bg-[var(--cl-text-muted)] text-[var(--cl-surface)] hover:bg-[var(--cl-text)] focus:outline-none"
+                                    className="absolute right-2.5 top-1/2 flex h-4 w-4 -translate-y-1/2 items-center justify-center rounded-full bg-(--cl-text-muted) text-(--cl-surface) hover:bg-(--cl-text) focus:outline-none"
                                     type="button"
                                     onClick={() => setSearch("")}
                                 >
@@ -234,12 +234,12 @@ export const StockOverviewSection = () => {
             {/* Keeping it simple here */}
 
             {/* Data Grid */}
-            <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-[var(--cl-border)] bg-[var(--cl-surface)] shadow-sm">
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-(--cl-border) bg-(--cl-surface) shadow-sm">
                 <div className="flex-1 overflow-x-auto overflow-y-auto">
                     {loading ? (
                         <table className="min-w-full border-collapse">
                             <thead className="sticky top-0 z-30">
-                                <tr className="bg-[var(--cl-surface-2)]">
+                                <tr className="bg-(--cl-surface-2)">
                                     <th className={thClass}>Part Code</th>
                                     <th className={thClass}>Part Name</th>
                                     <th className={thClass}>Category</th>
@@ -252,19 +252,19 @@ export const StockOverviewSection = () => {
                             <tbody>
                                 {Array.from({ length: 10 }).map((_, i) => (
                                     <tr key={i} className="animate-pulse">
-                                        <td className={tdClass} style={{ width: "15%" }}><div className="h-4 w-20 rounded bg-[var(--cl-border)]" /></td>
-                                        <td className={tdClass} style={{ width: "25%" }}><div className="h-4 w-40 rounded bg-[var(--cl-border)]" /></td>
-                                        <td className={tdClass} style={{ width: "15%" }}><div className="h-4 w-24 rounded bg-[var(--cl-border)]" /></td>
-                                        <td className={tdClass} style={{ width: "10%" }}><div className="h-4 w-10 rounded bg-[var(--cl-border)]" /></td>
-                                        <td className={`${tdClass} text-right`} style={{ width: "12%" }}><div className="ml-auto h-4 w-12 rounded bg-[var(--cl-border)]" /></td>
-                                        <td className={`${tdClass} text-right`} style={{ width: "10%" }}><div className="ml-auto h-4 w-16 rounded bg-[var(--cl-border)]" /></td>
-                                        <td className={`${tdClass} text-right`} style={{ width: "13%" }}><div className="ml-auto h-4 w-20 rounded bg-[var(--cl-border)]" /></td>
+                                        <td className={tdClass} style={{ width: "15%" }}><div className="h-4 w-20 rounded bg-(--cl-border)" /></td>
+                                        <td className={tdClass} style={{ width: "25%" }}><div className="h-4 w-40 rounded bg-(--cl-border)" /></td>
+                                        <td className={tdClass} style={{ width: "15%" }}><div className="h-4 w-24 rounded bg-(--cl-border)" /></td>
+                                        <td className={tdClass} style={{ width: "10%" }}><div className="h-4 w-10 rounded bg-(--cl-border)" /></td>
+                                        <td className={`${tdClass} text-right`} style={{ width: "12%" }}><div className="ml-auto h-4 w-12 rounded bg-(--cl-border)" /></td>
+                                        <td className={`${tdClass} text-right`} style={{ width: "10%" }}><div className="ml-auto h-4 w-16 rounded bg-(--cl-border)" /></td>
+                                        <td className={`${tdClass} text-right`} style={{ width: "13%" }}><div className="ml-auto h-4 w-20 rounded bg-(--cl-border)" /></td>
                                     </tr>
                                 ))}
                             </tbody>
                         </table>
                     ) : total === 0 ? (
-                        <div className="flex h-32 items-center justify-center text-sm text-[var(--cl-text-muted)]">
+                        <div className="flex h-32 items-center justify-center text-sm text-(--cl-text-muted)">
                             No stock data found.
                         </div>
                     ) : (
@@ -290,9 +290,9 @@ export const StockOverviewSection = () => {
                                     <th className={`${thClass} text-right`}>Value</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-[var(--cl-border)] bg-[var(--cl-surface)]">
+                            <tbody className="divide-y divide-(--cl-border) bg-(--cl-surface)">
                                 {displayData.map((row) => (
-                                    <tr key={row.part_id} className="transition-colors hover:bg-[var(--cl-surface-2)]/50">
+                                    <tr key={row.part_id} className="transition-colors hover:bg-(--cl-surface-2)/50">
                                         <td className={`${tdClass} font-mono font-medium`} style={{ width: "15%" }}>
                                             {row.part_code}
                                         </td>
@@ -303,7 +303,7 @@ export const StockOverviewSection = () => {
                                             {row.category || <span className="text-opacity-50">—</span>}
                                         </td>
                                         <td className={tdClass} style={{ width: "10%" }}>
-                                            <span className="rounded-md bg-[var(--cl-surface-3)] px-2 py-0.5 text-xs font-semibold">
+                                            <span className="rounded-md bg-(--cl-surface-3) px-2 py-0.5 text-xs font-semibold">
                                                 {row.uom}
                                             </span>
                                         </td>
@@ -326,21 +326,21 @@ export const StockOverviewSection = () => {
                 </div>
 
                 {/* Sticky Footer Summary & Pagination */}
-                <div className="sticky bottom-0 z-20 flex flex-wrap items-center justify-between gap-4 border-t border-[var(--cl-border)] bg-[var(--cl-surface-2)] px-4 py-2 shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
-                    <div className="flex items-center gap-4 text-sm text-[var(--cl-text-muted)]">
-                        <span className="font-semibold text-[var(--cl-text)]">
-                            {total} <span className="font-normal text-[var(--cl-text-muted)] ml-0.5">Records</span>
+                <div className="sticky bottom-0 z-20 flex flex-wrap items-center justify-between gap-4 border-t border-(--cl-border) bg-(--cl-surface-2) px-4 py-2 shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
+                    <div className="flex items-center gap-4 text-sm text-(--cl-text-muted)">
+                        <span className="font-semibold text-(--cl-text)">
+                            {total} <span className="font-normal text-(--cl-text-muted) ml-0.5">Records</span>
                         </span>
-                        <div className="h-4 w-px bg-[var(--cl-border)]" />
-                        <span className="font-semibold text-[var(--cl-text)]">
-                            {formatCurrency(totalValue)} <span className="font-normal text-[var(--cl-text-muted)] ml-0.5">Total Value</span>
+                        <div className="h-4 w-px bg-(--cl-border)" />
+                        <span className="font-semibold text-(--cl-text)">
+                            {formatCurrency(totalValue)} <span className="font-normal text-(--cl-text-muted) ml-0.5">Total Value</span>
                         </span>
                     </div>
 
                     {total > 0 && (
                         <div className="flex items-center gap-6">
-                            <div className="flex items-center gap-2 text-xs font-medium text-[var(--cl-text-muted)]">
-                                Page <span className="text-[var(--cl-text)]">{page}</span> of {Math.ceil(total / PAGE_SIZE)}
+                            <div className="flex items-center gap-2 text-xs font-medium text-(--cl-text-muted)">
+                                Page <span className="text-(--cl-text)">{page}</span> of {Math.ceil(total / PAGE_SIZE)}
                             </div>
                             <div className="flex items-center gap-1">
                                 <Button

@@ -7,8 +7,8 @@ import { JobAttachDialog } from "../single-job/job-attach-dialog";
 import { useAppSelector } from "@/store/hooks";
 import { selectAvailableDivisions } from "@/store/context-slice";
 
-const thClass = "sticky top-0 z-10 text-[10px] font-semibold uppercase tracking-wide text-[var(--cl-text-muted)] p-2.5 text-left border-b border-[var(--cl-border)] bg-[var(--cl-surface-2)]";
-const tdClass = "p-2.5 text-sm text-[var(--cl-text)] border-b border-[var(--cl-border)]";
+const thClass = "sticky top-0 z-10 text-[10px] font-semibold uppercase tracking-wide text-(--cl-text-muted) p-2.5 text-left border-b border-(--cl-border) bg-(--cl-surface-2)";
+const tdClass = "p-2.5 text-sm text-(--cl-text) border-b border-(--cl-border)";
 
 type Props = {
     isOpen: boolean;
@@ -35,21 +35,21 @@ export const BatchJobViewModal = ({ isOpen, batchNo, jobs, loading, onClose, onP
             <Dialog open={isOpen} onOpenChange={onClose}>
                 <DialogContent
                     aria-describedby={undefined}
-                    className="sm:max-w-5xl max-h-[85vh] !p-0 overflow-hidden bg-white dark:bg-zinc-950 text-[var(--cl-text)]"
+                    className="sm:max-w-5xl max-h-[85vh] !p-0 overflow-hidden bg-white dark:bg-zinc-950 text-(--cl-text)"
                     onInteractOutside={e => e.preventDefault()}
                     onEscapeKeyDown={e => e.preventDefault()}
                 >
-                    <DialogHeader className="px-6 pt-6 pb-4 border-b border-[var(--cl-border)]">
+                    <DialogHeader className="px-6 pt-6 pb-4 border-b border-(--cl-border)">
                         <DialogTitle className="flex items-center gap-3 text-base font-bold">
-                            <div className="flex h-8 w-8 items-center justify-center rounded bg-[var(--cl-accent)]/10 text-[var(--cl-accent)]">
+                            <div className="flex h-8 w-8 items-center justify-center rounded bg-(--cl-accent)/10 text-(--cl-accent)">
                                 <Briefcase className="h-4 w-4" />
                             </div>
                             Batch #{batchNo}
-                            <span className="text-xs font-normal text-[var(--cl-text-muted)]">
+                            <span className="text-xs font-normal text-(--cl-text-muted)">
                                 {jobs.length} job{jobs.length !== 1 ? "s" : ""}
                             </span>
                             {batchDivision && (
-                                <span className="text-xs font-normal text-[var(--cl-text-muted)]">
+                                <span className="text-xs font-normal text-(--cl-text-muted)">
                                     · {batchDivision.name}
                                 </span>
                             )}
@@ -58,7 +58,7 @@ export const BatchJobViewModal = ({ isOpen, batchNo, jobs, loading, onClose, onP
 
                     <div className="px-6 py-4 overflow-y-auto" style={{ maxHeight: "calc(85vh - 180px)" }}>
                         {loading ? (
-                            <div className="flex items-center justify-center py-12 text-xs text-[var(--cl-text-muted)] gap-2">
+                            <div className="flex items-center justify-center py-12 text-xs text-(--cl-text-muted) gap-2">
                                 <Loader2 className="h-4 w-4 animate-spin" />
                                 Loading job details…
                             </div>
@@ -82,10 +82,10 @@ export const BatchJobViewModal = ({ isOpen, batchNo, jobs, loading, onClose, onP
                                     </thead>
                                     <tbody>
                                         {jobs.map((job, idx) => (
-                                            <tr key={job.id} className="group hover:bg-[var(--cl-accent)]/5">
-                                                <td className={`${tdClass} text-[var(--cl-text-muted)] text-xs`}>{idx + 1}</td>
+                                            <tr key={job.id} className="group hover:bg-(--cl-accent)/5">
+                                                <td className={`${tdClass} text-(--cl-text-muted) text-xs`}>{idx + 1}</td>
                                                 <td className={`${tdClass} whitespace-nowrap text-xs`}>{job.job_date}</td>
-                                                <td className={`${tdClass} font-mono text-xs font-medium text-[var(--cl-accent)]`}>
+                                                <td className={`${tdClass} font-mono text-xs font-medium text-(--cl-accent)`}>
                                                     {job.job_no}
                                                     {job.is_closed && (
                                                         <span className="ml-1.5 text-[9px] font-bold text-emerald-600 bg-emerald-100 dark:bg-emerald-950/40 rounded px-1 py-0.5">CLOSED</span>
@@ -98,7 +98,7 @@ export const BatchJobViewModal = ({ isOpen, batchNo, jobs, loading, onClose, onP
                                                 </td>
                                                 <td className={`${tdClass} text-xs`}>{job.job_type_name}</td>
                                                 <td className={`${tdClass} text-xs`}>
-                                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-[var(--cl-accent)]/10 text-[var(--cl-accent)]">
+                                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-(--cl-accent)/10 text-(--cl-accent)">
                                                         {job.job_status_name}
                                                     </span>
                                                 </td>
@@ -124,7 +124,7 @@ export const BatchJobViewModal = ({ isOpen, batchNo, jobs, loading, onClose, onP
                                         ))}
                                     </tbody>
                                     <tfoot>
-                                        <tr className="bg-[var(--cl-surface-2)]">
+                                        <tr className="bg-(--cl-surface-2)">
                                             <td colSpan={9} className={`${tdClass} font-bold text-right text-xs`}>Total</td>
                                             <td className={`${tdClass} text-right font-bold text-xs`}>
                                                 ₹{jobs.reduce((sum, j) => sum + Number(j.amount ?? 0), 0).toFixed(2)}
@@ -137,7 +137,7 @@ export const BatchJobViewModal = ({ isOpen, batchNo, jobs, loading, onClose, onP
                         )}
                     </div>
 
-                    <DialogFooter className="px-6 pt-4 pb-6 border-t border-[var(--cl-border)]">
+                    <DialogFooter className="px-6 pt-4 pb-6 border-t border-(--cl-border)">
                         <Button variant="outline" onClick={onClose}>Close</Button>
                         <Button
                             className="gap-1.5 bg-indigo-500 hover:bg-indigo-600 text-white"

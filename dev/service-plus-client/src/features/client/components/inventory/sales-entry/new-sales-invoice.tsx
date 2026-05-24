@@ -56,7 +56,7 @@ type Props = {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function calcLine(l: z.infer<typeof import("./sales-invoice-schema").salesLineSchema>, isIgst: boolean) {
-    const aggregate = l.quantity * l.unit_price;
+    const aggregate = l.qty * l.unit_price;
     const gst       = l.gst_rate;
     const cgstAmt   = isIgst ? 0 : aggregate * (gst / 2) / 100;
     const sgstAmt   = isIgst ? 0 : aggregate * (gst / 2) / 100;
@@ -77,9 +77,9 @@ function formatNumber(num: number): string {
 
 // ─── CSS ──────────────────────────────────────────────────────────────────────
 
-const thClass = "sticky top-0 z-20 text-xs font-extrabold uppercase tracking-widest text-[var(--cl-text)] py-2 px-2 text-left border-b border-[var(--cl-border)] bg-zinc-200/60 dark:bg-zinc-800/60 backdrop-blur-sm shadow-[0_1px_0_var(--cl-border)]";
-const tdClass = "p-0.5 border-b border-[var(--cl-border)]";
-const inputCls = "h-7 border-[var(--cl-border)] bg-white text-sm px-2";
+const thClass = "sticky top-0 z-20 text-xs font-extrabold uppercase tracking-widest text-(--cl-text) py-2 px-2 text-left border-b border-(--cl-border) bg-zinc-200/60 dark:bg-zinc-800/60 backdrop-blur-sm shadow-[0_1px_0_var(--cl-border)]";
+const tdClass = "p-0.5 border-b border-(--cl-border)";
+const inputCls = "h-7 border-(--cl-border) bg-white text-sm px-2";
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -164,7 +164,7 @@ export function NewSalesInvoice({
                 part_name:        l.part_name,
                 uom:              "",
                 hsn_code:         l.hsn_code ?? "",
-                quantity:         Number(l.quantity),
+                qty:         Number(l.qty),
                 unit_price:       Number(l.unit_price),
                 gst_rate:         Number(l.gst_rate ?? 0),
                 aggregate_amount: Number(l.aggregate_amount ?? l.taxable_amount ?? 0),
@@ -236,16 +236,16 @@ export function NewSalesInvoice({
 
     // Totals
     const totals = useMemo(() => {
-        let quantity = 0, aggregate = 0, cgst = 0, sgst = 0, igst = 0;
+        let qty = 0, aggregate = 0, cgst = 0, sgst = 0, igst = 0;
         for (const l of lines) {
             const c    = calcLine(l, isIgst);
-            quantity  += l.quantity;
+            qty  += l.qty;
             aggregate += c.aggregate;
             cgst      += c.cgstAmt;
             sgst      += c.sgstAmt;
             igst      += c.igstAmt;
         }
-        return { quantity, aggregate, cgst, sgst, igst, total_tax: cgst + sgst + igst, total: aggregate + cgst + sgst + igst };
+        return { qty, aggregate, cgst, sgst, igst, total_tax: cgst + sgst + igst, total: aggregate + cgst + sgst + igst };
     }, [lines, isIgst]);
 
     const invoiceDate = form.watch("invoice_date");
@@ -258,26 +258,26 @@ export function NewSalesInvoice({
             className="flex min-h-fit md:min-h-0 md:flex-1 flex-col gap-2 pb-0 md:overflow-hidden"
         >
             {!branchId ? (
-                <div className="flex flex-col items-center justify-center py-20 bg-[var(--cl-surface-2)]/30 rounded-xl border-2 border-dashed border-[var(--cl-border)] text-center">
-                    <div className="bg-[var(--cl-accent)]/5 p-5 rounded-full mb-4">
-                        <Plus className="h-12 w-12 text-[var(--cl-accent)] opacity-40" />
+                <div className="flex flex-col items-center justify-center py-20 bg-(--cl-surface-2)/30 rounded-xl border-2 border-dashed border-(--cl-border) text-center">
+                    <div className="bg-(--cl-accent)/5 p-5 rounded-full mb-4">
+                        <Plus className="h-12 w-12 text-(--cl-accent) opacity-40" />
                     </div>
-                    <h3 className="text-lg font-semibold text-[var(--cl-text)] mb-2">No Branch Selected</h3>
-                    <p className="text-[var(--cl-text-muted)] max-w-md px-6">
+                    <h3 className="text-lg font-semibold text-(--cl-text) mb-2">No Branch Selected</h3>
+                    <p className="text-(--cl-text-muted) max-w-md px-6">
                         Please select a target branch from the global header to start recording a new sales invoice.
                     </p>
                 </div>
             ) : (
                 <>
-                    <p className="text-[10px] font-black uppercase tracking-[0.15em] text-[var(--cl-text-muted)] px-1 mb-1 flex items-center gap-2">
+                    <p className="text-[10px] font-black uppercase tracking-[0.15em] text-(--cl-text-muted) px-1 mb-1 flex items-center gap-2">
                         Invoice Details
                         {isReturn && <span className="px-1.5 py-0.5 rounded bg-red-500/10 text-red-600 border border-red-500/20">Return</span>}
                     </p>
-                    <Card className={`border-[var(--cl-border)] shadow-md !overflow-visible bg-[var(--cl-surface)] ${isReturn ? "border-l-4 border-l-red-500" : ""}`}>
+                    <Card className={`border-(--cl-border) shadow-md !overflow-visible bg-(--cl-surface) ${isReturn ? "border-l-4 border-l-red-500" : ""}`}>
                         <CardContent className="pt-4 grid grid-cols-1 md:grid-cols-6 lg:grid-cols-12 gap-x-2 gap-y-2 !overflow-visible">
                             {/* Customer search */}
                             <div className="space-y-2 md:col-span-2 lg:col-span-3">
-                                <Label className="text-xs font-extrabold text-[var(--cl-text)] uppercase tracking-widest">
+                                <Label className="text-xs font-extrabold text-(--cl-text) uppercase tracking-widest">
                                     Customer <span className="text-red-500 ml-0.5">*</span>
                                 </Label>
                                 <CustomerInput
@@ -310,11 +310,11 @@ export function NewSalesInvoice({
 
                             {/* Customer Name (editable) */}
                             <div className="space-y-2 md:col-span-2 lg:col-span-3">
-                                <Label className="text-xs font-extrabold text-[var(--cl-text)] uppercase tracking-widest">
+                                <Label className="text-xs font-extrabold text-(--cl-text) uppercase tracking-widest">
                                     Customer Name <span className="text-red-500 ml-0.5">*</span>
                                 </Label>
                                 <Input
-                                    className={`bg-[var(--cl-surface-2)] ${!customerName.trim() ? "border-red-500 focus:border-red-500 ring-red-500/10" : ""}`}
+                                    className={`bg-(--cl-surface-2) ${!customerName.trim() ? "border-red-500 focus:border-red-500 ring-red-500/10" : ""}`}
                                     placeholder="Walk-in customer or name…"
                                     value={customerName}
                                     onChange={e => setCustomerName(e.target.value)}
@@ -323,9 +323,9 @@ export function NewSalesInvoice({
 
                             {/* Customer GSTIN */}
                             <div className="space-y-2 md:col-span-1 lg:col-span-2">
-                                <Label className="text-xs font-extrabold text-[var(--cl-text)] uppercase tracking-widest">GSTIN</Label>
+                                <Label className="text-xs font-extrabold text-(--cl-text) uppercase tracking-widest">GSTIN</Label>
                                 <Input
-                                    className="bg-[var(--cl-surface-2)] font-mono"
+                                    className="bg-(--cl-surface-2) font-mono"
                                     placeholder="Optional…"
                                     value={customerGstin}
                                     onChange={e => setCustomerGstin(e.target.value)}
@@ -345,7 +345,7 @@ export function NewSalesInvoice({
                                 getDisplayValue={s => `${s.code} — ${s.name}`}
                                 renderItem={s => (
                                     <div className="flex items-center gap-3 w-full">
-                                        <span className="flex h-6 w-8 shrink-0 items-center justify-center rounded bg-[var(--cl-accent)]/10 text-[10px] font-bold text-[var(--cl-accent)]">
+                                        <span className="flex h-6 w-8 shrink-0 items-center justify-center rounded bg-(--cl-accent)/10 text-[10px] font-bold text-(--cl-accent)">
                                             {s.code}
                                         </span>
                                         <span className="truncate font-medium">{s.name}</span>
@@ -355,32 +355,32 @@ export function NewSalesInvoice({
 
                             {/* Invoice No (read-only) */}
                             <div className="space-y-2 md:col-span-1 lg:col-span-2">
-                                <Label className="text-xs font-extrabold text-[var(--cl-text)] uppercase tracking-widest">Invoice No</Label>
+                                <Label className="text-xs font-extrabold text-(--cl-text) uppercase tracking-widest">Invoice No</Label>
                                 <Input
                                     readOnly
-                                    className="bg-[var(--cl-surface-2)] font-mono text-[var(--cl-accent)] font-bold cursor-not-allowed opacity-80"
+                                    className="bg-(--cl-surface-2) font-mono text-(--cl-accent) font-bold cursor-not-allowed opacity-80"
                                     value={docSequence ? buildInvoiceNo(docSequence) : (editInvoice?.invoice_no ?? "—")}
                                 />
                             </div>
 
                             {/* Invoice Date */}
                             <div className="space-y-2 md:col-span-1 lg:col-span-2">
-                                <Label className="text-xs font-extrabold text-[var(--cl-text)] uppercase tracking-widest">
+                                <Label className="text-xs font-extrabold text-(--cl-text) uppercase tracking-widest">
                                     Inv Date <span className="text-red-500 ml-0.5">*</span>
                                 </Label>
                                 <Input
                                     {...register("invoice_date")}
-                                    className={`bg-[var(--cl-surface-2)] ${!invoiceDate ? "border-red-500 focus:border-red-500 ring-red-500/10" : ""}`}
+                                    className={`bg-(--cl-surface-2) ${!invoiceDate ? "border-red-500 focus:border-red-500 ring-red-500/10" : ""}`}
                                     type="date"
                                 />
                             </div>
 
                             {/* Remarks */}
                             <div className="space-y-2 md:col-span-2 lg:col-span-4">
-                                <Label className="text-xs font-extrabold text-[var(--cl-text)] uppercase tracking-widest">Remarks</Label>
+                                <Label className="text-xs font-extrabold text-(--cl-text) uppercase tracking-widest">Remarks</Label>
                                 <Input
                                     {...register("remarks")}
-                                    className="bg-[var(--cl-surface-2)]"
+                                    className="bg-(--cl-surface-2)"
                                     placeholder="Optional…"
                                 />
                             </div>
@@ -388,10 +388,10 @@ export function NewSalesInvoice({
                     </Card>
 
                     {/* Line Items Table */}
-                    <p className="text-[10px] font-black uppercase tracking-[0.15em] text-[var(--cl-text-muted)] px-1 my-2">
+                    <p className="text-[10px] font-black uppercase tracking-[0.15em] text-(--cl-text-muted) px-1 my-2">
                         Line Items
                     </p>
-                    <Card className={`border-[var(--cl-border)] shadow-sm relative bg-[var(--cl-surface)] flex min-h-0 md:flex-1 flex-col ${isReturn ? "border-l-4 border-l-red-500" : ""}`}>
+                    <Card className={`border-(--cl-border) shadow-sm relative bg-(--cl-surface) flex min-h-0 md:flex-1 flex-col ${isReturn ? "border-l-4 border-l-red-500" : ""}`}>
                         <div
                             ref={scrollWrapperRef}
                             className="w-full overflow-x-auto overflow-y-auto pb-4"
@@ -399,13 +399,13 @@ export function NewSalesInvoice({
                         >
                             <table className="min-w-[920px] w-full border-collapse text-sm sticky-header">
                                 <thead>
-                                    <tr className="bg-[var(--cl-surface-2)]/50">
+                                    <tr className="bg-(--cl-surface-2)/50">
                                         <th className={thClass} style={{ width: "2%" }}>#</th>
                                         <th className={thClass} style={{ width: "18%" }}>Part <span className="text-red-500 ml-0.5">*</span></th>
                                         <th className={thClass} style={{ width: "8%" }}>HSN</th>
                                         <th className={`${thClass} text-right`} style={{ width: "6%" }}>Qty <span className="text-red-500 ml-0.5">*</span></th>
                                         <th className={`${thClass} text-right`} style={{ width: "8%" }}>Price</th>
-                                        <th className={`${thClass} text-right border-l border-[var(--cl-border)]`} style={{ width: "10%" }}>Subtotal</th>
+                                        <th className={`${thClass} text-right border-l border-(--cl-border)`} style={{ width: "10%" }}>Subtotal</th>
                                         <th className={`${thClass} text-right`} style={{ width: "7%" }}>GST %</th>
                                         {!isIgst ? (
                                             <>
@@ -420,14 +420,14 @@ export function NewSalesInvoice({
                                         <th className={`${thClass} text-left`}  style={{ width: "5%" }}></th>
                                     </tr>
                                 </thead>
-                                <tbody className="bg-[var(--cl-surface)]">
+                                <tbody className="bg-(--cl-surface)">
                                     {fields.map((field, idx) => {
                                         const line = lines[idx];
                                         if (!line) return null;
                                         const c = calcLine(line, isIgst);
                                         return (
-                                            <tr key={field.id} className="hover:bg-[var(--cl-surface-2)]/30 group transition-colors">
-                                                <td className={`${tdClass} pl-4 text-xs font-medium text-[var(--cl-text-muted)]`}>{idx + 1}</td>
+                                            <tr key={field.id} className="hover:bg-(--cl-surface-2)/30 group transition-colors">
+                                                <td className={`${tdClass} pl-4 text-xs font-medium text-(--cl-text-muted)`}>{idx + 1}</td>
 
                                                 {/* Part */}
                                                 <td className={tdClass}>
@@ -476,7 +476,7 @@ export function NewSalesInvoice({
                                                 <td className={tdClass}>
                                                     <Input
                                                         ref={el => { hsnInputRefs.current[idx] = el; }}
-                                                        className={`${inputCls} bg-transparent border-transparent hover:border-[var(--cl-border)] focus:bg-white ${(line.unit_price > 0 || line.gst_rate > 0) && !line.hsn_code.trim() ? "border-red-500 focus:border-red-500 ring-red-500/10 shadow-[0_0_0_1px_rgba(239,68,68,0.2)]" : ""}`}
+                                                        className={`${inputCls} bg-transparent border-transparent hover:border-(--cl-border) focus:bg-white ${(line.unit_price > 0 || line.gst_rate > 0) && !line.hsn_code.trim() ? "border-red-500 focus:border-red-500 ring-red-500/10 shadow-[0_0_0_1px_rgba(239,68,68,0.2)]" : ""}`}
                                                         placeholder="HSN"
                                                         value={line.hsn_code}
                                                         onChange={e => updateLine(idx, { hsn_code: e.target.value })}
@@ -486,12 +486,12 @@ export function NewSalesInvoice({
                                                 {/* Qty */}
                                                 <td className={tdClass}>
                                                     <Input
-                                                        className={`${inputCls} bg-transparent border-transparent hover:border-[var(--cl-border)] focus:bg-white text-right ${line.quantity <= 0 ? "border-red-500 focus:border-red-500 ring-red-500/10 shadow-[0_0_0_1px_rgba(239,68,68,0.2)]" : ""}`}
+                                                        className={`${inputCls} bg-transparent border-transparent hover:border-(--cl-border) focus:bg-white text-right ${line.qty <= 0 ? "border-red-500 focus:border-red-500 ring-red-500/10 shadow-[0_0_0_1px_rgba(239,68,68,0.2)]" : ""}`}
                                                         min={0}
                                                         step="0.01"
                                                         type="number"
-                                                        value={line.quantity}
-                                                        onChange={e => updateLine(idx, { quantity: Number(e.target.value) })}
+                                                        value={line.qty}
+                                                        onChange={e => updateLine(idx, { qty: Number(e.target.value) })}
                                                         onFocus={e => e.target.select()}
                                                     />
                                                 </td>
@@ -499,7 +499,7 @@ export function NewSalesInvoice({
                                                 {/* Price */}
                                                 <td className={tdClass}>
                                                     <Input
-                                                        className={`${inputCls} bg-transparent border-transparent hover:border-[var(--cl-border)] focus:bg-white text-right font-medium`}
+                                                        className={`${inputCls} bg-transparent border-transparent hover:border-(--cl-border) focus:bg-white text-right font-medium`}
                                                         min={0}
                                                         step="0.01"
                                                         type="number"
@@ -510,14 +510,14 @@ export function NewSalesInvoice({
                                                 </td>
 
                                                 {/* Subtotal (read-only) */}
-                                                <td className={`${tdClass} px-2 text-right pt-1 font-mono tabular-nums text-[var(--cl-text-muted)] border-l border-[var(--cl-border)] bg-[var(--cl-surface-2)]/40`}>
+                                                <td className={`${tdClass} px-2 text-right pt-1 font-mono tabular-nums text-(--cl-text-muted) border-l border-(--cl-border) bg-(--cl-surface-2)/40`}>
                                                     {formatNumber(c.aggregate)}
                                                 </td>
 
                                                 {/* GST % */}
                                                 <td className={tdClass}>
                                                     <Input
-                                                        className={`${inputCls} bg-transparent border-transparent hover:border-[var(--cl-border)] focus:bg-white text-right font-semibold text-[var(--cl-accent)]`}
+                                                        className={`${inputCls} bg-transparent border-transparent hover:border-(--cl-border) focus:bg-white text-right font-semibold text-(--cl-accent)`}
                                                         min={0}
                                                         step="0.01"
                                                         type="number"
@@ -529,28 +529,28 @@ export function NewSalesInvoice({
 
                                                 {!isIgst ? (
                                                     <>
-                                                        <td className={`${tdClass} px-2 text-right pt-1 font-mono tabular-nums text-[var(--cl-text-muted)] bg-[var(--cl-surface-2)]/40`}>
+                                                        <td className={`${tdClass} px-2 text-right pt-1 font-mono tabular-nums text-(--cl-text-muted) bg-(--cl-surface-2)/40`}>
                                                             {formatNumber(c.cgstAmt)}
                                                         </td>
-                                                        <td className={`${tdClass} px-2 text-right pt-1 font-mono tabular-nums text-[var(--cl-text-muted)] bg-[var(--cl-surface-2)]/40`}>
+                                                        <td className={`${tdClass} px-2 text-right pt-1 font-mono tabular-nums text-(--cl-text-muted) bg-(--cl-surface-2)/40`}>
                                                             {formatNumber(c.sgstAmt)}
                                                         </td>
                                                     </>
                                                 ) : (
-                                                    <td className={`${tdClass} px-2 text-right pt-1 font-mono tabular-nums text-[var(--cl-text-muted)] bg-[var(--cl-surface-2)]/40`} title="IGST Amount">
+                                                    <td className={`${tdClass} px-2 text-right pt-1 font-mono tabular-nums text-(--cl-text-muted) bg-(--cl-surface-2)/40`} title="IGST Amount">
                                                         {formatNumber(c.igstAmt)}
                                                     </td>
                                                 )}
 
                                                 {/* Total */}
-                                                <td className={`${tdClass} px-2 text-right pt-1 font-mono font-semibold tabular-nums text-[var(--cl-text)] bg-[var(--cl-surface-2)]/40`}>
+                                                <td className={`${tdClass} px-2 text-right pt-1 font-mono font-semibold tabular-nums text-(--cl-text) bg-(--cl-surface-2)/40`}>
                                                     {formatNumber(c.total)}
                                                 </td>
 
                                                 {/* Remarks */}
                                                 <td className={tdClass}>
                                                     <Input
-                                                        className={`${inputCls} bg-transparent border-transparent hover:border-[var(--cl-border)] focus:bg-white`}
+                                                        className={`${inputCls} bg-transparent border-transparent hover:border-(--cl-border) focus:bg-white`}
                                                         placeholder="Remarks"
                                                         value={line.remarks}
                                                         onChange={e => updateLine(idx, { remarks: e.target.value })}
@@ -574,33 +574,33 @@ export function NewSalesInvoice({
                             </table>
                         </div>
                         {fields.length === 0 && (
-                            <div className="py-12 text-center text-[var(--cl-text-muted)] text-sm italic">
+                            <div className="py-12 text-center text-(--cl-text-muted) text-sm italic">
                                 No line items added yet. Click the "+" icon to insert a row.
                             </div>
                         )}
                     </Card>
 
                     {/* Summary bar */}
-                    <div ref={summaryRef} className={`rounded-lg border px-4 py-2.5 flex flex-wrap items-center gap-x-6 gap-y-1 justify-end ${isReturn ? "border-red-500/30 bg-red-500/5" : "border-[var(--cl-border)] bg-[var(--cl-surface-2)]/40"}`}>
+                    <div ref={summaryRef} className={`rounded-lg border px-4 py-2.5 flex flex-wrap items-center gap-x-6 gap-y-1 justify-end ${isReturn ? "border-red-500/30 bg-red-500/5" : "border-(--cl-border) bg-(--cl-surface-2)/40"}`}>
                         <div className="flex items-center gap-1.5">
-                            <span className="text-[10px] font-black uppercase tracking-[0.1em] text-[var(--cl-text-muted)]">Lines</span>
-                            <span className="font-bold tabular-nums text-sm text-[var(--cl-text)]">{fields.length}</span>
+                            <span className="text-[10px] font-black uppercase tracking-[0.1em] text-(--cl-text-muted)">Lines</span>
+                            <span className="font-bold tabular-nums text-sm text-(--cl-text)">{fields.length}</span>
                         </div>
                         <div className="flex items-center gap-1.5">
-                            <span className="text-[10px] font-black uppercase tracking-[0.1em] text-[var(--cl-text-muted)]">Qty</span>
-                            <span className="font-bold tabular-nums text-sm text-[var(--cl-text)]">{formatNumber(totals.quantity)}</span>
+                            <span className="text-[10px] font-black uppercase tracking-[0.1em] text-(--cl-text-muted)">Qty</span>
+                            <span className="font-bold tabular-nums text-sm text-(--cl-text)">{formatNumber(totals.qty)}</span>
                         </div>
                         <div className="flex items-center gap-1.5">
-                            <span className="text-[10px] font-black uppercase tracking-[0.1em] text-[var(--cl-text-muted)]">Subtotal</span>
-                            <span className="font-bold tabular-nums text-sm text-[var(--cl-text)]">₹{formatNumber(totals.aggregate)}</span>
+                            <span className="text-[10px] font-black uppercase tracking-[0.1em] text-(--cl-text-muted)">Subtotal</span>
+                            <span className="font-bold tabular-nums text-sm text-(--cl-text)">₹{formatNumber(totals.aggregate)}</span>
                         </div>
                         <div className="flex items-center gap-1.5">
-                            <span className="text-[10px] font-black uppercase tracking-[0.1em] text-[var(--cl-text-muted)]">Tax</span>
-                            <span className="font-bold tabular-nums text-sm text-[var(--cl-text)]">₹{formatNumber(totals.total_tax)}</span>
+                            <span className="text-[10px] font-black uppercase tracking-[0.1em] text-(--cl-text-muted)">Tax</span>
+                            <span className="font-bold tabular-nums text-sm text-(--cl-text)">₹{formatNumber(totals.total_tax)}</span>
                         </div>
-                        <div className="flex items-center gap-1.5 pl-4 border-l border-[var(--cl-border)]">
-                            <span className="text-[10px] font-black uppercase tracking-[0.1em] text-[var(--cl-text-muted)]">Total</span>
-                            <span className="font-black tabular-nums text-base text-[var(--cl-accent)]">₹{formatNumber(totals.total)}</span>
+                        <div className="flex items-center gap-1.5 pl-4 border-l border-(--cl-border)">
+                            <span className="text-[10px] font-black uppercase tracking-[0.1em] text-(--cl-text-muted)">Total</span>
+                            <span className="font-black tabular-nums text-base text-(--cl-accent)">₹{formatNumber(totals.total)}</span>
                         </div>
                         {editInvoice && (
                             <div className="flex items-center gap-1.5 pl-4 border-l border-amber-500/30">
@@ -611,7 +611,7 @@ export function NewSalesInvoice({
                     </div>
 
                     {isSubmitting && (
-                        <div className="flex items-center justify-center gap-2 py-2 text-sm text-[var(--cl-text-muted)]">
+                        <div className="flex items-center justify-center gap-2 py-2 text-sm text-(--cl-text-muted)">
                             <Loader2 className="h-4 w-4 animate-spin" /> Saving…
                         </div>
                     )}

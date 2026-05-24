@@ -39,8 +39,8 @@ type Props = {
 // ─── CSS ──────────────────────────────────────────────────────────────────────
 
 const COLS = "grid-cols-[2.5rem_minmax(0,2fr)_minmax(0,2fr)_6.5rem_5rem_minmax(0,2fr)_5.5rem]";
-const hdrCellCls = "text-[11px] font-extrabold uppercase tracking-widest text-[var(--cl-text)] py-3 px-2 flex items-center justify-left border-b border-r border-[var(--cl-border)] last:border-r-0 bg-zinc-200/50 dark:bg-zinc-800/50";
-const inputCls = "h-8 border-[var(--cl-border)] bg-white text-sm px-2";
+const hdrCellCls = "text-[11px] font-extrabold uppercase tracking-widest text-(--cl-text) py-3 px-2 flex items-center justify-left border-b border-r border-(--cl-border) last:border-r-0 bg-zinc-200/50 dark:bg-zinc-800/50";
+const inputCls = "h-8 border-(--cl-border) bg-white text-sm px-2";
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -139,59 +139,59 @@ export function NewLoanEntry({
             initial={{ opacity: 0, y: 10 }}
         >
             {!branchId ? (
-                <div className="flex flex-col items-center justify-center py-20 bg-[var(--cl-surface-2)]/30 rounded-xl border-2 border-dashed border-[var(--cl-border)] text-center">
-                    <div className="bg-[var(--cl-accent)]/5 p-5 rounded-full mb-4">
-                        <Plus className="h-12 w-12 text-[var(--cl-accent)] opacity-40" />
+                <div className="flex flex-col items-center justify-center py-20 bg-(--cl-surface-2)/30 rounded-xl border-2 border-dashed border-(--cl-border) text-center">
+                    <div className="bg-(--cl-accent)/5 p-5 rounded-full mb-4">
+                        <Plus className="h-12 w-12 text-(--cl-accent) opacity-40" />
                     </div>
-                    <h3 className="text-lg font-semibold text-[var(--cl-text)] mb-2">No Branch Selected</h3>
-                    <p className="text-[var(--cl-text-muted)] max-w-md px-6">
+                    <h3 className="text-lg font-semibold text-(--cl-text) mb-2">No Branch Selected</h3>
+                    <p className="text-(--cl-text-muted) max-w-md px-6">
                         Please select a target branch from the global header to start recording a loan entry.
                     </p>
                 </div>
             ) : (
                 <>
                     {/* Section label */}
-                    <p className="text-[10px] font-black uppercase tracking-[0.15em] text-[var(--cl-text-muted)] px-1 mb-1">
+                    <p className="text-[10px] font-black uppercase tracking-[0.15em] text-(--cl-text-muted) px-1 mb-1">
                         Loan Details
                         {editLoan && <span className="px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 border border-amber-500/20 ml-2">Edit</span>}
                     </p>
 
                     {/* Header card */}
-                    <Card className="border-[var(--cl-border)] bg-[var(--cl-surface)] shadow-md !overflow-visible">
+                    <Card className="border-(--cl-border) bg-(--cl-surface) shadow-md !overflow-visible">
                         <CardContent className="pt-4 !overflow-visible">
                             <div className="grid grid-cols-1 md:grid-cols-6 lg:grid-cols-12 gap-x-2 gap-y-2">
                                 {/* Date */}
                                 <div className="space-y-2 md:col-span-2 lg:col-span-4">
-                                    <Label className="text-xs font-extrabold text-[var(--cl-text)] uppercase tracking-widest">
+                                    <Label className="text-xs font-extrabold text-(--cl-text) uppercase tracking-widest">
                                         Loan Date <span className="text-red-500 ml-0.5">*</span>
                                     </Label>
-                                    <Input className="bg-[var(--cl-surface-2)]" type="date" {...register("loan_date")} />
+                                    <Input className="bg-(--cl-surface-2)" type="date" {...register("loan_date")} />
                                 </div>
 
                                 {/* Ref No */}
                                 <div className="space-y-2 md:col-span-2 lg:col-span-4">
-                                    <Label className="text-xs font-extrabold text-[var(--cl-text)] uppercase tracking-widest">
+                                    <Label className="text-xs font-extrabold text-(--cl-text) uppercase tracking-widest">
                                         Ref No
                                     </Label>
-                                    <Input className="bg-[var(--cl-surface-2)]" placeholder="Optional reference" {...register("ref_no")} />
+                                    <Input className="bg-(--cl-surface-2)" placeholder="Optional reference" {...register("ref_no")} />
                                 </div>
 
                                 {/* Remarks */}
                                 <div className="space-y-2 md:col-span-2 lg:col-span-4">
-                                    <Label className="text-xs font-extrabold text-[var(--cl-text)] uppercase tracking-widest">
+                                    <Label className="text-xs font-extrabold text-(--cl-text) uppercase tracking-widest">
                                         Remarks
                                     </Label>
-                                    <Input className="bg-[var(--cl-surface-2)]" placeholder="Optional..." {...register("remarks")} />
+                                    <Input className="bg-(--cl-surface-2)" placeholder="Optional..." {...register("remarks")} />
                                 </div>
                             </div>{/* end grid */}
                         </CardContent>
                     </Card>
 
                     {/* Section label */}
-                    <p className="text-[10px] font-black uppercase tracking-[0.15em] text-[var(--cl-text-muted)] px-1 my-2">Line Items</p>
+                    <p className="text-[10px] font-black uppercase tracking-[0.15em] text-(--cl-text-muted) px-1 my-2">Line Items</p>
 
                     {/* Lines grid */}
-                    <Card className="border-[var(--cl-border)] bg-[var(--cl-surface)] shadow-sm flex flex-col min-h-0 md:flex-1 relative">
+                    <Card className="border-(--cl-border) bg-(--cl-surface) shadow-sm flex flex-col min-h-0 md:flex-1 relative">
                         <div
                             ref={scrollWrapperRef}
                             className="w-full text-sm overflow-x-auto overflow-y-auto custom-scrollbar pb-4"
@@ -216,15 +216,15 @@ export function NewLoanEntry({
                                     return (
                                     <div
                                         key={field.id}
-                                        className={`grid ${COLS} group transition-colors hover:bg-[var(--cl-surface-2)]/30 border-b border-[var(--cl-border)]`}
+                                        className={`grid ${COLS} group transition-colors hover:bg-(--cl-surface-2)/30 border-b border-(--cl-border)`}
                                     >
                                         {/* # */}
-                                        <div className="flex items-center justify-center text-[10px] font-bold text-[var(--cl-text-muted)] border-r border-[var(--cl-border)]/30 bg-[var(--cl-surface-2)]/20">
+                                        <div className="flex items-center justify-center text-[10px] font-bold text-(--cl-text-muted) border-r border-(--cl-border)/30 bg-(--cl-surface-2)/20">
                                             {idx + 1}
                                         </div>
 
                                         {/* Part */}
-                                        <div className="p-1 border-r border-[var(--cl-border)]/30">
+                                        <div className="p-1 border-r border-(--cl-border)/30">
                                             <PartCodeInput
                                                 ref={el => { partInputRefs.current[idx] = el; }}
                                                 brandId={line?.brand_id}
@@ -258,23 +258,23 @@ export function NewLoanEntry({
                                         </div>
 
                                         {/* Loan To */}
-                                        <div className="p-1 border-r border-[var(--cl-border)]/30">
+                                        <div className="p-1 border-r border-(--cl-border)/30">
                                             <Input
-                                                className={`${inputCls} bg-transparent border-transparent hover:border-[var(--cl-border)] focus:bg-white ${!line?.loan_to?.trim() ? "border-red-500 focus:border-red-500 ring-red-500/10" : ""}`}
+                                                className={`${inputCls} bg-transparent border-transparent hover:border-(--cl-border) focus:bg-white ${!line?.loan_to?.trim() ? "border-red-500 focus:border-red-500 ring-red-500/10" : ""}`}
                                                 placeholder="Technician / Agency"
                                                 {...register(`lines.${idx}.loan_to`)}
                                             />
                                         </div>
 
                                         {/* IN / OUT */}
-                                        <div className="flex items-center justify-center gap-1 px-2 py-1.5 border-r border-[var(--cl-border)]/30">
+                                        <div className="flex items-center justify-center gap-1 px-2 py-1.5 border-r border-(--cl-border)/30">
                                             <button
                                                 type="button"
                                                 onClick={() => setValue(`lines.${idx}.dr_cr`, "D")}
                                                 className={`flex-1 rounded px-2 py-1 text-xs font-bold transition-all cursor-pointer ${
                                                     line?.dr_cr === "D"
                                                         ? "bg-emerald-600 text-white shadow"
-                                                        : "bg-[var(--cl-surface-2)] text-[var(--cl-text-muted)] hover:bg-emerald-600/20"
+                                                        : "bg-(--cl-surface-2) text-(--cl-text-muted) hover:bg-emerald-600/20"
                                                 }`}
                                             >
                                                 IN
@@ -285,7 +285,7 @@ export function NewLoanEntry({
                                                 className={`flex-1 rounded px-2 py-1 text-xs font-bold transition-all cursor-pointer ${
                                                     line?.dr_cr === "C"
                                                         ? "bg-red-500 text-white shadow"
-                                                        : "bg-[var(--cl-surface-2)] text-[var(--cl-text-muted)] hover:bg-red-500/20"
+                                                        : "bg-(--cl-surface-2) text-(--cl-text-muted) hover:bg-red-500/20"
                                                 }`}
                                             >
                                                 OUT
@@ -293,9 +293,9 @@ export function NewLoanEntry({
                                         </div>
 
                                         {/* Qty */}
-                                        <div className="p-1 border-r border-[var(--cl-border)]/30">
+                                        <div className="p-1 border-r border-(--cl-border)/30">
                                             <Input
-                                                className={`${inputCls} bg-transparent border-transparent hover:border-[var(--cl-border)] focus:bg-white text-right px-3 ${(line?.qty ?? 0) <= 0 ? "border-red-500 focus:border-red-500 ring-red-500/10 shadow-[0_0_0_1px_rgba(239,68,68,0.2)]" : ""}`}
+                                                className={`${inputCls} bg-transparent border-transparent hover:border-(--cl-border) focus:bg-white text-right px-3 ${(line?.qty ?? 0) <= 0 ? "border-red-500 focus:border-red-500 ring-red-500/10 shadow-[0_0_0_1px_rgba(239,68,68,0.2)]" : ""}`}
                                                 min={0}
                                                 step="0.01"
                                                 type="number"
@@ -305,16 +305,16 @@ export function NewLoanEntry({
                                         </div>
 
                                         {/* Line Remarks */}
-                                        <div className="p-1 border-r border-[var(--cl-border)]/30">
+                                        <div className="p-1 border-r border-(--cl-border)/30">
                                             <Input
-                                                className={`${inputCls} bg-transparent border-transparent hover:border-[var(--cl-border)] focus:bg-white`}
+                                                className={`${inputCls} bg-transparent border-transparent hover:border-(--cl-border) focus:bg-white`}
                                                 placeholder="Optional..."
                                                 {...register(`lines.${idx}.remarks`)}
                                             />
                                         </div>
 
                                         {/* Actions */}
-                                        <div className="flex items-center justify-center gap-0.5 px-2 bg-[var(--cl-surface-2)]/5">
+                                        <div className="flex items-center justify-center gap-0.5 px-2 bg-(--cl-surface-2)/5">
                                             <LineAddDeleteActions
                                                 disableDelete={fields.length === 1}
                                                 onAdd={() => insert(idx + 1, getInitialLoanLine(selectedBrandId))}
@@ -326,7 +326,7 @@ export function NewLoanEntry({
                                 })}
 
                                 {fields.length === 0 && (
-                                    <div className="py-12 text-center text-[var(--cl-text-muted)] text-sm italic">
+                                    <div className="py-12 text-center text-(--cl-text-muted) text-sm italic">
                                         No line items added yet. Click the "+" icon to insert a row.
                                     </div>
                                 )}
@@ -335,26 +335,26 @@ export function NewLoanEntry({
                     </Card>
 
                     {/* ── Summary Bar ── */}
-                    <div ref={summaryRef} className="rounded-lg border border-[var(--cl-border)] bg-[var(--cl-surface-2)]/40 px-4 py-2.5 flex flex-wrap items-center gap-x-6 gap-y-1 justify-end">
+                    <div ref={summaryRef} className="rounded-lg border border-(--cl-border) bg-(--cl-surface-2)/40 px-4 py-2.5 flex flex-wrap items-center gap-x-6 gap-y-1 justify-end">
                         <div className="flex items-center gap-1.5">
-                            <span className="text-[10px] font-black uppercase tracking-widest text-[var(--cl-text-muted)]">Lines</span>
-                            <span className="font-mono font-semibold text-sm text-[var(--cl-text)]">{fields.length}</span>
+                            <span className="text-[10px] font-black uppercase tracking-widest text-(--cl-text-muted)">Lines</span>
+                            <span className="font-mono font-semibold text-sm text-(--cl-text)">{fields.length}</span>
                         </div>
                         <div className="flex items-center gap-1.5">
                             <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600">IN</span>
-                            <span className="font-mono font-semibold text-sm text-[var(--cl-text)]">
+                            <span className="font-mono font-semibold text-sm text-(--cl-text)">
                                 {formLines.filter(l => l.dr_cr === "D").reduce((s, l) => s + (l.qty ?? 0), 0)}
                             </span>
                         </div>
                         <div className="flex items-center gap-1.5">
                             <span className="text-[10px] font-black uppercase tracking-widest text-red-500">OUT</span>
-                            <span className="font-mono font-semibold text-sm text-[var(--cl-text)]">
+                            <span className="font-mono font-semibold text-sm text-(--cl-text)">
                                 {formLines.filter(l => l.dr_cr === "C").reduce((s, l) => s + (l.qty ?? 0), 0)}
                             </span>
                         </div>
-                        <div className="flex items-center gap-1.5 border-l border-[var(--cl-border)] pl-4">
-                            <span className="text-[10px] font-black uppercase tracking-widest text-[var(--cl-text-muted)]">Net</span>
-                            <span className="font-mono font-black text-base text-[var(--cl-accent)]">
+                        <div className="flex items-center gap-1.5 border-l border-(--cl-border) pl-4">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-(--cl-text-muted)">Net</span>
+                            <span className="font-mono font-black text-base text-(--cl-accent)">
                                 {formLines.filter(l => l.dr_cr === "D").reduce((s, l) => s + (l.qty ?? 0), 0) -
                                     formLines.filter(l => l.dr_cr === "C").reduce((s, l) => s + (l.qty ?? 0), 0)}
                             </span>

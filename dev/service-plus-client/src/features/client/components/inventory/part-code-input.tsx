@@ -68,7 +68,7 @@ function formatNumber(num: number): string {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-const inputCls = "h-7 rounded-sm border-[var(--cl-border,rgba(0,0,0,0.1))] bg-[var(--cl-surface,#f5f5f5)] text-sm px-2";
+const inputCls = "h-7 rounded-sm border-(--cl-border) bg-(--cl-surface) text-sm px-2";
 
 export const PartCodeInput = forwardRef<HTMLInputElement, PartCodeInputProps>(({
     partCode,
@@ -270,7 +270,7 @@ export const PartCodeInput = forwardRef<HTMLInputElement, PartCodeInputProps>(({
                         tabIndex={-1}
                         onMouseDown={e => { e.preventDefault(); skipBlurRef.current = true; }}
                         onClick={openPartPick}
-                        className="absolute left-1.5 top-1/2 -translate-y-1/2 rounded-md p-1 bg-[var(--cl-accent,#007acc)] text-white hover:bg-[var(--cl-accent,#007acc)]/10 hover:text-[var(--cl-accent,#007acc)] shadow-sm transition-all focus:ring-2 focus:ring-[var(--cl-accent,#007acc)]/20 cursor-pointer z-10"
+                        className="absolute left-1.5 top-1/2 -translate-y-1/2 rounded-md p-1 bg-(--cl-accent,#007acc) text-white hover:bg-(--cl-accent,#007acc)/10 hover:text-(--cl-accent,#007acc) shadow-sm transition-all focus:ring-2 focus:ring-(--cl-accent,#007acc)/20 cursor-pointer z-10"
                         title="Browse all parts"
                     >
                         <Search className="h-3.5 w-3.5" />
@@ -284,9 +284,9 @@ export const PartCodeInput = forwardRef<HTMLInputElement, PartCodeInputProps>(({
                         className={cn(
                             inputCls,
                             "font-mono w-full pl-9 pr-14 transition-all text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500",
-                            "hover:border-[var(--cl-border,rgba(0,0,0,0.1))] focus:border-[var(--cl-accent,#007acc)] focus:bg-[var(--cl-surface,#f5f5f5)]",
+                            "hover:border-(--cl-border) focus:border-(--cl-accent) focus:bg-(--cl-surface)",
                             partId
-                                ? "bg-[var(--cl-accent,#007acc)]/5 border-[var(--cl-accent,#007acc)]/20 !text-[var(--cl-accent,#007acc)] font-bold"
+                                ? "bg-(--cl-accent,#007acc)/5 border-(--cl-accent,#007acc)/20 !text-(--cl-accent,#007acc) font-bold"
                                 : "border-red-400 focus:border-red-500 ring-red-500/10 bg-white dark:bg-zinc-800"
                         )}
                         placeholder="Part Code"
@@ -348,7 +348,7 @@ export const PartCodeInput = forwardRef<HTMLInputElement, PartCodeInputProps>(({
                 </div>
                 {showName && partId && partName && (
                     <div className="flex items-center px-1 overflow-hidden h-3 animate-in fade-in slide-in-from-top-1 duration-200">
-                        <span className="truncate text-[10px] font-bold text-[var(--cl-accent,#007acc)]/70 tracking-tight" title={partName}>{partName}</span>
+                        <span className="truncate text-[10px] font-bold text-(--cl-accent,#007acc)/70 tracking-tight" title={partName}>{partName}</span>
                     </div>
                 )}
             </div>
@@ -372,7 +372,7 @@ export const PartCodeInput = forwardRef<HTMLInputElement, PartCodeInputProps>(({
                 <DialogContent
                     aria-describedby={undefined}
                     onCloseAutoFocus={(e) => e.preventDefault()}
-                    className="sm:max-w-lg bg-white text-black border-[var(--cl-border)] shadow-2xl opacity-100"
+                    className="sm:max-w-lg bg-white text-black border-(--cl-border) shadow-2xl opacity-100"
                 >
                     <div className="pr-6 pb-3 border-b border-slate-200">
                         <DialogTitle className="text-base font-semibold text-slate-900">Search Part</DialogTitle>
@@ -436,7 +436,7 @@ export const PartCodeInput = forwardRef<HTMLInputElement, PartCodeInputProps>(({
                     <div className="max-h-60 overflow-y-auto rounded-lg border border-slate-200">
                         {partLoading ? (
                             <div className="flex h-16 items-center justify-center">
-                                <Loader2 className="h-5 w-5 animate-spin text-[var(--cl-accent)]" />
+                                <Loader2 className="h-5 w-5 animate-spin text-(--cl-accent)" />
                             </div>
                         ) : partResults.length === 0 ? (
                             <div className="flex h-16 items-center justify-center text-sm text-slate-400">

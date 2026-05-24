@@ -6,7 +6,7 @@ export type SalesLineType = {
     part_name:        string;
     item_description: string;
     hsn_code:         string;
-    quantity:         number;
+    qty:              number;
     unit_price:       number;
     aggregate_amount: number;
     gst_rate:         number;
@@ -46,7 +46,7 @@ export type SalesLineFormItem = {
     part_name:        string;
     uom:              string;
     hsn_code:         string;
-    quantity:         number;
+    qty:         number;
     unit_price:       number;
     gst_rate:         number;
     aggregate_amount: number;

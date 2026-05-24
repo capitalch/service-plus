@@ -48,8 +48,8 @@ function today(): string {
     return new Date().toISOString().slice(0, 10);
 }
 
-const thCls = "text-xs font-semibold uppercase tracking-wide text-[var(--cl-text-muted)] px-2 py-1.5 text-left border-b border-[var(--cl-border)] bg-[var(--cl-surface-3)]";
-const tdCls = "px-2 py-1.5 border-b border-[var(--cl-border)] text-sm";
+const thCls = "text-xs font-semibold uppercase tracking-wide text-(--cl-text-muted) px-2 py-1.5 text-left border-b border-(--cl-border) bg-(--cl-surface-3)";
+const tdCls = "px-2 py-1.5 border-b border-(--cl-border) text-sm";
 
 const setLocationForSelectedSchema = z.object({
     txn_date: z.string().min(1),
@@ -190,10 +190,10 @@ export const SetLocationForSelectedDialog = ({ locations, onOpenChange, onSucces
 
                     {/* Selected parts table */}
                     <div>
-                        <p className="mb-1.5 text-xs font-medium text-[var(--cl-text-muted)]">
+                        <p className="mb-1.5 text-xs font-medium text-(--cl-text-muted)">
                             Selected parts ({parts.length})
                         </p>
-                        <div className="max-h-56 overflow-y-auto rounded-lg border border-[var(--cl-border)]">
+                        <div className="max-h-56 overflow-y-auto rounded-lg border border-(--cl-border)">
                             <table className="w-full">
                                 <thead>
                                     <tr>
@@ -205,10 +205,10 @@ export const SetLocationForSelectedDialog = ({ locations, onOpenChange, onSucces
                                 </thead>
                                 <tbody>
                                     {parts.map((p) => (
-                                        <tr key={p.part_id} className="hover:bg-[var(--cl-surface-3)] last:[&>td]:border-b-0">
-                                            <td className={`${tdCls} font-mono font-medium text-[var(--cl-text)]`}>{p.part_code}</td>
-                                            <td className={`${tdCls} text-[var(--cl-text)]`}>{p.part_name}</td>
-                                            <td className={`${tdCls} text-[var(--cl-text-muted)]`}>{p.location_name ?? "—"}</td>
+                                        <tr key={p.part_id} className="hover:bg-(--cl-surface-3) last:[&>td]:border-b-0">
+                                            <td className={`${tdCls} font-mono font-medium text-(--cl-text)`}>{p.part_code}</td>
+                                            <td className={`${tdCls} text-(--cl-text)`}>{p.part_name}</td>
+                                            <td className={`${tdCls} text-(--cl-text-muted)`}>{p.location_name ?? "—"}</td>
                                             <td className={tdCls}>
                                                 <Select
                                                     value={rowLocationIds[p.part_id] ? String(rowLocationIds[p.part_id]) : ""}

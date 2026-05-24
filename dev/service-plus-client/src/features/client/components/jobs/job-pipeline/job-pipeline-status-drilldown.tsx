@@ -65,8 +65,8 @@ const JOB_TYPE_ROW_COLORS: Record<string, string> = {
     REFURBISH: "bg-gray-50   dark:bg-gray-800/20",
 };
 
-const thClass = "sticky top-0 z-20 text-xs font-semibold uppercase tracking-wide text-[var(--cl-text-muted)] p-3 text-left border-b border-[var(--cl-border)] bg-[var(--cl-surface-2)]";
-const tdClass = "p-3 text-sm text-[var(--cl-text)] border-b border-[var(--cl-border)]";
+const thClass = "sticky top-0 z-20 text-xs font-semibold uppercase tracking-wide text-(--cl-text-muted) p-3 text-left border-b border-(--cl-border) bg-(--cl-surface-2)";
+const tdClass = "p-3 text-sm text-(--cl-text) border-b border-(--cl-border)";
 
 export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Props) => {
     const dbName        = useAppSelector(selectDbName);
@@ -239,9 +239,9 @@ export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Prop
             transition={{ duration: 0.2 }}
         >
             {/* Header */}
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-[var(--cl-border)] bg-[var(--cl-surface)] py-2 px-4">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-(--cl-border) bg-(--cl-surface) py-2 px-4">
                 <Button
-                    className="h-8 gap-1.5 px-3 font-semibold text-[var(--cl-accent)] border border-[var(--cl-accent)] hover:bg-[var(--cl-accent)] hover:text-white transition-colors"
+                    className="h-8 gap-1.5 px-3 font-semibold text-(--cl-accent) border border-(--cl-accent) hover:bg-(--cl-accent) hover:text-white transition-colors"
                     size="sm"
                     variant="outline"
                     onClick={onBack}
@@ -252,22 +252,22 @@ export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Prop
                 <span className={`inline-flex items-center rounded-sm px-3 py-1 text-sm font-semibold text-white ${badgeColorClass}`}>
                     {status.status_name}
                 </span>
-                <span className="text-xs text-[var(--cl-text-muted)]">
+                <span className="text-xs text-(--cl-text-muted)">
                     {loading ? "Loading…" : `${total} job${total !== 1 ? "s" : ""}`}
                 </span>
                 <div className="ml-auto flex items-center gap-2">
                     {/* Search */}
                     <div className="relative flex items-center">
-                        <Search className="pointer-events-none absolute left-2.5 h-3.5 w-3.5 text-[var(--cl-text-muted)]" />
+                        <Search className="pointer-events-none absolute left-2.5 h-3.5 w-3.5 text-(--cl-text-muted)" />
                         <input
-                            className="h-8 rounded border border-[var(--cl-border)] bg-[var(--cl-surface)] pl-8 pr-8 text-sm text-[var(--cl-text)] placeholder:text-[var(--cl-text-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--cl-accent)] w-[32rem]"
+                            className="h-8 rounded border border-(--cl-border) bg-(--cl-surface) pl-8 pr-8 text-sm text-(--cl-text) placeholder:text-(--cl-text-muted) focus:outline-none focus:ring-1 focus:ring-(--cl-accent) w-[32rem]"
                             placeholder="Job no, alt job no, customer, mobile, email, city, technician, serial no, device…"
                             value={searchInput}
                             onChange={e => setSearchInput(e.target.value)}
                         />
                         {searchInput && (
                             <button
-                                className="absolute right-2 cursor-pointer text-[var(--cl-text-muted)] hover:text-[var(--cl-text)]"
+                                className="absolute right-2 cursor-pointer text-(--cl-text-muted) hover:text-(--cl-text)"
                                 onClick={() => setSearchInput("")}
                             >
                                 <X className="h-3.5 w-3.5" />
@@ -276,7 +276,7 @@ export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Prop
                     </div>
                     {/* Refresh */}
                     <Button
-                        className="h-8 w-8 text-[var(--cl-text-muted)] hover:text-[var(--cl-accent)]"
+                        className="h-8 w-8 text-(--cl-text-muted) hover:text-(--cl-accent)"
                         disabled={loading}
                         size="icon"
                         title="Refresh"
@@ -289,14 +289,14 @@ export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Prop
             </div>
 
             {/* Table */}
-            <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-[var(--cl-border)] bg-[var(--cl-surface)] shadow-sm my-3">
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-(--cl-border) bg-(--cl-surface) shadow-sm my-3">
                 <div ref={scrollRef} className="flex-1 overflow-x-auto overflow-y-auto" style={{ maxHeight: maxHeight || undefined }}>
                     {loading ? (
-                        <div className="flex h-32 items-center justify-center gap-2 text-sm text-[var(--cl-text-muted)]">
+                        <div className="flex h-32 items-center justify-center gap-2 text-sm text-(--cl-text-muted)">
                             <Loader2 className="h-4 w-4 animate-spin" /> Loading…
                         </div>
                     ) : rows.length === 0 ? (
-                        <div className="flex h-32 items-center justify-center text-sm text-[var(--cl-text-muted)]">
+                        <div className="flex h-32 items-center justify-center text-sm text-(--cl-text-muted)">
                             {searchInput ? "No jobs match your search." : "No jobs in this status."}
                         </div>
                     ) : (
@@ -311,10 +311,10 @@ export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Prop
                                     <th className={thClass}>Mobile</th>
                                     <th className={thClass}>Device</th>
                                     <th className={`${thClass} text-right`}>Amount</th>
-                                    <th className={`${thClass} sticky right-0 z-20 !bg-[var(--cl-surface-2)]`}>Actions</th>
+                                    <th className={`${thClass} sticky right-0 z-20 !bg-(--cl-surface-2)`}>Actions</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-[var(--cl-border)] bg-[var(--cl-surface)]">
+                            <tbody className="divide-y divide-(--cl-border) bg-(--cl-surface)">
                                 {rows.map((row, idx) => {
                                     const transitions = getTransitions(row.job_status_id, row.job_type_code);
                                     const rowBg = JOB_TYPE_ROW_COLORS[row.job_type_code] ?? "";
@@ -324,11 +324,11 @@ export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Prop
                                         <motion.tr
                                             key={row.id}
                                             animate={{ opacity: 1 }}
-                                            className={`group transition-colors hover:bg-[var(--cl-accent)]/10 ${rowBg}`}
+                                            className={`group transition-colors hover:bg-(--cl-accent)/10 ${rowBg}`}
                                             initial={{ opacity: 0 }}
                                             transition={{ delay: idx * 0.015, duration: 0.15 }}
                                         >
-                                            <td className={`${tdClass} text-[var(--cl-text-muted)]`}>{(page - 1) * PAGE_SIZE + idx + 1}</td>
+                                            <td className={`${tdClass} text-(--cl-text-muted)`}>{(page - 1) * PAGE_SIZE + idx + 1}</td>
                                             <td className={`${tdClass} whitespace-nowrap`}>
                                                 <div className="flex flex-col gap-0.5">
                                                     <span>{row.job_date}</span>
@@ -345,15 +345,15 @@ export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Prop
                                             <td className={tdClass}>
                                                 <div className="flex flex-col gap-0.5">
                                                     <div className="flex flex-wrap items-center gap-1">
-                                                        <span className="font-mono font-semibold text-[var(--cl-accent)]">#{row.job_no}</span>
+                                                        <span className="font-mono font-semibold text-(--cl-accent)">#{row.job_no}</span>
                                                         {row.alternate_job_no && (
-                                                            <span className="text-[10px] text-[var(--cl-text-muted)]">Alt: {row.alternate_job_no}</span>
+                                                            <span className="text-[10px] text-(--cl-text-muted)">Alt: {row.alternate_job_no}</span>
                                                         )}
                                                         {row.is_closed && (
                                                             <span className="rounded px-1 py-0.5 text-[10px] font-bold text-emerald-600 bg-emerald-100 dark:bg-emerald-950/40">CLOSED</span>
                                                         )}
                                                         {row.batch_no && (
-                                                            <span className="rounded px-1 py-0.5 text-[10px] font-medium bg-[var(--cl-accent)]/10 text-[var(--cl-accent)]">Batch #{row.batch_no}</span>
+                                                            <span className="rounded px-1 py-0.5 text-[10px] font-medium bg-(--cl-accent)/10 text-(--cl-accent)">Batch #{row.batch_no}</span>
                                                         )}
                                                     </div>
                                                     {(status.status_id === 0 || row.file_count > 0) && (
@@ -382,10 +382,10 @@ export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Prop
                                             <td className={`${tdClass} text-right tabular-nums`}>
                                                 {row.amount != null ? `₹${Number(row.amount).toFixed(2)}` : "—"}
                                             </td>
-                                            <td className={`${tdClass} sticky right-0 z-10 ${rowBg || "bg-[var(--cl-surface)]"} group-hover:bg-[var(--cl-accent)]/10`} onClick={e => e.stopPropagation()}>
+                                            <td className={`${tdClass} sticky right-0 z-10 ${rowBg || "bg-(--cl-surface)"} group-hover:bg-(--cl-accent)/10`} onClick={e => e.stopPropagation()}>
                                                 <div className="flex items-center gap-1">
                                                     <Button
-                                                        className="h-8 w-8 p-0 text-[var(--cl-text-muted)] hover:text-[var(--cl-accent)] hover:bg-[var(--cl-accent)]/10"
+                                                        className="h-8 w-8 p-0 text-(--cl-text-muted) hover:text-(--cl-accent) hover:bg-(--cl-accent)/10"
                                                         size="icon"
                                                         title="View job details"
                                                         variant="ghost"
@@ -396,13 +396,13 @@ export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Prop
                                                     {/* No-action + no undo → lock icon */}
                                                     {isNoAction && !rowCanUndo ? (
                                                         <span className="flex h-7 w-7 items-center justify-center">
-                                                            <Lock className="h-3.5 w-3.5 text-[var(--cl-text-muted)] opacity-40" />
+                                                            <Lock className="h-3.5 w-3.5 text-(--cl-text-muted) opacity-40" />
                                                         </span>
                                                     ) : (
                                                         <DropdownMenu>
                                                             <DropdownMenuTrigger asChild>
                                                                 <Button
-                                                                    className="h-8 w-8 p-0 text-[var(--cl-accent)] hover:text-white hover:bg-[var(--cl-accent)] rounded-lg transition-colors"
+                                                                    className="h-8 w-8 p-0 text-(--cl-accent) hover:text-white hover:bg-(--cl-accent) rounded-lg transition-colors"
                                                                     disabled={submitting}
                                                                     size="icon"
                                                                     title="Actions"
@@ -484,8 +484,8 @@ export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Prop
                 </div>
 
                 {/* Pagination */}
-                <div className="flex items-center justify-between border-t border-[var(--cl-border)] px-4 py-2">
-                    <span className="text-xs text-[var(--cl-text-muted)]">
+                <div className="flex items-center justify-between border-t border-(--cl-border) px-4 py-2">
+                    <span className="text-xs text-(--cl-text-muted)">
                         {total === 0
                             ? "No jobs"
                             : `Showing ${(page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, total)} of ${total} jobs (Page ${page} of ${totalPages})`}

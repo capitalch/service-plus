@@ -38,9 +38,9 @@ type Props = {
 
 // ─── CSS ──────────────────────────────────────────────────────────────────────
 
-const thClass = "sticky top-0 z-20 text-xs font-extrabold uppercase tracking-widest text-[var(--cl-text)] py-2 px-2 text-left border-b border-[var(--cl-border)] bg-zinc-200/60 dark:bg-zinc-800/60 backdrop-blur-sm shadow-[0_1px_0_var(--cl-border)]";
-const tdClass = "p-0.5 border-b border-[var(--cl-border)]";
-const inputCls = "h-7 border-[var(--cl-border)] bg-white text-sm px-2";
+const thClass = "sticky top-0 z-20 text-xs font-extrabold uppercase tracking-widest text-(--cl-text) py-2 px-2 text-left border-b border-(--cl-border) bg-zinc-200/60 dark:bg-zinc-800/60 backdrop-blur-sm shadow-[0_1px_0_var(--cl-border)]";
+const tdClass = "p-0.5 border-b border-(--cl-border)";
+const inputCls = "h-7 border-(--cl-border) bg-white text-sm px-2";
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -148,59 +148,59 @@ export function NewOpeningStock({
             initial={{ opacity: 0, y: 10 }}
         >
             {!branchId ? (
-                <div className="flex flex-col items-center justify-center py-20 rounded-xl border-2 border-dashed border-[var(--cl-border)] bg-[var(--cl-surface-2)]/30 text-center">
-                    <div className="mb-4 rounded-full bg-[var(--cl-accent)]/5 p-5">
-                        <Plus className="h-12 w-12 text-[var(--cl-accent)] opacity-40" />
+                <div className="flex flex-col items-center justify-center py-20 rounded-xl border-2 border-dashed border-(--cl-border) bg-(--cl-surface-2)/30 text-center">
+                    <div className="mb-4 rounded-full bg-(--cl-accent)/5 p-5">
+                        <Plus className="h-12 w-12 text-(--cl-accent) opacity-40" />
                     </div>
-                    <h3 className="mb-2 text-lg font-semibold text-[var(--cl-text)]">No Branch Selected</h3>
-                    <p className="max-w-md px-6 text-[var(--cl-text-muted)]">
+                    <h3 className="mb-2 text-lg font-semibold text-(--cl-text)">No Branch Selected</h3>
+                    <p className="max-w-md px-6 text-(--cl-text-muted)">
                         Please select a branch from the global header to enter opening stock.
                     </p>
                 </div>
             ) : (
                 <>
                     {/* Section label */}
-                    <p className="mb-1 flex items-center gap-2 px-1 text-[10px] font-black uppercase tracking-[0.15em] text-[var(--cl-text-muted)]">
+                    <p className="mb-1 flex items-center gap-2 px-1 text-[10px] font-black uppercase tracking-[0.15em] text-(--cl-text-muted)">
                         Entry Details
                         {editEntry && <span className="rounded border border-amber-500/20 bg-amber-500/10 px-1.5 py-0.5 text-amber-600">Edit</span>}
                     </p>
 
                     {/* Header card */}
-                    <Card className="border-[var(--cl-border)] bg-[var(--cl-surface)] !overflow-visible shadow-md">
+                    <Card className="border-(--cl-border) bg-(--cl-surface) !overflow-visible shadow-md">
                         <CardContent className="pt-4 !overflow-visible">
                             <div className="grid grid-cols-1 gap-x-2 gap-y-2 md:grid-cols-6 lg:grid-cols-12">
                                 {/* Date */}
                                 <div className="space-y-2 md:col-span-2 lg:col-span-2">
-                                    <Label className="text-xs font-extrabold uppercase tracking-widest text-[var(--cl-text)]">
+                                    <Label className="text-xs font-extrabold uppercase tracking-widest text-(--cl-text)">
                                         Entry Date <span className="ml-0.5 text-red-500">*</span>
                                     </Label>
                                     <Input
                                         {...register("entry_date")}
-                                        className={`bg-[var(--cl-surface-2)] ${!form.watch("entry_date") ? "border-red-500 ring-red-500/10 focus:border-red-500" : ""}`}
+                                        className={`bg-(--cl-surface-2) ${!form.watch("entry_date") ? "border-red-500 ring-red-500/10 focus:border-red-500" : ""}`}
                                         type="date"
                                     />
                                 </div>
 
                                 {/* Ref No */}
                                 <div className="space-y-2 md:col-span-2 lg:col-span-3">
-                                    <Label className="text-xs font-extrabold uppercase tracking-widest text-[var(--cl-text)]">
+                                    <Label className="text-xs font-extrabold uppercase tracking-widest text-(--cl-text)">
                                         Ref No
                                     </Label>
                                     <Input
                                         {...register("ref_no")}
-                                        className="bg-[var(--cl-surface-2)]"
+                                        className="bg-(--cl-surface-2)"
                                         placeholder="Optional reference"
                                     />
                                 </div>
 
                                 {/* Remarks */}
                                 <div className="space-y-2 md:col-span-6 lg:col-span-7">
-                                    <Label className="text-xs font-extrabold uppercase tracking-widest text-[var(--cl-text)]">
+                                    <Label className="text-xs font-extrabold uppercase tracking-widest text-(--cl-text)">
                                         Remarks
                                     </Label>
                                     <Input
                                         {...register("remarks")}
-                                        className="bg-[var(--cl-surface-2)]"
+                                        className="bg-(--cl-surface-2)"
                                         placeholder="Optional..."
                                     />
                                 </div>
@@ -209,10 +209,10 @@ export function NewOpeningStock({
                     </Card>
 
                     {/* Section label */}
-                    <p className="mb-1 px-1 text-[10px] font-black uppercase tracking-[0.15em] text-[var(--cl-text-muted)] my-2">Line Items</p>
+                    <p className="mb-1 px-1 text-[10px] font-black uppercase tracking-[0.15em] text-(--cl-text-muted) my-2">Line Items</p>
 
                     {/* Lines table */}
-                    <Card className="relative flex min-h-0 flex-col border-[var(--cl-border)] bg-[var(--cl-surface)] shadow-sm md:flex-1">
+                    <Card className="relative flex min-h-0 flex-col border-(--cl-border) bg-(--cl-surface) shadow-sm md:flex-1">
                         <div
                             ref={scrollWrapperRef}
                             className="w-full overflow-x-auto overflow-y-auto custom-scrollbar pb-4"
@@ -220,7 +220,7 @@ export function NewOpeningStock({
                         >
                             <table className="min-w-[720px] w-full border-collapse text-sm sticky-header">
                                 <thead>
-                                    <tr className="bg-[var(--cl-surface-2)]/50">
+                                    <tr className="bg-(--cl-surface-2)/50">
                                         <th className={thClass} style={{ width: "3%" }}>#</th>
                                         <th className={thClass} style={{ width: "28%" }}>Part <span className="ml-0.5 text-red-500">*</span></th>
                                         <th className={`${thClass} text-right`} style={{ width: "10%" }}>Qty <span className="ml-0.5 text-red-500">*</span></th>
@@ -229,12 +229,12 @@ export function NewOpeningStock({
                                         <th className={`${thClass} text-left`} style={{ width: "12%" }}></th>
                                     </tr>
                                 </thead>
-                                <tbody className="bg-[var(--cl-surface)]">
+                                <tbody className="bg-(--cl-surface)">
                                     {fields.map((field, idx) => {
                                         const line = watch(`lines.${idx}`);
                                         return (
-                                        <tr key={field.id} className="group transition-colors hover:bg-[var(--cl-surface-2)]/30">
-                                            <td className={`${tdClass} pl-4 text-xs font-medium text-[var(--cl-text-muted)]`}>{idx + 1}</td>
+                                        <tr key={field.id} className="group transition-colors hover:bg-(--cl-surface-2)/30">
+                                            <td className={`${tdClass} pl-4 text-xs font-medium text-(--cl-text-muted)`}>{idx + 1}</td>
 
                                             {/* Part */}
                                             <td className={tdClass}>
@@ -273,7 +273,7 @@ export function NewOpeningStock({
                                             {/* Qty */}
                                             <td className={tdClass}>
                                                 <Input
-                                                    className={`${inputCls} border-transparent bg-transparent text-right hover:border-[var(--cl-border)] focus:bg-white ${(line?.qty ?? 0) <= 0 ? "border-red-500 ring-red-500/10 shadow-[0_0_0_1px_rgba(239,68,68,0.2)] focus:border-red-500" : ""}`}
+                                                    className={`${inputCls} border-transparent bg-transparent text-right hover:border-(--cl-border) focus:bg-white ${(line?.qty ?? 0) <= 0 ? "border-red-500 ring-red-500/10 shadow-[0_0_0_1px_rgba(239,68,68,0.2)] focus:border-red-500" : ""}`}
                                                     min={0}
                                                     step="0.001"
                                                     type="number"
@@ -285,7 +285,7 @@ export function NewOpeningStock({
                                             {/* Unit Cost */}
                                             <td className={tdClass}>
                                                 <Input
-                                                    className={`${inputCls} border-transparent bg-transparent text-right hover:border-[var(--cl-border)] focus:bg-white`}
+                                                    className={`${inputCls} border-transparent bg-transparent text-right hover:border-(--cl-border) focus:bg-white`}
                                                     min={0}
                                                     step="0.01"
                                                     type="number"
@@ -297,7 +297,7 @@ export function NewOpeningStock({
                                             {/* Line Remarks */}
                                             <td className={tdClass}>
                                                 <Input
-                                                    className={`${inputCls} border-transparent bg-transparent hover:border-[var(--cl-border)] focus:bg-white`}
+                                                    className={`${inputCls} border-transparent bg-transparent hover:border-(--cl-border) focus:bg-white`}
                                                     placeholder="Optional..."
                                                     {...register(`lines.${idx}.remarks`)}
                                                 />
@@ -321,20 +321,20 @@ export function NewOpeningStock({
                     </Card>
 
                     {/* Summary bar */}
-                    <div ref={summaryRef} className="flex flex-wrap items-center justify-end gap-x-6 gap-y-1 rounded-lg border border-[var(--cl-border)] bg-[var(--cl-surface-2)]/40 px-4 py-2.5">
+                    <div ref={summaryRef} className="flex flex-wrap items-center justify-end gap-x-6 gap-y-1 rounded-lg border border-(--cl-border) bg-(--cl-surface-2)/40 px-4 py-2.5">
                         <div className="flex items-center gap-1.5">
-                            <span className="text-[10px] font-black uppercase tracking-widest text-[var(--cl-text-muted)]">Lines</span>
-                            <span className="font-mono text-sm font-semibold text-[var(--cl-text)]">{fields.length}</span>
+                            <span className="text-[10px] font-black uppercase tracking-widest text-(--cl-text-muted)">Lines</span>
+                            <span className="font-mono text-sm font-semibold text-(--cl-text)">{fields.length}</span>
                         </div>
                         <div className="flex items-center gap-1.5">
                             <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600">Total Qty</span>
-                            <span className="font-mono text-sm font-semibold text-[var(--cl-text)]">
+                            <span className="font-mono text-sm font-semibold text-(--cl-text)">
                                 {totalQty.toFixed(3)}
                             </span>
                         </div>
-                        <div className="flex items-center gap-1.5 border-l border-[var(--cl-border)] pl-4">
-                            <span className="text-[10px] font-black uppercase tracking-widest text-[var(--cl-text-muted)]">Total Value</span>
-                            <span className="font-mono text-base font-black text-[var(--cl-accent)]">
+                        <div className="flex items-center gap-1.5 border-l border-(--cl-border) pl-4">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-(--cl-text-muted)">Total Value</span>
+                            <span className="font-mono text-base font-black text-(--cl-accent)">
                                 {totalValue.toFixed(2)}
                             </span>
                         </div>

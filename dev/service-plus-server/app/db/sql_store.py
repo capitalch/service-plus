@@ -2062,7 +2062,7 @@ class SqlStore:
             sp.part_code,
             sp.part_name,
             sp.uom,
-            jpu.quantity,
+            jpu.qty,
             jpu.remarks,
             b.name AS branch_name
         FROM job_part_used jpu
@@ -2179,7 +2179,7 @@ class SqlStore:
                     'part_code',        sp.part_code,
                     'part_name',        sp.part_name,
                     'hsn_code',         pil.hsn_code,
-                    'quantity',         pil.quantity,
+                    'qty',         pil.qty,
                     'unit_price',       pil.unit_price,
                     'aggregate_amount', pil.aggregate_amount,
                     'gst_rate',         pil.gst_rate,
@@ -2348,7 +2348,7 @@ class SqlStore:
                     'part_name',        sp.part_name,
                     'item_description', sil.item_description,
                     'hsn_code',         sil.hsn_code,
-                    'quantity',         sil.quantity,
+                    'qty',         sil.qty,
                     'unit_price',       sil.unit_price,
                     'aggregate_amount', sil.aggregate_amount,
                     'gst_rate',         sil.gst_rate,
@@ -3707,7 +3707,7 @@ class SqlStore:
 
     GET_JOB_PART_USED_BY_JOB = """
         with "p_job_id" as (values(%(job_id)s::bigint))
-        SELECT jpu.id, jpu.part_id, jpu.quantity, jpu.cost_price, jpu.selling_price, jpu.gst_rate, jpu.remarks,
+        SELECT jpu.id, jpu.part_id, jpu.qty, jpu.cost_price, jpu.selling_price, jpu.gst_rate, jpu.remarks,
                sp.part_code, sp.part_name, sp.uom, sp.brand_id,
                COALESCE(jpu.hsn_code, sp.hsn_code) as hsn_code
         FROM job_part_used jpu
@@ -3718,7 +3718,7 @@ class SqlStore:
 
     GET_JOB_ADDITIONAL_CHARGES_BY_JOB = """
         with "p_job_id" as (values(%(job_id)s::bigint))
-        SELECT id, charge_name, ref_no, description, hsn_code, gst_rate, quantity, cost_price, selling_price
+        SELECT id, charge_name, ref_no, description, hsn_code, gst_rate, qty, cost_price, selling_price
         FROM job_additional_charge
         WHERE job_id = (table "p_job_id")
         ORDER BY id
@@ -3967,7 +3967,7 @@ class SqlStore:
                            'description', jil.description,
                            'part_code',   jil.part_code,
                            'hsn_code',    jil.hsn_code,
-                           'quantity',    jil.quantity,
+                           'qty',    jil.qty,
                            'price',       jil.price,
                            'aggregate',   jil.aggregate,
                            'gst_rate',    jil.gst_rate,
@@ -3987,7 +3987,7 @@ class SqlStore:
 
     GET_JOB_PARTS_FOR_INVOICE = """
         with "p_job_id" as (values(%(job_id)s::bigint))
-        SELECT jpu.quantity, sp.part_code, sp.part_name, sp.uom
+        SELECT jpu.qty, sp.part_code, sp.part_name, sp.uom
         FROM job_part_used jpu
         JOIN spare_part_master sp ON sp.id = jpu.part_id
         WHERE jpu.job_id = (table "p_job_id")

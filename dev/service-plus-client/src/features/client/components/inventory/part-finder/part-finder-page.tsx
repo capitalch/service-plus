@@ -200,10 +200,10 @@ export const PartFinderPage = () => {
 
     if (!schema) {
         return (
-            <div className="flex items-center justify-center rounded-lg border border-[var(--cl-border)] bg-[var(--cl-surface-2)] p-20">
+            <div className="flex items-center justify-center rounded-lg border border-(--cl-border) bg-(--cl-surface-2) p-20">
                 <div className="text-center">
-                    <p className="text-sm font-semibold text-[var(--cl-text)]">No Business Unit</p>
-                    <p className="mt-2 text-xs text-[var(--cl-text-muted)]">
+                    <p className="text-sm font-semibold text-(--cl-text)">No Business Unit</p>
+                    <p className="mt-2 text-xs text-(--cl-text-muted)">
                         No business unit is assigned. Please contact your administrator.
                     </p>
                 </div>
@@ -220,8 +220,8 @@ export const PartFinderPage = () => {
         >
             {/* Page header */}
             <div>
-                <h1 className="text-xl font-bold text-[var(--cl-text)]">Part Finder</h1>
-                <p className="mt-1 text-sm text-[var(--cl-text-muted)]">
+                <h1 className="text-xl font-bold text-(--cl-text)">Part Finder</h1>
+                <p className="mt-1 text-sm text-(--cl-text-muted)">
                     Search and locate parts across your inventory
                 </p>
             </div>
@@ -248,20 +248,20 @@ export const PartFinderPage = () => {
 
                 {/* Search input with stock filter toggle inside */}
                 <div className="flex h-8 min-w-[260px] flex-1 items-center gap-1.5 rounded-md border border-input bg-background px-2.5 shadow-sm transition-colors focus-within:ring-1 focus-within:ring-ring">
-                    <SearchIcon className="h-3.5 w-3.5 shrink-0 text-[var(--cl-text-muted)]" />
+                    <SearchIcon className="h-3.5 w-3.5 shrink-0 text-(--cl-text-muted)" />
                     <input
                         ref={searchInputRef}
-                        className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-[var(--cl-text-muted)] disabled:cursor-not-allowed disabled:opacity-50"
+                        className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-(--cl-text-muted) disabled:cursor-not-allowed disabled:opacity-50"
                         placeholder="Search code, name, description, category, model…"
                         value={search}
                         onChange={e => setSearch(e.target.value)}
                     />
-                    <div className="flex shrink-0 items-center rounded border border-[var(--cl-border)] bg-[var(--cl-surface-3)] p-0.5">
+                    <div className="flex shrink-0 items-center rounded border border-(--cl-border) bg-(--cl-surface-3) p-0.5">
                         <button
                             className={`rounded px-2 py-0.5 text-xs transition-colors cursor-pointer ${
                                 stockFilter === "all"
-                                    ? "bg-[var(--cl-accent)] text-white shadow"
-                                    : "text-[var(--cl-text-muted)] hover:bg-[var(--cl-hover)]"
+                                    ? "bg-(--cl-accent) text-white shadow"
+                                    : "text-(--cl-text-muted) hover:bg-(--cl-hover)"
                             }`}
                             type="button"
                             onClick={() => handleStockFilterChange("all")}
@@ -271,8 +271,8 @@ export const PartFinderPage = () => {
                         <button
                             className={`rounded px-2 py-0.5 text-xs transition-colors cursor-pointer ${
                                 stockFilter === "in_stock"
-                                    ? "bg-[var(--cl-accent)] text-white shadow"
-                                    : "text-[var(--cl-text-muted)] hover:bg-[var(--cl-hover)]"
+                                    ? "bg-(--cl-accent) text-white shadow"
+                                    : "text-(--cl-text-muted) hover:bg-(--cl-hover)"
                             }`}
                             type="button"
                             onClick={() => handleStockFilterChange("in_stock")}
@@ -283,7 +283,7 @@ export const PartFinderPage = () => {
                     {search && (
                         <button
                             aria-label="Clear search"
-                            className="shrink-0 cursor-pointer text-[var(--cl-text-muted)] hover:text-[var(--cl-text)]"
+                            className="shrink-0 cursor-pointer text-(--cl-text-muted) hover:text-(--cl-text)"
                             type="button"
                             onClick={handleClearSearch}
                         >
@@ -294,19 +294,19 @@ export const PartFinderPage = () => {
 
                 {/* Record range */}
                 {!loading && total > 0 && (
-                    <p className="shrink-0 text-xs text-[var(--cl-text-muted)]">
+                    <p className="shrink-0 text-xs text-(--cl-text-muted)">
                         {from}–{to} of {total}
-                        {selectedPart && <span className="ml-2 text-[var(--cl-accent)]">· 1 selected</span>}
+                        {selectedPart && <span className="ml-2 text-(--cl-accent)">· 1 selected</span>}
                     </p>
                 )}
 
                 {/* View toggle */}
-                <div className="flex items-center rounded-lg border border-[var(--cl-border)] bg-[var(--cl-surface-3)] p-0.5">
+                <div className="flex items-center rounded-lg border border-(--cl-border) bg-(--cl-surface-3) p-0.5">
                     <button
                         className={`rounded-md p-1.5 transition-colors cursor-pointer ${
                             viewMode === "table"
-                                ? "bg-[var(--cl-accent)] text-white shadow"
-                                : "text-[var(--cl-text-muted)] hover:bg-[var(--cl-hover)]"
+                                ? "bg-(--cl-accent) text-white shadow"
+                                : "text-(--cl-text-muted) hover:bg-(--cl-hover)"
                         }`}
                         title="Table view"
                         type="button"
@@ -317,8 +317,8 @@ export const PartFinderPage = () => {
                     <button
                         className={`rounded-md p-1.5 transition-colors cursor-pointer ${
                             viewMode === "card"
-                                ? "bg-[var(--cl-accent)] text-white shadow"
-                                : "text-[var(--cl-text-muted)] hover:bg-[var(--cl-hover)]"
+                                ? "bg-(--cl-accent) text-white shadow"
+                                : "text-(--cl-text-muted) hover:bg-(--cl-hover)"
                         }`}
                         title="Card view"
                         type="button"
@@ -330,7 +330,7 @@ export const PartFinderPage = () => {
 
                 {searchQ && (
                     <Button
-                        className="gap-1.5 border border-[var(--cl-border)] bg-[var(--cl-surface-2)] text-[var(--cl-text-muted)] shadow-sm hover:bg-[var(--cl-surface-3)]"
+                        className="gap-1.5 border border-(--cl-border) bg-(--cl-surface-2) text-(--cl-text-muted) shadow-sm hover:bg-(--cl-surface-3)"
                         disabled={loading}
                         size="sm"
                         variant="outline"
@@ -344,11 +344,11 @@ export const PartFinderPage = () => {
 
             {/* Results area */}
             {!searchQ ? (
-                <div className="flex flex-1 items-center justify-center rounded-xl border border-dashed border-[var(--cl-border)] bg-[var(--cl-surface-2)]">
+                <div className="flex flex-1 items-center justify-center rounded-xl border border-dashed border-(--cl-border) bg-(--cl-surface-2)">
                     <div className="text-center">
-                        <SearchIcon className="mx-auto mb-3 h-10 w-10 text-[var(--cl-text-muted)] opacity-30" />
-                        <p className="text-sm font-semibold text-[var(--cl-text)]">Start typing to search</p>
-                        <p className="mt-1 text-xs text-[var(--cl-text-muted)]">
+                        <SearchIcon className="mx-auto mb-3 h-10 w-10 text-(--cl-text-muted) opacity-30" />
+                        <p className="text-sm font-semibold text-(--cl-text)">Start typing to search</p>
+                        <p className="mt-1 text-xs text-(--cl-text-muted)">
                             Search by part code, name, description, category, or model
                         </p>
                     </div>
@@ -393,8 +393,8 @@ export const PartFinderPage = () => {
 
                         {/* Pagination — First / Prev / Next / Last */}
                         {totalPages > 1 && (
-                            <div className="flex items-center justify-between border-t border-[var(--cl-border)] pt-3">
-                                <p className="text-xs text-[var(--cl-text-muted)]">
+                            <div className="flex items-center justify-between border-t border-(--cl-border) pt-3">
+                                <p className="text-xs text-(--cl-text-muted)">
                                     {total === 0 ? "No parts" : `Showing ${(page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, total)} of ${total} parts (Page ${page} of ${totalPages})`}
                                 </p>
                                 <div className="flex items-center gap-1">

@@ -33,7 +33,7 @@ type GenericQueryData<T> = { genericQuery: T[] | null };
 
 // ─── CSS ──────────────────────────────────────────────────────────────────────
 
-const thClass = "text-xs font-semibold uppercase tracking-wide text-[var(--cl-text-muted)]";
+const thClass = "text-xs font-semibold uppercase tracking-wide text-(--cl-text-muted)";
 
 // ─── Row animation ────────────────────────────────────────────────────────────
 
@@ -140,10 +140,10 @@ const displayParts = useMemo(() => {
 
     if (!schema) {
         return (
-            <div className="flex items-center justify-center rounded-lg border border-[var(--cl-border)] bg-[var(--cl-surface-2)] p-20">
+            <div className="flex items-center justify-center rounded-lg border border-(--cl-border) bg-(--cl-surface-2) p-20">
                 <div className="text-center">
-                    <p className="text-sm font-semibold text-[var(--cl-text)]">No Business Unit</p>
-                    <p className="mt-2 text-xs text-[var(--cl-text-muted)]">
+                    <p className="text-sm font-semibold text-(--cl-text)">No Business Unit</p>
+                    <p className="mt-2 text-xs text-(--cl-text-muted)">
                         No business unit is assigned. Please contact your administrator.
                     </p>
                 </div>
@@ -162,14 +162,14 @@ const displayParts = useMemo(() => {
                 {/* Page header */}
                 <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
-                        <h1 className="text-xl font-bold text-[var(--cl-text)]">Set Part Location</h1>
-                        <p className="mt-1 text-sm text-[var(--cl-text-muted)]">
+                        <h1 className="text-xl font-bold text-(--cl-text)">Set Part Location</h1>
+                        <p className="mt-1 text-sm text-(--cl-text-muted)">
                             Assign storage locations to parts in stock for this branch.
                         </p>
                     </div>
                     <div className="flex items-center gap-2">
                         <Button
-                            className="gap-1.5 border border-[var(--cl-border)] bg-[var(--cl-surface-2)] text-[var(--cl-text-muted)] shadow-sm hover:bg-[var(--cl-surface-3)]"
+                            className="gap-1.5 border border-(--cl-border) bg-(--cl-surface-2) text-(--cl-text-muted) shadow-sm hover:bg-(--cl-surface-3)"
                             disabled={loading}
                             size="sm"
                             variant="outline"
@@ -212,7 +212,7 @@ const displayParts = useMemo(() => {
                 {/* Search + count */}
                 <div className="flex items-center gap-3">
                     <div className="relative flex-1">
-                        <SearchIcon className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--cl-text-muted)]" />
+                        <SearchIcon className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-(--cl-text-muted)" />
                         <Input
                             className="h-8 pl-8 pr-8 text-sm"
                             disabled={loading}
@@ -223,7 +223,7 @@ const displayParts = useMemo(() => {
                         {search && (
                             <button
                                 aria-label="Clear search"
-                                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-sm text-[var(--cl-text-muted)] hover:text-[var(--cl-text)] focus:outline-none"
+                                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-sm text-(--cl-text-muted) hover:text-(--cl-text) focus:outline-none"
                                 type="button"
                                 onClick={() => setSearch("")}
                             >
@@ -233,7 +233,7 @@ const displayParts = useMemo(() => {
                     </div>
                     {!loading && parts.length > 0 && (
                         <div className="flex shrink-0 items-center gap-2">
-                            <p className="text-xs text-[var(--cl-text-muted)]">
+                            <p className="text-xs text-(--cl-text-muted)">
                                 {displayParts.length} of {parts.length}
                             </p>
                             {selectedCount > 0 && (
@@ -249,23 +249,23 @@ const displayParts = useMemo(() => {
                 {loading && parts.length === 0 ? (
                     <div className="flex flex-col gap-2">
                         {Array.from({ length: 5 }).map((_, i) => (
-                            <div key={i} className="h-11 animate-pulse rounded-lg bg-[var(--cl-surface-2)]" />
+                            <div key={i} className="h-11 animate-pulse rounded-lg bg-(--cl-surface-2)" />
                         ))}
                     </div>
                 ) : parts.length === 0 ? (
-                    <div className="rounded-xl border border-[var(--cl-border)] bg-[var(--cl-surface-2)] px-6 py-12 text-center text-sm text-[var(--cl-text-muted)]">
+                    <div className="rounded-xl border border-(--cl-border) bg-(--cl-surface-2) px-6 py-12 text-center text-sm text-(--cl-text-muted)">
                         No stock found for this branch.
                     </div>
                 ) : (
-                    <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-[var(--cl-border)] bg-[var(--cl-surface-2)] shadow-sm">
+                    <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-(--cl-border) bg-(--cl-surface-2) shadow-sm">
                         <div className="overflow-x-auto overflow-y-auto">
                             <Table>
                                 <TableHeader>
-                                    <TableRow className="sticky top-0 z-10 bg-[var(--cl-surface-3)] hover:bg-[var(--cl-surface-3)]">
+                                    <TableRow className="sticky top-0 z-10 bg-(--cl-surface-3) hover:bg-(--cl-surface-3)">
                                         <TableHead className="w-10 text-center">
                                             <Checkbox
                                                 checked={allSelected ? true : someSelected ? "indeterminate" : false}
-                                                className="border-[var(--cl-text-muted)] bg-[var(--cl-input-bg)] cursor-pointer"
+                                                className="border-(--cl-text-muted) bg-(--cl-input-bg) cursor-pointer"
                                                 onCheckedChange={toggleSelectAll}
                                             />
                                         </TableHead>
@@ -280,7 +280,7 @@ const displayParts = useMemo(() => {
                                 <TableBody>
                                     {displayParts.length === 0 ? (
                                         <tr>
-                                            <td colSpan={99} className="px-6 py-10 text-center text-sm text-[var(--cl-text-muted)]">
+                                            <td colSpan={99} className="px-6 py-10 text-center text-sm text-(--cl-text-muted)">
                                                 No results match &ldquo;{search}&rdquo;.
                                             </td>
                                         </tr>
@@ -290,7 +290,7 @@ const displayParts = useMemo(() => {
                                             return (
                                                 <motion.tr
                                                     animate="visible"
-                                                    className={`border-b border-[var(--cl-border)] transition-colors last:border-b-0 hover:bg-[var(--cl-surface-3)] ${isSelected ? "bg-sky-50/60 dark:bg-sky-950/20" : ""}`}
+                                                    className={`border-b border-(--cl-border) transition-colors last:border-b-0 hover:bg-(--cl-surface-3) ${isSelected ? "bg-sky-50/60 dark:bg-sky-950/20" : ""}`}
                                                     custom={idx}
                                                     initial="hidden"
                                                     key={part.part_id}
@@ -299,20 +299,20 @@ const displayParts = useMemo(() => {
                                                     <TableCell className="text-center">
                                                         <Checkbox
                                                             checked={isSelected}
-                                                            className="border-[var(--cl-text-muted)] bg-[var(--cl-input-bg)] cursor-pointer"
+                                                            className="border-(--cl-text-muted) bg-(--cl-input-bg) cursor-pointer"
                                                             onCheckedChange={() => toggleRow(part.part_id)}
                                                         />
                                                     </TableCell>
-                                                    <TableCell className="text-center text-xs text-[var(--cl-text-muted)]">{idx + 1}</TableCell>
-                                                    <TableCell className="font-mono text-sm font-medium text-[var(--cl-text)]">{part.part_code}</TableCell>
-                                                    <TableCell className="text-sm text-[var(--cl-text)]">
+                                                    <TableCell className="text-center text-xs text-(--cl-text-muted)">{idx + 1}</TableCell>
+                                                    <TableCell className="font-mono text-sm font-medium text-(--cl-text)">{part.part_code}</TableCell>
+                                                    <TableCell className="text-sm text-(--cl-text)">
                                                         {[part.part_name, part.part_description, part.category, part.model]
                                                             .map(v => v?.trim())
                                                             .filter(Boolean)
                                                             .join(" · ")}
                                                     </TableCell>
-                                                    <TableCell className="text-sm text-[var(--cl-text-muted)]">{part.uom ?? "—"}</TableCell>
-                                                    <TableCell className="text-right text-sm tabular-nums text-[var(--cl-text)]">{part.qty}</TableCell>
+                                                    <TableCell className="text-sm text-(--cl-text-muted)">{part.uom ?? "—"}</TableCell>
+                                                    <TableCell className="text-right text-sm tabular-nums text-(--cl-text)">{part.qty}</TableCell>
                                                     <TableCell>
                                                         {part.location_name ? (
                                                             <Badge
@@ -323,7 +323,7 @@ const displayParts = useMemo(() => {
                                                                 {part.location_name}
                                                             </Badge>
                                                         ) : (
-                                                            <span className="text-xs text-[var(--cl-text-muted)]">—</span>
+                                                            <span className="text-xs text-(--cl-text-muted)">—</span>
                                                         )}
                                                     </TableCell>
                                                 </motion.tr>

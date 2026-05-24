@@ -42,7 +42,7 @@ export type JobDetailType = {
     is_final:                    boolean;
     last_transaction_id:         number | null;
     warranty_card_no:            string | null;
-    quantity:                    number;
+    qty:                         number;
     // Joined fields
     customer_name:               string | null;
     mobile:                      string;
@@ -105,7 +105,7 @@ export type BatchJobRow = {
     warranty_card_no:         string;
     job_receive_condition_id: number | null;
     remarks:                  string;
-    quantity:                 number;
+    qty:                 number;
     isDeletable:              boolean;        // false when transaction_count > 1
 };
 

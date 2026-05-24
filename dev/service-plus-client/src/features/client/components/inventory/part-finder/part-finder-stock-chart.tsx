@@ -34,7 +34,7 @@ export const PartFinderStockChart = ({ data }: Props) => {
 
     return (
         <div className="mt-3">
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--cl-text-muted)]">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-(--cl-text-muted)">
                 Stock by Location
             </p>
             <ResponsiveContainer height={data.length * 44} width="100%">

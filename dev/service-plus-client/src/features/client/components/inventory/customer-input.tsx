@@ -30,7 +30,7 @@ export type CustomerInputProps = {
     states:         StateOption[];
 };
 
-const inputCls = "h-7 border-[var(--cl-border)] bg-white text-sm px-2";
+const inputCls = "h-7 border-(--cl-border) bg-white text-sm px-2";
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -130,7 +130,7 @@ export function CustomerInput({
                             if (results.length > 0) setDropdownOpen(prev => !prev);
                             inputRef.current?.focus();
                         }}
-                        className="absolute left-1.5 top-1/2 -translate-y-1/2 rounded-md p-1 bg-[var(--cl-accent)] text-white hover:bg-[var(--cl-accent)]/10 hover:text-[var(--cl-accent)] shadow-sm transition-all z-10"
+                        className="absolute left-1.5 top-1/2 -translate-y-1/2 rounded-md p-1 bg-(--cl-accent) text-white hover:bg-(--cl-accent)/10 hover:text-(--cl-accent) shadow-sm transition-all z-10"
                         title="Search customers"
                     >
                         {loading
@@ -140,7 +140,7 @@ export function CustomerInput({
 
                     <Input
                         ref={inputRef}
-                        className={`${inputCls} w-full pl-9 pr-14 border-transparent hover:border-[var(--cl-border)] focus:border-[var(--cl-accent)] focus:bg-white transition-all ${customerId ? "bg-[var(--cl-accent)]/5 border-[var(--cl-accent)]/20 text-[var(--cl-accent)] font-bold" : "border-[var(--cl-border)]"}`}
+                        className={`${inputCls} w-full pl-9 pr-14 border-transparent hover:border-(--cl-border) focus:border-(--cl-accent) focus:bg-white transition-all ${customerId ? "bg-(--cl-accent)/5 border-(--cl-accent)/20 text-(--cl-accent) font-bold" : "border-(--cl-border)"}`}
                         placeholder="Customer name or mobile…"
                         value={customerName}
                         onChange={e => onChange(e.target.value)}
@@ -199,21 +199,21 @@ export function CustomerInput({
                 {/* Dropdown */}
                 {dropdownOpen && results.length > 0 && (
                     <div
-                        className="absolute left-0 right-0 top-full z-50 mt-1 max-h-56 overflow-y-auto rounded-lg border border-[var(--cl-border)] bg-[var(--cl-surface)] shadow-lg"
+                        className="absolute left-0 right-0 top-full z-50 mt-1 max-h-56 overflow-y-auto rounded-lg border border-(--cl-border) bg-(--cl-surface) shadow-lg"
                         onMouseDown={e => { e.preventDefault(); skipBlurRef.current = true; }}
                     >
                         {results.map(row => (
                             <button
                                 key={row.id}
                                 type="button"
-                                className="flex w-full flex-col gap-0.5 border-b border-[var(--cl-border)] px-3 py-2 text-left last:border-0 hover:bg-zinc-500/10 transition-colors cursor-pointer"
+                                className="flex w-full flex-col gap-0.5 border-b border-(--cl-border) px-3 py-2 text-left last:border-0 hover:bg-zinc-500/10 transition-colors cursor-pointer"
                                 onClick={() => handleSelect(row)}
                             >
-                                <span className="text-sm font-medium text-[var(--cl-text)]">
-                                    {row.full_name ?? <span className="italic text-[var(--cl-text-muted)]">No name</span>}
-                                    <span className="ml-2 font-mono text-xs text-[var(--cl-text-muted)]">{row.mobile}</span>
+                                <span className="text-sm font-medium text-(--cl-text)">
+                                    {row.full_name ?? <span className="italic text-(--cl-text-muted)">No name</span>}
+                                    <span className="ml-2 font-mono text-xs text-(--cl-text-muted)">{row.mobile}</span>
                                 </span>
-                                <span className="text-xs text-[var(--cl-text-muted)]">
+                                <span className="text-xs text-(--cl-text-muted)">
                                     {[row.customer_type_name, row.state_name].filter(Boolean).join(" · ")}
                                     {row.gstin && <span className="ml-2 font-mono">{row.gstin}</span>}
                                 </span>

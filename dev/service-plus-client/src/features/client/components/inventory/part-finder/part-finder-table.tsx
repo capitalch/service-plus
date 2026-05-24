@@ -28,7 +28,7 @@ type Props = {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const thClass = "text-xs font-semibold uppercase tracking-wide text-[var(--cl-text-muted)]";
+const thClass = "text-xs font-semibold uppercase tracking-wide text-(--cl-text-muted)";
 
 const rowVariants = {
     hidden:  { opacity: 0 },
@@ -67,9 +67,9 @@ function CopyCode({ code }: { code: string }) {
     }
     return (
         <span className="group flex items-center gap-1.5">
-            <span className="font-mono text-sm font-medium text-[var(--cl-text)]">{code}</span>
+            <span className="font-mono text-sm font-medium text-(--cl-text)">{code}</span>
             <button
-                className="invisible rounded p-0.5 text-[var(--cl-text-muted)] opacity-0 transition-all group-hover:visible group-hover:opacity-100 hover:text-[var(--cl-text)]"
+                className="invisible rounded p-0.5 text-(--cl-text-muted) opacity-0 transition-all group-hover:visible group-hover:opacity-100 hover:text-(--cl-text)"
                 title="Copy code"
                 type="button"
                 onClick={handleCopy}
@@ -85,8 +85,8 @@ function CopyCode({ code }: { code: string }) {
 function SortIcon({ dir, field, sortField }: { dir: SortDir; field: SortField; sortField: SortField }) {
     if (sortField !== field) return <ArrowUpDown className="ml-1 inline h-3 w-3 opacity-30" />;
     return dir === "asc"
-        ? <ArrowUp   className="ml-1 inline h-3 w-3 text-[var(--cl-accent)]" />
-        : <ArrowDown className="ml-1 inline h-3 w-3 text-[var(--cl-accent)]" />;
+        ? <ArrowUp   className="ml-1 inline h-3 w-3 text-(--cl-accent)" />
+        : <ArrowDown className="ml-1 inline h-3 w-3 text-(--cl-accent)" />;
 }
 
 function sortParts(parts: PartFinderResultType[], field: SortField, dir: SortDir): PartFinderResultType[] {
@@ -121,7 +121,7 @@ export const PartFinderTable = ({ loading, onSelectPart, parts, selectedId }: Pr
         return (
             <div className="flex flex-col gap-2">
                 {Array.from({ length: 6 }).map((_, i) => (
-                    <div key={i} className="h-10 animate-pulse rounded-lg bg-[var(--cl-surface-2)]" />
+                    <div key={i} className="h-10 animate-pulse rounded-lg bg-(--cl-surface-2)" />
                 ))}
             </div>
         );
@@ -129,10 +129,10 @@ export const PartFinderTable = ({ loading, onSelectPart, parts, selectedId }: Pr
 
     if (parts.length === 0) {
         return (
-            <div className="flex flex-col items-center justify-center rounded-xl border border-[var(--cl-border)] bg-[var(--cl-surface-2)] py-16">
-                <Package className="mb-3 h-10 w-10 text-[var(--cl-text-muted)] opacity-40" />
-                <p className="text-sm font-medium text-[var(--cl-text-muted)]">No parts found</p>
-                <p className="mt-1 text-xs text-[var(--cl-text-muted)] opacity-70">Try adjusting your filters or search term</p>
+            <div className="flex flex-col items-center justify-center rounded-xl border border-(--cl-border) bg-(--cl-surface-2) py-16">
+                <Package className="mb-3 h-10 w-10 text-(--cl-text-muted) opacity-40" />
+                <p className="text-sm font-medium text-(--cl-text-muted)">No parts found</p>
+                <p className="mt-1 text-xs text-(--cl-text-muted) opacity-70">Try adjusting your filters or search term</p>
             </div>
         );
     }
@@ -140,7 +140,7 @@ export const PartFinderTable = ({ loading, onSelectPart, parts, selectedId }: Pr
     function ColHead({ field, label }: { field: SortField; label: string }) {
         return (
             <TableHead
-                className={`${thClass} cursor-pointer select-none hover:text-[var(--cl-text)]`}
+                className={`${thClass} cursor-pointer select-none hover:text-(--cl-text)`}
                 onClick={() => handleSort(field)}
             >
                 {label}<SortIcon dir={sortDir} field={field} sortField={sortField} />
@@ -149,11 +149,11 @@ export const PartFinderTable = ({ loading, onSelectPart, parts, selectedId }: Pr
     }
 
     return (
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-[var(--cl-border)] bg-[var(--cl-surface-2)] shadow-sm">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-(--cl-border) bg-(--cl-surface-2) shadow-sm">
             <div className="overflow-x-auto overflow-y-auto">
                 <Table>
                     <TableHeader>
-                        <TableRow className="sticky top-0 z-10 bg-[var(--cl-surface-3)] hover:bg-[var(--cl-surface-3)]">
+                        <TableRow className="sticky top-0 z-10 bg-(--cl-surface-3) hover:bg-(--cl-surface-3)">
                             <TableHead className="w-10" />
                             <ColHead field="part_code"       label="Part Code" />
                             <ColHead field="part_name"       label="Part Name" />
@@ -174,8 +174,8 @@ export const PartFinderTable = ({ loading, onSelectPart, parts, selectedId }: Pr
                                     animate="visible"
                                     className={`cursor-pointer border-b transition-colors last:border-b-0 ${
                                         isActive
-                                            ? "border-[var(--cl-accent)]/30 bg-[var(--cl-accent)]/15 hover:bg-[var(--cl-accent)]/20"
-                                            : "border-[var(--cl-border)] hover:bg-[var(--cl-surface-3)] " + (idx % 2 === 1 ? "bg-[var(--cl-surface-3)]/40" : "")
+                                            ? "border-(--cl-accent)/30 bg-(--cl-accent)/15 hover:bg-(--cl-accent)/20"
+                                            : "border-(--cl-border) hover:bg-(--cl-surface-3) " + (idx % 2 === 1 ? "bg-(--cl-surface-3)/40" : "")
                                     }`}
                                     initial="hidden"
                                     key={part.id}
@@ -185,8 +185,8 @@ export const PartFinderTable = ({ loading, onSelectPart, parts, selectedId }: Pr
                                     <TableCell className="w-10 pl-3 pr-1">
                                         <div className={`flex h-4 w-4 items-center justify-center rounded border-2 transition-colors ${
                                             isActive
-                                                ? "border-[var(--cl-accent)] bg-[var(--cl-accent)]"
-                                                : "border-[var(--cl-border)] bg-transparent"
+                                                ? "border-(--cl-accent) bg-(--cl-accent)"
+                                                : "border-(--cl-border) bg-transparent"
                                         }`}>
                                             {isActive && <CheckIcon className="h-2.5 w-2.5 text-white" />}
                                         </div>
@@ -195,24 +195,24 @@ export const PartFinderTable = ({ loading, onSelectPart, parts, selectedId }: Pr
                                         <CopyCode code={part.part_code} />
                                     </TableCell>
                                     <TableCell className="max-w-[180px]">
-                                        <span className="line-clamp-1 text-sm text-[var(--cl-text)]" title={part.part_name}>
+                                        <span className="line-clamp-1 text-sm text-(--cl-text)" title={part.part_name}>
                                             {part.part_name}
                                         </span>
                                     </TableCell>
-                                    <TableCell className="text-sm text-[var(--cl-text-muted)]">{part.brand_name ?? "—"}</TableCell>
+                                    <TableCell className="text-sm text-(--cl-text-muted)">{part.brand_name ?? "—"}</TableCell>
                                     <TableCell>
                                         {part.category ? (
-                                            <Badge className="border-[var(--cl-border)] bg-[var(--cl-surface-3)] text-[var(--cl-text-muted)]" variant="outline">
+                                            <Badge className="border-(--cl-border) bg-(--cl-surface-3) text-(--cl-text-muted)" variant="outline">
                                                 {part.category}
                                             </Badge>
                                         ) : (
-                                            <span className="text-xs text-[var(--cl-text-muted)]">—</span>
+                                            <span className="text-xs text-(--cl-text-muted)">—</span>
                                         )}
                                     </TableCell>
-                                    <TableCell className="text-sm text-[var(--cl-text-muted)]">{part.model ?? "—"}</TableCell>
+                                    <TableCell className="text-sm text-(--cl-text-muted)">{part.model ?? "—"}</TableCell>
                                     <TableCell>
                                         {part.primary_location ? (
-                                            <span className="flex items-center gap-1 text-sm text-[var(--cl-text-muted)]">
+                                            <span className="flex items-center gap-1 text-sm text-(--cl-text-muted)">
                                                 <MapPin className="h-3 w-3 shrink-0" />
                                                 {part.primary_location}
                                                 {part.location_count > 1 && (
@@ -222,7 +222,7 @@ export const PartFinderTable = ({ loading, onSelectPart, parts, selectedId }: Pr
                                                 )}
                                             </span>
                                         ) : (
-                                            <span className="text-xs text-[var(--cl-text-muted)]">—</span>
+                                            <span className="text-xs text-(--cl-text-muted)">—</span>
                                         )}
                                     </TableCell>
                                     <TableCell className="text-right tabular-nums">
@@ -232,7 +232,7 @@ export const PartFinderTable = ({ loading, onSelectPart, parts, selectedId }: Pr
                                             {part.qty}
                                         </span>
                                     </TableCell>
-                                    <TableCell className="text-sm text-[var(--cl-text-muted)]">{part.uom ?? "—"}</TableCell>
+                                    <TableCell className="text-sm text-(--cl-text-muted)">{part.uom ?? "—"}</TableCell>
                                     <TableCell><StockBadge qty={part.qty} /></TableCell>
                                 </motion.tr>
                             );

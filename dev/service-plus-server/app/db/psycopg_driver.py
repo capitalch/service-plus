@@ -209,12 +209,6 @@ async def exec_sql_object(
 ) -> int | None:
     """
     Execute a structured SQL object against the specified database and schema.
-
-    Args:
-        db_name:    Service database name; pass None to use the client DB.
-        schema:     PostgreSQL schema to set for the session (default: "public").
-        sql_object: The SQL object to execute.
-
     Returns:
         The id of the last inserted/updated record, or None.
     """
@@ -358,11 +352,6 @@ def get_sql(
 def get_update_sql(x_data: dict, table_name: str) -> tuple[pgsql.Composed, tuple]:
     """
     Build a parameterised UPDATE … RETURNING id SQL object for a table.
-
-    Args:
-        x_data:     Row data as a dict of column → value; must contain an "id" key.
-        table_name: Target table name.
-
     Returns:
         Tuple of (composed SQL, values tuple).
     """
@@ -470,10 +459,6 @@ async def bulk_insert_records(
 async def process_deleted_ids(sql_object: dict, cur: psycopg.AsyncCursor) -> None:
     """
     Delete rows by id list from the table named in sql_object.
-
-    Args:
-        sql_object: Dict containing "deletedIds" (list of ids) and "tableName".
-        cur:        Active psycopg async cursor.
     """
     deleted_id_list = sql_object.get("deletedIds")
     if not deleted_id_list:
@@ -493,14 +478,7 @@ async def process_details(
 ) -> int | None:
     """
     Dispatch deletions and upserts for one sql_object node.
-
     Processes any "deletedIds" first, then delegates "xData" rows to process_data.
-
-    Args:
-        sql_object: Dict containing "tableName", optional "fkeyName", "deletedIds", and "xData".
-        cur:        Active psycopg async cursor.
-        fkey_value: Foreign-key value to pass down to child rows.
-
     Returns:
         The id of the last inserted/updated record, or None.
     """

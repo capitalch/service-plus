@@ -54,11 +54,11 @@ const STYLES = {
         trigger:   'border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 focus:ring-0 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700',
     },
     client: {
-        icon:      'text-[var(--cl-accent-text)]',
-        label:     'text-[var(--cl-accent-text)] font-semibold',
+        icon:      'text-(--cl-accent-text)',
+        label:     'text-(--cl-accent-text) font-semibold',
         labelSize: 'text-xs',
-        static:    'border border-[var(--cl-border)] bg-[var(--cl-surface-2)] text-[var(--cl-text)] font-medium',
-        trigger:   'border-[var(--cl-border)] bg-[var(--cl-surface-2)] text-[var(--cl-text)] font-medium hover:bg-[var(--cl-hover)] focus:ring-1 focus:ring-[var(--cl-accent)]',
+        static:    'border border-(--cl-border) bg-(--cl-surface-2) text-(--cl-text) font-medium',
+        trigger:   'border-(--cl-border) bg-(--cl-surface-2) text-(--cl-text) font-medium hover:bg-(--cl-hover) focus:ring-1 focus:ring-(--cl-accent)',
     },
 } as const;
 
@@ -298,7 +298,7 @@ export const BuBranchSwitcher = ({ variant = 'admin' }: BuBranchSwitcherPropsTyp
     const isClient = variant === 'client';
 
     return (
-        <div className={`flex items-center gap-2 ${isClient ? 'rounded-md bg-[var(--cl-surface-2)] px-2.5 py-1' : ''}`}>
+        <div className={`flex items-center gap-2 ${isClient ? 'rounded-md bg-(--cl-surface-2) px-2.5 py-1' : ''}`}>
             {/* BU selector */}
             <div className={`flex items-center gap-1.5 ${isClient ? '' : 'flex-col gap-0.5 items-start'}`}>
                 <span className={`flex shrink-0 items-center gap-1 font-medium ${s.labelSize} ${s.label}`}>
@@ -333,7 +333,7 @@ export const BuBranchSwitcher = ({ variant = 'admin' }: BuBranchSwitcherPropsTyp
             {/* Branch selector */}
             {availableBranches.length >= 1 && (
                 <>
-                    {isClient && <div className="h-4 w-px shrink-0 bg-[var(--cl-border)]" />}
+                    {isClient && <div className="h-4 w-px shrink-0 bg-(--cl-border)" />}
                     <div className={`flex items-center gap-1.5 ${isClient ? '' : 'flex-col gap-0.5 items-start'}`}>
                         <span className={`flex shrink-0 items-center gap-1 font-medium ${s.labelSize} ${s.label}`}>
                             <GitBranchIcon className={`h-3 w-3 shrink-0 ${s.icon}`} />
@@ -369,7 +369,7 @@ export const BuBranchSwitcher = ({ variant = 'admin' }: BuBranchSwitcherPropsTyp
             {/* Division selector — only visible when multiple divisions exist */}
             {availableDivisions.length > 1 && (
                 <>
-                    {isClient && <div className="h-4 w-px shrink-0 bg-[var(--cl-border)]" />}
+                    {isClient && <div className="h-4 w-px shrink-0 bg-(--cl-border)" />}
                     <div className={`flex items-center gap-1.5 ${isClient ? '' : 'flex-col gap-0.5 items-start'}`}>
                         <span className={`flex shrink-0 items-center gap-1 font-medium ${s.labelSize} ${s.label}`}>
                             <LayoutGridIcon className={`h-3 w-3 shrink-0 ${s.icon}`} />

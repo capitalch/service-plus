@@ -79,7 +79,7 @@ function buildJobDetailDoc(
             ["Customer:",      fmt(job.customer_name),        "Mobile:",         fmt(job.mobile)],
             ["Address:",       { content: fmt(job.address_snapshot), colSpan: 3 }],
             ["Device:",        fmt(device),                   "Serial No:",      fmt(job.serial_no)],
-            ["Warranty Card:", fmt(job.warranty_card_no),     "Qty:",            fmt(job.quantity)],
+            ["Warranty Card:", fmt(job.warranty_card_no),     "Qty:",            fmt(job.qty)],
             ["Job Type:",      fmt(job.job_type_name),        "Receive Manner:", fmt(job.job_receive_manner_name)],
             ["Condition:",     fmt(job.job_receive_condition_name), "Amount:",   fmtAmount(job.amount)],
             ["Delivery Date:", fmt(job.delivery_date),        "Closed:",         job.is_closed ? "Yes" : "No"],

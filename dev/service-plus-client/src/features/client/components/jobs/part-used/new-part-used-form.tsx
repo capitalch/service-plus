@@ -27,9 +27,9 @@ type GenericQueryData<T> = { genericQuery: T[] | null };
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 
-const thClass = "sticky top-0 z-20 text-xs font-extrabold uppercase tracking-widest text-[var(--cl-text)] py-2 px-2 text-left border-b border-[var(--cl-border)] bg-zinc-200/60 dark:bg-zinc-800/60";
-const tdClass = "p-0.5 border-b border-[var(--cl-border)]";
-const inputCls = "h-7 border-[var(--cl-border)] bg-white text-sm px-2";
+const thClass = "sticky top-0 z-20 text-xs font-extrabold uppercase tracking-widest text-(--cl-text) py-2 px-2 text-left border-b border-(--cl-border) bg-zinc-200/60 dark:bg-zinc-800/60";
+const tdClass = "p-0.5 border-b border-(--cl-border)";
+const inputCls = "h-7 border-(--cl-border) bg-white text-sm px-2";
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -71,7 +71,7 @@ export function NewPartUsedForm({
     const watchDeletedIds = watch("deletedIds") ?? [];
 
     useEffect(() => {
-        const linesValid = formLines.some(l => l.part_id && (l.quantity ?? 0) > 0) || watchDeletedIds.length > 0;
+        const linesValid = formLines.some(l => l.part_id && (l.qty ?? 0) > 0) || watchDeletedIds.length > 0;
         onLinesValidChange(linesValid);
     }, [formLines, watchDeletedIds.length, onLinesValidChange]);
 
@@ -169,7 +169,7 @@ export function NewPartUsedForm({
             setValue(`newLines.${idx}.part_code`, "");
             setValue(`newLines.${idx}.part_name`, "");
             setValue(`newLines.${idx}.uom`, "");
-            setValue(`newLines.${idx}.quantity`, 1);
+            setValue(`newLines.${idx}.qty`, 1);
             setValue(`newLines.${idx}.remarks`, "");
         }
     };
@@ -189,15 +189,15 @@ export function NewPartUsedForm({
             transition={{ duration: 0.2 }}
         >
             {!branchId ? (
-                <div className="flex flex-col items-center justify-center py-20 rounded-xl border-2 border-dashed border-[var(--cl-border)] text-center">
-                    <p className="text-sm font-semibold text-[var(--cl-text)]">No Branch Selected</p>
-                    <p className="mt-1 text-xs text-[var(--cl-text-muted)]">Select a branch from the global header to continue.</p>
+                <div className="flex flex-col items-center justify-center py-20 rounded-xl border-2 border-dashed border-(--cl-border) text-center">
+                    <p className="text-sm font-semibold text-(--cl-text)">No Branch Selected</p>
+                    <p className="mt-1 text-xs text-(--cl-text-muted)">Select a branch from the global header to continue.</p>
                 </div>
             ) : (
                 <>
                     {/* Job Selection */}
-                    <div className="rounded-lg border border-[var(--cl-border)] bg-[var(--cl-surface)] p-4 shadow-sm">
-                        <p className="mb-3 text-[10px] font-black uppercase tracking-[0.15em] text-[var(--cl-text-muted)]">Job Selection</p>
+                    <div className="rounded-lg border border-(--cl-border) bg-(--cl-surface) p-4 shadow-sm">
+                        <p className="mb-3 text-[10px] font-black uppercase tracking-[0.15em] text-(--cl-text-muted)">Job Selection</p>
                         <SearchableCombobox
                             className="max-w-sm"
                             isError={!selectedJob}
@@ -214,32 +214,32 @@ export function NewPartUsedForm({
                             renderItem={j => (
                                 <div className="flex flex-col gap-0.5">
                                     <span className="font-mono font-semibold">{j.job_no}</span>
-                                    <span className="text-xs text-[var(--cl-text-muted)]">{j.customer_name} · {j.mobile} · {j.job_date}</span>
-                                    <span className="text-xs text-[var(--cl-accent)]">{j.job_status_name}</span>
+                                    <span className="text-xs text-(--cl-text-muted)">{j.customer_name} · {j.mobile} · {j.job_date}</span>
+                                    <span className="text-xs text-(--cl-accent)">{j.job_status_name}</span>
                                 </div>
                             )}
                         />
 
                         {selectedJob && (
-                            <div className="mt-3 flex flex-wrap gap-x-6 gap-y-1 rounded-md border border-[var(--cl-border)] bg-[var(--cl-surface-2)]/50 px-4 py-2 text-sm">
-                                <span><span className="text-xs font-bold uppercase text-[var(--cl-text-muted)]">Job No </span><span className="font-mono font-semibold">{selectedJob.job_no}</span></span>
-                                <span><span className="text-xs font-bold uppercase text-[var(--cl-text-muted)]">Date </span>{selectedJob.job_date}</span>
-                                <span><span className="text-xs font-bold uppercase text-[var(--cl-text-muted)]">Customer </span>{selectedJob.customer_name}</span>
-                                <span><span className="text-xs font-bold uppercase text-[var(--cl-text-muted)]">Status </span><span className="text-[var(--cl-accent)]">{selectedJob.job_status_name}</span></span>
+                            <div className="mt-3 flex flex-wrap gap-x-6 gap-y-1 rounded-md border border-(--cl-border) bg-(--cl-surface-2)/50 px-4 py-2 text-sm">
+                                <span><span className="text-xs font-bold uppercase text-(--cl-text-muted)">Job No </span><span className="font-mono font-semibold">{selectedJob.job_no}</span></span>
+                                <span><span className="text-xs font-bold uppercase text-(--cl-text-muted)">Date </span>{selectedJob.job_date}</span>
+                                <span><span className="text-xs font-bold uppercase text-(--cl-text-muted)">Customer </span>{selectedJob.customer_name}</span>
+                                <span><span className="text-xs font-bold uppercase text-(--cl-text-muted)">Status </span><span className="text-(--cl-accent)">{selectedJob.job_status_name}</span></span>
                             </div>
                         )}
                     </div>
 
                     {/* Existing parts */}
                     {selectedJob && (
-                        <div className="rounded-lg border border-[var(--cl-border)] bg-[var(--cl-surface)] shadow-sm">
-                            <p className="px-4 pt-3 text-[10px] font-black uppercase tracking-[0.15em] text-[var(--cl-text-muted)]">Existing Parts for this Job</p>
+                        <div className="rounded-lg border border-(--cl-border) bg-(--cl-surface) shadow-sm">
+                            <p className="px-4 pt-3 text-[10px] font-black uppercase tracking-[0.15em] text-(--cl-text-muted)">Existing Parts for this Job</p>
                             {loadingExist ? (
                                 <div className="flex h-16 items-center justify-center">
-                                    <Loader2 className="h-5 w-5 animate-spin text-[var(--cl-accent)]" />
+                                    <Loader2 className="h-5 w-5 animate-spin text-(--cl-accent)" />
                                 </div>
                             ) : existingLines.length === 0 ? (
-                                <p className="px-4 py-3 text-sm text-[var(--cl-text-muted)] italic">No parts logged yet for this job.</p>
+                                <p className="px-4 py-3 text-sm text-(--cl-text-muted) italic">No parts logged yet for this job.</p>
                             ) : (
                                 <div className="overflow-x-auto">
                                     <table className="min-w-full border-collapse text-sm">
@@ -255,12 +255,12 @@ export function NewPartUsedForm({
                                         </thead>
                                         <tbody>
                                             {existingLines.map((line, idx) => (
-                                                <tr key={line.id} className="hover:bg-[var(--cl-surface-2)]/40">
-                                                    <td className={`${tdClass} px-2 text-xs text-[var(--cl-text-muted)]`}>{idx + 1}</td>
+                                                <tr key={line.id} className="hover:bg-(--cl-surface-2)/40">
+                                                    <td className={`${tdClass} px-2 text-xs text-(--cl-text-muted)`}>{idx + 1}</td>
                                                     <td className={`${tdClass} px-2 font-mono font-medium`}>{line.part_code}</td>
                                                     <td className={`${tdClass} px-2`}>{line.part_name}</td>
-                                                    <td className={`${tdClass} px-2 text-right font-medium`}>{Number(line.quantity).toFixed(2)}</td>
-                                                    <td className={`${tdClass} px-2 text-xs text-[var(--cl-text-muted)] italic`}>{line.remarks || "—"}</td>
+                                                    <td className={`${tdClass} px-2 text-right font-medium`}>{Number(line.qty).toFixed(2)}</td>
+                                                    <td className={`${tdClass} px-2 text-xs text-(--cl-text-muted) italic`}>{line.remarks || "—"}</td>
                                                     <td className={`${tdClass} px-2`}>
                                                         <Button
                                                             className="h-6 w-6 p-0 text-red-500 hover:bg-red-500/10"
@@ -282,9 +282,9 @@ export function NewPartUsedForm({
                     )}
 
                     {/* New parts */}
-                    <div className="rounded-lg border border-[var(--cl-border)] bg-[var(--cl-surface)] shadow-sm">
+                    <div className="rounded-lg border border-(--cl-border) bg-(--cl-surface) shadow-sm">
                         <div className="flex items-center justify-between px-4 pt-3 pb-2">
-                            <p className="text-[10px] font-black uppercase tracking-[0.15em] text-[var(--cl-text-muted)]">Add New Parts</p>
+                            <p className="text-[10px] font-black uppercase tracking-[0.15em] text-(--cl-text-muted)">Add New Parts</p>
                         </div>
                         <div className="overflow-x-auto pb-2">
                             <table className="min-w-[520px] w-full border-collapse text-sm">
@@ -303,8 +303,8 @@ export function NewPartUsedForm({
                                     {fields.map((field, idx) => {
                                         const line = watch(`newLines.${idx}`);
                                         return (
-                                        <tr key={field.id} className="hover:bg-[var(--cl-surface-2)]/30">
-                                            <td className={`${tdClass} pl-3 text-xs text-[var(--cl-text-muted)]`}>{idx + 1}</td>
+                                        <tr key={field.id} className="hover:bg-(--cl-surface-2)/30">
+                                            <td className={`${tdClass} pl-3 text-xs text-(--cl-text-muted)`}>{idx + 1}</td>
                                             <td className={tdClass}>
                                                 <Select
                                                     value={line?.brand_id ? String(line.brand_id) : ""}
@@ -315,7 +315,7 @@ export function NewPartUsedForm({
                                                         setValue(`newLines.${idx}.part_name`, "");
                                                     }}
                                                 >
-                                                    <SelectTrigger className="h-7 text-xs bg-transparent border-[var(--cl-border)]">
+                                                    <SelectTrigger className="h-7 text-xs bg-transparent border-(--cl-border)">
                                                         <SelectValue placeholder="Select Brand" />
                                                     </SelectTrigger>
                                                     <SelectContent>
@@ -356,14 +356,14 @@ export function NewPartUsedForm({
                                                     }}
                                                 />
                                             </td>
-                                            <td className={`${tdClass} px-2 text-sm text-[var(--cl-text-muted)]`}>{line?.part_name}</td>
+                                            <td className={`${tdClass} px-2 text-sm text-(--cl-text-muted)`}>{line?.part_name}</td>
                                             <td className={tdClass}>
                                                 <Input
-                                                    className={`${inputCls} text-right ${(line?.quantity ?? 0) <= 0 ? "border-red-500" : ""}`}
+                                                    className={`${inputCls} text-right ${(line?.qty ?? 0) <= 0 ? "border-red-500" : ""}`}
                                                     min={0.01}
                                                     step="0.01"
                                                     type="number"
-                                                    {...register(`newLines.${idx}.quantity`, { valueAsNumber: true })}
+                                                    {...register(`newLines.${idx}.qty`, { valueAsNumber: true })}
                                                     onFocus={e => e.target.select()}
                                                 />
                                             </td>
@@ -391,10 +391,10 @@ export function NewPartUsedForm({
                     </div>
 
                     {/* Summary */}
-                    <div className="flex items-center gap-4 rounded-lg border border-[var(--cl-border)] bg-[var(--cl-surface-2)]/40 px-4 py-2 text-xs">
+                    <div className="flex items-center gap-4 rounded-lg border border-(--cl-border) bg-(--cl-surface-2)/40 px-4 py-2 text-xs">
                         <div className="flex items-center gap-1.5">
-                            <span className="font-black uppercase tracking-widest text-[var(--cl-text-muted)]">New Lines</span>
-                            <span className="font-mono font-semibold text-[var(--cl-text)]">{newLinesCount}</span>
+                            <span className="font-black uppercase tracking-widest text-(--cl-text-muted)">New Lines</span>
+                            <span className="font-mono font-semibold text-(--cl-text)">{newLinesCount}</span>
                         </div>
                         {watchDeletedIds.length > 0 && (
                             <div className="flex items-center gap-1.5">

@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict 89ck5oMcKNLirJsY1kYguXzHaQtPxNN7VA2gXeIhGUtwa9LpPbLVDtsi6296e0e
+\restrict MaYg8s7hpOxvBG217eRUAMbzc7mF1Dry9KJsSemSqVg7LtIaYiZ3dtdrNxpffhr
 
 -- Dumped from database version 14.6
 -- Dumped by pg_dump version 18.4 (Ubuntu 18.4-0ubuntu0.26.04.1)
@@ -388,13 +388,13 @@ CREATE TABLE demo1.job (
     address_snapshot text,
     last_transaction_id bigint,
     is_final boolean DEFAULT false NOT NULL,
-    quantity integer DEFAULT 1 NOT NULL,
+    qty integer DEFAULT 1 NOT NULL,
     batch_no integer,
     estimate_amount numeric(12,2) DEFAULT 0 NOT NULL,
     alternate_job_no text,
     division_id bigint NOT NULL,
     is_posted boolean DEFAULT false NOT NULL,
-    CONSTRAINT job_qty_check CHECK ((quantity <> 0))
+    CONSTRAINT job_qty_check CHECK ((qty <> 0))
 );
 
 
@@ -415,7 +415,7 @@ CREATE TABLE demo1.job_additional_charge (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     hsn_code text,
     gst_rate numeric(5,2) DEFAULT 0 NOT NULL,
-    quantity numeric(12,2) DEFAULT 1 NOT NULL,
+    qty numeric(12,2) DEFAULT 1 NOT NULL,
     CONSTRAINT job_add_charge_cost_check CHECK ((cost_price >= (0)::numeric)),
     CONSTRAINT job_add_charge_sell_check CHECK ((selling_price >= (0)::numeric))
 );
@@ -564,7 +564,7 @@ CREATE TABLE demo1.job_invoice_line (
     job_invoice_id bigint NOT NULL,
     description text NOT NULL,
     part_code text,
-    quantity numeric(10,2) NOT NULL,
+    qty numeric(10,2) NOT NULL,
     price numeric(12,2) NOT NULL,
     aggregate numeric(12,2) NOT NULL,
     gst_rate numeric(5,2) DEFAULT 0 NOT NULL,
@@ -575,7 +575,7 @@ CREATE TABLE demo1.job_invoice_line (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     hsn_code text,
-    CONSTRAINT job_invoice_line_quantity_check CHECK ((quantity > (0)::numeric)),
+    CONSTRAINT job_invoice_line_quantity_check CHECK ((qty > (0)::numeric)),
     CONSTRAINT job_invoice_line_unit_price_check CHECK ((price >= (0)::numeric))
 );
 
@@ -604,7 +604,7 @@ CREATE TABLE demo1.job_part_used (
     id bigint NOT NULL,
     job_id bigint NOT NULL,
     part_id bigint NOT NULL,
-    quantity numeric(10,2) NOT NULL,
+    qty numeric(10,2) NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     remarks text,
@@ -612,7 +612,7 @@ CREATE TABLE demo1.job_part_used (
     selling_price numeric(12,2) DEFAULT 0 NOT NULL,
     gst_rate numeric(5,2) DEFAULT 0 NOT NULL,
     hsn_code text,
-    CONSTRAINT job_part_used_quantity_check CHECK ((quantity > (0)::numeric))
+    CONSTRAINT job_part_used_quantity_check CHECK ((qty > (0)::numeric))
 );
 
 
@@ -890,7 +890,7 @@ CREATE TABLE demo1.purchase_invoice_line (
     purchase_invoice_id bigint NOT NULL,
     part_id bigint NOT NULL,
     hsn_code text NOT NULL,
-    quantity numeric(12,2) NOT NULL,
+    qty numeric(12,2) NOT NULL,
     unit_price numeric(12,2) NOT NULL,
     aggregate_amount numeric(12,2) NOT NULL,
     gst_rate numeric(5,2) DEFAULT 0 NOT NULL,
@@ -902,7 +902,7 @@ CREATE TABLE demo1.purchase_invoice_line (
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     under_warranty boolean DEFAULT false NOT NULL,
     remarks text,
-    CONSTRAINT purchase_invoice_line_quantity_check CHECK ((quantity > (0)::numeric)),
+    CONSTRAINT purchase_invoice_line_quantity_check CHECK ((qty > (0)::numeric)),
     CONSTRAINT purchase_invoice_line_unit_price_check CHECK ((unit_price >= (0)::numeric))
 );
 
@@ -975,7 +975,7 @@ CREATE TABLE demo1.sales_invoice_line (
     part_id bigint NOT NULL,
     item_description text NOT NULL,
     hsn_code text NOT NULL,
-    quantity numeric(12,2) NOT NULL,
+    qty numeric(12,2) NOT NULL,
     price numeric(12,2) NOT NULL,
     gst_rate numeric(5,2) DEFAULT 0 NOT NULL,
     amount numeric(12,2) NOT NULL,
@@ -985,7 +985,7 @@ CREATE TABLE demo1.sales_invoice_line (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     remarks text,
-    CONSTRAINT sales_invoice_line_quantity_check CHECK ((quantity > (0)::numeric)),
+    CONSTRAINT sales_invoice_line_quantity_check CHECK ((qty > (0)::numeric)),
     CONSTRAINT sales_invoice_line_unit_price_check CHECK ((price >= (0)::numeric))
 );
 
@@ -1460,6 +1460,7 @@ CREATE TABLE demo1.stock_transaction (
     stock_branch_transfer_line_id bigint,
     stock_loan_line_id bigint,
     stock_opening_balance_line_id bigint,
+    CONSTRAINT stock_transaction_check CHECK ((((((((((purchase_line_id IS NOT NULL))::integer + ((sales_line_id IS NOT NULL))::integer) + ((stock_adjustment_line_id IS NOT NULL))::integer) + ((job_part_used_id IS NOT NULL))::integer) + ((stock_branch_transfer_line_id IS NOT NULL))::integer) + ((stock_loan_line_id IS NOT NULL))::integer) + ((stock_opening_balance_line_id IS NOT NULL))::integer) = 1)),
     CONSTRAINT stock_transaction_dr_cr_check CHECK ((dr_cr = ANY (ARRAY['D'::bpchar, 'C'::bpchar]))),
     CONSTRAINT stock_transaction_qty_check CHECK ((qty > (0)::numeric))
 );
@@ -2276,14 +2277,6 @@ ALTER TABLE ONLY demo1.stock_snapshot
 
 ALTER TABLE ONLY demo1.stock_snapshot
     ADD CONSTRAINT stock_snapshot_snapshot_date_part_id_branch_id_key UNIQUE (snapshot_date, part_id, branch_id);
-
-
---
--- Name: stock_transaction stock_transaction_check; Type: CHECK CONSTRAINT; Schema: demo1; Owner: webadmin
---
-
-ALTER TABLE demo1.stock_transaction
-    ADD CONSTRAINT stock_transaction_check CHECK ((((((((((purchase_line_id IS NOT NULL))::integer + ((sales_line_id IS NOT NULL))::integer) + ((stock_adjustment_line_id IS NOT NULL))::integer) + ((job_part_used_id IS NOT NULL))::integer) + ((stock_branch_transfer_line_id IS NOT NULL))::integer) + ((stock_loan_line_id IS NOT NULL))::integer) + ((stock_opening_balance_line_id IS NOT NULL))::integer) = 1)) NOT VALID;
 
 
 --
@@ -3406,7 +3399,7 @@ ALTER TABLE ONLY demo1.stock_transaction
 --
 
 ALTER TABLE ONLY demo1.stock_transaction
-    ADD CONSTRAINT stock_transaction_job_part_used_id_fkey FOREIGN KEY (job_part_used_id) REFERENCES demo1.job_part_used(id) ON DELETE CASCADE NOT VALID;
+    ADD CONSTRAINT stock_transaction_job_part_used_id_fkey FOREIGN KEY (job_part_used_id) REFERENCES demo1.job_part_used(id) ON DELETE CASCADE;
 
 
 --
@@ -3422,7 +3415,7 @@ ALTER TABLE ONLY demo1.stock_transaction
 --
 
 ALTER TABLE ONLY demo1.stock_transaction
-    ADD CONSTRAINT stock_transaction_purchase_line_id_fkey FOREIGN KEY (purchase_line_id) REFERENCES demo1.purchase_invoice_line(id) ON DELETE CASCADE NOT VALID;
+    ADD CONSTRAINT stock_transaction_purchase_line_id_fkey FOREIGN KEY (purchase_line_id) REFERENCES demo1.purchase_invoice_line(id) ON DELETE CASCADE;
 
 
 --
@@ -3430,7 +3423,7 @@ ALTER TABLE ONLY demo1.stock_transaction
 --
 
 ALTER TABLE ONLY demo1.stock_transaction
-    ADD CONSTRAINT stock_transaction_sales_line_id_fkey FOREIGN KEY (sales_line_id) REFERENCES demo1.sales_invoice_line(id) ON DELETE CASCADE NOT VALID;
+    ADD CONSTRAINT stock_transaction_sales_line_id_fkey FOREIGN KEY (sales_line_id) REFERENCES demo1.sales_invoice_line(id) ON DELETE CASCADE;
 
 
 --
@@ -3438,7 +3431,7 @@ ALTER TABLE ONLY demo1.stock_transaction
 --
 
 ALTER TABLE ONLY demo1.stock_transaction
-    ADD CONSTRAINT stock_transaction_stock_adjustment_line_id_fkey FOREIGN KEY (stock_adjustment_line_id) REFERENCES demo1.stock_adjustment_line(id) ON DELETE CASCADE NOT VALID;
+    ADD CONSTRAINT stock_transaction_stock_adjustment_line_id_fkey FOREIGN KEY (stock_adjustment_line_id) REFERENCES demo1.stock_adjustment_line(id) ON DELETE CASCADE;
 
 
 --
@@ -3446,7 +3439,7 @@ ALTER TABLE ONLY demo1.stock_transaction
 --
 
 ALTER TABLE ONLY demo1.stock_transaction
-    ADD CONSTRAINT stock_transaction_stock_branch_transfer_line_id_fkey FOREIGN KEY (stock_branch_transfer_line_id) REFERENCES demo1.stock_branch_transfer_line(id) NOT VALID;
+    ADD CONSTRAINT stock_transaction_stock_branch_transfer_line_id_fkey FOREIGN KEY (stock_branch_transfer_line_id) REFERENCES demo1.stock_branch_transfer_line(id);
 
 
 --
@@ -3454,7 +3447,7 @@ ALTER TABLE ONLY demo1.stock_transaction
 --
 
 ALTER TABLE ONLY demo1.stock_transaction
-    ADD CONSTRAINT stock_transaction_stock_loan_line_id_fkey FOREIGN KEY (stock_loan_line_id) REFERENCES demo1.stock_loan_line(id) ON DELETE CASCADE NOT VALID;
+    ADD CONSTRAINT stock_transaction_stock_loan_line_id_fkey FOREIGN KEY (stock_loan_line_id) REFERENCES demo1.stock_loan_line(id) ON DELETE CASCADE;
 
 
 --
@@ -3462,7 +3455,7 @@ ALTER TABLE ONLY demo1.stock_transaction
 --
 
 ALTER TABLE ONLY demo1.stock_transaction
-    ADD CONSTRAINT stock_transaction_stock_opening_balance_line_id_fkey FOREIGN KEY (stock_opening_balance_line_id) REFERENCES demo1.stock_opening_balance_line(id) ON DELETE CASCADE NOT VALID;
+    ADD CONSTRAINT stock_transaction_stock_opening_balance_line_id_fkey FOREIGN KEY (stock_opening_balance_line_id) REFERENCES demo1.stock_opening_balance_line(id) ON DELETE CASCADE;
 
 
 --
@@ -3533,5 +3526,5 @@ ALTER TABLE ONLY security.user_bu_role
 -- PostgreSQL database dump complete
 --
 
-\unrestrict 89ck5oMcKNLirJsY1kYguXzHaQtPxNN7VA2gXeIhGUtwa9LpPbLVDtsi6296e0e
+\unrestrict MaYg8s7hpOxvBG217eRUAMbzc7mF1Dry9KJsSemSqVg7LtIaYiZ3dtdrNxpffhr
 

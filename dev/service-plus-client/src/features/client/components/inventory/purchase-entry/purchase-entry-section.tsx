@@ -59,8 +59,8 @@ const DEBOUNCE_MS = 1600;
 
 // ─── CSS ──────────────────────────────────────────────────────────────────────
 
-const thClass = "sticky top-0 z-20 text-xs font-semibold uppercase tracking-wide text-[var(--cl-text-muted)] p-3 text-left border-b border-[var(--cl-border)] bg-[var(--cl-surface-2)]";
-const tdClass = "p-3 text-sm text-[var(--cl-text)] border-b border-[var(--cl-border)]";
+const thClass = "sticky top-0 z-20 text-xs font-semibold uppercase tracking-wide text-(--cl-text-muted) p-3 text-left border-b border-(--cl-border) bg-(--cl-surface-2)";
+const tdClass = "p-3 text-sm text-(--cl-text) border-b border-(--cl-border)";
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -337,7 +337,7 @@ export const PurchaseEntrySection = () => {
                 ["#", "Part Code", "Part Name", "HSN", "Qty", "Unit Price", "GST%", "CGST", "SGST", "IGST", "Total"],
                 ...lines.map((l, i) => [
                     i + 1, l.part_code, l.part_name, l.hsn_code,
-                    Number(l.quantity), Number(l.unit_price), Number(l.gst_rate),
+                    Number(l.qty), Number(l.unit_price), Number(l.gst_rate),
                     Number(l.cgst_amount), Number(l.sgst_amount), Number(l.igst_amount),
                     Number(l.total_amount),
                 ]),
@@ -479,18 +479,18 @@ export const PurchaseEntrySection = () => {
             transition={{ duration: 0.25 }}
         >
             {/* Header */}
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-3 border-b border-[var(--cl-border)] bg-[var(--cl-surface)] px-4 py-1">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-3 border-b border-(--cl-border) bg-(--cl-surface) px-4 py-1">
                 {/* Title */}
                 <div className="flex items-center gap-3 overflow-hidden">
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-[var(--cl-accent)]/10 text-[var(--cl-accent)]">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-(--cl-accent)/10 text-(--cl-accent)">
                         <FileText className="h-4 w-4" />
                     </div>
                     <div className="flex items-baseline gap-2 overflow-hidden">
-                        <h1 className="text-lg font-bold text-[var(--cl-text)] truncate">
+                        <h1 className="text-lg font-bold text-(--cl-text) truncate">
                             Purchase Entry
-                            {mode === 'new' && !editInvoice && <span className="ml-2 text-sm font-medium text-[var(--cl-text-muted)] whitespace-nowrap">— New</span>}
+                            {mode === 'new' && !editInvoice && <span className="ml-2 text-sm font-medium text-(--cl-text-muted) whitespace-nowrap">— New</span>}
                             {mode === 'new' &&  editInvoice && <span className="ml-2 text-sm font-medium text-amber-500 whitespace-nowrap">— Edit</span>}
-                            {mode === 'view' && <span className="ml-2 text-sm font-medium text-[var(--cl-text-muted)] whitespace-nowrap">— View</span>}
+                            {mode === 'view' && <span className="ml-2 text-sm font-medium text-(--cl-text-muted) whitespace-nowrap">— View</span>}
                         </h1>
                         {mode === 'new' && (
                             <div className={`flex items-center gap-1 px-1.5 py-1 rounded-sm border shadow-sm animate-in fade-in zoom-in duration-500 delay-150 ml-4 ${
@@ -511,7 +511,7 @@ export const PurchaseEntrySection = () => {
                             </div>
                         )}
                         {mode === 'view' && (
-                            <span className="text-xs text-[var(--cl-text-muted)] whitespace-nowrap">
+                            <span className="text-xs text-(--cl-text-muted) whitespace-nowrap">
                                 {loading ? "Loading…" : `(${total})`}
                             </span>
                         )}
@@ -547,7 +547,7 @@ export const PurchaseEntrySection = () => {
                         ? 'hidden md:flex md:invisible pointer-events-none'
                         : isIgst
                         ? 'bg-blue-400 text-white border-blue-600 shadow-blue-500/20'
-                        : 'bg-[var(--cl-surface-2)] border-[var(--cl-border)] text-[var(--cl-text-muted)]'
+                        : 'bg-(--cl-surface-2) border-(--cl-border) text-(--cl-text-muted)'
                 }`}>
                     <input
                         type="checkbox"
@@ -568,7 +568,7 @@ export const PurchaseEntrySection = () => {
                             ? 'hidden md:flex md:invisible pointer-events-none'
                             : isReturn
                             ? 'bg-red-500 text-white border-red-700 shadow-red-500/20'
-                            : 'bg-[var(--cl-surface-2)] border-[var(--cl-border)] text-[var(--cl-text-muted)]'
+                            : 'bg-(--cl-surface-2) border-(--cl-border) text-(--cl-text-muted)'
                     }`}
                 >
                     <RotateCcw className="h-3 w-3" />
@@ -578,7 +578,7 @@ export const PurchaseEntrySection = () => {
                 {/* Reset · Save — invisible in view mode */}
                 <div className={`flex items-center gap-2 ${mode !== 'new' ? 'hidden md:flex md:invisible pointer-events-none' : ''}`}>
                     <Button
-                        className="h-8 gap-1.5 px-3 text-xs font-extrabold uppercase tracking-widest text-[var(--cl-text)]"
+                        className="h-8 gap-1.5 px-3 text-xs font-extrabold uppercase tracking-widest text-(--cl-text)"
                         variant="ghost"
                         onClick={handleReset}
                         disabled={form.formState.isSubmitting}
@@ -629,18 +629,18 @@ export const PurchaseEntrySection = () => {
             ) : (
                 <>
                     {/* Toolbar - Compacted */}
-                    <div className="flex flex-wrap items-center gap-2 px-4 py-2 bg-[var(--cl-surface-2)]/30">
+                    <div className="flex flex-wrap items-center gap-2 px-4 py-2 bg-(--cl-surface-2)/30">
                         <div className="flex items-center gap-1">
                             <Input
-                                className="h-8 w-32 border-[var(--cl-border)] bg-[var(--cl-surface)] text-xs"
+                                className="h-8 w-32 border-(--cl-border) bg-(--cl-surface) text-xs"
                                 disabled={loading}
                                 type="date"
                                 value={fromDate}
                                 onChange={e => handleFilterChange(setFromDate)(e.target.value)}
                             />
-                            <span className="text-[var(--cl-text-muted)] text-xs">—</span>
+                            <span className="text-(--cl-text-muted) text-xs">—</span>
                             <Input
-                                className="h-8 w-32 border-[var(--cl-border)] bg-[var(--cl-surface)] text-xs"
+                                className="h-8 w-32 border-(--cl-border) bg-(--cl-surface) text-xs"
                                 disabled={loading}
                                 type="date"
                                 value={toDate}
@@ -648,16 +648,16 @@ export const PurchaseEntrySection = () => {
                             />
                         </div>
                         <div className="relative flex-1 sm:max-w-xs">
-                            <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--cl-text-muted)]" />
+                            <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-(--cl-text-muted)" />
                             <Input
-                                className="h-8 border-[var(--cl-border)] bg-[var(--cl-surface)] pl-8 text-xs"
+                                className="h-8 border-(--cl-border) bg-(--cl-surface) pl-8 text-xs"
                                 placeholder="Invoice or Supplier…"
                                 value={search}
                                 onChange={e => handleSearchChange(e.target.value)}
                             />
                             {search && (
                                 <button
-                                    className="absolute right-2.5 top-1/2 flex h-4 w-4 -translate-y-1/2 items-center justify-center rounded-full bg-[var(--cl-text-muted)] text-[var(--cl-surface)] hover:bg-[var(--cl-text)] focus:outline-none"
+                                    className="absolute right-2.5 top-1/2 flex h-4 w-4 -translate-y-1/2 items-center justify-center rounded-full bg-(--cl-text-muted) text-(--cl-surface) hover:bg-(--cl-text) focus:outline-none"
                                     type="button"
                                     onClick={() => handleSearchChange("")}
                                 >
@@ -698,7 +698,7 @@ export const PurchaseEntrySection = () => {
                     </div>
 
                     {/* Data Grid */}
-                    <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-[var(--cl-border)] bg-[var(--cl-surface)] shadow-sm">
+                    <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-(--cl-border) bg-(--cl-surface) shadow-sm">
                         <div
                             ref={scrollWrapperRef}
                             className="flex-1 overflow-x-auto overflow-y-auto"
@@ -707,7 +707,7 @@ export const PurchaseEntrySection = () => {
                             {loading ? (
                                 <table className="min-w-full border-collapse">
                                     <thead className="sticky top-0 z-30">
-                                        <tr className="bg-[var(--cl-surface-2)]">
+                                        <tr className="bg-(--cl-surface-2)">
                                             <th className={thClass} style={{ width: "5%" }}>#</th>
                                             <th className={thClass} style={{ width: "10%" }}>Date</th>
                                             <th className={thClass} style={{ width: "15%" }}>Invoice No</th>
@@ -723,22 +723,22 @@ export const PurchaseEntrySection = () => {
                                     <tbody>
                                         {Array.from({ length: 15 }).map((_, i) => (
                                             <tr key={i} className="animate-pulse">
-                                                <td className={tdClass}><div className="h-4 w-4 rounded bg-[var(--cl-border)]" /></td>
-                                                <td className={tdClass}><div className="h-4 w-16 rounded bg-[var(--cl-border)]" /></td>
-                                                <td className={tdClass}><div className="h-4 w-24 rounded bg-[var(--cl-border)]" /></td>
-                                                <td className={tdClass}><div className="h-4 w-40 rounded bg-[var(--cl-border)]" /></td>
-                                                <td className={`${tdClass} text-right`}><div className="ml-auto h-4 w-16 rounded bg-[var(--cl-border)]" /></td>
-                                                <td className={`${tdClass} text-right`}><div className="ml-auto h-4 w-12 rounded bg-[var(--cl-border)]" /></td>
-                                                <td className={`${tdClass} text-right`}><div className="ml-auto h-4 w-12 rounded bg-[var(--cl-border)]" /></td>
-                                                <td className={`${tdClass} text-right`}><div className="ml-auto h-4 w-12 rounded bg-[var(--cl-border)]" /></td>
-                                                <td className={`${tdClass} text-right`}><div className="ml-auto h-4 w-20 rounded bg-[var(--cl-border)]" /></td>
-                                                <td className={tdClass}><div className="mx-auto h-4 w-8 rounded bg-[var(--cl-border)]" /></td>
+                                                <td className={tdClass}><div className="h-4 w-4 rounded bg-(--cl-border)" /></td>
+                                                <td className={tdClass}><div className="h-4 w-16 rounded bg-(--cl-border)" /></td>
+                                                <td className={tdClass}><div className="h-4 w-24 rounded bg-(--cl-border)" /></td>
+                                                <td className={tdClass}><div className="h-4 w-40 rounded bg-(--cl-border)" /></td>
+                                                <td className={`${tdClass} text-right`}><div className="ml-auto h-4 w-16 rounded bg-(--cl-border)" /></td>
+                                                <td className={`${tdClass} text-right`}><div className="ml-auto h-4 w-12 rounded bg-(--cl-border)" /></td>
+                                                <td className={`${tdClass} text-right`}><div className="ml-auto h-4 w-12 rounded bg-(--cl-border)" /></td>
+                                                <td className={`${tdClass} text-right`}><div className="ml-auto h-4 w-12 rounded bg-(--cl-border)" /></td>
+                                                <td className={`${tdClass} text-right`}><div className="ml-auto h-4 w-20 rounded bg-(--cl-border)" /></td>
+                                                <td className={tdClass}><div className="mx-auto h-4 w-8 rounded bg-(--cl-border)" /></td>
                                             </tr>
                                         ))}
                                     </tbody>
                                 </table>
                             ) : invoices.length === 0 ? (
-                                <div className="flex h-32 items-center justify-center text-sm text-[var(--cl-text-muted)]">
+                                <div className="flex h-32 items-center justify-center text-sm text-(--cl-text-muted)">
                                     No purchase invoices found for the selected filters.
                                 </div>
                             ) : (
@@ -754,13 +754,13 @@ export const PurchaseEntrySection = () => {
                                             <th className={`${thClass} text-right`}>SGST</th>
                                             <th className={`${thClass} text-right`}>IGST</th>
                                             <th className={`${thClass} text-right`}>Total</th>
-                                            <th className={`${thClass} sticky top-0 right-0 z-30 !bg-[var(--cl-surface-2)]`}>Actions</th>
+                                            <th className={`${thClass} sticky top-0 right-0 z-30 !bg-(--cl-surface-2)`}>Actions</th>
                                         </tr>
                                     </thead>
-                                    <tbody className="divide-y divide-[var(--cl-border)] bg-[var(--cl-surface)]">
+                                    <tbody className="divide-y divide-(--cl-border) bg-(--cl-surface)">
                                         {invoices.map((inv, idx) => (
-                                            <tr key={inv.id} className="group transition-colors hover:bg-[var(--cl-accent)]/5 dark:hover:bg-white/[0.03]">
-                                                <td className={`${tdClass} text-[var(--cl-text-muted)]`} style={{ width: "5%" }}>
+                                            <tr key={inv.id} className="group transition-colors hover:bg-(--cl-accent)/5 dark:hover:bg-white/[0.03]">
+                                                <td className={`${tdClass} text-(--cl-text-muted)`} style={{ width: "5%" }}>
                                                     {(page - 1) * PAGE_SIZE + idx + 1}
                                                 </td>
                                                 <td className={tdClass} style={{ width: "10%" }}>
@@ -789,22 +789,22 @@ export const PurchaseEntrySection = () => {
                                                 <td className={`${tdClass} text-right`} style={{ width: "8%" }}>
                                                     {formatCurrency(inv.igst_amount)}
                                                 </td>
-                                                <td className={`${tdClass} text-right font-medium text-[var(--cl-accent)]`} style={{ width: "12%" }}>
+                                                <td className={`${tdClass} text-right font-medium text-(--cl-accent)`} style={{ width: "12%" }}>
                                                     {formatCurrency(inv.total_amount)}
                                                 </td>
-                                                <td className={`${tdClass} sticky right-0 z-10 bg-[var(--cl-surface)] group-hover:bg-[var(--cl-surface-2)]`} style={{ width: "11%" }}>
+                                                <td className={`${tdClass} sticky right-0 z-10 bg-(--cl-surface) group-hover:bg-(--cl-surface-2)`} style={{ width: "11%" }}>
                                                     <div className="flex items-center justify-center">
                                                         <DropdownMenu>
                                                             <DropdownMenuTrigger asChild>
                                                                 <Button
-                                                                    className="h-8 w-8 p-0 hover:bg-[var(--cl-accent)]/15 dark:hover:bg-[var(--cl-accent)]/20 transition-all duration-200"
+                                                                    className="h-8 w-8 p-0 hover:bg-(--cl-accent)/15 dark:hover:bg-(--cl-accent)/20 transition-all duration-200"
                                                                     variant="ghost"
                                                                 >
                                                                     <MoreHorizontal className="h-4 w-4" />
                                                                     <span className="sr-only">Open menu</span>
                                                                 </Button>
                                                             </DropdownMenuTrigger>
-                                                                <DropdownMenuContent align="end" className="w-[160px] bg-white dark:bg-zinc-950 border-[var(--cl-border)] shadow-[0_10px_30px_rgba(0,0,0,0.2)] z-50">
+                                                                <DropdownMenuContent align="end" className="w-[160px] bg-white dark:bg-zinc-950 border-(--cl-border) shadow-[0_10px_30px_rgba(0,0,0,0.2)] z-50">
                                                                 <DropdownMenuItem
                                                                     className="flex items-center gap-2 cursor-pointer focus:bg-sky-500/20 focus:text-sky-400 dark:focus:bg-sky-400/20 dark:focus:text-sky-300"
                                                                     onClick={() => setViewInvoice(inv)}
@@ -852,30 +852,30 @@ export const PurchaseEntrySection = () => {
                                             </tr>
                                         ))}
                                     </tbody>
-                                    <tfoot className="sticky bottom-0 z-10 bg-[var(--cl-surface-2)] shadow-[0_-1px_0_var(--cl-border)] border-t border-t-[var(--cl-border)]">
+                                    <tfoot className="sticky bottom-0 z-10 bg-(--cl-surface-2) shadow-[0_-1px_0_var(--cl-border)] border-t border-t-(--cl-border)">
                                         <tr>
                                             <td className={tdClass} colSpan={4}>
                                                 <div className="flex items-center justify-between">
-                                                    <span className="text-xs text-[var(--cl-text-muted)]">{invoices.length} lines</span>
-                                                    <span className="font-bold text-[var(--cl-text)]">Total:</span>
+                                                    <span className="text-xs text-(--cl-text-muted)">{invoices.length} lines</span>
+                                                    <span className="font-bold text-(--cl-text)">Total:</span>
                                                 </div>
                                             </td>
-                                            <td className={`${tdClass} text-right font-bold text-[var(--cl-text)]`}>
+                                            <td className={`${tdClass} text-right font-bold text-(--cl-text)`}>
                                                 {formatCurrency(gridTotals.aggregate)}
                                             </td>
-                                            <td className={`${tdClass} text-right font-bold text-[var(--cl-text)]`}>
+                                            <td className={`${tdClass} text-right font-bold text-(--cl-text)`}>
                                                 {formatCurrency(gridTotals.cgst)}
                                             </td>
-                                            <td className={`${tdClass} text-right font-bold text-[var(--cl-text)]`}>
+                                            <td className={`${tdClass} text-right font-bold text-(--cl-text)`}>
                                                 {formatCurrency(gridTotals.sgst)}
                                             </td>
-                                            <td className={`${tdClass} text-right font-bold text-[var(--cl-text)]`}>
+                                            <td className={`${tdClass} text-right font-bold text-(--cl-text)`}>
                                                 {formatCurrency(gridTotals.igst)}
                                             </td>
-                                            <td className={`${tdClass} text-right font-bold text-[var(--cl-accent)] text-[13px]`}>
+                                            <td className={`${tdClass} text-right font-bold text-(--cl-accent) text-[13px]`}>
                                                 {formatCurrency(gridTotals.total)}
                                             </td>
-                                            <td className={`${tdClass} !bg-[var(--cl-surface-2)]`}></td>
+                                            <td className={`${tdClass} !bg-(--cl-surface-2)`}></td>
                                         </tr>
                                     </tfoot>
                                 </table>
@@ -883,8 +883,8 @@ export const PurchaseEntrySection = () => {
                         </div>
 
                         {/* Pagination */}
-                        <div className="flex items-center justify-between border-t border-[var(--cl-border)] px-4 py-2">
-                            <span className="text-xs text-[var(--cl-text-muted)]">
+                        <div className="flex items-center justify-between border-t border-(--cl-border) px-4 py-2">
+                            <span className="text-xs text-(--cl-text-muted)">
                                 {total === 0 ? "No invoices" : `Showing ${(page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, total)} of ${total} invoices (Page ${page} of ${totalPages})`}
                             </span>
                             <div className="flex items-center gap-1">
@@ -954,11 +954,11 @@ export const PurchaseEntrySection = () => {
                         open={deleteId !== null}
                         onOpenChange={open => { if (!open && !deleting) setDeleteId(null); }}
                     >
-                        <DialogContent aria-describedby={undefined} className="sm:max-w-sm !bg-[var(--cl-surface)] text-[var(--cl-text)]">
+                        <DialogContent aria-describedby={undefined} className="sm:max-w-sm !bg-(--cl-surface) text-(--cl-text)">
                             <DialogHeader>
                                 <DialogTitle>Delete Purchase Invoice</DialogTitle>
                             </DialogHeader>
-                            <p className="text-sm text-[var(--cl-text-muted)]">
+                            <p className="text-sm text-(--cl-text-muted)">
                                 This will permanently delete the invoice and all associated stock transactions.
                                 This action cannot be undone.
                             </p>

@@ -14,7 +14,7 @@ export type PhysicalValues = {
 };
 
 export type PhysicalTotals = {
-    quantity: number;
+    qty: number;
     cgst:     number;
     sgst:     number;
     igst:     number;
@@ -57,7 +57,7 @@ export function PhysicalInvoiceModal({
         const taxPct = 0.02, taxMin = 0.20, totalPct = 0.2;
         let ok = true;
 
-        if (Math.abs(vals.qty - totals.quantity) >= 0.001) { setError("qty",   { type: "manual" }); ok = false; }
+        if (Math.abs(vals.qty - totals.qty) >= 0.001) { setError("qty",   { type: "manual" }); ok = false; }
         if (!isIgst && !check(vals.cgst, totals.cgst, taxPct, taxMin)) { setError("cgst",  { type: "manual" }); ok = false; }
         if (!isIgst && !check(vals.sgst, totals.sgst, taxPct, taxMin)) { setError("sgst",  { type: "manual" }); ok = false; }
         if (isIgst  && !check(vals.igst, totals.igst, taxPct, taxMin)) { setError("igst",  { type: "manual" }); ok = false; }
@@ -67,7 +67,7 @@ export function PhysicalInvoiceModal({
     });
 
     const statusIcon = (field: keyof PhysicalValues) => {
-        if (!isSubmitted) return <span className="text-[var(--cl-text-muted)] text-xs">—</span>;
+        if (!isSubmitted) return <span className="text-(--cl-text-muted) text-xs">—</span>;
         return errors[field]
             ? <XCircle className="h-4 w-4 text-red-500 mx-auto" />
             : <CheckCircle2 className="h-4 w-4 text-green-500 mx-auto" />;
@@ -96,19 +96,19 @@ export function PhysicalInvoiceModal({
                     </span>
                 </div>
 
-                <div className="overflow-hidden rounded-md border border-[var(--cl-border)]">
+                <div className="overflow-hidden rounded-md border border-(--cl-border)">
                     <table className="w-full text-sm">
                         <thead>
-                            <tr className="bg-[var(--cl-surface-2)]/60 border-b border-[var(--cl-border)]">
-                                <th className="py-2 px-3 text-left text-[11px] font-bold uppercase tracking-wider text-[var(--cl-text-muted)]">Field</th>
-                                <th className="py-2 px-3 text-right text-[11px] font-bold uppercase tracking-wider text-[var(--cl-text-muted)]">Your Entry</th>
-                                <th className="py-2 px-2 text-center text-[11px] font-bold uppercase tracking-wider text-[var(--cl-text-muted)]">Status</th>
+                            <tr className="bg-(--cl-surface-2)/60 border-b border-(--cl-border)">
+                                <th className="py-2 px-3 text-left text-[11px] font-bold uppercase tracking-wider text-(--cl-text-muted)">Field</th>
+                                <th className="py-2 px-3 text-right text-[11px] font-bold uppercase tracking-wider text-(--cl-text-muted)">Your Entry</th>
+                                <th className="py-2 px-2 text-center text-[11px] font-bold uppercase tracking-wider text-(--cl-text-muted)">Status</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-[var(--cl-border)]">
+                        <tbody className="divide-y divide-(--cl-border)">
                             {/* Qty */}
                             <tr className={rowCls("qty")}>
-                                <td className="py-1 px-3 text-xs font-medium text-[var(--cl-text-muted)]">Total Qty</td>
+                                <td className="py-1 px-3 text-xs font-medium text-(--cl-text-muted)">Total Qty</td>
                                 <td className="py-1 px-2">
                                     <Input type="number" step="0.01" placeholder="0"
                                         value={values.qty || ""}
@@ -122,7 +122,7 @@ export function PhysicalInvoiceModal({
                             {/* CGST */}
                             {!isIgst && (
                                 <tr className={rowCls("cgst")}>
-                                    <td className="py-1 px-3 text-xs font-medium text-[var(--cl-text-muted)]">CGST</td>
+                                    <td className="py-1 px-3 text-xs font-medium text-(--cl-text-muted)">CGST</td>
                                     <td className="py-1 px-2">
                                         <Input type="number" step="0.01" placeholder="0.00"
                                             value={values.cgst || ""}
@@ -143,7 +143,7 @@ export function PhysicalInvoiceModal({
                             {/* SGST (read-only, mirrors CGST) */}
                             {!isIgst && (
                                 <tr className={rowCls("sgst")}>
-                                    <td className="py-1 px-3 text-xs font-medium text-[var(--cl-text-muted)]">SGST</td>
+                                    <td className="py-1 px-3 text-xs font-medium text-(--cl-text-muted)">SGST</td>
                                     <td className="py-1 px-2">
                                         <Input type="number" step="0.01" placeholder="0.00"
                                             value={values.sgst || ""}
@@ -157,7 +157,7 @@ export function PhysicalInvoiceModal({
                             {/* IGST */}
                             {isIgst && (
                                 <tr className={rowCls("igst")}>
-                                    <td className="py-1 px-3 text-xs font-medium text-[var(--cl-text-muted)]">IGST</td>
+                                    <td className="py-1 px-3 text-xs font-medium text-(--cl-text-muted)">IGST</td>
                                     <td className="py-1 px-2">
                                         <Input type="number" step="0.01" placeholder="0.00"
                                             value={values.igst || ""}
@@ -171,7 +171,7 @@ export function PhysicalInvoiceModal({
 
                             {/* Invoice amount */}
                             <tr className={`font-semibold ${rowCls("total")}`}>
-                                <td className="py-1 px-3 text-xs font-semibold text-[var(--cl-text)]">Invoice amount</td>
+                                <td className="py-1 px-3 text-xs font-semibold text-(--cl-text)">Invoice amount</td>
                                 <td className="py-1 px-2">
                                     <Input type="number" step="0.01" placeholder="0.00"
                                         value={values.total || ""}

@@ -305,34 +305,34 @@ export const JobImageUpload = ({ jobId, jobNo = "", onPendingChange, onFileCount
 
     return (
         <>
-        <div className="flex flex-col gap-5 mt-2 bg-[var(--cl-surface)] p-4 rounded-xl border border-[var(--cl-border)] shadow-sm">
+        <div className="flex flex-col gap-5 mt-2 bg-(--cl-surface) p-4 rounded-xl border border-(--cl-border) shadow-sm">
             {/* Dropzone */}
             {!readOnly && (
                 <div
                     {...getRootProps()}
                     className={`relative overflow-hidden group cursor-pointer border-2 border-dashed rounded-xl transition-all duration-300 ease-out flex flex-col md:flex-row items-center justify-center py-4 px-6 gap-4 text-center md:text-left ${
                         isDragActive
-                            ? "border-[var(--cl-accent)] bg-[var(--cl-accent)]/5 scale-[1.01] shadow-md shadow-[var(--cl-accent)]/10"
-                            : "border-[var(--cl-border)] bg-[var(--cl-surface-2)]/30 hover:bg-[var(--cl-surface-2)] hover:border-[var(--cl-accent)]/40"
+                            ? "border-(--cl-accent) bg-(--cl-accent)/5 scale-[1.01] shadow-md shadow-(--cl-accent)/10"
+                            : "border-(--cl-border) bg-(--cl-surface-2)/30 hover:bg-(--cl-surface-2) hover:border-(--cl-accent)/40"
                     }`}
                 >
                     <input {...getInputProps()} />
                     <motion.div 
                         initial={false}
                         animate={{ scale: isDragActive ? 1.05 : 1 }}
-                        className="p-2.5 rounded-full bg-[var(--cl-surface)] shadow-sm group-hover:shadow-md transition-shadow border border-[var(--cl-border)]/50 shrink-0"
+                        className="p-2.5 rounded-full bg-(--cl-surface) shadow-sm group-hover:shadow-md transition-shadow border border-(--cl-border)/50 shrink-0"
                     >
-                        <CloudUpload className={`w-5 h-5 transition-colors ${isDragActive ? "text-[var(--cl-accent)]" : "text-[var(--cl-text-muted)] group-hover:text-[var(--cl-accent)]"}`} />
+                        <CloudUpload className={`w-5 h-5 transition-colors ${isDragActive ? "text-(--cl-accent)" : "text-(--cl-text-muted) group-hover:text-(--cl-accent)"}`} />
                     </motion.div>
                     <div className="flex flex-col flex-1 items-center md:items-start">
-                        <h4 className="text-sm font-semibold text-[var(--cl-text)]">
-                            Drag & Drop files here <span className="font-normal text-[var(--cl-text-muted)]">or click to browse</span>
+                        <h4 className="text-sm font-semibold text-(--cl-text)">
+                            Drag & Drop files here <span className="font-normal text-(--cl-text-muted)">or click to browse</span>
                         </h4>
-                        <div className="mt-1.5 flex flex-wrap justify-center md:justify-start items-center gap-1.5 text-[10px] font-medium text-[var(--cl-text-muted)]/80">
-                            <span className="px-1.5 py-0.5 rounded bg-[var(--cl-surface)] border border-[var(--cl-border)]">JPEG</span>
-                            <span className="px-1.5 py-0.5 rounded bg-[var(--cl-surface)] border border-[var(--cl-border)]">PNG</span>
-                            <span className="px-1.5 py-0.5 rounded bg-[var(--cl-surface)] border border-[var(--cl-border)]">WEBP</span>
-                            <span className="px-1.5 py-0.5 rounded bg-[var(--cl-surface)] border border-[var(--cl-border)]">PDF</span>
+                        <div className="mt-1.5 flex flex-wrap justify-center md:justify-start items-center gap-1.5 text-[10px] font-medium text-(--cl-text-muted)/80">
+                            <span className="px-1.5 py-0.5 rounded bg-(--cl-surface) border border-(--cl-border)">JPEG</span>
+                            <span className="px-1.5 py-0.5 rounded bg-(--cl-surface) border border-(--cl-border)">PNG</span>
+                            <span className="px-1.5 py-0.5 rounded bg-(--cl-surface) border border-(--cl-border)">WEBP</span>
+                            <span className="px-1.5 py-0.5 rounded bg-(--cl-surface) border border-(--cl-border)">PDF</span>
                             <span className="ml-1 opacity-70">— Max {maxSizeKb}KB per file</span>
                         </div>
                     </div>
@@ -347,7 +347,7 @@ export const JobImageUpload = ({ jobId, jobNo = "", onPendingChange, onFileCount
                     className="flex flex-col gap-3"
                 >
                     <div className="flex items-center justify-between">
-                        <h4 className="text-[11px] font-bold uppercase tracking-wider text-[var(--cl-text-muted)] flex items-center gap-2">
+                        <h4 className="text-[11px] font-bold uppercase tracking-wider text-(--cl-text-muted) flex items-center gap-2">
                             <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
                             Pending Uploads ({pendingFiles.length})
                         </h4>
@@ -375,15 +375,15 @@ export const JobImageUpload = ({ jobId, jobNo = "", onPendingChange, onFileCount
                                     animate={{ opacity: 1, scale: 1 }}
                                     exit={{ opacity: 0, scale: 0.95 }}
                                     layout
-                                    className="flex items-start gap-3 p-2.5 rounded-xl bg-[var(--cl-surface)] border border-[var(--cl-border)] shadow-sm relative overflow-hidden group"
+                                    className="flex items-start gap-3 p-2.5 rounded-xl bg-(--cl-surface) border border-(--cl-border) shadow-sm relative overflow-hidden group"
                                 >
                                     {pf.isUploading && (
-                                        <div className="absolute inset-0 z-10 bg-[var(--cl-surface)]/70 backdrop-blur-[1px] flex items-center justify-center">
-                                            <Loader2 className="w-5 h-5 text-[var(--cl-accent)] animate-spin" />
+                                        <div className="absolute inset-0 z-10 bg-(--cl-surface)/70 backdrop-blur-[1px] flex items-center justify-center">
+                                            <Loader2 className="w-5 h-5 text-(--cl-accent) animate-spin" />
                                         </div>
                                     )}
                                     
-                                    <div className="w-14 h-14 shrink-0 rounded-lg overflow-hidden bg-[var(--cl-surface-2)] flex items-center justify-center border border-[var(--cl-border)] shadow-inner">
+                                    <div className="w-14 h-14 shrink-0 rounded-lg overflow-hidden bg-(--cl-surface-2) flex items-center justify-center border border-(--cl-border) shadow-inner">
                                         {pf.file.type.includes("pdf") ? (
                                             <FileText className="w-6 h-6 text-rose-500/80" />
                                         ) : (
@@ -393,14 +393,14 @@ export const JobImageUpload = ({ jobId, jobNo = "", onPendingChange, onFileCount
                                     
                                     <div className="flex-1 min-w-0 flex flex-col gap-1.5 pt-0.5">
                                         <div className="flex items-start justify-between gap-2">
-                                            <p className="text-[11px] font-medium text-[var(--cl-text)] truncate" title={pf.file.name}>
+                                            <p className="text-[11px] font-medium text-(--cl-text) truncate" title={pf.file.name}>
                                                 {pf.file.name}
                                             </p>
                                             <button 
                                                 type="button"
                                                 onClick={() => removePending(pf.id)}
                                                 disabled={pf.isUploading}
-                                                className="shrink-0 p-1 rounded-full text-[var(--cl-text-muted)]/70 hover:bg-red-500/10 hover:text-red-500 transition-colors disabled:opacity-50 -mt-0.5 -mr-0.5 cursor-pointer"
+                                                className="shrink-0 p-1 rounded-full text-(--cl-text-muted)/70 hover:bg-red-500/10 hover:text-red-500 transition-colors disabled:opacity-50 -mt-0.5 -mr-0.5 cursor-pointer"
                                             >
                                                 <X className="w-3.5 h-3.5" />
                                             </button>
@@ -408,7 +408,7 @@ export const JobImageUpload = ({ jobId, jobNo = "", onPendingChange, onFileCount
                                         <div className="relative mt-auto">
                                             <Input
                                                 size={1}
-                                                className={`h-7 text-xs pr-7 bg-[var(--cl-surface-2)] border-dashed transition-all ${!pf.about.trim() ? "border-rose-400/50 hover:border-rose-400 focus-visible:border-rose-500 focus-visible:ring-rose-500/20" : "border-[var(--cl-border)] focus-visible:border-[var(--cl-accent)]"}`}
+                                                className={`h-7 text-xs pr-7 bg-(--cl-surface-2) border-dashed transition-all ${!pf.about.trim() ? "border-rose-400/50 hover:border-rose-400 focus-visible:border-rose-500 focus-visible:ring-rose-500/20" : "border-(--cl-border) focus-visible:border-(--cl-accent)"}`}
                                                 placeholder="What is this file? *"
                                                 value={pf.about}
                                                 onChange={(e) => updatePendingAbout(pf.id, e.target.value)}
@@ -428,18 +428,18 @@ export const JobImageUpload = ({ jobId, jobNo = "", onPendingChange, onFileCount
 
             {/* Separator if both exist */}
             {pendingFiles.length > 0 && hasExistingFiles && (
-                <div className="h-px w-full bg-gradient-to-r from-transparent via-[var(--cl-border)] to-transparent my-1" />
+                <div className="h-px w-full bg-gradient-to-r from-transparent via-(--cl-border) to-transparent my-1" />
             )}
 
             {/* Uploaded Files Grid */}
             {(hasExistingFiles || isLoading) && (
                 <div className="flex flex-col gap-3">
                     <div className="flex items-center justify-between">
-                        <h4 className="text-[11px] font-bold uppercase tracking-wider text-[var(--cl-text-muted)] flex items-center gap-2">
+                        <h4 className="text-[11px] font-bold uppercase tracking-wider text-(--cl-text-muted) flex items-center gap-2">
                             <span className="w-2 h-2 rounded-full bg-emerald-500" />
                             Uploaded Files ({uploadedFiles.length})
                         </h4>
-                        {isLoading && <Loader2 className="w-3.5 h-3.5 animate-spin text-[var(--cl-text-muted)]" />}
+                        {isLoading && <Loader2 className="w-3.5 h-3.5 animate-spin text-(--cl-text-muted)" />}
                     </div>
 
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
@@ -456,7 +456,7 @@ export const JobImageUpload = ({ jobId, jobNo = "", onPendingChange, onFileCount
                                         exit={{ opacity: 0, scale: 0.9, y: -10 }}
                                         transition={{ type: "spring", stiffness: 300, damping: 25 }}
                                         layout
-                                        className="group relative aspect-square rounded-xl overflow-hidden bg-[var(--cl-surface-2)] border border-[var(--cl-border)] shadow-sm hover:shadow-md transition-all duration-300 ring-1 ring-black/5"
+                                        className="group relative aspect-square rounded-xl overflow-hidden bg-(--cl-surface-2) border border-(--cl-border) shadow-sm hover:shadow-md transition-all duration-300 ring-1 ring-black/5"
                                     >
                                         {/* Main Content */}
                                         <a 
@@ -468,7 +468,7 @@ export const JobImageUpload = ({ jobId, jobNo = "", onPendingChange, onFileCount
                                             {isPdf ? (
                                                 <div className="flex flex-col items-center gap-2 group-hover:scale-110 transition-transform duration-500 ease-out">
                                                     <FileText className="w-10 h-10 text-rose-500 drop-shadow-sm" />
-                                                    <span className="text-[9px] font-bold uppercase tracking-widest text-[var(--cl-text-muted)]">PDF</span>
+                                                    <span className="text-[9px] font-bold uppercase tracking-widest text-(--cl-text-muted)">PDF</span>
                                                 </div>
                                             ) : (
                                                 <img 

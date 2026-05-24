@@ -50,8 +50,8 @@ const DEBOUNCE_MS = 1600;
 
 // ─── CSS ──────────────────────────────────────────────────────────────────────
 
-const thClass = "sticky top-0 z-20 text-xs font-semibold uppercase tracking-wide text-[var(--cl-text-muted)] p-3 text-left border-b border-[var(--cl-border)] bg-[var(--cl-surface-2)]";
-const tdClass = "p-3 text-sm text-[var(--cl-text)] border-b border-[var(--cl-border)]";
+const thClass = "sticky top-0 z-20 text-xs font-semibold uppercase tracking-wide text-(--cl-text-muted) p-3 text-left border-b border-(--cl-border) bg-(--cl-surface-2)";
+const tdClass = "p-3 text-sm text-(--cl-text) border-b border-(--cl-border)";
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -353,21 +353,21 @@ export const LoanEntrySection = () => {
             transition={{ duration: 0.25 }}
         >
             {/* Header */}
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-3 border-b border-[var(--cl-border)] bg-[var(--cl-surface)] px-4 py-1">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-3 border-b border-(--cl-border) bg-(--cl-surface) px-4 py-1">
                 {/* Title */}
                 <div className="flex items-center gap-3 overflow-hidden">
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-[var(--cl-accent)]/10 text-[var(--cl-accent)]">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-(--cl-accent)/10 text-(--cl-accent)">
                         <FileText className="h-4 w-4" />
                     </div>
                     <div className="flex items-baseline gap-2 overflow-hidden">
-                        <h1 className="text-lg font-bold text-[var(--cl-text)] truncate">
+                        <h1 className="text-lg font-bold text-(--cl-text) truncate">
                             Loan Entry
-                            {mode === "new" && !editLoan && <span className="ml-2 text-sm font-medium text-[var(--cl-text-muted)] whitespace-nowrap">— New</span>}
+                            {mode === "new" && !editLoan && <span className="ml-2 text-sm font-medium text-(--cl-text-muted) whitespace-nowrap">— New</span>}
                             {mode === "new" &&  editLoan && <span className="ml-2 text-sm font-medium text-amber-500 whitespace-nowrap">— Edit</span>}
-                            {mode === "view" && <span className="ml-2 text-sm font-medium text-[var(--cl-text-muted)] whitespace-nowrap">— View</span>}
+                            {mode === "view" && <span className="ml-2 text-sm font-medium text-(--cl-text-muted) whitespace-nowrap">— View</span>}
                         </h1>
                         {mode === "view" && (
-                            <span className="text-xs text-[var(--cl-text-muted)] whitespace-nowrap">
+                            <span className="text-xs text-(--cl-text-muted) whitespace-nowrap">
                                 {loading ? "Loading…" : `(${total})`}
                             </span>
                         )}
@@ -399,7 +399,7 @@ export const LoanEntrySection = () => {
                 {/* Reset · Save — invisible in view mode */}
                 <div className={`flex items-center gap-2 ${mode !== "new" ? "hidden md:flex md:invisible pointer-events-none" : ""}`}>
                     <Button
-                        className="h-8 gap-1.5 px-3 text-xs font-extrabold uppercase tracking-widest text-[var(--cl-text)]"
+                        className="h-8 gap-1.5 px-3 text-xs font-extrabold uppercase tracking-widest text-(--cl-text)"
                         disabled={form.formState.isSubmitting}
                         variant="ghost"
                         onClick={handleReset}
@@ -432,18 +432,18 @@ export const LoanEntrySection = () => {
             ) : (
                 <>
                     {/* Toolbar */}
-                    <div className="flex flex-wrap items-center gap-2 px-4 py-2 bg-[var(--cl-surface-2)]/30">
+                    <div className="flex flex-wrap items-center gap-2 px-4 py-2 bg-(--cl-surface-2)/30">
                         <div className="flex items-center gap-1">
                             <Input
-                                className="h-8 w-32 border-[var(--cl-border)] bg-[var(--cl-surface)] text-xs"
+                                className="h-8 w-32 border-(--cl-border) bg-(--cl-surface) text-xs"
                                 disabled={loading}
                                 type="date"
                                 value={fromDate}
                                 onChange={e => handleFilterChange(setFromDate)(e.target.value)}
                             />
-                            <span className="text-[var(--cl-text-muted)] text-xs">—</span>
+                            <span className="text-(--cl-text-muted) text-xs">—</span>
                             <Input
-                                className="h-8 w-32 border-[var(--cl-border)] bg-[var(--cl-surface)] text-xs"
+                                className="h-8 w-32 border-(--cl-border) bg-(--cl-surface) text-xs"
                                 disabled={loading}
                                 type="date"
                                 value={toDate}
@@ -451,16 +451,16 @@ export const LoanEntrySection = () => {
                             />
                         </div>
                         <div className="relative flex-1 sm:max-w-xs">
-                            <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--cl-text-muted)]" />
+                            <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-(--cl-text-muted)" />
                             <Input
-                                className="h-8 border-[var(--cl-border)] bg-[var(--cl-surface)] pl-8 text-xs"
+                                className="h-8 border-(--cl-border) bg-(--cl-surface) pl-8 text-xs"
                                 placeholder="Loan To, Ref #…"
                                 value={search}
                                 onChange={e => handleSearchChange(e.target.value)}
                             />
                             {search && (
                                 <button
-                                    className="absolute right-2.5 top-1/2 flex h-4 w-4 -translate-y-1/2 items-center justify-center rounded-full bg-[var(--cl-text-muted)] text-[var(--cl-surface)] hover:bg-[var(--cl-text)] focus:outline-none"
+                                    className="absolute right-2.5 top-1/2 flex h-4 w-4 -translate-y-1/2 items-center justify-center rounded-full bg-(--cl-text-muted) text-(--cl-surface) hover:bg-(--cl-text) focus:outline-none"
                                     type="button"
                                     onClick={() => handleSearchChange("")}
                                 >
@@ -483,7 +483,7 @@ export const LoanEntrySection = () => {
                     </div>
 
                     {/* Data Grid */}
-                    <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-[var(--cl-border)] bg-[var(--cl-surface)] shadow-sm">
+                    <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-(--cl-border) bg-(--cl-surface) shadow-sm">
                         <div
                             ref={scrollWrapperRef}
                             className="flex-1 overflow-x-auto overflow-y-auto"
@@ -492,7 +492,7 @@ export const LoanEntrySection = () => {
                             {loading ? (
                                 <table className="min-w-full border-collapse">
                                     <thead className="sticky top-0 z-30">
-                                        <tr className="bg-[var(--cl-surface-2)]">
+                                        <tr className="bg-(--cl-surface-2)">
                                             <th className={thClass} style={{ width: "5%" }}>#</th>
                                             <th className={thClass} style={{ width: "15%" }}>Date</th>
                                             <th className={thClass} style={{ width: "20%" }}>Ref #</th>
@@ -503,17 +503,17 @@ export const LoanEntrySection = () => {
                                     <tbody>
                                         {Array.from({ length: 15 }).map((_, i) => (
                                             <tr key={i} className="animate-pulse">
-                                                <td className={tdClass}><div className="h-4 w-4 rounded bg-[var(--cl-border)]" /></td>
-                                                <td className={tdClass}><div className="h-4 w-24 rounded bg-[var(--cl-border)]" /></td>
-                                                <td className={tdClass}><div className="h-4 w-32 rounded bg-[var(--cl-border)]" /></td>
-                                                <td className={tdClass}><div className="h-4 w-96 rounded bg-[var(--cl-border)]" /></td>
-                                                <td className={tdClass}><div className="mx-auto h-4 w-8 rounded bg-[var(--cl-border)]" /></td>
+                                                <td className={tdClass}><div className="h-4 w-4 rounded bg-(--cl-border)" /></td>
+                                                <td className={tdClass}><div className="h-4 w-24 rounded bg-(--cl-border)" /></td>
+                                                <td className={tdClass}><div className="h-4 w-32 rounded bg-(--cl-border)" /></td>
+                                                <td className={tdClass}><div className="h-4 w-96 rounded bg-(--cl-border)" /></td>
+                                                <td className={tdClass}><div className="mx-auto h-4 w-8 rounded bg-(--cl-border)" /></td>
                                             </tr>
                                         ))}
                                     </tbody>
                                 </table>
                             ) : loans.length === 0 ? (
-                                <div className="flex h-32 items-center justify-center text-sm text-[var(--cl-text-muted)]">
+                                <div className="flex h-32 items-center justify-center text-sm text-(--cl-text-muted)">
                                     No loan entries found for the selected filters.
                                 </div>
                             ) : (
@@ -524,13 +524,13 @@ export const LoanEntrySection = () => {
                                             <th className={thClass}>Date</th>
                                             <th className={thClass}>Ref #</th>
                                             <th className={thClass}>Remarks</th>
-                                            <th className={`${thClass} sticky right-0 z-20 !bg-[var(--cl-surface-2)]`}>Actions</th>
+                                            <th className={`${thClass} sticky right-0 z-20 !bg-(--cl-surface-2)`}>Actions</th>
                                         </tr>
                                     </thead>
-                                    <tbody className="divide-y divide-[var(--cl-border)] bg-[var(--cl-surface)]">
+                                    <tbody className="divide-y divide-(--cl-border) bg-(--cl-surface)">
                                         {loans.map((loan, idx) => (
-                                            <tr key={loan.id} className="group transition-colors hover:bg-[var(--cl-accent)]/5 dark:hover:bg-white/[0.03]">
-                                                <td className={`${tdClass} text-[var(--cl-text-muted)]`} style={{ width: "5%" }}>
+                                            <tr key={loan.id} className="group transition-colors hover:bg-(--cl-accent)/5 dark:hover:bg-white/[0.03]">
+                                                <td className={`${tdClass} text-(--cl-text-muted)`} style={{ width: "5%" }}>
                                                     {(page - 1) * PAGE_SIZE + idx + 1}
                                                 </td>
                                                 <td className={tdClass} style={{ width: "15%" }}>
@@ -539,22 +539,22 @@ export const LoanEntrySection = () => {
                                                 <td className={`${tdClass} font-mono`} style={{ width: "20%" }}>
                                                     {loan.ref_no ?? "—"}
                                                 </td>
-                                                <td className={`${tdClass} text-[var(--cl-text-muted)]`} style={{ width: "28%" }}>
+                                                <td className={`${tdClass} text-(--cl-text-muted)`} style={{ width: "28%" }}>
                                                     {loan.remarks ?? "—"}
                                                 </td>
-                                                <td className={`${tdClass} sticky right-0 z-10 bg-[var(--cl-surface)] group-hover:bg-[var(--cl-surface-2)]`} style={{ width: "10%" }}>
+                                                <td className={`${tdClass} sticky right-0 z-10 bg-(--cl-surface) group-hover:bg-(--cl-surface-2)`} style={{ width: "10%" }}>
                                                     <div className="flex items-center justify-center">
                                                         <DropdownMenu>
                                                             <DropdownMenuTrigger asChild>
                                                                 <Button
-                                                                    className="h-8 w-8 p-0 hover:bg-[var(--cl-accent)]/15 dark:hover:bg-[var(--cl-accent)]/20 transition-all duration-200"
+                                                                    className="h-8 w-8 p-0 hover:bg-(--cl-accent)/15 dark:hover:bg-(--cl-accent)/20 transition-all duration-200"
                                                                     variant="ghost"
                                                                 >
                                                                     <MoreHorizontal className="h-4 w-4" />
                                                                     <span className="sr-only">Open menu</span>
                                                                 </Button>
                                                             </DropdownMenuTrigger>
-                                                            <DropdownMenuContent align="end" className="w-[160px] bg-white dark:bg-zinc-950 border-[var(--cl-border)] shadow-[0_10px_30px_rgba(0,0,0,0.2)] z-50">
+                                                            <DropdownMenuContent align="end" className="w-[160px] bg-white dark:bg-zinc-950 border-(--cl-border) shadow-[0_10px_30px_rgba(0,0,0,0.2)] z-50">
                                                                 <DropdownMenuItem
                                                                     className="flex items-center gap-2 cursor-pointer text-amber-500 focus:bg-amber-500/10 focus:text-amber-600"
                                                                     onClick={() => { setEditLoan(loan); setMode("new"); }}
@@ -582,14 +582,14 @@ export const LoanEntrySection = () => {
 
                         {/* Summary footer */}
                         {loans.length > 0 && (
-                            <div className="border-t border-[var(--cl-border)] bg-[var(--cl-surface-2)]">
+                            <div className="border-t border-(--cl-border) bg-(--cl-surface-2)">
                                 <table className="min-w-full border-collapse">
                                     <tbody>
                                         <tr>
                                             <td className={tdClass} style={{ width: "5%" }}></td>
                                             <td className={tdClass} colSpan={4}>
                                                 <div className="flex items-center justify-between">
-                                                    <span className="text-xs text-[var(--cl-text-muted)]">{loans.length} lines</span>
+                                                    <span className="text-xs text-(--cl-text-muted)">{loans.length} lines</span>
                                                 </div>
                                             </td>
                                         </tr>
@@ -599,8 +599,8 @@ export const LoanEntrySection = () => {
                         )}
 
                         {/* Pagination */}
-                        <div className="flex items-center justify-between border-t border-[var(--cl-border)] px-4 py-2">
-                            <span className="text-xs text-[var(--cl-text-muted)]">
+                        <div className="flex items-center justify-between border-t border-(--cl-border) px-4 py-2">
+                            <span className="text-xs text-(--cl-text-muted)">
                                 {total === 0 ? "No loans" : `Showing ${(page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, total)} of ${total} loans (Page ${page} of ${totalPages})`}
                             </span>
                             <div className="flex items-center gap-1">
@@ -653,11 +653,11 @@ export const LoanEntrySection = () => {
                         open={deleteId !== null}
                         onOpenChange={open => { if (!open && !deleting) setDeleteId(null); }}
                     >
-                        <DialogContent aria-describedby={undefined} className="sm:max-w-sm !bg-[var(--cl-surface)] text-[var(--cl-text)]">
+                        <DialogContent aria-describedby={undefined} className="sm:max-w-sm !bg-(--cl-surface) text-(--cl-text)">
                             <DialogHeader>
                                 <DialogTitle>Delete Loan Entry</DialogTitle>
                             </DialogHeader>
-                            <p className="text-sm text-[var(--cl-text-muted)]">
+                            <p className="text-sm text-(--cl-text-muted)">
                                 This will permanently delete the loan entry and all associated stock transactions.
                                 This action cannot be undone.
                             </p>

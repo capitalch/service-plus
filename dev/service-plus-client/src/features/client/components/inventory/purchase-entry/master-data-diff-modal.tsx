@@ -36,12 +36,12 @@ export const MasterDataDiffModal = ({
                 <DialogHeader>
                     <DialogTitle>Part Master Data Will Be Updated</DialogTitle>
                 </DialogHeader>
-                <p className="text-sm text-[var(--cl-text-muted)]">
+                <p className="text-sm text-(--cl-text-muted)">
                     The following values differ from what is currently stored in the part master. Proceeding will overwrite the master with the entered values.
                 </p>
-                <div className="overflow-auto max-h-72 rounded border border-[var(--cl-border)]">
+                <div className="overflow-auto max-h-72 rounded border border-(--cl-border)">
                     <table className="w-full text-sm">
-                        <thead className="bg-[var(--cl-surface-2)] text-[var(--cl-text-muted)] sticky top-0">
+                        <thead className="bg-(--cl-surface-2) text-(--cl-text-muted) sticky top-0">
                             <tr>
                                 <th className="text-left px-3 py-2 font-medium">Part Code</th>
                                 <th className="text-left px-3 py-2 font-medium">Part Name</th>
@@ -50,15 +50,15 @@ export const MasterDataDiffModal = ({
                                 <th className="text-right px-3 py-2 font-medium">Entered Value</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-[var(--cl-border)]">
+                        <tbody className="divide-y divide-(--cl-border)">
                             {masterDiffLines.flatMap(line => {
                                 const rows = [];
                                 if (line._orig_hsn_code != null && line.hsn_code.trim() !== "" && line.hsn_code.trim() !== line._orig_hsn_code) {
                                     rows.push(
-                                        <tr key={`${line._key}-hsn`} className="bg-[var(--cl-surface)]">
+                                        <tr key={`${line._key}-hsn`} className="bg-(--cl-surface)">
                                             <td className="px-3 py-1.5 font-mono text-xs">{line.part_code}</td>
                                             <td className="px-3 py-1.5">{line.part_name}</td>
-                                            <td className="px-3 py-1.5 text-[var(--cl-text-muted)]">HSN</td>
+                                            <td className="px-3 py-1.5 text-(--cl-text-muted)">HSN</td>
                                             <td className="px-3 py-1.5 text-right font-mono">{line._orig_hsn_code}</td>
                                             <td className="px-3 py-1.5 text-right font-mono text-amber-600">{line.hsn_code.trim()}</td>
                                         </tr>
@@ -66,10 +66,10 @@ export const MasterDataDiffModal = ({
                                 }
                                 if (line._orig_cost_price != null && line.unit_price > 0 && line.unit_price !== line._orig_cost_price) {
                                     rows.push(
-                                        <tr key={`${line._key}-price`} className="bg-[var(--cl-surface)]">
+                                        <tr key={`${line._key}-price`} className="bg-(--cl-surface)">
                                             <td className="px-3 py-1.5 font-mono text-xs">{line.part_code}</td>
                                             <td className="px-3 py-1.5">{line.part_name}</td>
-                                            <td className="px-3 py-1.5 text-[var(--cl-text-muted)]">Price</td>
+                                            <td className="px-3 py-1.5 text-(--cl-text-muted)">Price</td>
                                             <td className="px-3 py-1.5 text-right font-mono">{formatNumber(line._orig_cost_price)}</td>
                                             <td className="px-3 py-1.5 text-right font-mono text-amber-600">{formatNumber(line.unit_price)}</td>
                                         </tr>
@@ -77,10 +77,10 @@ export const MasterDataDiffModal = ({
                                 }
                                 if (line._orig_gst_rate != null && line.gst_rate > 0 && line.gst_rate !== line._orig_gst_rate) {
                                     rows.push(
-                                        <tr key={`${line._key}-gst`} className="bg-[var(--cl-surface)]">
+                                        <tr key={`${line._key}-gst`} className="bg-(--cl-surface)">
                                             <td className="px-3 py-1.5 font-mono text-xs">{line.part_code}</td>
                                             <td className="px-3 py-1.5">{line.part_name}</td>
-                                            <td className="px-3 py-1.5 text-[var(--cl-text-muted)]">GST Rate</td>
+                                            <td className="px-3 py-1.5 text-(--cl-text-muted)">GST Rate</td>
                                             <td className="px-3 py-1.5 text-right font-mono">{line._orig_gst_rate}%</td>
                                             <td className="px-3 py-1.5 text-right font-mono text-amber-600">{line.gst_rate}%</td>
                                         </tr>

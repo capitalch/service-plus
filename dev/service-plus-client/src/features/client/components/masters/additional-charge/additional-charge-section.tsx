@@ -61,12 +61,12 @@ function NameDialog({ title, value, hsnValue, saving, idValue, onIdChange, onCha
                 <div className="space-y-3 py-2">
                     {hasId && (
                         <div className="space-y-1">
-                            <label className="text-xs font-medium text-[var(--cl-text-muted)] uppercase tracking-wider">
+                            <label className="text-xs font-medium text-(--cl-text-muted) uppercase tracking-wider">
                                 ID <span className="text-red-500">*</span>
                             </label>
                             <Input
                                 autoFocus
-                                className={`border-[var(--cl-border)] bg-white text-sm ${idInvalid ? "border-red-500" : ""}`}
+                                className={`border-(--cl-border) bg-white text-sm ${idInvalid ? "border-red-500" : ""}`}
                                 disabled={saving}
                                 min={1}
                                 placeholder="e.g. 15"
@@ -78,12 +78,12 @@ function NameDialog({ title, value, hsnValue, saving, idValue, onIdChange, onCha
                         </div>
                     )}
                     <div className="space-y-1">
-                        <label className="text-xs font-medium text-[var(--cl-text-muted)] uppercase tracking-wider">
+                        <label className="text-xs font-medium text-(--cl-text-muted) uppercase tracking-wider">
                             Name <span className="text-red-500">*</span>
                         </label>
                         <Input
                             autoFocus={!hasId}
-                            className="border-[var(--cl-border)] bg-white text-sm"
+                            className="border-(--cl-border) bg-white text-sm"
                             disabled={saving}
                             placeholder="Charge name"
                             value={value}
@@ -92,9 +92,9 @@ function NameDialog({ title, value, hsnValue, saving, idValue, onIdChange, onCha
                         />
                     </div>
                     <div className="space-y-1">
-                        <label className="text-xs font-medium text-[var(--cl-text-muted)] uppercase tracking-wider">HSN</label>
+                        <label className="text-xs font-medium text-(--cl-text-muted) uppercase tracking-wider">HSN</label>
                         <Input
-                            className={`border-[var(--cl-border)] bg-white text-sm font-mono ${hsnInvalid ? "border-red-500" : ""}`}
+                            className={`border-(--cl-border) bg-white text-sm font-mono ${hsnInvalid ? "border-red-500" : ""}`}
                             disabled={saving}
                             maxLength={8}
                             placeholder="e.g. 998726"
@@ -130,7 +130,7 @@ function DeleteDialog({ name, saving, onConfirm, onClose }: DeleteDialogProps) {
                 <DialogHeader>
                     <DialogTitle>Delete Charge</DialogTitle>
                 </DialogHeader>
-                <p className="text-sm text-[var(--cl-text)]">
+                <p className="text-sm text-(--cl-text)">
                     Delete <span className="font-semibold">{name}</span>? This cannot be undone.
                 </p>
                 <DialogFooter>
@@ -259,8 +259,8 @@ export const AdditionalChargeSection = () => {
         }
     }
 
-    const thClass = "sticky top-0 z-10 bg-[var(--cl-surface-2)] px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-[var(--cl-text-muted)] border-b border-[var(--cl-border)]";
-    const tdClass = "px-4 py-2.5 text-sm text-[var(--cl-text)] border-b border-[var(--cl-border)]";
+    const thClass = "sticky top-0 z-10 bg-(--cl-surface-2) px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-(--cl-text-muted) border-b border-(--cl-border)";
+    const tdClass = "px-4 py-2.5 text-sm text-(--cl-text) border-b border-(--cl-border)";
 
     return (
         <motion.div
@@ -272,12 +272,12 @@ export const AdditionalChargeSection = () => {
             {/* Header */}
             <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="flex items-center gap-3">
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--cl-accent)]/10 text-[var(--cl-accent)]">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-(--cl-accent)/10 text-(--cl-accent)">
                         <Receipt className="h-4 w-4" />
                     </div>
                     <div>
-                        <h2 className="text-base font-bold text-[var(--cl-text)]">Job Additional Charges</h2>
-                        <p className="text-xs text-[var(--cl-text-muted)]">Manage predefined additional charge names used in jobs.</p>
+                        <h2 className="text-base font-bold text-(--cl-text)">Job Additional Charges</h2>
+                        <p className="text-xs text-(--cl-text-muted)">Manage predefined additional charge names used in jobs.</p>
                     </div>
                 </div>
                 <Button
@@ -298,16 +298,16 @@ export const AdditionalChargeSection = () => {
             {/* Toolbar */}
             <div className="flex items-center gap-2">
                 <div className="relative flex-1 max-w-xs">
-                    <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--cl-text-muted)]" />
+                    <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-(--cl-text-muted)" />
                     <Input
-                        className="h-8 border-[var(--cl-border)] bg-white pl-8 pr-8 text-xs"
+                        className="h-8 border-(--cl-border) bg-white pl-8 pr-8 text-xs"
                         placeholder="Search charges…"
                         value={search}
                         onChange={e => setSearch(e.target.value)}
                     />
                     {search && (
                         <button
-                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--cl-text-muted)] hover:text-[var(--cl-text)]"
+                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-(--cl-text-muted) hover:text-(--cl-text)"
                             type="button"
                             onClick={() => setSearch("")}
                         >
@@ -324,13 +324,13 @@ export const AdditionalChargeSection = () => {
                 >
                     <RefreshCw className="mr-1.5 h-3 w-3" /> Refresh
                 </Button>
-                <span className="text-xs text-[var(--cl-text-muted)]">
+                <span className="text-xs text-(--cl-text-muted)">
                     {loading ? "Loading…" : `${filtered.length} item${filtered.length !== 1 ? "s" : ""}`}
                 </span>
             </div>
 
             {/* Table */}
-            <div className="min-h-0 flex-1 overflow-hidden rounded-lg border border-[var(--cl-border)] bg-[var(--cl-surface)] shadow-sm">
+            <div className="min-h-0 flex-1 overflow-hidden rounded-lg border border-(--cl-border) bg-(--cl-surface) shadow-sm">
                 <div className="h-full overflow-y-auto">
                     <table className="min-w-full border-collapse">
                         <thead>
@@ -345,15 +345,15 @@ export const AdditionalChargeSection = () => {
                             {loading ? (
                                 Array.from({ length: 6 }).map((_, i) => (
                                     <tr key={i} className="animate-pulse">
-                                        <td className={tdClass}><div className="h-4 w-6 rounded bg-[var(--cl-border)]" /></td>
-                                        <td className={tdClass}><div className="h-4 w-48 rounded bg-[var(--cl-border)]" /></td>
-                                        <td className={tdClass}><div className="h-4 w-20 rounded bg-[var(--cl-border)]" /></td>
+                                        <td className={tdClass}><div className="h-4 w-6 rounded bg-(--cl-border)" /></td>
+                                        <td className={tdClass}><div className="h-4 w-48 rounded bg-(--cl-border)" /></td>
+                                        <td className={tdClass}><div className="h-4 w-20 rounded bg-(--cl-border)" /></td>
                                         <td className={tdClass}></td>
                                     </tr>
                                 ))
                             ) : filtered.length === 0 ? (
                                 <tr>
-                                    <td colSpan={4} className="px-4 py-12 text-center text-sm text-[var(--cl-text-muted)]">
+                                    <td colSpan={4} className="px-4 py-12 text-center text-sm text-(--cl-text-muted)">
                                         {search ? "No charges match your search." : "No charges yet. Click Add Charge to create one."}
                                     </td>
                                 </tr>
@@ -361,18 +361,18 @@ export const AdditionalChargeSection = () => {
                                 <motion.tr
                                     key={row.id}
                                     animate="visible"
-                                    className="group transition-colors hover:bg-[var(--cl-accent)]/5"
+                                    className="group transition-colors hover:bg-(--cl-accent)/5"
                                     custom={idx}
                                     initial="hidden"
                                     variants={rowVariants}
                                 >
-                                    <td className={`${tdClass} text-[var(--cl-text-muted)]`}>{idx + 1}</td>
+                                    <td className={`${tdClass} text-(--cl-text-muted)`}>{idx + 1}</td>
                                     <td className={tdClass}>{row.name}</td>
-                                    <td className={`${tdClass} font-mono text-xs`}>{row.hsn_code ?? <span className="text-[var(--cl-text-muted)]">—</span>}</td>
+                                    <td className={`${tdClass} font-mono text-xs`}>{row.hsn_code ?? <span className="text-(--cl-text-muted)">—</span>}</td>
                                     <td className={`${tdClass} text-right`}>
                                         <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                             <Button
-                                                className="h-7 w-7 p-0 text-[var(--cl-text-muted)] hover:text-[var(--cl-accent)]"
+                                                className="h-7 w-7 p-0 text-(--cl-text-muted) hover:text-(--cl-accent)"
                                                 size="icon"
                                                 title="Edit"
                                                 variant="ghost"
@@ -381,7 +381,7 @@ export const AdditionalChargeSection = () => {
                                                 <Pencil className="h-3.5 w-3.5" />
                                             </Button>
                                             <Button
-                                                className="h-7 w-7 p-0 text-[var(--cl-text-muted)] hover:text-red-500 hover:bg-red-500/10"
+                                                className="h-7 w-7 p-0 text-(--cl-text-muted) hover:text-red-500 hover:bg-red-500/10"
                                                 size="icon"
                                                 title="Delete"
                                                 variant="ghost"

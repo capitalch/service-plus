@@ -48,8 +48,8 @@ type GenericQueryData<T> = { genericQuery: T[] | null };
 const PAGE_SIZE = 50;
 const DEBOUNCE_MS = 1600;
 
-const thClass = "sticky top-0 z-20 text-xs font-semibold uppercase tracking-wide text-[var(--cl-text-muted)] p-3 text-left border-b border-[var(--cl-border)] bg-[var(--cl-surface-2)]";
-const tdClass = "p-3 text-sm text-[var(--cl-text)] border-b border-[var(--cl-border)]";
+const thClass = "sticky top-0 z-20 text-xs font-semibold uppercase tracking-wide text-(--cl-text-muted) p-3 text-left border-b border-(--cl-border) bg-(--cl-surface-2)";
+const tdClass = "p-3 text-sm text-(--cl-text) border-b border-(--cl-border)";
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -160,7 +160,7 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
                         product_brand_model_id:   values.model_id ?? null,
                         alternate_job_no:         values.alternate_job_no?.trim() || null,
                         serial_no:                values.serial_no?.trim() || null,
-                        quantity:                 values.quantity,
+                        qty:                 values.qty,
                         problem_reported:         values.problem_reported?.trim() ?? "",
                         warranty_card_no:         values.warranty_card_no?.trim() || null,
                         remarks:                  values.remarks?.trim() || null,
@@ -189,7 +189,7 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
                         product_brand_model_id:   values.model_id || null,
                         alternate_job_no:         values.alternate_job_no?.trim() || null,
                         serial_no:                values.serial_no?.trim() || null,
-                        quantity:                 values.quantity,
+                        qty:                 values.qty,
                         problem_reported:         values.problem_reported?.trim() || null,
                         warranty_card_no:         values.warranty_card_no?.trim() || null,
                         remarks:                  values.remarks?.trim() || null,
@@ -507,20 +507,20 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
             transition={{ duration: 0.25 }}
         >
             {/* ── Header ─────────────────────────────────────────────────────── */}
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-3 border-b border-[var(--cl-border)] bg-[var(--cl-surface)] px-4 py-1">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-3 border-b border-(--cl-border) bg-(--cl-surface) px-4 py-1">
                 <div className="flex items-center gap-3 overflow-hidden">
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-[var(--cl-accent)]/10 text-[var(--cl-accent)]">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-(--cl-accent)/10 text-(--cl-accent)">
                         <Briefcase className="h-4 w-4" />
                     </div>
                     <div className="flex items-baseline gap-2 overflow-hidden">
-                        <h1 className="text-lg font-bold text-[var(--cl-text)] truncate">
+                        <h1 className="text-lg font-bold text-(--cl-text) truncate">
                             Single Job
-                            {mode === "new" && !editJob && <span className="ml-2 text-sm font-medium text-[var(--cl-text-muted)] whitespace-nowrap">— New</span>}
+                            {mode === "new" && !editJob && <span className="ml-2 text-sm font-medium text-(--cl-text-muted) whitespace-nowrap">— New</span>}
                             {mode === "new" && editJob && <span className="ml-2 text-sm font-medium text-amber-500 whitespace-nowrap">— Edit</span>}
-                            {mode === "view" && <span className="ml-2 text-sm font-medium text-[var(--cl-text-muted)] whitespace-nowrap">— View</span>}
+                            {mode === "view" && <span className="ml-2 text-sm font-medium text-(--cl-text-muted) whitespace-nowrap">— View</span>}
                         </h1>
                         {mode === "view" && (
-                            <span className="text-xs text-[var(--cl-text-muted)] whitespace-nowrap">
+                            <span className="text-xs text-(--cl-text-muted) whitespace-nowrap">
                                 {loading ? "Loading…" : `(${total})`}
                             </span>
                         )}
@@ -542,7 +542,7 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
                 {/* Reset · Save — hidden in view mode */}
                 <div className={`flex items-center gap-2 ${mode !== "new" ? "hidden md:flex md:invisible pointer-events-none" : ""}`}>
                     <Button
-                        className="h-8 gap-1.5 px-3 text-xs font-extrabold uppercase tracking-widest text-[var(--cl-text)]"
+                        className="h-8 gap-1.5 px-3 text-xs font-extrabold uppercase tracking-widest text-(--cl-text)"
                         disabled={submitting}
                         variant="ghost"
                         onClick={() => { setEditJob(null); form.reset(getSingleJobDefaultValues()); }}
@@ -590,18 +590,18 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
             ) : (
                 <>
                     {/* Toolbar */}
-                    <div className="flex flex-wrap items-center gap-2 px-4 py-2 bg-[var(--cl-surface-2)]/30">
+                    <div className="flex flex-wrap items-center gap-2 px-4 py-2 bg-(--cl-surface-2)/30">
                         <div className="relative flex-1 sm:max-w-md">
-                            <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--cl-text-muted)]" />
+                            <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-(--cl-text-muted)" />
                             <Input
-                                className="h-8 border-[var(--cl-border)] bg-[var(--cl-surface)] pl-8 text-xs"
+                                className="h-8 border-(--cl-border) bg-(--cl-surface) pl-8 text-xs"
                                 placeholder="Job no, customer, mobile, model, brand, sl no"
                                 value={search}
                                 onChange={e => handleSearchChange(e.target.value)}
                             />
                             {search && (
                                 <button
-                                    className="absolute right-2.5 top-1/2 flex h-4 w-4 -translate-y-1/2 items-center justify-center rounded-full bg-[var(--cl-text-muted)] text-[var(--cl-surface)] hover:bg-[var(--cl-text)] focus:outline-none"
+                                    className="absolute right-2.5 top-1/2 flex h-4 w-4 -translate-y-1/2 items-center justify-center rounded-full bg-(--cl-text-muted) text-(--cl-surface) hover:bg-(--cl-text) focus:outline-none"
                                     type="button"
                                     onClick={() => handleSearchChange("")}
                                 >
@@ -624,7 +624,7 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
                     </div>
 
                     {/* Data Grid */}
-                    <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-[var(--cl-border)] bg-[var(--cl-surface)] shadow-sm">
+                    <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-(--cl-border) bg-(--cl-surface) shadow-sm">
                         <div
                             ref={scrollWrapperRef}
                             className="flex-1 overflow-x-auto overflow-y-auto"
@@ -633,7 +633,7 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
                             {loading ? (
                                 <table className="min-w-full border-collapse">
                                     <thead>
-                                        <tr className="bg-[var(--cl-surface-2)]">
+                                        <tr className="bg-(--cl-surface-2)">
                                             {["#", "Date", "Job", "Customer", "Mobile", "Device Details", "Job Type", "Status", "Technician", "Amount", "Actions"].map(h => (
                                                 <th key={h} className={thClass}>{h}</th>
                                             ))}
@@ -643,14 +643,14 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
                                         {Array.from({ length: 12 }).map((_, i) => (
                                             <tr key={i} className="animate-pulse">
                                                 {Array.from({ length: 11 }).map((__, j) => (
-                                                    <td key={j} className={tdClass}><div className="h-4 w-16 rounded bg-[var(--cl-border)]" /></td>
+                                                    <td key={j} className={tdClass}><div className="h-4 w-16 rounded bg-(--cl-border)" /></td>
                                                 ))}
                                             </tr>
                                         ))}
                                     </tbody>
                                 </table>
                             ) : jobs.length === 0 ? (
-                                <div className="flex h-32 items-center justify-center text-sm text-[var(--cl-text-muted)]">
+                                <div className="flex h-32 items-center justify-center text-sm text-(--cl-text-muted)">
                                     No jobs found for the selected filters.
                                 </div>
                             ) : (
@@ -667,13 +667,13 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
                                             <th className={thClass}>Status</th>
                                             <th className={thClass}>Technician</th>
                                             <th className={`${thClass} text-right`}>Amount</th>
-                                            <th className={`${thClass} sticky right-0 z-20 !bg-[var(--cl-surface-2)]`}>Actions</th>
+                                            <th className={`${thClass} sticky right-0 z-20 !bg-(--cl-surface-2)`}>Actions</th>
                                         </tr>
                                     </thead>
-                                    <tbody className="divide-y divide-[var(--cl-border)] bg-[var(--cl-surface)]">
+                                    <tbody className="divide-y divide-(--cl-border) bg-(--cl-surface)">
                                         {jobs.map((job, idx) => (
-                                            <tr key={job.id} className={`group transition-colors hover:bg-[var(--cl-accent)]/5 ${job.batch_no ? "border-l-2 border-l-violet-400 dark:border-l-violet-500" : ""}`}>
-                                                <td className={`${tdClass} text-[var(--cl-text-muted)]`}>
+                                            <tr key={job.id} className={`group transition-colors hover:bg-(--cl-accent)/5 ${job.batch_no ? "border-l-2 border-l-violet-400 dark:border-l-violet-500" : ""}`}>
+                                                <td className={`${tdClass} text-(--cl-text-muted)`}>
                                                     {(page - 1) * PAGE_SIZE + idx + 1}
                                                 </td>
                                                 <td className={`${tdClass} whitespace-nowrap`}>
@@ -691,7 +691,7 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
                                                 </td>
                                                 <td className={tdClass}>
                                                     <div className="flex flex-col gap-0.5">
-                                                        <div className="font-mono font-medium text-[var(--cl-text)]">
+                                                        <div className="font-mono font-medium text-(--cl-text)">
                                                             {job.job_no}
                                                             {job.is_closed && (
                                                                 <span className="ml-1.5 text-[10px] font-bold text-emerald-600 bg-emerald-100 dark:bg-emerald-950/40 rounded px-1 py-0.5">CLOSED</span>
@@ -717,7 +717,7 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
                                                 <td className={`${tdClass} text-xs`}>{job.device_details || "—"}</td>
                                                 <td className={tdClass}>{job.job_type_name}</td>
                                                 <td className={tdClass}>
-                                                    <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-[var(--cl-accent)]/10 text-[var(--cl-accent)]">
+                                                    <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-(--cl-accent)/10 text-(--cl-accent)">
                                                         {job.job_status_name}
                                                     </span>
                                                 </td>
@@ -725,16 +725,16 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
                                                 <td className={`${tdClass} text-right`}>
                                                     {job.amount != null ? `₹${Number(job.amount).toFixed(2)}` : "—"}
                                                 </td>
-                                                <td className={`${tdClass} sticky right-0 z-10 bg-[var(--cl-surface)] group-hover:bg-[var(--cl-surface-2)]`}>
+                                                <td className={`${tdClass} sticky right-0 z-10 bg-(--cl-surface) group-hover:bg-(--cl-surface-2)`}>
                                                     <div className="flex items-center justify-center">
                                                         <DropdownMenu>
                                                             <DropdownMenuTrigger asChild>
-                                                                <Button className="h-8 w-8 p-0 hover:bg-[var(--cl-accent)]/15" variant="ghost">
+                                                                <Button className="h-8 w-8 p-0 hover:bg-(--cl-accent)/15" variant="ghost">
                                                                     <MoreHorizontal className="h-4 w-4" />
                                                                     <span className="sr-only">Open menu</span>
                                                                 </Button>
                                                             </DropdownMenuTrigger>
-                                                            <DropdownMenuContent align="end" className="w-[140px] bg-white dark:bg-zinc-950 border-[var(--cl-border)] shadow-[0_10px_30px_rgba(0,0,0,0.2)] z-50">
+                                                            <DropdownMenuContent align="end" className="w-[140px] bg-white dark:bg-zinc-950 border-(--cl-border) shadow-[0_10px_30px_rgba(0,0,0,0.2)] z-50">
                                                                 <DropdownMenuItem
                                                                     className="flex items-center gap-2 cursor-pointer text-amber-500 focus:bg-amber-500/10 focus:text-amber-600"
                                                                     onClick={() => {
@@ -789,8 +789,8 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
                         </div>
 
                         {/* Pagination */}
-                        <div className="flex items-center justify-between border-t border-[var(--cl-border)] px-4 py-2">
-                            <span className="text-xs text-[var(--cl-text-muted)]">
+                        <div className="flex items-center justify-between border-t border-(--cl-border) px-4 py-2">
+                            <span className="text-xs text-(--cl-text-muted)">
                                 {total === 0 ? "No jobs" : `Showing ${(page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, total)} of ${total} job${total !== 1 ? "s" : ""} (Page ${page} of ${totalPages})`}
                             </span>
                             <div className="flex items-center gap-1">
@@ -812,11 +812,11 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
 
                     {/* Delete Confirm Dialog */}
                     <Dialog open={deleteId !== null} onOpenChange={open => { if (!open && !deleting) setDeleteId(null); }}>
-                        <DialogContent aria-describedby={undefined} className="sm:max-w-sm bg-white dark:bg-zinc-950 text-[var(--cl-text)] shadow-2xl border border-[var(--cl-border)]">
+                        <DialogContent aria-describedby={undefined} className="sm:max-w-sm bg-white dark:bg-zinc-950 text-(--cl-text) shadow-2xl border border-(--cl-border)">
                             <DialogHeader>
                                 <DialogTitle>Delete Job</DialogTitle>
                             </DialogHeader>
-                            <p className="text-sm text-[var(--cl-text-muted)]">
+                            <p className="text-sm text-(--cl-text-muted)">
                                 This will permanently delete the job and all associated records. This action cannot be undone.
                             </p>
                             <DialogFooter>

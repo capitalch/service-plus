@@ -52,7 +52,7 @@ export type EditablePartLine = {
     selling_price: string;
     sale_pr_gst:   string;
     gst_rate:      string;
-    quantity:      number;
+    qty:      number;
     remarks:       string;
     hsn_code:      string;
 };
@@ -65,7 +65,7 @@ export type EditableChargeLine = {
     description:   string;
     hsn_code:      string;
     gst_rate:      string;
-    quantity:           string;
+    qty:           string;
     cost_price:    string;
     selling_price: string;
     sale_pr_gst:   string;
@@ -79,7 +79,7 @@ export function emptyChargeLine(gstRate = 0, hsn = ""): EditableChargeLine {
         description:   "",
         hsn_code:      hsn,
         gst_rate:      String(gstRate),
-        quantity:           "1",
+        qty:           "1",
         cost_price:    "0",
         selling_price: "0",
         sale_pr_gst:   "0",

@@ -40,7 +40,7 @@ type ConsumptionRow = {
     part_code:   string;
     part_name:   string;
     uom:         string;
-    quantity:    number;
+    qty:    number;
     remarks:     string | null;
     branch_name: string;
 };
@@ -63,8 +63,8 @@ function currentMonthRange() {
 const PAGE_SIZE   = 50;
 const DEBOUNCE_MS = 1600;
 
-const thClass = "sticky top-0 z-20 text-xs font-semibold uppercase tracking-wide text-[var(--cl-text-muted)] p-3 text-left border-b border-[var(--cl-border)] bg-[var(--cl-surface-2)]";
-const tdClass = "p-3 text-sm text-[var(--cl-text)] border-b border-[var(--cl-border)]";
+const thClass = "sticky top-0 z-20 text-xs font-semibold uppercase tracking-wide text-(--cl-text-muted) p-3 text-left border-b border-(--cl-border) bg-(--cl-surface-2)";
+const tdClass = "p-3 text-sm text-(--cl-text) border-b border-(--cl-border)";
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -234,7 +234,7 @@ export const PartUsedSection = () => {
     const executeSave = async (values: PartUsedFormValues) => {
         if (!branchId || !dbName || !schema || !selectedJob) return;
 
-        const consumeTypeId = txnTypes.find(t => t.code === "JOB_CONSUME")?.id;
+        const consumeTypeId = txnTypes.find(t => t.code === "CONSUMPTION")?.id;
         if (!consumeTypeId) {
             toast.error(MESSAGES.ERROR_PART_USED_SAVE_FAILED);
             return;
@@ -242,12 +242,12 @@ export const PartUsedSection = () => {
 
         const newLines = values.newLines ?? [];
         const deletedIds = values.deletedIds ?? [];
-        const validNewLines = newLines.filter(l => l.part_id && l.quantity > 0);
+        const validNewLines = newLines.filter(l => l.part_id && l.qty > 0);
 
         const xData = validNewLines.map(line => ({
             job_id:   values.job_id,
             part_id:  line.part_id,
-            quantity: line.quantity,
+            qty: line.qty,
             remarks:  line.remarks?.trim() || null,
             xDetails: {
                 tableName: "stock_transaction",
@@ -255,7 +255,7 @@ export const PartUsedSection = () => {
                 xData: {
                     branch_id:                 branchId,
                     part_id:                   line.part_id,
-                    quantity:                  line.quantity,
+                    qty:                  line.qty,
                     dr_cr:                     "C",
                     transaction_date:          selectedJob.job_date,
                     stock_transaction_type_id: consumeTypeId,
@@ -295,19 +295,19 @@ export const PartUsedSection = () => {
             transition={{ duration: 0.25 }}
         >
             {/* Header */}
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-3 border-b border-[var(--cl-border)] bg-[var(--cl-surface)] px-4 py-1">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-3 border-b border-(--cl-border) bg-(--cl-surface) px-4 py-1">
                 <div className="flex items-center gap-3">
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-[var(--cl-accent)]/10 text-[var(--cl-accent)]">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-(--cl-accent)/10 text-(--cl-accent)">
                         <RotateCcw className="h-4 w-4" />
                     </div>
                     <div className="flex items-baseline gap-2">
-                        <h1 className="text-lg font-bold text-[var(--cl-text)]">
+                        <h1 className="text-lg font-bold text-(--cl-text)">
                             Part Used (Job)
-                            {mode === "new" && <span className="ml-2 text-sm font-medium text-[var(--cl-text-muted)]">— New</span>}
-                            {mode === "view" && <span className="ml-2 text-sm font-medium text-[var(--cl-text-muted)]">— View</span>}
+                            {mode === "new" && <span className="ml-2 text-sm font-medium text-(--cl-text-muted)">— New</span>}
+                            {mode === "view" && <span className="ml-2 text-sm font-medium text-(--cl-text-muted)">— View</span>}
                         </h1>
                         {mode === "view" && (
-                            <span className="text-xs text-[var(--cl-text-muted)]">
+                            <span className="text-xs text-(--cl-text-muted)">
                                 {loading ? "Loading…" : `(${total})`}
                             </span>
                         )}
@@ -329,7 +329,7 @@ export const PartUsedSection = () => {
 
                     <div className={`flex items-center gap-2 ${mode !== "new" ? "hidden md:flex md:invisible pointer-events-none" : ""}`}>
                         <Button
-                            className="h-8 gap-1.5 px-3 text-xs font-extrabold uppercase tracking-widest text-[var(--cl-text)]"
+                            className="h-8 gap-1.5 px-3 text-xs font-extrabold uppercase tracking-widest text-(--cl-text)"
                             disabled={form.formState.isSubmitting}
                             variant="ghost"
                             onClick={handleReset}
@@ -365,7 +365,7 @@ export const PartUsedSection = () => {
             ) : (
                 <>
                     {/* Toolbar */}
-                    <div className="flex flex-wrap items-center gap-2 px-4 py-2 bg-[var(--cl-surface-2)]/30">
+                    <div className="flex flex-wrap items-center gap-2 px-4 py-2 bg-(--cl-surface-2)/30">
                         <div className="w-48">
                             <Select
                                 disabled={branches.length === 0 || loading}
@@ -383,16 +383,16 @@ export const PartUsedSection = () => {
                             </Select>
                         </div>
                         <div className="flex items-center gap-1">
-                            <Input className="h-8 w-32 border-[var(--cl-border)] bg-white text-xs" disabled={loading} type="date" value={fromDate} onChange={e => { setFromDate(e.target.value); setPage(1); }} />
-                            <span className="text-[var(--cl-text-muted)] text-xs">—</span>
-                            <Input className="h-8 w-32 border-[var(--cl-border)] bg-white text-xs" disabled={loading} type="date" value={toDate}   onChange={e => { setToDate(e.target.value); setPage(1); }} />
+                            <Input className="h-8 w-32 border-(--cl-border) bg-white text-xs" disabled={loading} type="date" value={fromDate} onChange={e => { setFromDate(e.target.value); setPage(1); }} />
+                            <span className="text-(--cl-text-muted) text-xs">—</span>
+                            <Input className="h-8 w-32 border-(--cl-border) bg-white text-xs" disabled={loading} type="date" value={toDate}   onChange={e => { setToDate(e.target.value); setPage(1); }} />
                         </div>
                         <div className="relative flex-1 sm:max-w-xs">
-                            <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--cl-text-muted)]" />
-                            <Input className="h-8 border-[var(--cl-border)] bg-white pl-8 text-xs" placeholder="Job no, part code or part name…" value={search} onChange={e => handleSearchChange(e.target.value)} />
+                            <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-(--cl-text-muted)" />
+                            <Input className="h-8 border-(--cl-border) bg-white pl-8 text-xs" placeholder="Job no, part code or part name…" value={search} onChange={e => handleSearchChange(e.target.value)} />
                             {search && (
                                 <button
-                                    className="absolute right-2.5 top-1/2 flex h-4 w-4 -translate-y-1/2 items-center justify-center rounded-full bg-[var(--cl-text-muted)] text-[var(--cl-surface)] hover:bg-[var(--cl-text)] focus:outline-none"
+                                    className="absolute right-2.5 top-1/2 flex h-4 w-4 -translate-y-1/2 items-center justify-center rounded-full bg-(--cl-text-muted) text-(--cl-surface) hover:bg-(--cl-text) focus:outline-none"
                                     type="button"
                                     onClick={() => handleSearchChange("")}
                                 >
@@ -406,19 +406,19 @@ export const PartUsedSection = () => {
                     </div>
 
                     {/* Grid */}
-                    <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-[var(--cl-border)] bg-[var(--cl-surface)] shadow-sm mx-4">
+                    <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-(--cl-border) bg-(--cl-surface) shadow-sm mx-4">
                         <div ref={scrollWrapperRef} className="flex-1 overflow-x-auto overflow-y-auto" style={{ maxHeight: maxHeight || undefined }}>
                             {loading ? (
                                 <table className="min-w-full border-collapse">
                                     <thead><tr>{["#","Job No","Date","Part Code","Part Name","UOM","Qty","Remarks","Actions"].map(h => <th key={h} className={thClass}>{h}</th>)}</tr></thead>
                                     <tbody>{Array.from({ length: 8 }).map((_, i) => (
                                         <tr key={i} className="animate-pulse">{Array.from({ length: 9 }).map((__, j) => (
-                                            <td key={j} className={tdClass}><div className="h-4 w-16 rounded bg-[var(--cl-border)]" /></td>
+                                            <td key={j} className={tdClass}><div className="h-4 w-16 rounded bg-(--cl-border)" /></td>
                                         ))}</tr>
                                     ))}</tbody>
                                 </table>
                             ) : rows.length === 0 ? (
-                                <div className="flex h-32 items-center justify-center text-sm text-[var(--cl-text-muted)]">
+                                <div className="flex h-32 items-center justify-center text-sm text-(--cl-text-muted)">
                                     No consumption records found for the selected filters.
                                 </div>
                             ) : (
@@ -428,23 +428,23 @@ export const PartUsedSection = () => {
                                             {["#","Job No","Date","Part Code","Part Name","UOM"].map(h => <th key={h} className={thClass}>{h}</th>)}
                                             <th className={`${thClass} text-right`}>Qty Used</th>
                                             <th className={thClass}>Remarks</th>
-                                            <th className={`${thClass} sticky right-0 z-20 !bg-[var(--cl-surface-2)]`}>Actions</th>
+                                            <th className={`${thClass} sticky right-0 z-20 !bg-(--cl-surface-2)`}>Actions</th>
                                         </tr>
                                     </thead>
-                                    <tbody className="divide-y divide-[var(--cl-border)] bg-[var(--cl-surface)]">
+                                    <tbody className="divide-y divide-(--cl-border) bg-(--cl-surface)">
                                         {rows.map((row, idx) => (
-                                            <tr key={row.id} className="group transition-colors hover:bg-[var(--cl-accent)]/5">
-                                                <td className={`${tdClass} text-[var(--cl-text-muted)]`}>{(page - 1) * PAGE_SIZE + idx + 1}</td>
-                                                <td className={`${tdClass} font-mono font-medium text-[var(--cl-accent)]`}>{row.job_no}</td>
+                                            <tr key={row.id} className="group transition-colors hover:bg-(--cl-accent)/5">
+                                                <td className={`${tdClass} text-(--cl-text-muted)`}>{(page - 1) * PAGE_SIZE + idx + 1}</td>
+                                                <td className={`${tdClass} font-mono font-medium text-(--cl-accent)`}>{row.job_no}</td>
                                                 <td className={tdClass}>{row.job_date}</td>
                                                 <td className={`${tdClass} font-mono`}>{row.part_code}</td>
                                                 <td className={`${tdClass} font-medium`}>{row.part_name}</td>
                                                 <td className={tdClass}>
-                                                    <span className="rounded bg-[var(--cl-surface-3)] px-2 py-0.5 text-xs font-semibold">{row.uom}</span>
+                                                    <span className="rounded bg-(--cl-surface-3) px-2 py-0.5 text-xs font-semibold">{row.uom}</span>
                                                 </td>
-                                                <td className={`${tdClass} text-right font-medium`}>{Number(row.quantity).toFixed(2)}</td>
-                                                <td className={`${tdClass} text-xs text-[var(--cl-text-muted)] italic`}>{row.remarks || "—"}</td>
-                                                <td className={`${tdClass} sticky right-0 z-10 bg-[var(--cl-surface)] group-hover:bg-[var(--cl-surface-2)]`}>
+                                                <td className={`${tdClass} text-right font-medium`}>{Number(row.qty).toFixed(2)}</td>
+                                                <td className={`${tdClass} text-xs text-(--cl-text-muted) italic`}>{row.remarks || "—"}</td>
+                                                <td className={`${tdClass} sticky right-0 z-10 bg-(--cl-surface) group-hover:bg-(--cl-surface-2)`}>
                                                     <Button
                                                         className="h-7 w-7 p-0 text-red-500 hover:bg-red-500/10"
                                                         size="icon"
@@ -463,8 +463,8 @@ export const PartUsedSection = () => {
                         </div>
 
                         {/* Pagination */}
-                        <div className="flex items-center justify-between border-t border-[var(--cl-border)] px-4 py-2">
-                            <span className="text-xs text-[var(--cl-text-muted)]">
+                        <div className="flex items-center justify-between border-t border-(--cl-border) px-4 py-2">
+                            <span className="text-xs text-(--cl-text-muted)">
                                 {total === 0 ? "No parts used" : `Showing ${(page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, total)} of ${total} parts used (Page ${page} of ${totalPages})`}
                             </span>
                             <div className="flex items-center gap-1">
@@ -478,12 +478,12 @@ export const PartUsedSection = () => {
 
                     {/* Delete confirmation dialog */}
                     <Dialog open={deleteRow !== null} onOpenChange={open => { if (!open && !deleting) setDeleteRow(null); }}>
-                        <DialogContent aria-describedby={undefined} className="sm:max-w-sm !bg-[var(--cl-surface)] text-[var(--cl-text)]">
+                        <DialogContent aria-describedby={undefined} className="sm:max-w-sm !bg-(--cl-surface) text-(--cl-text)">
                             <DialogHeader>
                                 <DialogTitle>Delete Part Usage</DialogTitle>
                             </DialogHeader>
-                            <p className="text-sm text-[var(--cl-text-muted)]">
-                                Delete <span className="font-semibold text-[var(--cl-text)]">{deleteRow?.part_name}</span> ({deleteRow?.quantity} {deleteRow?.uom}) from job <span className="font-mono font-semibold text-[var(--cl-accent)]">{deleteRow?.job_no}</span>?
+                            <p className="text-sm text-(--cl-text-muted)">
+                                Delete <span className="font-semibold text-(--cl-text)">{deleteRow?.part_name}</span> ({deleteRow?.qty} {deleteRow?.uom}) from job <span className="font-mono font-semibold text-(--cl-accent)">{deleteRow?.job_no}</span>?
                                 <br /><br />
                                 This will also remove the stock transaction and restore the stock balance.
                             </p>

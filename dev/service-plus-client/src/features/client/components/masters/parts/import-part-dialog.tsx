@@ -92,14 +92,14 @@ const StepIndicator = ({ currentStep }: { currentStep: number }) => (
                                         ? "bg-teal-600 text-white"
                                         : isDone
                                           ? "bg-teal-100 text-teal-700"
-                                          : "bg-[var(--cl-surface-3)] text-[var(--cl-text-muted)]"
+                                          : "bg-(--cl-surface-3) text-(--cl-text-muted)"
                                 }`}
                         >
                             {isDone ? <CheckCircle2Icon className="h-3.5 w-3.5" /> : stepNum}
                         </div>
                         <span
                             className={`text-[10px] ${
-                                isActive ? "text-teal-600 font-semibold" : "text-[var(--cl-text-muted)]"
+                                isActive ? "text-teal-600 font-semibold" : "text-(--cl-text-muted)"
                             }`}
                         >
                             {label}
@@ -108,7 +108,7 @@ const StepIndicator = ({ currentStep }: { currentStep: number }) => (
                     {idx < STEP_LABELS.length - 1 && (
                         <div
                             className={`mb-3 h-px w-6 transition-colors ${
-                                isDone ? "bg-teal-300" : "bg-[var(--cl-border)]"
+                                isDone ? "bg-teal-300" : "bg-(--cl-border)"
                             }`}
                         />
                     )}
@@ -472,7 +472,7 @@ export const ImportPartDialog = ({
                 return (
                     <div className="flex flex-col gap-4">
                         <div className="flex flex-col gap-1.5">
-                            <label className="text-sm font-medium text-[var(--cl-text)]">
+                            <label className="text-sm font-medium text-(--cl-text)">
                                 Brand <span className="text-red-500">*</span>
                             </label>
                             <Select
@@ -496,7 +496,7 @@ export const ImportPartDialog = ({
                                 ${
                                     dragOver
                                         ? "border-teal-400 bg-teal-50"
-                                        : "border-[var(--cl-border)] bg-[var(--cl-surface-2)] hover:border-teal-300 hover:bg-[var(--cl-surface-3)]"
+                                        : "border-(--cl-border) bg-(--cl-surface-2) hover:border-teal-300 hover:bg-(--cl-surface-3)"
                                 }`}
                             onDragLeave={() => setDragOver(false)}
                             onDragOver={(e) => {
@@ -518,14 +518,14 @@ export const ImportPartDialog = ({
                             />
                             <UploadCloudIcon
                                 className={`h-10 w-10 ${
-                                    dragOver ? "text-teal-500" : "text-[var(--cl-text-muted)]"
+                                    dragOver ? "text-teal-500" : "text-(--cl-text-muted)"
                                 }`}
                             />
                             <div className="text-center">
-                                <p className="text-sm font-medium text-[var(--cl-text)]">
+                                <p className="text-sm font-medium text-(--cl-text)">
                                     Drop file here or click to browse
                                 </p>
-                                <p className="mt-0.5 text-xs text-[var(--cl-text-muted)]">
+                                <p className="mt-0.5 text-xs text-(--cl-text-muted)">
                                     Supported: .csv, .xlsx, .xls
                                 </p>
                             </div>
@@ -542,18 +542,18 @@ export const ImportPartDialog = ({
             case 2:
                 return (
                     <div className="flex flex-col gap-3">
-                        <p className="text-xs text-[var(--cl-text-muted)]">
+                        <p className="text-xs text-(--cl-text-muted)">
                             Map system fields to your import file's columns. Fields marked{" "}
                             <span className="font-medium text-red-500">*</span> are required.
                         </p>
-                        <div className="h-64 overflow-y-auto rounded-xl border border-[var(--cl-border)]">
+                        <div className="h-64 overflow-y-auto rounded-xl border border-(--cl-border)">
                             <Table>
                                 <TableHeader>
-                                    <TableRow className="sticky top-0 z-10 bg-[var(--cl-surface-3)] hover:bg-[var(--cl-surface-3)]">
-                                        <TableHead className="text-xs font-semibold uppercase tracking-wide text-[var(--cl-text-muted)]">
+                                    <TableRow className="sticky top-0 z-10 bg-(--cl-surface-3) hover:bg-(--cl-surface-3)">
+                                        <TableHead className="text-xs font-semibold uppercase tracking-wide text-(--cl-text-muted)">
                                             System Field
                                         </TableHead>
-                                        <TableHead className="text-xs font-semibold uppercase tracking-wide text-[var(--cl-text-muted)]">
+                                        <TableHead className="text-xs font-semibold uppercase tracking-wide text-(--cl-text-muted)">
                                             Import File Column
                                         </TableHead>
                                     </TableRow>
@@ -562,9 +562,9 @@ export const ImportPartDialog = ({
                                     {TARGET_FIELDS.filter((t) => t.value !== "ignore").map((t) => (
                                         <TableRow
                                             key={t.value}
-                                            className="border-b border-[var(--cl-border)] last:border-b-0"
+                                            className="border-b border-(--cl-border) last:border-b-0"
                                         >
-                                            <TableCell className="py-2 text-sm text-[var(--cl-text)]">
+                                            <TableCell className="py-2 text-sm text-(--cl-text)">
                                                 {t.label.replace(" *", "")}
                                                 {(t.value === "part_code" || t.value === "part_name") && (
                                                     <span className="ml-0.5 text-red-500">*</span>
@@ -611,17 +611,17 @@ export const ImportPartDialog = ({
                 const { headers, rows } = mappedPreviewRows();
                 return (
                     <div className="flex flex-col gap-3">
-                        <p className="text-xs text-[var(--cl-text-muted)]">
+                        <p className="text-xs text-(--cl-text-muted)">
                             Showing first {rows.length} of {totalRows} rows.
                         </p>
-                        <div className="h-64 overflow-y-auto rounded-xl border border-[var(--cl-border)]">
+                        <div className="h-64 overflow-y-auto rounded-xl border border-(--cl-border)">
                             <Table>
                                 <TableHeader>
-                                    <TableRow className="sticky top-0 z-10 bg-[var(--cl-surface-3)] hover:bg-[var(--cl-surface-3)]">
+                                    <TableRow className="sticky top-0 z-10 bg-(--cl-surface-3) hover:bg-(--cl-surface-3)">
                                         {headers.map((h, i) => (
                                             <TableHead
                                                 key={`${h}-${i}`}
-                                                className="text-xs font-semibold uppercase tracking-wide text-[var(--cl-text-muted)]"
+                                                className="text-xs font-semibold uppercase tracking-wide text-(--cl-text-muted)"
                                             >
                                                 {h}
                                             </TableHead>
@@ -632,12 +632,12 @@ export const ImportPartDialog = ({
                                     {rows.map((row, i) => (
                                         <TableRow
                                             key={i}
-                                            className="border-b border-[var(--cl-border)] last:border-b-0"
+                                            className="border-b border-(--cl-border) last:border-b-0"
                                         >
                                             {row.map((cell, j) => (
                                                 <TableCell
                                                     key={j}
-                                                    className="max-w-[140px] truncate py-1.5 text-xs text-[var(--cl-text)]"
+                                                    className="max-w-[140px] truncate py-1.5 text-xs text-(--cl-text)"
                                                 >
                                                     {cell}
                                                 </TableCell>
@@ -649,11 +649,11 @@ export const ImportPartDialog = ({
                         </div>
                         {isLoading && (
                             <div className="flex flex-col gap-1.5">
-                                <div className="flex items-center justify-between text-xs text-[var(--cl-text-muted)]">
+                                <div className="flex items-center justify-between text-xs text-(--cl-text-muted)">
                                     <span>{progressLabel || "Validating…"}</span>
                                     <span className="font-medium text-teal-600">{validationProgress}%</span>
                                 </div>
-                                <div className="h-1.5 overflow-hidden rounded-full bg-[var(--cl-surface-3)]">
+                                <div className="h-1.5 overflow-hidden rounded-full bg-(--cl-surface-3)">
                                     <div
                                         className="h-full bg-teal-500 transition-all duration-200"
                                         style={{ width: `${validationProgress}%` }}
@@ -671,12 +671,12 @@ export const ImportPartDialog = ({
                         <div className="flex flex-col justify-center gap-4 py-10">
                             <div className="flex flex-col gap-2">
                                 <div className="flex items-center justify-between text-sm">
-                                    <span className="text-[var(--cl-text)]">
+                                    <span className="text-(--cl-text)">
                                         {progressLabel || "Importing…"}
                                     </span>
                                     <span className="font-semibold text-teal-600">{importProgress}%</span>
                                 </div>
-                                <div className="h-2 overflow-hidden rounded-full bg-[var(--cl-surface-3)]">
+                                <div className="h-2 overflow-hidden rounded-full bg-(--cl-surface-3)">
                                     <div
                                         className="h-full bg-teal-500 transition-all duration-300"
                                         style={{ width: `${importProgress}%` }}
@@ -692,24 +692,24 @@ export const ImportPartDialog = ({
 
                 return (
                     <div className="flex flex-col gap-4">
-                        <p className="text-xs text-[var(--cl-text-muted)]">
+                        <p className="text-xs text-(--cl-text-muted)">
                             Validation complete. You can proceed to import only the valid rows. Invalid rows will be ignored.
                         </p>
                         <div className="grid grid-cols-2 gap-3">
-                            <div className="flex flex-col items-center gap-1 rounded-xl border border-[var(--cl-border)] bg-teal-50 p-4">
+                            <div className="flex flex-col items-center gap-1 rounded-xl border border-(--cl-border) bg-teal-50 p-4">
                                 <span className="text-2xl font-bold text-teal-600">{validRows.length}</span>
                                 <span className="text-xs font-medium text-teal-800">Ready to Import</span>
                             </div>
-                            <div className="flex flex-col items-center gap-1 rounded-xl border border-[var(--cl-border)] bg-amber-50 p-4">
+                            <div className="flex flex-col items-center gap-1 rounded-xl border border-(--cl-border) bg-amber-50 p-4">
                                 <span className="text-2xl font-bold text-amber-600">{invalidRows.length}</span>
                                 <span className="text-xs font-medium text-amber-800">Skipped (Errors/Duplicates)</span>
                             </div>
                         </div>
 
                         {invalidRows.length > 0 && (
-                            <div className="rounded-xl border border-[var(--cl-border)]">
+                            <div className="rounded-xl border border-(--cl-border)">
                                 <button
-                                    className="flex w-full flex-row items-center justify-between px-4 py-2.5 text-sm font-medium text-[var(--cl-text)] hover:bg-[var(--cl-surface-2)]"
+                                    className="flex w-full flex-row items-center justify-between px-4 py-2.5 text-sm font-medium text-(--cl-text) hover:bg-(--cl-surface-2)"
                                     onClick={() => setErrorsOpen((o) => !o)}
                                 >
                                     <span className="flex items-center gap-1.5">
@@ -717,23 +717,23 @@ export const ImportPartDialog = ({
                                         Show {invalidRows.length} Skipped Rows
                                     </span>
                                     {errorsOpen ? (
-                                        <ChevronUpIcon className="h-4 w-4 text-[var(--cl-text-muted)]" />
+                                        <ChevronUpIcon className="h-4 w-4 text-(--cl-text-muted)" />
                                     ) : (
-                                        <ChevronDownIcon className="h-4 w-4 text-[var(--cl-text-muted)]" />
+                                        <ChevronDownIcon className="h-4 w-4 text-(--cl-text-muted)" />
                                     )}
                                 </button>
                                 {errorsOpen && (
-                                    <div className="max-h-48 overflow-y-auto border-t border-[var(--cl-border)]">
+                                    <div className="max-h-48 overflow-y-auto border-t border-(--cl-border)">
                                         <Table>
                                             <TableHeader>
-                                                <TableRow className="bg-[var(--cl-surface-3)] hover:bg-[var(--cl-surface-3)]">
-                                                    <TableHead className="text-xs font-semibold uppercase text-[var(--cl-text-muted)]">
+                                                <TableRow className="bg-(--cl-surface-3) hover:bg-(--cl-surface-3)">
+                                                    <TableHead className="text-xs font-semibold uppercase text-(--cl-text-muted)">
                                                         Row
                                                     </TableHead>
-                                                    <TableHead className="text-xs font-semibold uppercase text-[var(--cl-text-muted)]">
+                                                    <TableHead className="text-xs font-semibold uppercase text-(--cl-text-muted)">
                                                         Code
                                                     </TableHead>
-                                                    <TableHead className="text-xs font-semibold uppercase text-[var(--cl-text-muted)]">
+                                                    <TableHead className="text-xs font-semibold uppercase text-(--cl-text-muted)">
                                                         Reason
                                                     </TableHead>
                                                 </TableRow>
@@ -742,15 +742,15 @@ export const ImportPartDialog = ({
                                                 {invalidRows.map((e, i) => (
                                                     <TableRow
                                                         key={i}
-                                                        className="border-b border-[var(--cl-border)] last:border-b-0 hidden-scrollbar"
+                                                        className="border-b border-(--cl-border) last:border-b-0 hidden-scrollbar"
                                                     >
-                                                        <TableCell className="w-10 py-1.5 text-xs text-[var(--cl-text-muted)]">
+                                                        <TableCell className="w-10 py-1.5 text-xs text-(--cl-text-muted)">
                                                             {e.rowNumber}
                                                         </TableCell>
-                                                        <TableCell className="w-20 py-1.5 text-xs font-mono text-[var(--cl-text)]">
+                                                        <TableCell className="w-20 py-1.5 text-xs font-mono text-(--cl-text)">
                                                             {e.part_code || "--"}
                                                         </TableCell>
-                                                        <TableCell className="py-1.5 text-xs text-[var(--cl-text)]">
+                                                        <TableCell className="py-1.5 text-xs text-(--cl-text)">
                                                             {e.errors.join(", ")}
                                                         </TableCell>
                                                     </TableRow>
@@ -762,9 +762,9 @@ export const ImportPartDialog = ({
                             </div>
                         )}
                         {validRows.length > 0 && (
-                             <div className="rounded-xl border border-[var(--cl-border)]">
+                             <div className="rounded-xl border border-(--cl-border)">
                                 <button
-                                    className="flex w-full flex-row items-center justify-between px-4 py-2.5 text-sm font-medium text-[var(--cl-text)] hover:bg-[var(--cl-surface-2)]"
+                                    className="flex w-full flex-row items-center justify-between px-4 py-2.5 text-sm font-medium text-(--cl-text) hover:bg-(--cl-surface-2)"
                                     onClick={() => setValidRowsOpen((o) => !o)}
                                 >
                                     <span className="flex items-center gap-1.5">
@@ -772,27 +772,27 @@ export const ImportPartDialog = ({
                                         Show {validRows.length} Valid Rows
                                     </span>
                                     {validRowsOpen ? (
-                                        <ChevronUpIcon className="h-4 w-4 text-[var(--cl-text-muted)]" />
+                                        <ChevronUpIcon className="h-4 w-4 text-(--cl-text-muted)" />
                                     ) : (
-                                        <ChevronDownIcon className="h-4 w-4 text-[var(--cl-text-muted)]" />
+                                        <ChevronDownIcon className="h-4 w-4 text-(--cl-text-muted)" />
                                     )}
                                 </button>
                                 {validRowsOpen && (
-                                    <div className="max-h-48 overflow-y-auto border-t border-[var(--cl-border)]">
+                                    <div className="max-h-48 overflow-y-auto border-t border-(--cl-border)">
                                         <Table>
                                             <TableHeader>
-                                                <TableRow className="bg-[var(--cl-surface-3)] hover:bg-[var(--cl-surface-3)]">
-                                                    <TableHead className="text-xs font-semibold uppercase text-[var(--cl-text-muted)]">Row</TableHead>
-                                                    <TableHead className="text-xs font-semibold uppercase text-[var(--cl-text-muted)]">Code</TableHead>
-                                                    <TableHead className="text-xs font-semibold uppercase text-[var(--cl-text-muted)]">Name</TableHead>
+                                                <TableRow className="bg-(--cl-surface-3) hover:bg-(--cl-surface-3)">
+                                                    <TableHead className="text-xs font-semibold uppercase text-(--cl-text-muted)">Row</TableHead>
+                                                    <TableHead className="text-xs font-semibold uppercase text-(--cl-text-muted)">Code</TableHead>
+                                                    <TableHead className="text-xs font-semibold uppercase text-(--cl-text-muted)">Name</TableHead>
                                                 </TableRow>
                                             </TableHeader>
                                             <TableBody>
                                                 {validRows.map((e, i) => (
-                                                    <TableRow key={i} className="border-b border-[var(--cl-border)] last:border-b-0 hidden-scrollbar">
-                                                        <TableCell className="w-10 py-1.5 text-xs text-[var(--cl-text-muted)]">{e.rowNumber}</TableCell>
-                                                        <TableCell className="w-24 py-1.5 text-xs font-mono text-[var(--cl-text)]">{e.part_code}</TableCell>
-                                                        <TableCell className="py-1.5 text-xs text-[var(--cl-text)] truncate max-w-[200px]">{e.part_name}</TableCell>
+                                                    <TableRow key={i} className="border-b border-(--cl-border) last:border-b-0 hidden-scrollbar">
+                                                        <TableCell className="w-10 py-1.5 text-xs text-(--cl-text-muted)">{e.rowNumber}</TableCell>
+                                                        <TableCell className="w-24 py-1.5 text-xs font-mono text-(--cl-text)">{e.part_code}</TableCell>
+                                                        <TableCell className="py-1.5 text-xs text-(--cl-text) truncate max-w-[200px]">{e.part_name}</TableCell>
                                                     </TableRow>
                                                 ))}
                                             </TableBody>
@@ -811,8 +811,8 @@ export const ImportPartDialog = ({
                     <div className="flex flex-col gap-4">
                         <div className="flex flex-col items-center justify-center p-6 text-center">
                              <CheckCircle2Icon className="h-16 w-16 text-teal-500 mb-4" />
-                             <h3 className="text-lg font-semibold text-[var(--cl-text)] mb-2">Import Successful</h3>
-                             <p className="text-sm text-[var(--cl-text-muted)]">
+                             <h3 className="text-lg font-semibold text-(--cl-text) mb-2">Import Successful</h3>
+                             <p className="text-sm text-(--cl-text-muted)">
                                  {importResult.success_count} rows were successfully imported.
                                  {importResult.skip_count > 0 && ` ${importResult.skip_count} rows were skipped.`}
                              </p>

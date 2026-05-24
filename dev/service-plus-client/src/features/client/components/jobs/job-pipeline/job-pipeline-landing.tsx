@@ -72,13 +72,13 @@ export const JobPipelineLanding = ({ onStatusClick }: Props) => {
                 <motion.button
                     key={s.status_id}
                     animate={{ opacity: 1 }}
-                    className={`group flex w-full items-center gap-3 rounded px-3 py-2 text-left focus:outline-none transition-colors duration-150 ${isZero ? "opacity-40 cursor-not-allowed" : "cursor-pointer focus-visible:ring-2 focus-visible:ring-[var(--cl-accent)] hover:bg-[var(--cl-hover)]"}`}
+                    className={`group flex w-full items-center gap-3 rounded px-3 py-2 text-left focus:outline-none transition-colors duration-150 ${isZero ? "opacity-40 cursor-not-allowed" : "cursor-pointer focus-visible:ring-2 focus-visible:ring-(--cl-accent) hover:bg-(--cl-hover)"}`}
                     initial={{ opacity: 0 }}
                     title={`${s.status_name}: ${count} job${count !== 1 ? "s" : ""}`}
                     transition={{ delay: idx * 0.04, duration: 0.2 }}
                     onClick={() => { if (!isZero) onStatusClick(s); }}
                 >
-                    <span className="w-44 shrink-0 truncate text-sm font-semibold text-[var(--cl-text)]" title={s.status_name}>
+                    <span className="w-44 shrink-0 truncate text-sm font-semibold text-(--cl-text)" title={s.status_name}>
                         {s.status_name}
                     </span>
 
@@ -86,7 +86,7 @@ export const JobPipelineLanding = ({ onStatusClick }: Props) => {
                         {count}
                     </span>
 
-                    <div className="relative flex h-7 flex-1 overflow-hidden rounded bg-[var(--cl-surface-2)]">
+                    <div className="relative flex h-7 flex-1 overflow-hidden rounded bg-(--cl-surface-2)">
                         <motion.div
                             animate={{ width: `${widthPct}%` }}
                             className={`flex h-full items-center justify-end rounded pr-2 ${colorClass} ${isZero ? "opacity-20" : "opacity-80 group-hover:opacity-100"} transition-opacity duration-150`}
@@ -99,7 +99,7 @@ export const JobPipelineLanding = ({ onStatusClick }: Props) => {
                         </motion.div>
                     </div>
 
-                    <span className={`w-10 shrink-0 text-right text-sm font-bold tabular-nums ${isZero ? "text-[var(--cl-text-muted)]" : "text-[var(--cl-text)]"}`}>
+                    <span className={`w-10 shrink-0 text-right text-sm font-bold tabular-nums ${isZero ? "text-(--cl-text-muted)" : "text-(--cl-text)"}`}>
                         {count}
                     </span>
                 </motion.button>
@@ -115,20 +115,20 @@ export const JobPipelineLanding = ({ onStatusClick }: Props) => {
             transition={{ duration: 0.25 }}
         >
             {/* Header */}
-            <div className="flex items-center justify-between border-b border-[var(--cl-border)] bg-[var(--cl-surface)] py-2 px-4">
+            <div className="flex items-center justify-between border-b border-(--cl-border) bg-(--cl-surface) py-2 px-4">
                 <div className="flex items-center gap-3">
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-[var(--cl-accent)]/10 text-[var(--cl-accent)]">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-(--cl-accent)/10 text-(--cl-accent)">
                         <BarChart3 className="h-4 w-4" />
                     </div>
                     <div className="flex items-baseline gap-2">
-                        <h1 className="text-lg font-bold text-[var(--cl-text)]">Job Pipeline</h1>
-                        <span className="text-xs text-[var(--cl-text-muted)]">
+                        <h1 className="text-lg font-bold text-(--cl-text)">Job Pipeline</h1>
+                        <span className="text-xs text-(--cl-text-muted)">
                             {loading ? "Loading…" : `${totalJobs} total jobs`}
                         </span>
                     </div>
                 </div>
                 <Button
-                    className="h-8 w-8 text-[var(--cl-text-muted)] hover:text-[var(--cl-accent)]"
+                    className="h-8 w-8 text-(--cl-text-muted) hover:text-(--cl-accent)"
                     disabled={loading}
                     size="icon"
                     title="Refresh"
@@ -142,7 +142,7 @@ export const JobPipelineLanding = ({ onStatusClick }: Props) => {
             {/* Bar list */}
             <div className="flex min-h-0 flex-1 flex-col overflow-y-auto py-4">
                 {loading && statusCounts.length === 0 ? (
-                    <div className="flex items-center justify-center gap-2 text-sm text-[var(--cl-text-muted)]">
+                    <div className="flex items-center justify-center gap-2 text-sm text-(--cl-text-muted)">
                         <Loader2 className="h-4 w-4 animate-spin" /> Loading…
                     </div>
                 ) : (
@@ -150,30 +150,30 @@ export const JobPipelineLanding = ({ onStatusClick }: Props) => {
                         {/* All bar */}
                         <motion.button
                             animate={{ opacity: 1 }}
-                            className="group flex w-full items-center gap-3 rounded px-3 py-2 text-left focus:outline-none transition-colors duration-150 cursor-pointer focus-visible:ring-2 focus-visible:ring-[var(--cl-accent)] hover:bg-[var(--cl-hover)]"
+                            className="group flex w-full items-center gap-3 rounded px-3 py-2 text-left focus:outline-none transition-colors duration-150 cursor-pointer focus-visible:ring-2 focus-visible:ring-(--cl-accent) hover:bg-(--cl-hover)"
                             initial={{ opacity: 0 }}
                             title={`All: ${totalJobs} job${totalJobs !== 1 ? "s" : ""}`}
                             transition={{ delay: 0, duration: 0.2 }}
                             onClick={() => onStatusClick({ status_id: 0, status_code: "ALL", status_name: "All", count: totalJobs })}
                         >
-                            <span className="w-44 shrink-0 truncate text-sm font-semibold text-[var(--cl-text)]">All</span>
-                            <span className="w-8 shrink-0 text-right text-xs font-bold tabular-nums text-[var(--cl-accent)] bg-[var(--cl-accent)]/10 rounded px-1.5 py-0.5">
+                            <span className="w-44 shrink-0 truncate text-sm font-semibold text-(--cl-text)">All</span>
+                            <span className="w-8 shrink-0 text-right text-xs font-bold tabular-nums text-(--cl-accent) bg-(--cl-accent)/10 rounded px-1.5 py-0.5">
                                 {totalJobs}
                             </span>
-                            <div className="relative flex h-7 flex-1 overflow-hidden rounded bg-[var(--cl-surface-2)]">
-                                <div className="flex h-full w-full items-center justify-end rounded pr-2 bg-[var(--cl-accent)] opacity-70 group-hover:opacity-90 transition-opacity duration-150">
+                            <div className="relative flex h-7 flex-1 overflow-hidden rounded bg-(--cl-surface-2)">
+                                <div className="flex h-full w-full items-center justify-end rounded pr-2 bg-(--cl-accent) opacity-70 group-hover:opacity-90 transition-opacity duration-150">
                                     <span className="text-xs font-bold tabular-nums text-white">{totalJobs}</span>
                                 </div>
                             </div>
-                            <span className="w-10 shrink-0 text-right text-sm font-bold tabular-nums text-[var(--cl-text)]">{totalJobs}</span>
+                            <span className="w-10 shrink-0 text-right text-sm font-bold tabular-nums text-(--cl-text)">{totalJobs}</span>
                         </motion.button>
 
-                        <hr className="my-2 border-dashed border-[var(--cl-border)]" />
+                        <hr className="my-2 border-dashed border-(--cl-border)" />
 
                         {renderRows(actionable, 1)}
                         {readOnly.length > 0 && (
                             <>
-                                <hr className="my-3 border-dashed border-[var(--cl-border)]" />
+                                <hr className="my-3 border-dashed border-(--cl-border)" />
                                 {renderRows(readOnly, actionable.length + 2)}
                             </>
                         )}
@@ -181,7 +181,7 @@ export const JobPipelineLanding = ({ onStatusClick }: Props) => {
                 )}
 
                 {!loading && statusCounts.length > 0 && (
-                    <p className="mt-6 text-center text-xs text-[var(--cl-text-muted)]">
+                    <p className="mt-6 text-center text-xs text-(--cl-text-muted)">
                         Click a bar to view jobs
                     </p>
                 )}

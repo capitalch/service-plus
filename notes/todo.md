@@ -1,12 +1,21 @@
-- Trace transfer
+# Job features
+	- Job sales return
+	- Repeat repairs
+	- Inputting parts and charges at any step with similar to final a job screen
+	- Deliver job
+		- All jobs with is_final true
+		- Generates invoice and receipts
+		- status changes to is_closed
+		- no date filters, similar search box and grid
+
+# Trace transfer
 	- used is_posted flag in job and 
-- Job sales return
-- 
+
 - Final a Job
 							- Undo final
 								- delete invoice
 								- set is_final false
-	- Save
+						- Save
 								- Bug: job existing in both grids: Final a job and finalised jobs
 							- Division
 								- CRUD division
@@ -14,7 +23,7 @@
 								- Batch job: division
 								- Job invoice: division
 	- parts invoice: implement division
-- Jobs
+						- Jobs
 							- job pipeline
 								- for job type: demo, inspection: No spare parts can be provided
 								- job update: should be in a transaction. Recheck mutation at server
@@ -65,8 +74,8 @@
 									- Job details
 									- Job transactions
 # To Do
-- Jobs
-	- New job
+						- Jobs
+							- New job
 								- Equal width
 								- Set job no as first item
 								- Remove technician
@@ -85,8 +94,8 @@
 								- maybe is_warranty field is not required in table. Warrant_card no box will appear if job type is under warranty
 								- provision for multiple jobs in a batch
 								- provision to load multiple images less than 500KB
-- Inventory
-	- db
+						- Inventory
+							- db
 								- stock_branch_transfer table
 								- stock_branch_transfer_line table
 								- stock_loan table

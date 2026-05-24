@@ -201,14 +201,14 @@ export const DocumentSequenceSection = () => {
             transition={{ duration: 0.2 }}
         >
             {/* Header */}
-            <div className="flex flex-col gap-4 border-b border-[var(--cl-border)] pb-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-4 border-b border-(--cl-border) pb-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-3">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--cl-accent)]/10">
-                        <FileText className="h-5 w-5 text-[var(--cl-accent)]" />
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-(--cl-accent)/10">
+                        <FileText className="h-5 w-5 text-(--cl-accent)" />
                     </div>
                     <div>
-                        <h2 className="text-base font-semibold text-[var(--cl-text)]">Numbering / Auto Series</h2>
-                        <p className="text-xs text-[var(--cl-text-muted)]">
+                        <h2 className="text-base font-semibold text-(--cl-text)">Numbering / Auto Series</h2>
+                        <p className="text-xs text-(--cl-text-muted)">
                             Configure document sequence prefixes and padding for{" "}
                             <b>{activeDivision ? activeDivision.name : (currentBranch?.name || "selected branch")}</b>
                         </p>
@@ -218,13 +218,13 @@ export const DocumentSequenceSection = () => {
 
             {/* Tabs — Branch + per division (when divisions exist) */}
             {availableDivisions.length > 1 && (
-                <div className="flex gap-1 border-b border-[var(--cl-border)] pb-0">
+                <div className="flex gap-1 border-b border-(--cl-border) pb-0">
                     <button
                         type="button"
                         className={`px-4 py-2 text-xs font-semibold rounded-t-md border border-b-0 transition-colors cursor-pointer ${
                             activeTab === 'branch'
-                                ? 'border-[var(--cl-border)] bg-[var(--cl-surface)] text-[var(--cl-text)]'
-                                : 'border-transparent text-[var(--cl-text-muted)] hover:text-[var(--cl-text)]'
+                                ? 'border-(--cl-border) bg-(--cl-surface) text-(--cl-text)'
+                                : 'border-transparent text-(--cl-text-muted) hover:text-(--cl-text)'
                         }`}
                         onClick={() => setActiveTab('branch')}
                     >
@@ -236,8 +236,8 @@ export const DocumentSequenceSection = () => {
                             type="button"
                             className={`px-4 py-2 text-xs font-semibold rounded-t-md border border-b-0 transition-colors cursor-pointer ${
                                 activeTab === d.id
-                                    ? 'border-[var(--cl-border)] bg-[var(--cl-surface)] text-[var(--cl-text)]'
-                                    : 'border-transparent text-[var(--cl-text-muted)] hover:text-[var(--cl-text)]'
+                                    ? 'border-(--cl-border) bg-(--cl-surface) text-(--cl-text)'
+                                    : 'border-transparent text-(--cl-text-muted) hover:text-(--cl-text)'
                             }`}
                             onClick={() => setActiveTab(d.id)}
                         >
@@ -249,7 +249,7 @@ export const DocumentSequenceSection = () => {
 
             {/* Note for division tab */}
             {activeTab !== 'branch' && (
-                <p className="text-xs text-[var(--cl-text-muted)]">
+                <p className="text-xs text-(--cl-text-muted)">
                     Division sequences override branch sequences for sale invoices and job invoices.
                 </p>
             )}
@@ -257,10 +257,10 @@ export const DocumentSequenceSection = () => {
             {/* Form */}
             {loading ? (
                 <div className="flex flex-1 items-center justify-center py-10">
-                    <Loader2 className="h-6 w-6 animate-spin text-[var(--cl-accent)]" />
+                    <Loader2 className="h-6 w-6 animate-spin text-(--cl-accent)" />
                 </div>
             ) : fields.length === 0 ? (
-                <div className="flex flex-1 items-center justify-center py-10 text-sm text-[var(--cl-text-muted)]">
+                <div className="flex flex-1 items-center justify-center py-10 text-sm text-(--cl-text-muted)">
                     No document types found.
                 </div>
             ) : (
@@ -268,9 +268,9 @@ export const DocumentSequenceSection = () => {
                     className="flex flex-col gap-6"
                     onSubmit={form.handleSubmit(onSubmit)}
                 >
-                    <div className="rounded-lg border border-[var(--cl-border)] bg-[var(--cl-surface)]">
+                    <div className="rounded-lg border border-(--cl-border) bg-(--cl-surface)">
                         {/* Table Header */}
-                        <div className="grid grid-cols-12 gap-4 border-b border-[var(--cl-border)] bg-[var(--cl-surface-2)] p-4 text-xs font-semibold uppercase text-[var(--cl-text-muted)]">
+                        <div className="grid grid-cols-12 gap-4 border-b border-(--cl-border) bg-(--cl-surface-2) p-4 text-xs font-semibold uppercase text-(--cl-text-muted)">
                             <div className="col-span-4">Document Type</div>
                             <div className="col-span-3">Prefix</div>
                             <div className="col-span-1">Separator</div>
@@ -279,12 +279,12 @@ export const DocumentSequenceSection = () => {
                         </div>
 
                         {/* Table Body */}
-                        <div className="flex flex-col divide-y divide-[var(--cl-border)]">
+                        <div className="flex flex-col divide-y divide-(--cl-border)">
                             {fields.map((field, index) => {
                                 const err = errors.sequences?.[index];
                                 return (
-                                    <div key={field.id} className="grid grid-cols-12 items-center gap-4 p-4 hover:bg-[var(--cl-surface-2)]/30">
-                                        <div className="col-span-4 text-sm font-medium text-[var(--cl-text)]">
+                                    <div key={field.id} className="grid grid-cols-12 items-center gap-4 p-4 hover:bg-(--cl-surface-2)/30">
+                                        <div className="col-span-4 text-sm font-medium text-(--cl-text)">
                                             {field.document_type_name}
                                         </div>
                                         <div className="col-span-3">
