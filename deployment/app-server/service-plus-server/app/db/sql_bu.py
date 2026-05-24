@@ -178,7 +178,7 @@ class SqlBu:
             address_snapshot text,
             last_transaction_id bigint,
             is_final boolean DEFAULT false NOT NULL,
-            quantity integer DEFAULT 1 NOT NULL,
+            qty integer DEFAULT 1 NOT NULL,
             batch_no integer,
             division_id bigint NOT NULL
         );
@@ -199,6 +199,9 @@ class SqlBu:
             charge_name text NOT NULL,
             ref_no text,
             description text,
+            hsn_code text,
+            gst_rate numeric(5,2) DEFAULT 0 NOT NULL,
+            qty numeric(10,2) DEFAULT 1 NOT NULL,
             cost_price numeric(12,2) DEFAULT 0 NOT NULL,
             selling_price numeric(12,2) DEFAULT 0 NOT NULL,
             created_at timestamp with time zone DEFAULT now() NOT NULL,
@@ -209,6 +212,13 @@ class SqlBu:
         ALTER TABLE job_additional_charge ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
             SEQUENCE NAME job_additional_charge_id_seq
             START WITH 1 INCREMENT BY 1 NO MINVALUE NO MAXVALUE CACHE 1
+        );
+
+        CREATE TABLE additional_charge (
+            id smallint NOT NULL,
+            name text NOT NULL,
+            hsn_code text,
+            CONSTRAINT additional_charge_pkey PRIMARY KEY (id)
         );
 
         CREATE TABLE job_delivery_manner (
@@ -249,7 +259,7 @@ class SqlBu:
             description text NOT NULL,
             part_code text,
             hsn_code text NOT NULL,
-            quantity numeric(10,2) NOT NULL,
+            qty numeric(10,2) NOT NULL,
             unit_price numeric(12,2) NOT NULL,
             taxable_amount numeric(12,2) NOT NULL,
             cgst_rate numeric(5,2) DEFAULT 0 NOT NULL,
@@ -261,7 +271,7 @@ class SqlBu:
             total_amount numeric(12,2) NOT NULL,
             created_at timestamp with time zone DEFAULT now() NOT NULL,
             updated_at timestamp with time zone DEFAULT now() NOT NULL,
-            CONSTRAINT job_invoice_line_quantity_check CHECK ((quantity > (0)::numeric)),
+            CONSTRAINT job_invoice_line_qty_check CHECK ((qty > (0)::numeric)),
             CONSTRAINT job_invoice_line_unit_price_check CHECK ((unit_price >= (0)::numeric))
         );
 
@@ -274,10 +284,12 @@ class SqlBu:
             id bigint NOT NULL,
             job_id bigint NOT NULL,
             part_id bigint NOT NULL,
-            quantity numeric(10,2) NOT NULL,
+            qty numeric(10,2) NOT NULL,
+            gst_rate numeric(5,2) DEFAULT 0 NOT NULL,
+            hsn_code text,
             created_at timestamp with time zone DEFAULT now() NOT NULL,
             updated_at timestamp with time zone DEFAULT now() NOT NULL,
-            CONSTRAINT job_part_used_quantity_check CHECK ((quantity > (0)::numeric))
+            CONSTRAINT job_part_used_qty_check CHECK ((qty > (0)::numeric))
         );
 
         ALTER TABLE job_part_used ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
@@ -429,7 +441,7 @@ class SqlBu:
             purchase_invoice_id bigint NOT NULL,
             part_id bigint NOT NULL,
             hsn_code text NOT NULL,
-            quantity numeric(12,2) NOT NULL,
+            qty numeric(12,2) NOT NULL,
             unit_price numeric(12,2) NOT NULL,
             aggregate_amount numeric(12,2) NOT NULL,
             cgst_rate numeric(5,2) DEFAULT 0 NOT NULL,
@@ -441,7 +453,7 @@ class SqlBu:
             total_amount numeric(12,2) NOT NULL,
             created_at timestamp with time zone DEFAULT now() NOT NULL,
             updated_at timestamp with time zone DEFAULT now() NOT NULL,
-            CONSTRAINT purchase_invoice_line_quantity_check CHECK ((quantity > (0)::numeric)),
+            CONSTRAINT purchase_invoice_line_qty_check CHECK ((qty > (0)::numeric)),
             CONSTRAINT purchase_invoice_line_unit_price_check CHECK ((unit_price >= (0)::numeric))
         );
 
@@ -482,7 +494,7 @@ class SqlBu:
             part_id bigint NOT NULL,
             item_description text NOT NULL,
             hsn_code text NOT NULL,
-            quantity numeric(12,2) NOT NULL,
+            qty numeric(12,2) NOT NULL,
             unit_price numeric(12,2) NOT NULL,
             gst_rate numeric(5,2) DEFAULT 0 NOT NULL,
             aggregate_amount numeric(12,2) NOT NULL,
@@ -493,7 +505,7 @@ class SqlBu:
             created_at timestamp with time zone DEFAULT now() NOT NULL,
             updated_at timestamp with time zone DEFAULT now() NOT NULL,
             remarks text,
-            CONSTRAINT sales_invoice_line_quantity_check CHECK ((quantity > (0)::numeric)),
+            CONSTRAINT sales_invoice_line_qty_check CHECK ((qty > (0)::numeric)),
             CONSTRAINT sales_invoice_line_unit_price_check CHECK ((unit_price >= (0)::numeric))
         );
 
@@ -830,6 +842,25 @@ class SqlBu:
             (5, 'OTHER',          'Other',          true),
             (6, 'NOT_APPLICABLE', 'Not Applicable', true)
         ON CONFLICT (id) DO NOTHING;
+
+        INSERT INTO additional_charge (id, name, hsn_code) VALUES
+            (1,'Labour Charge','998726'),
+            (2,'Service Charge','998726'),
+            (3,'Inspection Fee','998726'),
+            (4,'Installation Charge','998726'),
+            (5,'Travelling Charge','998726'),
+            (6,'Courier Charge','998726'),
+            (7,'Packing & Forwarding','998726'),
+            (8,'Calibration Fee','998726'),
+            (9,'Emergency Service Charge','998726'),
+            (10,'AMC Visit Charge','998726'),
+            (11,'Software Installation','998726'),
+            (12,'Data Recovery Charge','998726'),
+            (13,'Handling Charge','998726'),
+            (14,'Miscellaneous','998726'),
+            (15,'Diagnosis Charge','998726'),
+            (16,'Spare Parts','998726'),
+            (17,'Transportation Charge','998726');
 
         INSERT INTO job_receive_condition (id, code, name, description, is_system, display_order) VALUES
             (1,  'DEAD',           'Dead',                        'Item is completely dead',                                           true, 1),
