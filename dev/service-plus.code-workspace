@@ -1,0 +1,17 @@
+{
+  "folders": [
+    {
+      "name": "Client",
+      "path": "service-plus-client"
+    },
+    {
+      "name": "Server",
+      "path": "service-plus-server"
+    },
+    {
+      "name": "File Server",
+      "path": "service-plus-file-server"
+    }
+  ],
+  "settings": {}
+}
