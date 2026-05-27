@@ -92,7 +92,7 @@ pnpm dlx shadcn@latest add sonner
 
 ## Redux steps
 # Step 1: Create store
-# Step 2: Create Provider at index.tsx and set the store in provider
+# Step 2: Create Provider at main.tsx and set the store in provider
 # Step 3: Create slice and export reducer and actions
 - One slice has multiple actions but one reducer
 # Step 4: Assign reducer to store. 

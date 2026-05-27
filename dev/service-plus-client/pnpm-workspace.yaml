@@ -1,3 +1,5 @@
 allowBuilds:
   core-js: true
   msw: false
+minimumReleaseAgeExclude:
+  - shadcn@4.8.1

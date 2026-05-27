@@ -12,10 +12,10 @@ import { SQL_MAP }     from "@/constants/sql-map";
 import { selectCurrentUser, selectDbName } from "@/features/auth/store/auth-slice";
 import { apolloClient }   from "@/lib/apollo-client";
 import { encodeObj, graphQlUtils } from "@/lib/graphql-utils";
-import { currentFinancialYearRange } from "@/lib/utils";
 import { selectCurrentBranch, selectSchema } from "@/store/context-slice";
 import { useAppSelector } from "@/store/hooks";
 import { PdfPreviewModal } from "@/components/shared/pdf-preview-modal";
+import { JobAttachDialog } from "../single-job/job-attach-dialog";
 
 import {
     deliverJobSchema, getDeliverJobDefaultValues,
@@ -70,12 +70,8 @@ export const DeliverJobSection = () => {
     const currentUser   = useAppSelector(selectCurrentUser);
     const branchId      = currentBranch?.id ?? null;
 
-    const { from: defaultFrom, to: defaultTo } = currentFinancialYearRange();
-
     // ── List state ────────────────────────────────────────────────────────────
     const [subView,  setSubView]  = useState<SubView>("list");
-    const [fromDate, setFromDate] = useState(defaultFrom);
-    const [toDate,   setToDate]   = useState(defaultTo);
     const [search,   setSearch]   = useState("");
     const [searchQ,  setSearchQ]  = useState("");
     const [page,     setPage]     = useState(1);
@@ -96,6 +92,8 @@ export const DeliverJobSection = () => {
     const [receiptDefaultAmt, setReceiptDefaultAmt] = useState(0);
     const [pdfUrl,           setPdfUrl]           = useState<string | null>(null);
     const [showPdf,          setShowPdf]          = useState(false);
+    const [attachJobId,      setAttachJobId]      = useState<number | null>(null);
+    const [attachJobNo,      setAttachJobNo]      = useState<string>("");
 
     const form = useForm<DeliverJobFormValues>({
         defaultValues: getDeliverJobDefaultValues(),
@@ -128,11 +126,11 @@ export const DeliverJobSection = () => {
     }, [dbName, schema, metaLoaded]);
 
     // ── Load list ─────────────────────────────────────────────────────────────
-    const loadData = useCallback(async (bid: number, from: string, to: string, q: string, pg: number) => {
+    const loadData = useCallback(async (bid: number, q: string, pg: number) => {
         if (!dbName || !schema) return;
         setLoading(true);
         try {
-            const commonArgs = { branch_id: bid, from_date: from, to_date: to, search: q };
+            const commonArgs = { branch_id: bid, search: q };
             const [dataRes, countRes] = await Promise.all([
                 apolloClient.query<GenericQueryData<DeliverableJobRow>>({
                     fetchPolicy: "network-only",
@@ -166,8 +164,8 @@ export const DeliverJobSection = () => {
     useEffect(() => {
         if (!branchId || subView !== "list") return;
         // eslint-disable-next-line react-hooks/set-state-in-effect
-        loadData(branchId, fromDate, toDate, searchQ, page).catch(() => {});
-    }, [branchId, fromDate, toDate, searchQ, page, loadData, subView]);
+        loadData(branchId, searchQ, page).catch(() => {});
+    }, [branchId, searchQ, page, loadData, subView]);
 
     function handleSearchChange(value: string) {
         setSearch(value);
@@ -304,7 +302,7 @@ export const DeliverJobSection = () => {
             });
             toast.success(MESSAGES.SUCCESS_JOB_DELIVERED);
             handleBack();
-            if (branchId) void loadData(branchId, fromDate, toDate, searchQ, page);
+            if (branchId) void loadData(branchId, searchQ, page);
         } catch {
             toast.error(MESSAGES.ERROR_JOB_DELIVER_FAILED);
         }
@@ -477,18 +475,26 @@ export const DeliverJobSection = () => {
                 loading={loading}
                 total={total}
                 page={page}
-                fromDate={fromDate}
-                toDate={toDate}
                 search={search}
                 branchId={branchId}
                 loadingDetail={loadingDetail}
                 setPage={setPage}
-                onFromDate={v => { setFromDate(v); setPage(1); }}
-                onToDate={v  => { setToDate(v);   setPage(1); }}
                 onSearch={handleSearchChange}
-                onRefresh={() => { if (branchId) void loadData(branchId, fromDate, toDate, searchQ, page); }}
+                onRefresh={() => { if (branchId) void loadData(branchId, searchQ, page); }}
                 onDeliver={handleRowClick}
+                onOpenAttach={(id, jobNo) => { setAttachJobId(id); setAttachJobNo(jobNo); }}
             />
+
+            {attachJobId !== null && (
+                <JobAttachDialog
+                    jobId={attachJobId}
+                    jobNo={attachJobNo}
+                    onClose={() => { setAttachJobId(null); setAttachJobNo(""); }}
+                    onFilesChanged={count => {
+                        setRows(prev => prev.map(r => r.id === attachJobId ? { ...r, file_count: count } : r));
+                    }}
+                />
+            )}
         </motion.div>
     );
 };

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
     ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon,
-    Loader2, RefreshCw, Search, X,
+    Loader2, Paperclip, RefreshCw, Search, Truck, X,
 } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -24,6 +24,8 @@ export type DeliverableJobRow = {
     technician_name:  string | null;
     invoice_total:    number | null;
     invoice_no:       string | null;
+    batch_no:         number | null;
+    file_count:       number;
 };
 
 type Props = {
@@ -31,25 +33,22 @@ type Props = {
     loading:       boolean;
     total:         number;
     page:          number;
-    fromDate:      string;
-    toDate:        string;
     search:        string;
     branchId:      number | null;
     loadingDetail: boolean;
     setPage:       (v: number | ((p: number) => number)) => void;
-    onFromDate:    (v: string) => void;
-    onToDate:      (v: string) => void;
     onSearch:      (v: string) => void;
     onRefresh:     () => void;
     onDeliver:     (row: DeliverableJobRow) => void;
+    onOpenAttach:  (id: number, jobNo: string) => void;
 };
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export function DeliverableJobsGrid({
-    rows, loading, total, page, fromDate, toDate, search,
+    rows, loading, total, page, search,
     branchId, loadingDetail, setPage,
-    onFromDate, onToDate, onSearch, onRefresh, onDeliver,
+    onSearch, onRefresh, onDeliver, onOpenAttach,
 }: Props) {
     const scrollRef  = useRef<HTMLDivElement>(null);
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -80,28 +79,11 @@ export function DeliverableJobsGrid({
         <>
             {/* Toolbar */}
             <div className="flex flex-wrap items-center gap-2 px-4 py-1 bg-(--cl-surface-2)/30">
-                <div className="flex items-center gap-1">
-                    <Input
-                        className="h-8 w-32 border-(--cl-border) bg-white text-xs"
-                        disabled={loading}
-                        type="date"
-                        value={fromDate}
-                        onChange={e => { onFromDate(e.target.value); setPage(1); }}
-                    />
-                    <span className="text-(--cl-text-muted) text-xs">—</span>
-                    <Input
-                        className="h-8 w-32 border-(--cl-border) bg-white text-xs"
-                        disabled={loading}
-                        type="date"
-                        value={toDate}
-                        onChange={e => { onToDate(e.target.value); setPage(1); }}
-                    />
-                </div>
-                <div className="relative flex-1 sm:max-w-xs">
+                <div className="relative flex-1 sm:max-w-lg">
                     <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-(--cl-text-muted)" />
                     <Input
-                        className="h-8 border-(--cl-border) bg-white pl-8 text-xs"
-                        placeholder="Job no, alt job no, customer or mobile…"
+                        className="h-8 border-(--cl-border) bg-white pl-8 pr-8 text-xs"
+                        placeholder="Job no, alt job no, customer, mobile, email, city, technician, serial no, device…"
                         value={search}
                         onChange={e => handleSearchChange(e.target.value)}
                     />
@@ -116,7 +98,7 @@ export function DeliverableJobsGrid({
                     )}
                 </div>
                 <Button
-                    className="h-8 px-2.5 text-xs"
+                    className="ml-auto h-8 px-2.5 text-xs"
                     disabled={loading || !branchId}
                     size="sm"
                     variant="outline"
@@ -137,7 +119,7 @@ export function DeliverableJobsGrid({
                         <table className="min-w-full border-collapse">
                             <thead>
                                 <tr>
-                                    {["#", "Date", "Job No", "Customer", "Mobile", "Status", "Technician", "Invoice", "Invoice Total", "Action"].map(h => (
+                                    {["#", "Date", "Job No", "Customer", "Mobile", "Status", "Technician", "Amount", "Invoice", "Invoice Total", "Action"].map(h => (
                                         <th key={h} className={thClass}>{h}</th>
                                     ))}
                                 </tr>
@@ -145,7 +127,7 @@ export function DeliverableJobsGrid({
                             <tbody>
                                 {Array.from({ length: 8 }).map((_, i) => (
                                     <tr key={i} className="animate-pulse">
-                                        {Array.from({ length: 10 }).map((__, j) => (
+                                        {Array.from({ length: 11 }).map((__, j) => (
                                             <td key={j} className={tdClass}>
                                                 <div className="h-4 w-16 rounded bg-(--cl-border)" />
                                             </td>
@@ -169,6 +151,7 @@ export function DeliverableJobsGrid({
                                     <th className={thClass}>Mobile</th>
                                     <th className={thClass}>Status</th>
                                     <th className={thClass}>Technician</th>
+                                    <th className={`${thClass} text-right`}>Amount</th>
                                     <th className={thClass}>Invoice</th>
                                     <th className={`${thClass} text-right`}>Invoice Total</th>
                                     <th className={`${thClass} sticky right-0 z-20 !bg-(--cl-surface-2)`}>Action</th>
@@ -185,13 +168,28 @@ export function DeliverableJobsGrid({
                                     >
                                         <td className={`${tdClass} text-(--cl-text-muted)`}>{(page - 1) * PAGE_SIZE + idx + 1}</td>
                                         <td className={tdClass}>{row.job_date}</td>
-                                        <td className={`${tdClass} font-mono font-semibold text-(--cl-accent)`}>
-                                            #{row.job_no}
-                                            {row.alternate_job_no && (
-                                                <span className="block text-[10px] text-(--cl-text-muted) font-normal">
-                                                    Alt: {row.alternate_job_no}
-                                                </span>
-                                            )}
+                                        <td className={tdClass}>
+                                            <div className="flex flex-col gap-0.5">
+                                                <div className="font-mono font-semibold text-(--cl-accent)">
+                                                    #{row.job_no}
+                                                </div>
+                                                {row.alternate_job_no && (
+                                                    <span className="text-[10px] text-(--cl-text-muted)">Alt: {row.alternate_job_no}</span>
+                                                )}
+                                                {row.batch_no != null && (
+                                                    <span className="text-[9px] font-bold text-violet-600 dark:text-violet-400 w-fit bg-violet-50 dark:bg-violet-950/40 rounded px-1 py-0.5">Batch #{row.batch_no}</span>
+                                                )}
+                                                {row.file_count > 0 && (
+                                                    <button
+                                                        type="button"
+                                                        className="flex items-center gap-1 text-[10px] text-blue-600 dark:text-blue-400 font-medium hover:text-blue-700 cursor-pointer bg-blue-50 dark:bg-blue-950/40 rounded px-1.5 py-0.5 w-fit border-0 transition-colors"
+                                                        onClick={e => { e.stopPropagation(); onOpenAttach(row.id, row.job_no); }}
+                                                    >
+                                                        <Paperclip className="h-2.5 w-2.5" />
+                                                        <span>{row.file_count} File{row.file_count !== 1 ? "s" : ""}</span>
+                                                    </button>
+                                                )}
+                                            </div>
                                         </td>
                                         <td className={tdClass}>{row.customer_name}</td>
                                         <td className={`${tdClass} font-mono text-xs`}>{row.mobile}</td>
@@ -201,20 +199,22 @@ export function DeliverableJobsGrid({
                                             </span>
                                         </td>
                                         <td className={tdClass}>{row.technician_name ?? "—"}</td>
+                                        <td className={`${tdClass} text-right tabular-nums`}>{fmtCurrency(row.amount)}</td>
                                         <td className={`${tdClass} font-mono text-xs`}>{row.invoice_no ?? "—"}</td>
                                         <td className={`${tdClass} text-right tabular-nums`}>{fmtCurrency(row.invoice_total)}</td>
                                         <td className={`${tdClass} sticky right-0 z-10 bg-(--cl-surface) group-hover:bg-(--cl-surface-2)`}>
                                             <Button
-                                                className="h-7 px-2 text-xs text-(--cl-text-muted) hover:text-(--cl-accent)"
+                                                className="h-8 gap-1.5 px-3 text-xs font-semibold text-emerald-700 border border-emerald-300 hover:bg-emerald-50 dark:text-emerald-400 dark:border-emerald-700 dark:hover:bg-emerald-950/30"
                                                 disabled={loadingDetail}
                                                 size="sm"
-                                                variant="ghost"
+                                                variant="outline"
                                                 onClick={() => onDeliver(row)}
                                             >
                                                 {loadingDetail
                                                     ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                                    : "Deliver"
+                                                    : <Truck className="h-3.5 w-3.5" />
                                                 }
+                                                Deliver
                                             </Button>
                                         </td>
                                     </motion.tr>
