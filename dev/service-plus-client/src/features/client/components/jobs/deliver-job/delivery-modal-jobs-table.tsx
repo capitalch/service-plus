@@ -1,6 +1,6 @@
 import type { DivisionContextType } from "@/features/client/types/division";
 import type { JobDeliveryFullDetail } from "./deliver-job-schema";
-import { thClass, tdClass, fmtCurrency } from "./deliver-job-helpers";
+import { fmtCurrency } from "./deliver-job-helpers";
 
 type Props = {
     jobs:               JobDeliveryFullDetail[];
@@ -8,68 +8,73 @@ type Props = {
 };
 
 export function DeliveryModalJobsTable({ jobs }: Props) {
+    const totalAmt  = jobs.reduce((s, j) => s + Number(j.amount ?? 0), 0);
+    const totalPaid = jobs.reduce((s, j) => s + (j.payments ?? []).reduce((ps, p) => ps + Number(p.amount), 0), 0);
+    const totalDue  = Math.max(0, totalAmt - totalPaid);
+
     return (
-        <div className="overflow-x-auto rounded-lg border border-(--cl-border)">
-            <table className="min-w-full border-collapse text-sm">
-                <thead>
-                    <tr>
-                        {[
-                            "Job No", "Alt Job No", "Job Date", "Customer",
-                            "Recv Manner", "Job Type", "Recv Condition",
-                            "Device Details", "Qty", "Est. Amt", "Amount", "Due Amt",
-                        ].map(h => (
-                            <th key={h} className={thClass}>{h}</th>
-                        ))}
-                    </tr>
-                </thead>
-                <tbody className="divide-y divide-(--cl-border) bg-(--cl-surface)">
-                    {jobs.map(job => {
-                        const paid = (job.payments ?? []).reduce((s, p) => s + Number(p.amount), 0);
-                        const due  = Math.max(0, Number(job.amount ?? 0) - paid);
-                        return (
-                            <tr key={job.id} className="hover:bg-(--cl-accent)/5">
-                                <td className={`${tdClass} font-mono font-semibold text-(--cl-accent) whitespace-nowrap`}>
-                                    #{job.job_no}
-                                </td>
-                                <td className={`${tdClass} whitespace-nowrap`}>{job.alternate_job_no ?? "—"}</td>
-                                <td className={`${tdClass} whitespace-nowrap`}>{job.job_date}</td>
-                                <td className={tdClass}>{job.customer_name}</td>
-                                <td className={tdClass}>{job.receive_manner_name}</td>
-                                <td className={tdClass}>
-                                    <span className="rounded-full px-2 py-0.5 text-xs font-medium bg-(--cl-accent)/10 text-(--cl-accent)">
-                                        {job.job_type_name}
-                                    </span>
-                                </td>
-                                <td className={tdClass}>{job.receive_condition_name || "—"}</td>
-                                <td className={`${tdClass} max-w-36`}>
-                                    <span className="text-xs leading-snug">{job.device_details ?? "—"}</span>
-                                </td>
-                                <td className={`${tdClass} text-right tabular-nums`}>{job.qty ?? "—"}</td>
-                                <td className={`${tdClass} text-right tabular-nums`}>{fmtCurrency(job.estimate_amount)}</td>
-                                <td className={`${tdClass} text-right tabular-nums`}>{fmtCurrency(job.amount)}</td>
-                                <td className={`${tdClass} text-right tabular-nums font-semibold ${due > 0 ? "text-red-600" : "text-emerald-600"}`}>
-                                    {fmtCurrency(due)}
-                                </td>
-                            </tr>
-                        );
-                    })}
-                </tbody>
-                {jobs.length > 1 && (() => {
-                    const totalAmt  = jobs.reduce((s, j) => s + Number(j.amount ?? 0), 0);
-                    const totalPaid = jobs.reduce((s, j) => s + (j.payments ?? []).reduce((ps, p) => ps + Number(p.amount), 0), 0);
-                    const totalDue  = Math.max(0, totalAmt - totalPaid);
-                    return (
-                        <tfoot>
-                            <tr className="bg-(--cl-surface-2)">
-                                <td colSpan={9} className={`${tdClass} font-semibold text-right text-(--cl-text-muted)`}>TOTAL</td>
-                                <td className={tdClass} />
-                                <td className={`${tdClass} text-right tabular-nums font-bold`}>{fmtCurrency(totalAmt)}</td>
-                                <td className={`${tdClass} text-right tabular-nums font-bold ${totalDue > 0 ? "text-red-600" : "text-emerald-600"}`}>{fmtCurrency(totalDue)}</td>
-                            </tr>
-                        </tfoot>
-                    );
-                })()}
-            </table>
+        <div className="flex flex-col gap-1.5">
+            {jobs.map(job => {
+                const paid = (job.payments ?? []).reduce((s, p) => s + Number(p.amount), 0);
+                const due  = Math.max(0, Number(job.amount ?? 0) - paid);
+                return (
+                    <div key={job.id} className="rounded-md border border-(--cl-border) bg-(--cl-surface) px-3 py-2 flex flex-col gap-1">
+                        {/* Row 1: job # · customer · mobile | job-type badge · date */}
+                        <div className="flex items-center gap-2 min-w-0">
+                            <span className="font-mono font-semibold text-(--cl-accent) shrink-0">#{job.job_no}</span>
+                            {job.alternate_job_no && (
+                                <span className="text-xs text-(--cl-text-muted) shrink-0">/{job.alternate_job_no}</span>
+                            )}
+                            <div className="flex items-baseline gap-1.5 flex-1 min-w-0">
+                                <span className="font-semibold text-(--cl-text) truncate text-sm">{job.customer_name}</span>
+                                {job.mobile && (
+                                    <span className="text-xs text-(--cl-text-muted) shrink-0">{job.mobile}</span>
+                                )}
+                            </div>
+                            <span className="shrink-0 rounded-full px-2 py-0.5 text-xs font-medium bg-(--cl-accent)/10 text-(--cl-accent)">
+                                {job.job_type_name}
+                            </span>
+                            <span className="text-xs text-(--cl-text-muted) shrink-0">{job.job_date}</span>
+                        </div>
+
+                        {/* Row 2: recv · condition · technician — dot-separated */}
+                        <div className="flex items-center flex-wrap gap-x-1 gap-y-0 text-xs text-(--cl-text-muted)">
+                            <span>{job.receive_manner_name}</span>
+                            {job.receive_condition_name && (
+                                <><span className="opacity-30">·</span><span>{job.receive_condition_name}</span></>
+                            )}
+                            {job.technician_name && (
+                                <><span className="opacity-30">·</span><span className="text-(--cl-text)">{job.technician_name}</span></>
+                            )}
+                        </div>
+
+                        {/* Row 3 (optional): device details */}
+                        {job.device_details && (
+                            <p className="text-xs text-(--cl-text) leading-snug line-clamp-2">{job.device_details}</p>
+                        )}
+
+                        {/* Amounts strip */}
+                        <div className="flex items-center justify-end gap-3 pt-1 border-t border-(--cl-border)/50 text-xs tabular-nums">
+                            <span className="text-(--cl-text-muted)">Est <span className="text-(--cl-text)">{fmtCurrency(job.estimate_amount)}</span></span>
+                            <span className="text-(--cl-text-muted)">Amt <span className="font-semibold text-(--cl-text)">{fmtCurrency(job.amount)}</span></span>
+                            <span className={`font-semibold ${due > 0 ? "text-red-500" : "text-emerald-500"}`}>
+                                Due {fmtCurrency(due)}
+                            </span>
+                        </div>
+                    </div>
+                );
+            })}
+
+            {/* Totals strip — only for multi-job */}
+            {jobs.length > 1 && (
+                <div className="flex items-center justify-between rounded-md border border-(--cl-border) bg-(--cl-surface-2) px-3 py-1.5 text-xs tabular-nums">
+                    <span className="text-(--cl-text-muted)">{jobs.length} jobs</span>
+                    <div className="flex items-center gap-3">
+                        <span className="text-(--cl-text-muted)">Amt <span className="font-bold text-(--cl-text)">{fmtCurrency(totalAmt)}</span></span>
+                        <span className={`font-bold ${totalDue > 0 ? "text-red-500" : "text-emerald-500"}`}>Due {fmtCurrency(totalDue)}</span>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

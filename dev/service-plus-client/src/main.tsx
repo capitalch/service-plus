@@ -11,7 +11,7 @@ import { router } from "./router";
 import { store } from "./store";
 
 createRoot(document.getElementById("root")!).render(
-  <StrictMode>
+  // <StrictMode>
     <ApolloProvider client={apolloClient}>
       <Provider store={store}>
         <RouterProvider router={router} />
@@ -30,5 +30,5 @@ createRoot(document.getElementById("root")!).render(
         />
       </Provider>
     </ApolloProvider>
-  </StrictMode>
+  // </StrictMode>
 );

@@ -101,74 +101,67 @@ export const DeliverJobSection = () => {
     const loadData = useCallback(async (bid: number, q: string, pg: number) => {
         if (!dbName || !schema) return;
         setLoading(true);
-        try {
-            const commonArgs = { branch_id: bid, search: q };
-            const [dataRes, countRes] = await Promise.all([
-                apolloClient.query<GenericQueryData<DeliverableJobRow>>({
-                    fetchPolicy: "network-only",
-                    query:       GRAPHQL_MAP.genericQuery,
-                    variables:   {
-                        db_name: dbName, schema,
-                        value: graphQlUtils.buildGenericQueryValue({
-                            sqlId:   SQL_MAP.GET_DELIVERABLE_JOBS_PAGED,
-                            sqlArgs: { ...commonArgs, limit: PAGE_SIZE, offset: (pg - 1) * PAGE_SIZE },
-                        }),
-                    },
+        const commonArgs = { branch_id: bid, search: q };
+
+        const rowsPromise = apolloClient.query({
+            fetchPolicy: "network-only",
+            query:       GRAPHQL_MAP.genericQuery,
+            variables:   {
+                db_name: dbName, schema,
+                value: graphQlUtils.buildGenericQueryValue({
+                    sqlId:   SQL_MAP.GET_DELIVERABLE_JOBS_PAGED,
+                    sqlArgs: { ...commonArgs, limit: PAGE_SIZE, offset: (pg - 1) * PAGE_SIZE },
                 }),
-                apolloClient.query<GenericQueryData<{ total: number }>>({
-                    fetchPolicy: "network-only",
-                    query:       GRAPHQL_MAP.genericQuery,
-                    variables:   {
-                        db_name: dbName, schema,
-                        value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_DELIVERABLE_JOBS_COUNT, sqlArgs: commonArgs }),
-                    },
-                }),
-            ]);
-            setRows(dataRes.data?.genericQuery ?? []);
-            setTotal(Number(countRes.data?.genericQuery?.[0]?.total ?? 0));
-        } catch {
-            toast.error(MESSAGES.ERROR_DELIVERABLE_JOBS_LOAD_FAILED);
-        } finally {
-            setLoading(false);
-        }
+            },
+        }).then(res => setRows((res.data as GenericQueryData<DeliverableJobRow>).genericQuery ?? []));
+
+        const countPromise = apolloClient.query({
+            fetchPolicy: "network-only",
+            query:       GRAPHQL_MAP.genericQuery,
+            variables:   {
+                db_name: dbName, schema,
+                value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_DELIVERABLE_JOBS_COUNT, sqlArgs: commonArgs }),
+            },
+        }).then(res => setTotal(Number((res.data as GenericQueryData<{ total: number }>).genericQuery?.[0]?.total ?? 0)));
+
+        const results = await Promise.allSettled([rowsPromise, countPromise]);
+        if (results.some(r => r.status === "rejected")) toast.error(MESSAGES.ERROR_DELIVERABLE_JOBS_LOAD_FAILED);
+        setLoading(false);
     }, [dbName, schema]);
 
     useEffect(() => {
         if (!branchId || activeTab !== "deliverable") return;
         // eslint-disable-next-line react-hooks/set-state-in-effect
         loadData(branchId, searchQ, page).catch(() => {});
+        console.log("rows", rows);
     }, [branchId, searchQ, page, loadData, activeTab]);
 
     // ── Load delivered jobs ───────────────────────────────────────────────────
     const loadDeliveredData = useCallback(async () => {
         if (!branchId || !dbName || !schema) return;
         setDeliveredLoading(true);
-        try {
-            const args = {
-                branch_id: branchId,
-                search:    deliveredSearchQ,
-                limit:     PAGE_SIZE,
-                offset:    (deliveredPage - 1) * PAGE_SIZE,
-            };
-            const [countRes, rowsRes] = await Promise.all([
-                apolloClient.query<GenericQueryData<{ total: number }>>({
-                    fetchPolicy: "network-only",
-                    query:       GRAPHQL_MAP.genericQuery,
-                    variables:   { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_DELIVERED_JOBS_COUNT, sqlArgs: args }) },
-                }),
-                apolloClient.query<GenericQueryData<DeliveredJobRow>>({
-                    fetchPolicy: "network-only",
-                    query:       GRAPHQL_MAP.genericQuery,
-                    variables:   { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_DELIVERED_JOBS_PAGED, sqlArgs: args }) },
-                }),
-            ]);
-            setDeliveredTotal(Number(countRes.data?.genericQuery?.[0]?.total ?? 0));
-            setDeliveredRows(rowsRes.data?.genericQuery ?? []);
-        } catch {
-            toast.error("Failed to load delivered jobs. Please try again.");
-        } finally {
-            setDeliveredLoading(false);
-        }
+        const args = {
+            branch_id: branchId,
+            search:    deliveredSearchQ,
+            limit:     PAGE_SIZE,
+            offset:    (deliveredPage - 1) * PAGE_SIZE,
+        };
+
+        const countPromise = apolloClient.query({
+            fetchPolicy: "network-only",
+            query:       GRAPHQL_MAP.genericQuery,
+            variables:   { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_DELIVERED_JOBS_COUNT, sqlArgs: args }) },
+        }).then(res => setDeliveredTotal(Number((res.data as GenericQueryData<{ total: number }>).genericQuery?.[0]?.total ?? 0)));
+
+        const rowsPromise = apolloClient.query({
+            fetchPolicy: "network-only",
+            query:       GRAPHQL_MAP.genericQuery,
+            variables:   { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_DELIVERED_JOBS_PAGED, sqlArgs: args }) },
+        }).then(res => setDeliveredRows((res.data as GenericQueryData<DeliveredJobRow>).genericQuery ?? []));
+
+        const results = await Promise.allSettled([countPromise, rowsPromise]);
+        if (results.some(r => r.status === "rejected")) toast.error("Failed to load delivered jobs. Please try again.");
+        setDeliveredLoading(false);
     }, [branchId, dbName, schema, deliveredSearchQ, deliveredPage]);
 
     useEffect(() => {

@@ -394,7 +394,7 @@ export function DeliveryModal({
                     aria-describedby={undefined}
                 >
                     {/* ── Header ───────────────────────────────────────────── */}
-                    <div className="shrink-0 border-b border-(--cl-border) bg-(--cl-surface) px-6 pt-5 pb-4">
+                    <div className="shrink-0 border-b border-(--cl-border) bg-(--cl-surface) px-6 pt-5 pb-4 flex items-center justify-between">
                         {/* Title row */}
                         <div className="flex items-center gap-3">
                             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-950/50">
@@ -476,7 +476,7 @@ export function DeliveryModal({
                                     </span>
                                     <span className="h-px flex-1 bg-(--cl-border)" />
                                 </div>
-                                <DeliveryModalInvoicesSection jobs={jobDetails} />
+                                <DeliveryModalInvoicesSection jobs={jobDetails} availableDivisions={availableDivisions} />
                             </section>
 
                             {/* Receipts section */}

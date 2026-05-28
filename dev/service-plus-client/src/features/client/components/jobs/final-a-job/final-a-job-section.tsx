@@ -217,36 +217,32 @@ export const FinalAJobSection = () => {
     const loadData = useCallback(async (bid: number, q: string, pg: number, divisionId: number | null = null) => {
         if (!dbName || !schema) return;
         setLoading(true);
-        try {
-            const commonArgs = { branch_id: bid, division_id: divisionId, search: q };
-            const [dataRes, countRes] = await Promise.all([
-                apolloClient.query<GenericQueryData<FinalJobRow>>({
-                    fetchPolicy: "network-only",
-                    query: GRAPHQL_MAP.genericQuery,
-                    variables: {
-                        db_name: dbName, schema,
-                        value: graphQlUtils.buildGenericQueryValue({
-                            sqlId: SQL_MAP.GET_COMPLETED_JOBS_PAGED,
-                            sqlArgs: { ...commonArgs, limit: PAGE_SIZE, offset: (pg - 1) * PAGE_SIZE },
-                        }),
-                    },
+        const commonArgs = { branch_id: bid, division_id: divisionId, search: q };
+
+        const rowsPromise = apolloClient.query({
+            fetchPolicy: "network-only",
+            query: GRAPHQL_MAP.genericQuery,
+            variables: {
+                db_name: dbName, schema,
+                value: graphQlUtils.buildGenericQueryValue({
+                    sqlId: SQL_MAP.GET_COMPLETED_JOBS_PAGED,
+                    sqlArgs: { ...commonArgs, limit: PAGE_SIZE, offset: (pg - 1) * PAGE_SIZE },
                 }),
-                apolloClient.query<GenericQueryData<{ total: number }>>({
-                    fetchPolicy: "network-only",
-                    query: GRAPHQL_MAP.genericQuery,
-                    variables: {
-                        db_name: dbName, schema,
-                        value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_COMPLETED_JOBS_COUNT, sqlArgs: commonArgs }),
-                    },
-                }),
-            ]);
-            setRows(dataRes.data?.genericQuery ?? []);
-            setTotal(Number(countRes.data?.genericQuery?.[0]?.total ?? 0));
-        } catch {
-            toast.error(MESSAGES.ERROR_FINAL_JOBS_LOAD_FAILED);
-        } finally {
-            setLoading(false);
-        }
+            },
+        }).then(res => setRows((res.data as GenericQueryData<FinalJobRow>).genericQuery ?? []));
+
+        const countPromise = apolloClient.query({
+            fetchPolicy: "network-only",
+            query: GRAPHQL_MAP.genericQuery,
+            variables: {
+                db_name: dbName, schema,
+                value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_COMPLETED_JOBS_COUNT, sqlArgs: commonArgs }),
+            },
+        }).then(res => setTotal(Number((res.data as GenericQueryData<{ total: number }>).genericQuery?.[0]?.total ?? 0)));
+
+        const results = await Promise.allSettled([rowsPromise, countPromise]);
+        if (results.some(r => r.status === "rejected")) toast.error(MESSAGES.ERROR_FINAL_JOBS_LOAD_FAILED);
+        setLoading(false);
     }, [dbName, schema]);
 
     useEffect(() => {
@@ -270,32 +266,28 @@ export const FinalAJobSection = () => {
     const loadFinalizedData = useCallback(async () => {
         if (!branchId || !dbName || !schema) return;
         setFinalizedLoading(true);
-        try {
-            const args = {
-                branch_id: branchId,
-                search: finalizedSearchQ,
-                limit: PAGE_SIZE,
-                offset: (finalizedPage - 1) * PAGE_SIZE,
-            };
-            const [countRes, rowsRes] = await Promise.all([
-                apolloClient.query<GenericQueryData<{ total: number }>>({
-                    fetchPolicy: "network-only",
-                    query: GRAPHQL_MAP.genericQuery,
-                    variables: { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_DELIVERABLE_JOBS_COUNT, sqlArgs: args }) },
-                }),
-                apolloClient.query<GenericQueryData<FinalizedJobRow>>({
-                    fetchPolicy: "network-only",
-                    query: GRAPHQL_MAP.genericQuery,
-                    variables: { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_DELIVERABLE_JOBS_PAGED, sqlArgs: args }) },
-                }),
-            ]);
-            setFinalizedTotal(Number(countRes.data?.genericQuery?.[0]?.total ?? 0));
-            setFinalizedRows(rowsRes.data?.genericQuery ?? []);
-        } catch {
-            toast.error("Failed to load finalized jobs.");
-        } finally {
-            setFinalizedLoading(false);
-        }
+        const args = {
+            branch_id: branchId,
+            search: finalizedSearchQ,
+            limit: PAGE_SIZE,
+            offset: (finalizedPage - 1) * PAGE_SIZE,
+        };
+
+        const countPromise = apolloClient.query({
+            fetchPolicy: "network-only",
+            query: GRAPHQL_MAP.genericQuery,
+            variables: { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_DELIVERABLE_JOBS_COUNT, sqlArgs: args }) },
+        }).then(res => setFinalizedTotal(Number((res.data as GenericQueryData<{ total: number }>).genericQuery?.[0]?.total ?? 0)));
+
+        const rowsPromise = apolloClient.query({
+            fetchPolicy: "network-only",
+            query: GRAPHQL_MAP.genericQuery,
+            variables: { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_DELIVERABLE_JOBS_PAGED, sqlArgs: args }) },
+        }).then(res => setFinalizedRows((res.data as GenericQueryData<FinalizedJobRow>).genericQuery ?? []));
+
+        const results = await Promise.allSettled([countPromise, rowsPromise]);
+        if (results.some(r => r.status === "rejected")) toast.error("Failed to load finalized jobs.");
+        setFinalizedLoading(false);
     }, [branchId, dbName, schema, finalizedSearchQ, finalizedPage]);
 
     useEffect(() => {

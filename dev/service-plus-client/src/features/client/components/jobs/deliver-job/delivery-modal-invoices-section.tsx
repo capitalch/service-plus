@@ -1,17 +1,60 @@
+import { type DivisionContextType, isGstDivision } from "@/features/client/types/division";
 import type { JobDeliveryFullDetail } from "./deliver-job-schema";
 import { fmtCurrency, isJobInvoiceable } from "./deliver-job-helpers";
 
 type Props = {
-    jobs: JobDeliveryFullDetail[];
+    jobs:               JobDeliveryFullDetail[];
+    availableDivisions: DivisionContextType[];
 };
 
-export function DeliveryModalInvoicesSection({ jobs }: Props) {
+function computeTaxSummary(job: JobDeliveryFullDetail) {
+    let aggregate = 0, cgst = 0, sgst = 0;
+    for (const p of job.parts ?? []) {
+        const taxable = p.selling_price * p.qty;
+        aggregate += taxable;
+        if (p.gst_rate > 0) { const half = taxable * p.gst_rate / 200; cgst += half; sgst += half; }
+    }
+    for (const c of job.charges ?? []) {
+        const taxable = c.selling_price * c.qty;
+        aggregate += taxable;
+        if (c.gst_rate > 0) { const half = taxable * c.gst_rate / 200; cgst += half; sgst += half; }
+    }
+    return { aggregate, cgst, sgst, total: aggregate + cgst + sgst };
+}
+
+function TaxSummaryRow({ tax, jobAmount }: { tax: ReturnType<typeof computeTaxSummary>; jobAmount: number | null }) {
+    return (
+        <div className="flex items-center justify-between text-xs tabular-nums text-(--cl-text-muted)">
+            <div className="flex items-center gap-3">
+                <span>Taxable <span className="text-(--cl-text)">{fmtCurrency(tax.aggregate)}</span></span>
+                <span className="opacity-30">·</span>
+                <span>CGST <span className="text-(--cl-text)">{fmtCurrency(tax.cgst)}</span></span>
+                <span className="opacity-30">·</span>
+                <span>SGST <span className="text-(--cl-text)">{fmtCurrency(tax.sgst)}</span></span>
+                <span className="opacity-30">·</span>
+                <span>Total <span className="font-semibold text-(--cl-text)">{fmtCurrency(tax.total)}</span></span>
+            </div>
+            <span>Amt <span className="font-semibold text-(--cl-text)">{fmtCurrency(jobAmount)}</span></span>
+        </div>
+    );
+}
+
+export function DeliveryModalInvoicesSection({ jobs, availableDivisions }: Props) {
     return (
         <div className="space-y-2">
             {jobs.map(job => {
                 const invoiceable = isJobInvoiceable(job.job_type_code, job.job_status_code);
+                const division    = availableDivisions.find(d => d.id === job.division_id) ?? null;
+                const isGst       = isGstDivision(division);
+                const hasTaxLines = isGst && (
+                    (job.parts   ?? []).some(p => p.gst_rate > 0) ||
+                    (job.charges ?? []).some(c => c.gst_rate > 0)
+                );
+                const tax = hasTaxLines ? computeTaxSummary(job) : null;
+
                 return (
                     <div key={job.id} className="rounded-lg border border-(--cl-border) bg-(--cl-surface-2) p-3">
+                        {/* Header row */}
                         <div className="flex items-center justify-between gap-4">
                             <div className="flex items-center gap-2">
                                 <span className="font-mono text-xs font-semibold text-(--cl-accent)">#{job.job_no}</span>
@@ -32,22 +75,46 @@ export function DeliveryModalInvoicesSection({ jobs }: Props) {
                             )}
                         </div>
 
-                        {/* Parts and charges preview (only for pending invoiceable jobs) */}
-                        {invoiceable && !job.invoice_id && (job.parts.length > 0 || job.charges.length > 0) && (
-                            <div className="mt-2 space-y-1 pl-2 border-l-2 border-(--cl-border)">
-                                {job.parts.map(p => (
-                                    <div key={p.id} className="flex justify-between text-xs text-(--cl-text-muted)">
-                                        <span>{p.part_name} × {p.qty}</span>
-                                        <span>{fmtCurrency(p.selling_price * p.qty)}</span>
-                                    </div>
-                                ))}
-                                {job.charges.map(c => (
-                                    <div key={c.id} className="flex justify-between text-xs text-(--cl-text-muted)">
-                                        <span>{c.charge_name} × {c.qty}</span>
-                                        <span>{fmtCurrency(c.selling_price * c.qty)}</span>
-                                    </div>
-                                ))}
+                        {/* Tax breakdown for existing GST invoices */}
+                        {invoiceable && job.invoice_id && tax && (
+                            <div className="mt-2 pl-1">
+                                <TaxSummaryRow tax={tax} jobAmount={job.amount} />
                             </div>
+                        )}
+
+                        {/* Parts + charges preview for pending invoiceable jobs */}
+                        {invoiceable && !job.invoice_id && (job.parts.length > 0 || job.charges.length > 0) && (
+                            <>
+                                <div className="mt-2 space-y-1 pl-2 border-l-2 border-(--cl-border)">
+                                    {job.parts.map(p => (
+                                        <div key={p.id} className="flex justify-between text-xs text-(--cl-text-muted)">
+                                            <span>{p.part_name} × {p.qty}</span>
+                                            <div className="flex items-center gap-3 tabular-nums">
+                                                {isGst && p.gst_rate > 0 && (
+                                                    <span className="text-[10px] opacity-60">{p.gst_rate}% GST</span>
+                                                )}
+                                                <span>{fmtCurrency(p.selling_price * p.qty)}</span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                    {job.charges.map(c => (
+                                        <div key={c.id} className="flex justify-between text-xs text-(--cl-text-muted)">
+                                            <span>{c.charge_name} × {c.qty}</span>
+                                            <div className="flex items-center gap-3 tabular-nums">
+                                                {isGst && c.gst_rate > 0 && (
+                                                    <span className="text-[10px] opacity-60">{c.gst_rate}% GST</span>
+                                                )}
+                                                <span>{fmtCurrency(c.selling_price * c.qty)}</span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                                {tax && (
+                                    <div className="mt-2 pt-1.5 pl-1 border-t border-(--cl-border)/50">
+                                        <TaxSummaryRow tax={tax} jobAmount={job.amount} />
+                                    </div>
+                                )}
+                            </>
                         )}
 
                         {invoiceable && !job.invoice_id && job.parts.length === 0 && job.charges.length === 0 && (
