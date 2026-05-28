@@ -8,7 +8,7 @@ import { motion } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import type { DivisionContextType } from "@/features/client/types/division";
+import { type DivisionContextType, isGstDivision } from "@/features/client/types/division";
 import { PAGE_SIZE, thClass, tdClass } from "./final-a-job-helpers";
 import type { FinalizedJobRow } from "./final-a-job-schema";
 
@@ -140,17 +140,24 @@ export function FinalizedJobsGrid({
                                 >
                                     <td className={`${tdClass} text-(--cl-text-muted)`}>{(page - 1) * PAGE_SIZE + idx + 1}</td>
 
-                                    {/* Date + division badge */}
+                                    {/* Date + division badge + GST tag */}
                                     <td className={`${tdClass} whitespace-nowrap`}>
                                         <div className="flex flex-col gap-0.5">
                                             <span>{row.job_date}</span>
                                             {row.division_id && (() => {
                                                 const dv = availableDivisions.find(d => d.id === row.division_id);
-                                                return dv ? (
-                                                    <span className="font-mono text-[10px] font-semibold text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-950/40 rounded px-1 py-0.5 w-fit">
-                                                        {dv.code}
-                                                    </span>
-                                                ) : null;
+                                                if (!dv) return null;
+                                                const gst = isGstDivision(dv);
+                                                return (
+                                                    <>
+                                                        <span className="font-mono text-[10px] font-semibold text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-950/40 rounded px-1 py-0.5 w-fit">
+                                                            {dv.code}
+                                                        </span>
+                                                        <span className={`text-[10px] font-semibold rounded px-1 py-0.5 w-fit ${gst ? "text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40" : "text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40"}`}>
+                                                            {gst ? "GST" : "Non-GST"}
+                                                        </span>
+                                                    </>
+                                                );
                                             })()}
                                         </div>
                                     </td>

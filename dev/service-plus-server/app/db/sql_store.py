@@ -4036,10 +4036,23 @@ class SqlStore:
                t.name        AS technician_name,
                ji.amount     AS invoice_total,
                ji.invoice_no,
+               jrm.name       AS receive_manner_name,
+               jt.name        AS job_type_name,
+               jt.code        AS job_type_code,
+               COALESCE(jrc.name, '') AS receive_condition_name,
+               j.qty,
+               j.estimate_amount,
+               COALESCE(
+                   (SELECT SUM(jp2.amount) FROM job_payment jp2 WHERE jp2.job_id = j.id),
+                   0
+               )              AS total_paid,
                (SELECT COUNT(*) FROM job_image_doc jid WHERE jid.job_id = j.id) AS file_count
         FROM job j
         JOIN customer_contact      cc  ON cc.id  = j.customer_contact_id
         JOIN job_status            js  ON js.id  = j.job_status_id
+        JOIN job_receive_manner    jrm ON jrm.id = j.job_receive_manner_id
+        JOIN job_type              jt  ON jt.id  = j.job_type_id
+        LEFT JOIN job_receive_condition jrc ON jrc.id = j.job_receive_condition_id
         LEFT JOIN technician       t   ON t.id   = j.technician_id
         LEFT JOIN job_invoice      ji  ON ji.job_id = j.id
         LEFT JOIN product_brand_model pbm ON pbm.id = j.product_brand_model_id
@@ -4059,6 +4072,74 @@ class SqlStore:
            OR  LOWER(COALESCE(p.name, ''))             LIKE '%%' || LOWER((table "p_search")) || '%%'
            OR  LOWER(COALESCE(pbm.model_name, ''))     LIKE '%%' || LOWER((table "p_search")) || '%%')
         ORDER BY j.job_date DESC, j.id DESC
+        LIMIT  (table "p_limit")
+        OFFSET (table "p_offset")
+    """
+
+    GET_DELIVERED_JOBS_COUNT = """
+        with
+            "p_branch_id" as (values(%(branch_id)s::bigint)),
+            "p_search"    as (values(%(search)s::text))
+        SELECT COUNT(*) AS total
+        FROM job j
+        JOIN customer_contact      cc  ON cc.id  = j.customer_contact_id
+        LEFT JOIN technician       t   ON t.id   = j.technician_id
+        LEFT JOIN product_brand_model pbm ON pbm.id = j.product_brand_model_id
+        LEFT JOIN brand            b   ON b.id   = pbm.brand_id
+        LEFT JOIN product          p   ON p.id   = pbm.product_id
+        WHERE j.branch_id = (table "p_branch_id")
+          AND j.is_final  = true
+          AND j.is_closed = true
+          AND ((table "p_search") = ''
+           OR  LOWER(j.job_no::text)                   LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(cc.mobile)                        LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(cc.full_name)                     LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(COALESCE(j.alternate_job_no, '')) LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(COALESCE(t.name, ''))             LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(COALESCE(j.serial_no, ''))        LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(COALESCE(b.name, ''))             LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(COALESCE(p.name, ''))             LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(COALESCE(pbm.model_name, ''))     LIKE '%%' || LOWER((table "p_search")) || '%%')
+    """
+
+    GET_DELIVERED_JOBS_PAGED = """
+        with
+            "p_branch_id" as (values(%(branch_id)s::bigint)),
+            "p_search"    as (values(%(search)s::text)),
+            "p_limit"     as (values(%(limit)s::int)),
+            "p_offset"    as (values(%(offset)s::int))
+        SELECT j.id, j.job_no, j.alternate_job_no, j.job_date, j.delivery_date,
+               j.amount, j.last_transaction_id,
+               j.division_id, j.batch_no, j.serial_no, j.is_posted,
+               TRIM(CONCAT_WS(' ', p.name, b.name, pbm.model_name, j.serial_no)) AS device_details,
+               cc.full_name  AS customer_name, cc.mobile,
+               js.name       AS job_status_name,
+               t.name        AS technician_name,
+               ji.amount     AS invoice_total,
+               ji.invoice_no,
+               (SELECT COUNT(*) FROM job_image_doc jid WHERE jid.job_id = j.id) AS file_count
+        FROM job j
+        JOIN customer_contact      cc  ON cc.id  = j.customer_contact_id
+        JOIN job_status            js  ON js.id  = j.job_status_id
+        LEFT JOIN technician       t   ON t.id   = j.technician_id
+        LEFT JOIN job_invoice      ji  ON ji.job_id = j.id
+        LEFT JOIN product_brand_model pbm ON pbm.id = j.product_brand_model_id
+        LEFT JOIN brand            b   ON b.id   = pbm.brand_id
+        LEFT JOIN product          p   ON p.id   = pbm.product_id
+        WHERE j.branch_id = (table "p_branch_id")
+          AND j.is_final  = true
+          AND j.is_closed = true
+          AND ((table "p_search") = ''
+           OR  LOWER(j.job_no::text)                   LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(cc.mobile)                        LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(cc.full_name)                     LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(COALESCE(j.alternate_job_no, '')) LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(COALESCE(t.name, ''))             LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(COALESCE(j.serial_no, ''))        LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(COALESCE(b.name, ''))             LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(COALESCE(p.name, ''))             LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(COALESCE(pbm.model_name, ''))     LIKE '%%' || LOWER((table "p_search")) || '%%')
+        ORDER BY j.delivery_date DESC, j.id DESC
         LIMIT  (table "p_limit")
         OFFSET (table "p_offset")
     """
@@ -4096,5 +4177,69 @@ class SqlStore:
         LEFT JOIN job_payment  jp ON jp.job_id = j.id
         WHERE j.id = (table "p_job_id")
         GROUP BY j.id, cc.full_name, cc.mobile, js.name, t.name,
+                 ji.id, ji.invoice_no, ji.invoice_date, ji.amount
+    """
+
+    GET_DELIVERABLE_JOBS_DETAIL_MULTI = """
+        with "p_job_ids" as (
+            SELECT unnest(%(job_ids)s::bigint[]) AS job_id
+        )
+        SELECT
+            j.id, j.job_no, j.alternate_job_no, j.job_date, j.amount,
+            j.estimate_amount, j.qty, j.last_transaction_id,
+            j.division_id, j.serial_no,
+            TRIM(CONCAT_WS(' ', p.name, b.name, pbm.model_name, j.serial_no)) AS device_details,
+            cc.full_name  AS customer_name, cc.mobile,
+            js.name       AS job_status_name,
+            js.code       AS job_status_code,
+            jt.name       AS job_type_name,
+            jt.code       AS job_type_code,
+            jrm.name      AS receive_manner_name,
+            COALESCE(jrc.name, '') AS receive_condition_name,
+            t.name        AS technician_name,
+            ji.id         AS invoice_id,
+            ji.invoice_no, ji.invoice_date,
+            ji.amount     AS invoice_total,
+            COALESCE((
+                SELECT json_agg(json_build_object(
+                    'id', jp.id, 'payment_date', jp.payment_date,
+                    'payment_mode', jp.payment_mode, 'amount', jp.amount,
+                    'reference_no', jp.reference_no, 'remarks', jp.remarks
+                ) ORDER BY jp.created_at)
+                FROM job_payment jp WHERE jp.job_id = j.id
+            ), '[]'::json) AS payments,
+            COALESCE((
+                SELECT json_agg(json_build_object(
+                    'id', jpu.id, 'part_code', sp.part_code, 'part_name', sp.part_name,
+                    'qty', jpu.qty, 'cost_price', jpu.cost_price,
+                    'selling_price', jpu.selling_price, 'gst_rate', jpu.gst_rate,
+                    'hsn_code', sp.hsn_code, 'remarks', jpu.remarks
+                ) ORDER BY jpu.id)
+                FROM job_part_used jpu
+                JOIN spare_part_master sp ON sp.id = jpu.part_id
+                WHERE jpu.job_id = j.id
+            ), '[]'::json) AS parts,
+            COALESCE((
+                SELECT json_agg(json_build_object(
+                    'id', jac.id, 'charge_name', jac.charge_name, 'qty', jac.qty,
+                    'selling_price', jac.selling_price, 'gst_rate', jac.gst_rate,
+                    'hsn_code', jac.hsn_code, 'description', jac.description
+                ) ORDER BY jac.id)
+                FROM job_additional_charge jac WHERE jac.job_id = j.id
+            ), '[]'::json) AS charges
+        FROM job j
+        JOIN "p_job_ids" pj  ON pj.job_id = j.id
+        JOIN customer_contact      cc  ON cc.id  = j.customer_contact_id
+        JOIN job_status            js  ON js.id  = j.job_status_id
+        JOIN job_type              jt  ON jt.id  = j.job_type_id
+        JOIN job_receive_manner    jrm ON jrm.id = j.job_receive_manner_id
+        LEFT JOIN job_receive_condition jrc ON jrc.id = j.job_receive_condition_id
+        LEFT JOIN technician       t   ON t.id  = j.technician_id
+        LEFT JOIN job_invoice      ji  ON ji.job_id = j.id
+        LEFT JOIN product_brand_model pbm ON pbm.id = j.product_brand_model_id
+        LEFT JOIN brand            b   ON b.id  = pbm.brand_id
+        LEFT JOIN product          p   ON p.id  = pbm.product_id
+        GROUP BY j.id, cc.full_name, cc.mobile, js.name, js.code, jt.name, jt.code,
+                 jrm.name, jrc.name, t.name, pbm.model_name, b.name, p.name,
                  ji.id, ji.invoice_no, ji.invoice_date, ji.amount
     """

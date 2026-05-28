@@ -5,6 +5,7 @@ import type { JobInvoiceFullRow } from "./deliver-job-schema";
 
 // Minimal subset of JobDeliveryDetail needed for the PDF
 export type PdfJobDetail = {
+    id:                number;
     job_no:            string;
     alternate_job_no:  string | null;
     job_date:          string;
@@ -12,9 +13,7 @@ export type PdfJobDetail = {
     mobile:            string;
     technician_name:   string | null;
     job_status_name:   string;
-    problem_reported:  string | null;
-    diagnosis:         string | null;
-    work_done:         string | null;
+    amount:            number | null;
     invoice_total:     number | null;
     payments: {
         id:           number;
@@ -31,15 +30,18 @@ function fmt(n: number | null | undefined): string {
     return Number(n).toFixed(2);
 }
 
-export function buildDeliverJobPdf(
-    job:     PdfJobDetail,
-    invoice: JobInvoiceFullRow | null,
-): jsPDF {
-    const doc       = new jsPDF({ format: "a4", orientation: "p", unit: "mm" });
-    const margin    = 14;
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const midX      = pageWidth / 2;
-    let   y         = margin;
+// ── Append a single-job section to an existing jsPDF document ─────────────────
+
+function appendJobSection(
+    doc:       jsPDF,
+    job:       PdfJobDetail,
+    invoice:   JobInvoiceFullRow | null,
+    margin:    number,
+    pageWidth: number,
+    startY:    number,
+): void {
+    const midX = pageWidth / 2;
+    let y = startY;
 
     // ── Title ─────────────────────────────────────────────────────────────────
     doc.setFont("helvetica", "bold");
@@ -59,6 +61,7 @@ export function buildDeliverJobPdf(
         ["Mobile",     job.mobile],
         ["Technician", job.technician_name ?? "—"],
         ["Status",     job.job_status_name],
+        ["Amount",     `₹${fmt(job.amount)}`],
     ];
     doc.setFontSize(9);
     infoRows.forEach(([label, value], i) => {
@@ -70,26 +73,6 @@ export function buildDeliverJobPdf(
         doc.setFont("helvetica", "normal"); doc.text(value, x + 26, cy);
     });
     y += Math.ceil(infoRows.length / 2) * 6.5 + 5;
-
-    // Optional narrative fields
-    const narrative: [string, string][] = [
-        ["Problem Reported", job.problem_reported ?? ""],
-        ["Diagnosis",        job.diagnosis        ?? ""],
-        ["Work Done",        job.work_done        ?? ""],
-    ].filter(([, v]) => v.trim() !== "") as [string, string][];
-
-    if (narrative.length > 0) {
-        narrative.forEach(([label, value]) => {
-            doc.setFont("helvetica", "bold");
-            doc.setFontSize(8);
-            doc.text(`${label}:`, margin, y);
-            doc.setFont("helvetica", "normal");
-            const lines = doc.splitTextToSize(value, pageWidth - margin * 2 - 28);
-            doc.text(lines, margin + 28, y);
-            y += lines.length * 4.5 + 2;
-        });
-        y += 2;
-    }
 
     // ── Invoice section ───────────────────────────────────────────────────────
     doc.setFont("helvetica", "bold");
@@ -157,7 +140,6 @@ export function buildDeliverJobPdf(
         doc.setFont("helvetica", "italic");
         doc.setFontSize(9);
         doc.text("No receipts recorded.", margin, y);
-        y += 6;
     } else {
         const totalPaid = payments.reduce((s, p) => s + Number(p.amount), 0);
         autoTable(doc, {
@@ -193,6 +175,36 @@ export function buildDeliverJobPdf(
             doc.setTextColor(0, 0, 0);
         }
     }
+}
+
+// ── Single-job PDF (A5) ───────────────────────────────────────────────────────
+
+export function buildDeliverJobPdf(
+    job:     PdfJobDetail,
+    invoice: JobInvoiceFullRow | null,
+): jsPDF {
+    const doc       = new jsPDF({ format: "a5", orientation: "p", unit: "mm" });
+    const margin    = 14;
+    const pageWidth = doc.internal.pageSize.getWidth();
+
+    appendJobSection(doc, job, invoice, margin, pageWidth, margin);
+    return doc;
+}
+
+// ── Multi-job PDF (A5, one section per job) ───────────────────────────────────
+
+export function buildMultiJobDeliveryPdf(
+    jobs:        PdfJobDetail[],
+    invoicesMap: Map<number, JobInvoiceFullRow>,
+): jsPDF {
+    const doc       = new jsPDF({ format: "a5", orientation: "p", unit: "mm" });
+    const margin    = 14;
+    const pageWidth = doc.internal.pageSize.getWidth();
+
+    jobs.forEach((job, idx) => {
+        if (idx > 0) doc.addPage();
+        appendJobSection(doc, job, invoicesMap.get(job.id) ?? null, margin, pageWidth, margin);
+    });
 
     return doc;
 }

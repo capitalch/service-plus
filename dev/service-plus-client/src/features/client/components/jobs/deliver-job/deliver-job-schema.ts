@@ -82,3 +82,83 @@ export function getAddReceiptDefaults(suggestedAmount = 0): AddReceiptFormValues
         remarks:      "",
     };
 }
+
+// ── Multi-job delivery types ──────────────────────────────────────────────────
+
+export type JobPartLine = {
+    id:            number;
+    part_code:     string;
+    part_name:     string;
+    qty:           number;
+    cost_price:    number | null;
+    selling_price: number;
+    gst_rate:      number;
+    hsn_code:      string | null;
+    remarks:       string | null;
+};
+
+export type JobChargeLine = {
+    id:            number;
+    charge_name:   string;
+    qty:           number;
+    selling_price: number;
+    gst_rate:      number;
+    hsn_code:      string | null;
+    description:   string | null;
+};
+
+export type JobPayment = {
+    id:           number;
+    payment_date: string;
+    payment_mode: string;
+    amount:       number;
+    reference_no: string | null;
+    remarks:      string | null;
+};
+
+export type JobDeliveryFullDetail = {
+    id:                     number;
+    job_no:                 string;
+    alternate_job_no:       string | null;
+    job_date:               string;
+    division_id:            number | null;
+    amount:                 number | null;
+    estimate_amount:        number | null;
+    qty:                    number | null;
+    last_transaction_id:    number | null;
+    device_details:         string | null;
+    customer_name:          string;
+    mobile:                 string;
+    job_status_name:        string;
+    job_status_code:        string;
+    job_type_name:          string;
+    job_type_code:          string;
+    receive_manner_name:    string;
+    receive_condition_name: string;
+    technician_name:        string | null;
+    invoice_id:             number | null;
+    invoice_no:             string | null;
+    invoice_date:           string | null;
+    invoice_total:          number | null;
+    payments:               JobPayment[];
+    parts:                  JobPartLine[];
+    charges:                JobChargeLine[];
+};
+
+// ── Delivery modal form ───────────────────────────────────────────────────────
+
+export const deliveryModalSchema = z.object({
+    delivery_date:   z.string().min(1, "Delivery date is required"),
+    delivery_manner: z.string().min(1, "Delivery manner is required"),
+    remarks:         z.string().optional(),
+});
+
+export type DeliveryModalFormValues = z.infer<typeof deliveryModalSchema>;
+
+export function getDeliveryModalDefaults(): DeliveryModalFormValues {
+    return {
+        delivery_date:   new Date().toISOString().slice(0, 10),
+        delivery_manner: "",
+        remarks:         "",
+    };
+}

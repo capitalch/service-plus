@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
     ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon,
-    Eye, Loader2, Paperclip, RefreshCw, Search, Truck, X,
+    Eye, Paperclip, RefreshCw, Search, X,
 } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -12,61 +12,49 @@ import { PAGE_SIZE, DEBOUNCE_MS, thClass, tdClass, fmtCurrency } from "./deliver
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-export type DeliverableJobRow = {
-    id:                     number;
-    job_no:                 string;
-    alternate_job_no:       string | null;
-    job_date:               string;
-    division_id:            number | null;
-    device_details:         string | null;
-    serial_no:              string | null;
-    amount:                 number | null;
-    last_transaction_id:    number | null;
-    customer_name:          string;
-    mobile:                 string;
-    job_status_name:        string;
-    technician_name:        string | null;
-    invoice_total:          number | null;
-    invoice_no:             string | null;
-    batch_no:               number | null;
-    file_count:             number;
-    receive_manner_name:    string;
-    job_type_name:          string;
-    job_type_code:          string;
-    receive_condition_name: string;
-    qty:                    number | null;
-    estimate_amount:        number | null;
-    total_paid:             number;
+export type DeliveredJobRow = {
+    id:               number;
+    job_no:           string;
+    alternate_job_no: string | null;
+    job_date:         string;
+    delivery_date:    string | null;
+    division_id:      number | null;
+    device_details:   string | null;
+    serial_no:        string | null;
+    amount:           number | null;
+    last_transaction_id: number | null;
+    customer_name:    string;
+    mobile:           string;
+    job_status_name:  string;
+    technician_name:  string | null;
+    invoice_total:    number | null;
+    invoice_no:       string | null;
+    batch_no:         number | null;
+    is_posted:        boolean;
+    file_count:       number;
 };
 
 type Props = {
-    rows:               DeliverableJobRow[];
+    rows:               DeliveredJobRow[];
     loading:            boolean;
     total:              number;
     page:               number;
     search:             string;
     branchId:           number | null;
     availableDivisions: DivisionContextType[];
-    loadingDetail:      boolean;
-    selectedIds:        Set<number>;
     setPage:            (v: number | ((p: number) => number)) => void;
     onSearch:           (v: string) => void;
     onRefresh:          () => void;
     onViewJob:          (id: number) => void;
-    onDeliver:          (row: DeliverableJobRow) => void;
     onOpenAttach:       (id: number, jobNo: string) => void;
-    onSelectionChange:  (id: number, checked: boolean) => void;
-    onSelectAll:        (checked: boolean) => void;
-    onDeliverSelected:  () => void;
 };
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function DeliverableJobsGrid({
+export function DeliveredJobsGrid({
     rows, loading, total, page, search,
-    branchId, availableDivisions, loadingDetail, selectedIds, setPage,
-    onSearch, onRefresh, onViewJob, onDeliver, onOpenAttach,
-    onSelectionChange, onSelectAll, onDeliverSelected,
+    branchId, availableDivisions, setPage,
+    onSearch, onRefresh, onViewJob, onOpenAttach,
 }: Props) {
     const scrollRef  = useRef<HTMLDivElement>(null);
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -85,9 +73,7 @@ export function DeliverableJobsGrid({
         return () => { clearTimeout(timer); window.removeEventListener("resize", recalc); };
     }, [recalc, rows.length]);
 
-    const totalPages   = Math.max(1, Math.ceil(total / PAGE_SIZE));
-    const allChecked   = rows.length > 0 && rows.every(r => selectedIds.has(r.id));
-    const someChecked  = rows.some(r => selectedIds.has(r.id));
+    const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
     function handleSearchChange(value: string) {
         onSearch(value);
@@ -103,7 +89,7 @@ export function DeliverableJobsGrid({
                     <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-(--cl-text-muted)" />
                     <Input
                         className="h-8 border-(--cl-border) bg-white pl-8 pr-8 text-xs"
-                        placeholder="Job no, alt job no, customer, mobile, email, city, technician, serial no, device…"
+                        placeholder="Job no, alt job no, customer, mobile, technician, serial no, device…"
                         value={search}
                         onChange={e => handleSearchChange(e.target.value)}
                     />
@@ -117,20 +103,6 @@ export function DeliverableJobsGrid({
                         </button>
                     )}
                 </div>
-                {selectedIds.size > 0 && (
-                    <Button
-                        className="h-8 gap-1.5 px-3 text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm font-semibold"
-                        disabled={loadingDetail}
-                        size="sm"
-                        onClick={onDeliverSelected}
-                    >
-                        {loadingDetail
-                            ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            : <Truck className="h-3.5 w-3.5" />
-                        }
-                        Deliver Selected ({selectedIds.size})
-                    </Button>
-                )}
                 <Button
                     className="ml-auto h-8 px-2.5 text-xs"
                     disabled={loading || !branchId}
@@ -153,7 +125,7 @@ export function DeliverableJobsGrid({
                         <table className="min-w-full border-collapse">
                             <thead>
                                 <tr>
-                                    {["", "#", "Date", "Job No", "Customer", "Mobile", "Device Details", "Status", "Technician", "Amount", "Action"].map(h => (
+                                    {["#", "Date", "Job No", "Customer", "Mobile", "Device Details", "Technician", "Delivery Date", "Invoice Total", "Actions"].map(h => (
                                         <th key={h} className={thClass}>{h}</th>
                                     ))}
                                 </tr>
@@ -161,7 +133,7 @@ export function DeliverableJobsGrid({
                             <tbody>
                                 {Array.from({ length: 8 }).map((_, i) => (
                                     <tr key={i} className="animate-pulse">
-                                        {Array.from({ length: 11 }).map((__, j) => (
+                                        {Array.from({ length: 10 }).map((__, j) => (
                                             <td key={j} className={tdClass}>
                                                 <div className="h-4 w-16 rounded bg-(--cl-border)" />
                                             </td>
@@ -172,31 +144,22 @@ export function DeliverableJobsGrid({
                         </table>
                     ) : rows.length === 0 ? (
                         <div className="flex h-32 items-center justify-center text-sm text-(--cl-text-muted)">
-                            No jobs ready for delivery for the selected filters.
+                            No delivered jobs found.
                         </div>
                     ) : (
                         <table className="min-w-full border-collapse">
                             <thead className="sticky top-0 z-10">
                                 <tr>
-                                    <th className={`${thClass} w-8`}>
-                                        <input
-                                            type="checkbox"
-                                            className="h-3.5 w-3.5 rounded border-(--cl-border) accent-emerald-600"
-                                            checked={allChecked}
-                                            ref={el => { if (el) el.indeterminate = someChecked && !allChecked; }}
-                                            onChange={e => onSelectAll(e.target.checked)}
-                                        />
-                                    </th>
                                     <th className={thClass}>#</th>
                                     <th className={thClass}>Date</th>
                                     <th className={thClass}>Job No</th>
                                     <th className={thClass}>Customer</th>
                                     <th className={thClass}>Mobile</th>
                                     <th className={`${thClass} w-40`}>Device Details</th>
-                                    <th className={thClass}>Status</th>
                                     <th className={thClass}>Technician</th>
-                                    <th className={`${thClass} text-right`}>Amount</th>
-                                    <th className={`${thClass} sticky right-0 z-20 !bg-(--cl-surface-2)`}>Action</th>
+                                    <th className={thClass}>Delivery Date</th>
+                                    <th className={`${thClass} text-right`}>Invoice Total</th>
+                                    <th className={`${thClass} sticky right-0 z-20 !bg-(--cl-surface-2)`}>Actions</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-(--cl-border) bg-(--cl-surface)">
@@ -204,18 +167,10 @@ export function DeliverableJobsGrid({
                                     <motion.tr
                                         key={row.id}
                                         animate={{ opacity: 1 }}
-                                        className={`group transition-colors hover:bg-(--cl-accent)/5 ${selectedIds.has(row.id) ? "bg-emerald-50 dark:bg-emerald-950/20" : ""}`}
+                                        className="group transition-colors hover:bg-(--cl-accent)/5"
                                         initial={{ opacity: 0 }}
                                         transition={{ delay: idx * 0.015, duration: 0.15 }}
                                     >
-                                        <td className={tdClass}>
-                                            <input
-                                                type="checkbox"
-                                                className="h-3.5 w-3.5 rounded border-(--cl-border) accent-emerald-600"
-                                                checked={selectedIds.has(row.id)}
-                                                onChange={e => { e.stopPropagation(); onSelectionChange(row.id, e.target.checked); }}
-                                            />
-                                        </td>
                                         <td className={`${tdClass} text-(--cl-text-muted)`}>{(page - 1) * PAGE_SIZE + idx + 1}</td>
 
                                         {/* Date + division badge + GST tag */}
@@ -239,6 +194,8 @@ export function DeliverableJobsGrid({
                                                 })()}
                                             </div>
                                         </td>
+
+                                        {/* Job No + badges */}
                                         <td className={tdClass}>
                                             <div className="flex flex-col gap-0.5">
                                                 <div className="font-mono font-semibold text-(--cl-accent)">
@@ -262,6 +219,7 @@ export function DeliverableJobsGrid({
                                                 )}
                                             </div>
                                         </td>
+
                                         <td className={tdClass}>{row.customer_name}</td>
                                         <td className={`${tdClass} font-mono text-xs`}>{row.mobile}</td>
 
@@ -277,38 +235,22 @@ export function DeliverableJobsGrid({
                                             </div>
                                         </td>
 
-                                        <td className={tdClass}>
-                                            <span className="rounded-full px-2 py-0.5 text-xs font-medium bg-(--cl-accent)/10 text-(--cl-accent)">
-                                                {row.job_status_name}
-                                            </span>
-                                        </td>
                                         <td className={tdClass}>{row.technician_name ?? "—"}</td>
-                                        <td className={`${tdClass} text-right tabular-nums`}>{fmtCurrency(row.amount)}</td>
+                                        <td className={`${tdClass} whitespace-nowrap`}>{row.delivery_date ?? "—"}</td>
+                                        <td className={`${tdClass} text-right tabular-nums`}>{fmtCurrency(row.invoice_total)}</td>
+
+                                        {/* Actions */}
                                         <td className={`${tdClass} sticky right-0 z-10 bg-(--cl-surface) group-hover:bg-(--cl-surface-2)`}>
-                                            <div className="flex items-center gap-1">
-                                                <Button
-                                                    className="h-7 w-7 p-0 text-(--cl-text-muted) hover:text-(--cl-accent)"
-                                                    size="icon"
-                                                    title="View job details"
-                                                    variant="ghost"
-                                                    onClick={() => onViewJob(row.id)}
-                                                >
-                                                    <Eye className="h-3.5 w-3.5" />
-                                                </Button>
-                                                <Button
-                                                    className="h-8 gap-1.5 px-3 text-xs font-semibold text-emerald-700 border border-emerald-300 hover:bg-emerald-50 dark:text-emerald-400 dark:border-emerald-700 dark:hover:bg-emerald-950/30"
-                                                    disabled={loadingDetail}
-                                                    size="sm"
-                                                    variant="outline"
-                                                    onClick={() => onDeliver(row)}
-                                                >
-                                                    {loadingDetail
-                                                        ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                                        : <Truck className="h-3.5 w-3.5" />
-                                                    }
-                                                    Deliver
-                                                </Button>
-                                            </div>
+                                            <Button
+                                                className="h-7 gap-1 px-2 text-xs font-semibold text-sky-700 border border-sky-300 hover:bg-sky-50 dark:text-sky-400 dark:border-sky-700 dark:hover:bg-sky-950/30"
+                                                size="sm"
+                                                title="View job details"
+                                                variant="outline"
+                                                onClick={() => onViewJob(row.id)}
+                                            >
+                                                <Eye className="h-3 w-3" />
+                                                View
+                                            </Button>
                                         </td>
                                     </motion.tr>
                                 ))}

@@ -1,5 +1,4 @@
 import json
-from psycopg.rows import dict_row
 import re
 import secrets
 from datetime import datetime
@@ -7,6 +6,7 @@ from typing import Any
 from urllib.parse import unquote
 
 from psycopg import sql as pgsql
+from psycopg.rows import dict_row
 
 from app.core.audit_log import AuditAction, audit_logger
 from app.core.email import send_email

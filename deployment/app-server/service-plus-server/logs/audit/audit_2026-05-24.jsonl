@@ -1,0 +1,2 @@
+{"action": "LOGIN_FAILED", "actor": {"type": "super_admin", "username": "capital"}, "detail": "User not found", "id": "3f75e1e0-2683-476f-b832-182a8698537a", "outcome": "failure", "resource": {"id": null, "name": null, "type": "session"}, "timestamp": "2026-05-24T19:36:08.323800+00:00"}
+{"action": "LOGIN", "actor": {"type": "admin_user", "username": "capitalch"}, "detail": null, "id": "5841dc87-73f0-4ee5-b1bb-b091735ffc43", "outcome": "success", "resource": {"id": null, "name": "service_plus_demo", "type": "session"}, "timestamp": "2026-05-24T19:36:19.845858+00:00"}

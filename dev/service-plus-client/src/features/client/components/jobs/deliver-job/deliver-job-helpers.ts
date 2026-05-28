@@ -20,3 +20,14 @@ export function fmtCurrency(n: number | null | undefined): string {
         maximumFractionDigits: 2,
     })}`;
 }
+
+// ── Invoice eligibility ───────────────────────────────────────────────────────
+
+// Jobs that skip invoice generation:
+//   - UNDER_WARRANTY job type  (job_type_code)
+//   - RETURN or CANCELLED job status (job_status_code)
+export function isJobInvoiceable(jobTypeCode: string, jobStatusCode: string): boolean {
+    if (jobTypeCode === "UNDER_WARRANTY") return false;
+    if (jobStatusCode === "RETURN" || jobStatusCode === "CANCELLED") return false;
+    return true;
+}
