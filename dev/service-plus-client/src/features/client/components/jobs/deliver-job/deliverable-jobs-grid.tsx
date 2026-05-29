@@ -117,29 +117,30 @@ export function DeliverableJobsGrid({
                         </button>
                     )}
                 </div>
-                {selectedIds.size > 0 && (
+                <div className="ml-auto flex items-center gap-2">
                     <Button
-                        className="h-8 gap-1.5 px-3 text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm font-semibold"
-                        disabled={loadingDetail}
+                        className="h-8 px-2.5 text-xs"
+                        disabled={loading || !branchId}
                         size="sm"
-                        onClick={onDeliverSelected}
+                        variant="outline"
+                        onClick={onRefresh}
                     >
-                        {loadingDetail
-                            ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            : <Truck className="h-3.5 w-3.5" />
-                        }
-                        Deliver Selected ({selectedIds.size})
+                        <RefreshCw className="mr-1.5 h-3 w-3" /> Refresh
                     </Button>
-                )}
-                <Button
-                    className="ml-auto h-8 px-2.5 text-xs"
-                    disabled={loading || !branchId}
-                    size="sm"
-                    variant="outline"
-                    onClick={onRefresh}
-                >
-                    <RefreshCw className="mr-1.5 h-3 w-3" /> Refresh
-                </Button>
+                    {selectedIds.size > 0 && (
+                        <Button
+                            className="h-9 gap-2 px-4 text-sm font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-md tracking-wide"
+                            disabled={loadingDetail}
+                            onClick={onDeliverSelected}
+                        >
+                            {loadingDetail
+                                ? <Loader2 className="h-4 w-4 animate-spin" />
+                                : <Truck className="h-4 w-4" />
+                            }
+                            Deliver Selected ({selectedIds.size})
+                        </Button>
+                    )}
+                </div>
             </div>
 
             {/* Grid */}

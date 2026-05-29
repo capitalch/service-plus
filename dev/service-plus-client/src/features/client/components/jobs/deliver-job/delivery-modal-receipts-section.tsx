@@ -35,6 +35,7 @@ export function DeliveryModalReceiptsSection({ jobs, onAddReceipt }: Props) {
                             </div>
                             <Button
                                 className="h-8 gap-1.5 px-3 text-sm bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
+                                disabled={due === 0}
                                 onClick={() => onAddReceipt(job)}
                             >
                                 <Plus className="h-3.5 w-3.5" />

@@ -429,14 +429,14 @@ export function DeliveryModal({
         <>
             <Dialog open modal onOpenChange={() => { /* blocked — use Cancel button */ }}>
                 <DialogContent
-                    className="w-[92vw] sm:max-w-5xl max-h-[95vh] flex flex-col overflow-hidden p-0 gap-0 shadow-2xl"
+                    className="w-[92vw] sm:max-w-5xl max-h-[95vh] flex flex-col overflow-hidden p-0 gap-0 shadow-2xl border-2 border-emerald-800 dark:border-emerald-400"
                     showCloseButton={false}
                     onPointerDownOutside={e => e.preventDefault()}
                     onEscapeKeyDown={e => e.preventDefault()}
                     aria-describedby={undefined}
                 >
                     {/* ── Accent bar ───────────────────────────────────────── */}
-                    <div className="h-1 w-full shrink-0 bg-linear-to-r from-emerald-500 via-teal-400 to-sky-500 rounded-t-xl" />
+                    <div className="h-1.5 w-full shrink-0 bg-emerald-600 dark:bg-emerald-500" />
 
                     {/* ── Header ───────────────────────────────────────────── */}
                     <div className="shrink-0 bg-(--cl-surface) px-6 pt-4">
@@ -630,7 +630,7 @@ export function DeliveryModal({
                                         ? <Loader2 className="h-5 w-5 animate-spin" />
                                         : <Truck className="h-5 w-5" />
                                     }
-                                    Deliver &amp; Close
+                                    {jobDetails.length > 1 ? "Deliver Selected" : "Deliver & Close"}
                                 </Button>
                             </div>
                         </div>

@@ -199,6 +199,7 @@ export const DeliverJobSection = () => {
 
     // ── Open delivery modal for single job ────────────────────────────────────
     async function handleDeliverSingle(row: DeliverableJobRow) {
+        if (selectedIds.size > 0) { void handleOpenDeliveryModal(); return; }
         if (!dbName || !schema) return;
         setLoadingModal(true);
         try {
