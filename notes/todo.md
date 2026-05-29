@@ -3,11 +3,10 @@
 	- Repeat repairs
 	- Inputting parts and charges at any step with similar to final a job screen
 	- Deliver job
-		- All jobs with is_final true
-		- Generates invoice and receipts
-		- status changes to is_closed
-		- no date filters, similar search box and grid
-
+		
+# Job Delivery
+	- Delivery note to be better
+	- Invoice no to be generated at server
 # Trace transfer
 	- used is_posted flag in job and 
 
