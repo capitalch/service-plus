@@ -8,18 +8,25 @@ type Props = {
 };
 
 function computeTaxSummary(job: JobDeliveryFullDetail) {
-    let aggregate = 0, cgst = 0, sgst = 0;
+    let aggregate = 0, cgst = 0, sgst = 0, igst = 0;
+    const isIgst = job.is_igst ?? false;
     for (const p of job.parts ?? []) {
         const taxable = p.selling_price * p.qty;
         aggregate += taxable;
-        if (p.gst_rate > 0) { const half = taxable * p.gst_rate / 200; cgst += half; sgst += half; }
+        if (p.gst_rate > 0) {
+            if (isIgst) { igst += taxable * p.gst_rate / 100; }
+            else { const half = taxable * p.gst_rate / 200; cgst += half; sgst += half; }
+        }
     }
     for (const c of job.charges ?? []) {
         const taxable = c.selling_price * c.qty;
         aggregate += taxable;
-        if (c.gst_rate > 0) { const half = taxable * c.gst_rate / 200; cgst += half; sgst += half; }
+        if (c.gst_rate > 0) {
+            if (isIgst) { igst += taxable * c.gst_rate / 100; }
+            else { const half = taxable * c.gst_rate / 200; cgst += half; sgst += half; }
+        }
     }
-    return { aggregate, cgst, sgst, total: aggregate + cgst + sgst };
+    return { aggregate, cgst, sgst, igst, isIgst, total: aggregate + cgst + sgst + igst };
 }
 
 function TaxSummaryRow({ tax, jobAmount }: { tax: ReturnType<typeof computeTaxSummary>; jobAmount: number | null }) {
@@ -28,9 +35,15 @@ function TaxSummaryRow({ tax, jobAmount }: { tax: ReturnType<typeof computeTaxSu
             <div className="flex items-center gap-3">
                 <span>Taxable <span className="text-(--cl-text)">{fmtCurrency(tax.aggregate)}</span></span>
                 <span className="opacity-30">·</span>
-                <span>CGST <span className="text-(--cl-text)">{fmtCurrency(tax.cgst)}</span></span>
-                <span className="opacity-30">·</span>
-                <span>SGST <span className="text-(--cl-text)">{fmtCurrency(tax.sgst)}</span></span>
+                {tax.isIgst ? (
+                    <span>IGST <span className="text-(--cl-text)">{fmtCurrency(tax.igst)}</span></span>
+                ) : (
+                    <>
+                        <span>CGST <span className="text-(--cl-text)">{fmtCurrency(tax.cgst)}</span></span>
+                        <span className="opacity-30">·</span>
+                        <span>SGST <span className="text-(--cl-text)">{fmtCurrency(tax.sgst)}</span></span>
+                    </>
+                )}
                 <span className="opacity-30">·</span>
                 <span>Total <span className="font-semibold text-(--cl-text)">{fmtCurrency(tax.total)}</span></span>
             </div>

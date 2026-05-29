@@ -4187,7 +4187,7 @@ class SqlStore:
         SELECT
             j.id, j.job_no, j.alternate_job_no, j.job_date, j.amount,
             j.estimate_amount, j.qty, j.last_transaction_id,
-            j.division_id, j.serial_no,
+            j.division_id, j.serial_no, j.is_igst,
             TRIM(CONCAT_WS(' ', p.name, b.name, pbm.model_name, j.serial_no)) AS device_details,
             cc.full_name  AS customer_name, cc.mobile,
             js.name       AS job_status_name,

@@ -19,6 +19,7 @@ import type { StockTransactionTypeRow } from "@/features/client/types/purchase";
 import { type PartRow } from "../../inventory/part-code-input";
 import { JobDetailsModal } from "../job-pipeline/job-details-modal";
 import { JobAttachDialog } from "../single-job/job-attach-dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import {
     type FinalJobRow,
     type FinalizedJobRow,
@@ -327,6 +328,7 @@ export const FinalAJobSection = () => {
             setSelectedRow(row);
             setForceIgst(job.is_igst ?? false);
             setSelectedDivisionId(row.division_id);
+            if (job.amount) setBackCalcTarget(String(job.amount));
             setPartLines(
                 parts.length > 0
                     ? parts.map(p => {
@@ -519,6 +521,7 @@ export const FinalAJobSection = () => {
 
     // ── Undo Final ──────────────────────────────────────────────────────────
     const [undoingJobId, setUndoingJobId] = useState<number | null>(null);
+    const [undoConfirmRow, setUndoConfirmRow] = useState<FinalizedJobRow | null>(null);
 
     async function handleUndoFinal(row: FinalizedJobRow) {
         if (!dbName || !schema) return;
@@ -876,7 +879,7 @@ export const FinalAJobSection = () => {
                         onRefresh={() => void loadFinalizedData()}
                         onViewJob={id => setViewJobId(id)}
                         onEdit={row => void handleOpenFinalForEdit(row)}
-                        onUndo={row => void handleUndoFinal(row)}
+                        onUndo={row => setUndoConfirmRow(row)}
                         onOpenAttach={(id, jobNo) => { setAttachSource("finalized"); setAttachJobId(id); setAttachJobNo(jobNo); }}
                     />
                 )}
@@ -911,6 +914,25 @@ export const FinalAJobSection = () => {
                     }}
                 />
             )}
+
+            <AlertDialog open={!!undoConfirmRow} onOpenChange={open => { if (!open) setUndoConfirmRow(null); }}>
+                <AlertDialogContent className="max-w-sm">
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Undo Final?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Job <span className="font-medium text-foreground">#{undoConfirmRow?.job_no}</span> will be moved back to pending. Are you sure?
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={() => { if (undoConfirmRow) { void handleUndoFinal(undoConfirmRow); setUndoConfirmRow(null); } }}
+                        >
+                            Undo Final
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </>
     );
 };

@@ -921,10 +921,10 @@ export function FinalJobForm({
                                                     Clear
                                                 </Button>
                                                 <Button
-                                                    className="h-7 shrink-0 text-xs"
+                                                    className="h-8 shrink-0 text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white border-transparent"
                                                     disabled={!backCalcTarget || isNaN(backCalcNum) || backCalcNum < 0}
                                                     size="sm"
-                                                    variant="outline"
+                                                    variant="default"
                                                     onClick={() => {
                                                         const result = computeBackCalc(backCalcNum, partLines, chargeLines, isGst);
                                                         if (result.newPartLines) setPartLines(result.newPartLines);

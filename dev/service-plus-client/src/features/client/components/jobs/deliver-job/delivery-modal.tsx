@@ -165,7 +165,7 @@ function StepSection({
                 )}
             </div>
             {/* Section content */}
-            <div className="p-4">
+            <div className="px-4 pb-4">
                 {children}
             </div>
         </section>
@@ -275,7 +275,7 @@ export function DeliveryModal({
 
                 const invoiceNo = formatInvoiceNo(seq);
 
-                const lines = buildInvoiceLines(job, isGst, false);
+                const lines = buildInvoiceLines(job, isGst, job.is_igst ?? false);
                 const aggregate   = Math.round(lines.reduce((s, l) => s + l.aggregate, 0) * 100) / 100;
                 const cgst_amount = Math.round(lines.reduce((s, l) => s + l.cgst_amount, 0) * 100) / 100;
                 const sgst_amount = Math.round(lines.reduce((s, l) => s + l.sgst_amount, 0) * 100) / 100;
@@ -436,14 +436,14 @@ export function DeliveryModal({
                     aria-describedby={undefined}
                 >
                     {/* ── Accent bar ───────────────────────────────────────── */}
-                    <div className="h-1 w-full shrink-0 bg-gradient-to-r from-emerald-500 via-teal-400 to-sky-500 rounded-t-xl" />
+                    <div className="h-1 w-full shrink-0 bg-linear-to-r from-emerald-500 via-teal-400 to-sky-500 rounded-t-xl" />
 
                     {/* ── Header ───────────────────────────────────────────── */}
-                    <div className="shrink-0 bg-(--cl-surface) px-6 pt-4 pb-4">
+                    <div className="shrink-0 bg-(--cl-surface) px-6 pt-4">
                         {/* Title + subtitle */}
                         <div className="flex items-start justify-between gap-4">
                             <div className="flex items-center gap-3">
-                                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-md">
+                                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-linear-to-br from-emerald-500 to-teal-600 text-white shadow-md">
                                     <Truck className="h-5 w-5" />
                                 </div>
                                 <div>
@@ -503,7 +503,7 @@ export function DeliveryModal({
 
                     {/* ── Scrollable body ───────────────────────────────────── */}
                     <div className="flex-1 min-h-0 overflow-y-auto bg-(--cl-surface-2)/30">
-                        <div className="px-6 py-5 space-y-5">
+                        <div className="px-6 py-4 space-y-5">
 
                             {/* Step 1 – Selected Jobs */}
                             <StepSection step={1} title="Selected Jobs" accent="sky" count={jobDetails.length}>
@@ -511,7 +511,7 @@ export function DeliveryModal({
                             </StepSection>
 
                             {/* Step 2 – Invoices */}
-                            <StepSection step={2} title="Service Invoices" accent="violet">
+                            <StepSection step={2} title="Service Invoice" accent="violet">
                                 <DeliveryModalInvoicesSection jobs={jobDetails} availableDivisions={availableDivisions} />
                             </StepSection>
 
