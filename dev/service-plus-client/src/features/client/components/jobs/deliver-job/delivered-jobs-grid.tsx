@@ -84,7 +84,7 @@ export function DeliveredJobsGrid({
     return (
         <>
             {/* Toolbar */}
-            <div className="flex flex-wrap items-center gap-2 px-4 py-1 bg-(--cl-surface-2)/30">
+            <div className="flex flex-wrap items-center gap-2 py-2 bg-(--cl-surface-2)/30">
                 <div className="relative flex-1 sm:max-w-lg">
                     <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-(--cl-text-muted)" />
                     <Input
@@ -115,7 +115,7 @@ export function DeliveredJobsGrid({
             </div>
 
             {/* Grid */}
-            <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-(--cl-border) bg-(--cl-surface) shadow-sm mx-4">
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-(--cl-border) bg-(--cl-surface) shadow-sm">
                 <div
                     ref={scrollRef}
                     className="flex-1 overflow-x-auto overflow-y-auto"

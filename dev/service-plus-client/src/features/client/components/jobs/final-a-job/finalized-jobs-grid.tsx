@@ -94,7 +94,7 @@ export function FinalizedJobsGrid({
                     <table className="min-w-full border-collapse">
                         <thead>
                             <tr>
-                                {["#", "Date", "Job No", "Customer", "Mobile", "Device Details", "Technician", "Invoice No", "Invoice Total", "Actions"].map(h => (
+                                {["#", "Date", "Job No", "Customer", "Mobile", "Device Details", "Technician", "Amount", "Actions"].map(h => (
                                     <th key={h} className={thClass}>{h}</th>
                                 ))}
                             </tr>
@@ -124,8 +124,7 @@ export function FinalizedJobsGrid({
                                 <th className={thClass}>Mobile</th>
                                 <th className={`${thClass} w-40`}>Device Details</th>
                                 <th className={thClass}>Technician</th>
-                                <th className={thClass}>Invoice No</th>
-                                <th className={`${thClass} text-right`}>Invoice Total</th>
+                                <th className={`${thClass} text-right`}>Amount</th>
                                 <th className={`${thClass} sticky right-0 z-20 bg-(--cl-surface-2)!`}>Actions</th>
                             </tr>
                         </thead>
@@ -207,9 +206,8 @@ export function FinalizedJobsGrid({
                                     </td>
 
                                     <td className={tdClass}>{row.technician_name ?? "—"}</td>
-                                    <td className={`${tdClass} font-mono text-xs`}>{row.invoice_no ?? "—"}</td>
                                     <td className={`${tdClass} text-right tabular-nums`}>
-                                        {row.invoice_total != null ? `₹${Number(row.invoice_total).toFixed(2)}` : "—"}
+                                        {row.amount != null ? `₹${Number(row.amount).toFixed(2)}` : "—"}
                                     </td>
 
                                     {/* Actions */}

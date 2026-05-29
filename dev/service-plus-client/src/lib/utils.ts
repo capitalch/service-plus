@@ -3,7 +3,8 @@ import { twMerge } from "tailwind-merge";
 
 export function getApiBaseUrl(): string {
   return import.meta.env.DEV
-    ? (import.meta.env.VITE_API_BASE_URL as string)
+    // ? (import.meta.env.VITE_API_BASE_URL as string)
+    ? "https://serviceplus.cloudjiffy.net"
     : window.location.origin;
 }
 

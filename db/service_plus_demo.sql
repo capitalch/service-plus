@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict MaYg8s7hpOxvBG217eRUAMbzc7mF1Dry9KJsSemSqVg7LtIaYiZ3dtdrNxpffhr
+\restrict 9C1E4eOpQE804y7m9OkYQvdhQfKEuOBNk04VdRgNEJabN6XJNDboUddC6NQ6MOU
 
 -- Dumped from database version 14.6
 -- Dumped by pg_dump version 18.4 (Ubuntu 18.4-0ubuntu0.26.04.1)
@@ -394,6 +394,7 @@ CREATE TABLE demo1.job (
     alternate_job_no text,
     division_id bigint NOT NULL,
     is_posted boolean DEFAULT false NOT NULL,
+    is_igst boolean DEFAULT false NOT NULL,
     CONSTRAINT job_qty_check CHECK ((qty <> 0))
 );
 
@@ -2620,6 +2621,13 @@ CREATE INDEX job_customer_idx ON demo1.job USING btree (customer_contact_id);
 
 
 --
+-- Name: job_is_igst_idx; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX job_is_igst_idx ON demo1.job USING btree (is_igst) WITH (deduplicate_items='true');
+
+
+--
 -- Name: job_is_posted_idx; Type: INDEX; Schema: demo1; Owner: webadmin
 --
 
@@ -3526,5 +3534,5 @@ ALTER TABLE ONLY security.user_bu_role
 -- PostgreSQL database dump complete
 --
 
-\unrestrict MaYg8s7hpOxvBG217eRUAMbzc7mF1Dry9KJsSemSqVg7LtIaYiZ3dtdrNxpffhr
+\unrestrict 9C1E4eOpQE804y7m9OkYQvdhQfKEuOBNk04VdRgNEJabN6XJNDboUddC6NQ6MOU
 

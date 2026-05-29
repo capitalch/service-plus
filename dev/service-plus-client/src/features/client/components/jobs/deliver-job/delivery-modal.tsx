@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { FileText, Loader2, Truck } from "lucide-react";
@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input }  from "@/components/ui/input";
 import { Label }  from "@/components/ui/label";
 import {
-    Dialog, DialogContent, DialogHeader, DialogTitle,
+    Dialog, DialogContent, DialogTitle,
 } from "@/components/ui/dialog";
 import {
     Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -130,6 +130,46 @@ function buildInvoiceLines(job: JobDeliveryFullDetail, isGst: boolean, forceIgst
     });
 
     return [...partLines, ...chargeLines];
+}
+
+// ── Step section wrapper ──────────────────────────────────────────────────────
+
+type StepAccent = "sky" | "violet" | "emerald";
+
+const ACCENT: Record<StepAccent, { bubble: string; left: string; title: string }> = {
+    sky:     { bubble: "bg-sky-500",     left: "border-l-sky-400",     title: "text-sky-700 dark:text-sky-300"     },
+    violet:  { bubble: "bg-violet-500",  left: "border-l-violet-400",  title: "text-violet-700 dark:text-violet-300" },
+    emerald: { bubble: "bg-emerald-500", left: "border-l-emerald-400", title: "text-emerald-700 dark:text-emerald-300" },
+};
+
+function StepSection({
+    step, title, accent, count, children,
+}: {
+    step:     number;
+    title:    string;
+    accent:   StepAccent;
+    count?:   number;
+    children: React.ReactNode;
+}) {
+    const a = ACCENT[accent];
+    return (
+        <section className={`rounded-xl border border-(--cl-border) border-l-4 ${a.left} bg-(--cl-surface) shadow-sm overflow-hidden`}>
+            {/* Section header — no horizontal line, just a tinted strip */}
+            <div className="flex items-center gap-3 px-4 py-3 bg-(--cl-surface-2)/50">
+                <span className={`flex h-6 w-6 items-center justify-center rounded-full text-white text-xs font-bold shrink-0 ${a.bubble}`}>
+                    {step}
+                </span>
+                <span className={`text-sm font-bold uppercase tracking-widest ${a.title}`}>{title}</span>
+                {count !== undefined && (
+                    <span className="text-sm text-(--cl-text-muted) font-medium">({count})</span>
+                )}
+            </div>
+            {/* Section content */}
+            <div className="p-4">
+                {children}
+            </div>
+        </section>
+    );
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -383,176 +423,174 @@ export function DeliveryModal({
 
     // ── Render ────────────────────────────────────────────────────────────────
 
+    const mannerVal = form.watch("delivery_manner");
+
     return (
         <>
             <Dialog open modal onOpenChange={() => { /* blocked — use Cancel button */ }}>
                 <DialogContent
-                    className="w-[96vw] sm:max-w-6xl max-h-[95vh] flex flex-col overflow-hidden p-0 gap-0"
+                    className="w-[92vw] sm:max-w-5xl max-h-[95vh] flex flex-col overflow-hidden p-0 gap-0 shadow-2xl"
                     showCloseButton={false}
                     onPointerDownOutside={e => e.preventDefault()}
                     onEscapeKeyDown={e => e.preventDefault()}
                     aria-describedby={undefined}
                 >
-                    {/* ── Header ───────────────────────────────────────────── */}
-                    <div className="shrink-0 border-b border-(--cl-border) bg-(--cl-surface) px-6 pt-5 pb-4 flex items-center justify-between">
-                        {/* Title row */}
-                        <div className="flex items-center gap-3">
-                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-950/50">
-                                <Truck className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                            </div>
-                            <div>
-                                <DialogTitle className="flex items-center gap-2 text-base font-semibold text-(--cl-text)">
-                                    Deliver Job{jobDetails.length > 1 ? "s" : ""}
-                                    <span className="rounded-full bg-(--cl-accent)/10 px-2 py-0.5 text-xs font-medium text-(--cl-accent)">
-                                        {jobDetails.length} job{jobDetails.length !== 1 ? "s" : ""}
-                                    </span>
-                                </DialogTitle>
-                                <p className="text-[11px] text-(--cl-text-muted) mt-0.5">
-                                    Review jobs, create invoices, add receipts, then deliver.
-                                </p>
-                            </div>
-                        </div>
+                    {/* ── Accent bar ───────────────────────────────────────── */}
+                    <div className="h-1 w-full shrink-0 bg-gradient-to-r from-emerald-500 via-teal-400 to-sky-500 rounded-t-xl" />
 
-                        {/* Summary chips */}
-                        <div className="mt-3 flex flex-wrap gap-2">
-                            <div className="flex items-center gap-1.5 rounded-md bg-(--cl-surface-2) border border-(--cl-border) px-2.5 py-1 text-xs">
-                                <span className="text-(--cl-text-muted)">Division</span>
-                                <span className="font-semibold text-(--cl-text)">{divLabel}</span>
+                    {/* ── Header ───────────────────────────────────────────── */}
+                    <div className="shrink-0 bg-(--cl-surface) px-6 pt-4 pb-4">
+                        {/* Title + subtitle */}
+                        <div className="flex items-start justify-between gap-4">
+                            <div className="flex items-center gap-3">
+                                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-md">
+                                    <Truck className="h-5 w-5" />
+                                </div>
+                                <div>
+                                    <DialogTitle className="text-xl font-bold text-(--cl-text) leading-tight flex items-center gap-2">
+                                        Deliver Job{jobDetails.length > 1 ? "s" : ""}
+                                        <span className="rounded-full bg-emerald-100 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
+                                            {jobDetails.length} {jobDetails.length === 1 ? "job" : "jobs"}
+                                        </span>
+                                    </DialogTitle>
+                                    <p className="text-sm text-(--cl-text-muted) mt-0.5">
+                                        Review · Invoice · Receipt · Deliver
+                                    </p>
+                                </div>
                             </div>
-                            <div className={`flex items-center rounded-md border px-2.5 py-1 text-xs font-semibold ${
-                                gstLabel === "GST"
-                                    ? "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400"
-                                    : gstLabel === "Non-GST"
-                                        ? "bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400"
-                                        : "bg-violet-50 dark:bg-violet-950/40 border-violet-200 dark:border-violet-800 text-violet-700 dark:text-violet-400"
-                            }`}>
-                                {gstLabel}
-                            </div>
-                            <div className="flex items-center gap-1.5 rounded-md bg-(--cl-surface-2) border border-(--cl-border) px-2.5 py-1 text-xs">
-                                <span className="text-(--cl-text-muted)">Total</span>
-                                <span className="font-bold text-(--cl-text)">{fmtCurrency(totalAmt)}</span>
-                            </div>
-                            <div className="flex items-center gap-1.5 rounded-md bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 px-2.5 py-1 text-xs">
-                                <span className="text-emerald-600 dark:text-emerald-400">Received</span>
-                                <span className="font-bold text-emerald-700 dark:text-emerald-400">{fmtCurrency(totalPaid)}</span>
-                            </div>
-                            <div className={`flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs ${
-                                totalDue > 0
-                                    ? "bg-red-50 dark:bg-red-950/40 border-red-200 dark:border-red-800"
-                                    : "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800"
-                            }`}>
-                                <span className={totalDue > 0 ? "text-red-600 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400"}>
-                                    Due
-                                </span>
-                                <span className={`font-bold ${totalDue > 0 ? "text-red-700 dark:text-red-400" : "text-emerald-700 dark:text-emerald-400"}`}>
-                                    {fmtCurrency(totalDue)}
-                                </span>
+
+                            {/* Summary stat pills */}
+                            <div className="flex flex-wrap items-center gap-2 justify-end shrink-0">
+                                {/* Division */}
+                                <div className="flex items-center gap-1.5 rounded-lg border border-(--cl-border) bg-(--cl-surface-2) px-3 py-2">
+                                    <span className="text-xs font-medium text-(--cl-text-muted) uppercase tracking-wide">Div</span>
+                                    <span className="text-sm font-bold text-(--cl-text)">{divLabel}</span>
+                                </div>
+                                {/* GST badge */}
+                                <div className={`rounded-lg border px-3 py-2 text-sm font-bold ${
+                                    gstLabel === "GST"
+                                        ? "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300"
+                                        : gstLabel === "Non-GST"
+                                            ? "bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300"
+                                            : "bg-violet-50 dark:bg-violet-950/40 border-violet-200 dark:border-violet-800 text-violet-700 dark:text-violet-300"
+                                }`}>
+                                    {gstLabel}
+                                </div>
+                                {/* Amount divider */}
+                                <div className="flex items-center gap-0 rounded-lg border border-(--cl-border) overflow-hidden divide-x divide-(--cl-border)">
+                                    <div className="flex items-center gap-1.5 bg-(--cl-surface-2) px-3 py-2">
+                                        <span className="text-xs text-(--cl-text-muted) uppercase font-medium">Total</span>
+                                        <span className="text-sm font-bold tabular-nums text-(--cl-text)">{fmtCurrency(totalAmt)}</span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5 bg-emerald-50 dark:bg-emerald-950/40 px-3 py-2">
+                                        <span className="text-xs text-emerald-600 dark:text-emerald-400 uppercase font-medium">Rcvd</span>
+                                        <span className="text-sm font-bold tabular-nums text-emerald-700 dark:text-emerald-400">{fmtCurrency(totalPaid)}</span>
+                                    </div>
+                                    <div className={`flex items-center gap-1.5 px-3 py-2 ${
+                                        totalDue > 0
+                                            ? "bg-red-50 dark:bg-red-950/40"
+                                            : "bg-emerald-50 dark:bg-emerald-950/40"
+                                    }`}>
+                                        <span className={`text-xs uppercase font-medium ${totalDue > 0 ? "text-red-500" : "text-emerald-600 dark:text-emerald-400"}`}>Due</span>
+                                        <span className={`text-sm font-extrabold tabular-nums ${totalDue > 0 ? "text-red-700 dark:text-red-400" : "text-emerald-700 dark:text-emerald-400"}`}>
+                                            {fmtCurrency(totalDue)}
+                                        </span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
 
                     {/* ── Scrollable body ───────────────────────────────────── */}
-                    <div className="flex-1 min-h-0 overflow-y-auto bg-(--cl-surface)">
-                        <div className="px-6 py-5 space-y-6">
+                    <div className="flex-1 min-h-0 overflow-y-auto bg-(--cl-surface-2)/30">
+                        <div className="px-6 py-5 space-y-5">
 
-                            {/* Jobs table */}
-                            <section>
-                                <div className="flex items-center gap-2 mb-3">
-                                    <span className="h-px flex-1 bg-(--cl-border)" />
-                                    <span className="text-[10px] font-bold uppercase tracking-widest text-(--cl-text-muted) px-2">
-                                        Selected Jobs
-                                    </span>
-                                    <span className="h-px flex-1 bg-(--cl-border)" />
-                                </div>
+                            {/* Step 1 – Selected Jobs */}
+                            <StepSection step={1} title="Selected Jobs" accent="sky" count={jobDetails.length}>
                                 <DeliveryModalJobsTable jobs={jobDetails} availableDivisions={availableDivisions} />
-                            </section>
+                            </StepSection>
 
-                            {/* Invoices section */}
-                            <section>
-                                <div className="flex items-center gap-2 mb-3">
-                                    <span className="h-px flex-1 bg-(--cl-border)" />
-                                    <span className="text-[10px] font-bold uppercase tracking-widest text-(--cl-text-muted) px-2">
-                                        Invoices
-                                    </span>
-                                    <span className="h-px flex-1 bg-(--cl-border)" />
-                                </div>
+                            {/* Step 2 – Invoices */}
+                            <StepSection step={2} title="Service Invoices" accent="violet">
                                 <DeliveryModalInvoicesSection jobs={jobDetails} availableDivisions={availableDivisions} />
-                            </section>
+                            </StepSection>
 
-                            {/* Receipts section */}
-                            <section>
-                                <div className="flex items-center gap-2 mb-3">
-                                    <span className="h-px flex-1 bg-(--cl-border)" />
-                                    <span className="text-[10px] font-bold uppercase tracking-widest text-(--cl-text-muted) px-2">
-                                        Money Receipts
-                                    </span>
-                                    <span className="h-px flex-1 bg-(--cl-border)" />
-                                </div>
+                            {/* Step 3 – Receipts */}
+                            <StepSection step={3} title="Money Receipts" accent="emerald">
                                 <DeliveryModalReceiptsSection
                                     jobs={jobDetails}
                                     onAddReceipt={job => { setReceiptJob(job); setShowReceiptModal(true); }}
                                 />
-                            </section>
+                            </StepSection>
 
                         </div>
                     </div>
 
                     {/* ── Footer ────────────────────────────────────────────── */}
-                    <div className="shrink-0 border-t border-(--cl-border) bg-(--cl-surface-2)/60">
+                    <div className="shrink-0 border-t-2 border-emerald-200 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/20">
 
-                        {/* Delivery form row */}
-                        <div className="px-6 pt-4 pb-3 flex flex-wrap items-end gap-4">
-                            {/* Delivery Manner */}
-                            <div className="flex-1 min-w-[180px] max-w-[260px]">
-                                <Label className="mb-1.5 block text-xs font-semibold text-(--cl-text)">
-                                    Delivery Manner <span className="text-red-500">*</span>
-                                </Label>
-                                <Select
-                                    value={form.watch("delivery_manner")}
-                                    onValueChange={v => form.setValue("delivery_manner", v, { shouldValidate: true })}
-                                >
-                                    <SelectTrigger className="h-9 border-(--cl-border) bg-(--cl-surface) text-sm">
-                                        <SelectValue placeholder="Select manner…" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {deliveryManners.map(m => (
-                                            <SelectItem key={m.id} value={m.name}>{m.name}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                        {/* Step 4 label + delivery form */}
+                        <div className="px-6 pt-4 pb-3">
+                            {/* Step header */}
+                            <div className="flex items-center gap-2 mb-4">
+                                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-600 text-white text-xs font-bold shrink-0">4</span>
+                                <span className="text-sm font-bold text-emerald-800 dark:text-emerald-300 uppercase tracking-wide">Delivery Details</span>
                             </div>
 
-                            {/* Delivery Date */}
-                            <div className="w-44">
-                                <Label className="mb-1.5 block text-xs font-semibold text-(--cl-text)">
-                                    Delivery Date <span className="text-red-500">*</span>
-                                </Label>
-                                <Input
-                                    type="date"
-                                    className="h-9 border-(--cl-border) bg-(--cl-surface) text-sm"
-                                    {...form.register("delivery_date")}
-                                />
-                            </div>
+                            {/* Form fields */}
+                            <div className="flex flex-wrap items-end gap-4">
+                                {/* Delivery Manner */}
+                                <div className="flex-1 min-w-[200px] max-w-[280px]">
+                                    <Label className="mb-1.5 block text-sm font-semibold text-(--cl-text)">
+                                        Delivery Manner <span className="text-red-500">*</span>
+                                    </Label>
+                                    <Select
+                                        value={mannerVal}
+                                        onValueChange={v => form.setValue("delivery_manner", v, { shouldValidate: true })}
+                                    >
+                                        <SelectTrigger className="h-10 border-(--cl-border) bg-(--cl-surface) text-base shadow-sm">
+                                            <SelectValue placeholder="Select manner…" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {deliveryManners.map(m => (
+                                                <SelectItem key={m.id} value={m.name}>{m.name}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
 
-                            {/* Remarks */}
-                            <div className="flex-1 min-w-[200px]">
-                                <Label className="mb-1.5 block text-xs font-semibold text-(--cl-text)">
-                                    Remarks
-                                </Label>
-                                <Input
-                                    placeholder="Optional remarks…"
-                                    className="h-9 border-(--cl-border) bg-(--cl-surface) text-sm"
-                                    {...form.register("remarks")}
-                                />
+                                {/* Delivery Date */}
+                                <div className="w-48">
+                                    <Label className="mb-1.5 block text-sm font-semibold text-(--cl-text)">
+                                        Delivery Date <span className="text-red-500">*</span>
+                                    </Label>
+                                    <Input
+                                        type="date"
+                                        className="h-10 border-(--cl-border) bg-(--cl-surface) text-base shadow-sm"
+                                        {...form.register("delivery_date")}
+                                    />
+                                </div>
+
+                                {/* Remarks */}
+                                <div className="flex-1 min-w-[220px]">
+                                    <Label className="mb-1.5 block text-sm font-semibold text-(--cl-text)">
+                                        Remarks
+                                    </Label>
+                                    <Input
+                                        placeholder="Optional remarks…"
+                                        className="h-10 border-(--cl-border) bg-(--cl-surface) text-base shadow-sm"
+                                        {...form.register("remarks")}
+                                    />
+                                </div>
                             </div>
                         </div>
 
                         {/* Action buttons row */}
-                        <div className="px-6 pb-4 flex flex-wrap items-center justify-between gap-3">
+                        <div className="px-6 pb-5 flex flex-wrap items-center justify-between gap-3">
                             {/* Left — document actions */}
                             <div className="flex flex-wrap gap-2">
                                 <Button
-                                    className="h-9 gap-2 px-4 text-sm bg-sky-600 hover:bg-sky-700 text-white shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
+                                    className="h-10 gap-2 px-5 text-base bg-sky-600 hover:bg-sky-700 text-white shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
                                     disabled={!canCreateInvoices}
                                     onClick={() => void handleCreateInvoices()}
                                 >
@@ -563,7 +601,7 @@ export function DeliveryModal({
                                     Create Invoice &amp; Receipts
                                 </Button>
                                 <Button
-                                    className="h-9 gap-2 px-4 text-sm disabled:opacity-40 disabled:cursor-not-allowed"
+                                    className="h-10 gap-2 px-5 text-base disabled:opacity-40 disabled:cursor-not-allowed"
                                     disabled={!canShowPdf}
                                     variant="outline"
                                     onClick={() => void handleShowPdf()}
@@ -574,9 +612,9 @@ export function DeliveryModal({
                             </div>
 
                             {/* Right — cancel / deliver */}
-                            <div className="flex gap-3">
+                            <div className="flex items-center gap-3">
                                 <Button
-                                    className="h-9 px-5 text-sm"
+                                    className="h-10 px-6 text-base"
                                     disabled={delivering || creatingInvoices}
                                     variant="outline"
                                     onClick={onClose}
@@ -584,13 +622,13 @@ export function DeliveryModal({
                                     Cancel
                                 </Button>
                                 <Button
-                                    className="h-9 gap-2 px-6 text-sm font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-md tracking-wide disabled:opacity-30 disabled:bg-slate-300 disabled:text-slate-600 disabled:cursor-not-allowed"
+                                    className="h-10 gap-2 px-7 text-base font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg tracking-wide disabled:opacity-30 disabled:bg-slate-300 disabled:text-slate-500 disabled:shadow-none disabled:cursor-not-allowed transition-all"
                                     disabled={!canDeliver}
                                     onClick={() => void form.handleSubmit(handleDeliver)()}
                                 >
                                     {delivering
-                                        ? <Loader2 className="h-4 w-4 animate-spin" />
-                                        : <Truck className="h-4 w-4" />
+                                        ? <Loader2 className="h-5 w-5 animate-spin" />
+                                        : <Truck className="h-5 w-5" />
                                     }
                                     Deliver &amp; Close
                                 </Button>

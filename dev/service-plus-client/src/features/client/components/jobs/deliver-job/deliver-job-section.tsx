@@ -292,7 +292,7 @@ export const DeliverJobSection = () => {
 
                 <div className="flex shrink-0 items-center gap-2 rounded-xl border-2 border-(--cl-border) bg-(--cl-surface-2) p-1 shadow-md mr-44">
                     <button
-                        className={`h-9 gap-2 px-4 text-sm transition-transform duration-200 rounded-lg border-0 ${activeTab === "deliverable"
+                        className={`h-9 gap-2 px-4 text-sm transition-transform duration-200 rounded-lg border-0 cursor-pointer ${activeTab === "deliverable"
                                 ? "bg-emerald-600 text-white font-bold shadow-lg scale-105 hover:brightness-110"
                                 : "bg-transparent text-(--cl-text-muted) hover:text-white hover:bg-emerald-600 hover:scale-105 font-semibold"
                             }`}
@@ -301,7 +301,7 @@ export const DeliverJobSection = () => {
                         Deliver Job
                     </button>
                     <button
-                        className={`h-9 gap-2 px-4 text-sm transition-transform duration-200 rounded-lg border-0 ${activeTab === "delivered"
+                        className={`h-9 gap-2 px-4 text-sm transition-transform duration-200 rounded-lg border-0 cursor-pointer ${activeTab === "delivered"
                                 ? "bg-sky-600 text-white font-bold shadow-lg scale-105 hover:brightness-110"
                                 : "bg-transparent text-(--cl-text-muted) hover:text-white hover:bg-sky-600 hover:scale-105 font-semibold"
                             }`}

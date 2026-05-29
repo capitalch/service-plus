@@ -1,4 +1,4 @@
-import { StrictMode } from "react";
+// import { StrictMode } from "react";
 import { ApolloProvider } from "@apollo/client/react";
 import { createRoot } from "react-dom/client";
 import { Provider } from "react-redux";

@@ -40,6 +40,7 @@ export type JobDetailType = {
     delivery_date:               string | null;
     is_closed:                   boolean;
     is_final:                    boolean;
+    is_igst:                     boolean;
     last_transaction_id:         number | null;
     warranty_card_no:            string | null;
     qty:                         number;

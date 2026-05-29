@@ -13,32 +13,32 @@ export function DeliveryModalJobsTable({ jobs }: Props) {
     const totalDue  = Math.max(0, totalAmt - totalPaid);
 
     return (
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-2">
             {jobs.map(job => {
                 const paid = (job.payments ?? []).reduce((s, p) => s + Number(p.amount), 0);
                 const due  = Math.max(0, Number(job.amount ?? 0) - paid);
                 return (
-                    <div key={job.id} className="rounded-md border border-(--cl-border) bg-(--cl-surface) px-3 py-2 flex flex-col gap-1">
+                    <div key={job.id} className="rounded-lg border border-(--cl-border) bg-(--cl-surface) px-4 py-3 flex flex-col gap-1.5">
                         {/* Row 1: job # · customer · mobile | job-type badge · date */}
                         <div className="flex items-center gap-2 min-w-0">
-                            <span className="font-mono font-semibold text-(--cl-accent) shrink-0">#{job.job_no}</span>
+                            <span className="font-mono font-bold text-(--cl-accent) text-base shrink-0">#{job.job_no}</span>
                             {job.alternate_job_no && (
-                                <span className="text-xs text-(--cl-text-muted) shrink-0">/{job.alternate_job_no}</span>
+                                <span className="text-sm text-(--cl-text-muted) shrink-0">/{job.alternate_job_no}</span>
                             )}
-                            <div className="flex items-baseline gap-1.5 flex-1 min-w-0">
-                                <span className="font-semibold text-(--cl-text) truncate text-sm">{job.customer_name}</span>
+                            <div className="flex items-baseline gap-2 flex-1 min-w-0">
+                                <span className="font-semibold text-(--cl-text) truncate text-base">{job.customer_name}</span>
                                 {job.mobile && (
-                                    <span className="text-xs text-(--cl-text-muted) shrink-0">{job.mobile}</span>
+                                    <span className="text-sm text-(--cl-text-muted) shrink-0">{job.mobile}</span>
                                 )}
                             </div>
-                            <span className="shrink-0 rounded-full px-2 py-0.5 text-xs font-medium bg-(--cl-accent)/10 text-(--cl-accent)">
+                            <span className="shrink-0 rounded-full px-2.5 py-0.5 text-sm font-medium bg-(--cl-accent)/10 text-(--cl-accent)">
                                 {job.job_type_name}
                             </span>
-                            <span className="text-xs text-(--cl-text-muted) shrink-0">{job.job_date}</span>
+                            <span className="text-sm text-(--cl-text-muted) shrink-0">{job.job_date}</span>
                         </div>
 
                         {/* Row 2: recv · condition · technician — dot-separated */}
-                        <div className="flex items-center flex-wrap gap-x-1 gap-y-0 text-xs text-(--cl-text-muted)">
+                        <div className="flex items-center flex-wrap gap-x-1.5 gap-y-0 text-sm text-(--cl-text-muted)">
                             <span>{job.receive_manner_name}</span>
                             {job.receive_condition_name && (
                                 <><span className="opacity-30">·</span><span>{job.receive_condition_name}</span></>
@@ -50,14 +50,14 @@ export function DeliveryModalJobsTable({ jobs }: Props) {
 
                         {/* Row 3 (optional): device details */}
                         {job.device_details && (
-                            <p className="text-xs text-(--cl-text) leading-snug line-clamp-2">{job.device_details}</p>
+                            <p className="text-sm text-(--cl-text) leading-snug line-clamp-2">{job.device_details}</p>
                         )}
 
                         {/* Amounts strip */}
-                        <div className="flex items-center justify-end gap-3 pt-1 border-t border-(--cl-border)/50 text-xs tabular-nums">
+                        <div className="flex items-center justify-end gap-4 pt-1.5 border-t border-(--cl-border)/50 text-sm tabular-nums">
                             <span className="text-(--cl-text-muted)">Est <span className="text-(--cl-text)">{fmtCurrency(job.estimate_amount)}</span></span>
                             <span className="text-(--cl-text-muted)">Amt <span className="font-semibold text-(--cl-text)">{fmtCurrency(job.amount)}</span></span>
-                            <span className={`font-semibold ${due > 0 ? "text-red-500" : "text-emerald-500"}`}>
+                            <span className={`font-bold ${due > 0 ? "text-red-500" : "text-emerald-500"}`}>
                                 Due {fmtCurrency(due)}
                             </span>
                         </div>
@@ -67,9 +67,9 @@ export function DeliveryModalJobsTable({ jobs }: Props) {
 
             {/* Totals strip — only for multi-job */}
             {jobs.length > 1 && (
-                <div className="flex items-center justify-between rounded-md border border-(--cl-border) bg-(--cl-surface-2) px-3 py-1.5 text-xs tabular-nums">
-                    <span className="text-(--cl-text-muted)">{jobs.length} jobs</span>
-                    <div className="flex items-center gap-3">
+                <div className="flex items-center justify-between rounded-lg border border-(--cl-border) bg-(--cl-surface-2) px-4 py-2 text-sm tabular-nums">
+                    <span className="text-(--cl-text-muted)">{jobs.length} jobs total</span>
+                    <div className="flex items-center gap-4">
                         <span className="text-(--cl-text-muted)">Amt <span className="font-bold text-(--cl-text)">{fmtCurrency(totalAmt)}</span></span>
                         <span className={`font-bold ${totalDue > 0 ? "text-red-500" : "text-emerald-500"}`}>Due {fmtCurrency(totalDue)}</span>
                     </div>

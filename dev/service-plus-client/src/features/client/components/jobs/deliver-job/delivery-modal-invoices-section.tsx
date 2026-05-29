@@ -24,7 +24,7 @@ function computeTaxSummary(job: JobDeliveryFullDetail) {
 
 function TaxSummaryRow({ tax, jobAmount }: { tax: ReturnType<typeof computeTaxSummary>; jobAmount: number | null }) {
     return (
-        <div className="flex items-center justify-between text-xs tabular-nums text-(--cl-text-muted)">
+        <div className="flex items-center justify-between text-sm tabular-nums text-(--cl-text-muted)">
             <div className="flex items-center gap-3">
                 <span>Taxable <span className="text-(--cl-text)">{fmtCurrency(tax.aggregate)}</span></span>
                 <span className="opacity-30">·</span>
@@ -41,7 +41,7 @@ function TaxSummaryRow({ tax, jobAmount }: { tax: ReturnType<typeof computeTaxSu
 
 export function DeliveryModalInvoicesSection({ jobs, availableDivisions }: Props) {
     return (
-        <div className="space-y-2">
+        <div className="space-y-3">
             {jobs.map(job => {
                 const invoiceable = isJobInvoiceable(job.job_type_code, job.job_status_code);
                 const division    = availableDivisions.find(d => d.id === job.division_id) ?? null;
@@ -53,23 +53,23 @@ export function DeliveryModalInvoicesSection({ jobs, availableDivisions }: Props
                 const tax = hasTaxLines ? computeTaxSummary(job) : null;
 
                 return (
-                    <div key={job.id} className="rounded-lg border border-(--cl-border) bg-(--cl-surface-2) p-3">
+                    <div key={job.id} className="rounded-lg border border-(--cl-border) bg-(--cl-surface-2) px-4 py-3">
                         {/* Header row */}
                         <div className="flex items-center justify-between gap-4">
-                            <div className="flex items-center gap-2">
-                                <span className="font-mono text-xs font-semibold text-(--cl-accent)">#{job.job_no}</span>
-                                <span className="text-xs text-(--cl-text-muted)">{job.customer_name}</span>
+                            <div className="flex items-center gap-2.5">
+                                <span className="font-mono text-sm font-bold text-(--cl-accent)">#{job.job_no}</span>
+                                <span className="text-sm text-(--cl-text-muted)">{job.customer_name}</span>
                             </div>
                             {!invoiceable ? (
-                                <span className="rounded-full bg-amber-100 dark:bg-amber-950/40 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:text-amber-400">
+                                <span className="rounded-full bg-amber-100 dark:bg-amber-950/40 px-2.5 py-0.5 text-xs font-semibold text-amber-700 dark:text-amber-400">
                                     Skipped — {job.job_type_name || job.job_status_name}
                                 </span>
                             ) : job.invoice_id ? (
-                                <span className="rounded-full bg-emerald-100 dark:bg-emerald-950/40 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:text-emerald-400">
+                                <span className="rounded-full bg-emerald-100 dark:bg-emerald-950/40 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
                                     Invoice #{job.invoice_no} — {fmtCurrency(job.invoice_total)}
                                 </span>
                             ) : (
-                                <span className="rounded-full bg-sky-100 dark:bg-sky-950/40 px-2 py-0.5 text-[10px] font-semibold text-sky-700 dark:text-sky-400">
+                                <span className="rounded-full bg-sky-100 dark:bg-sky-950/40 px-2.5 py-0.5 text-xs font-semibold text-sky-700 dark:text-sky-400">
                                     Pending — will generate
                                 </span>
                             )}
@@ -77,7 +77,7 @@ export function DeliveryModalInvoicesSection({ jobs, availableDivisions }: Props
 
                         {/* Tax breakdown for existing GST invoices */}
                         {invoiceable && job.invoice_id && tax && (
-                            <div className="mt-2 pl-1">
+                            <div className="mt-2.5 pl-1">
                                 <TaxSummaryRow tax={tax} jobAmount={job.amount} />
                             </div>
                         )}
@@ -85,24 +85,24 @@ export function DeliveryModalInvoicesSection({ jobs, availableDivisions }: Props
                         {/* Parts + charges preview for pending invoiceable jobs */}
                         {invoiceable && !job.invoice_id && (job.parts.length > 0 || job.charges.length > 0) && (
                             <>
-                                <div className="mt-2 space-y-1 pl-2 border-l-2 border-(--cl-border)">
+                                <div className="mt-2.5 space-y-1.5 pl-3 border-l-2 border-(--cl-border)">
                                     {job.parts.map(p => (
-                                        <div key={p.id} className="flex justify-between text-xs text-(--cl-text-muted)">
+                                        <div key={p.id} className="flex justify-between text-sm text-(--cl-text-muted)">
                                             <span>{p.part_name} × {p.qty}</span>
                                             <div className="flex items-center gap-3 tabular-nums">
                                                 {isGst && p.gst_rate > 0 && (
-                                                    <span className="text-[10px] opacity-60">{p.gst_rate}% GST</span>
+                                                    <span className="text-xs opacity-60">{p.gst_rate}% GST</span>
                                                 )}
                                                 <span>{fmtCurrency(p.selling_price * p.qty)}</span>
                                             </div>
                                         </div>
                                     ))}
                                     {job.charges.map(c => (
-                                        <div key={c.id} className="flex justify-between text-xs text-(--cl-text-muted)">
+                                        <div key={c.id} className="flex justify-between text-sm text-(--cl-text-muted)">
                                             <span>{c.charge_name} × {c.qty}</span>
                                             <div className="flex items-center gap-3 tabular-nums">
                                                 {isGst && c.gst_rate > 0 && (
-                                                    <span className="text-[10px] opacity-60">{c.gst_rate}% GST</span>
+                                                    <span className="text-xs opacity-60">{c.gst_rate}% GST</span>
                                                 )}
                                                 <span>{fmtCurrency(c.selling_price * c.qty)}</span>
                                             </div>
@@ -110,7 +110,7 @@ export function DeliveryModalInvoicesSection({ jobs, availableDivisions }: Props
                                     ))}
                                 </div>
                                 {tax && (
-                                    <div className="mt-2 pt-1.5 pl-1 border-t border-(--cl-border)/50">
+                                    <div className="mt-2.5 pt-2 pl-1 border-t border-(--cl-border)/50">
                                         <TaxSummaryRow tax={tax} jobAmount={job.amount} />
                                     </div>
                                 )}
@@ -118,7 +118,7 @@ export function DeliveryModalInvoicesSection({ jobs, availableDivisions }: Props
                         )}
 
                         {invoiceable && !job.invoice_id && job.parts.length === 0 && job.charges.length === 0 && (
-                            <p className="mt-1 text-xs text-amber-600 dark:text-amber-400 pl-2">
+                            <p className="mt-1.5 text-sm text-amber-600 dark:text-amber-400 pl-3">
                                 No parts or charges recorded — invoice will be empty.
                             </p>
                         )}

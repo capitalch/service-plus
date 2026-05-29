@@ -58,16 +58,6 @@ async def _open_db_connection(  # pylint: disable=too-many-arguments,too-many-po
 
     Commits automatically on clean exit; rolls back on exception.
     The connection is always closed in the finally block.
-
-    Args:
-        host:        Database host.
-        port:        Database port.
-        user:        Database user.
-        password:    Database password.
-        dbname:      Database name.
-        label:       Short label used in log messages (e.g. "client", "service").
-        autocommit:  When True, each statement is committed immediately (required
-                     for DDL statements that cannot run inside a transaction block).
     """
     conn: psycopg.AsyncConnection | None = None
     try:

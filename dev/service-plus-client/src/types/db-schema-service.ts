@@ -386,6 +386,7 @@ export interface Job {
   alternate_job_no: string | null;
   division_id: number;
   is_posted: boolean;
+  is_igst: boolean;
 }
 export interface JobInput {
   id: number;
@@ -420,10 +421,11 @@ export interface JobInput {
   alternate_job_no?: string | null;
   division_id: number;
   is_posted?: boolean;
+  is_igst?: boolean;
 }
 const job = {
   tableName: 'job',
-  columns: ['id', 'job_no', 'job_date', 'customer_contact_id', 'branch_id', 'technician_id', 'job_status_id', 'job_type_id', 'job_receive_manner_id', 'job_receive_condition_id', 'product_brand_model_id', 'serial_no', 'problem_reported', 'diagnosis', 'work_done', 'remarks', 'amount', 'delivery_date', 'is_closed', 'warranty_card_no', 'is_active', 'created_at', 'updated_at', 'address_snapshot', 'last_transaction_id', 'is_final', 'qty', 'batch_no', 'estimate_amount', 'alternate_job_no', 'division_id', 'is_posted'],
+  columns: ['id', 'job_no', 'job_date', 'customer_contact_id', 'branch_id', 'technician_id', 'job_status_id', 'job_type_id', 'job_receive_manner_id', 'job_receive_condition_id', 'product_brand_model_id', 'serial_no', 'problem_reported', 'diagnosis', 'work_done', 'remarks', 'amount', 'delivery_date', 'is_closed', 'warranty_card_no', 'is_active', 'created_at', 'updated_at', 'address_snapshot', 'last_transaction_id', 'is_final', 'qty', 'batch_no', 'estimate_amount', 'alternate_job_no', 'division_id', 'is_posted', 'is_igst'],
   requiredForInsert: ['id', 'job_no', 'customer_contact_id', 'branch_id', 'job_status_id', 'job_type_id', 'job_receive_manner_id', 'product_brand_model_id', 'division_id'],
   primaryKey: 'id',
   foreignKeys: {

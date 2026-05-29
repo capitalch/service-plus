@@ -98,7 +98,7 @@ export function DeliverableJobsGrid({
     return (
         <>
             {/* Toolbar */}
-            <div className="flex flex-wrap items-center gap-2 px-4 py-1 bg-(--cl-surface-2)/30">
+            <div className="flex flex-wrap items-center gap-2 py-2 bg-(--cl-surface-2)/30">
                 <div className="relative flex-1 sm:max-w-lg">
                     <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-(--cl-text-muted)" />
                     <Input
@@ -143,7 +143,7 @@ export function DeliverableJobsGrid({
             </div>
 
             {/* Grid */}
-            <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-(--cl-border) bg-(--cl-surface) shadow-sm mx-4">
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-(--cl-border) bg-(--cl-surface) shadow-sm">
                 <div
                     ref={scrollRef}
                     className="flex-1 overflow-x-auto overflow-y-auto"
@@ -181,7 +181,7 @@ export function DeliverableJobsGrid({
                                     <th className={`${thClass} w-8`}>
                                         <input
                                             type="checkbox"
-                                            className="h-3.5 w-3.5 rounded border-(--cl-border) accent-emerald-600"
+                                            className="h-3.5 w-3.5 rounded border-(--cl-border) accent-emerald-600 cursor-pointer"
                                             checked={allChecked}
                                             ref={el => { if (el) el.indeterminate = someChecked && !allChecked; }}
                                             onChange={e => onSelectAll(e.target.checked)}
@@ -196,7 +196,7 @@ export function DeliverableJobsGrid({
                                     <th className={thClass}>Status</th>
                                     <th className={thClass}>Technician</th>
                                     <th className={`${thClass} text-right`}>Amount</th>
-                                    <th className={`${thClass} sticky right-0 z-20 !bg-(--cl-surface-2)`}>Action</th>
+                                    <th className={`${thClass} sticky right-0 z-20 bg-(--cl-surface-2)!`}>Action</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-(--cl-border) bg-(--cl-surface)">
@@ -211,7 +211,7 @@ export function DeliverableJobsGrid({
                                         <td className={tdClass}>
                                             <input
                                                 type="checkbox"
-                                                className="h-3.5 w-3.5 rounded border-(--cl-border) accent-emerald-600"
+                                                className="h-3.5 w-3.5 rounded border-(--cl-border) accent-emerald-600 cursor-pointer"
                                                 checked={selectedIds.has(row.id)}
                                                 onChange={e => { e.stopPropagation(); onSelectionChange(row.id, e.target.checked); }}
                                             />

@@ -325,6 +325,7 @@ export const FinalAJobSection = () => {
 
             setSelectedJob(job);
             setSelectedRow(row);
+            setForceIgst(job.is_igst ?? false);
             setSelectedDivisionId(row.division_id);
             setPartLines(
                 parts.length > 0
@@ -384,6 +385,7 @@ export const FinalAJobSection = () => {
         setPartLines([]);
         setDeletedPartIds([]);
         setBackCalcTarget("");
+        setForceIgst(false);
         if (isEditMode) {
             setIsEditMode(false);
             setActiveTab("finalized");
@@ -497,7 +499,7 @@ export const FinalAJobSection = () => {
                     schema,
                     value: encodeObj({
                         tableName: "job",
-                        xData: { id: selectedJob.id, is_final: true, division_id: selectedDivisionId, amount, xDetails },
+                        xData: { id: selectedJob.id, is_final: true, is_igst: forceIgst, division_id: selectedDivisionId, amount, xDetails },
                     }),
                 },
             });
@@ -726,7 +728,7 @@ export const FinalAJobSection = () => {
                     schema,
                     value: encodeObj({
                         tableName: "job",
-                        xData: { id: selectedJob.id, is_final: true, division_id: selectedDivisionId, amount, xDetails },
+                        xData: { id: selectedJob.id, is_final: true, is_igst: forceIgst, division_id: selectedDivisionId, amount, xDetails },
                     }),
                 },
             });
