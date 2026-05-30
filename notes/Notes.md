@@ -2,12 +2,15 @@
         Let us also change quantity -> qty for all variable names, identifiers and state names in client and server to avoid any confusion.
 # Logic for status change
 
-# Modification of Deliver Job landing page
-- remove date filter and Set search box same as Final a Job
-- Move refresh button to right
-- show attached files and batch no if there like Final a Job
-- Make Deliver button prominent and bigger
+# Modification of Deliver Job feature
+- in delivery-modal, on click of "create invoice & receipts", Invoice and receipts are generated. 
+- Invoice details are now stored in database tables job_invoice and job_invoice_line.
+- Source of invoice details are job_part_used and job_additional_charge. Information from these two tables are stored collectively in job_invoice_line at proper columns
+- job_invoice.amount comes from job.amount. The aggregate, cgst_amount, sgst_amount and igst_amount are calculated and put at appropriate columns
+- Job_invoice_line is also properly populated. part_code is null when not available
+- Generation of receipt is also done and data is stored in job_payment
 
+###
 - For "Assigned" as target status, selection of technician through drop down is mandatory in modal window if not already selected earlier.
 - For all transactions, remarks and date field will appear by default in modal window.
 - When completed OK as target status, there should be provision to register part used through a grid in the existing dialog window, which stores data in job_part_used. If already some part used, that should show up. User should be able to add / delete new parts.

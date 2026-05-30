@@ -1,11 +1,13 @@
-import { Plus } from "lucide-react";
+import { Plus, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { JobDeliveryFullDetail } from "./deliver-job-schema";
 import { fmtCurrency } from "./deliver-job-helpers";
 
 type Props = {
-    jobs:           JobDeliveryFullDetail[];
-    onAddReceipt:   (job: JobDeliveryFullDetail) => void;
+    jobs:             JobDeliveryFullDetail[];
+    onAddReceipt:     (job: JobDeliveryFullDetail) => void;
+    loadingPdfJobId?: number | null;
+    onPrintReceipt?:  (job: JobDeliveryFullDetail) => void;
 };
 
 function modeBadgeClass(mode: string): string {
@@ -19,7 +21,7 @@ function modeBadgeClass(mode: string): string {
     }
 }
 
-export function DeliveryModalReceiptsSection({ jobs, onAddReceipt }: Props) {
+export function DeliveryModalReceiptsSection({ jobs, onAddReceipt, loadingPdfJobId, onPrintReceipt }: Props) {
     return (
         <div className="space-y-3">
             {jobs.map(job => {
@@ -33,14 +35,28 @@ export function DeliveryModalReceiptsSection({ jobs, onAddReceipt }: Props) {
                                 <span className="font-mono text-sm font-bold text-(--cl-accent)">#{job.job_no}</span>
                                 <span className="text-sm text-(--cl-text-muted)">{job.customer_name}</span>
                             </div>
-                            <Button
-                                className="h-8 gap-1.5 px-3 text-sm bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
-                                disabled={due === 0}
-                                onClick={() => onAddReceipt(job)}
-                            >
-                                <Plus className="h-3.5 w-3.5" />
-                                Add Receipt
-                            </Button>
+                            <div className="flex items-center gap-2">
+                                {onPrintReceipt && (job.payments ?? []).length > 0 && (
+                                    <Button
+                                        className="h-8 gap-1 px-2 text-sm"
+                                        disabled={loadingPdfJobId === job.id}
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={() => onPrintReceipt(job)}
+                                    >
+                                        <Printer className="h-3.5 w-3.5" />
+                                        Print
+                                    </Button>
+                                )}
+                                <Button
+                                    className="h-8 gap-1.5 px-3 text-sm bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
+                                    disabled={due === 0}
+                                    onClick={() => onAddReceipt(job)}
+                                >
+                                    <Plus className="h-3.5 w-3.5" />
+                                    Add Receipt
+                                </Button>
+                            </div>
                         </div>
 
                         {/* Balance chips */}

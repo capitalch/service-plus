@@ -129,6 +129,13 @@ export type JobDeliveryFullDetail = {
     device_details:         string | null;
     customer_name:          string;
     mobile:                 string;
+    customer_gstin:         string | null;
+    customer_email:         string | null;
+    customer_address_line1: string | null;
+    customer_address_line2: string | null;
+    customer_city:          string | null;
+    customer_postal_code:   string | null;
+    customer_state:         string | null;
     job_status_name:        string;
     job_status_code:        string;
     job_type_name:          string;

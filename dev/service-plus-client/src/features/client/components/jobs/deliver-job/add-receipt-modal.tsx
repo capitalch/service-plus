@@ -24,13 +24,14 @@ import { PAYMENT_MODES } from "./deliver-job-helpers";
 type Props = {
     open:           boolean;
     defaultAmount?: number;
+    subtitle?:      string;
     onClose:        () => void;
     onSave:         (values: AddReceiptFormValues) => Promise<void>;
 };
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function AddReceiptModal({ open, defaultAmount = 0, onClose, onSave }: Props) {
+export function AddReceiptModal({ open, defaultAmount = 0, subtitle, onClose, onSave }: Props) {
     const form = useForm<AddReceiptFormValues>({
         defaultValues: getAddReceiptDefaults(defaultAmount),
         mode:          "onChange",
@@ -58,6 +59,9 @@ export function AddReceiptModal({ open, defaultAmount = 0, onClose, onSave }: Pr
             <DialogContent aria-describedby={undefined} className="sm:max-w-sm">
                 <DialogHeader>
                     <DialogTitle>Add Receipt</DialogTitle>
+                    {subtitle && (
+                        <p className="text-sm text-(--cl-text-muted) mt-0.5">{subtitle}</p>
+                    )}
                 </DialogHeader>
 
                 <div className="grid gap-4 py-2">

@@ -28,7 +28,7 @@ import {
     type AddReceiptFormValues, type JobInvoiceFullRow,
 } from "./deliver-job-schema";
 import { fmtCurrency, isJobInvoiceable } from "./deliver-job-helpers";
-import { buildMultiJobDeliveryPdf } from "./deliver-job-pdf";
+import { buildMultiJobDeliveryPdf, buildInvoicePdf, buildReceiptPdf } from "./deliver-job-pdf";
 import { DeliveryModalJobsTable } from "./delivery-modal-jobs-table";
 import { DeliveryModalInvoicesSection } from "./delivery-modal-invoices-section";
 import { DeliveryModalReceiptsSection } from "./delivery-modal-receipts-section";
@@ -191,8 +191,12 @@ export function DeliveryModal({
     const [delivering,        setDelivering]        = useState(false);
     const [pdfUrl,            setPdfUrl]            = useState<string | null>(null);
     const [showPdf,           setShowPdf]           = useState(false);
+    const [pdfTitle,          setPdfTitle]          = useState("");
+    const [pdfFilename,       setPdfFilename]       = useState("");
+    const [loadingPdfJobId,   setLoadingPdfJobId]   = useState<number | null>(null);
     const [receiptJob,        setReceiptJob]        = useState<JobDeliveryFullDetail | null>(null);
     const [showReceiptModal,  setShowReceiptModal]  = useState(false);
+    const [receiptQueue,      setReceiptQueue]      = useState<JobDeliveryFullDetail[]>([]);
 
     const form = useForm<DeliveryModalFormValues>({
         defaultValues: getDeliveryModalDefaults(),
@@ -222,8 +226,8 @@ export function DeliveryModal({
 
     // ── Reload job details ────────────────────────────────────────────────────
 
-    async function reloadJobDetails() {
-        if (!dbName || !schema) return;
+    async function reloadJobDetails(): Promise<JobDeliveryFullDetail[]> {
+        if (!dbName || !schema) return [];
         const res = await apolloClient.query<GenericQueryData<JobDeliveryFullDetail>>({
             fetchPolicy: "network-only",
             query:       GRAPHQL_MAP.genericQuery,
@@ -235,7 +239,9 @@ export function DeliveryModal({
                 }),
             },
         });
-        setJobDetails(res.data?.genericQuery ?? []);
+        const fresh = res.data?.genericQuery ?? [];
+        setJobDetails(fresh);
+        return fresh;
     }
 
     // ── Create Invoices ───────────────────────────────────────────────────────
@@ -280,7 +286,7 @@ export function DeliveryModal({
                 const cgst_amount = Math.round(lines.reduce((s, l) => s + l.cgst_amount, 0) * 100) / 100;
                 const sgst_amount = Math.round(lines.reduce((s, l) => s + l.sgst_amount, 0) * 100) / 100;
                 const igst_amount = Math.round(lines.reduce((s, l) => s + l.igst_amount, 0) * 100) / 100;
-                const amount      = Math.round(lines.reduce((s, l) => s + l.amount, 0) * 100) / 100;
+                const amount      = Math.round(Number(job.amount ?? 0) * 100) / 100;
 
                 await apolloClient.mutate({
                     mutation:  GRAPHQL_MAP.createSalesInvoice,
@@ -298,12 +304,12 @@ export function DeliveryModal({
                                 sgst_amount,
                                 igst_amount,
                                 amount,
+                                xDetails: lines.length > 0 ? [{
+                                    tableName: "job_invoice_line",
+                                    fkeyName:  "job_invoice_id",
+                                    xData:     lines,
+                                }] : undefined,
                             },
-                            xDetails: lines.length > 0 ? [{
-                                tableName: "job_invoice_line",
-                                fkeyName:  "job_invoice_id",
-                                xData:     lines,
-                            }] : undefined,
                             doc_sequence_id:   seq.id,
                             doc_sequence_next: seq.next_number + 1,
                         }),
@@ -311,11 +317,25 @@ export function DeliveryModal({
                 });
                 created++;
             }
-            await reloadJobDetails();
+            const fresh = await reloadJobDetails();
             toast.success(created > 0
                 ? `${created} invoice(s) created.${skipped > 0 ? ` ${skipped} already existed or skipped.` : ""}`
                 : "All jobs already have invoices or were skipped."
             );
+
+            // Auto-open receipt modal for jobs that have an amount but no payments yet
+            if (created > 0) {
+                const needReceipt = fresh.filter(j =>
+                    isJobInvoiceable(j.job_type_code, j.job_status_code) &&
+                    Number(j.amount ?? 0) > 0 &&
+                    (j.payments ?? []).length === 0
+                );
+                if (needReceipt.length > 0) {
+                    setReceiptQueue(needReceipt.slice(1));
+                    setReceiptJob(needReceipt[0]);
+                    setShowReceiptModal(true);
+                }
+            }
         } catch (err) {
             console.error("Invoice creation error:", err);
             toast.error("Failed to create invoices. Please try again.");
@@ -354,6 +374,52 @@ export function DeliveryModal({
         const doc = buildMultiJobDeliveryPdf(jobDetails, invoicesMap);
         if (pdfUrl) URL.revokeObjectURL(pdfUrl);
         setPdfUrl(URL.createObjectURL(doc.output("blob")));
+        setPdfTitle(`Delivery Note${jobDetails.length > 1 ? "s" : ""} — ${jobDetails.map(j => j.job_no).join(", ")}`);
+        setPdfFilename(`delivery-${jobDetails.map(j => j.job_no).join("-")}.pdf`);
+        setShowPdf(true);
+    }
+
+    // ── Per-job Invoice PDF ────────────────────────────────────────────────────
+
+    async function handlePrintInvoicePdf(job: JobDeliveryFullDetail) {
+        if (!dbName || !schema || !job.invoice_id) return;
+        setLoadingPdfJobId(job.id);
+        try {
+            const res = await apolloClient.query<GenericQueryData<JobInvoiceFullRow>>({
+                fetchPolicy: "network-only",
+                query:       GRAPHQL_MAP.genericQuery,
+                variables: {
+                    db_name: dbName, schema,
+                    value: graphQlUtils.buildGenericQueryValue({
+                        sqlId:   SQL_MAP.GET_JOB_INVOICE_BY_JOB,
+                        sqlArgs: { job_id: job.id },
+                    }),
+                },
+            });
+            const invoice = res.data?.genericQuery?.[0];
+            if (!invoice) { toast.error("Invoice data not found."); return; }
+            const division = availableDivisions.find(d => d.id === job.division_id) ?? null;
+            const doc = buildInvoicePdf(job, invoice, division);
+            if (pdfUrl) URL.revokeObjectURL(pdfUrl);
+            setPdfUrl(URL.createObjectURL(doc.output("blob")));
+            setPdfTitle(`Invoice ${invoice.invoice_no} — ${job.customer_name}`);
+            setPdfFilename(`invoice-${job.job_no}.pdf`);
+            setShowPdf(true);
+        } catch {
+            toast.error("Failed to generate invoice PDF.");
+        } finally {
+            setLoadingPdfJobId(null);
+        }
+    }
+
+    // ── Per-job Receipt PDF ────────────────────────────────────────────────────
+
+    function handlePrintReceiptPdf(job: JobDeliveryFullDetail) {
+        const doc = buildReceiptPdf(job);
+        if (pdfUrl) URL.revokeObjectURL(pdfUrl);
+        setPdfUrl(URL.createObjectURL(doc.output("blob")));
+        setPdfTitle(`Receipt — ${job.job_no} / ${job.customer_name}`);
+        setPdfFilename(`receipt-${job.job_no}.pdf`);
         setShowPdf(true);
     }
 
@@ -380,7 +446,21 @@ export function DeliveryModal({
         });
         toast.success("Receipt added.");
         setShowReceiptModal(false);
-        await reloadJobDetails();
+        void reloadJobDetails();
+        // Advance to next job in the receipt queue
+        if (receiptQueue.length > 0) {
+            setReceiptJob(receiptQueue[0]);
+            setReceiptQueue(prev => prev.slice(1));
+            setShowReceiptModal(true);
+        } else {
+            setReceiptJob(null);
+        }
+    }
+
+    function handleReceiptModalClose() {
+        setShowReceiptModal(false);
+        setReceiptJob(null);
+        setReceiptQueue([]);
     }
 
     // ── Deliver & Close ───────────────────────────────────────────────────────
@@ -512,14 +592,21 @@ export function DeliveryModal({
 
                             {/* Step 2 – Invoices */}
                             <StepSection step={2} title="Service Invoice" accent="violet">
-                                <DeliveryModalInvoicesSection jobs={jobDetails} availableDivisions={availableDivisions} />
+                                <DeliveryModalInvoicesSection
+                                    jobs={jobDetails}
+                                    availableDivisions={availableDivisions}
+                                    loadingPdfJobId={loadingPdfJobId}
+                                    onPrintInvoice={job => void handlePrintInvoicePdf(job)}
+                                />
                             </StepSection>
 
                             {/* Step 3 – Receipts */}
                             <StepSection step={3} title="Money Receipts" accent="emerald">
                                 <DeliveryModalReceiptsSection
                                     jobs={jobDetails}
-                                    onAddReceipt={job => { setReceiptJob(job); setShowReceiptModal(true); }}
+                                    onAddReceipt={job => { setReceiptQueue([]); setReceiptJob(job); setShowReceiptModal(true); }}
+                                    loadingPdfJobId={loadingPdfJobId}
+                                    onPrintReceipt={handlePrintReceiptPdf}
                                 />
                             </StepSection>
 
@@ -646,7 +733,11 @@ export function DeliveryModal({
                     ? Math.max(0, Number(receiptJob.amount ?? 0) - (receiptJob.payments ?? []).reduce((s, p) => s + Number(p.amount), 0))
                     : 0
                 }
-                onClose={() => { setShowReceiptModal(false); setReceiptJob(null); }}
+                subtitle={receiptJob
+                    ? `Job #${receiptJob.job_no} — ${receiptJob.customer_name}${receiptQueue.length > 0 ? ` (${receiptQueue.length} more pending)` : ""}`
+                    : undefined
+                }
+                onClose={handleReceiptModalClose}
                 onSave={handleAddReceipt}
             />
 
@@ -655,8 +746,8 @@ export function DeliveryModal({
                 isOpen={showPdf}
                 onClose={() => setShowPdf(false)}
                 pdfUrl={pdfUrl}
-                title={`Delivery Note${jobDetails.length > 1 ? "s" : ""} — ${jobDetails.map(j => j.job_no).join(", ")}`}
-                filename={`delivery-${jobDetails.map(j => j.job_no).join("-")}.pdf`}
+                title={pdfTitle}
+                filename={pdfFilename}
             />
         </>
     );

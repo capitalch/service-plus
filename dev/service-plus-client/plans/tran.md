@@ -1,13 +1,7 @@
 # Modification of Deliver Job feature
-- In the deliver job landing page, user can click deliver for single job delivery and select multiple jobs(Provide Check boxes in UI for selection or any other way) jobs and click deliver for multiple job delivery.
-- A new modal window appears. On click outside does not close window. This window is to make delivery. Structure of window is as follows:
-        - Shows division, gst status, total due after deducting receipts amount from job amount for all the selected jobs.
-        - Shows rows for selected jobs for delivery with their job no, alt job no, job date, customer name, receive manner, job type, receive condition, device details, qty, estimate_amount, amount, due amount
-        - Shows rows for money receipts to be generated and the corresponding amounts
-        - Shows Invoices to be generated amount, spare parts and additional charge details and taxes if tax applicable
-        - Each job has separate invoice and money receipt
-        - A button to create invoice and money receipts (not for in warranty, return, cancelled jobs). This button will generate invoice and pending money receipts for all jobs.
-        - If invoices are available then a button to show PDF for invoice and money receipts in a new modal window for pdf preview (Already there). User can print them. The PDF should be half A4 size height.
-        - A mandatory dropdown to select Job delivery manner
-        - Finally a button to do delivery. This button will set is_closed flag true
-- Please remove the code which is not required any more.
+- in delivery-modal, on click of "create invoice & receipts", Invoice and receipts are generated. 
+- Invoice details are now stored in database tables job_invoice and job_invoice_line.
+- Source of invoice details are job_part_used and job_additional_charge. Information from these two tables are stored collectively in job_invoice_line at proper columns
+- job_invoice.amount comes from job.amount. The aggregate, cgst_amount, sgst_amount and igst_amount are calculated and put at appropriate columns
+- Job_invoice_line is also properly populated. part_code is null when not available
+- Generation of receipt is also done and data is stored in job_payment

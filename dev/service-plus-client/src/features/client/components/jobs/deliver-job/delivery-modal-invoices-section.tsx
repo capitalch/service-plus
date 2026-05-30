@@ -1,3 +1,5 @@
+import { Printer } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { type DivisionContextType, isGstDivision } from "@/features/client/types/division";
 import type { JobDeliveryFullDetail } from "./deliver-job-schema";
 import { fmtCurrency, isJobInvoiceable } from "./deliver-job-helpers";
@@ -5,6 +7,8 @@ import { fmtCurrency, isJobInvoiceable } from "./deliver-job-helpers";
 type Props = {
     jobs:               JobDeliveryFullDetail[];
     availableDivisions: DivisionContextType[];
+    loadingPdfJobId?:   number | null;
+    onPrintInvoice?:    (job: JobDeliveryFullDetail) => void;
 };
 
 function computeTaxSummary(job: JobDeliveryFullDetail) {
@@ -52,7 +56,7 @@ function TaxSummaryRow({ tax, jobAmount }: { tax: ReturnType<typeof computeTaxSu
     );
 }
 
-export function DeliveryModalInvoicesSection({ jobs, availableDivisions }: Props) {
+export function DeliveryModalInvoicesSection({ jobs, availableDivisions, loadingPdfJobId, onPrintInvoice }: Props) {
     return (
         <div className="space-y-3">
             {jobs.map(job => {
@@ -73,19 +77,33 @@ export function DeliveryModalInvoicesSection({ jobs, availableDivisions }: Props
                                 <span className="font-mono text-sm font-bold text-(--cl-accent)">#{job.job_no}</span>
                                 <span className="text-sm text-(--cl-text-muted)">{job.customer_name}</span>
                             </div>
-                            {!invoiceable ? (
-                                <span className="rounded-full bg-amber-100 dark:bg-amber-950/40 px-2.5 py-0.5 text-xs font-semibold text-amber-700 dark:text-amber-400">
-                                    Skipped — {job.job_type_name || job.job_status_name}
-                                </span>
-                            ) : job.invoice_id ? (
-                                <span className="rounded-full bg-emerald-100 dark:bg-emerald-950/40 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
-                                    Invoice #{job.invoice_no} — {fmtCurrency(job.invoice_total)}
-                                </span>
-                            ) : (
-                                <span className="rounded-full bg-sky-100 dark:bg-sky-950/40 px-2.5 py-0.5 text-xs font-semibold text-sky-700 dark:text-sky-400">
-                                    Pending — will generate
-                                </span>
-                            )}
+                            <div className="flex items-center gap-2">
+                                {!invoiceable ? (
+                                    <span className="rounded-full bg-amber-100 dark:bg-amber-950/40 px-2.5 py-0.5 text-xs font-semibold text-amber-700 dark:text-amber-400">
+                                        Skipped — {job.job_type_name || job.job_status_name}
+                                    </span>
+                                ) : job.invoice_id ? (
+                                    <span className="rounded-full bg-emerald-100 dark:bg-emerald-950/40 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
+                                        Invoice #{job.invoice_no} — {fmtCurrency(job.invoice_total)}
+                                    </span>
+                                ) : (
+                                    <span className="rounded-full bg-sky-100 dark:bg-sky-950/40 px-2.5 py-0.5 text-xs font-semibold text-sky-700 dark:text-sky-400">
+                                        Pending — will generate
+                                    </span>
+                                )}
+                                {invoiceable && job.invoice_id && onPrintInvoice && (
+                                    <Button
+                                        className="h-7 gap-1 px-2 text-xs"
+                                        disabled={loadingPdfJobId === job.id}
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={() => onPrintInvoice(job)}
+                                    >
+                                        <Printer className="h-3.5 w-3.5" />
+                                        Print
+                                    </Button>
+                                )}
+                            </div>
                         </div>
 
                         {/* Tax breakdown for existing GST invoices */}
