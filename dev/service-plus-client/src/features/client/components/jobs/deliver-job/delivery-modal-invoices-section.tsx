@@ -1,14 +1,18 @@
-import { Printer } from "lucide-react";
+import { Loader2, Printer, RefreshCw, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { type DivisionContextType, isGstDivision } from "@/features/client/types/division";
 import type { JobDeliveryFullDetail } from "./deliver-job-schema";
 import { fmtCurrency, isJobInvoiceable } from "./deliver-job-helpers";
 
 type Props = {
-    jobs:               JobDeliveryFullDetail[];
-    availableDivisions: DivisionContextType[];
-    loadingPdfJobId?:   number | null;
-    onPrintInvoice?:    (job: JobDeliveryFullDetail) => void;
+    jobs:                     JobDeliveryFullDetail[];
+    availableDivisions:       DivisionContextType[];
+    loadingPdfJobId?:         number | null;
+    deletingInvoiceJobId?:    number | null;
+    regeneratingInvoiceJobId?: number | null;
+    onPrintInvoice?:          (job: JobDeliveryFullDetail) => void;
+    onDeleteInvoice?:         (job: JobDeliveryFullDetail) => void;
+    onRegenerateInvoice?:     (job: JobDeliveryFullDetail) => void;
 };
 
 function computeTaxSummary(job: JobDeliveryFullDetail) {
@@ -56,7 +60,7 @@ function TaxSummaryRow({ tax, jobAmount }: { tax: ReturnType<typeof computeTaxSu
     );
 }
 
-export function DeliveryModalInvoicesSection({ jobs, availableDivisions, loadingPdfJobId, onPrintInvoice }: Props) {
+export function DeliveryModalInvoicesSection({ jobs, availableDivisions, loadingPdfJobId, deletingInvoiceJobId, regeneratingInvoiceJobId, onPrintInvoice, onDeleteInvoice, onRegenerateInvoice }: Props) {
     return (
         <div className="space-y-3">
             {jobs.map(job => {
@@ -93,7 +97,7 @@ export function DeliveryModalInvoicesSection({ jobs, availableDivisions, loading
                                 )}
                                 {invoiceable && job.invoice_id && onPrintInvoice && (
                                     <Button
-                                        className="h-7 gap-1 px-2 text-xs"
+                                        className="h-8 gap-1 px-2 text-sm"
                                         disabled={loadingPdfJobId === job.id}
                                         size="sm"
                                         variant="ghost"
@@ -101,6 +105,36 @@ export function DeliveryModalInvoicesSection({ jobs, availableDivisions, loading
                                     >
                                         <Printer className="h-3.5 w-3.5" />
                                         Print
+                                    </Button>
+                                )}
+                                {invoiceable && job.invoice_id && onDeleteInvoice && (
+                                    <Button
+                                        className="h-8 gap-1 px-2 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30"
+                                        disabled={deletingInvoiceJobId === job.id}
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={() => onDeleteInvoice(job)}
+                                    >
+                                        {deletingInvoiceJobId === job.id
+                                            ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                            : <Trash2 className="h-3.5 w-3.5" />
+                                        }
+                                        Delete
+                                    </Button>
+                                )}
+                                {invoiceable && job.invoice_id && onRegenerateInvoice && (
+                                    <Button
+                                        className="h-8 gap-1 px-2 text-sm text-sky-600 hover:text-sky-700 hover:bg-sky-50 dark:hover:bg-sky-950/30"
+                                        disabled={regeneratingInvoiceJobId === job.id}
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={() => onRegenerateInvoice(job)}
+                                    >
+                                        {regeneratingInvoiceJobId === job.id
+                                            ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                            : <RefreshCw className="h-3.5 w-3.5" />
+                                        }
+                                        Regen
                                     </Button>
                                 )}
                             </div>

@@ -893,6 +893,148 @@ async def resolve_create_sales_invoice_helper(
     return record_id
 
 
+async def resolve_create_job_invoice_helper(
+    db_name: str, schema: str = "public", value: str = ""
+) -> Any:
+    """
+    Create a job invoice and atomically generate the invoice number in a single transaction.
+    The client sends all invoice data (including lines) plus branch_id and division_id.
+    The server claims the next SERVICE_INVOICE sequence number and inserts everything atomically.
+    """
+    payload = _decode_value(value, "createJobInvoice")
+    x_data = payload.get("xData", {})
+
+    branch_id = x_data.pop("branch_id", None)
+    division_id = x_data.pop("division_id", None)
+
+    if not branch_id or not division_id:
+        raise ValidationException(
+            message=AppMessages.REQUIRED_FIELD_MISSING,
+            extensions={"field": "branch_id/division_id"},
+        )
+
+    db_name_arg = db_name if db_name else None
+    schema_name = schema or "public"
+
+    async with get_service_db_connection(db_name_arg) as conn:
+        async with conn.cursor(row_factory=dict_row) as cur:
+            await cur.execute(
+                pgsql.SQL("SET search_path TO {}").format(pgsql.Identifier(schema_name))
+            )
+
+            # 1. Claim next invoice number atomically
+            await cur.execute(
+                SqlStore.CLAIM_NEXT_INVOICE_NUMBER,
+                {"branch_id": branch_id, "division_id": division_id},
+            )
+            seq = await cur.fetchone()
+            if not seq:
+                raise ValidationException(
+                    message=AppMessages.RESOURCE_NOT_FOUND,
+                    extensions={"detail": "SERVICE_INVOICE sequence not configured for this division"},
+                )
+
+            # 2. Format invoice number
+            invoice_no = (
+                f"{seq['prefix'] or ''}"
+                f"{seq['separator'] or ''}"
+                f"{str(seq['assigned_number']).zfill(seq['padding'] or 0)}"
+            )
+            x_data["invoice_no"] = invoice_no
+
+            # 3. Insert job_invoice + lines in the same transaction
+            invoice_id = await process_data(x_data, cur, "job_invoice", None, None)
+            logger.info("Job invoice created id=%s invoice_no=%s", invoice_id, invoice_no)
+
+    return invoice_id
+
+
+async def resolve_create_job_payment_helper(
+    db_name: str, schema: str = "public", value: str = ""
+) -> Any:
+    payload = _decode_value(value, "createJobPayment")
+    x_data = payload.get("xData", {})
+    branch_id = x_data.pop("branch_id", None)
+    job_id = x_data.get("job_id")
+
+    if not branch_id or not job_id:
+        raise ValidationException(
+            message=AppMessages.REQUIRED_FIELD_MISSING,
+            extensions={"field": "branch_id/job_id"},
+        )
+
+    db_name_arg = db_name if db_name else None
+    schema_name = schema or "public"
+
+    async with get_service_db_connection(db_name_arg) as conn:
+        async with conn.cursor(row_factory=dict_row) as cur:
+            await cur.execute(
+                pgsql.SQL("SET search_path TO {}").format(pgsql.Identifier(schema_name))
+            )
+            await cur.execute(
+                SqlStore.CLAIM_NEXT_RECEIPT_NUMBER,
+                {"branch_id": branch_id, "job_id": job_id},
+            )
+            seq = await cur.fetchone()
+            if not seq:
+                raise ValidationException(
+                    message=AppMessages.RESOURCE_NOT_FOUND,
+                    extensions={"detail": "MONEY_RECEIPT sequence not configured for this division"},
+                )
+            receipt_no = (
+                f"{seq['prefix'] or ''}"
+                f"{seq['separator'] or ''}"
+                f"{str(seq['assigned_number']).zfill(seq['padding'] or 0)}"
+            )
+            x_data["receipt_no"] = receipt_no
+            payment_id = await process_data(x_data, cur, "job_payment", None, None)
+            logger.info("Job payment created id=%s receipt_no=%s", payment_id, receipt_no)
+
+    return payment_id
+
+
+async def resolve_regenerate_job_invoice_helper(
+    db_name: str, schema: str = "public", value: str = ""
+) -> Any:
+    """
+    Regenerate a job invoice atomically: delete existing lines, update header amounts
+    (preserving invoice_no and id), then insert new lines — all in one transaction.
+    """
+    payload     = _decode_value(value, "regenerateJobInvoice")
+    x_data      = payload.get("xData", {})
+    invoice_id  = x_data["invoice_id"]
+    aggregate   = x_data["aggregate"]
+    cgst_amount = x_data["cgst_amount"]
+    sgst_amount = x_data["sgst_amount"]
+    igst_amount = x_data["igst_amount"]
+    amount      = x_data["amount"]
+    lines       = x_data.get("lines", [])
+
+    db_name_arg = db_name if db_name else None
+    schema_name = schema or "public"
+
+    async with get_service_db_connection(db_name_arg) as conn:
+        async with conn.cursor(row_factory=dict_row) as cur:
+            await cur.execute(
+                pgsql.SQL("SET search_path TO {}").format(pgsql.Identifier(schema_name))
+            )
+            await cur.execute(
+                SqlStore.DELETE_JOB_INVOICE_LINES_BY_INVOICE, {"invoice_id": invoice_id}
+            )
+            await cur.execute(
+                SqlStore.UPDATE_JOB_INVOICE_AMOUNTS,
+                {"invoice_id": invoice_id, "aggregate": aggregate,
+                 "cgst_amount": cgst_amount, "sgst_amount": sgst_amount,
+                 "igst_amount": igst_amount, "amount": amount},
+            )
+            for line in lines:
+                line_data = {**line, "job_invoice_id": invoice_id}
+                await process_data(line_data, cur, "job_invoice_line", None, None)
+
+    logger.info("Job invoice id=%s regenerated with %s lines", invoice_id, len(lines))
+    return invoice_id
+
+
 async def resolve_create_single_job_helper(
     db_name: str, schema: str = "public", value: str = ""
 ) -> Any:

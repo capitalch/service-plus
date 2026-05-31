@@ -13,13 +13,14 @@ export type DivisionType = {
     email:          string | null;
     gstin:          string | null;
     gst_state_code: string | null;
+    web_site:       string | null;
     is_active:      boolean;
 };
 
 export type DivisionContextType = Pick<DivisionType,
     'id' | 'code' | 'name' | 'address_line1' | 'address_line2' |
     'city' | 'state_id' | 'country' | 'pincode' | 'phone' | 'email' |
-    'gstin' | 'gst_state_code'
+    'gstin' | 'gst_state_code' | 'web_site'
 >;
 
 export const isGstDivision = (d: DivisionContextType | null) => !!d?.gstin;

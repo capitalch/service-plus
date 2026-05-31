@@ -3,7 +3,13 @@
 	- Repeat repairs
 	- Inputting parts and charges at any step with similar to final a job screen
 	- Deliver job
-		
+		- Modify receipt
+								- Invoice numbering at server side
+		- Show part details in invoice toggle
+								- Re generate invoice
+		- If modify final job, then update invoice if already generated
+		- Undo delivery
+								- DELETE INVOICE
 # Job Delivery
 	- Delivery note to be better
 	- Invoice no to be generated at server

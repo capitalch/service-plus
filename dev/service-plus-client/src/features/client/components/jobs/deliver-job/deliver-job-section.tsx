@@ -65,7 +65,7 @@ export const DeliverJobSection = () => {
     const [selectedIds,       setSelectedIds]       = useState<Set<number>>(new Set());
     const [showDeliveryModal, setShowDeliveryModal] = useState(false);
     const [modalJobDetails,   setModalJobDetails]   = useState<JobDeliveryFullDetail[]>([]);
-    const [loadingModal,      setLoadingModal]      = useState(false);
+    const [loadingModal,      setLoadingModal]      = useState<number | null>(null);
 
     // ── Misc ──────────────────────────────────────────────────────────────────
     const [attachJobId,  setAttachJobId]  = useState<number | null>(null);
@@ -201,7 +201,7 @@ export const DeliverJobSection = () => {
     async function handleDeliverSingle(row: DeliverableJobRow) {
         if (selectedIds.size > 0) { void handleOpenDeliveryModal(); return; }
         if (!dbName || !schema) return;
-        setLoadingModal(true);
+        setLoadingModal(row.id);
         try {
             const res = await apolloClient.query<GenericQueryData<JobDeliveryFullDetail>>({
                 fetchPolicy: "network-only",
@@ -221,14 +221,14 @@ export const DeliverJobSection = () => {
         } catch {
             toast.error(MESSAGES.ERROR_JOB_DELIVERY_DETAIL_FAILED);
         } finally {
-            setLoadingModal(false);
+            setLoadingModal(null);
         }
     }
 
     // ── Open delivery modal for multiple selected jobs ─────────────────────────
     async function handleOpenDeliveryModal() {
         if (!dbName || !schema || selectedIds.size === 0) return;
-        setLoadingModal(true);
+        setLoadingModal(-1);
         try {
             const res = await apolloClient.query<GenericQueryData<JobDeliveryFullDetail>>({
                 fetchPolicy: "network-only",
@@ -248,7 +248,7 @@ export const DeliverJobSection = () => {
         } catch {
             toast.error("Failed to load job details. Please try again.");
         } finally {
-            setLoadingModal(false);
+            setLoadingModal(null);
         }
     }
 
@@ -377,6 +377,7 @@ export const DeliverJobSection = () => {
                 <DeliveryModal
                     jobs={modalJobDetails}
                     branchId={branchId}
+                    branchName={currentBranch?.name ?? null}
                     deliveryManners={deliveryManners}
                     availableDivisions={availableDivisions}
                     deliveredStatusId={deliveredStatusId}

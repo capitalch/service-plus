@@ -47,6 +47,12 @@ export type JobDetailType = {
     // Joined fields
     customer_name:               string | null;
     mobile:                      string;
+    customer_address_line1:      string | null;
+    customer_address_line2:      string | null;
+    customer_landmark:           string | null;
+    customer_city:               string | null;
+    customer_postal_code:        string | null;
+    customer_state:              string | null;
     job_type_name:               string;
     job_status_name:             string;
     job_receive_manner_name:     string;

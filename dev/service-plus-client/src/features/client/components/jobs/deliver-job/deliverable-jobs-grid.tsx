@@ -47,7 +47,7 @@ type Props = {
     search:             string;
     branchId:           number | null;
     availableDivisions: DivisionContextType[];
-    loadingDetail:      boolean;
+    loadingDetail:      number | null;
     selectedIds:        Set<number>;
     setPage:            (v: number | ((p: number) => number)) => void;
     onSearch:           (v: string) => void;
@@ -130,10 +130,10 @@ export function DeliverableJobsGrid({
                     {selectedIds.size > 0 && (
                         <Button
                             className="h-9 gap-2 px-4 text-sm font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-md tracking-wide"
-                            disabled={loadingDetail}
+                            disabled={loadingDetail !== null}
                             onClick={onDeliverSelected}
                         >
-                            {loadingDetail
+                            {loadingDetail === -1
                                 ? <Loader2 className="h-4 w-4 animate-spin" />
                                 : <Truck className="h-4 w-4" />
                             }
@@ -298,12 +298,12 @@ export function DeliverableJobsGrid({
                                                 </Button>
                                                 <Button
                                                     className="h-8 gap-1.5 px-3 text-xs font-semibold text-emerald-700 border border-emerald-300 hover:bg-emerald-50 dark:text-emerald-400 dark:border-emerald-700 dark:hover:bg-emerald-950/30"
-                                                    disabled={loadingDetail}
+                                                    disabled={loadingDetail === row.id}
                                                     size="sm"
                                                     variant="outline"
                                                     onClick={() => onDeliver(row)}
                                                 >
-                                                    {loadingDetail
+                                                    {loadingDetail === row.id
                                                         ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
                                                         : <Truck className="h-3.5 w-3.5" />
                                                     }

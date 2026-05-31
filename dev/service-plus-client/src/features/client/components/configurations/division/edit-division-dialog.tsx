@@ -94,6 +94,7 @@ export const EditDivisionDialog = ({
             phone:         division.phone ?? "",
             pincode:       division.pincode ?? "",
             state_id:      division.state_id,
+            web_site:      division.web_site ?? "",
         },
         mode:     "onChange",
         resolver: zodResolver(divisionSchema) as any,
@@ -121,6 +122,7 @@ export const EditDivisionDialog = ({
             phone:         division.phone ?? "",
             pincode:       division.pincode ?? "",
             state_id:      division.state_id,
+            web_site:      division.web_site ?? "",
         });
         setNameTaken(null);
         setCodeTaken(null);
@@ -221,6 +223,7 @@ export const EditDivisionDialog = ({
                             phone:         data.phone || null,
                             pincode:       data.pincode || null,
                             state_id:      data.state_id,
+                            web_site:      data.web_site || null,
                         },
                     }),
                 },
@@ -243,14 +246,15 @@ export const EditDivisionDialog = ({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent aria-describedby={undefined} className="sm:max-w-lg">
-                <DialogHeader>
+            <DialogContent aria-describedby={undefined} className="sm:max-w-lg flex flex-col max-h-[90vh]">
+                <DialogHeader className="shrink-0">
                     <DialogTitle className="text-base font-semibold text-foreground">
                         Edit Division
                     </DialogTitle>
                 </DialogHeader>
 
-                <form className="flex flex-col gap-4 pt-1" onSubmit={form.handleSubmit(onSubmit)}>
+                <form className="flex flex-col min-h-0 flex-1" onSubmit={form.handleSubmit(onSubmit)}>
+                <div className="flex flex-col gap-4 pt-1 overflow-y-auto min-h-0 flex-1 pr-1">
                     {/* Code */}
                     <div className="flex flex-col gap-1.5">
                         <Label htmlFor="edv_code">
@@ -421,7 +425,21 @@ export const EditDivisionDialog = ({
                         <FieldError message={errors.gstin?.message} />
                     </div>
 
-                    <DialogFooter className="pt-2">
+                    {/* Web Site */}
+                    <div className="flex flex-col gap-1.5">
+                        <Label htmlFor="edv_website">Web Site</Label>
+                        <Input
+                            autoComplete="off"
+                            id="edv_website"
+                            placeholder="https://example.com"
+                            type="url"
+                            {...form.register("web_site")}
+                        />
+                    </div>
+
+                </div>
+
+                    <DialogFooter className="pt-2 shrink-0">
                         <Button
                             disabled={form.formState.isSubmitting}
                             type="button"

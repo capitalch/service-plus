@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { FileText, Loader2, Truck } from "lucide-react";
+import { FileText, Loader2, RefreshCw, Trash2, Truck } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,11 @@ import { Label }  from "@/components/ui/label";
 import {
     Dialog, DialogContent, DialogTitle,
 } from "@/components/ui/dialog";
+import {
+    AlertDialog, AlertDialogAction, AlertDialogCancel,
+    AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+    AlertDialogHeader, AlertDialogMedia, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
     Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -28,7 +33,8 @@ import {
     type AddReceiptFormValues, type JobInvoiceFullRow,
 } from "./deliver-job-schema";
 import { fmtCurrency, isJobInvoiceable } from "./deliver-job-helpers";
-import { buildMultiJobDeliveryPdf, buildInvoicePdf, buildReceiptPdf } from "./deliver-job-pdf";
+import { MESSAGES } from "@/constants/messages";
+import { buildInvoicePdf, buildPackedInvoicePdf, buildReceiptPdf } from "./deliver-job-pdf";
 import { DeliveryModalJobsTable } from "./delivery-modal-jobs-table";
 import { DeliveryModalInvoicesSection } from "./delivery-modal-invoices-section";
 import { DeliveryModalReceiptsSection } from "./delivery-modal-receipts-section";
@@ -38,20 +44,12 @@ import { AddReceiptModal } from "./add-receipt-modal";
 
 type DeliveryMannerRow = { id: number; name: string };
 
-type DocSeqRow = {
-    document_type_code: string;
-    id:                 number | null;
-    prefix:             string | null;
-    next_number:        number | null;
-    padding:            number | null;
-    separator:          string | null;
-};
-
 type GenericQueryData<T> = { genericQuery: T[] | null };
 
 type Props = {
     jobs:               JobDeliveryFullDetail[];
     branchId:           number | null;
+    branchName:         string | null;
     deliveryManners:    DeliveryMannerRow[];
     availableDivisions: DivisionContextType[];
     deliveredStatusId:  number | null;
@@ -63,11 +61,6 @@ type Props = {
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-
-function formatInvoiceNo(seq: DocSeqRow): string {
-    const padded = String(seq.next_number ?? 1).padStart(seq.padding ?? 0, "0");
-    return `${seq.prefix ?? ""}${seq.separator ?? ""}${padded}`;
-}
 
 type InvoiceLine = {
     description: string;
@@ -177,6 +170,7 @@ function StepSection({
 export function DeliveryModal({
     jobs: initialJobs,
     branchId,
+    branchName,
     deliveryManners,
     availableDivisions,
     deliveredStatusId,
@@ -193,7 +187,11 @@ export function DeliveryModal({
     const [showPdf,           setShowPdf]           = useState(false);
     const [pdfTitle,          setPdfTitle]          = useState("");
     const [pdfFilename,       setPdfFilename]       = useState("");
-    const [loadingPdfJobId,   setLoadingPdfJobId]   = useState<number | null>(null);
+    const [loadingPdfJobId,      setLoadingPdfJobId]      = useState<number | null>(null);
+    const [deletingInvoiceJobId,    setDeletingInvoiceJobId]    = useState<number | null>(null);
+    const [confirmDeleteJob,        setConfirmDeleteJob]        = useState<JobDeliveryFullDetail | null>(null);
+    const [regeneratingInvoiceJobId, setRegeneratingInvoiceJobId] = useState<number | null>(null);
+    const [confirmRegenerateJob,    setConfirmRegenerateJob]    = useState<JobDeliveryFullDetail | null>(null);
     const [receiptJob,        setReceiptJob]        = useState<JobDeliveryFullDetail | null>(null);
     const [showReceiptModal,  setShowReceiptModal]  = useState(false);
     const [receiptQueue,      setReceiptQueue]      = useState<JobDeliveryFullDetail[]>([]);
@@ -219,8 +217,9 @@ export function DeliveryModal({
     const totalDue     = Math.max(0, totalAmt - totalPaid);
 
     const hasAnyInvoice       = jobDetails.some(j => !!j.invoice_id);
-    const hasEligiblePending  = jobDetails.some(j => isJobInvoiceable(j.job_type_code, j.job_status_code) && !j.invoice_id);
-    const canCreateInvoices   = hasEligiblePending && !creatingInvoices;
+    const hasEligiblePending  = jobDetails.some(j => isJobInvoiceable(j.job_type_code, j.job_status_code) && !j.invoice_id && Number(j.amount ?? 0) > 0);
+    const hasReceiptPending   = jobDetails.some(j => Number(j.amount ?? 0) > 0 && (j.payments ?? []).reduce((s, p) => s + Number(p.amount), 0) < Number(j.amount ?? 0));
+    const canCreateInvoices   = (hasEligiblePending || hasReceiptPending) && !creatingInvoices;
     const canShowPdf          = hasAnyInvoice;
     const canDeliver          = form.formState.isValid && !delivering && !!deliveredStatusId;
 
@@ -259,28 +258,6 @@ export function DeliveryModal({
                 const division = availableDivisions.find(d => d.id === job.division_id) ?? null;
                 const isGst    = isGstDivision(division);
 
-                const seqRes = await apolloClient.query<GenericQueryData<DocSeqRow>>({
-                    fetchPolicy: "network-only",
-                    query:       GRAPHQL_MAP.genericQuery,
-                    variables: {
-                        db_name: dbName, schema,
-                        value: graphQlUtils.buildGenericQueryValue({
-                            sqlId:   SQL_MAP.GET_DOCUMENT_SEQUENCES_BY_DIVISION,
-                            sqlArgs: {
-                                branch_id:   branchId ?? 0,
-                                division_id: job.division_id ?? 0,
-                            },
-                        }),
-                    },
-                });
-                const seq = (seqRes.data?.genericQuery ?? []).find(s => s.document_type_code === "SERVICE_INVOICE");
-                if (!seq || !seq.id || seq.next_number == null) {
-                    toast.error(`No SERVICE_INVOICE sequence configured for job #${job.job_no}.`);
-                    continue;
-                }
-
-                const invoiceNo = formatInvoiceNo(seq);
-
                 const lines = buildInvoiceLines(job, isGst, job.is_igst ?? false);
                 const aggregate   = Math.round(lines.reduce((s, l) => s + l.aggregate, 0) * 100) / 100;
                 const cgst_amount = Math.round(lines.reduce((s, l) => s + l.cgst_amount, 0) * 100) / 100;
@@ -289,14 +266,15 @@ export function DeliveryModal({
                 const amount      = Math.round(Number(job.amount ?? 0) * 100) / 100;
 
                 await apolloClient.mutate({
-                    mutation:  GRAPHQL_MAP.createSalesInvoice,
+                    mutation:  GRAPHQL_MAP.createJobInvoice,
                     variables: {
                         db_name: dbName, schema,
                         value: encodeObj({
                             tableName: "job_invoice",
                             xData: {
+                                branch_id:         branchId,
+                                division_id:       job.division_id,
                                 job_id:            job.id,
-                                invoice_no:        invoiceNo,
                                 invoice_date:      new Date().toISOString().slice(0, 10),
                                 supply_state_code: division?.gst_state_code ?? "",
                                 aggregate,
@@ -310,8 +288,6 @@ export function DeliveryModal({
                                     xData:     lines,
                                 }] : undefined,
                             },
-                            doc_sequence_id:   seq.id,
-                            doc_sequence_next: seq.next_number + 1,
                         }),
                     },
                 });
@@ -344,11 +320,87 @@ export function DeliveryModal({
         }
     }
 
+    // ── Delete Invoice ────────────────────────────────────────────────────────
+
+    function handleDeleteInvoice(job: JobDeliveryFullDetail) {
+        if (!job.invoice_id) return;
+        setConfirmDeleteJob(job);
+    }
+
+    async function executeDeleteInvoice(job: JobDeliveryFullDetail) {
+        if (!dbName || !schema || !job.invoice_id) return;
+        setDeletingInvoiceJobId(job.id);
+        try {
+            await apolloClient.mutate({
+                mutation:  GRAPHQL_MAP.genericUpdate,
+                variables: {
+                    db_name: dbName, schema,
+                    value: graphQlUtils.buildGenericUpdateValue({
+                        tableName: "job_invoice",
+                        deletedIds: [job.invoice_id],
+                        xData: [],
+                    }),
+                },
+            });
+            toast.success(`Invoice ${job.invoice_no ?? ""} deleted.`);
+            await reloadJobDetails();
+        } catch (err) {
+            console.error("Invoice delete error:", err);
+            toast.error(MESSAGES.ERROR_JOB_INVOICE_DELETE_FAILED);
+        } finally {
+            setDeletingInvoiceJobId(null);
+        }
+    }
+
+    // ── Regenerate Invoice ────────────────────────────────────────────────────
+
+    function handleRegenerateInvoice(job: JobDeliveryFullDetail) {
+        if (!job.invoice_id) return;
+        setConfirmRegenerateJob(job);
+    }
+
+    async function executeRegenerateInvoice(job: JobDeliveryFullDetail) {
+        if (!dbName || !schema || !job.invoice_id) return;
+        setRegeneratingInvoiceJobId(job.id);
+        try {
+            const division    = availableDivisions.find(d => d.id === job.division_id) ?? null;
+            const isGst       = isGstDivision(division);
+            const lines       = buildInvoiceLines(job, isGst, job.is_igst ?? false);
+            const aggregate   = Math.round(lines.reduce((s, l) => s + l.aggregate,   0) * 100) / 100;
+            const cgst_amount = Math.round(lines.reduce((s, l) => s + l.cgst_amount, 0) * 100) / 100;
+            const sgst_amount = Math.round(lines.reduce((s, l) => s + l.sgst_amount, 0) * 100) / 100;
+            const igst_amount = Math.round(lines.reduce((s, l) => s + l.igst_amount, 0) * 100) / 100;
+            const amount      = Math.round(Number(job.amount ?? 0) * 100) / 100;
+
+            await apolloClient.mutate({
+                mutation:  GRAPHQL_MAP.regenerateJobInvoice,
+                variables: {
+                    db_name: dbName, schema,
+                    value: encodeObj({
+                        tableName: "job_invoice",
+                        xData: {
+                            invoice_id: job.invoice_id,
+                            aggregate, cgst_amount, sgst_amount, igst_amount, amount,
+                            lines,
+                        },
+                    }),
+                },
+            });
+            toast.success(`Invoice ${job.invoice_no ?? ""} regenerated.`);
+            await reloadJobDetails();
+        } catch (err) {
+            console.error("Invoice regenerate error:", err);
+            toast.error(MESSAGES.ERROR_JOB_INVOICE_REGEN_FAILED);
+        } finally {
+            setRegeneratingInvoiceJobId(null);
+        }
+    }
+
     // ── Show PDF ──────────────────────────────────────────────────────────────
 
     async function handleShowPdf() {
         if (!dbName || !schema) return;
-        const invoicesMap = new Map<number, JobInvoiceFullRow>();
+        const items: Parameters<typeof buildPackedInvoicePdf>[0] = [];
         try {
             for (const job of jobDetails) {
                 if (!job.invoice_id) continue;
@@ -363,19 +415,37 @@ export function DeliveryModal({
                         }),
                     },
                 });
-                const inv = res.data?.genericQuery?.[0];
-                if (inv) invoicesMap.set(job.id, inv);
+                const invoice = res.data?.genericQuery?.[0];
+                if (!invoice) continue;
+                const division = availableDivisions.find(d => d.id === job.division_id) ?? null;
+                const partHsnByCode = new Map((job.parts   ?? []).map(p => [p.part_code,   p.hsn_code ?? null]));
+                const partHsnByName = new Map((job.parts   ?? []).map(p => [p.part_name,   p.hsn_code ?? null]));
+                const chrgHsnByName = new Map((job.charges ?? []).map(c => [c.charge_name, c.hsn_code ?? null]));
+                const patchedInvoice = {
+                    ...invoice,
+                    lines: invoice.lines.map(l => ({
+                        ...l,
+                        hsn_code: l.hsn_code !== null
+                            ? l.hsn_code
+                            : (l.part_code != null ? partHsnByCode.get(l.part_code) : undefined)
+                                ?? partHsnByName.get(l.description)
+                                ?? chrgHsnByName.get(l.description)
+                                ?? null,
+                    })),
+                };
+                items.push({ job, invoice: patchedInvoice, division });
             }
         } catch {
             toast.error("Failed to load invoice data for PDF.");
             return;
         }
 
-        const doc = buildMultiJobDeliveryPdf(jobDetails, invoicesMap);
+        if (items.length === 0) { toast.error("No invoices to show."); return; }
+        const doc = buildPackedInvoicePdf(items, branchName);
         if (pdfUrl) URL.revokeObjectURL(pdfUrl);
         setPdfUrl(URL.createObjectURL(doc.output("blob")));
-        setPdfTitle(`Delivery Note${jobDetails.length > 1 ? "s" : ""} — ${jobDetails.map(j => j.job_no).join(", ")}`);
-        setPdfFilename(`delivery-${jobDetails.map(j => j.job_no).join("-")}.pdf`);
+        setPdfTitle(`Invoice${items.length > 1 ? "s" : ""} — ${jobDetails.map(j => j.job_no).join(", ")}`);
+        setPdfFilename(`invoice-${jobDetails.map(j => j.job_no).join("-")}.pdf`);
         setShowPdf(true);
     }
 
@@ -399,7 +469,26 @@ export function DeliveryModal({
             const invoice = res.data?.genericQuery?.[0];
             if (!invoice) { toast.error("Invoice data not found."); return; }
             const division = availableDivisions.find(d => d.id === job.division_id) ?? null;
-            const doc = buildInvoicePdf(job, invoice, division);
+
+            // HSN may be null on stored invoice lines (old invoices didn't save it).
+            // Try: stored value → part_code lookup → part_name lookup → charge_name lookup.
+            const partHsnByCode = new Map((job.parts   ?? []).map(p => [p.part_code,    p.hsn_code ?? null]));
+            const partHsnByName = new Map((job.parts   ?? []).map(p => [p.part_name,    p.hsn_code ?? null]));
+            const chrgHsnByName = new Map((job.charges ?? []).map(c => [c.charge_name,  c.hsn_code ?? null]));
+            const patchedInvoice = {
+                ...invoice,
+                lines: invoice.lines.map(l => ({
+                    ...l,
+                    hsn_code: l.hsn_code !== null
+                        ? l.hsn_code
+                        : (l.part_code != null ? partHsnByCode.get(l.part_code) : undefined)
+                            ?? partHsnByName.get(l.description)
+                            ?? chrgHsnByName.get(l.description)
+                            ?? null,
+                })),
+            };
+
+            const doc = buildInvoicePdf(job, patchedInvoice, division, branchName);
             if (pdfUrl) URL.revokeObjectURL(pdfUrl);
             setPdfUrl(URL.createObjectURL(doc.output("blob")));
             setPdfTitle(`Invoice ${invoice.invoice_no} — ${job.customer_name}`);
@@ -415,7 +504,8 @@ export function DeliveryModal({
     // ── Per-job Receipt PDF ────────────────────────────────────────────────────
 
     function handlePrintReceiptPdf(job: JobDeliveryFullDetail) {
-        const doc = buildReceiptPdf(job);
+        const division = availableDivisions.find(d => d.id === job.division_id) ?? null;
+        const doc = buildReceiptPdf(job, division);
         if (pdfUrl) URL.revokeObjectURL(pdfUrl);
         setPdfUrl(URL.createObjectURL(doc.output("blob")));
         setPdfTitle(`Receipt — ${job.job_no} / ${job.customer_name}`);
@@ -428,12 +518,12 @@ export function DeliveryModal({
     async function handleAddReceipt(values: AddReceiptFormValues) {
         if (!receiptJob || !dbName || !schema) return;
         await apolloClient.mutate({
-            mutation:  GRAPHQL_MAP.genericUpdate,
+            mutation:  GRAPHQL_MAP.createJobPayment,
             variables: {
                 db_name: dbName, schema,
-                value: graphQlUtils.buildGenericUpdateValue({
-                    tableName: "job_payment",
+                value: encodeObj({
                     xData: {
+                        branch_id:    branchId,
                         job_id:       receiptJob.id,
                         payment_date: values.payment_date,
                         payment_mode: values.payment_mode,
@@ -596,7 +686,11 @@ export function DeliveryModal({
                                     jobs={jobDetails}
                                     availableDivisions={availableDivisions}
                                     loadingPdfJobId={loadingPdfJobId}
+                                    deletingInvoiceJobId={deletingInvoiceJobId}
+                                    regeneratingInvoiceJobId={regeneratingInvoiceJobId}
                                     onPrintInvoice={job => void handlePrintInvoicePdf(job)}
+                                    onDeleteInvoice={job => void handleDeleteInvoice(job)}
+                                    onRegenerateInvoice={job => void handleRegenerateInvoice(job)}
                                 />
                             </StepSection>
 
@@ -702,7 +796,7 @@ export function DeliveryModal({
                             <div className="flex items-center gap-3">
                                 <Button
                                     className="h-10 px-6 text-base"
-                                    disabled={delivering || creatingInvoices}
+                                    disabled={delivering || creatingInvoices || !!deletingInvoiceJobId || !!regeneratingInvoiceJobId}
                                     variant="outline"
                                     onClick={onClose}
                                 >
@@ -749,6 +843,104 @@ export function DeliveryModal({
                 title={pdfTitle}
                 filename={pdfFilename}
             />
+
+            {/* Regenerate invoice confirmation / blocked */}
+            <AlertDialog
+                open={!!confirmRegenerateJob}
+                onOpenChange={open => { if (!open) setConfirmRegenerateJob(null); }}
+            >
+                <AlertDialogContent size="sm">
+                    {confirmRegenerateJob?.invoice_is_posted ? (
+                        <>
+                            <AlertDialogHeader>
+                                <AlertDialogMedia className="bg-amber-100 dark:bg-amber-950/40 text-amber-600">
+                                    <RefreshCw />
+                                </AlertDialogMedia>
+                                <AlertDialogTitle>Cannot Regenerate Invoice</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    Invoice <span className="font-semibold text-foreground">{confirmRegenerateJob.invoice_no}</span>:{" "}
+                                    {MESSAGES.ERROR_JOB_INVOICE_REGEN_POSTED}
+                                </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel>Close</AlertDialogCancel>
+                            </AlertDialogFooter>
+                        </>
+                    ) : (
+                        <>
+                            <AlertDialogHeader>
+                                <AlertDialogMedia className="bg-sky-100 dark:bg-sky-950/40 text-sky-600">
+                                    <RefreshCw />
+                                </AlertDialogMedia>
+                                <AlertDialogTitle>Regenerate Invoice?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    Invoice <span className="font-semibold text-foreground">{confirmRegenerateJob?.invoice_no}</span>{" "}
+                                    for job <span className="font-semibold text-foreground">#{confirmRegenerateJob?.job_no}</span>{" "}
+                                    ({confirmRegenerateJob?.customer_name}) will be regenerated from the current parts and charges.
+                                    The invoice number will be preserved.
+                                </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction
+                                    onClick={() => { void executeRegenerateInvoice(confirmRegenerateJob!); }}
+                                >
+                                    Regenerate
+                                </AlertDialogAction>
+                            </AlertDialogFooter>
+                        </>
+                    )}
+                </AlertDialogContent>
+            </AlertDialog>
+
+            {/* Delete invoice confirmation / blocked */}
+            <AlertDialog
+                open={!!confirmDeleteJob}
+                onOpenChange={open => { if (!open) setConfirmDeleteJob(null); }}
+            >
+                <AlertDialogContent size="sm">
+                    {confirmDeleteJob?.invoice_is_posted ? (
+                        <>
+                            <AlertDialogHeader>
+                                <AlertDialogMedia className="bg-amber-100 dark:bg-amber-950/40 text-amber-600">
+                                    <Trash2 />
+                                </AlertDialogMedia>
+                                <AlertDialogTitle>Cannot Delete Invoice</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    Invoice <span className="font-semibold text-foreground">{confirmDeleteJob.invoice_no}</span>:{" "}
+                                    {MESSAGES.ERROR_JOB_INVOICE_DELETE_POSTED}
+                                </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel>Close</AlertDialogCancel>
+                            </AlertDialogFooter>
+                        </>
+                    ) : (
+                        <>
+                            <AlertDialogHeader>
+                                <AlertDialogMedia className="bg-red-100 dark:bg-red-950/40 text-red-600">
+                                    <Trash2 />
+                                </AlertDialogMedia>
+                                <AlertDialogTitle>Delete Invoice?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    Invoice <span className="font-semibold text-foreground">{confirmDeleteJob?.invoice_no}</span>{" "}
+                                    for job <span className="font-semibold text-foreground">#{confirmDeleteJob?.job_no}</span>{" "}
+                                    ({confirmDeleteJob?.customer_name}) will be permanently deleted. This cannot be undone.
+                                </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction
+                                    variant="destructive"
+                                    onClick={() => { void executeDeleteInvoice(confirmDeleteJob!); }}
+                                >
+                                    Delete Invoice
+                                </AlertDialogAction>
+                            </AlertDialogFooter>
+                        </>
+                    )}
+                </AlertDialogContent>
+            </AlertDialog>
         </>
     );
 }

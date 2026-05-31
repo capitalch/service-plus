@@ -2,13 +2,20 @@
         Let us also change quantity -> qty for all variable names, identifiers and state names in client and server to avoid any confusion.
 # Logic for status change
 
-# Modification of Deliver Job feature
-- in delivery-modal, on click of "create invoice & receipts", Invoice and receipts are generated. 
-- Invoice details are now stored in database tables job_invoice and job_invoice_line.
-- Source of invoice details are job_part_used and job_additional_charge. Information from these two tables are stored collectively in job_invoice_line at proper columns
-- job_invoice.amount comes from job.amount. The aggregate, cgst_amount, sgst_amount and igst_amount are calculated and put at appropriate columns
-- Job_invoice_line is also properly populated. part_code is null when not available
-- Generation of receipt is also done and data is stored in job_payment
+# Modification of Deliver Job functionality
+- For following items give a detailed item wise plan in plans/plan.md file
+- Delivery modal
+                        - when Create invoice & Receipts is clicked, it should update the modal for invoices and money receipts with latest info.
+                        - If no charges are payable for a job, create invoice & receipts should be disabled
+        - If no charges are payable for a job, the job should be allowed to deliver & close
+- Money  receipt
+        - Money receipt PDF should be more professional with division details at the top. There should be a statement received with thanks
+        - In Jobs > Receipts: Actions: add a show pdf button which shares the same pdf
+        - In Jobs > Receipts: Actions: Don't allow delete if job_payment is_posted is true. Show appropriate message. Keep the message in messages.ts.
+- Final a job
+        - A finalised job can be edited if it is not is_completed and if invoice is made and the is_posted of job_invoice is false, or invoice is not made. Show proper message to this effect when user tries to edit a job. If not editable then open in read mode.
+        - If user updates a finalised job and changes are done to parts or additional charges and if invoice is already made, then regenerate the invoice. Use the same regenerate invoice code as in Deliver job
+        - For warranty jobs when click final button, the next screen does not show Save & Mark final button
 
 ###
 - For "Assigned" as target status, selection of technician through drop down is mandatory in modal window if not already selected earlier.

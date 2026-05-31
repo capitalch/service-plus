@@ -24,6 +24,7 @@ export type JobReceiptListRowType = {
     created_at:    string;
     customer_name: string;
     id:            number;
+    is_posted:     boolean;
     job_id:        number;
     job_no:        number;
     mobile:        string;

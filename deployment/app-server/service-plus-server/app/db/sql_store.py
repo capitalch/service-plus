@@ -597,7 +597,7 @@ class SqlStore:
         with "p_branch_id" as (values(%(branch_id)s::bigint))
         SELECT d.id, d.branch_id, d.code, d.name, d.address_line1, d.address_line2,
                d.city, d.state_id, d.country, d.pincode, d.phone, d.email,
-               d.gstin, d.is_active,
+               d.gstin, d.web_site, d.is_active,
                s.gst_state_code
         FROM division d
         LEFT JOIN state s ON s.id = d.state_id
@@ -609,7 +609,7 @@ class SqlStore:
         with "p_branch_id" as (values(%(branch_id)s::bigint))
         SELECT d.id, d.branch_id, d.code, d.name, d.address_line1, d.address_line2,
                d.city, d.state_id, d.country, d.pincode, d.phone, d.email,
-               d.gstin,
+               d.gstin, d.web_site,
                s.gst_state_code, s.id AS state_id
         FROM division d
         LEFT JOIN state s ON s.id = d.state_id
@@ -621,7 +621,7 @@ class SqlStore:
         with "p_id" as (values(%(id)s::bigint))
         SELECT d.id, d.branch_id, d.code, d.name, d.address_line1, d.address_line2,
                d.city, d.state_id, d.country, d.pincode, d.phone, d.email,
-               d.gstin, d.is_active, s.gst_state_code
+               d.gstin, d.web_site, d.is_active, s.gst_state_code
         FROM division d
         LEFT JOIN state s ON s.id = d.state_id
         WHERE d.id = (table "p_id")
@@ -827,6 +827,29 @@ class SqlStore:
         WHERE document_type_id = (SELECT id FROM document_type WHERE code = 'JOB_SHEET')
           AND branch_id = %(branch_id)s
         RETURNING prefix, (next_number - 1) AS assigned_number, padding, separator;
+    """
+
+    CLAIM_NEXT_INVOICE_NUMBER = """
+        UPDATE document_sequence
+        SET next_number = next_number + 1
+        WHERE document_type_id = (SELECT id FROM document_type WHERE code = 'SERVICE_INVOICE')
+          AND branch_id = %(branch_id)s
+          AND division_id = %(division_id)s
+        RETURNING prefix, (next_number - 1) AS assigned_number, padding, separator;
+    """
+
+    DELETE_JOB_INVOICE_LINES_BY_INVOICE = """
+        DELETE FROM job_invoice_line WHERE job_invoice_id = %(invoice_id)s
+    """
+
+    UPDATE_JOB_INVOICE_AMOUNTS = """
+        UPDATE job_invoice
+        SET aggregate   = %(aggregate)s,
+            cgst_amount = %(cgst_amount)s,
+            sgst_amount = %(sgst_amount)s,
+            igst_amount = %(igst_amount)s,
+            amount      = %(amount)s
+        WHERE id = %(invoice_id)s
     """
 
     # ── Document Types ────────────────────────────────────────────────────────
@@ -3755,7 +3778,7 @@ class SqlStore:
             "p_offset"     as (values(%(offset)s::int))
         SELECT jp.id, jp.job_id, j.job_no, cc.full_name AS customer_name, cc.mobile,
                jp.payment_date, jp.payment_mode, jp.amount, jp.reference_no, jp.remarks,
-               jp.created_at, jp.updated_at
+               jp.is_posted, jp.created_at, jp.updated_at
         FROM job_payment jp
         JOIN job j ON j.id = jp.job_id
         LEFT JOIN customer_contact cc ON cc.id = j.customer_contact_id
@@ -4034,8 +4057,10 @@ class SqlStore:
                cc.full_name  AS customer_name, cc.mobile,
                js.name       AS job_status_name,
                t.name        AS technician_name,
+               ji.id         AS invoice_id,
                ji.amount     AS invoice_total,
                ji.invoice_no,
+               ji.is_posted  AS invoice_is_posted,
                jrm.name       AS receive_manner_name,
                jt.name        AS job_type_name,
                jt.code        AS job_type_code,
@@ -4189,7 +4214,15 @@ class SqlStore:
             j.estimate_amount, j.qty, j.last_transaction_id,
             j.division_id, j.serial_no, j.is_igst,
             TRIM(CONCAT_WS(' ', p.name, b.name, pbm.model_name, j.serial_no)) AS device_details,
-            cc.full_name  AS customer_name, cc.mobile,
+            cc.full_name      AS customer_name, cc.mobile,
+            cc.gstin          AS customer_gstin,
+            cc.email          AS customer_email,
+            cc.address_line1  AS customer_address_line1,
+            cc.address_line2  AS customer_address_line2,
+            cc.landmark       AS customer_landmark,
+            cc.city           AS customer_city,
+            cc.postal_code    AS customer_postal_code,
+            s.name            AS customer_state,
             js.name       AS job_status_name,
             js.code       AS job_status_code,
             jt.name       AS job_type_name,
@@ -4200,6 +4233,7 @@ class SqlStore:
             ji.id         AS invoice_id,
             ji.invoice_no, ji.invoice_date,
             ji.amount     AS invoice_total,
+            ji.is_posted  AS invoice_is_posted,
             COALESCE((
                 SELECT json_agg(json_build_object(
                     'id', jp.id, 'payment_date', jp.payment_date,
@@ -4213,7 +4247,7 @@ class SqlStore:
                     'id', jpu.id, 'part_code', sp.part_code, 'part_name', sp.part_name,
                     'qty', jpu.qty, 'cost_price', jpu.cost_price,
                     'selling_price', jpu.selling_price, 'gst_rate', jpu.gst_rate,
-                    'hsn_code', sp.hsn_code, 'remarks', jpu.remarks
+                    'hsn_code', COALESCE(jpu.hsn_code, sp.hsn_code), 'remarks', jpu.remarks
                 ) ORDER BY jpu.id)
                 FROM job_part_used jpu
                 JOIN spare_part_master sp ON sp.id = jpu.part_id
@@ -4236,10 +4270,14 @@ class SqlStore:
         LEFT JOIN job_receive_condition jrc ON jrc.id = j.job_receive_condition_id
         LEFT JOIN technician       t   ON t.id  = j.technician_id
         LEFT JOIN job_invoice      ji  ON ji.job_id = j.id
+        LEFT JOIN state            s   ON s.id  = cc.state_id
         LEFT JOIN product_brand_model pbm ON pbm.id = j.product_brand_model_id
         LEFT JOIN brand            b   ON b.id  = pbm.brand_id
         LEFT JOIN product          p   ON p.id  = pbm.product_id
-        GROUP BY j.id, cc.full_name, cc.mobile, js.name, js.code, jt.name, jt.code,
+        GROUP BY j.id, cc.full_name, cc.mobile,
+                 cc.gstin, cc.email, cc.address_line1, cc.address_line2,
+                 cc.landmark, cc.city, cc.postal_code, s.name,
+                 js.name, js.code, jt.name, jt.code,
                  jrm.name, jrc.name, t.name, pbm.model_name, b.name, p.name,
                  ji.id, ji.invoice_no, ji.invoice_date, ji.amount
     """

@@ -81,7 +81,7 @@ export function DeliveryModalReceiptsSection({ jobs, onAddReceipt, loadingPdfJob
                                     <thead>
                                         <tr className="bg-(--cl-surface-2)">
                                             {["#", "Date", "Mode", "Amount", "Ref No", "Remarks"].map(h => (
-                                                <th key={h} className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-(--cl-text-muted) border-b border-(--cl-border)">{h}</th>
+                                                <th key={h} className={`px-3 py-2 text-xs font-semibold uppercase tracking-wide text-(--cl-text-muted) border-b border-(--cl-border) ${h === "Amount" ? "text-right" : "text-left"}`}>{h}</th>
                                             ))}
                                         </tr>
                                     </thead>

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon,
-    DollarSign, Loader2, Pencil, RefreshCw, Save, Search, Trash2, X} from "lucide-react";
+    DollarSign, Loader2, Pencil, Printer, RefreshCw, Save, Search, Trash2, X} from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 
@@ -8,21 +8,28 @@ import { Button } from "@/components/ui/button";
 import {
     Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
+import {
+    AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
+    AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
+import { PdfPreviewModal } from "@/components/shared/pdf-preview-modal";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { MESSAGES } from "@/constants/messages";
 import { SQL_MAP } from "@/constants/sql-map";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { apolloClient } from "@/lib/apollo-client";
-import { graphQlUtils } from "@/lib/graphql-utils";
+import { encodeObj, graphQlUtils } from "@/lib/graphql-utils";
 import { currentFinancialYearRange } from "@/lib/utils";
-import { selectCurrentBranch, selectSchema } from "@/store/context-slice";
+import { selectAvailableDivisions, selectCurrentBranch, selectSchema } from "@/store/context-slice";
 import { useAppSelector } from "@/store/hooks";
 import type { JobReceiptDetailType, JobReceiptListRowType } from "@/features/client/types/receipt";
 import { NewReceiptForm } from "./new-receipt-form";
 import { FormProvider, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { receiptFormSchema, type ReceiptFormValues, getReceiptDefaultValues } from "./receipt-form-schema";
+import { buildReceiptPdf } from "@/features/client/components/jobs/deliver-job/deliver-job-pdf";
+import type { JobDetailType } from "@/features/client/types/job";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -56,10 +63,11 @@ function modeBadgeClass(mode: string) {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export const ReceiptsSection = () => {
-    const dbName        = useAppSelector(selectDbName);
-    const schema        = useAppSelector(selectSchema);
-    const currentBranch = useAppSelector(selectCurrentBranch);
-    const branchId      = currentBranch?.id ?? null;
+    const dbName             = useAppSelector(selectDbName);
+    const schema             = useAppSelector(selectSchema);
+    const currentBranch      = useAppSelector(selectCurrentBranch);
+    const branchId           = currentBranch?.id ?? null;
+    const availableDivisions = useAppSelector(selectAvailableDivisions);
 
     const { from: defaultFrom, to: defaultTo } = currentFinancialYearRange();
 
@@ -85,6 +93,11 @@ export const ReceiptsSection = () => {
     // Delete dialog
     const [deleteRow,  setDeleteRow]  = useState<JobReceiptListRowType | null>(null);
     const [deleting,   setDeleting]   = useState(false);
+
+    // PDF preview
+    const [pdfUrl,     setPdfUrl]     = useState<string | null>(null);
+    const [pdfTitle,   setPdfTitle]   = useState("");
+    const [pdfLoading, setPdfLoading] = useState<number | null>(null); // row.id being loaded
     const debounceRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
     const scrollRef    = useRef<HTMLDivElement>(null);
     const [maxHeight, setMaxHeight] = useState(0);
@@ -183,30 +196,87 @@ export const ReceiptsSection = () => {
         setIsDialogOpen(true);
     }
 
+    async function handleShowPdf(row: JobReceiptListRowType) {
+        if (!dbName || !schema) return;
+        setPdfLoading(row.id);
+        try {
+            const [jobRes, paymentsRes] = await Promise.all([
+                apolloClient.query<GenericQueryDataType<JobDetailType>>({
+                    fetchPolicy: "network-only",
+                    query:       GRAPHQL_MAP.genericQuery,
+                    variables: {
+                        db_name: dbName, schema,
+                        value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_JOB_DETAIL, sqlArgs: { id: row.job_id } }),
+                    },
+                }),
+                apolloClient.query<GenericQueryDataType<{ id: number; receipt_no: string | null; payment_date: string; payment_mode: string; amount: number; reference_no: string | null; remarks: string | null }>>({
+                    fetchPolicy: "network-only",
+                    query:       GRAPHQL_MAP.genericQuery,
+                    variables: {
+                        db_name: dbName, schema,
+                        value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_JOB_PAYMENTS_BY_JOB, sqlArgs: { job_id: row.job_id } }),
+                    },
+                }),
+            ]);
+            const job = jobRes.data?.genericQuery?.[0];
+            const payments = paymentsRes.data?.genericQuery ?? [];
+            if (!job) { toast.error("Failed to load job details."); return; }
+            const division = availableDivisions.find(d => d.id === (job as unknown as { division_id: number | null }).division_id) ?? null;
+            const doc = buildReceiptPdf({ ...job, customer_name: job.customer_name ?? "", payments }, division);
+            if (pdfUrl) URL.revokeObjectURL(pdfUrl);
+            setPdfUrl(URL.createObjectURL(doc.output("blob")));
+            setPdfTitle(`Receipt — #${row.job_no} / ${row.customer_name}`);
+        } catch {
+            toast.error("Failed to generate receipt PDF.");
+        } finally {
+            setPdfLoading(null);
+        }
+    }
+
     const executeSave = async (values: ReceiptFormValues) => {
         if (!dbName || !schema) return;
         const isEdit = !!selectedReceipt?.id;
         try {
-            const xData: Record<string, unknown> = {
-                amount:       Number(values.amount),
-                job_id:       values.job_id,
-                payment_date: values.payment_date,
-                payment_mode: values.payment_mode,
-                reference_no: values.reference_no || null,
-                remarks:      values.remarks || null,
-            };
-            if (isEdit) xData.id = selectedReceipt!.id;
-            await apolloClient.mutate({
-                mutation:  GRAPHQL_MAP.genericUpdate,
-                variables: {
-                    db_name: dbName,
-                    schema,
-                    value: graphQlUtils.buildGenericUpdateValue({
-                        tableName: "job_payment",
-                        xData,
-                    }),
-                },
-            });
+            if (isEdit) {
+                await apolloClient.mutate({
+                    mutation:  GRAPHQL_MAP.genericUpdate,
+                    variables: {
+                        db_name: dbName,
+                        schema,
+                        value: graphQlUtils.buildGenericUpdateValue({
+                            tableName: "job_payment",
+                            xData: {
+                                id:           selectedReceipt!.id,
+                                amount:       Number(values.amount),
+                                job_id:       values.job_id,
+                                payment_date: values.payment_date,
+                                payment_mode: values.payment_mode,
+                                reference_no: values.reference_no || null,
+                                remarks:      values.remarks || null,
+                            },
+                        }),
+                    },
+                });
+            } else {
+                await apolloClient.mutate({
+                    mutation:  GRAPHQL_MAP.createJobPayment,
+                    variables: {
+                        db_name: dbName,
+                        schema,
+                        value: encodeObj({
+                            xData: {
+                                branch_id:    branchId,
+                                job_id:       values.job_id,
+                                payment_date: values.payment_date,
+                                payment_mode: values.payment_mode,
+                                amount:       Number(values.amount),
+                                reference_no: values.reference_no || null,
+                                remarks:      values.remarks || null,
+                            },
+                        }),
+                    },
+                });
+            }
             toast.success(isEdit ? MESSAGES.SUCCESS_RECEIPT_UPDATED : MESSAGES.SUCCESS_RECEIPT_CREATED);
             form.reset(getReceiptDefaultValues());
             setIsDialogOpen(false);
@@ -394,6 +464,19 @@ export const ReceiptsSection = () => {
                                         <td className={`${tdClass} sticky right-0 z-10 bg-(--cl-surface) group-hover:bg-(--cl-surface-2)`}>
                                             <div className="flex items-center gap-1">
                                                 <Button
+                                                    className="h-7 w-7 p-0 text-(--cl-text-muted) hover:text-sky-600"
+                                                    disabled={pdfLoading === row.id}
+                                                    size="icon"
+                                                    title="Show PDF"
+                                                    variant="ghost"
+                                                    onClick={() => void handleShowPdf(row)}
+                                                >
+                                                    {pdfLoading === row.id
+                                                        ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                                        : <Printer className="h-3.5 w-3.5" />
+                                                    }
+                                                </Button>
+                                                <Button
                                                     className="h-7 w-7 p-0 text-(--cl-text-muted) hover:text-(--cl-accent)"
                                                     size="icon"
                                                     title="Edit"
@@ -480,8 +563,26 @@ export const ReceiptsSection = () => {
                 </DialogContent>
             </Dialog>
 
+            {/* Delete — blocked (is_posted) */}
+            <AlertDialog
+                open={deleteRow !== null && !!deleteRow?.is_posted}
+                onOpenChange={open => { if (!open) setDeleteRow(null); }}
+            >
+                <AlertDialogContent className="max-w-sm">
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Cannot Delete Receipt</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            {MESSAGES.ERROR_RECEIPT_DELETE_IS_POSTED}
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel onClick={() => setDeleteRow(null)}>Close</AlertDialogCancel>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
             {/* Delete Confirmation Dialog */}
-            <Dialog open={deleteRow !== null} onOpenChange={open => { if (!open && !deleting) setDeleteRow(null); }}>
+            <Dialog open={deleteRow !== null && !deleteRow?.is_posted} onOpenChange={open => { if (!open && !deleting) setDeleteRow(null); }}>
                 <DialogContent aria-describedby={undefined} className="sm:max-w-sm">
                     <DialogHeader>
                         <DialogTitle>Delete Receipt</DialogTitle>
@@ -504,6 +605,15 @@ export const ReceiptsSection = () => {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            {/* PDF Preview */}
+            <PdfPreviewModal
+                filename={`receipt-${pdfTitle}.pdf`}
+                isOpen={!!pdfUrl}
+                pdfUrl={pdfUrl}
+                title={pdfTitle}
+                onClose={() => { if (pdfUrl) URL.revokeObjectURL(pdfUrl); setPdfUrl(null); }}
+            />
         </motion.div>
     );
 };

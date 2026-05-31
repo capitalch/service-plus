@@ -65,6 +65,79 @@ type AdditionalChargeRow = {
     selling_price: number;
 };
 
+type InvoiceLine = {
+    description: string;
+    part_code:   string | null;
+    hsn_code:    string | null;
+    qty:         number;
+    price:       number;
+    aggregate:   number;
+    gst_rate:    number;
+    cgst_amount: number;
+    sgst_amount: number;
+    igst_amount: number;
+    amount:      number;
+};
+
+function buildInvoiceLinesFromEditable(
+    partLines: EditablePartLine[],
+    chargeLines: EditableChargeLine[],
+    isGst: boolean,
+    forceIgst: boolean,
+): InvoiceLine[] {
+    function computeTax(taxable: number, gstRate: number) {
+        if (!isGst || gstRate === 0) return { cgst: 0, sgst: 0, igst: 0 };
+        if (forceIgst) return { cgst: 0, sgst: 0, igst: Math.round(taxable * gstRate) / 100 };
+        const half = Math.round(taxable * gstRate / 2) / 100;
+        return { cgst: half, sgst: half, igst: 0 };
+    }
+    const parts: InvoiceLine[] = partLines
+        .filter(l => l.part_id !== null)
+        .map(l => {
+            const sp      = parseFloat(l.selling_price) || 0;
+            const qty     = l.qty;
+            const rate    = isGst ? (parseFloat(l.gst_rate) || 0) : 0;
+            const taxable = Math.round(sp * qty * 100) / 100;
+            const { cgst, sgst, igst } = computeTax(taxable, rate);
+            return {
+                description: l.part_name,
+                part_code:   l.part_code || null,
+                hsn_code:    isGst ? (l.hsn_code.trim() || null) : null,
+                qty,
+                price:       sp,
+                aggregate:   taxable,
+                gst_rate:    rate,
+                cgst_amount: cgst,
+                sgst_amount: sgst,
+                igst_amount: igst,
+                amount:      Math.round((taxable + cgst + sgst + igst) * 100) / 100,
+            };
+        });
+    const charges: InvoiceLine[] = chargeLines
+        .filter(c => c.charge_name.trim())
+        .map(c => {
+            const sp      = parseFloat(c.selling_price) || 0;
+            const qty     = parseFloat(c.qty) || 1;
+            const rate    = isGst ? (parseFloat(c.gst_rate) || 0) : 0;
+            const taxable = Math.round(sp * qty * 100) / 100;
+            const { cgst, sgst, igst } = computeTax(taxable, rate);
+            return {
+                description: c.charge_name.trim(),
+                part_code:   null,
+                hsn_code:    isGst ? (c.hsn_code.trim() || null) : null,
+                qty,
+                price:       sp,
+                aggregate:   taxable,
+                gst_rate:    rate,
+                cgst_amount: cgst,
+                sgst_amount: sgst,
+                igst_amount: igst,
+                amount:      Math.round((taxable + cgst + sgst + igst) * 100) / 100,
+            };
+        });
+    return [...parts, ...charges];
+}
+
 function emptyPartLine(gstRate = 0, hsn = ""): EditablePartLine {
     return { _key: crypto.randomUUID(), brand_id: null, part_id: null, part_code: "", part_name: "", cost_price: "0", selling_price: "0", sale_pr_gst: "0", gst_rate: String(gstRate), qty: 1, remarks: "", hsn_code: hsn };
 }
@@ -375,6 +448,16 @@ export const FinalAJobSection = () => {
     }
 
     async function handleOpenFinalForEdit(row: FinalizedJobRow) {
+        const editable = !row.is_posted && (!row.invoice_id || !row.invoice_is_posted);
+        if (!editable) {
+            const reason = row.is_posted
+                ? MESSAGES.INFO_FINALIZED_JOB_NOT_EDITABLE_POSTED
+                : MESSAGES.INFO_FINALIZED_JOB_NOT_EDITABLE_INVOICE_POSTED;
+            toast.info(reason);
+            setIsEditMode(false);
+            await handleOpenFinal(row as unknown as FinalJobRow);
+            return;
+        }
         setIsEditMode(true);
         await handleOpenFinal(row as unknown as FinalJobRow);
     }
@@ -506,6 +589,37 @@ export const FinalAJobSection = () => {
                 },
             });
 
+            // Regenerate invoice if one exists and job was in edit mode
+            if (selectedRow && (selectedRow as unknown as FinalizedJobRow).invoice_id) {
+                const invoiceId = (selectedRow as unknown as FinalizedJobRow).invoice_id!;
+                try {
+                    const lines = buildInvoiceLinesFromEditable(partLines, chargeLines, isGst, forceIgst);
+                    const inv_aggregate   = Math.round(lines.reduce((s, l) => s + l.aggregate, 0) * 100) / 100;
+                    const inv_cgst_amount = Math.round(lines.reduce((s, l) => s + l.cgst_amount, 0) * 100) / 100;
+                    const inv_sgst_amount = Math.round(lines.reduce((s, l) => s + l.sgst_amount, 0) * 100) / 100;
+                    const inv_igst_amount = Math.round(lines.reduce((s, l) => s + l.igst_amount, 0) * 100) / 100;
+                    await apolloClient.mutate({
+                        mutation: GRAPHQL_MAP.regenerateJobInvoice,
+                        variables: {
+                            db_name: dbName,
+                            schema,
+                            value: encodeObj({
+                                xData: {
+                                    invoice_id:   invoiceId,
+                                    aggregate:    inv_aggregate,
+                                    cgst_amount:  inv_cgst_amount,
+                                    sgst_amount:  inv_sgst_amount,
+                                    igst_amount:  inv_igst_amount,
+                                    amount,
+                                    lines,
+                                },
+                            }),
+                        },
+                    });
+                } catch {
+                    toast.error(MESSAGES.ERROR_FINALIZED_JOB_REGEN_INVOICE_FAILED);
+                }
+            }
             toast.success("Finalized job updated.");
             setIsEditMode(false);
             setSubView("list");

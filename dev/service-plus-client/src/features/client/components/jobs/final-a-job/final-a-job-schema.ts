@@ -1,22 +1,25 @@
 export type FinalizedJobRow = {
-    id:               number;
-    job_no:           string;
-    alternate_job_no: string | null;
-    job_date:         string;
-    customer_name:    string;
-    mobile:           string;
-    job_status_name:  string;
-    technician_name:  string | null;
-    invoice_no:       string | null;
-    invoice_total:    number | null;
+    id:                  number;
+    job_no:              string;
+    alternate_job_no:    string | null;
+    job_date:            string;
+    customer_name:       string;
+    mobile:              string;
+    job_status_name:     string;
+    technician_name:     string | null;
+    invoice_id:          number | null;
+    invoice_no:          string | null;
+    invoice_total:       number | null;
+    invoice_is_posted:   boolean | null;
     last_transaction_id: number | null;
-    amount:           number | null;
-    division_id:      number | null;
-    file_count:       number;
-    batch_no:         number | null;
-    device_details:   string | null;
-    serial_no:        string | null;
-    is_posted:        boolean;
+    amount:              number | null;
+    division_id:         number | null;
+    file_count:          number;
+    batch_no:            number | null;
+    device_details:      string | null;
+    serial_no:           string | null;
+    is_posted:           boolean;
+    job_type_code:       string;
 };
 
 export type FinalJobRow = {

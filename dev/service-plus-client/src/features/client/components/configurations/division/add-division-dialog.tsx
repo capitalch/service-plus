@@ -93,6 +93,7 @@ export const AddDivisionDialog = ({
             phone:         "",
             pincode:       "",
             state_id:      0,
+            web_site:      "",
         },
         mode:     "onChange",
         resolver: zodResolver(addDivisionSchema) as any,
@@ -228,6 +229,7 @@ export const AddDivisionDialog = ({
                             phone:         data.phone || null,
                             pincode:       data.pincode || null,
                             state_id:      data.state_id,
+                            web_site:      data.web_site || null,
                         },
                     }),
                 },
@@ -250,64 +252,64 @@ export const AddDivisionDialog = ({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent aria-describedby={undefined} className="sm:max-w-lg">
-                <DialogHeader>
+            <DialogContent aria-describedby={undefined} className="sm:max-w-lg flex flex-col max-h-[90vh]">
+                <DialogHeader className="shrink-0">
                     <DialogTitle className="text-base font-semibold text-foreground">
                         Add Division
                     </DialogTitle>
                 </DialogHeader>
 
-                <form className="flex flex-col gap-4 pt-1" onSubmit={form.handleSubmit(onSubmit)}>
-                    {/* ID */}
-                    <div className="flex flex-col gap-1.5">
-                        <div className="flex items-baseline justify-between">
-                            <Label htmlFor="dv_id">
-                                ID <span className="text-red-500">*</span>
-                            </Label>
-                            {suggestedId !== null && (
-                                <button
-                                    className="text-xs text-sky-600 hover:underline focus:outline-none cursor-pointer"
-                                    type="button"
-                                    onClick={() => form.setValue("id", suggestedId, { shouldValidate: true })}
-                                >
-                                    Use suggested: {suggestedId}
-                                </button>
-                            )}
-                        </div>
-                        <Input
-                            autoComplete="off"
-                            id="dv_id"
-                            placeholder="Enter a unique integer ID"
-                            type="number"
-                            {...form.register("id")}
-                        />
-                        <p className="text-xs text-(--cl-text-muted)">
-                            Permanent numeric identifier for this division. Used in document numbering and cannot be changed later.
-                        </p>
-                        <FieldError message={errors.id?.message} />
-                    </div>
-
-                    {/* Code */}
-                    <div className="flex flex-col gap-1.5">
-                        <Label htmlFor="dv_code">
-                            Code <span className="text-red-500">*</span>
-                        </Label>
-                        <div className="relative">
+                <form className="flex flex-col min-h-0 flex-1" onSubmit={form.handleSubmit(onSubmit)}>
+                <div className="flex flex-col gap-4 pt-1 overflow-y-auto min-h-0 flex-1 pr-1">
+                    <div className="grid grid-cols-2 gap-4">
+                        {/* ID */}
+                        <div className="flex flex-col gap-1.5">
+                            <div className="flex items-baseline justify-between">
+                                <Label htmlFor="dv_id">
+                                    ID <span className="text-red-500">*</span>
+                                </Label>
+                                {suggestedId !== null && (
+                                    <button
+                                        className="text-xs text-sky-600 hover:underline focus:outline-none cursor-pointer"
+                                        type="button"
+                                        onClick={() => form.setValue("id", suggestedId, { shouldValidate: true })}
+                                    >
+                                        Use {suggestedId}
+                                    </button>
+                                )}
+                            </div>
                             <Input
                                 autoComplete="off"
-                                className="pr-8 font-mono uppercase"
-                                id="dv_code"
-                                placeholder="e.g. MAIN (2–10 uppercase letters/digits/underscores)"
-                                {...form.register("code", { setValueAs: (v: string) => v.toUpperCase() })}
+                                id="dv_id"
+                                placeholder="Unique integer ID"
+                                type="number"
+                                {...form.register("id")}
                             />
-                            {checkingCode && (
-                                <Loader2 className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-slate-400" />
-                            )}
-                            {!checkingCode && codeTaken === false && !errors.code && (
-                                <Check className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-500" />
-                            )}
+                            <FieldError message={errors.id?.message} />
                         </div>
-                        <FieldError message={errors.code?.message} />
+
+                        {/* Code */}
+                        <div className="flex flex-col gap-1.5">
+                            <Label htmlFor="dv_code">
+                                Code <span className="text-red-500">*</span>
+                            </Label>
+                            <div className="relative">
+                                <Input
+                                    autoComplete="off"
+                                    className="pr-8 font-mono uppercase"
+                                    id="dv_code"
+                                    placeholder="e.g. MAIN"
+                                    {...form.register("code", { setValueAs: (v: string) => v.toUpperCase() })}
+                                />
+                                {checkingCode && (
+                                    <Loader2 className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-slate-400" />
+                                )}
+                                {!checkingCode && codeTaken === false && !errors.code && (
+                                    <Check className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-500" />
+                                )}
+                            </div>
+                            <FieldError message={errors.code?.message} />
+                        </div>
                     </div>
 
                     {/* Name */}
@@ -443,20 +445,36 @@ export const AddDivisionDialog = ({
                         </div>
                     </div>
 
-                    {/* GSTIN */}
-                    <div className="flex flex-col gap-1.5">
-                        <Label htmlFor="dv_gstin">GSTIN</Label>
-                        <Input
-                            autoComplete="off"
-                            className="font-mono uppercase"
-                            id="dv_gstin"
-                            placeholder="15-character GSTIN (leave blank for non-GST)"
-                            {...form.register("gstin")}
-                        />
-                        <FieldError message={errors.gstin?.message} />
+                    <div className="grid grid-cols-2 gap-4">
+                        {/* GSTIN */}
+                        <div className="flex flex-col gap-1.5">
+                            <Label htmlFor="dv_gstin">GSTIN</Label>
+                            <Input
+                                autoComplete="off"
+                                className="font-mono uppercase"
+                                id="dv_gstin"
+                                placeholder="15-char GSTIN"
+                                {...form.register("gstin")}
+                            />
+                            <FieldError message={errors.gstin?.message} />
+                        </div>
+
+                        {/* Web Site */}
+                        <div className="flex flex-col gap-1.5">
+                            <Label htmlFor="dv_website">Web Site</Label>
+                            <Input
+                                autoComplete="off"
+                                id="dv_website"
+                                placeholder="https://example.com"
+                                type="url"
+                                {...form.register("web_site")}
+                            />
+                        </div>
                     </div>
 
-                    <DialogFooter className="pt-2">
+                </div>
+
+                    <DialogFooter className="pt-2 shrink-0">
                         <Button
                             disabled={form.formState.isSubmitting}
                             type="button"

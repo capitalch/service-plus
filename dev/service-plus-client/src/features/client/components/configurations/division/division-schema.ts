@@ -22,6 +22,7 @@ export const divisionSchema = z.object({
     phone:         z.string().optional(),
     pincode:       z.string().optional(),
     state_id:      z.coerce.number().positive("State is required"),
+    web_site:      z.string().optional(),
 });
 
 export const addDivisionSchema = divisionSchema.extend({

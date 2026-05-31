@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict 9C1E4eOpQE804y7m9OkYQvdhQfKEuOBNk04VdRgNEJabN6XJNDboUddC6NQ6MOU
+\restrict Xs1OpzNLh4RELSgi6cnCvgHFU1MVgg5wJt7OrlGvtDzUHpiiCMXe7AQ7Ta7U4da
 
 -- Dumped from database version 14.6
 -- Dumped by pg_dump version 18.4 (Ubuntu 18.4-0ubuntu0.26.04.1)
@@ -286,7 +286,8 @@ CREATE TABLE demo1.division (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     branch_id bigint NOT NULL,
-    code text NOT NULL
+    code text NOT NULL,
+    web_site text
 );
 
 
@@ -395,6 +396,7 @@ CREATE TABLE demo1.job (
     division_id bigint NOT NULL,
     is_posted boolean DEFAULT false NOT NULL,
     is_igst boolean DEFAULT false NOT NULL,
+    to_show_parts_in_job_invoice boolean DEFAULT true NOT NULL,
     CONSTRAINT job_qty_check CHECK ((qty <> 0))
 );
 
@@ -536,7 +538,8 @@ CREATE TABLE demo1.job_invoice (
     igst_amount numeric(14,2) DEFAULT 0 NOT NULL,
     amount numeric(14,2) NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    is_posted boolean DEFAULT false NOT NULL
 );
 
 
@@ -647,6 +650,7 @@ CREATE TABLE demo1.job_payment (
     remarks text,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    is_posted boolean DEFAULT false NOT NULL,
     CONSTRAINT job_payment_amount_check CHECK ((amount > (0)::numeric))
 );
 
@@ -2621,6 +2625,13 @@ CREATE INDEX job_customer_idx ON demo1.job USING btree (customer_contact_id);
 
 
 --
+-- Name: job_invoice_is_posted_idx; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX job_invoice_is_posted_idx ON demo1.job_invoice USING btree (is_posted) WITH (deduplicate_items='true');
+
+
+--
 -- Name: job_is_igst_idx; Type: INDEX; Schema: demo1; Owner: webadmin
 --
 
@@ -2639,6 +2650,13 @@ CREATE INDEX job_is_posted_idx ON demo1.job USING btree (is_posted) WITH (dedupl
 --
 
 CREATE INDEX job_job_date_idx ON demo1.job USING btree (job_date);
+
+
+--
+-- Name: job_payment_is_posted_idx; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX job_payment_is_posted_idx ON demo1.job_payment USING btree (is_posted) WITH (deduplicate_items='true');
 
 
 --
@@ -3534,5 +3552,5 @@ ALTER TABLE ONLY security.user_bu_role
 -- PostgreSQL database dump complete
 --
 
-\unrestrict 9C1E4eOpQE804y7m9OkYQvdhQfKEuOBNk04VdRgNEJabN6XJNDboUddC6NQ6MOU
+\unrestrict Xs1OpzNLh4RELSgi6cnCvgHFU1MVgg5wJt7OrlGvtDzUHpiiCMXe7AQ7Ta7U4da
 

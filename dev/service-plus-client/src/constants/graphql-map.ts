@@ -124,6 +124,21 @@ export const GRAPHQL_MAP = {
             createSalesInvoice(db_name: $db_name, schema: $schema, value: $value)
         }
     `,
+    createJobInvoice: gql`
+        mutation CreateJobInvoice($db_name: String!, $schema: String, $value: String!) {
+            createJobInvoice(db_name: $db_name, schema: $schema, value: $value)
+        }
+    `,
+    regenerateJobInvoice: gql`
+        mutation RegenerateJobInvoice($db_name: String!, $schema: String, $value: String!) {
+            regenerateJobInvoice(db_name: $db_name, schema: $schema, value: $value)
+        }
+    `,
+    createJobPayment: gql`
+        mutation CreateJobPayment($db_name: String!, $schema: String, $value: String!) {
+            createJobPayment(db_name: $db_name, schema: $schema, value: $value)
+        }
+    `,
     createSingleJob: gql`
         mutation CreateSingleJob($db_name: String!, $schema: String, $value: String!) {
             createSingleJob(db_name: $db_name, schema: $schema, value: $value)

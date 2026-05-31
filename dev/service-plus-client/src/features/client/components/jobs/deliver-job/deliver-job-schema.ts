@@ -109,6 +109,7 @@ export type JobChargeLine = {
 
 export type JobPayment = {
     id:           number;
+    receipt_no:   string | null;
     payment_date: string;
     payment_mode: string;
     amount:       number;
@@ -133,6 +134,7 @@ export type JobDeliveryFullDetail = {
     customer_email:         string | null;
     customer_address_line1: string | null;
     customer_address_line2: string | null;
+    customer_landmark:      string | null;
     customer_city:          string | null;
     customer_postal_code:   string | null;
     customer_state:         string | null;
@@ -148,6 +150,7 @@ export type JobDeliveryFullDetail = {
     invoice_no:             string | null;
     invoice_date:           string | null;
     invoice_total:          number | null;
+    invoice_is_posted:      boolean | null;
     payments:               JobPayment[];
     parts:                  JobPartLine[];
     charges:                JobChargeLine[];
