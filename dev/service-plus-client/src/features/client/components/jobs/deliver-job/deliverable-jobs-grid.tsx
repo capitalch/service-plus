@@ -10,6 +10,21 @@ import { Input }  from "@/components/ui/input";
 import { type DivisionContextType, isGstDivision } from "@/features/client/types/division";
 import { PAGE_SIZE, DEBOUNCE_MS, thClass, tdClass, fmtCurrency } from "./deliver-job-helpers";
 
+// ── Constants ─────────────────────────────────────────────────────────────────
+
+const JOB_TYPE_COLORS: Record<string, string> = {
+    MAKE_READY:     "text-lime-700   dark:text-lime-400",
+    ESTIMATE:       "text-blue-700   dark:text-blue-400",
+    UNDER_WARRANTY: "text-red-700    dark:text-red-400",
+    INSTALLATION:   "text-yellow-700 dark:text-yellow-400",
+    DEMO:           "text-yellow-700 dark:text-yellow-400",
+    MAINTENANCE:    "text-slate-600  dark:text-slate-400",
+    INSPECTION:     "text-slate-600  dark:text-slate-400",
+    AMC_SERVICE:    "text-slate-600  dark:text-slate-400",
+    UPGRADE:        "text-slate-600  dark:text-slate-400",
+    REFURBISH:      "text-slate-600  dark:text-slate-400",
+};
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export type DeliverableJobRow = {
@@ -279,9 +294,21 @@ export function DeliverableJobsGrid({
                                         </td>
 
                                         <td className={tdClass}>
-                                            <span className="rounded-full px-2 py-0.5 text-xs font-medium bg-(--cl-accent)/10 text-(--cl-accent)">
-                                                {row.job_status_name}
-                                            </span>
+                                            <div className="flex flex-col gap-0.5">
+                                                <span className="rounded-full px-2 py-0.5 text-xs font-medium bg-(--cl-accent)/10 text-(--cl-accent)">
+                                                    {row.job_status_name}
+                                                </span>
+                                                {row.receive_manner_name && (
+                                                    <span className="text-[10px] text-(--cl-text-muted) px-2">
+                                                        {row.receive_manner_name}
+                                                    </span>
+                                                )}
+                                                {row.job_type_name && (
+                                                    <span className={`text-[10px] font-medium px-2 ${JOB_TYPE_COLORS[row.job_type_code] ?? "text-(--cl-text-muted)"}`}>
+                                                        {row.job_type_name}
+                                                    </span>
+                                                )}
+                                            </div>
                                         </td>
                                         <td className={tdClass}>{row.technician_name ?? "—"}</td>
                                         <td className={`${tdClass} text-right tabular-nums`}>{fmtCurrency(row.amount)}</td>

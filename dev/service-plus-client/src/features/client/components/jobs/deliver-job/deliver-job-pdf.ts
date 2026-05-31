@@ -23,6 +23,7 @@ type JobBasicInfo = {
     mobile: string;
     customer_gstin?: string | null;
     customer_email?: string | null;
+    address_snapshot?: string | null;
     customer_address_line1?: string | null;
     customer_address_line2?: string | null;
     customer_landmark?: string | null;
@@ -739,13 +740,16 @@ export function buildReceiptPdf(
     doc.setFontSize(12);
     doc.text("PAYMENT RECEIPT", midX, y, { align: "center" });
     y += 5;
-    doc.setDrawColor(180, 180, 180);
-    doc.setLineWidth(0.4);
+    doc.setDrawColor(60, 60, 60);
+    doc.setLineWidth(0.6);
     doc.line(margin, y, pageWidth - margin, y);
     y += 6;
 
     const payments = job.payments ?? [];
     const firstReceiptNo = payments.length > 0 ? (payments[0].receipt_no ?? String(payments[0].id)) : null;
+
+    // const totalPaid = payments.reduce((s, p) => s + Number(p.amount), 0);
+    // const balance = Math.max(0, Number(job.amount ?? 0) - totalPaid);
 
     const addrParts = buildAddrLines([
         job.customer_address_line1 ?? null,
@@ -755,14 +759,15 @@ export function buildReceiptPdf(
         job.customer_state ?? null,
         job.customer_postal_code ? `Pin: ${job.customer_postal_code}` : null,
     ]);
-    const customerAddr = addrParts.length > 0 ? addrParts.join(", ") : null;
+    const customerAddr = addrParts.length > 0
+        ? addrParts.join(", ")
+        : (job.address_snapshot ?? null);
 
     // Left column: job info; right column: customer details
     const leftRows: [string, string][] = [
         ["Job No",   job.job_no + (job.alternate_job_no ? ` / ${job.alternate_job_no}` : "")],
         ["Rcpt No",  firstReceiptNo ?? "—"],
-        ["Date",     job.job_date],
-        ["Amount",   `₹${fmt(job.amount)}`],
+        ["Job Date", job.job_date],
     ];
     doc.setFontSize(9);
     leftRows.forEach(([label, value], i) => {
@@ -793,10 +798,7 @@ export function buildReceiptPdf(
         ry += 4;
     }
 
-    y = Math.max(y + leftRows.length * 6.5, ry) + 4;
-
-    const totalPaid = payments.reduce((s, p) => s + Number(p.amount), 0);
-    const balance = Math.max(0, Number(job.amount ?? 0) - totalPaid);
+    y = Math.max(y + leftRows.length * 6.5, ry);
 
     if (payments.length === 0) {
         doc.setFont("helvetica", "italic");
@@ -806,7 +808,7 @@ export function buildReceiptPdf(
         autoTable(doc, {
             startY: y,
             margin: { left: margin, right: margin },
-            head: [["Rcpt No", "Date", "Mode", "Amount", "Ref No", "Remarks"]],
+            head: [["Rcpt No", "Date", "Mode", { content: "Amount", styles: { halign: "right" } }, "Ref No", "Remarks"]],
             body: payments.map(p => [
                 p.receipt_no ?? String(p.id),
                 p.payment_date.slice(0, 10),
@@ -815,31 +817,30 @@ export function buildReceiptPdf(
                 p.reference_no ?? "—",
                 p.remarks ?? "—",
             ]),
-            foot: [[
-                { content: "TOTAL RECEIVED", colSpan: 3, styles: { fontStyle: "bold", halign: "right", textColor: [0, 0, 0] } },
-                { content: fmt(totalPaid), styles: { fontStyle: "bold", textColor: [0, 0, 0] } }, "", "",
-            ]],
-            styles: { fontSize: 8, cellPadding: 1.8, textColor: [0, 0, 0] },
-            headStyles: { fillColor: [0, 0, 0], textColor: [255, 255, 255], fontStyle: "bold" },
-            footStyles: { fillColor: [255, 255, 255], fontStyle: "bold", lineWidth: 0.3, lineColor: [0, 0, 0] },
+            styles: { fontSize: 8, cellPadding: 1.8, textColor: [0, 0, 0], fillColor: [255, 255, 255], lineWidth: 0.3, lineColor: [0, 0, 0] },
+            headStyles: { fillColor: [255, 255, 255], textColor: [0, 0, 0], fontStyle: "bold", lineWidth: 0.3, lineColor: [0, 0, 0] },
+            alternateRowStyles: { fillColor: [255, 255, 255] },
             columnStyles: { 3: { halign: "right" } },
         });
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        y = (doc as any).lastAutoTable.finalY + 4;
+        y = (doc as any).lastAutoTable.finalY + 6;
+
+        // if (balance > 0) {
+        //     doc.setFont("helvetica", "bold");
+        //     doc.setFontSize(10);
+        //     doc.text(`Balance Due: ₹${balance.toFixed(2)}`, pageWidth - margin, y, { align: "right" });
+        //     y += 6;
+        // }
+
+        doc.setFont("helvetica", "italic");
+        doc.setFontSize(8.5);
+        const disclaimerLines = doc.splitTextToSize(MESSAGES.PDF_RECEIPT_DISCLAIMER, pageWidth - margin * 2) as string[];
+        doc.text(disclaimerLines, margin, y);
+        y += disclaimerLines.length * 4 + 6;
 
         doc.setFont("helvetica", "bold");
-        doc.setFontSize(10);
-        if (balance > 0) {
-            doc.text(`Balance Due: ₹${balance.toFixed(2)}`, pageWidth - margin, y, { align: "right" });
-        } else {
-            doc.text("Fully Paid", pageWidth - margin, y, { align: "right" });
-        }
-        y += 8;
-
-        // Received with thanks
-        doc.setFont("helvetica", "italic");
         doc.setFontSize(9);
-        doc.text("Received with Thanks", midX, y, { align: "center" });
+        doc.text("Authorised Signatory", pageWidth - margin, y, { align: "right" });
     }
 
     return doc;

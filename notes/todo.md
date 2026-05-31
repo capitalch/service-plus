@@ -3,7 +3,8 @@
 	- Repeat repairs
 	- Inputting parts and charges at any step with similar to final a job screen
 	- Deliver job
-		- Modify receipt
+		- Job 00007, no invoice line but amount 1000. Should not be allowed
+								- Modify receipt
 								- Invoice numbering at server side
 		- Show part details in invoice toggle
 								- Re generate invoice
