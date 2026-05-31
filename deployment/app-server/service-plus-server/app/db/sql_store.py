@@ -838,6 +838,15 @@ class SqlStore:
         RETURNING prefix, (next_number - 1) AS assigned_number, padding, separator;
     """
 
+    CLAIM_NEXT_RECEIPT_NUMBER = """
+        UPDATE document_sequence
+        SET next_number = next_number + 1
+        WHERE document_type_id = (SELECT id FROM document_type WHERE code = 'MONEY_RECEIPT')
+          AND branch_id = %(branch_id)s
+          AND division_id = (SELECT division_id FROM job WHERE id = %(job_id)s)
+        RETURNING prefix, (next_number - 1) AS assigned_number, padding, separator;
+    """
+
     DELETE_JOB_INVOICE_LINES_BY_INVOICE = """
         DELETE FROM job_invoice_line WHERE job_invoice_id = %(invoice_id)s
     """
@@ -3469,8 +3478,14 @@ class SqlStore:
         with "p_id" as (values(%(id)s::bigint))
         SELECT
             j.*,
-            cc.full_name  AS customer_name,
+            cc.full_name     AS customer_name,
             cc.mobile,
+            cc.address_line1 AS customer_address_line1,
+            cc.address_line2 AS customer_address_line2,
+            cc.landmark      AS customer_landmark,
+            cc.city          AS customer_city,
+            cc.postal_code   AS customer_postal_code,
+            s.name           AS customer_state,
             CONCAT_WS(', ', NULLIF(cc.address_line1, ''), NULLIF(cc.address_line2, ''), NULLIF(cc.city, ''), NULLIF(cc.postal_code, '')) AS address_snapshot,
             jt.name       AS job_type_name,
             js.name       AS job_status_name,
@@ -3483,6 +3498,7 @@ class SqlStore:
             (SELECT COUNT(*) FROM job_image_doc jid WHERE jid.job_id = j.id) AS file_count
         FROM job j
         JOIN customer_contact      cc  ON cc.id  = j.customer_contact_id
+        LEFT JOIN state            s   ON s.id   = cc.state_id
         JOIN job_type              jt  ON jt.id  = j.job_type_id
         JOIN job_status            js  ON js.id  = j.job_status_id
         JOIN job_receive_manner    jrm ON jrm.id = j.job_receive_manner_id
@@ -3796,7 +3812,7 @@ class SqlStore:
 
     GET_JOB_PAYMENTS_BY_JOB = """
         with "p_job_id" as (values(%(job_id)s::bigint))
-        SELECT jp.id, jp.job_id, jp.payment_date, jp.payment_mode, jp.amount,
+        SELECT jp.id, jp.job_id, jp.receipt_no, jp.payment_date, jp.payment_mode, jp.amount,
                jp.reference_no, jp.remarks, jp.created_at, jp.updated_at
         FROM job_payment jp
         WHERE jp.job_id = (table "p_job_id")
@@ -4236,7 +4252,8 @@ class SqlStore:
             ji.is_posted  AS invoice_is_posted,
             COALESCE((
                 SELECT json_agg(json_build_object(
-                    'id', jp.id, 'payment_date', jp.payment_date,
+                    'id', jp.id, 'receipt_no', jp.receipt_no,
+                    'payment_date', jp.payment_date,
                     'payment_mode', jp.payment_mode, 'amount', jp.amount,
                     'reference_no', jp.reference_no, 'remarks', jp.remarks
                 ) ORDER BY jp.created_at)

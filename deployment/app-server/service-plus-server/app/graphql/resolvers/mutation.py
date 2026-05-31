@@ -15,6 +15,7 @@ from app.graphql.resolvers.mutation_helper import (
     resolve_create_sales_invoice_helper,
     resolve_create_job_invoice_helper,
     resolve_regenerate_job_invoice_helper,
+    resolve_create_job_payment_helper,
     resolve_update_job_helper,
     resolve_create_service_db_helper,
     resolve_delete_bu_schema_helper,
@@ -375,6 +376,19 @@ async def resolve_regenerate_job_invoice(_, info, db_name: str = "", schema: str
         raise
     except Exception as e:
         logger.error("Error regenerating job invoice: %s", e, exc_info=True)
+        raise GraphQLException(
+            message=AppMessages.OPERATION_FAILED, extensions={"details": str(e)}
+        )
+
+
+@mutation.field("createJobPayment")
+async def resolve_create_job_payment(_, info, db_name: str = "", schema: str = "public", value: str = "") -> Any:
+    try:
+        return await resolve_create_job_payment_helper(db_name, schema, value)
+    except ValidationException:
+        raise
+    except Exception as e:
+        logger.error("Error creating job payment: %s", e, exc_info=True)
         raise GraphQLException(
             message=AppMessages.OPERATION_FAILED, extensions={"details": str(e)}
         )

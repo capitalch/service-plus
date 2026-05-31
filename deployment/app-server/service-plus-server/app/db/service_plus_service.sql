@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict Xs1OpzNLh4RELSgi6cnCvgHFU1MVgg5wJt7OrlGvtDzUHpiiCMXe7AQ7Ta7U4da
+\restrict LAdfRKdHh9oUiFZFY3keGuCPbm5464KURPFpqBHn7AgCexRjg6g8NVx3kDEUV0C
 
 -- Dumped from database version 14.6
 -- Dumped by pg_dump version 18.4 (Ubuntu 18.4-0ubuntu0.26.04.1)
@@ -651,6 +651,7 @@ CREATE TABLE demo1.job_payment (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     is_posted boolean DEFAULT false NOT NULL,
+    receipt_no text NOT NULL,
     CONSTRAINT job_payment_amount_check CHECK ((amount > (0)::numeric))
 );
 
@@ -2660,6 +2661,13 @@ CREATE INDEX job_payment_is_posted_idx ON demo1.job_payment USING btree (is_post
 
 
 --
+-- Name: job_payment_receipt_no_idx; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX job_payment_receipt_no_idx ON demo1.job_payment USING btree (receipt_no) WITH (deduplicate_items='true');
+
+
+--
 -- Name: job_product_brand_model_id_idx; Type: INDEX; Schema: demo1; Owner: webadmin
 --
 
@@ -3552,5 +3560,5 @@ ALTER TABLE ONLY security.user_bu_role
 -- PostgreSQL database dump complete
 --
 
-\unrestrict Xs1OpzNLh4RELSgi6cnCvgHFU1MVgg5wJt7OrlGvtDzUHpiiCMXe7AQ7Ta7U4da
+\unrestrict LAdfRKdHh9oUiFZFY3keGuCPbm5464KURPFpqBHn7AgCexRjg6g8NVx3kDEUV0C
 

@@ -246,7 +246,7 @@ export const ReceiptsSection = () => {
                         value: graphQlUtils.buildGenericUpdateValue({
                             tableName: "job_payment",
                             xData: {
-                                id:           selectedReceipt!.id,
+                                id:           selectedReceipt!.id ?? undefined,
                                 amount:       Number(values.amount),
                                 job_id:       values.job_id,
                                 payment_date: values.payment_date,

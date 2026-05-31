@@ -949,6 +949,50 @@ async def resolve_create_job_invoice_helper(
     return invoice_id
 
 
+async def resolve_create_job_payment_helper(
+    db_name: str, schema: str = "public", value: str = ""
+) -> Any:
+    payload = _decode_value(value, "createJobPayment")
+    x_data = payload.get("xData", {})
+    branch_id = x_data.pop("branch_id", None)
+    job_id = x_data.get("job_id")
+
+    if not branch_id or not job_id:
+        raise ValidationException(
+            message=AppMessages.REQUIRED_FIELD_MISSING,
+            extensions={"field": "branch_id/job_id"},
+        )
+
+    db_name_arg = db_name if db_name else None
+    schema_name = schema or "public"
+
+    async with get_service_db_connection(db_name_arg) as conn:
+        async with conn.cursor(row_factory=dict_row) as cur:
+            await cur.execute(
+                pgsql.SQL("SET search_path TO {}").format(pgsql.Identifier(schema_name))
+            )
+            await cur.execute(
+                SqlStore.CLAIM_NEXT_RECEIPT_NUMBER,
+                {"branch_id": branch_id, "job_id": job_id},
+            )
+            seq = await cur.fetchone()
+            if not seq:
+                raise ValidationException(
+                    message=AppMessages.RESOURCE_NOT_FOUND,
+                    extensions={"detail": "MONEY_RECEIPT sequence not configured for this division"},
+                )
+            receipt_no = (
+                f"{seq['prefix'] or ''}"
+                f"{seq['separator'] or ''}"
+                f"{str(seq['assigned_number']).zfill(seq['padding'] or 0)}"
+            )
+            x_data["receipt_no"] = receipt_no
+            payment_id = await process_data(x_data, cur, "job_payment", None, None)
+            logger.info("Job payment created id=%s receipt_no=%s", payment_id, receipt_no)
+
+    return payment_id
+
+
 async def resolve_regenerate_job_invoice_helper(
     db_name: str, schema: str = "public", value: str = ""
 ) -> Any:
