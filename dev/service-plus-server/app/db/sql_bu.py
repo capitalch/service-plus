@@ -860,7 +860,8 @@ class SqlBu:
             (14,'Miscellaneous','998726'),
             (15,'Diagnosis Charge','998726'),
             (16,'Spare Parts','998726'),
-            (17,'Transportation Charge','998726');
+            (17,'Transportation Charge','998726'),
+            (18,'Repairing Cost','998726');
 
         INSERT INTO job_receive_condition (id, code, name, description, is_system, display_order) VALUES
             (1,  'DEAD',           'Dead',                        'Item is completely dead',                                           true, 1),
@@ -1022,6 +1023,10 @@ class SqlBu:
             (2, 'to_show_parts_in_job_invoice',              'true',  'Show parts line items in job invoice',                                                           true),
             (3, 'markup_percent_over_cost',                  '20',    'Default markup percent over cost price to get selling price',                                    true),
             (4, 'default_division_id',                       '1',     'Default division selected when creating a new job',                                              true),
-            (5, 'force_gst_on_parts_for_non_gst_invoices',  'false', 'For non-GST invoices, apply 18% GST implicitly on part cost price; service/labor tax = 0',      true)
+            (5, 'force_gst_on_parts_for_non_gst_invoices',  'false',     'For non-GST invoices, apply 18% GST implicitly on part cost price; service/labor tax = 0',      true),
+            (6, 'default_hsn_for_spare_part',               '92099400',  'Default HSN code for Spare Part',                                                                true),
+            (7, 'default_hsn_for_service_charge',           '998726',    'Default HSN code for labour charges, service charges etc.',                                      true),
+            (8, 'no_of_job_sheets_per_print',               '2',         'The no of job sheets to be printed when print pdf',                                        true),
+            (9, 'no_of_job_invoices_per_print',               '2',         'The no of job invoices to be printed when print pdf',                                          true)
         ON CONFLICT (id) DO NOTHING;
     """

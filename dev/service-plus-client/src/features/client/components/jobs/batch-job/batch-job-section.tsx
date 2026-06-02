@@ -20,7 +20,7 @@ import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName, selectCurrentUser } from "@/features/auth/store/auth-slice";
-import { selectAvailableDivisions, selectCurrentBranch, selectCurrentDivision, selectDefaultDivisionId, selectSchema } from "@/store/context-slice";
+import { selectAvailableDivisions, selectCurrentBranch, selectCurrentDivision, selectDefaultDivisionId, selectNoOfJobSheetsPerPrint, selectSchema } from "@/store/context-slice";
 import type { JobBatchDetailRow, JobDetailType, JobInBatchRow, JobLookupRow, ModelRow } from "@/features/client/types/job";
 import type { CustomerTypeOption, StateOption } from "@/features/client/types/customer";
 import type { BrandOption, ProductOption } from "@/features/client/types/model";
@@ -69,7 +69,8 @@ export const BatchJobSection = ({ initialEditBatchNo, onEditBatchNoApplied, onRe
     const currentUser        = useAppSelector(selectCurrentUser);
     const availableDivisions = useAppSelector(selectAvailableDivisions);
     const currentDivision    = useAppSelector(selectCurrentDivision);
-    const defaultDivisionId  = useAppSelector(selectDefaultDivisionId);
+    const defaultDivisionId      = useAppSelector(selectDefaultDivisionId);
+    const noOfJobSheetsPerPrint  = useAppSelector(selectNoOfJobSheetsPerPrint);
     const branchId           = globalBranch?.id ?? null;
 
     const [search,   setSearch]   = useState("");
@@ -455,7 +456,7 @@ export const BatchJobSection = ({ initialEditBatchNo, onEditBatchNoApplied, onRe
             toast.error("Division info not available");
             return;
         }
-        const url = getBatchJobSheetBlobUrl(batchJobs, batchDivision, globalBranch?.code);
+        const url = getBatchJobSheetBlobUrl(batchJobs, batchDivision, globalBranch?.code, noOfJobSheetsPerPrint);
         setPdfPreviewUrl(url);
         setPdfFilename(`Batch-Job-Sheet_${batchJobs[0]?.job_no ?? "batch"}.pdf`);
         setShowPdfModal(true);

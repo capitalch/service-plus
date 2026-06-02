@@ -447,6 +447,9 @@ export const MESSAGES = {
   INFO_FINALIZED_JOB_NOT_EDITABLE_POSTED:         'This job cannot be edited because it is already posted to accounts.',
   INFO_FINALIZED_JOB_NOT_EDITABLE_INVOICE_POSTED: 'This job cannot be edited because its invoice is already posted.',
   ERROR_FINALIZED_JOB_REGEN_INVOICE_FAILED:       'Job saved, but failed to regenerate invoice. Please regenerate manually.',
+  WARN_JOB_INVOICE_NO_LINES:                      'no parts or charges — invoice skipped. Add at least one part or charge before invoicing.',
+  ERROR_JOB_INVOICE_REGEN_NO_LINES:               'Invoice cannot be regenerated: no parts or charges found.',
+  INFO_JOB_INVOICE_REGEN_SKIPPED_NO_LINES:        'Job saved. Invoice not regenerated — no parts or charges found.',
   // Deliver Job
   ERROR_DELIVERABLE_JOBS_LOAD_FAILED:  'Failed to load jobs for delivery. Please try again.',
   ERROR_JOB_DELIVERY_DETAIL_FAILED:    'Failed to load job delivery details. Please try again.',

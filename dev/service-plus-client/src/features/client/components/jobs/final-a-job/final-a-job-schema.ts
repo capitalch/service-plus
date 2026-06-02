@@ -20,6 +20,7 @@ export type FinalizedJobRow = {
     serial_no:           string | null;
     is_posted:           boolean;
     job_type_code:       string;
+    job_type_name:       string;
 };
 
 export type FinalJobRow = {

@@ -223,7 +223,7 @@ export const FinalAJobSection = () => {
     const [selectedJob, setSelectedJob] = useState<JobDetailType | null>(null);
     const [selectedRow, setSelectedRow] = useState<FinalJobRow | null>(null);
     const [selectedDivisionId, setSelectedDivisionId] = useState<number | null>(null);
-    const [loadingDetail, setLoadingDetail] = useState(false);
+    const [loadingDetail, setLoadingDetail] = useState<number | null>(null);
     const [submitting, setSubmitting] = useState(false);
 
     // Unified editable parts
@@ -371,7 +371,7 @@ export const FinalAJobSection = () => {
     // ── Open Final sub-view ─────────────────────────────────────────────────
     async function handleOpenFinal(row: FinalJobRow) {
         if (!dbName || !schema) return;
-        setLoadingDetail(true);
+        setLoadingDetail(row.id);
         try {
             const [jobRes, partsRes, chargesRes] = await Promise.all([
                 apolloClient.query<GenericQueryData<JobDetailType>>({
@@ -443,7 +443,7 @@ export const FinalAJobSection = () => {
         } catch {
             toast.error(MESSAGES.ERROR_JOB_LOAD_FAILED);
         } finally {
-            setLoadingDetail(false);
+            setLoadingDetail(null);
         }
     }
 
@@ -483,6 +483,14 @@ export const FinalAJobSection = () => {
         const newParts = partLines.filter(l => !l.id && l.part_id && l.qty > 0);
         if (newParts.length > 0 && !jobConsumeTypeId) {
             toast.error("Stock transaction type not loaded. Please try again.");
+            return;
+        }
+
+        const backCalcNumEdit = parseFloat(backCalcTarget);
+        const hasTargetEdit   = backCalcTarget !== "" && !isNaN(backCalcNumEdit) && backCalcNumEdit > 0;
+        const hasLinesEdit    = partLines.some(l => l.part_id) || chargeLines.some(c => c.charge_name.trim());
+        if (hasTargetEdit && !hasLinesEdit) {
+            toast.error("Target amount cannot be set without any parts or charges. Please add at least one part or charge, or clear the target amount.");
             return;
         }
 
@@ -594,6 +602,9 @@ export const FinalAJobSection = () => {
                 const invoiceId = (selectedRow as unknown as FinalizedJobRow).invoice_id!;
                 try {
                     const lines = buildInvoiceLinesFromEditable(partLines, chargeLines, isGst, forceIgst);
+                    if (lines.length === 0) {
+                        toast.info(MESSAGES.INFO_JOB_INVOICE_REGEN_SKIPPED_NO_LINES);
+                    } else {
                     const inv_aggregate   = Math.round(lines.reduce((s, l) => s + l.aggregate, 0) * 100) / 100;
                     const inv_cgst_amount = Math.round(lines.reduce((s, l) => s + l.cgst_amount, 0) * 100) / 100;
                     const inv_sgst_amount = Math.round(lines.reduce((s, l) => s + l.sgst_amount, 0) * 100) / 100;
@@ -616,6 +627,7 @@ export const FinalAJobSection = () => {
                             }),
                         },
                     });
+                    }
                 } catch {
                     toast.error(MESSAGES.ERROR_FINALIZED_JOB_REGEN_INVOICE_FAILED);
                 }
@@ -745,6 +757,14 @@ export const FinalAJobSection = () => {
             return;
         }
 
+        const backCalcNumFinal = parseFloat(backCalcTarget);
+        const hasTargetFinal   = backCalcTarget !== "" && !isNaN(backCalcNumFinal) && backCalcNumFinal > 0;
+        const hasLinesFinal    = partLines.some(l => l.part_id) || chargeLines.some(c => c.charge_name.trim());
+        if (hasTargetFinal && !hasLinesFinal) {
+            toast.error("Target amount cannot be set without any parts or charges. Please add at least one part or charge, or clear the target amount.");
+            return;
+        }
+
         setSubmitting(true);
         try {
             if (isGst) {
@@ -871,7 +891,7 @@ export const FinalAJobSection = () => {
                 selectedRow={selectedRow}
                 isEditMode={isEditMode}
                 submitting={submitting}
-                loadingDetail={loadingDetail}
+                loadingDetail={loadingDetail !== null}
                 selectedDivisionId={selectedDivisionId}
                 division={division}
                 isGst={isGst}

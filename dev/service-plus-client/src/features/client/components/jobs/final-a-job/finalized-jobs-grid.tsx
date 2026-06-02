@@ -10,6 +10,19 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { type DivisionContextType, isGstDivision } from "@/features/client/types/division";
 import { PAGE_SIZE, thClass, tdClass } from "./final-a-job-helpers";
+
+const JOB_TYPE_COLORS: Record<string, string> = {
+    MAKE_READY:     "text-lime-700   dark:text-lime-400",
+    ESTIMATE:       "text-blue-700   dark:text-blue-400",
+    UNDER_WARRANTY: "text-red-700    dark:text-red-400",
+    INSTALLATION:   "text-yellow-700 dark:text-yellow-400",
+    DEMO:           "text-yellow-700 dark:text-yellow-400",
+    MAINTENANCE:    "text-slate-600  dark:text-slate-400",
+    INSPECTION:     "text-slate-600  dark:text-slate-400",
+    AMC_SERVICE:    "text-slate-600  dark:text-slate-400",
+    UPGRADE:        "text-slate-600  dark:text-slate-400",
+    REFURBISH:      "text-slate-600  dark:text-slate-400",
+};
 import type { FinalizedJobRow } from "./final-a-job-schema";
 
 type Props = {
@@ -21,7 +34,7 @@ type Props = {
     search:             string;
     branchId:           number | null;
     availableDivisions: DivisionContextType[];
-    loadingDetail:      boolean;
+    loadingDetail:      number | null;
     undoingJobId:       number | null;
     onSearchChange:     (v: string) => void;
     onRefresh:          () => void;
@@ -190,7 +203,16 @@ export function FinalizedJobsGrid({
                                         </div>
                                     </td>
 
-                                    <td className={tdClass}>{row.customer_name}</td>
+                                    <td className={tdClass}>
+                                        <div className="flex flex-col gap-0.5">
+                                            <span>{row.customer_name}</span>
+                                            {row.job_type_name && (
+                                                <span className={`text-[10px] font-medium ${JOB_TYPE_COLORS[row.job_type_code] ?? "text-(--cl-text-muted)"}`}>
+                                                    {row.job_type_name}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </td>
                                     <td className={`${tdClass} font-mono text-xs`}>{row.mobile}</td>
 
                                     {/* Device details */}
@@ -225,13 +247,13 @@ export function FinalizedJobsGrid({
                                             </Button>
                                             <Button
                                                 className="h-7 gap-1 px-2 text-xs font-semibold text-amber-700 border border-amber-300 hover:bg-amber-50 dark:text-amber-400 dark:border-amber-700 dark:hover:bg-amber-950/30"
-                                                disabled={loadingDetail || row.is_posted}
+                                                disabled={loadingDetail !== null || row.is_posted}
                                                 size="sm"
                                                 title={row.is_posted ? "Cannot edit a posted job" : "Edit finalized job"}
                                                 variant="outline"
                                                 onClick={() => onEdit(row)}
                                             >
-                                                {loadingDetail
+                                                {loadingDetail === row.id
                                                     ? <Loader2 className="h-3 w-3 animate-spin" />
                                                     : <Pencil className="h-3 w-3" />
                                                 }

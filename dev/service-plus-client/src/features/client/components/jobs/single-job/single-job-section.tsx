@@ -29,7 +29,7 @@ import { encodeObj, graphQlUtils } from "@/lib/graphql-utils";
 
 import { useAppSelector } from "@/store/hooks";
 import { selectCurrentUser, selectDbName } from "@/features/auth/store/auth-slice";
-import { selectAvailableDivisions, selectCurrentBranch, selectCurrentDivision, selectDefaultDivisionId, selectSchema } from "@/store/context-slice";
+import { selectAvailableDivisions, selectCurrentBranch, selectCurrentDivision, selectDefaultDivisionId, selectNoOfJobSheetsPerPrint, selectSchema } from "@/store/context-slice";
 import type { JobDetailType, JobSearchRow, JobLookupRow, ModelRow, TechnicianRow } from "@/features/client/types/job";
 import type { CustomerTypeOption, StateOption } from "@/features/client/types/customer";
 import type { BrandOption, ProductOption } from "@/features/client/types/model";
@@ -59,7 +59,8 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
     const globalBranch       = useAppSelector(selectCurrentBranch);
     const availableDivisions = useAppSelector(selectAvailableDivisions);
     const currentDivision    = useAppSelector(selectCurrentDivision);
-    const defaultDivisionId  = useAppSelector(selectDefaultDivisionId);
+    const defaultDivisionId      = useAppSelector(selectDefaultDivisionId);
+    const noOfJobSheetsPerPrint  = useAppSelector(selectNoOfJobSheetsPerPrint);
     const branchId           = globalBranch?.id ?? null;
 
     // Filters
@@ -459,7 +460,7 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
     const handlePrintFromView = () => {
         if (!viewJob) return;
         const jobDivision = availableDivisions.find(d => d.id === viewJob.division_id) ?? currentDivision;
-        const url = getJobSheetBlobUrl(viewJob, jobDivision ?? null, globalBranch?.code);
+        const url = getJobSheetBlobUrl(viewJob, jobDivision ?? null, globalBranch?.code, noOfJobSheetsPerPrint);
         setPdfPreviewUrl(url);
         setPdfFilename(`Job-Sheet_${viewJob.job_date}_${viewJob.customer_name || "customer"}.pdf`);
         setShowPdfModal(true);
@@ -488,7 +489,7 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
             }
             toast.dismiss(loadingToast);
             const jobDivision = availableDivisions.find(d => d.id === details.division_id) ?? currentDivision;
-            const url = getJobSheetBlobUrl(details, jobDivision ?? null, globalBranch?.code);
+            const url = getJobSheetBlobUrl(details, jobDivision ?? null, globalBranch?.code, noOfJobSheetsPerPrint);
             setPdfPreviewUrl(url);
             setPdfFilename(`Job-Sheet_${details.job_date}_${details.customer_name || "customer"}.pdf`);
             setShowPdfModal(true);

@@ -31,6 +31,8 @@ import {
     setCurrentDivision,
     setDefaultDivisionId,
     setForceGstOnPartsForNonGst,
+    setNoOfJobInvoicesPerPrint,
+    setNoOfJobSheetsPerPrint,
 } from "@/store/context-slice";
 import type { BranchContextType, BuContextType } from "@/store/context-slice";
 import type { DivisionContextType } from "@/features/client/types/division";
@@ -233,6 +235,16 @@ export const BuBranchSwitcher = ({ variant = 'admin' }: BuBranchSwitcherPropsTyp
                 force = parsed === true || parsed === 'true';
             }
             dispatch(setForceGstOnPartsForNonGst(force));
+
+            const rawCopies = settings.find(s => s.setting_key === 'no_of_job_sheets_per_print')?.setting_value;
+            let parsedCopies: unknown = rawCopies;
+            if (typeof rawCopies === 'string') { try { parsedCopies = JSON.parse(rawCopies); } catch { /* keep raw */ } }
+            dispatch(setNoOfJobSheetsPerPrint(Math.max(1, Number(parsedCopies ?? 1))));
+
+            const rawInvCopies = settings.find(s => s.setting_key === 'no_of_job_invoices_per_print')?.setting_value;
+            let parsedInvCopies: unknown = rawInvCopies;
+            if (typeof rawInvCopies === 'string') { try { parsedInvCopies = JSON.parse(rawInvCopies); } catch { /* keep raw */ } }
+            dispatch(setNoOfJobInvoicesPerPrint(Math.max(1, Number(parsedInvCopies ?? 1))));
 
             // Auto-select division
             if (divisions.length === 0) {

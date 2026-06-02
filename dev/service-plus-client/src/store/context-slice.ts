@@ -34,6 +34,8 @@ type ContextStateType = {
     currentDivision:          DivisionContextType | null;
     defaultDivisionId:        number;
     defaultGstRate:           number;
+    noOfJobInvoicesPerPrint:  number;
+    noOfJobSheetsPerPrint:    number;
     defaultHsnForSparePart:      string;
     defaultHsnForServiceCharge:  string;
     forceGstOnPartsForNonGst: boolean;
@@ -54,6 +56,8 @@ const initialState: ContextStateType = {
     currentDivision:          null,
     defaultDivisionId:        1,
     defaultGstRate:           0,
+    noOfJobInvoicesPerPrint:  1,
+    noOfJobSheetsPerPrint:    1,
     defaultHsnForSparePart:     "",
     defaultHsnForServiceCharge: "",
     forceGstOnPartsForNonGst: false,
@@ -98,6 +102,14 @@ export const contextSlice = createSlice({
 
         setDefaultGstRate: (state, action: PayloadAction<number>) => {
             state.defaultGstRate = action.payload;
+        },
+
+        setNoOfJobInvoicesPerPrint: (state, action: PayloadAction<number>) => {
+            state.noOfJobInvoicesPerPrint = action.payload;
+        },
+
+        setNoOfJobSheetsPerPrint: (state, action: PayloadAction<number>) => {
+            state.noOfJobSheetsPerPrint = action.payload;
         },
 
         setDefaultHsnForSparePart: (state, action: PayloadAction<string>) => {
@@ -146,6 +158,8 @@ export const {
     setDefaultDivisionId,
     setDefaultGstRate,
     setDefaultHsnForSparePart,
+    setNoOfJobInvoicesPerPrint,
+    setNoOfJobSheetsPerPrint,
     setDefaultHsnForServiceCharge,
     setForceGstOnPartsForNonGst,
     setIsGstRegistered,
@@ -166,6 +180,8 @@ export const selectCurrentBu             = (state: ContextRootState) => state.co
 export const selectCurrentDivision       = (state: ContextRootState) => state.context.currentDivision;
 export const selectDefaultDivisionId     = (state: ContextRootState) => state.context.defaultDivisionId;
 export const selectDefaultGstRate           = (state: ContextRootState) => state.context.defaultGstRate;
+export const selectNoOfJobInvoicesPerPrint  = (state: ContextRootState) => state.context.noOfJobInvoicesPerPrint;
+export const selectNoOfJobSheetsPerPrint    = (state: ContextRootState) => state.context.noOfJobSheetsPerPrint;
 export const selectDefaultHsnForSparePart      = (state: ContextRootState) => state.context.defaultHsnForSparePart;
 export const selectDefaultHsnForServiceCharge  = (state: ContextRootState) => state.context.defaultHsnForServiceCharge;
 export const selectForceGstOnPartsForNonGst = (state: ContextRootState) => state.context.forceGstOnPartsForNonGst;

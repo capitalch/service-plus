@@ -27,7 +27,6 @@ type ActiveTab = "deliverable" | "delivered";
 type GenericQueryData<T> = { genericQuery: T[] | null };
 
 type DeliveryMannerRow = { id: number; name: string };
-type JobStatusRow      = { id: number; code: string; name: string };
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -58,7 +57,6 @@ export const DeliverJobSection = () => {
 
     // ── Meta ──────────────────────────────────────────────────────────────────
     const [deliveryManners,   setDeliveryManners]   = useState<DeliveryMannerRow[]>([]);
-    const [deliveredStatusId, setDeliveredStatusId] = useState<number | null>(null);
     const [metaLoaded,        setMetaLoaded]        = useState(false);
 
     // ── Multi-selection + modal state ─────────────────────────────────────────
@@ -78,23 +76,15 @@ export const DeliverJobSection = () => {
     // ── Load meta once ────────────────────────────────────────────────────────
     useEffect(() => {
         if (!dbName || !schema || metaLoaded) return;
-        Promise.all([
-            apolloClient.query<GenericQueryData<DeliveryMannerRow>>({
+        apolloClient.query<GenericQueryData<DeliveryMannerRow>>({
                 fetchPolicy: "network-only",
                 query:       GRAPHQL_MAP.genericQuery,
                 variables:   { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_JOB_DELIVERY_MANNERS }) },
-            }),
-            apolloClient.query<GenericQueryData<JobStatusRow>>({
-                fetchPolicy: "network-only",
-                query:       GRAPHQL_MAP.genericQuery,
-                variables:   { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_JOB_STATUSES }) },
-            }),
-        ]).then(([mannerRes, statusRes]) => {
-            setDeliveryManners(mannerRes.data?.genericQuery ?? []);
-            const delivered = (statusRes.data?.genericQuery ?? []).find(s => s.code === "DELIVERED");
-            setDeliveredStatusId(delivered?.id ?? null);
-            setMetaLoaded(true);
-        }).catch(() => toast.error(MESSAGES.ERROR_JOB_DELIVERY_DETAIL_FAILED));
+            })
+            .then(mannerRes => {
+                setDeliveryManners(mannerRes.data?.genericQuery ?? []);
+                setMetaLoaded(true);
+            }).catch(() => toast.error(MESSAGES.ERROR_JOB_DELIVERY_DETAIL_FAILED));
     }, [dbName, schema, metaLoaded]);
 
     // ── Load deliverable jobs ─────────────────────────────────────────────────
@@ -380,7 +370,6 @@ export const DeliverJobSection = () => {
                     branchName={currentBranch?.name ?? null}
                     deliveryManners={deliveryManners}
                     availableDivisions={availableDivisions}
-                    deliveredStatusId={deliveredStatusId}
                     currentUser={currentUser}
                     dbName={dbName}
                     schema={schema}

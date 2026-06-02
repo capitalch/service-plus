@@ -1,0 +1,8 @@
+2,to_show_parts_in_job_invoice,true,Show parts line items in job invoice,t,2026-04-01 16:24:11.968779+00,2026-04-01 16:24:11.968779+00
+4,default_division_id,1,Default division selected when creating a new job,t,2026-05-16 10:06:11.463829+00,2026-05-16 10:06:11.463829+00
+5,force_gst_on_parts_for_non_gst_invoices,true,"For non-GST invoices, apply 18% GST implicitly on part cost price; service/labor tax = 0",t,2026-05-16 10:06:11.463829+00,2026-05-16 10:06:11.463829+00
+1,default_gst_rate,18,Default GST rate (%) applied to invoices,t,2026-04-01 16:23:02.746171+00,2026-04-01 16:23:02.746171+00
+3,markup_percent_over_cost,20,Default markup percent over cost price to get selling price,t,2026-05-13 14:36:59.864784+00,2026-05-13 14:36:59.864784+00
+6,default_hsn_for_spare_part,92099400,Default HSN code for Spare Part,t,2026-05-21 08:30:30.88257+00,2026-05-21 08:30:30.88257+00
+7,default_hsn_for_service_charge,998726,"Default HSN code for labour charges,  service charges etc.",t,2026-05-21 08:32:51.059494+00,2026-05-21 08:32:51.059494+00
+8,no_of_job_sheets_per_print,2,The no of job sheets to be printed when print job sheet ,t,2026-06-02 08:33:23.631178+00,2026-06-02 08:33:23.631178+00

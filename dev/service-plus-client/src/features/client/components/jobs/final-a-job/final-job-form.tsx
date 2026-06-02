@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import {
     AlertTriangle, ArrowLeft, CheckCheck, CheckCircle2,
@@ -216,6 +217,12 @@ export function FinalJobForm({
     const chargesQtyTotal = chargeLines.reduce((s, c) => s + (parseFloat(c.qty) || 1), 0);
     const grandTotal = partsTotal + chargesAmountTotal;
     const grandProfitTotal = profitTotal + chargesProfitTotal;
+
+    useEffect(() => {
+        if (isEditMode) {
+            setBackCalcTarget(grandTotal > 0 ? grandTotal.toFixed(2) : "");
+        }
+    }, [grandTotal, isEditMode]); // eslint-disable-line react-hooks/exhaustive-deps
     const grandQtyTotal = partsQtyTotal + chargesQtyTotal;
     const grandCgstTotal = partsCgstTotal + chargesCgstTotal;
     const grandSgstTotal = partsSgstTotal + chargesSgstTotal;
@@ -283,19 +290,17 @@ export function FinalJobForm({
                             {isGst ? "GST" : "Non-GST"}
                         </span>
                     </div>
-                    {!isWarranty && (
-                        <Button
-                            className="h-8 gap-1.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-bold uppercase tracking-wider disabled:opacity-40"
-                            disabled={submitting}
-                            onClick={() => void onSave()}
-                        >
-                            {submitting
-                                ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                : <CheckCheck className="h-3.5 w-3.5" />
-                            }
-                            {isEditMode ? "Save Changes" : "Save & Mark Final"}
-                        </Button>
-                    )}
+                    <Button
+                        className="h-8 gap-1.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-bold uppercase tracking-wider disabled:opacity-40"
+                        disabled={submitting}
+                        onClick={() => void onSave()}
+                    >
+                        {submitting
+                            ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            : <CheckCheck className="h-3.5 w-3.5" />
+                        }
+                        {isEditMode ? "Save Changes" : "Save & Mark Final"}
+                    </Button>
                 </div>
                 {isEditMode && (
                     <div className="flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-800 shrink-0 mx-0 mt-2">

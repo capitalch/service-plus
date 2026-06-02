@@ -633,10 +633,28 @@ export function buildInvoicePdf(
     division: DivisionContextType | null,
     branchName?: string | null,
     existingDoc?: jsPDF,
+    copies = 1,
 ): jsPDF {
     const doc = existingDoc ?? new jsPDF({ format: "a4", orientation: "p", unit: "mm" });
-    if (existingDoc) doc.addPage();
-    drawInvoiceContent(doc, job, invoice, division, branchName, 0, true);
+
+    const h = copies > 1 ? measureInvoiceHeight({ job, invoice, division }, branchName) : Infinity;
+    const canPack = h <= HALF_PAGE;  // use actual half-A4 boundary for same-invoice copies
+
+    for (let i = 0; i < copies; i++) {
+        const needsNewPage = (i === 0 && !!existingDoc) || (i > 0 && (!canPack || i % 2 === 0));
+        if (needsNewPage) doc.addPage();
+
+        if (canPack && i % 2 === 1) {
+            const pageW = doc.internal.pageSize.getWidth();
+            doc.setDrawColor(200, 200, 200);
+            doc.setLineWidth(0.3);
+            doc.line(10, HALF_PAGE - 2, pageW - 10, HALF_PAGE - 2);
+            drawInvoiceContent(doc, job, invoice, division, branchName, HALF_PAGE, false);
+        } else {
+            drawInvoiceContent(doc, job, invoice, division, branchName, 0, !canPack);
+        }
+    }
+
     return doc;
 }
 
@@ -660,14 +678,18 @@ function measureInvoiceHeight(item: InvoiceItem, branchName?: string | null): nu
 export function buildPackedInvoicePdf(
     items: InvoiceItem[],
     branchName?: string | null,
+    copies = 1,
 ): jsPDF {
+    const allItems = copies > 1
+        ? items.flatMap(item => Array<InvoiceItem>(copies).fill(item))
+        : items;
     const doc = new jsPDF({ format: "a4", orientation: "p", unit: "mm" });
     let firstPage = true;
     let i = 0;
 
-    while (i < items.length) {
-        const cur  = items[i];
-        const next = items[i + 1];
+    while (i < allItems.length) {
+        const cur  = allItems[i];
+        const next = allItems[i + 1];
 
         const h1 = measureInvoiceHeight(cur, branchName);
         const h2 = next ? measureInvoiceHeight(next, branchName) : Infinity;

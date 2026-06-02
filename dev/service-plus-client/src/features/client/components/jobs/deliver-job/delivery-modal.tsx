@@ -1,7 +1,7 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { FileText, Loader2, RefreshCw, Trash2, Truck } from "lucide-react";
+import { FileText, Loader2, RefreshCw, Trash2, Truck, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -35,6 +35,8 @@ import {
 import { fmtCurrency, isJobInvoiceable } from "./deliver-job-helpers";
 import { MESSAGES } from "@/constants/messages";
 import { buildInvoicePdf, buildPackedInvoicePdf, buildReceiptPdf } from "./deliver-job-pdf";
+import { useAppSelector } from "@/store/hooks";
+import { selectNoOfJobInvoicesPerPrint } from "@/store/context-slice";
 import { DeliveryModalJobsTable } from "./delivery-modal-jobs-table";
 import { DeliveryModalInvoicesSection } from "./delivery-modal-invoices-section";
 import { DeliveryModalReceiptsSection } from "./delivery-modal-receipts-section";
@@ -52,7 +54,6 @@ type Props = {
     branchName:         string | null;
     deliveryManners:    DeliveryMannerRow[];
     availableDivisions: DivisionContextType[];
-    deliveredStatusId:  number | null;
     currentUser:        UserInstanceType | null;
     dbName:             string | null;
     schema:             string | null;
@@ -173,13 +174,14 @@ export function DeliveryModal({
     branchName,
     deliveryManners,
     availableDivisions,
-    deliveredStatusId,
     currentUser,
     dbName,
     schema,
     onClose,
     onDelivered,
 }: Props) {
+    const noOfJobInvoicesPerPrint = useAppSelector(selectNoOfJobInvoicesPerPrint);
+
     const [jobDetails,        setJobDetails]        = useState<JobDeliveryFullDetail[]>(initialJobs);
     const [creatingInvoices,  setCreatingInvoices]  = useState(false);
     const [delivering,        setDelivering]        = useState(false);
@@ -195,6 +197,21 @@ export function DeliveryModal({
     const [receiptJob,        setReceiptJob]        = useState<JobDeliveryFullDetail | null>(null);
     const [showReceiptModal,  setShowReceiptModal]  = useState(false);
     const [receiptQueue,      setReceiptQueue]      = useState<JobDeliveryFullDetail[]>([]);
+    const [deliveredOkStatusId,    setDeliveredOkStatusId]    = useState<number | null>(null);
+    const [deliveredNotOkStatusId, setDeliveredNotOkStatusId] = useState<number | null>(null);
+
+    useEffect(() => {
+        if (!dbName || !schema) return;
+        apolloClient.query<GenericQueryData<{ id: number; code: string }>>({
+            fetchPolicy: "network-only",
+            query:       GRAPHQL_MAP.genericQuery,
+            variables: { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_JOB_STATUSES }) },
+        }).then(res => {
+            const statuses = res.data?.genericQuery ?? [];
+            setDeliveredOkStatusId(statuses.find(s => s.code === "DELIVERED_OK")?.id ?? null);
+            setDeliveredNotOkStatusId(statuses.find(s => s.code === "DELIVERED_NOT_OK")?.id ?? null);
+        });
+    }, [dbName, schema]);
 
     const form = useForm<DeliveryModalFormValues>({
         defaultValues: getDeliveryModalDefaults(),
@@ -221,7 +238,7 @@ export function DeliveryModal({
     const hasReceiptPending   = jobDetails.some(j => Number(j.amount ?? 0) > 0 && (j.payments ?? []).reduce((s, p) => s + Number(p.amount), 0) < Number(j.amount ?? 0));
     const canCreateInvoices   = (hasEligiblePending || hasReceiptPending) && !creatingInvoices;
     const canShowPdf          = hasAnyInvoice;
-    const canDeliver          = form.formState.isValid && !delivering && !!deliveredStatusId;
+    const canDeliver          = form.formState.isValid && !delivering && totalDue === 0;
 
     // ── Reload job details ────────────────────────────────────────────────────
 
@@ -259,6 +276,11 @@ export function DeliveryModal({
                 const isGst    = isGstDivision(division);
 
                 const lines = buildInvoiceLines(job, isGst, job.is_igst ?? false);
+                if (lines.length === 0) {
+                    toast.warning(`Job #${job.job_no}: ${MESSAGES.WARN_JOB_INVOICE_NO_LINES}`);
+                    skipped++;
+                    continue;
+                }
                 const aggregate   = Math.round(lines.reduce((s, l) => s + l.aggregate, 0) * 100) / 100;
                 const cgst_amount = Math.round(lines.reduce((s, l) => s + l.cgst_amount, 0) * 100) / 100;
                 const sgst_amount = Math.round(lines.reduce((s, l) => s + l.sgst_amount, 0) * 100) / 100;
@@ -299,18 +321,15 @@ export function DeliveryModal({
                 : "All jobs already have invoices or were skipped."
             );
 
-            // Auto-open receipt modal for jobs that have an amount but no payments yet
-            if (created > 0) {
-                const needReceipt = fresh.filter(j =>
-                    isJobInvoiceable(j.job_type_code, j.job_status_code) &&
-                    Number(j.amount ?? 0) > 0 &&
-                    (j.payments ?? []).length === 0
-                );
-                if (needReceipt.length > 0) {
-                    setReceiptQueue(needReceipt.slice(1));
-                    setReceiptJob(needReceipt[0]);
-                    setShowReceiptModal(true);
-                }
+            // Auto-open receipt modal for all jobs with an outstanding balance
+            const needReceipt = fresh.filter(j =>
+                Number(j.amount ?? 0) > 0 &&
+                (j.payments ?? []).reduce((s, p) => s + Number(p.amount), 0) < Number(j.amount ?? 0)
+            );
+            if (needReceipt.length > 0) {
+                setReceiptQueue(needReceipt.slice(1));
+                setReceiptJob(needReceipt[0]);
+                setShowReceiptModal(true);
             }
         } catch (err) {
             console.error("Invoice creation error:", err);
@@ -366,6 +385,10 @@ export function DeliveryModal({
             const division    = availableDivisions.find(d => d.id === job.division_id) ?? null;
             const isGst       = isGstDivision(division);
             const lines       = buildInvoiceLines(job, isGst, job.is_igst ?? false);
+            if (lines.length === 0) {
+                toast.error(MESSAGES.ERROR_JOB_INVOICE_REGEN_NO_LINES);
+                return;
+            }
             const aggregate   = Math.round(lines.reduce((s, l) => s + l.aggregate,   0) * 100) / 100;
             const cgst_amount = Math.round(lines.reduce((s, l) => s + l.cgst_amount, 0) * 100) / 100;
             const sgst_amount = Math.round(lines.reduce((s, l) => s + l.sgst_amount, 0) * 100) / 100;
@@ -441,7 +464,7 @@ export function DeliveryModal({
         }
 
         if (items.length === 0) { toast.error("No invoices to show."); return; }
-        const doc = buildPackedInvoicePdf(items, branchName);
+        const doc = buildPackedInvoicePdf(items, branchName, noOfJobInvoicesPerPrint);
         if (pdfUrl) URL.revokeObjectURL(pdfUrl);
         setPdfUrl(URL.createObjectURL(doc.output("blob")));
         setPdfTitle(`Invoice${items.length > 1 ? "s" : ""} — ${jobDetails.map(j => j.job_no).join(", ")}`);
@@ -488,7 +511,7 @@ export function DeliveryModal({
                 })),
             };
 
-            const doc = buildInvoicePdf(job, patchedInvoice, division, branchName);
+            const doc = buildInvoicePdf(job, patchedInvoice, division, branchName, undefined, noOfJobInvoicesPerPrint);
             if (pdfUrl) URL.revokeObjectURL(pdfUrl);
             setPdfUrl(URL.createObjectURL(doc.output("blob")));
             setPdfTitle(`Invoice ${invoice.invoice_no} — ${job.customer_name}`);
@@ -556,10 +579,14 @@ export function DeliveryModal({
     // ── Deliver & Close ───────────────────────────────────────────────────────
 
     async function handleDeliver(values: DeliveryModalFormValues) {
-        if (!deliveredStatusId || !dbName || !schema) return;
+        if (!dbName || !schema) return;
         setDelivering(true);
         try {
             for (const job of jobDetails) {
+                const statusId = job.job_status_code === "COMPLETED_OK"
+                    ? deliveredOkStatusId
+                    : deliveredNotOkStatusId;
+                if (!statusId) continue;
                 await apolloClient.mutate({
                     mutation:  GRAPHQL_MAP.deliverJob,
                     variables: {
@@ -568,7 +595,7 @@ export function DeliveryModal({
                             job_id:               job.id,
                             last_transaction_id:  job.last_transaction_id,
                             performed_by_user_id: currentUser?.id ?? null,
-                            delivered_status_id:  deliveredStatusId,
+                            delivered_status_id:  statusId,
                             delivery_date:        values.delivery_date,
                             delivery_manner_name: values.delivery_manner,
                             remarks:              values.remarks ?? "",
@@ -608,11 +635,25 @@ export function DeliveryModal({
                     {/* ── Accent bar ───────────────────────────────────────── */}
                     <div className="h-1.5 w-full shrink-0 bg-emerald-600 dark:bg-emerald-500" />
 
+                    {/* Close button — absolute top-right of the dialog */}
+                    <Button
+                        className="absolute top-1 z-50 h-7 w-7 rounded-full text-(--cl-text-muted) hover:text-(--cl-text) hover:bg-(--cl-surface-2)"
+                        style={{ right: -1 }}
+                        disabled={delivering || creatingInvoices}
+                        size="icon"
+                        title="Close"
+                        variant="ghost"
+                        onClick={onClose}
+                    >
+                        <X className="h-4 w-4" />
+                    </Button>
+
                     {/* ── Header ───────────────────────────────────────────── */}
                     <div className="shrink-0 bg-(--cl-surface) px-6 pt-4">
+
                         {/* Title + subtitle */}
                         <div className="flex items-start justify-between gap-4">
-                            <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-3 flex-1">
                                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-linear-to-br from-emerald-500 to-teal-600 text-white shadow-md">
                                     <Truck className="h-5 w-5" />
                                 </div>

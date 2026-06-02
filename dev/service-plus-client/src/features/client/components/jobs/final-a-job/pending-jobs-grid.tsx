@@ -21,7 +21,7 @@ type Props = {
     search:             string;
     branchId:           number | null;
     availableDivisions: DivisionContextType[];
-    loadingDetail:      boolean;
+    loadingDetail:      number | null;
     onSearchChange:     (v: string) => void;
     onRefresh:          () => void;
     onViewJob:          (id: number) => void;
@@ -224,13 +224,13 @@ export function PendingJobsGrid({
                                             </Button>
                                             <Button
                                                 className="h-7 gap-1 px-2 text-xs font-semibold text-emerald-700 border border-emerald-300 hover:bg-emerald-50 dark:text-emerald-400 dark:border-emerald-700 dark:hover:bg-emerald-950/30"
-                                                disabled={loadingDetail}
+                                                disabled={loadingDetail !== null}
                                                 size="sm"
                                                 title="Finalise this job"
                                                 variant="outline"
                                                 onClick={() => onOpenFinal(row)}
                                             >
-                                                {loadingDetail
+                                                {loadingDetail === row.id
                                                     ? <Loader2 className="h-3 w-3 animate-spin" />
                                                     : <CheckCheck className="h-3 w-3" />
                                                 }

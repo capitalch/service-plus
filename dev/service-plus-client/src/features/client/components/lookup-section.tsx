@@ -3,6 +3,9 @@ import { motion } from "framer-motion";
 import {ArrowDownIcon,
     ArrowUpDownIcon,
     ArrowUpIcon,
+    ChevronDownIcon,
+    ChevronUpIcon,
+    Loader2,
     MoreHorizontalIcon,
     PencilIcon,
     PlusIcon,
@@ -73,8 +76,9 @@ export const LookupSection = ({ config }: LookupSectionProps) => {
     const [addOpen,      setAddOpen]      = useState(false);
     const [deleteRecord, setDeleteRecord] = useState<LookupRecord | null>(null);
     const [editRecord,   setEditRecord]   = useState<LookupRecord | null>(null);
-    const [loading,      setLoading]      = useState(false);
-    const [records,      setRecords]      = useState<LookupRecord[]>([]);
+    const [loading,        setLoading]        = useState(false);
+    const [movingOrderId,  setMovingOrderId]  = useState<number | null>(null);
+    const [records,        setRecords]        = useState<LookupRecord[]>([]);
     const [search,       setSearch]       = useState("");
     const [sortCol,      setSortCol]      = useState<string | null>(null);
     const [sortDir,      setSortDir]      = useState<SortDir>("asc");
@@ -130,6 +134,44 @@ export const LookupSection = ({ config }: LookupSectionProps) => {
         } else {
             setSortCol(col);
             setSortDir("asc");
+        }
+    }
+
+    const orderedRecords = useMemo(() => [...records].sort((a, b) => {
+        if (a.display_order == null && b.display_order == null) return a.name.localeCompare(b.name);
+        if (a.display_order == null) return 1;
+        if (b.display_order == null) return -1;
+        return a.display_order !== b.display_order
+            ? a.display_order - b.display_order
+            : a.name.localeCompare(b.name);
+    }), [records]);
+
+    async function handleMoveOrder(record: LookupRecord, direction: "up" | "down") {
+        if (!dbName || !schema) return;
+        const idx = orderedRecords.findIndex(r => r.id === record.id);
+        const swapIdx = direction === "up" ? idx - 1 : idx + 1;
+        if (swapIdx < 0 || swapIdx >= orderedRecords.length) return;
+        const a = orderedRecords[idx];
+        const b = orderedRecords[swapIdx];
+        const aOrder = a.display_order ?? (idx + 1) * 10;
+        const bOrder = b.display_order ?? (swapIdx + 1) * 10;
+        setMovingOrderId(record.id);
+        try {
+            await Promise.all([
+                apolloClient.mutate({
+                    mutation: GRAPHQL_MAP.genericUpdate,
+                    variables: { db_name: dbName, schema, value: graphQlUtils.buildGenericUpdateValue({ tableName: config.tableName, xData: { id: a.id, display_order: bOrder } }) },
+                }),
+                apolloClient.mutate({
+                    mutation: GRAPHQL_MAP.genericUpdate,
+                    variables: { db_name: dbName, schema, value: graphQlUtils.buildGenericUpdateValue({ tableName: config.tableName, xData: { id: b.id, display_order: aOrder } }) },
+                }),
+            ]);
+            await loadData();
+        } catch {
+            toast.error(config.messages.updateFailed);
+        } finally {
+            setMovingOrderId(null);
         }
     }
 
@@ -344,7 +386,39 @@ export const LookupSection = ({ config }: LookupSectionProps) => {
                                                     <TableCell className="max-w-xs truncate text-sm text-(--cl-text-muted)">{record.description ?? "—"}</TableCell>
                                                 )}
                                                 {config.hasDisplayOrder && (
-                                                    <TableCell className="text-sm text-(--cl-text-muted)">{record.display_order ?? "—"}</TableCell>
+                                                    <TableCell>
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="w-8 text-right text-sm font-mono text-(--cl-text-muted) tabular-nums">
+                                                                {record.display_order ?? "—"}
+                                                            </span>
+                                                            {!config.readonly && (
+                                                                movingOrderId === record.id ? (
+                                                                    <Loader2 className="h-4 w-4 animate-spin text-(--cl-text-muted)" />
+                                                                ) : (
+                                                                    <div className="flex flex-col gap-0.5">
+                                                                        <button
+                                                                            className="flex h-6 w-6 cursor-pointer items-center justify-center rounded border border-(--cl-border) bg-(--cl-surface-2) text-(--cl-text-muted) shadow-sm hover:border-(--cl-accent) hover:bg-(--cl-accent)/10 hover:text-(--cl-accent) disabled:cursor-not-allowed disabled:opacity-30 transition-colors"
+                                                                            disabled={orderedRecords[0]?.id === record.id || movingOrderId !== null}
+                                                                            title="Move up"
+                                                                            type="button"
+                                                                            onClick={() => void handleMoveOrder(record, "up")}
+                                                                        >
+                                                                            <ChevronUpIcon className="h-3.5 w-3.5" />
+                                                                        </button>
+                                                                        <button
+                                                                            className="flex h-6 w-6 cursor-pointer items-center justify-center rounded border border-(--cl-border) bg-(--cl-surface-2) text-(--cl-text-muted) shadow-sm hover:border-(--cl-accent) hover:bg-(--cl-accent)/10 hover:text-(--cl-accent) disabled:cursor-not-allowed disabled:opacity-30 transition-colors"
+                                                                            disabled={orderedRecords.at(-1)?.id === record.id || movingOrderId !== null}
+                                                                            title="Move down"
+                                                                            type="button"
+                                                                            onClick={() => void handleMoveOrder(record, "down")}
+                                                                        >
+                                                                            <ChevronDownIcon className="h-3.5 w-3.5" />
+                                                                        </button>
+                                                                    </div>
+                                                                )
+                                                            )}
+                                                        </div>
+                                                    </TableCell>
                                                 )}
                                                 {config.hasIsActive && (
                                                     <TableCell>

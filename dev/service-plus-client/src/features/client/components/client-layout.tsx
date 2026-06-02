@@ -16,6 +16,8 @@ import {
     setDefaultGstRate,
     setDefaultHsnForSparePart,
     setDefaultHsnForServiceCharge,
+    setNoOfJobInvoicesPerPrint,
+    setNoOfJobSheetsPerPrint,
 } from "@/store/context-slice";
 import { ClientActivityBar } from "./client-activity-bar";
 import { ClientExplorerPanel } from "./client-explorer-panel";
@@ -143,6 +145,16 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
             let parsedSvcHsn: unknown = rawSvcHsn;
             if (typeof rawSvcHsn === 'string') { try { parsedSvcHsn = JSON.parse(rawSvcHsn); } catch { /* keep raw */ } }
             dispatch(setDefaultHsnForServiceCharge(String(parsedSvcHsn ?? "")));
+
+            const rawCopies = settings.find(s => s.setting_key === 'no_of_job_sheets_per_print')?.setting_value;
+            let parsedCopies: unknown = rawCopies;
+            if (typeof rawCopies === 'string') { try { parsedCopies = JSON.parse(rawCopies); } catch { /* keep raw */ } }
+            dispatch(setNoOfJobSheetsPerPrint(Math.max(1, Number(parsedCopies ?? 1))));
+
+            const rawInvCopies = settings.find(s => s.setting_key === 'no_of_job_invoices_per_print')?.setting_value;
+            let parsedInvCopies: unknown = rawInvCopies;
+            if (typeof rawInvCopies === 'string') { try { parsedInvCopies = JSON.parse(rawInvCopies); } catch { /* keep raw */ } }
+            dispatch(setNoOfJobInvoicesPerPrint(Math.max(1, Number(parsedInvCopies ?? 1))));
         }).catch(() => {/* silently ignore */});
     }, [dbName, schema]); // eslint-disable-line react-hooks/exhaustive-deps
 

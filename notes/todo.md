@@ -1,14 +1,18 @@
 # Job features
 	- Job sales return
 	- Repeat repairs
+								- global settings: no of job slips to be printed
+								- global settings: no of job invoices to be printed
 	- Inputting parts and charges at any step with similar to final a job screen
+								- under warranty job, cannot do final
 	- Deliver job
 		- Job 00007, no invoice line but amount 1000. Should not be allowed
 								- Modify receipt
 								- Invoice numbering at server side
 		- Show part details in invoice toggle
 								- Re generate invoice
-		- If modify final job, then update invoice if already generated
+								- If modify final job, then update invoice if already generated
+		- check delivery
 		- Undo delivery
 								- DELETE INVOICE
 # Job Delivery

@@ -913,6 +913,17 @@ async def resolve_create_job_invoice_helper(
             extensions={"field": "branch_id/division_id"},
         )
 
+    x_details = x_data.get("xDetails")
+    has_lines = bool(x_details) and any(
+        item.get("tableName") == "job_invoice_line" and item.get("xData")
+        for item in (x_details if isinstance(x_details, list) else [x_details])
+    )
+    if not has_lines:
+        raise ValidationException(
+            message="Invoice must have at least one line item",
+            extensions={"field": "xDetails"},
+        )
+
     db_name_arg = db_name if db_name else None
     schema_name = schema or "public"
 
@@ -923,6 +934,7 @@ async def resolve_create_job_invoice_helper(
             )
 
             # 1. Claim next invoice number atomically
+
             await cur.execute(
                 SqlStore.CLAIM_NEXT_INVOICE_NUMBER,
                 {"branch_id": branch_id, "division_id": division_id},
@@ -1009,6 +1021,12 @@ async def resolve_regenerate_job_invoice_helper(
     igst_amount = x_data["igst_amount"]
     amount      = x_data["amount"]
     lines       = x_data.get("lines", [])
+
+    if not lines:
+        raise ValidationException(
+            message="Invoice must have at least one line item to regenerate",
+            extensions={"field": "lines"},
+        )
 
     db_name_arg = db_name if db_name else None
     schema_name = schema or "public"

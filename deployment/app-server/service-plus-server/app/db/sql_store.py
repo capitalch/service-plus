@@ -4155,6 +4155,9 @@ class SqlStore:
                TRIM(CONCAT_WS(' ', p.name, b.name, pbm.model_name, j.serial_no)) AS device_details,
                cc.full_name  AS customer_name, cc.mobile,
                js.name       AS job_status_name,
+               jt.name       AS job_type_name,
+               jt.code       AS job_type_code,
+               jrm.name      AS receive_manner_name,
                t.name        AS technician_name,
                ji.amount     AS invoice_total,
                ji.invoice_no,
@@ -4162,6 +4165,8 @@ class SqlStore:
         FROM job j
         JOIN customer_contact      cc  ON cc.id  = j.customer_contact_id
         JOIN job_status            js  ON js.id  = j.job_status_id
+        JOIN job_type              jt  ON jt.id  = j.job_type_id
+        JOIN job_receive_manner    jrm ON jrm.id = j.job_receive_manner_id
         LEFT JOIN technician       t   ON t.id   = j.technician_id
         LEFT JOIN job_invoice      ji  ON ji.job_id = j.id
         LEFT JOIN product_brand_model pbm ON pbm.id = j.product_brand_model_id
