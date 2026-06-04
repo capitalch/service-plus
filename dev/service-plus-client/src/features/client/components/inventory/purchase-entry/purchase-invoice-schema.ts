@@ -23,6 +23,7 @@ export const purchaseLineSchema = z.object({
 
 export const purchaseInvoiceSchema = z.object({
     vendor_id:        z.number().int().min(1, "Supplier is required"),
+    division_id:      z.number().int().min(1, "Division is required"),
     invoice_no:       z.string().min(1, "Invoice number is required"),
     invoice_date:     z.string().min(1, "Invoice date is required"),
     remarks:         z.string().optional(),
@@ -32,9 +33,10 @@ export const purchaseInvoiceSchema = z.object({
 export type PurchaseLineFormItem = z.infer<typeof purchaseLineSchema>;
 export type PurchaseInvoiceFormValues = z.infer<typeof purchaseInvoiceSchema>;
 
-export function getPurchaseInvoiceDefaultValues(): PurchaseInvoiceFormValues {
+export function getPurchaseInvoiceDefaultValues(divisionId = 0): PurchaseInvoiceFormValues {
     return {
         vendor_id:        0,
+        division_id:      divisionId,
         invoice_no:       "",
         invoice_date:     new Date().toISOString().slice(0, 10),
         remarks:         "",

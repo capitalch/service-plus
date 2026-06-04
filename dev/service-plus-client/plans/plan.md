@@ -1,223 +1,165 @@
-# Implementation Plan — tran.md Items
+# Plan: Job Accounts Posting Feature
+
+## Context
+"Accounts Posting" means marking invoices and money receipts as posted to an external accounts package. A new **Accounts Posting** menu item is added to the Jobs sidebar. It has two outer tabs (Posting / Posted) each containing three inner tabs (Purchase Invoices / Sales Invoices / Money Receipts). Each inner tab is a searchable paginated grid. Records can be marked as posted (or unposted) via a row-level action.
+
+Tables involved:
+| Data | Table | `is_posted` |
+|---|---|---|
+| Purchase Invoices | `purchase_invoice` | ✓ added |
+| Sales Invoices | `job_invoice` | ✓ exists |
+| Money Receipts | `job_payment` | ✓ exists |
 
 ---
 
-## Item 1 — Delivery Modal: Create Invoice & Receipts refresh
+## Step 1 — Server SQL Queries (`sql_store.py`)
 
-**Status:** Already implemented.  
-`handleCreateInvoices` (delivery-modal.tsx ~line 295) calls `reloadJobDetails()` which calls `setJobDetails(fresh)`. Both `DeliveryModalInvoicesSection` and `DeliveryModalReceiptsSection` receive `jobs={jobDetails}` so they re-render automatically.
+Add 6 new queries following the existing CTE pattern. All accept `is_posted` as a boolean parameter.
 
-No code change needed.
+### `GET_JOB_INVOICES_FOR_POSTING_PAGED`
+Joins `job_invoice → job → customer_contact`, filters by `is_posted`. SELECT: `ji.id, ji.job_id, j.job_no, j.job_date, cc.full_name AS customer_name, cc.mobile, ji.invoice_no, ji.invoice_date, ji.amount, ji.cgst_amount, ji.sgst_amount, ji.igst_amount, ji.is_posted`.
 
----
+### `GET_JOB_INVOICES_FOR_POSTING_COUNT`
+Same joins/filters, returns `COUNT(*) AS total`.
 
-## Item 2 — Delivery Modal: Disable "Create Invoice & Receipts" when no charges
+### `GET_PURCHASE_INVOICES_FOR_POSTING_PAGED`
+Based on existing `GET_PURCHASE_INVOICES_PAGED` + add `AND pi.is_posted = (table "p_is_posted")` filter. Include `pi.is_posted` in SELECT.
 
-**File:** `delivery-modal.tsx` line 220
+### `GET_PURCHASE_INVOICES_FOR_POSTING_COUNT`
+Count variant.
 
-**Current:**
-```typescript
-const hasEligiblePending = jobDetails.some(j => isJobInvoiceable(j.job_type_code, j.job_status_code) && !j.invoice_id);
-```
+### `GET_JOB_PAYMENTS_FOR_POSTING_PAGED`
+Based on existing `GET_JOB_PAYMENTS_PAGED` + add `AND jp.is_posted = (table "p_is_posted")` filter. Add `jp.receipt_no` to SELECT (missing from existing query).
 
-**Change to:**
-```typescript
-const hasEligiblePending = jobDetails.some(j =>
-    isJobInvoiceable(j.job_type_code, j.job_status_code) && !j.invoice_id && Number(j.amount ?? 0) > 0
-);
-```
+### `GET_JOB_PAYMENTS_FOR_POSTING_COUNT`
+Count variant.
 
-This makes `canCreateInvoices = false` when all invoiceable pending jobs have zero amount.
-
----
-
-## Item 3 — Delivery Modal: Deliver & Close allowed when no charges
-
-**Status:** Already works. `canDeliver = form.formState.isValid && !delivering && !!deliveredStatusId` — does not depend on invoices at all.
-
-No code change needed.
-
----
-
-## Item 4 — Money Receipt PDF: Professional format with division details
-
-**File:** `deliver-job-pdf.ts` — `buildReceiptPdf` function (line ~697)
-
-**Changes:**
-1. Add optional `division: DivisionContextType | null` parameter to `buildReceiptPdf`
-2. Add a division header block at the top of the receipt PDF:
-   - Division name (bold, large font)
-   - Address lines if available
-   - GSTIN if GST division
-   - Thin separator line beneath
-3. Change title from "PAYMENT RECEIPT" to "RECEIPT" or keep same
-4. After payment table, add "Received with Thanks" text (centered, italic or bold)
-
-**Callers to update:**
-- `delivery-modal.tsx` `handlePrintReceiptPdf` — pass `division` from `availableDivisions.find(d => d.id === job.division_id)`
-- Jobs > Receipts PDF (item 5) will also pass division
-
-**Note:** `DivisionContextType` is already imported in `deliver-job-pdf.ts`.
-
----
-
-## Item 5 — Jobs > Receipts: Show PDF button
-
-**Files:**
-- `receipts-section.tsx`
-- Import `buildReceiptPdf` from deliver-job-pdf and `PdfPreviewModal`
-
-**Changes in `receipts-section.tsx`:**
-1. Add state: `const [pdfRow, setPdfRow] = useState<JobReceiptListRowType | null>(null)`  
-   `const [pdfUrl, setPdfUrl] = useState<string | null>(null)`  
-   `const [pdfLoading, setPdfLoading] = useState(false)`
-2. Add `handleShowPdf(row: JobReceiptListRowType)`:
-   - Set `setPdfLoading(true)` and `setPdfRow(row)`
-   - Fetch job detail: `GET_JOB_DETAIL` with `{ id: row.job_id }`
-   - Fetch all payments for job: `GET_JOB_PAYMENTS_BY_JOB` with `{ job_id: row.job_id }`
-   - Build `buildReceiptPdf({ ...jobDetail, payments }, division)`
-   - Set `pdfUrl` and show `PdfPreviewModal`
-3. Add `Printer` icon button in the Actions column (before Edit button)
-4. Add `PdfPreviewModal` at bottom of component JSX
-
----
-
-## Item 6 — Jobs > Receipts: Delete guard for is_posted
-
-**Server — `sql_store.py`:**
-- Add `jp.is_posted` to the SELECT in `GET_JOB_PAYMENTS_PAGED` (after `jp.remarks`)
-
-**Client:**
-
-`src/features/client/types/receipt.ts` — add field to `JobReceiptListRowType`:
-```typescript
-is_posted: boolean;
-```
-
-`src/constants/messages.ts` — add message:
-```typescript
-ERROR_RECEIPT_DELETE_IS_POSTED: 'This receipt cannot be deleted as it is already posted.',
-```
-
-`receipts-section.tsx`:
-- In delete flow: use `AlertDialog` (already present) with two modes:
-  - **Blocked mode** (if `deleteRow.is_posted`): show amber/warning style with message, only an OK/Close button, no Delete button
-  - **Normal mode** (current): confirm delete as before
-- Replace the simple `<Dialog>` delete confirmation with `AlertDialog` component (or keep Dialog but add the is_posted check inside it)
-
----
-
-## Item 7 — Final a Job: Edit gate
-
-### Bug fix — warranty jobs (prerequisite)
-`FinalizedJobRow` (final-a-job-schema.ts) is missing `job_type_code` even though `GET_DELIVERABLE_JOBS_PAGED` SQL already returns `jt.code AS job_type_code`. Add to type:
-```typescript
-job_type_code: string;
-```
-This fixes the existing bug where `isWarranty` is always false when editing finalized jobs.
-
-### Edit gate logic
-**Server — `sql_store.py` `GET_DELIVERABLE_JOBS_PAGED`:**
-- Add to SELECT: `ji.is_posted AS invoice_is_posted`
-
-**Client — `final-a-job-schema.ts` `FinalizedJobRow`:**
-- Add field: `invoice_is_posted: boolean | null`
-- Add field: `job_type_code: string` (bug fix above)
-
-**Client — `final-a-job-section.tsx` `handleOpenFinalForEdit`:**
-```typescript
-async function handleOpenFinalForEdit(row: FinalizedJobRow) {
-    // A job is editable if: job itself is not posted,
-    // AND either no invoice or invoice is not posted
-    const editable = !row.is_posted && (!row.invoice_no || !row.invoice_is_posted);
-    if (!editable) {
-        const reason = row.is_posted
-            ? MESSAGES.INFO_FINALIZED_JOB_NOT_EDITABLE_POSTED
-            : MESSAGES.INFO_FINALIZED_JOB_NOT_EDITABLE_INVOICE_POSTED;
-        toast.info(reason);
-        // Open in read mode (isEditMode = false)
-        setIsEditMode(false);
-        await handleOpenFinal(row as unknown as FinalJobRow);
-        return;
-    }
-    setIsEditMode(true);
-    await handleOpenFinal(row as unknown as FinalJobRow);
-}
-```
-
-**Messages to add in `messages.ts`:**
-```typescript
-INFO_FINALIZED_JOB_NOT_EDITABLE_POSTED:
-    'This job cannot be edited because it is already posted to accounts.',
-INFO_FINALIZED_JOB_NOT_EDITABLE_INVOICE_POSTED:
-    'This job cannot be edited because its invoice is already posted.',
+All queries share the same parameter pattern:
+```sql
+with
+    "p_branch_id" as (values(%(branch_id)s::bigint)),
+    "p_is_posted"  as (values(%(is_posted)s::boolean)),
+    "p_search"     as (values(%(search)s::text)),
+    "p_limit"      as (values(%(limit)s::int)),
+    "p_offset"     as (values(%(offset)s::int))
 ```
 
 ---
 
-## Item 8 — Final a Job: Regenerate invoice on save after edit
+## Step 2 — Client SQL Map (`sql-map.ts`)
 
-After a successful `handleSaveEdit()`, if the job had an invoice, regenerate it with the new parts/charges.
-
-**Approach:** After saving, if `selectedRow.invoice_no` is not null, call `regenerateJobInvoice` mutation (already built) with the recomputed lines.
-
-We need `invoice_id` for the regenerate call. Add it to `FinalizedJobRow`:
-
-**Server — `GET_DELIVERABLE_JOBS_PAGED` SQL:**
-- Add `ji.id AS invoice_id` to SELECT (alongside `ji.amount AS invoice_total`)
-
-**Client — `FinalizedJobRow` type:**
-- Add `invoice_id: number | null`
-
-**Client — `final-a-job-section.tsx` `handleSaveEdit`:**
-After the `await apolloClient.mutate(...)` succeeds, add:
-```typescript
-// Regenerate invoice if one exists
-if (isEditMode && selectedRow.invoice_id) {
-    const division = availableDivisions.find(d => d.id === selectedDivisionId) ?? null;
-    const isGstDiv = isGstDivision(division);
-    // Build invoice lines from current parts + charges
-    const lines = buildInvoiceLinesForRegenerate(partLines, chargeLines, isGstDiv, forceIgst);
-    const aggregate   = Math.round(lines.reduce((s, l) => s + l.aggregate, 0) * 100) / 100;
-    const cgst_amount = Math.round(lines.reduce((s, l) => s + l.cgst_amount, 0) * 100) / 100;
-    const sgst_amount = Math.round(lines.reduce((s, l) => s + l.sgst_amount, 0) * 100) / 100;
-    const igst_amount = Math.round(lines.reduce((s, l) => s + l.igst_amount, 0) * 100) / 100;
-    await apolloClient.mutate({
-        mutation: GRAPHQL_MAP.regenerateJobInvoice,
-        variables: {
-            db_name: dbName, schema,
-            value: encodeObj({ xData: {
-                invoice_id: selectedRow.invoice_id,
-                aggregate, cgst_amount, sgst_amount, igst_amount,
-                amount,
-                lines,
-            }}),
-        },
-    });
-}
+Add 6 new IDs to `SQL_MAP`:
+```ts
+GET_JOB_INVOICES_FOR_POSTING_PAGED:       "GET_JOB_INVOICES_FOR_POSTING_PAGED",
+GET_JOB_INVOICES_FOR_POSTING_COUNT:       "GET_JOB_INVOICES_FOR_POSTING_COUNT",
+GET_PURCHASE_INVOICES_FOR_POSTING_PAGED:  "GET_PURCHASE_INVOICES_FOR_POSTING_PAGED",
+GET_PURCHASE_INVOICES_FOR_POSTING_COUNT:  "GET_PURCHASE_INVOICES_FOR_POSTING_COUNT",
+GET_JOB_PAYMENTS_FOR_POSTING_PAGED:       "GET_JOB_PAYMENTS_FOR_POSTING_PAGED",
+GET_JOB_PAYMENTS_FOR_POSTING_COUNT:       "GET_JOB_PAYMENTS_FOR_POSTING_COUNT",
 ```
 
-**Helper `buildInvoiceLinesForRegenerate`** (add in final-a-job-section.tsx or a helpers file):
-Converts `EditablePartLine[]` + `EditableChargeLine[]` + GST flags into the same `InvoiceLine[]` format that `buildInvoiceLines` in delivery-modal.tsx produces. Can be extracted into a shared utility.
+---
+
+## Step 3 — New Files
+
+Folder: `src/features/client/components/jobs/accounts-posting/`
+
+### `accounts-posting-schema.ts`
+TypeScript row types:
+```ts
+export type PurchaseInvoicePostingRow = {
+    id: number; branch_id: number; invoice_no: string; invoice_date: string;
+    supplier_name: string; total_amount: number; is_posted: boolean;
+};
+export type JobInvoicePostingRow = {
+    id: number; job_id: number; job_no: string; job_date: string;
+    customer_name: string; mobile: string; invoice_no: string;
+    invoice_date: string; amount: number; is_posted: boolean;
+};
+export type JobPaymentPostingRow = {
+    id: number; job_id: number; job_no: string; receipt_no: string | null;
+    customer_name: string; payment_date: string; payment_mode: string;
+    amount: number; is_posted: boolean;
+};
+```
+
+### `purchase-invoices-grid.tsx`
+Props: `{ isPosted: boolean }`. Follows exact pattern of `single-job-section.tsx`:
+- `PAGE_SIZE = 50`, `DEBOUNCE_MS = 1600`
+- State: `search`, `searchQ`, `page`, `loading`, `total`, `rows`
+- `loadData(branchId, q, pg, isPosted)` — `Promise.all([PAGED, COUNT])` using `GET_PURCHASE_INVOICES_FOR_POSTING_PAGED/COUNT`
+- `useEffect` on `[branchId, searchQ, page, isPosted]`
+- Columns: `#`, `Invoice No`, `Date`, `Supplier`, `Total Amount`, actions
+- Action dropdown: "Post" (if `!isPosted`) / "Unpost" (if `isPosted`) — generic update `{ tableName: "purchase_invoice", xData: { id, is_posted: !isPosted } }`
+
+### `sales-invoices-grid.tsx`
+Same pattern, uses `GET_JOB_INVOICES_FOR_POSTING_PAGED/COUNT`.
+Columns: `#`, `Invoice No`, `Date`, `Job No`, `Customer`, `Mobile`, `Amount`, actions.
+
+### `money-receipts-grid.tsx`
+Same pattern, uses `GET_JOB_PAYMENTS_FOR_POSTING_PAGED/COUNT`.
+Columns: `#`, `Receipt No`, `Date`, `Job No`, `Customer`, `Mode`, `Amount`, actions.
+
+### `accounts-posting-section.tsx`
+Main section component. Component name: `AccountsPostingSection`. Uses `TabBtn` inline component (same as `part-finder-detail-panel.tsx`).
+
+Structure:
+```
+AccountsPostingSection
+├── Header (title "Accounts Posting")
+├── Outer tab bar: ["Posting", "Posted"]
+│   └── Inner tab bar: ["Purchase Invoices", "Sales Invoices", "Money Receipts"]
+│       └── Active grid component (isPosted = outerTab === "posted")
+```
+
+State: `outerTab: "posting" | "posted"`, `innerTab: "purchase" | "sales" | "receipts"`.
+
+The `isPosted` boolean passed to each grid is `outerTab === "posted"`.
 
 ---
 
-## Item 9 — Warranty Jobs: Save & Mark Final button hidden
+## Step 4 — Navigation
 
-**Status:** The form already has `{!isWarranty && <Save button>}` at line 286 of `final-job-form.tsx`.
+### `client-explorer-panel.tsx`
+In `JobsExplorer()`, add after `<TreeItem ... label="Deliver Job" />`:
+```tsx
+<TreeItem icon={BookCheck} label="Accounts Posting" />
+```
+Import `BookCheck` from lucide-react.
 
-The bug is that `isWarranty = selectedRow.job_type_code === "UNDER_WARRANTY"` but `FinalizedJobRow` lacks `job_type_code` (fix in Item 7). Once Item 7 adds `job_type_code` to `FinalizedJobRow` type and the SQL, this is automatically fixed.
-
-No additional code change needed beyond Item 7's type/SQL fix.
+### `client-jobs-page.tsx`
+Add import:
+```ts
+import { AccountsPostingSection } from "../components/jobs/accounts-posting/accounts-posting-section";
+```
+Add case in switch:
+```ts
+case "Accounts Posting":
+    return <AccountsPostingSection />;
+```
 
 ---
 
-## Implementation Order
+## File Summary
 
-1. **Items 9 + 7 (type/SQL fixes first):** Add `job_type_code`, `invoice_is_posted`, `invoice_id` to `GET_DELIVERABLE_JOBS_PAGED` SQL and `FinalizedJobRow` type — fixes the warranty button bug.
-2. **Item 7 (edit gate):** `handleOpenFinalForEdit` logic + messages.
-3. **Item 2:** One-liner change in delivery-modal.tsx.
-4. **Item 4:** Enhance `buildReceiptPdf` with division header and "Received with Thanks".
-5. **Item 5:** Add PDF button to receipts-section.tsx.
-6. **Item 6:** Add `is_posted` to SQL and type, add delete guard.
-7. **Item 8:** Regenerate invoice in `handleSaveEdit`.
+| Action | File |
+|---|---|
+| Modify | `sql_store.py` — 6 new queries |
+| Modify | `src/constants/sql-map.ts` — 6 new IDs |
+| Create | `src/features/client/components/jobs/accounts-posting/accounts-posting-schema.ts` |
+| Create | `src/features/client/components/jobs/accounts-posting/purchase-invoices-grid.tsx` |
+| Create | `src/features/client/components/jobs/accounts-posting/sales-invoices-grid.tsx` |
+| Create | `src/features/client/components/jobs/accounts-posting/money-receipts-grid.tsx` |
+| Create | `src/features/client/components/jobs/accounts-posting/accounts-posting-section.tsx` |
+| Modify | `src/features/client/components/client-explorer-panel.tsx` |
+| Modify | `src/features/client/pages/client-jobs-page.tsx` |
+
+---
+
+## Verification
+1. New "Accounts Posting" menu item appears in Jobs sidebar between "Deliver Job" and "Opening Jobs"
+2. Clicking it shows the outer Posting/Posted tabs
+3. Each outer tab has three inner tabs (Purchase Invoices / Sales Invoices / Money Receipts)
+4. Each grid loads correct data, search + pagination work
+5. "Post" action marks a record `is_posted = true`; it disappears from Posting tab and appears in Posted tab
+6. "Unpost" action on Posted tab reverses the above

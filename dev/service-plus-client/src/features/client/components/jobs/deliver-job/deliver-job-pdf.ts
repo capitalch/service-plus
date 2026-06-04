@@ -638,7 +638,9 @@ export function buildInvoicePdf(
     const doc = existingDoc ?? new jsPDF({ format: "a4", orientation: "p", unit: "mm" });
 
     const h = copies > 1 ? measureInvoiceHeight({ job, invoice, division }, branchName) : Infinity;
-    const canPack = h <= HALF_PAGE;  // use actual half-A4 boundary for same-invoice copies
+    // Pack whenever the invoice fits on 1 page; use actual measured height as offset so copies don't overlap
+    const canPack    = h !== Infinity;
+    const packOffset = Math.ceil(h) + 3;
 
     for (let i = 0; i < copies; i++) {
         const needsNewPage = (i === 0 && !!existingDoc) || (i > 0 && (!canPack || i % 2 === 0));
@@ -648,8 +650,8 @@ export function buildInvoicePdf(
             const pageW = doc.internal.pageSize.getWidth();
             doc.setDrawColor(200, 200, 200);
             doc.setLineWidth(0.3);
-            doc.line(10, HALF_PAGE - 2, pageW - 10, HALF_PAGE - 2);
-            drawInvoiceContent(doc, job, invoice, division, branchName, HALF_PAGE, false);
+            doc.line(10, packOffset - 1, pageW - 10, packOffset - 1);
+            drawInvoiceContent(doc, job, invoice, division, branchName, packOffset, false);
         } else {
             drawInvoiceContent(doc, job, invoice, division, branchName, 0, !canPack);
         }

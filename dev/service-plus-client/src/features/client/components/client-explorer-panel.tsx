@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import type { ComponentType } from "react";
 import {
-    BarChart3, BookOpen, Building2, Camera, ChevronDown, ChevronRight,
+    BarChart3, BookCheck, BookOpen, Building2, Camera, ChevronDown, ChevronRight,
     ClipboardList, DollarSign, FileText, Globe, Hash,
     LayoutDashboard, MapPin, Package, PlusCircle, Receipt,
     RefreshCcw, RotateCcw, Settings2, ShoppingCart,
@@ -142,6 +142,7 @@ function JobsExplorer() {
                 <TreeItem icon={BarChart3}     label="Job Pipeline" />
                 <TreeItem icon={FileText}      label="Final a Job" />
                 <TreeItem icon={Truck}         label="Deliver Job" />
+                <TreeItem icon={BookCheck}     label="Accounts Posting" />
                 <TreeItem icon={RotateCcw}     label="Opening Jobs" />
                 <TreeItem icon={Receipt}       label="Receipts" />
                 <TreeItem icon={Package}       label="Part Used (Job)" />

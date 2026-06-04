@@ -2,20 +2,14 @@
         Let us also change quantity -> qty for all variable names, identifiers and state names in client and server to avoid any confusion.
 # Logic for status change
 
-# Modification of Deliver Job functionality
-- For following items give a detailed item wise plan in plans/plan.md file
-- Delivery modal
-                        - when Create invoice & Receipts is clicked, it should update the modal for invoices and money receipts with latest info.
-                        - If no charges are payable for a job, create invoice & receipts should be disabled
-        - If no charges are payable for a job, the job should be allowed to deliver & close
-- Money  receipt
-        - Money receipt PDF should be more professional with division details at the top. There should be a statement received with thanks
-        - In Jobs > Receipts: Actions: add a show pdf button which shares the same pdf
-        - In Jobs > Receipts: Actions: Don't allow delete if job_payment is_posted is true. Show appropriate message. Keep the message in messages.ts.
-- Final a job
-        - A finalised job can be edited if it is not is_completed and if invoice is made and the is_posted of job_invoice is false, or invoice is not made. Show proper message to this effect when user tries to edit a job. If not editable then open in read mode.
-        - If user updates a finalised job and changes are done to parts or additional charges and if invoice is already made, then regenerate the invoice. Use the same regenerate invoice code as in Deliver job
-        - For warranty jobs when click final button, the next screen does not show Save & Mark final button
+# Modify feature "Job Posting"
+- In all the grids of Accounts Posting, provide a select checkbox (cursor-pointer) to select the row and select all checkbox
+- At the top, in the row of Posting, Posted, in the middle provide a prominent and distinguished button named as "Post all selected". Also provide labels showing selected purchasse invoices, sales invoices and money receipts. Provide a mechanism to select all and deselect all.
+- Create a dummy event for Post button
+- Create a nice UI for that
+
+
+
 
 ###
 - For "Assigned" as target status, selection of technician through drop down is mandatory in modal window if not already selected earlier.

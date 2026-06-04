@@ -2186,6 +2186,52 @@ class SqlStore:
         OFFSET (table "p_offset")
     """
 
+    GET_PURCHASE_INVOICES_FOR_POSTING_COUNT = """
+        with
+            "p_branch_id" as (values(%(branch_id)s::bigint)),
+            "p_is_posted"  as (values(%(is_posted)s::boolean)),
+            "p_search"     as (values(%(search)s::text))
+        SELECT COUNT(*) AS total
+        FROM purchase_invoice pi
+        JOIN supplier s ON s.id = pi.supplier_id
+        WHERE pi.branch_id = (table "p_branch_id")
+          AND pi.is_posted  = (table "p_is_posted")
+          AND ((table "p_search") = ''
+           OR LOWER(pi.invoice_no) LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(s.name)        LIKE '%%' || LOWER((table "p_search")) || '%%')
+    """
+
+    GET_PURCHASE_INVOICES_FOR_POSTING_PAGED = """
+        with
+            "p_branch_id" as (values(%(branch_id)s::bigint)),
+            "p_is_posted"  as (values(%(is_posted)s::boolean)),
+            "p_search"     as (values(%(search)s::text)),
+            "p_limit"      as (values(%(limit)s::int)),
+            "p_offset"     as (values(%(offset)s::int))
+        SELECT
+            pi.id,
+            pi.branch_id,
+            pi.invoice_no,
+            pi.invoice_date,
+            s.name           AS supplier_name,
+            pi.aggregate_amount,
+            pi.cgst_amount,
+            pi.sgst_amount,
+            pi.igst_amount,
+            pi.total_amount,
+            pi.is_posted
+        FROM purchase_invoice pi
+        JOIN supplier s ON s.id = pi.supplier_id
+        WHERE pi.branch_id = (table "p_branch_id")
+          AND pi.is_posted  = (table "p_is_posted")
+          AND ((table "p_search") = ''
+           OR LOWER(pi.invoice_no) LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(s.name)        LIKE '%%' || LOWER((table "p_search")) || '%%')
+        ORDER BY pi.invoice_date DESC, pi.id DESC
+        LIMIT  (table "p_limit")
+        OFFSET (table "p_offset")
+    """
+
     GET_PURCHASE_INVOICE_DETAIL = """
         with "p_id" as (values(%(id)s::bigint))
         -- with "p_id" as (values(1::bigint)) -- Test line
@@ -2356,6 +2402,54 @@ class SqlStore:
         WHERE d.branch_id = (table "p_branch_id")
           AND ((table "p_division_id") IS NULL OR si.division_id = (table "p_division_id"))
           AND si.invoice_date BETWEEN (table "p_from_date") AND (table "p_to_date")
+          AND ((table "p_search") = ''
+           OR LOWER(si.invoice_no)    LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(si.customer_name) LIKE '%%' || LOWER((table "p_search")) || '%%')
+        ORDER BY si.invoice_date DESC, si.id DESC
+        LIMIT  (table "p_limit")
+        OFFSET (table "p_offset")
+    """
+
+    GET_SALES_INVOICES_FOR_POSTING_COUNT = """
+        with
+            "p_branch_id" as (values(%(branch_id)s::bigint)),
+            "p_is_posted"  as (values(%(is_posted)s::boolean)),
+            "p_search"     as (values(%(search)s::text))
+        SELECT COUNT(*) AS total
+        FROM sales_invoice si
+        JOIN division d ON d.id = si.division_id
+        WHERE d.branch_id = (table "p_branch_id")
+          AND si.is_posted  = (table "p_is_posted")
+          AND ((table "p_search") = ''
+           OR LOWER(si.invoice_no)    LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(si.customer_name) LIKE '%%' || LOWER((table "p_search")) || '%%')
+    """
+
+    GET_SALES_INVOICES_FOR_POSTING_PAGED = """
+        with
+            "p_branch_id" as (values(%(branch_id)s::bigint)),
+            "p_is_posted"  as (values(%(is_posted)s::boolean)),
+            "p_search"     as (values(%(search)s::text)),
+            "p_limit"      as (values(%(limit)s::int)),
+            "p_offset"     as (values(%(offset)s::int))
+        SELECT
+            si.id,
+            si.division_id,
+            d.name        AS division_name,
+            si.invoice_no,
+            si.invoice_date,
+            si.customer_name,
+            si.aggregate      AS aggregate_amount,
+            si.cgst_amount,
+            si.sgst_amount,
+            si.igst_amount,
+            si.amount         AS total_amount,
+            si.is_return,
+            si.is_posted
+        FROM sales_invoice si
+        JOIN division d ON d.id = si.division_id
+        WHERE d.branch_id = (table "p_branch_id")
+          AND si.is_posted  = (table "p_is_posted")
           AND ((table "p_search") = ''
            OR LOWER(si.invoice_no)    LIKE '%%' || LOWER((table "p_search")) || '%%'
            OR LOWER(si.customer_name) LIKE '%%' || LOWER((table "p_search")) || '%%')
@@ -3810,6 +3904,58 @@ class SqlStore:
         OFFSET (table "p_offset")
     """
 
+    GET_JOB_PAYMENTS_FOR_POSTING_COUNT = """
+        with
+            "p_branch_id" as (values(%(branch_id)s::bigint)),
+            "p_is_posted"  as (values(%(is_posted)s::boolean)),
+            "p_search"     as (values(%(search)s::text))
+        SELECT COUNT(*) AS total
+        FROM job_payment jp
+        JOIN job j ON j.id = jp.job_id
+        LEFT JOIN customer_contact cc ON cc.id = j.customer_contact_id
+        WHERE j.branch_id  = (table "p_branch_id")
+          AND jp.is_posted  = (table "p_is_posted")
+          AND ((table "p_search") = ''
+           OR  j.job_no::text ILIKE '%%' || (table "p_search") || '%%'
+           OR  LOWER(cc.full_name)             LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(jp.payment_mode)          LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(COALESCE(jp.receipt_no, '')) LIKE '%%' || LOWER((table "p_search")) || '%%')
+    """
+
+    GET_JOB_PAYMENTS_FOR_POSTING_PAGED = """
+        with
+            "p_branch_id" as (values(%(branch_id)s::bigint)),
+            "p_is_posted"  as (values(%(is_posted)s::boolean)),
+            "p_search"     as (values(%(search)s::text)),
+            "p_limit"      as (values(%(limit)s::int)),
+            "p_offset"     as (values(%(offset)s::int))
+        SELECT
+            jp.id,
+            jp.job_id,
+            j.job_no,
+            cc.full_name  AS customer_name,
+            cc.mobile,
+            jp.receipt_no,
+            jp.payment_date,
+            jp.payment_mode,
+            jp.amount,
+            jp.reference_no,
+            jp.is_posted
+        FROM job_payment jp
+        JOIN job j ON j.id = jp.job_id
+        LEFT JOIN customer_contact cc ON cc.id = j.customer_contact_id
+        WHERE j.branch_id  = (table "p_branch_id")
+          AND jp.is_posted  = (table "p_is_posted")
+          AND ((table "p_search") = ''
+           OR  j.job_no::text ILIKE '%%' || (table "p_search") || '%%'
+           OR  LOWER(cc.full_name)             LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(jp.payment_mode)          LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(COALESCE(jp.receipt_no, '')) LIKE '%%' || LOWER((table "p_search")) || '%%')
+        ORDER BY jp.payment_date DESC, jp.id DESC
+        LIMIT  (table "p_limit")
+        OFFSET (table "p_offset")
+    """
+
     GET_JOB_PAYMENTS_BY_JOB = """
         with "p_job_id" as (values(%(job_id)s::bigint))
         SELECT jp.id, jp.job_id, jp.receipt_no, jp.payment_date, jp.payment_mode, jp.amount,
@@ -4022,6 +4168,59 @@ class SqlStore:
         LEFT JOIN job_invoice_line jil ON jil.job_invoice_id = ji.id
         WHERE ji.job_id = (table "p_job_id")
         GROUP BY ji.id
+    """
+
+    GET_JOB_INVOICES_FOR_POSTING_COUNT = """
+        with
+            "p_branch_id" as (values(%(branch_id)s::bigint)),
+            "p_is_posted"  as (values(%(is_posted)s::boolean)),
+            "p_search"     as (values(%(search)s::text))
+        SELECT COUNT(*) AS total
+        FROM job_invoice ji
+        JOIN job j ON j.id = ji.job_id
+        LEFT JOIN customer_contact cc ON cc.id = j.customer_contact_id
+        WHERE j.branch_id = (table "p_branch_id")
+          AND ji.is_posted = (table "p_is_posted")
+          AND ((table "p_search") = ''
+           OR  j.job_no::text         ILIKE '%%' || (table "p_search") || '%%'
+           OR  LOWER(ji.invoice_no)    LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(cc.full_name)     LIKE '%%' || LOWER((table "p_search")) || '%%')
+    """
+
+    GET_JOB_INVOICES_FOR_POSTING_PAGED = """
+        with
+            "p_branch_id" as (values(%(branch_id)s::bigint)),
+            "p_is_posted"  as (values(%(is_posted)s::boolean)),
+            "p_search"     as (values(%(search)s::text)),
+            "p_limit"      as (values(%(limit)s::int)),
+            "p_offset"     as (values(%(offset)s::int))
+        SELECT
+            ji.id,
+            ji.job_id,
+            j.job_no,
+            j.job_date,
+            cc.full_name  AS customer_name,
+            cc.mobile,
+            ji.invoice_no,
+            ji.invoice_date,
+            ji.aggregate,
+            ji.cgst_amount,
+            ji.sgst_amount,
+            ji.igst_amount,
+            ji.amount,
+            ji.is_posted
+        FROM job_invoice ji
+        JOIN job j ON j.id = ji.job_id
+        LEFT JOIN customer_contact cc ON cc.id = j.customer_contact_id
+        WHERE j.branch_id = (table "p_branch_id")
+          AND ji.is_posted = (table "p_is_posted")
+          AND ((table "p_search") = ''
+           OR  j.job_no::text         ILIKE '%%' || (table "p_search") || '%%'
+           OR  LOWER(ji.invoice_no)    LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(cc.full_name)     LIKE '%%' || LOWER((table "p_search")) || '%%')
+        ORDER BY ji.invoice_date DESC, ji.id DESC
+        LIMIT  (table "p_limit")
+        OFFSET (table "p_offset")
     """
 
     GET_JOB_PARTS_FOR_INVOICE = """

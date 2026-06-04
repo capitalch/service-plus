@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict LAdfRKdHh9oUiFZFY3keGuCPbm5464KURPFpqBHn7AgCexRjg6g8NVx3kDEUV0C
+\restrict 2zoHTDKAESitpij7QA9hetN0s73Bqepa36EvtBf5T3UCKvupaW0XFV2WHoLtdny
 
 -- Dumped from database version 14.6
 -- Dumped by pg_dump version 18.4 (Ubuntu 18.4-0ubuntu0.26.04.1)
@@ -867,7 +867,9 @@ CREATE TABLE demo1.purchase_invoice (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     brand_id bigint NOT NULL,
-    is_return boolean DEFAULT false NOT NULL
+    is_return boolean DEFAULT false NOT NULL,
+    is_posted boolean DEFAULT false NOT NULL,
+    divison_id bigint NOT NULL
 );
 
 
@@ -2696,6 +2698,13 @@ CREATE INDEX job_transaction_transaction_date_idx ON demo1.job_transaction USING
 
 
 --
+-- Name: purchase_invoice_is_posted_idx; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX purchase_invoice_is_posted_idx ON demo1.purchase_invoice USING btree (is_posted) WITH (deduplicate_items='true');
+
+
+--
 -- Name: sales_invoice_is_posted_idx; Type: INDEX; Schema: demo1; Owner: webadmin
 --
 
@@ -3181,6 +3190,14 @@ ALTER TABLE ONLY demo1.purchase_invoice
 
 
 --
+-- Name: purchase_invoice purchase_invoice_divison_id_fkey; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.purchase_invoice
+    ADD CONSTRAINT purchase_invoice_divison_id_fkey FOREIGN KEY (divison_id) REFERENCES demo1.division(id) NOT VALID;
+
+
+--
 -- Name: purchase_invoice_line purchase_invoice_line_invoice_fk; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
 --
 
@@ -3560,5 +3577,5 @@ ALTER TABLE ONLY security.user_bu_role
 -- PostgreSQL database dump complete
 --
 
-\unrestrict LAdfRKdHh9oUiFZFY3keGuCPbm5464KURPFpqBHn7AgCexRjg6g8NVx3kDEUV0C
+\unrestrict 2zoHTDKAESitpij7QA9hetN0s73Bqepa36EvtBf5T3UCKvupaW0XFV2WHoLtdny
 

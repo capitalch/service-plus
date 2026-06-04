@@ -132,7 +132,7 @@ export const SalesEntrySection = () => {
 
     const form = useForm<SalesInvoiceFormValues>({
         defaultValues: {
-            ...getSalesInvoiceDefaultValues(),
+            ...getSalesInvoiceDefaultValues(defaultDivisionId),
             lines: [getInitialSalesLine(selectedBrandId)],
         },
         mode:          "onChange",
@@ -338,7 +338,7 @@ export const SalesEntrySection = () => {
 
     const handleReset = () => {
         form.reset({
-            ...getSalesInvoiceDefaultValues(),
+            ...getSalesInvoiceDefaultValues(defaultDivisionId),
             lines: [getInitialSalesLine(selectedBrandId)],
         });
         setCustomerId(null);
@@ -421,6 +421,7 @@ export const SalesEntrySection = () => {
         });
 
         const headerFields = {
+            division_id:         values.division_id,
             customer_contact_id: customerId ?? null,
             customer_name:       customerName.trim(),
             customer_gstin:      customerGstin.trim() || null,
@@ -468,8 +469,7 @@ export const SalesEntrySection = () => {
                     doc_sequence_id:   docSequence?.id ?? null,
                     doc_sequence_next: docSequence ? (docSequence.next_number + 1) : null,
                     xData: {
-                        division_id: currentDivision?.id ?? defaultDivisionId,
-                        invoice_no:  invoiceNo,
+                        invoice_no: invoiceNo,
                         ...headerFields,
                         xDetails: {
                             tableName: "sales_invoice_line",

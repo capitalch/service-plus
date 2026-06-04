@@ -32,7 +32,7 @@ import { encodeObj, graphQlUtils } from "@/lib/graphql-utils";
 import { formatCurrency, currentFinancialYearRange } from "@/lib/utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
-import { selectCurrentBranch, selectIsGstRegistered, selectSchema, selectCompanyName } from "@/store/context-slice";
+import { selectCurrentBranch, selectDefaultDivisionId, selectIsGstRegistered, selectSchema, selectCompanyName } from "@/store/context-slice";
 import type { BranchType } from "@/features/client/components/masters/branch/branch";
 import type { VendorType } from "@/features/client/types/vendor";
 import type { PurchaseInvoiceType, PurchaseLineType, StockTransactionTypeRow } from "@/features/client/types/purchase";
@@ -69,8 +69,9 @@ export const PurchaseEntrySection = () => {
     const schema = useAppSelector(selectSchema);
     const globalBranch = useAppSelector(selectCurrentBranch);
     const branchId = globalBranch?.id ?? null;
-    const isGstRegistered = useAppSelector(selectIsGstRegistered);
-    const companyName = useAppSelector(selectCompanyName) || "Service Plus";
+    const isGstRegistered   = useAppSelector(selectIsGstRegistered);
+    const companyName       = useAppSelector(selectCompanyName) || "Service Plus";
+    const defaultDivisionId = useAppSelector(selectDefaultDivisionId);
 
     const { from: defaultFrom, to: defaultTo } = currentFinancialYearRange();
 
@@ -119,7 +120,7 @@ export const PurchaseEntrySection = () => {
     const scrollWrapperRef = useRef<HTMLDivElement>(null);
 
     const form = useForm<PurchaseInvoiceFormValues>({
-        defaultValues: getPurchaseInvoiceDefaultValues(),
+        defaultValues: getPurchaseInvoiceDefaultValues(defaultDivisionId),
         mode:          "onChange",
         resolver:      zodResolver(purchaseInvoiceSchema) as any,
     });
@@ -127,7 +128,7 @@ export const PurchaseEntrySection = () => {
     const canSave = form.formState.isValid && !!selectedBrand && !invoiceExists && !checkingDuplicate && linesValid;
 
     const handleReset = () => {
-        form.reset(getPurchaseInvoiceDefaultValues());
+        form.reset(getPurchaseInvoiceDefaultValues(defaultDivisionId));
         setEditInvoice(null);
         setIsReturn(false);
         setLinesValid(false);

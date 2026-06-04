@@ -9,6 +9,7 @@ import { FinalAJobSection } from "../components/jobs/final-a-job/final-a-job-sec
 import { ReceiptsSection } from "../components/jobs/receipts/receipts-section";
 import { SingleJobSection } from "../components/jobs/single-job/single-job-section";
 import { JobPipelineSection } from "../components/jobs/job-pipeline/job-pipeline-section";
+import { AccountsPostingSection } from "../components/jobs/accounts-posting/accounts-posting-section";
 
 // ─── Coming Soon placeholder ──────────────────────────────────────────────────
 
@@ -59,6 +60,8 @@ function JobsContent() {
             return <FinalAJobSection />;
         case "Deliver Job":
             return <DeliverJobSection />;
+        case "Accounts Posting":
+            return <AccountsPostingSection />;
         case "Job Search":
             return <JobSearchSection />;
         default:

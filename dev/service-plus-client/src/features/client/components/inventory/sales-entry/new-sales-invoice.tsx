@@ -18,7 +18,7 @@ import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
-import { selectDefaultGstRate, selectEffectiveGstStateCode, selectForceGstOnPartsForNonGst, selectIsGstMode, selectSchema } from "@/store/context-slice";
+import { selectAvailableDivisions, selectDefaultDivisionId, selectDefaultGstRate, selectEffectiveGstStateCode, selectForceGstOnPartsForNonGst, selectIsGstMode, selectSchema } from "@/store/context-slice";
 import type { SalesInvoiceType, DocumentSequenceRow, CustomerSearchRow } from "@/features/client/types/sales";
 import type { CustomerTypeOption, StateOption } from "@/features/client/types/customer";
 import { type SalesInvoiceFormValues, getInitialSalesLine } from "./sales-invoice-schema";
@@ -99,6 +99,8 @@ export function NewSalesInvoice({
     const defaultGstRate            = useAppSelector(selectDefaultGstRate);
     const effectiveGstStateCode     = useAppSelector(selectEffectiveGstStateCode);
     const forceGstOnPartsForNonGst  = useAppSelector(selectForceGstOnPartsForNonGst);
+    const availableDivisions        = useAppSelector(selectAvailableDivisions);
+    const defaultDivisionId         = useAppSelector(selectDefaultDivisionId);
 
     const form = useFormContext<SalesInvoiceFormValues>();
     const { register, setValue, formState: { isSubmitting } } = form;
@@ -176,9 +178,10 @@ export function NewSalesInvoice({
             } as SalesLineFormItem));
             const originalIds = ((detail as any).lines ?? []).map((l: any) => l.id);
             form.reset({
+                division_id:  (detail as any).division_id ?? defaultDivisionId,
                 invoice_date: detail.invoice_date,
-                remarks: detail.remarks ?? "",
-                lines: loadedLines,
+                remarks:      detail.remarks ?? "",
+                lines:        loadedLines,
                 originalLineIds: originalIds,
             });
         }).catch(() => toast.error(MESSAGES.ERROR_SALES_LOAD_FAILED));
@@ -249,6 +252,7 @@ export function NewSalesInvoice({
     }, [lines, isIgst]);
 
     const invoiceDate = form.watch("invoice_date");
+    const divisionId  = form.watch("division_id");
 
     return (
         <motion.div
@@ -376,7 +380,7 @@ export function NewSalesInvoice({
                             </div>
 
                             {/* Remarks */}
-                            <div className="space-y-2 md:col-span-2 lg:col-span-4">
+                            <div className="space-y-2 md:col-span-2 lg:col-span-2">
                                 <Label className="text-xs font-extrabold text-(--cl-text) uppercase tracking-widest">Remarks</Label>
                                 <Input
                                     {...register("remarks")}
@@ -384,6 +388,27 @@ export function NewSalesInvoice({
                                     placeholder="Optional…"
                                 />
                             </div>
+
+                            {/* Division */}
+                            {availableDivisions.length > 0 && (
+                                <div className="space-y-2 md:col-span-2 lg:col-span-2">
+                                    <Label className="text-xs font-extrabold text-(--cl-text) uppercase tracking-widest">
+                                        Division <span className="text-red-500 ml-0.5">*</span>
+                                    </Label>
+                                    <select
+                                        className={`w-full rounded-md border px-3 py-2 text-sm bg-(--cl-surface-2) text-(--cl-text) focus:outline-none focus:ring-2 focus:ring-(--cl-accent)/30 ${
+                                            !divisionId ? "border-red-500" : "border-(--cl-border)"
+                                        }`}
+                                        value={divisionId || ""}
+                                        onChange={e => form.setValue("division_id", e.target.value ? Number(e.target.value) : 0, { shouldValidate: true })}
+                                    >
+                                        <option value="">Select division…</option>
+                                        {availableDivisions.map(d => (
+                                            <option key={d.id} value={d.id}>{d.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
 

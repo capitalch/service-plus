@@ -6,20 +6,18 @@
 	- Inputting parts and charges at any step with similar to final a job screen
 								- under warranty job, cannot do final
 	- Deliver job
-		- Job 00007, no invoice line but amount 1000. Should not be allowed
+								- Job 00007, no invoice line but amount 1000. Should not be allowed
 								- Modify receipt
 								- Invoice numbering at server side
 		- Show part details in invoice toggle
 								- Re generate invoice
 								- If modify final job, then update invoice if already generated
-		- check delivery
+								- check delivery
 		- Undo delivery
 								- DELETE INVOICE
-# Job Delivery
-	- Delivery note to be better
-	- Invoice no to be generated at server
-# Trace transfer
-	- used is_posted flag in job and 
+# Accounts posting
+								- UI
+	- Implementation of transfer to Accounts
 
 - Final a Job
 							- Undo final
@@ -83,7 +81,7 @@
 								- Add job view
 									- Job details
 									- Job transactions
-# To Do
+
 						- Jobs
 							- New job
 								- Equal width

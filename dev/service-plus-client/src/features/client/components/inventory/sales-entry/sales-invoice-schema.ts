@@ -20,6 +20,7 @@ export const salesLineSchema = z.object({
 });
 
 export const salesInvoiceSchema = z.object({
+    division_id:  z.number().int().min(1, "Division is required"),
     invoice_date: z.string().min(1, "Invoice date is required"),
     remarks:      z.string().optional(),
     lines:        z.array(salesLineSchema).min(1, "At least one line item required"),
@@ -29,8 +30,9 @@ export const salesInvoiceSchema = z.object({
 export type SalesLineFormItem = z.infer<typeof salesLineSchema>;
 export type SalesInvoiceFormValues = z.infer<typeof salesInvoiceSchema>;
 
-export function getSalesInvoiceDefaultValues(): SalesInvoiceFormValues {
+export function getSalesInvoiceDefaultValues(divisionId = 0): SalesInvoiceFormValues {
     return {
+        division_id:  divisionId,
         invoice_date: new Date().toISOString().slice(0, 10),
         remarks:      "",
         lines:       [getInitialSalesLine()],
