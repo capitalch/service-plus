@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
@@ -24,6 +25,8 @@ import { selectSchema } from "@/store/context-slice";
 import type { AppSettingRecord } from "@/features/client/types/app-setting";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
+
+type ValueMode = "simple" | "json";
 
 type EditAppSettingDialogProps = {
     onOpenChange: (open: boolean) => void;
@@ -35,24 +38,29 @@ type EditAppSettingDialogProps = {
 const formSchema = z.object({
     setting_value: z.string().min(1, "Value is required").refine((v) => {
         try { JSON.parse(v); return true; } catch { return false; }
-    }, "Must be a valid JSON value (e.g. 18, true, \"text\")"),
+    }, "Must be a valid JSON value (e.g. 18, true, \"text\", or {\"key\": \"value\"})"),
     description:   z.string().optional(),
 });
 
 type FormType = z.infer<typeof formSchema>;
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function detectMode(v: unknown): ValueMode {
+    if (v !== null && typeof v === "object") return "json";
+    return "simple";
+}
+
+function valueToString(v: unknown): string {
+    if (v === null || v === undefined) return "";
+    if (typeof v === "object") return JSON.stringify(v, null, 2);
+    return String(v);
+}
+
 // ─── Field error ──────────────────────────────────────────────────────────────
 
 function FieldError({ message }: { message?: string }) {
     return message ? <p className="text-xs text-red-500">{message}</p> : null;
-}
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function valueToString(v: unknown): string {
-    if (v === null || v === undefined) return "";
-    if (typeof v === "object") return JSON.stringify(v);
-    return String(v);
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -65,6 +73,8 @@ export const EditAppSettingDialog = ({
 }: EditAppSettingDialogProps) => {
     const dbName = useAppSelector(selectDbName);
     const schema = useAppSelector(selectSchema);
+
+    const [valueMode, setValueMode] = useState<ValueMode>(() => detectMode(record.setting_value));
 
     const form = useForm<FormType>({
         defaultValues: {
@@ -80,11 +90,24 @@ export const EditAppSettingDialog = ({
     // Pre-fill on open
     useEffect(() => {
         if (!open) return;
+        const mode = detectMode(record.setting_value);
+        setValueMode(mode);
         form.reset({
             setting_value: valueToString(record.setting_value),
             description:   record.description ?? "",
         });
     }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    function handleModeSwitch(m: ValueMode) {
+        if (m === "json") {
+            try {
+                const parsed = JSON.parse(form.getValues("setting_value"));
+                if (typeof parsed === "object" && parsed !== null)
+                    form.setValue("setting_value", JSON.stringify(parsed, null, 2), { shouldValidate: true });
+            } catch { /* leave as-is */ }
+        }
+        setValueMode(m);
+    }
 
     async function onSubmit(data: FormType) {
         if (!dbName || !schema) return;
@@ -134,16 +157,47 @@ export const EditAppSettingDialog = ({
 
                     {/* Value */}
                     <div className="flex flex-col gap-1.5">
-                        <Label htmlFor="es_value">
-                            Value <span className="text-red-500">*</span>
-                        </Label>
-                        <Input
-                            autoComplete="off"
-                            className="font-mono"
-                            id="es_value"
-                            placeholder='e.g. 18, true, "some text"'
-                            {...form.register("setting_value")}
-                        />
+                        <div className="flex items-center justify-between">
+                            <Label htmlFor="es_value">
+                                Value <span className="text-red-500">*</span>
+                            </Label>
+                            {/* Mode toggle */}
+                            <div className="flex gap-0.5 rounded-md border border-(--cl-border) bg-(--cl-surface-3) p-0.5">
+                                {(["simple", "json"] as const).map(m => (
+                                    <button
+                                        key={m}
+                                        className={`rounded px-2.5 py-0.5 text-xs font-medium transition-colors ${
+                                            valueMode === m
+                                                ? "bg-white dark:bg-zinc-800 text-(--cl-text) shadow-sm"
+                                                : "text-(--cl-text-muted) hover:text-(--cl-text)"
+                                        }`}
+                                        type="button"
+                                        onClick={() => handleModeSwitch(m)}
+                                    >
+                                        {m === "simple" ? "Simple" : "JSON"}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {valueMode === "simple" ? (
+                            <Input
+                                autoComplete="off"
+                                className="font-mono"
+                                id="es_value"
+                                placeholder='e.g. 18, true, "some text"'
+                                {...form.register("setting_value")}
+                            />
+                        ) : (
+                            <Textarea
+                                autoComplete="off"
+                                className="font-mono text-sm"
+                                id="es_value"
+                                placeholder={'{\n  "key": "value"\n}'}
+                                rows={6}
+                                {...form.register("setting_value")}
+                            />
+                        )}
                         <FieldError message={errors.setting_value?.message} />
                     </div>
 

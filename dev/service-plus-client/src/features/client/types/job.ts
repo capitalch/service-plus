@@ -41,6 +41,7 @@ export type JobDetailType = {
     is_closed:                   boolean;
     is_final:                    boolean;
     is_igst:                     boolean;
+    to_show_parts_in_job_invoice: boolean;
     last_transaction_id:         number | null;
     warranty_card_no:            string | null;
     qty:                         number;

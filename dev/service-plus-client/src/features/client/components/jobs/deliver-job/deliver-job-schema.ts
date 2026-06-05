@@ -145,7 +145,8 @@ export type JobDeliveryFullDetail = {
     receive_manner_name:    string;
     receive_condition_name: string;
     technician_name:        string | null;
-    is_igst:                boolean | null;
+    is_igst:                     boolean | null;
+    to_show_parts_in_job_invoice: boolean | null;
     invoice_id:             number | null;
     invoice_no:             string | null;
     invoice_date:           string | null;

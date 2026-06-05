@@ -48,17 +48,20 @@ type DeliveryMannerRow = { id: number; name: string };
 
 type GenericQueryData<T> = { genericQuery: T[] | null };
 
+type ShowPartsInInvoiceSetting = { show: boolean; text: string; hsn: number; gst_rate: number };
+
 type Props = {
-    jobs:               JobDeliveryFullDetail[];
-    branchId:           number | null;
-    branchName:         string | null;
-    deliveryManners:    DeliveryMannerRow[];
-    availableDivisions: DivisionContextType[];
-    currentUser:        UserInstanceType | null;
-    dbName:             string | null;
-    schema:             string | null;
-    onClose:            () => void;
-    onDelivered:        () => void;
+    jobs:                      JobDeliveryFullDetail[];
+    branchId:                  number | null;
+    branchName:                string | null;
+    deliveryManners:           DeliveryMannerRow[];
+    availableDivisions:        DivisionContextType[];
+    currentUser:               UserInstanceType | null;
+    dbName:                    string | null;
+    schema:                    string | null;
+    showPartsInInvoiceSetting: ShowPartsInInvoiceSetting | null;
+    onClose:                   () => void;
+    onDelivered:               () => void;
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -77,12 +80,41 @@ type InvoiceLine = {
     amount:      number;
 };
 
-function buildInvoiceLines(job: JobDeliveryFullDetail, isGst: boolean, forceIgst: boolean): InvoiceLine[] {
+function buildInvoiceLines(
+    job: JobDeliveryFullDetail,
+    isGst: boolean,
+    forceIgst: boolean,
+    showPartsSetting: ShowPartsInInvoiceSetting | null,
+): InvoiceLine[] {
     function computeTax(taxable: number, gstRate: number) {
         if (!isGst || gstRate === 0) return { cgst: 0, sgst: 0, igst: 0 };
         if (forceIgst) return { cgst: 0, sgst: 0, igst: Math.round(taxable * gstRate) / 100 };
         const half = Math.round(taxable * gstRate / 2) / 100;
         return { cgst: half, sgst: half, igst: 0 };
+    }
+
+    const showDetail = job.to_show_parts_in_job_invoice ?? true;
+
+    if (!showDetail && showPartsSetting) {
+        const combinedTaxable = Math.round(
+            ((job.parts  ?? []).reduce((s, p) => s + p.selling_price * p.qty, 0) +
+             (job.charges ?? []).reduce((s, c) => s + c.selling_price * c.qty, 0)) * 100
+        ) / 100;
+        const rate = isGst ? showPartsSetting.gst_rate : 0;
+        const { cgst, sgst, igst } = computeTax(combinedTaxable, rate);
+        return [{
+            description: showPartsSetting.text,
+            part_code:   null,
+            hsn_code:    isGst ? String(showPartsSetting.hsn) : null,
+            qty:         1,
+            price:       combinedTaxable,
+            aggregate:   combinedTaxable,
+            gst_rate:    rate,
+            cgst_amount: cgst,
+            sgst_amount: sgst,
+            igst_amount: igst,
+            amount:      Math.round((combinedTaxable + cgst + sgst + igst) * 100) / 100,
+        }];
     }
 
     const partLines: InvoiceLine[] = (job.parts ?? []).map(p => {
@@ -177,6 +209,7 @@ export function DeliveryModal({
     currentUser,
     dbName,
     schema,
+    showPartsInInvoiceSetting,
     onClose,
     onDelivered,
 }: Props) {
@@ -275,7 +308,7 @@ export function DeliveryModal({
                 const division = availableDivisions.find(d => d.id === job.division_id) ?? null;
                 const isGst    = isGstDivision(division);
 
-                const lines = buildInvoiceLines(job, isGst, job.is_igst ?? false);
+                const lines = buildInvoiceLines(job, isGst, job.is_igst ?? false, showPartsInInvoiceSetting);
                 if (lines.length === 0) {
                     toast.warning(`Job #${job.job_no}: ${MESSAGES.WARN_JOB_INVOICE_NO_LINES}`);
                     skipped++;

@@ -15,6 +15,8 @@ import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
 import { PartCodeInput, type PartRow } from "@/features/client/components/inventory/part-code-input";
 import type { BrandOption } from "@/features/client/types/model";
+import { ChargeNameCombobox } from "../final-a-job/charge-name-combobox";
+import type { AdditionalChargeMasterRow } from "../final-a-job/final-a-job-schema";
 import { STATUS_COLORS } from "./status-transitions";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -90,8 +92,9 @@ export const JobChargesModal = ({ job, dbName, schema, onClose, onSaved }: Props
     const [loading,  setLoading]  = useState(true);
     const [saving,   setSaving]   = useState(false);
     const [markupPct, setMarkupPct] = useState(0);
-    const [brands,          setBrands]          = useState<BrandOption[]>([]);
-    const [selectedBrandId, setSelectedBrandId] = useState<number | null>(null);
+    const [brands,                setBrands]                = useState<BrandOption[]>([]);
+    const [selectedBrandId,       setSelectedBrandId]       = useState<number | null>(null);
+    const [chargeOptions,         setChargeOptions]         = useState<AdditionalChargeMasterRow[]>([]);
 
     const deletedPartIdsRef   = useRef<number[]>([]);
     const deletedChargeIdsRef = useRef<number[]>([]);
@@ -123,13 +126,15 @@ export const JobChargesModal = ({ job, dbName, schema, onClose, onSaved }: Props
             gq<ChargeItem>(SQL_MAP.GET_JOB_ADDITIONAL_CHARGES_BY_JOB, { job_id: job.id }),
             gq<BrandOption>(SQL_MAP.GET_ALL_BRANDS, {}),
             gq<{ setting_value: unknown }>(SQL_MAP.GET_APP_SETTING_BY_KEY, { setting_key: "markup_percent_over_cost" }),
-        ]).then(([partsRes, chargesRes, brandsRes, markupRes]) => {
+            gq<AdditionalChargeMasterRow>(SQL_MAP.GET_ALL_ADDITIONAL_CHARGES, {}),
+        ]).then(([partsRes, chargesRes, brandsRes, markupRes, chargeOptRes]) => {
             const parts   = partsRes.data?.genericQuery   ?? [];
             const charges = chargesRes.data?.genericQuery ?? [];
             originalPartsRef.current   = parts;
             originalChargesRef.current = charges;
             reset({ parts, charges });
             setBrands(brandsRes.data?.genericQuery ?? []);
+            setChargeOptions(chargeOptRes.data?.genericQuery ?? []);
             const rawMarkup = markupRes.data?.genericQuery?.[0]?.setting_value;
             const pct = rawMarkup != null ? Number(rawMarkup) : 0;
             setMarkupPct(isNaN(pct) ? 0 : pct);
@@ -152,6 +157,11 @@ export const JobChargesModal = ({ job, dbName, schema, onClose, onSaved }: Props
     function resetParts() {
         reset({ parts: [...originalPartsRef.current], charges: getValues("charges") });
         deletedPartIdsRef.current = [];
+    }
+
+    function resetCharges() {
+        reset({ parts: getValues("parts"), charges: [...originalChargesRef.current] });
+        deletedChargeIdsRef.current = [];
     }
 
     function handleDeletePart(index: number, id: number | null) {
@@ -376,17 +386,24 @@ export const JobChargesModal = ({ job, dbName, schema, onClose, onSaved }: Props
                                         </SelectContent>
                                     </Select>
                                 </div>
-                                <div className="flex items-center gap-1.5">
-                                    <Button className="h-6 px-2 text-xs" size="sm" type="button" variant="outline" onClick={resetParts}>
-                                        <Undo2 className="h-3 w-3 mr-1" />Reset
-                                    </Button>
-                                    <Button className="h-6 px-2 text-xs" size="sm" type="button"
-                                        onClick={() => insertPart(partFields.length, newPartRow())}>
-                                        <Plus className="h-3 w-3 mr-1" />Add Part
-                                    </Button>
-                                </div>
+                                <Button className="h-7 px-2 text-sm" size="sm" type="button" variant="outline" onClick={resetParts}>
+                                    <Undo2 className="h-3.5 w-3.5 mr-1" />Reset
+                                </Button>
                             </div>
 
+                            {partFields.length === 0 ? (
+                                <div className="flex items-center justify-center py-6">
+                                    <Button
+                                        className="h-8 gap-1.5 text-xs border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+                                        size="sm"
+                                        type="button"
+                                        variant="outline"
+                                        onClick={() => insertPart(0, newPartRow())}
+                                    >
+                                        <Plus className="h-3.5 w-3.5" /> Add Part
+                                    </Button>
+                                </div>
+                            ) : (
                             <div className="overflow-x-auto">
                                 <table className="min-w-full border-collapse text-xs">
                                     <thead>
@@ -401,13 +418,6 @@ export const JobChargesModal = ({ job, dbName, schema, onClose, onSaved }: Props
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {partFields.length === 0 ? (
-                                            <tr>
-                                                <td colSpan={7} className="px-3 py-4 text-center text-xs text-muted-foreground italic">
-                                                    No parts added yet. Click &quot;+ Add Part&quot; to add.
-                                                </td>
-                                            </tr>
-                                        ) : null}
 
                                         {partFields.map((field, index) => {
                                             const row     = watchedParts[index];
@@ -464,13 +474,13 @@ export const JobChargesModal = ({ job, dbName, schema, onClose, onSaved }: Props
                                                     </td>
                                                     <td className={tdCls}>
                                                         <div className="flex items-center gap-0.5">
-                                                            <Button className="text-emerald-600 hover:text-emerald-700" size="icon-xs" type="button" variant="ghost"
+                                                            <Button className="text-emerald-600 hover:text-emerald-700" size="icon-sm" type="button" variant="ghost"
                                                                 onClick={() => insertPart(index + 1, newPartRow())}>
-                                                                <Plus className="h-3.5 w-3.5" />
+                                                                <Plus className="h-4 w-4" />
                                                             </Button>
-                                                            <Button className="text-red-500 hover:text-red-600" size="icon-xs" type="button" variant="ghost"
+                                                            <Button className="text-red-500 hover:text-red-600" size="icon-sm" type="button" variant="ghost"
                                                                 onClick={() => handleDeletePart(index, row?.id ?? null)}>
-                                                                <Trash2 className="h-3.5 w-3.5" />
+                                                                <Trash2 className="h-4 w-4" />
                                                             </Button>
                                                         </div>
                                                     </td>
@@ -480,6 +490,7 @@ export const JobChargesModal = ({ job, dbName, schema, onClose, onSaved }: Props
                                     </tbody>
                                 </table>
                             </div>
+                            )}
                         </div>
 
                         {/* ── Additional Charges ──────────────────────────────── */}
@@ -489,12 +500,24 @@ export const JobChargesModal = ({ job, dbName, schema, onClose, onSaved }: Props
                                     <ReceiptText className="h-4 w-4 text-amber-600" />
                                     <h4 className="text-xs font-bold uppercase tracking-wide text-amber-700">Additional Charges</h4>
                                 </div>
-                                <Button className="h-6 px-2 text-xs" size="sm" type="button"
-                                    onClick={() => insertCharge(chargeFields.length, newChargeRow())}>
-                                    <Plus className="h-3 w-3 mr-1" />Add Charge
+                                <Button className="h-7 px-2 text-sm" size="sm" type="button" variant="outline" onClick={resetCharges}>
+                                    <Undo2 className="h-3.5 w-3.5 mr-1" />Reset
                                 </Button>
                             </div>
 
+                            {chargeFields.length === 0 ? (
+                                <div className="flex items-center justify-center py-6">
+                                    <Button
+                                        className="h-8 gap-1.5 text-xs border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+                                        size="sm"
+                                        type="button"
+                                        variant="outline"
+                                        onClick={() => insertCharge(0, newChargeRow())}
+                                    >
+                                        <Plus className="h-3.5 w-3.5" /> Add Charge
+                                    </Button>
+                                </div>
+                            ) : (
                             <div className="overflow-x-auto">
                                 <table className="min-w-full border-collapse text-xs">
                                     <thead>
@@ -509,13 +532,6 @@ export const JobChargesModal = ({ job, dbName, schema, onClose, onSaved }: Props
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {chargeFields.length === 0 ? (
-                                            <tr>
-                                                <td colSpan={7} className="px-3 py-4 text-center text-xs text-muted-foreground italic">
-                                                    No charges added yet. Click &quot;+ Add Charge&quot; to add.
-                                                </td>
-                                            </tr>
-                                        ) : null}
 
                                         {chargeFields.map((field, index) => {
                                             const row    = watchedCharges[index];
@@ -525,15 +541,13 @@ export const JobChargesModal = ({ job, dbName, schema, onClose, onSaved }: Props
                                                 <tr key={field.id} className={`hover:bg-muted/30 ${edited ? "border-l-2 border-l-amber-500 bg-amber-500/[0.03]" : ""} ${isNew ? "bg-amber-50/20" : ""}`}>
                                                     <td className={`${tdCls} text-center text-muted-foreground`}>{index + 1}</td>
                                                     <td className={tdCls}>
-                                                        <Input
-                                                            className={`h-6 rounded-sm text-xs px-1 ${!(row?.charge_name ?? "").trim() ? "border-red-300 focus:border-red-400" : ""}`}
-                                                            placeholder="e.g. Labour charge *"
+                                                        <ChargeNameCombobox
                                                             value={row?.charge_name ?? ""}
-                                                            onChange={e => setValue(`charges.${index}.charge_name`, e.target.value)}
+                                                            options={chargeOptions}
+                                                            invalid={!(row?.charge_name ?? "").trim()}
+                                                            onChange={name => setValue(`charges.${index}.charge_name`, name)}
+                                                            onSelect={(name) => setValue(`charges.${index}.charge_name`, name)}
                                                         />
-                                                        {!(row?.charge_name ?? "").trim() && (
-                                                            <p className="text-[10px] text-red-500 mt-0.5 px-1">Required</p>
-                                                        )}
                                                     </td>
                                                     <td className={tdCls}>
                                                         <Input className="h-6 w-24 rounded-sm text-xs px-1" placeholder="Ref…"
@@ -559,13 +573,13 @@ export const JobChargesModal = ({ job, dbName, schema, onClose, onSaved }: Props
                                                     </td>
                                                     <td className={tdCls}>
                                                         <div className="flex items-center gap-0.5">
-                                                            <Button className="text-emerald-600 hover:text-emerald-700" size="icon-xs" type="button" variant="ghost"
+                                                            <Button className="text-emerald-600 hover:text-emerald-700" size="icon-sm" type="button" variant="ghost"
                                                                 onClick={() => insertCharge(index + 1, newChargeRow())}>
-                                                                <Plus className="h-3.5 w-3.5" />
+                                                                <Plus className="h-4 w-4" />
                                                             </Button>
-                                                            <Button className="text-red-500 hover:text-red-600" size="icon-xs" type="button" variant="ghost"
+                                                            <Button className="text-red-500 hover:text-red-600" size="icon-sm" type="button" variant="ghost"
                                                                 onClick={() => handleDeleteCharge(index, row?.id ?? null)}>
-                                                                <Trash2 className="h-3.5 w-3.5" />
+                                                                <Trash2 className="h-4 w-4" />
                                                             </Button>
                                                         </div>
                                                     </td>
@@ -575,6 +589,7 @@ export const JobChargesModal = ({ job, dbName, schema, onClose, onSaved }: Props
                                     </tbody>
                                 </table>
                             </div>
+                            )}
                         </div>
 
                     </div>

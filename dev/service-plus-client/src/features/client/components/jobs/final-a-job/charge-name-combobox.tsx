@@ -5,10 +5,11 @@ import { X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import type { AdditionalChargeMasterRow } from "./final-a-job-schema";
 
-export function ChargeNameCombobox({ value, options, disabled, onChange, onSelect }: {
+export function ChargeNameCombobox({ value, options, disabled, invalid, onChange, onSelect }: {
     value:     string;
     options:   AdditionalChargeMasterRow[];
     disabled?: boolean;
+    invalid?:  boolean;
     onChange:  (name: string) => void;
     onSelect:  (name: string, hsnCode: string) => void;
 }) {
@@ -40,7 +41,7 @@ export function ChargeNameCombobox({ value, options, disabled, onChange, onSelec
         <>
             <div className="relative inline-flex items-center">
                 <Input
-                    className="h-7 w-52 border-(--cl-border) bg-white text-xs pr-6"
+                    className={`h-7 w-52 bg-white text-xs pr-6 ${invalid ? "border-red-400 focus:border-red-500" : "border-(--cl-border)"}`}
                     disabled={disabled}
                     placeholder="Charge name"
                     ref={inputRef}

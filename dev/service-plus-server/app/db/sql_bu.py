@@ -180,7 +180,11 @@ class SqlBu:
             is_final boolean DEFAULT false NOT NULL,
             qty integer DEFAULT 1 NOT NULL,
             batch_no integer,
-            division_id bigint NOT NULL
+            division_id bigint NOT NULL,
+            is_igst boolean DEFAULT false NOT NULL,
+            estimate_amount numeric(12,2),
+            alternate_job_no text,
+            to_show_parts_in_job_invoice boolean DEFAULT true NOT NULL
         );
 
         ALTER TABLE job ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
@@ -918,7 +922,8 @@ class SqlBu:
             (7,  'INSPECTION',     'Inspection',    'Diagnosis only',           true, 0),
             (8,  'AMC_SERVICE',    'AMC Service',   'AMC service',              true, 0),
             (9,  'UPGRADE',        'Upgrade',       'Upgrade components',       true, 0),
-            (10, 'REFURBISH',      'Refurbishment', 'Restore item',             true, 0)
+            (10, 'REFURBISH',      'Refurbishment', 'Restore item',             true, 0),
+            (11, 'REPEAT_REPAIRS', 'Repeat Repairs', 'Repeat repairs',          true, 4)
         ON CONFLICT (id) DO NOTHING;
 
         INSERT INTO stock_transaction_type (id, code, name, dr_cr, description, is_system) VALUES
@@ -1020,7 +1025,7 @@ class SqlBu:
 
         INSERT INTO app_setting (id, setting_key, setting_value, description, is_editable) VALUES
             (1, 'default_gst_rate',                          '18',    'Default GST rate (%) applied to invoices',                                                       true),
-            (2, 'to_show_parts_in_job_invoice',              'true',  'Show parts line items in job invoice',                                                           true),
+            (2, 'show_parts_in_job_invoice',              '{"gst_rate":18,"hsn": 11236,"show": true,"text": "Overall repair cost"}',  'When showing parts in invoice, use a single combined line with this label and HSN code', true),
             (3, 'markup_percent_over_cost',                  '20',    'Default markup percent over cost price to get selling price',                                    true),
             (4, 'default_division_id',                       '1',     'Default division selected when creating a new job',                                              true),
             (5, 'force_gst_on_parts_for_non_gst_invoices',  'false',     'For non-GST invoices, apply 18% GST implicitly on part cost price; service/labor tax = 0',      true),

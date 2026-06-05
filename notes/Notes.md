@@ -2,12 +2,11 @@
         Let us also change quantity -> qty for all variable names, identifiers and state names in client and server to avoid any confusion.
 # Logic for status change
 
-# Modify feature "Job Posting"
-- In all the grids of Accounts Posting, provide a select checkbox (cursor-pointer) to select the row and select all checkbox
-- At the top, in the row of Posting, Posted, in the middle provide a prominent and distinguished button named as "Post all selected". Also provide labels showing selected purchasse invoices, sales invoices and money receipts. Provide a mechanism to select all and deselect all.
-- Create a dummy event for Post button
-- Create a nice UI for that
-
+# Modify feature "Final a Job" for in_warranty jobs
+- For in_warranty jobs, allow entry of spare parts and additional charges
+- can only enter cost and no selling price or selling price with gst, that will always be 0
+- Final job amount will always be 0
+- Create an exhaustive plan in plans/plan.md
 
 
 

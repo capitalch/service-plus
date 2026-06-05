@@ -163,12 +163,14 @@ export type FinalJobFormProps = {
     deletedPartIds: number[];
     forceIgst: boolean;
     backCalcTarget: string;
+    showPartsInInvoice: boolean;
     defaultHsnForSparePart: string;
     defaultHsnForServiceCharge: string;
     viewJobId: number | null;
 
     setForceIgst: (v: boolean) => void;
     setBackCalcTarget: (v: string) => void;
+    setShowPartsInInvoice: (v: boolean) => void;
     setChargeLines: Dispatch<SetStateAction<EditableChargeLine[]>>;
     setPartLines: Dispatch<SetStateAction<EditablePartLine[]>>;
     setViewJobId: (id: number | null) => void;
@@ -192,9 +194,9 @@ export type FinalJobFormProps = {
 export function FinalJobForm({
     selectedJob, selectedRow, isEditMode, submitting, loadingDetail,
     selectedDivisionId, isGst, availableDivisions, brands, additionalChargeOptions,
-    partLines, chargeLines, deletedPartIds, forceIgst, backCalcTarget,
+    partLines, chargeLines, deletedPartIds, forceIgst, backCalcTarget, showPartsInInvoice,
     defaultHsnForServiceCharge, viewJobId,
-    setForceIgst, setBackCalcTarget, setChargeLines, setPartLines, setViewJobId,
+    setForceIgst, setBackCalcTarget, setShowPartsInInvoice, setChargeLines, setPartLines, setViewJobId,
     onBack, onSave, onRefresh, onAddPart, onRemovePart, onUpdatePart, onPartSelect,
     onAddCharge, onRemoveCharge, onUpdateCharge, onPatchCharge, onDivisionChange,
 }: FinalJobFormProps) {
@@ -315,7 +317,7 @@ export function FinalJobForm({
                     {isWarranty && (
                         <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300">
                             <AlertTriangle className="h-4 w-4 shrink-0" />
-                            This is a warranty job — parts used and additional charges cannot be modified.
+                            Warranty job — only cost prices are recorded; selling prices and final amount are ₹0.
                         </div>
                     )}
 
@@ -355,19 +357,32 @@ export function FinalJobForm({
                     <div className="rounded-lg border border-(--cl-border) bg-(--cl-surface) overflow-hidden">
                         <div className="px-4 py-2.5 border-b border-(--cl-border) bg-(--cl-surface-2)/60 flex items-center justify-between">
                             <p className="text-xs font-bold uppercase tracking-wider text-(--cl-text-muted)">Parts Used</p>
-                            {isGst && (
-                                <label className="flex items-center gap-1.5 cursor-pointer select-none">
-                                    <input
-                                        type="checkbox"
-                                        checked={forceIgst}
-                                        className="h-3.5 w-3.5 accent-(--cl-accent) cursor-pointer"
-                                        onChange={e => setForceIgst(e.target.checked)}
-                                    />
-                                    <span className="text-[10px] font-semibold uppercase tracking-wide text-(--cl-text-muted)">Force IGST</span>
-                                </label>
-                            )}
+                            <div className="flex items-center gap-5">
+                                {isGst && (
+                                    <label className="flex items-center gap-2 cursor-pointer select-none">
+                                        <input
+                                            type="checkbox"
+                                            checked={forceIgst}
+                                            className="h-4 w-4 accent-(--cl-accent) cursor-pointer"
+                                            onChange={e => setForceIgst(e.target.checked)}
+                                        />
+                                        <span className="text-xs font-semibold text-(--cl-text-muted)">Force IGST</span>
+                                    </label>
+                                )}
+                                {!isWarranty && (
+                                    <label className="flex items-center gap-2 cursor-pointer select-none">
+                                        <input
+                                            type="checkbox"
+                                            checked={showPartsInInvoice}
+                                            className="h-4 w-4 accent-(--cl-accent) cursor-pointer"
+                                            onChange={e => setShowPartsInInvoice(e.target.checked)}
+                                        />
+                                        <span className="text-xs font-semibold text-(--cl-text-muted)">Show part / charge details in invoice</span>
+                                    </label>
+                                )}
+                            </div>
                         </div>
-                        {!isWarranty && partLines.length === 0 && (
+                        {partLines.length === 0 && (
                             <div className="flex items-center justify-center py-6">
                                 <Button
                                     className="h-8 gap-1.5 text-xs border-emerald-300 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-700 dark:text-emerald-400 dark:hover:bg-emerald-950/30"
@@ -382,9 +397,9 @@ export function FinalJobForm({
                         {partLines.length > 0 && (
                             <div className="flex flex-col gap-1 bg-white">
                                 {partLines.map((line, idx) => {
-                                    const aggregate = (parseFloat(line.selling_price) || 0) * line.qty;
+                                    const costAmt = (parseFloat(line.cost_price) || 0) * line.qty;
                                     const gstRate = parseFloat(line.gst_rate) || 0;
-                                    const amount = aggregate * (1 + gstRate / 100);
+                                    const saleAmt = isWarranty ? 0 : (parseFloat(line.selling_price) || 0) * line.qty * (1 + gstRate / 100);
                                     const profit = ((parseFloat(line.selling_price) || 0) - (parseFloat(line.cost_price) || 0)) * line.qty;
                                     return (
                                         <div key={line._key} className="px-1 py-3 space-y-2.5 bg-(--cl-surface) hover:bg-(--cl-surface-2)/50 transition-colors">
@@ -392,60 +407,50 @@ export function FinalJobForm({
                                             <div className="flex flex-wrap items-center gap-2">
                                                 <span className="w-5 shrink-0 text-center text-xs font-semibold text-(--cl-text-muted)">{idx + 1}</span>
                                                 <div className="w-36 shrink-0">
-                                                    {isWarranty ? (
-                                                        <span className="text-xs text-(--cl-text-muted)">{brands.find(b => b.id === line.brand_id)?.name ?? "—"}</span>
-                                                    ) : (
-                                                        <Select
-                                                            value={line.brand_id ? String(line.brand_id) : ""}
-                                                            onValueChange={v => onUpdatePart(line._key, { brand_id: Number(v), part_id: null, part_code: "", part_name: "" })}
-                                                        >
-                                                            <SelectTrigger className="h-7 text-xs bg-transparent border-(--cl-border)">
-                                                                <SelectValue placeholder="Brand" />
-                                                            </SelectTrigger>
-                                                            <SelectContent>
-                                                                {brands.map(b => (
-                                                                    <SelectItem key={b.id} value={String(b.id)}>{b.name}</SelectItem>
-                                                                ))}
-                                                            </SelectContent>
-                                                        </Select>
-                                                    )}
+                                                    <Select
+                                                        value={line.brand_id ? String(line.brand_id) : ""}
+                                                        onValueChange={v => onUpdatePart(line._key, { brand_id: Number(v), part_id: null, part_code: "", part_name: "" })}
+                                                    >
+                                                        <SelectTrigger className="h-7 text-xs bg-transparent border-(--cl-border)">
+                                                            <SelectValue placeholder="Brand" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            {brands.map(b => (
+                                                                <SelectItem key={b.id} value={String(b.id)}>{b.name}</SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
                                                 </div>
                                                 <div className="w-56 shrink-0">
-                                                    {isWarranty ? (
-                                                        <span className="font-mono text-xs font-semibold text-(--cl-accent)">{line.part_code || "—"}</span>
-                                                    ) : (
-                                                        <PartCodeInput
-                                                            brandId={line.brand_id}
-                                                            partCode={line.part_code}
-                                                            partId={line.part_id}
-                                                            partName={line.part_name}
-                                                            selectedBrandId={line.brand_id}
-                                                            brandName={brands.find(b => b.id === line.brand_id)?.name}
-                                                            showName={false}
-                                                            onChange={code => {
-                                                                if (!code.trim()) onUpdatePart(line._key, { part_code: "", part_id: null, part_name: "" });
-                                                                else onUpdatePart(line._key, { part_code: code });
-                                                            }}
-                                                            onClear={() => onUpdatePart(line._key, { part_code: "", part_id: null, part_name: "" })}
-                                                            onSelect={part => onPartSelect(line._key, part)}
-                                                        />
-                                                    )}
+                                                    <PartCodeInput
+                                                        brandId={line.brand_id}
+                                                        partCode={line.part_code}
+                                                        partId={line.part_id}
+                                                        partName={line.part_name}
+                                                        selectedBrandId={line.brand_id}
+                                                        brandName={brands.find(b => b.id === line.brand_id)?.name}
+                                                        showName={false}
+                                                        onChange={code => {
+                                                            if (!code.trim()) onUpdatePart(line._key, { part_code: "", part_id: null, part_name: "" });
+                                                            else onUpdatePart(line._key, { part_code: code });
+                                                        }}
+                                                        onClear={() => onUpdatePart(line._key, { part_code: "", part_id: null, part_name: "" })}
+                                                        onSelect={part => onPartSelect(line._key, part)}
+                                                    />
                                                 </div>
                                                 <div className="min-w-[140px] flex-1">
                                                     <Input
                                                         className="h-7 border-(--cl-border) bg-white text-xs"
-                                                        disabled={isWarranty}
                                                         placeholder="Part name"
                                                         value={line.part_name}
                                                         onChange={e => onUpdatePart(line._key, { part_name: e.target.value })}
                                                     />
                                                 </div>
-                                                {isGst && (
+                                                {isGst && !isWarranty && (
                                                     <div className="relative w-28 shrink-0">
                                                         <span className="absolute -top-3 left-0 text-[10px] text-(--cl-text-muted) leading-none pointer-events-none">HSN</span>
                                                         <Input
-                                                            className={`h-7 font-mono border-(--cl-border) bg-white text-xs ${!isWarranty && !line.hsn_code.trim() ? "border-red-400 focus:border-red-500" : ""}`}
-                                                            disabled={isWarranty}
+                                                            className={`h-7 font-mono border-(--cl-border) bg-white text-xs ${!line.hsn_code.trim() ? "border-red-400 focus:border-red-500" : ""}`}
                                                             maxLength={8}
                                                             placeholder="HSN"
                                                             value={line.hsn_code}
@@ -456,49 +461,47 @@ export function FinalJobForm({
                                                 <div className="min-w-[120px] flex-1">
                                                     <Input
                                                         className="h-7 border-(--cl-border) bg-white text-xs"
-                                                        disabled={isWarranty}
                                                         placeholder="Remarks…"
                                                         value={line.remarks}
                                                         onChange={e => onUpdatePart(line._key, { remarks: e.target.value })}
                                                     />
                                                 </div>
-                                                {!isWarranty && (
-                                                    <div className="flex items-center gap-1.5 shrink-0 ml-auto">
-                                                        <Button
-                                                            className="h-8 w-8 p-0 rounded-full bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm"
-                                                            size="icon"
-                                                            title="Add row"
-                                                            onClick={onAddPart}
-                                                        >
-                                                            <Plus className="h-4.5 w-4.5" />
-                                                        </Button>
-                                                        <Button
-                                                            className="h-6 w-6 p-0 text-(--cl-text-muted) hover:text-red-500 hover:bg-red-500/10"
-                                                            size="icon"
-                                                            title="Remove part"
-                                                            variant="ghost"
-                                                            onClick={() => onRemovePart(line._key, line.id)}
-                                                        >
-                                                            <Trash2 className="h-3.5 w-3.5" />
-                                                        </Button>
-                                                    </div>
-                                                )}
+                                                <div className="flex items-center gap-1.5 shrink-0 ml-auto">
+                                                    <Button
+                                                        className="h-8 w-8 p-0 rounded-full bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm"
+                                                        size="icon"
+                                                        title="Add row"
+                                                        onClick={onAddPart}
+                                                    >
+                                                        <Plus className="h-4.5 w-4.5" />
+                                                    </Button>
+                                                    <Button
+                                                        className="h-6 w-6 p-0 text-(--cl-text-muted) hover:text-red-500 hover:bg-red-500/10"
+                                                        size="icon"
+                                                        title="Remove part"
+                                                        variant="ghost"
+                                                        onClick={() => onRemovePart(line._key, line.id)}
+                                                    >
+                                                        <Trash2 className="h-3.5 w-3.5" />
+                                                    </Button>
+                                                </div>
                                             </div>
                                             {/* Pricing row */}
                                             <div className="flex flex-wrap items-center gap-x-3 gap-y-2 pl-7">
-                                                <div className="flex items-center gap-1">
-                                                    <span className="text-[10px] text-(--cl-text-muted)">Profit</span>
-                                                    <span className={`tabular-nums text-sm font-semibold ${profit < 0 ? "text-red-600" : "text-emerald-600"}`}>
-                                                        {profit < 0 ? "-" : ""}₹{fmtCurrency(Math.abs(profit))}
-                                                    </span>
-                                                </div>
+                                                {!isWarranty && (
+                                                    <div className="flex items-center gap-1">
+                                                        <span className="text-[10px] text-(--cl-text-muted)">Profit</span>
+                                                        <span className={`tabular-nums text-sm font-semibold ${profit < 0 ? "text-red-600" : "text-emerald-600"}`}>
+                                                            {profit < 0 ? "-" : ""}₹{fmtCurrency(Math.abs(profit))}
+                                                        </span>
+                                                    </div>
+                                                )}
                                                 <div className="ml-auto flex flex-wrap items-center gap-x-3 gap-y-2">
-                                                    {isGst && (
+                                                    {isGst && !isWarranty && (
                                                         <div className="flex items-center gap-1.5">
                                                             <span className="text-[10px] font-medium uppercase tracking-wide text-(--cl-text-muted) whitespace-nowrap">GST%</span>
                                                             <Input
                                                                 className="h-6 w-14 border-(--cl-border) bg-white text-xs text-right"
-                                                                disabled={isWarranty}
                                                                 min="0" step="0.01" type="number"
                                                                 value={line.gst_rate}
                                                                 onChange={e => onUpdatePart(line._key, calculateLinePricing(line, { gst_rate: e.target.value }, isGst))}
@@ -510,7 +513,6 @@ export function FinalJobForm({
                                                         <span className="text-[10px] font-medium uppercase tracking-wide text-(--cl-text-muted) whitespace-nowrap">Qty</span>
                                                         <Input
                                                             className={`h-6 w-16 border-(--cl-border) bg-white text-xs text-right ${line.qty <= 0 ? "border-red-500" : ""}`}
-                                                            disabled={isWarranty}
                                                             min={0.01} step="0.01" type="number"
                                                             value={line.qty}
                                                             onChange={e => onUpdatePart(line._key, { qty: parseFloat(e.target.value) || 0 })}
@@ -521,30 +523,29 @@ export function FinalJobForm({
                                                         <span className="text-[10px] font-medium uppercase tracking-wide text-(--cl-text-muted) whitespace-nowrap">Cost</span>
                                                         <Input
                                                             className="h-6 w-24 border-(--cl-border) bg-white text-xs text-right"
-                                                            disabled={isWarranty}
                                                             min="0" step="0.01" type="number"
                                                             value={line.cost_price}
                                                             onChange={e => onUpdatePart(line._key, { cost_price: e.target.value })}
                                                             onFocus={e => e.target.select()}
                                                         />
                                                     </div>
-                                                    <div className="flex items-center gap-1.5">
-                                                        <span className="text-[10px] font-medium uppercase tracking-wide text-(--cl-text-muted) whitespace-nowrap">Sale</span>
-                                                        <Input
-                                                            className="h-6 w-24 border-(--cl-border) bg-white text-xs text-right"
-                                                            disabled={isWarranty}
-                                                            min="0" step="0.01" type="number"
-                                                            value={line.selling_price}
-                                                            onChange={e => onUpdatePart(line._key, calculateLinePricing(line, { selling_price: e.target.value }, isGst))}
-                                                            onFocus={e => e.target.select()}
-                                                        />
-                                                    </div>
-                                                    {isGst && (
+                                                    {!isWarranty && (
+                                                        <div className="flex items-center gap-1.5">
+                                                            <span className="text-[10px] font-medium uppercase tracking-wide text-(--cl-text-muted) whitespace-nowrap">Sale</span>
+                                                            <Input
+                                                                className="h-6 w-24 border-(--cl-border) bg-white text-xs text-right"
+                                                                min="0" step="0.01" type="number"
+                                                                value={line.selling_price}
+                                                                onChange={e => onUpdatePart(line._key, calculateLinePricing(line, { selling_price: e.target.value }, isGst))}
+                                                                onFocus={e => e.target.select()}
+                                                            />
+                                                        </div>
+                                                    )}
+                                                    {isGst && !isWarranty && (
                                                         <div className="flex items-center gap-1.5">
                                                             <span className="text-[10px] font-medium uppercase tracking-wide text-(--cl-text-muted) whitespace-nowrap">+GST</span>
                                                             <Input
                                                                 className="h-6 w-24 border-(--cl-border) bg-white text-xs text-right"
-                                                                disabled={isWarranty}
                                                                 min="0" step="0.01" type="number"
                                                                 value={line.sale_pr_gst}
                                                                 onChange={e => {
@@ -558,7 +559,7 @@ export function FinalJobForm({
                                                     )}
                                                     <div className="flex items-center gap-1 rounded bg-(--cl-surface-2) px-2 py-0.5">
                                                         <span className="text-[10px] text-(--cl-text-muted)">Amt</span>
-                                                        <span className="tabular-nums text-sm text-(--cl-text)">₹{fmtCurrency(amount)}</span>
+                                                        <span className="tabular-nums text-sm text-(--cl-text)">₹{fmtCurrency(isWarranty ? costAmt : saleAmt)}</span>
                                                     </div>
                                                 </div>
                                             </div>
@@ -575,17 +576,19 @@ export function FinalJobForm({
                         {partLines.length > 0 && (
                             <div className="flex items-center justify-between gap-6 px-2 py-2.5 border-t-2 border-(--cl-border) bg-(--cl-surface-2)/60">
                                 <div className="flex items-center gap-4">
-                                    <div className="flex items-center gap-1.5">
-                                        <span className="text-[10px] font-semibold uppercase tracking-wide text-(--cl-text-muted)">Profit</span>
-                                        <span className={`tabular-nums text-sm font-semibold ${profitTotal < 0 ? "text-red-600" : "text-emerald-600"}`}>
-                                            {profitTotal < 0 ? "-" : ""}₹{fmtCurrency(Math.abs(profitTotal))}
-                                        </span>
-                                    </div>
+                                    {!isWarranty && (
+                                        <div className="flex items-center gap-1.5">
+                                            <span className="text-[10px] font-semibold uppercase tracking-wide text-(--cl-text-muted)">Profit</span>
+                                            <span className={`tabular-nums text-sm font-semibold ${profitTotal < 0 ? "text-red-600" : "text-emerald-600"}`}>
+                                                {profitTotal < 0 ? "-" : ""}₹{fmtCurrency(Math.abs(profitTotal))}
+                                            </span>
+                                        </div>
+                                    )}
                                     <div className="flex items-center gap-1.5">
                                         <span className="text-[10px] font-semibold uppercase tracking-wide text-(--cl-text-muted)">Qty</span>
                                         <span className="tabular-nums text-sm font-semibold text-(--cl-text)">{fmtCurrency(partsQtyTotal)}</span>
                                     </div>
-                                    {isGst && (
+                                    {isGst && !isWarranty && (
                                         <>
                                             <div className="flex items-center gap-1.5">
                                                 <span className="text-[10px] font-semibold uppercase tracking-wide text-(--cl-text-muted)">CGST</span>
@@ -604,7 +607,11 @@ export function FinalJobForm({
                                 </div>
                                 <div className="flex items-center gap-1.5">
                                     <span className="text-[10px] font-semibold uppercase tracking-wide text-(--cl-text-muted)">Parts Total</span>
-                                    <span className="tabular-nums text-base font-bold text-(--cl-text)">₹{fmtCurrency(partsTotal)}</span>
+                                    <span className="tabular-nums text-base font-bold text-(--cl-text)">
+                                        ₹{fmtCurrency(isWarranty
+                                            ? partLines.reduce((s, l) => s + (parseFloat(l.cost_price) || 0) * l.qty, 0)
+                                            : partsTotal)}
+                                    </span>
                                 </div>
                             </div>
                         )}
@@ -615,7 +622,7 @@ export function FinalJobForm({
                         <div className="px-4 py-2.5 border-b border-(--cl-border) bg-(--cl-surface-2)/60">
                             <p className="text-xs font-bold uppercase tracking-wider text-(--cl-text-muted)">Additional Charges</p>
                         </div>
-                        {!isWarranty && chargeLines.length === 0 && (
+                        {chargeLines.length === 0 && (
                             <div className="flex items-center justify-center py-6">
                                 <Button
                                     className="h-8 gap-1.5 text-xs border-emerald-300 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-700 dark:text-emerald-400 dark:hover:bg-emerald-950/30"
@@ -636,14 +643,14 @@ export function FinalJobForm({
                                             <th className={thClass}>Charge Name <span className="text-red-500">*</span></th>
                                             <th className={thClass}>Ref No</th>
                                             <th className={`${thClass} w-full min-w-[80px]`}>Description</th>
-                                            {isGst && <th className={thClass}>HSN <span className="text-red-500">*</span></th>}
-                                            {isGst && <th className={`${thClass} text-right`}>GST%</th>}
+                                            {isGst && !isWarranty && <th className={thClass}>HSN <span className="text-red-500">*</span></th>}
+                                            {isGst && !isWarranty && <th className={`${thClass} text-right`}>GST%</th>}
                                             <th className={`${thClass} text-right`}>Qty</th>
                                             <th className={`${thClass} text-right`}>Cost</th>
-                                            <th className={`${thClass} text-right`}>Sale <span className="text-red-500">*</span></th>
-                                            {isGst && <th className={`${thClass} text-right`}>Sale+GST</th>}
+                                            {!isWarranty && <th className={`${thClass} text-right`}>Sale <span className="text-red-500">*</span></th>}
+                                            {isGst && !isWarranty && <th className={`${thClass} text-right`}>Sale+GST</th>}
                                             <th className={`${thClass} text-right w-32`}>Amount</th>
-                                            {!isWarranty && <th className={thClass}></th>}
+                                            <th className={thClass}></th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -654,7 +661,6 @@ export function FinalJobForm({
                                                     <ChargeNameCombobox
                                                         value={c.charge_name}
                                                         options={additionalChargeOptions}
-                                                        disabled={isWarranty}
                                                         onChange={name => onUpdateCharge(c._key, "charge_name", name)}
                                                         onSelect={(name, hsnCode) => onPatchCharge(c._key, { charge_name: name, hsn_code: hsnCode || defaultHsnForServiceCharge })}
                                                     />
@@ -662,7 +668,6 @@ export function FinalJobForm({
                                                 <td className={tdClass}>
                                                     <Input
                                                         className="h-7 w-20 border-(--cl-border) bg-white text-xs"
-                                                        disabled={isWarranty}
                                                         placeholder="Ref no"
                                                         value={c.ref_no}
                                                         onChange={e => onUpdateCharge(c._key, "ref_no", e.target.value)}
@@ -671,18 +676,16 @@ export function FinalJobForm({
                                                 <td className={tdClass}>
                                                     <Input
                                                         className="h-7 min-w-[80px] border-(--cl-border) bg-white text-xs"
-                                                        disabled={isWarranty}
                                                         placeholder="Description"
                                                         value={c.description}
                                                         onChange={e => onUpdateCharge(c._key, "description", e.target.value)}
                                                     />
                                                 </td>
-                                                {isGst && (
+                                                {isGst && !isWarranty && (
                                                     <td className={tdClass}>
                                                         <div className="relative">
                                                             <Input
-                                                                className={`h-7 w-24 font-mono border-(--cl-border) bg-white text-xs ${!isWarranty && !c.hsn_code.trim() ? "border-red-400 focus:border-red-500" : ""}`}
-                                                                disabled={isWarranty}
+                                                                className={`h-7 w-24 font-mono border-(--cl-border) bg-white text-xs ${!c.hsn_code.trim() ? "border-red-400 focus:border-red-500" : ""}`}
                                                                 maxLength={8}
                                                                 placeholder="HSN"
                                                                 value={c.hsn_code}
@@ -691,11 +694,10 @@ export function FinalJobForm({
                                                         </div>
                                                     </td>
                                                 )}
-                                                {isGst && (
+                                                {isGst && !isWarranty && (
                                                     <td className={`${tdClass} text-right`}>
                                                         <Input
                                                             className="h-7 w-16 border-(--cl-border) bg-white text-xs text-right"
-                                                            disabled={isWarranty}
                                                             min="0" step="0.01" type="number"
                                                             value={c.gst_rate}
                                                             onChange={e => {
@@ -710,50 +712,45 @@ export function FinalJobForm({
                                                 <td className={`${tdClass} text-right`}>
                                                     <Input
                                                         className="h-7 w-16 border-(--cl-border) bg-white text-xs text-right"
-                                                        disabled={isWarranty}
                                                         min="0.01" step="0.01" type="number"
                                                         value={c.qty}
-                                                        onChange={e => {
-                                                            const qty = e.target.value;
-                                                            onUpdateCharge(c._key, "qty", qty);
-                                                        }}
+                                                        onChange={e => onUpdateCharge(c._key, "qty", e.target.value)}
                                                         onFocus={e => e.target.select()}
                                                     />
                                                 </td>
                                                 <td className={`${tdClass} text-right`}>
                                                     <Input
                                                         className="h-7 w-24 border-(--cl-border) bg-white text-xs text-right"
-                                                        disabled={isWarranty}
                                                         min="0" step="0.01" type="number"
                                                         value={c.cost_price}
                                                         onChange={e => onUpdateCharge(c._key, "cost_price", e.target.value)}
                                                         onFocus={e => e.target.select()}
                                                     />
                                                 </td>
-                                                <td className={`${tdClass} text-right`}>
-                                                    <div className="flex justify-end">
-                                                        <Input
-                                                            className="h-7 w-24 border-(--cl-border) bg-white text-xs text-right"
-                                                            disabled={isWarranty}
-                                                            min="0" step="0.01" type="number"
-                                                            value={c.selling_price}
-                                                            onChange={e => {
-                                                                const sp = e.target.value;
-                                                                const gstRate = isGst ? (parseFloat(c.gst_rate) || 0) : 0;
-                                                                setChargeLines(prev => prev.map(cl => cl._key === c._key
-                                                                    ? { ...cl, selling_price: sp, sale_pr_gst: ((parseFloat(sp) || 0) * (1 + gstRate / 100)).toFixed(2) }
-                                                                    : cl));
-                                                            }}
-                                                            onFocus={e => e.target.select()}
-                                                        />
-                                                    </div>
-                                                </td>
-                                                {isGst && (
+                                                {!isWarranty && (
                                                     <td className={`${tdClass} text-right`}>
                                                         <div className="flex justify-end">
                                                             <Input
                                                                 className="h-7 w-24 border-(--cl-border) bg-white text-xs text-right"
-                                                                disabled={isWarranty}
+                                                                min="0" step="0.01" type="number"
+                                                                value={c.selling_price}
+                                                                onChange={e => {
+                                                                    const sp = e.target.value;
+                                                                    const gstRate = isGst ? (parseFloat(c.gst_rate) || 0) : 0;
+                                                                    setChargeLines(prev => prev.map(cl => cl._key === c._key
+                                                                        ? { ...cl, selling_price: sp, sale_pr_gst: ((parseFloat(sp) || 0) * (1 + gstRate / 100)).toFixed(2) }
+                                                                        : cl));
+                                                                }}
+                                                                onFocus={e => e.target.select()}
+                                                            />
+                                                        </div>
+                                                    </td>
+                                                )}
+                                                {isGst && !isWarranty && (
+                                                    <td className={`${tdClass} text-right`}>
+                                                        <div className="flex justify-end">
+                                                            <Input
+                                                                className="h-7 w-24 border-(--cl-border) bg-white text-xs text-right"
                                                                 min="0" step="0.01" type="number"
                                                                 value={c.sale_pr_gst}
                                                                 onChange={e => {
@@ -769,31 +766,31 @@ export function FinalJobForm({
                                                     </td>
                                                 )}
                                                 <td className={`${tdClass} text-right tabular-nums text-sm text-(--cl-accent) w-32`}>
-                                                    ₹{fmtCurrency((parseFloat(c.sale_pr_gst) || parseFloat(c.selling_price) || 0) * (parseFloat(c.qty) || 1))}
+                                                    ₹{fmtCurrency(isWarranty
+                                                        ? (parseFloat(c.cost_price) || 0) * (parseFloat(c.qty) || 1)
+                                                        : (parseFloat(c.sale_pr_gst) || parseFloat(c.selling_price) || 0) * (parseFloat(c.qty) || 1))}
                                                 </td>
-                                                {!isWarranty && (
-                                                    <td className={`${tdClass} px-1 align-middle`}>
-                                                        <div className="flex items-center gap-1.5">
-                                                            <Button
-                                                                className="h-8 w-8 p-0 rounded-full bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm"
-                                                                size="icon"
-                                                                title="Add row"
-                                                                onClick={onAddCharge}
-                                                            >
-                                                                <Plus className="h-4.5 w-4.5" />
-                                                            </Button>
-                                                            <Button
-                                                                className="h-6 w-6 p-0 text-(--cl-text-muted) hover:text-red-500 hover:bg-red-500/10"
-                                                                size="icon"
-                                                                title="Remove charge"
-                                                                variant="ghost"
-                                                                onClick={() => onRemoveCharge(c._key, c.id)}
-                                                            >
-                                                                <Trash2 className="h-3.5 w-3.5" />
-                                                            </Button>
-                                                        </div>
-                                                    </td>
-                                                )}
+                                                <td className={`${tdClass} px-1 align-middle`}>
+                                                    <div className="flex items-center gap-1.5">
+                                                        <Button
+                                                            className="h-8 w-8 p-0 rounded-full bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm"
+                                                            size="icon"
+                                                            title="Add row"
+                                                            onClick={onAddCharge}
+                                                        >
+                                                            <Plus className="h-4.5 w-4.5" />
+                                                        </Button>
+                                                        <Button
+                                                            className="h-6 w-6 p-0 text-(--cl-text-muted) hover:text-red-500 hover:bg-red-500/10"
+                                                            size="icon"
+                                                            title="Remove charge"
+                                                            variant="ghost"
+                                                            onClick={() => onRemoveCharge(c._key, c.id)}
+                                                        >
+                                                            <Trash2 className="h-3.5 w-3.5" />
+                                                        </Button>
+                                                    </div>
+                                                </td>
                                             </tr>
                                         ))}
                                     </tbody>
@@ -802,17 +799,19 @@ export function FinalJobForm({
                                             <td colSpan={100} className="px-2 py-1 border-t-2 border-(--cl-border)">
                                                 <div className="flex items-center justify-between gap-6">
                                                     <div className="flex items-center gap-4">
-                                                        <div className="flex items-center gap-1.5">
-                                                            <span className="text-[10px] font-semibold uppercase tracking-wide text-(--cl-text-muted)">Profit</span>
-                                                            <span className={`tabular-nums text-sm font-semibold ${chargesProfitTotal < 0 ? "text-red-600" : "text-emerald-600"}`}>
-                                                                {chargesProfitTotal < 0 ? "-" : ""}₹{fmtCurrency(Math.abs(chargesProfitTotal))}
-                                                            </span>
-                                                        </div>
+                                                        {!isWarranty && (
+                                                            <div className="flex items-center gap-1.5">
+                                                                <span className="text-[10px] font-semibold uppercase tracking-wide text-(--cl-text-muted)">Profit</span>
+                                                                <span className={`tabular-nums text-sm font-semibold ${chargesProfitTotal < 0 ? "text-red-600" : "text-emerald-600"}`}>
+                                                                    {chargesProfitTotal < 0 ? "-" : ""}₹{fmtCurrency(Math.abs(chargesProfitTotal))}
+                                                                </span>
+                                                            </div>
+                                                        )}
                                                         <div className="flex items-center gap-1.5">
                                                             <span className="text-[10px] font-semibold uppercase tracking-wide text-(--cl-text-muted)">Qty</span>
                                                             <span className="tabular-nums text-sm font-semibold text-(--cl-text)">{fmtCurrency(chargesQtyTotal)}</span>
                                                         </div>
-                                                        {isGst && (
+                                                        {isGst && !isWarranty && (
                                                             <>
                                                                 <div className="flex items-center gap-1.5">
                                                                     <span className="text-[10px] font-semibold uppercase tracking-wide text-(--cl-text-muted)">CGST</span>
@@ -831,7 +830,11 @@ export function FinalJobForm({
                                                     </div>
                                                     <div className="flex items-center gap-1.5">
                                                         <span className="text-[10px] font-semibold uppercase tracking-wide text-(--cl-text-muted)">Charges Total</span>
-                                                        <span className="tabular-nums text-base font-bold text-(--cl-text)">₹{fmtCurrency(chargesAmountTotal)}</span>
+                                                        <span className="tabular-nums text-base font-bold text-(--cl-text)">
+                                                            ₹{fmtCurrency(isWarranty
+                                                                ? chargeLines.reduce((s, c) => s + (parseFloat(c.cost_price) || 0) * (parseFloat(c.qty) || 1), 0)
+                                                                : chargesAmountTotal)}
+                                                        </span>
                                                     </div>
                                                 </div>
                                             </td>
@@ -846,17 +849,19 @@ export function FinalJobForm({
                     <div className="rounded-lg border-2 border-(--cl-accent)/30 bg-(--cl-surface) overflow-hidden">
                         <div className="flex items-stretch">
                             <div className="flex flex-1 flex-wrap items-center gap-x-4 gap-y-1.5 px-3 py-3">
-                                <div className="flex items-center gap-1.5">
-                                    <span className="text-[10px] font-medium uppercase tracking-wide text-(--cl-text-muted)">Profit</span>
-                                    <span className={`tabular-nums text-sm font-semibold ${grandProfitTotal < 0 ? "text-red-600" : "text-emerald-600"}`}>
-                                        {grandProfitTotal < 0 ? "-" : ""}₹{fmtCurrency(Math.abs(grandProfitTotal))}
-                                    </span>
-                                </div>
+                                {!isWarranty && (
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="text-[10px] font-medium uppercase tracking-wide text-(--cl-text-muted)">Profit</span>
+                                        <span className={`tabular-nums text-sm font-semibold ${grandProfitTotal < 0 ? "text-red-600" : "text-emerald-600"}`}>
+                                            {grandProfitTotal < 0 ? "-" : ""}₹{fmtCurrency(Math.abs(grandProfitTotal))}
+                                        </span>
+                                    </div>
+                                )}
                                 <div className="flex items-center gap-1.5">
                                     <span className="text-[10px] font-medium uppercase tracking-wide text-(--cl-text-muted)">Qty</span>
                                     <span className="tabular-nums text-sm font-semibold text-(--cl-text)">{fmtCurrency(grandQtyTotal)}</span>
                                 </div>
-                                {isGst && (
+                                {isGst && !isWarranty && (
                                     <>
                                         <div className="flex items-center gap-1.5">
                                             <span className="text-[10px] font-medium uppercase tracking-wide text-(--cl-text-muted)">CGST</span>
@@ -874,21 +879,36 @@ export function FinalJobForm({
                                 )}
                                 <div className="flex items-center gap-1.5">
                                     <span className="text-[10px] font-medium uppercase tracking-wide text-(--cl-text-muted)">Parts</span>
-                                    <span className="tabular-nums text-sm font-semibold text-(--cl-text)">₹{fmtCurrency(partsTotal)}</span>
+                                    <span className="tabular-nums text-sm font-semibold text-(--cl-text)">
+                                        ₹{fmtCurrency(isWarranty
+                                            ? partLines.reduce((s, l) => s + (parseFloat(l.cost_price) || 0) * l.qty, 0)
+                                            : partsTotal)}
+                                    </span>
                                 </div>
                                 <div className="flex items-center gap-1.5">
                                     <span className="text-[10px] font-medium uppercase tracking-wide text-(--cl-text-muted)">Charges</span>
-                                    <span className="tabular-nums text-sm font-semibold text-(--cl-text)">₹{fmtCurrency(chargesSaleTotal)}</span>
+                                    <span className="tabular-nums text-sm font-semibold text-(--cl-text)">
+                                        ₹{fmtCurrency(isWarranty
+                                            ? chargeLines.reduce((s, c) => s + (parseFloat(c.cost_price) || 0) * (parseFloat(c.qty) || 1), 0)
+                                            : chargesSaleTotal)}
+                                    </span>
                                 </div>
                             </div>
                             <div className="w-px self-stretch bg-(--cl-border)" />
-                            {(() => {
+                            {isWarranty ? (
+                                <div className="flex shrink-0 flex-col justify-center px-4 py-3">
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="text-xs font-bold uppercase tracking-wide text-(--cl-accent)">Final Amount</span>
+                                        <span className="tabular-nums text-md font-bold">₹0.00</span>
+                                    </div>
+                                </div>
+                            ) : (() => {
                                 const backCalcNum = parseFloat(backCalcTarget);
                                 const isTallied = backCalcTarget !== "" && !isNaN(backCalcNum) && Math.abs(grandTotal - backCalcNum) < 0.005;
                                 return (
                                     <div className="flex shrink-0 flex-col justify-center gap-2 px-4 py-3">
                                         <div className="flex items-center justify-between gap-4">
-                                            {!isWarranty && isTallied ? (
+                                            {isTallied ? (
                                                 <div className="flex items-center gap-1 text-emerald-600">
                                                     <CheckCircle2 className="h-4 w-4" />
                                                     <span className="text-xs font-semibold">Tallied</span>
@@ -914,40 +934,38 @@ export function FinalJobForm({
                                                 </div>
                                             </div>
                                         </div>
-                                        {!isWarranty && (
-                                            <div className="flex items-center justify-end gap-2">
-                                                <Button
-                                                    className="h-7 shrink-0 text-xs"
-                                                    disabled={!backCalcTarget}
-                                                    size="sm"
-                                                    variant="outline"
-                                                    onClick={() => setBackCalcTarget("")}
-                                                >
-                                                    Clear
-                                                </Button>
-                                                <Button
-                                                    className="h-8 shrink-0 text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white border-transparent"
-                                                    disabled={!backCalcTarget || isNaN(backCalcNum) || backCalcNum < 0}
-                                                    size="sm"
-                                                    variant="default"
-                                                    onClick={() => {
-                                                        const result = computeBackCalc(backCalcNum, partLines, chargeLines, isGst);
-                                                        if (result.newPartLines) setPartLines(result.newPartLines);
-                                                        if (result.newChargeLines) setChargeLines(result.newChargeLines);
-                                                    }}
-                                                >
-                                                    Back Calculate
-                                                </Button>
-                                                <Input
-                                                    className="h-8 w-36 text-right text-base font-bold border-(--cl-border) bg-white"
-                                                    min="0" step="0.01" type="number"
-                                                    placeholder="Target amount"
-                                                    value={backCalcTarget}
-                                                    onChange={e => setBackCalcTarget(e.target.value)}
-                                                    onFocus={e => e.target.select()}
-                                                />
-                                            </div>
-                                        )}
+                                        <div className="flex items-center justify-end gap-2">
+                                            <Button
+                                                className="h-7 shrink-0 text-xs"
+                                                disabled={!backCalcTarget}
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={() => setBackCalcTarget("")}
+                                            >
+                                                Clear
+                                            </Button>
+                                            <Button
+                                                className="h-8 shrink-0 text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white border-transparent"
+                                                disabled={!backCalcTarget || isNaN(backCalcNum) || backCalcNum < 0}
+                                                size="sm"
+                                                variant="default"
+                                                onClick={() => {
+                                                    const result = computeBackCalc(backCalcNum, partLines, chargeLines, isGst);
+                                                    if (result.newPartLines) setPartLines(result.newPartLines);
+                                                    if (result.newChargeLines) setChargeLines(result.newChargeLines);
+                                                }}
+                                            >
+                                                Back Calculate
+                                            </Button>
+                                            <Input
+                                                className="h-8 w-36 text-right text-base font-bold border-(--cl-border) bg-white"
+                                                min="0" step="0.01" type="number"
+                                                placeholder="Target amount"
+                                                value={backCalcTarget}
+                                                onChange={e => setBackCalcTarget(e.target.value)}
+                                                onFocus={e => e.target.select()}
+                                            />
+                                        </div>
                                     </div>
                                 );
                             })()}

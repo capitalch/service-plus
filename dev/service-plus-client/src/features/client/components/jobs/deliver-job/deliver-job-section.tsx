@@ -1,14 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Loader2, Truck } from "lucide-react";
+import { AlertTriangle, Loader2, Truck } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { MESSAGES }    from "@/constants/messages";
 import { SQL_MAP }     from "@/constants/sql-map";
 import { selectCurrentUser, selectDbName } from "@/features/auth/store/auth-slice";
 import { apolloClient }   from "@/lib/apollo-client";
-import { graphQlUtils } from "@/lib/graphql-utils";
+import { encodeObj, graphQlUtils } from "@/lib/graphql-utils";
 import { selectAvailableDivisions, selectCurrentBranch, selectSchema } from "@/store/context-slice";
 import { useAppSelector } from "@/store/hooks";
 import { JobAttachDialog } from "../single-job/job-attach-dialog";
@@ -56,14 +58,19 @@ export const DeliverJobSection = () => {
     const [deliveredLoading, setDeliveredLoading] = useState(false);
 
     // ── Meta ──────────────────────────────────────────────────────────────────
-    const [deliveryManners,   setDeliveryManners]   = useState<DeliveryMannerRow[]>([]);
-    const [metaLoaded,        setMetaLoaded]        = useState(false);
+    const [deliveryManners,          setDeliveryManners]          = useState<DeliveryMannerRow[]>([]);
+    const [showPartsInInvoiceSetting, setShowPartsInInvoiceSetting] = useState<{ show: boolean; text: string; hsn: number; gst_rate: number } | null>(null);
+    const [metaLoaded,               setMetaLoaded]               = useState(false);
 
     // ── Multi-selection + modal state ─────────────────────────────────────────
     const [selectedIds,       setSelectedIds]       = useState<Set<number>>(new Set());
     const [showDeliveryModal, setShowDeliveryModal] = useState(false);
     const [modalJobDetails,   setModalJobDetails]   = useState<JobDeliveryFullDetail[]>([]);
     const [loadingModal,      setLoadingModal]      = useState<number | null>(null);
+
+    // ── Undo delivery state ───────────────────────────────────────────────────
+    const [undoPendingRow,  setUndoPendingRow]  = useState<DeliveredJobRow | null>(null);
+    const [undoSubmitting,  setUndoSubmitting]  = useState(false);
 
     // ── Misc ──────────────────────────────────────────────────────────────────
     const [attachJobId,  setAttachJobId]  = useState<number | null>(null);
@@ -76,15 +83,24 @@ export const DeliverJobSection = () => {
     // ── Load meta once ────────────────────────────────────────────────────────
     useEffect(() => {
         if (!dbName || !schema || metaLoaded) return;
-        apolloClient.query<GenericQueryData<DeliveryMannerRow>>({
+        Promise.all([
+            apolloClient.query<GenericQueryData<DeliveryMannerRow>>({
                 fetchPolicy: "network-only",
                 query:       GRAPHQL_MAP.genericQuery,
                 variables:   { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_JOB_DELIVERY_MANNERS }) },
-            })
-            .then(mannerRes => {
-                setDeliveryManners(mannerRes.data?.genericQuery ?? []);
-                setMetaLoaded(true);
-            }).catch(() => toast.error(MESSAGES.ERROR_JOB_DELIVERY_DETAIL_FAILED));
+            }),
+            apolloClient.query<GenericQueryData<{ setting_value: unknown }>>({
+                fetchPolicy: "network-only",
+                query:       GRAPHQL_MAP.genericQuery,
+                variables:   { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_APP_SETTING_BY_KEY, sqlArgs: { setting_key: "show_parts_in_job_invoice" } }) },
+            }),
+        ]).then(([mannerRes, showPartsRes]) => {
+            setDeliveryManners(mannerRes.data?.genericQuery ?? []);
+            const sv = showPartsRes.data?.genericQuery?.[0]?.setting_value;
+            if (sv != null && typeof sv === "object")
+                setShowPartsInInvoiceSetting(sv as { show: boolean; text: string; hsn: number; gst_rate: number });
+            setMetaLoaded(true);
+        }).catch(() => toast.error(MESSAGES.ERROR_JOB_DELIVERY_DETAIL_FAILED));
     }, [dbName, schema, metaLoaded]);
 
     // ── Load deliverable jobs ─────────────────────────────────────────────────
@@ -251,6 +267,31 @@ export const DeliverJobSection = () => {
         void loadDeliveredData();
     }
 
+    // ── Undo delivery ─────────────────────────────────────────────────────────
+    async function handleUndoDeliveryConfirm() {
+        if (!undoPendingRow || !dbName || !schema) return;
+        setUndoSubmitting(true);
+        try {
+            await apolloClient.mutate({
+                mutation: GRAPHQL_MAP.genericUpdate,
+                variables: {
+                    db_name: dbName, schema,
+                    value: encodeObj({ tableName: "job", xData: { id: undoPendingRow.id, is_closed: false } }),
+                },
+            });
+            toast.success(`Delivery undone — Job #${undoPendingRow.job_no} marked as not delivered.`);
+            setUndoPendingRow(null);
+            if (branchId) void loadData(branchId, searchQ, page);
+            void loadDeliveredData();
+        } catch (err) {
+            const msg = (err as { errors?: { message: string }[] })?.errors?.[0]?.message
+                ?? "Failed to undo delivery. Please try again.";
+            toast.error(msg);
+        } finally {
+            setUndoSubmitting(false);
+        }
+    }
+
     // ── Render ────────────────────────────────────────────────────────────────
     return (
         <motion.div
@@ -342,6 +383,13 @@ export const DeliverJobSection = () => {
                     onRefresh={() => void loadDeliveredData()}
                     onViewJob={id => setViewJobId(id)}
                     onOpenAttach={(id, jobNo) => { setAttachJobId(id); setAttachJobNo(jobNo); }}
+                    onUndoDelivery={row => {
+                        if (row.invoice_is_posted) {
+                            toast.error(`Cannot undo delivery — invoice ${row.invoice_no ? `#${row.invoice_no}` : ""} is already posted to accounts.`);
+                            return;
+                        }
+                        setUndoPendingRow(row);
+                    }}
                 />
             )}
 
@@ -363,6 +411,53 @@ export const DeliverJobSection = () => {
                 />
             )}
 
+            {undoPendingRow && (
+                <Dialog open onOpenChange={open => { if (!open) setUndoPendingRow(null); }}>
+                    <DialogContent className="max-w-sm bg-white dark:bg-zinc-950 border-(--cl-border)">
+                        <DialogHeader>
+                            <DialogTitle className="flex items-center gap-2 text-red-600">
+                                <AlertTriangle className="h-4 w-4" />
+                                Undo Delivery
+                            </DialogTitle>
+                        </DialogHeader>
+                        <div className="space-y-3 text-sm text-(--cl-text)">
+                            <div className="rounded-lg border border-(--cl-border) bg-(--cl-surface-2) px-3 py-2.5 space-y-1.5 text-xs">
+                                <div className="flex items-start gap-2">
+                                    <span className="w-24 shrink-0 text-(--cl-text-muted)">Job No</span>
+                                    <span className="font-mono font-semibold text-(--cl-accent)">#{undoPendingRow.job_no}</span>
+                                </div>
+                                <div className="flex items-start gap-2">
+                                    <span className="w-24 shrink-0 text-(--cl-text-muted)">Customer</span>
+                                    <span className="font-medium">{undoPendingRow.customer_name}</span>
+                                </div>
+                                {undoPendingRow.delivery_date && (
+                                    <div className="flex items-start gap-2">
+                                        <span className="w-24 shrink-0 text-(--cl-text-muted)">Delivered on</span>
+                                        <span>{undoPendingRow.delivery_date}</span>
+                                    </div>
+                                )}
+                            </div>
+                            <p className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-400">
+                                This will mark the job as <span className="font-bold">not delivered</span>. The job will return to the deliverable list.
+                            </p>
+                        </div>
+                        <div className="flex justify-end gap-2 pt-2 border-t border-(--cl-border)">
+                            <Button className="h-8 px-4 text-xs" variant="ghost" disabled={undoSubmitting} onClick={() => setUndoPendingRow(null)}>
+                                Cancel
+                            </Button>
+                            <Button
+                                className="h-8 px-4 text-xs bg-red-600 hover:bg-red-700 text-white font-semibold"
+                                disabled={undoSubmitting}
+                                onClick={() => void handleUndoDeliveryConfirm()}
+                            >
+                                {undoSubmitting && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+                                Yes, Undo
+                            </Button>
+                        </div>
+                    </DialogContent>
+                </Dialog>
+            )}
+
             {showDeliveryModal && modalJobDetails.length > 0 && (
                 <DeliveryModal
                     jobs={modalJobDetails}
@@ -373,6 +468,7 @@ export const DeliverJobSection = () => {
                     currentUser={currentUser}
                     dbName={dbName}
                     schema={schema}
+                    showPartsInInvoiceSetting={showPartsInInvoiceSetting}
                     onClose={() => { setShowDeliveryModal(false); setModalJobDetails([]); }}
                     onDelivered={handleDeliverySaved}
                 />

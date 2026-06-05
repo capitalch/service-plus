@@ -4267,7 +4267,7 @@ class SqlStore:
             "p_limit"     as (values(%(limit)s::int)),
             "p_offset"    as (values(%(offset)s::int))
         SELECT j.id, j.job_no, j.alternate_job_no, j.job_date, j.amount, j.last_transaction_id,
-               j.division_id, j.batch_no, j.serial_no, j.is_posted,
+               j.division_id, j.batch_no, j.serial_no,
                TRIM(CONCAT_WS(' ', p.name, b.name, pbm.model_name, j.serial_no)) AS device_details,
                cc.full_name  AS customer_name, cc.mobile,
                js.name       AS job_status_name,
@@ -4350,7 +4350,7 @@ class SqlStore:
             "p_offset"    as (values(%(offset)s::int))
         SELECT j.id, j.job_no, j.alternate_job_no, j.job_date, j.delivery_date,
                j.amount, j.last_transaction_id,
-               j.division_id, j.batch_no, j.serial_no, j.is_posted,
+               j.division_id, j.batch_no, j.serial_no,
                TRIM(CONCAT_WS(' ', p.name, b.name, pbm.model_name, j.serial_no)) AS device_details,
                cc.full_name  AS customer_name, cc.mobile,
                js.name       AS job_status_name,
@@ -4360,6 +4360,7 @@ class SqlStore:
                t.name        AS technician_name,
                ji.amount     AS invoice_total,
                ji.invoice_no,
+               ji.is_posted  AS invoice_is_posted,
                (SELECT COUNT(*) FROM job_image_doc jid WHERE jid.job_id = j.id) AS file_count
         FROM job j
         JOIN customer_contact      cc  ON cc.id  = j.customer_contact_id
@@ -4432,7 +4433,7 @@ class SqlStore:
         SELECT
             j.id, j.job_no, j.alternate_job_no, j.job_date, j.amount,
             j.estimate_amount, j.qty, j.last_transaction_id,
-            j.division_id, j.serial_no, j.is_igst,
+            j.division_id, j.serial_no, j.is_igst, j.to_show_parts_in_job_invoice,
             TRIM(CONCAT_WS(' ', p.name, b.name, pbm.model_name, j.serial_no)) AS device_details,
             cc.full_name      AS customer_name, cc.mobile,
             cc.gstin          AS customer_gstin,

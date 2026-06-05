@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
     ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon,
-    Eye, Paperclip, RefreshCw, Search, X,
+    Eye, Paperclip, RefreshCw, Search, Undo2, X,
 } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -45,11 +45,11 @@ export type DeliveredJobRow = {
     job_type_code:    string;
     receive_manner_name: string;
     technician_name:  string | null;
-    invoice_total:    number | null;
-    invoice_no:       string | null;
-    batch_no:         number | null;
-    is_posted:        boolean;
-    file_count:       number;
+    invoice_total:       number | null;
+    invoice_no:          string | null;
+    invoice_is_posted:   boolean | null;
+    batch_no:            number | null;
+    file_count:          number;
 };
 
 type Props = {
@@ -65,6 +65,7 @@ type Props = {
     onRefresh:          () => void;
     onViewJob:          (id: number) => void;
     onOpenAttach:       (id: number, jobNo: string) => void;
+    onUndoDelivery:     (row: DeliveredJobRow) => void;
 };
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -72,7 +73,7 @@ type Props = {
 export function DeliveredJobsGrid({
     rows, loading, total, page, search,
     branchId, availableDivisions, setPage,
-    onSearch, onRefresh, onViewJob, onOpenAttach,
+    onSearch, onRefresh, onViewJob, onOpenAttach, onUndoDelivery,
 }: Props) {
     const scrollRef  = useRef<HTMLDivElement>(null);
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -277,16 +278,28 @@ export function DeliveredJobsGrid({
 
                                         {/* Actions */}
                                         <td className={`${tdClass} sticky right-0 z-10 bg-(--cl-surface) group-hover:bg-(--cl-surface-2)`}>
-                                            <Button
-                                                className="h-7 gap-1 px-2 text-xs font-semibold text-sky-700 border border-sky-300 hover:bg-sky-50 dark:text-sky-400 dark:border-sky-700 dark:hover:bg-sky-950/30"
-                                                size="sm"
-                                                title="View job details"
-                                                variant="outline"
-                                                onClick={() => onViewJob(row.id)}
-                                            >
-                                                <Eye className="h-3 w-3" />
-                                                View
-                                            </Button>
+                                            <div className="flex flex-col items-start gap-1">
+                                                <Button
+                                                    className="h-7 gap-1 px-2 text-xs font-semibold text-sky-700 border border-sky-300 hover:bg-sky-50 dark:text-sky-400 dark:border-sky-700 dark:hover:bg-sky-950/30"
+                                                    size="sm"
+                                                    title="View job details"
+                                                    variant="outline"
+                                                    onClick={() => onViewJob(row.id)}
+                                                >
+                                                    <Eye className="h-3 w-3" />
+                                                    View
+                                                </Button>
+                                                <Button
+                                                    className="h-7 gap-1 px-2 text-xs font-semibold text-red-600 border border-red-300 hover:bg-red-50 dark:text-red-400 dark:border-red-700 dark:hover:bg-red-950/30"
+                                                    size="sm"
+                                                    title="Undo delivery"
+                                                    variant="outline"
+                                                    onClick={() => onUndoDelivery(row)}
+                                                >
+                                                    <Undo2 className="h-3 w-3" />
+                                                    Undo
+                                                </Button>
+                                            </div>
                                         </td>
                                     </motion.tr>
                                 ))}

@@ -241,6 +241,7 @@ export const FinalAJobSection = () => {
     const [markupPct, setMarkupPct] = useState(0);
     const [forceIgst, setForceIgst] = useState(false);
     const [backCalcTarget, setBackCalcTarget] = useState("");
+    const [showPartsInInvoice, setShowPartsInInvoice] = useState(true);
 
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const finalizedDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -253,7 +254,7 @@ export const FinalAJobSection = () => {
         if (!dbName || !schema) return;
         const fetchMeta = async () => {
             try {
-                const [brandsRes, txnRes, markupRes, additionalChargesRes] = await Promise.all([
+                const [brandsRes, txnRes, markupRes, additionalChargesRes, showPartsSettingRes] = await Promise.all([
                     apolloClient.query<GenericQueryData<BrandOption>>({
                         fetchPolicy: "network-only",
                         query: GRAPHQL_MAP.genericQuery,
@@ -274,6 +275,11 @@ export const FinalAJobSection = () => {
                         query: GRAPHQL_MAP.genericQuery,
                         variables: { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_ALL_ADDITIONAL_CHARGES }) },
                     }),
+                    apolloClient.query<GenericQueryData<{ setting_value: unknown }>>({
+                        fetchPolicy: "network-only",
+                        query: GRAPHQL_MAP.genericQuery,
+                        variables: { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_APP_SETTING_BY_KEY, sqlArgs: { setting_key: "show_parts_in_job_invoice" } }) },
+                    }),
                 ]);
                 setBrands(brandsRes.data?.genericQuery ?? []);
                 const consume = txnRes.data?.genericQuery?.find(t => t.code === "CONSUMPTION");
@@ -282,6 +288,11 @@ export const FinalAJobSection = () => {
                 const pct = rawMarkup != null ? Number(rawMarkup) : 0;
                 setMarkupPct(isNaN(pct) ? 0 : pct);
                 setAdditionalChargeOptions(additionalChargesRes.data?.genericQuery ?? []);
+                const rawShowParts = showPartsSettingRes.data?.genericQuery?.[0]?.setting_value;
+                const showPartsObj = rawShowParts != null && typeof rawShowParts === "object"
+                    ? (rawShowParts as { show?: boolean })
+                    : null;
+                setShowPartsInInvoice(showPartsObj?.show !== false);
             } catch { /* silent */ }
         };
         void fetchMeta();
@@ -400,6 +411,7 @@ export const FinalAJobSection = () => {
             setSelectedJob(job);
             setSelectedRow(row);
             setForceIgst(job.is_igst ?? false);
+            setShowPartsInInvoice(job.to_show_parts_in_job_invoice ?? true);
             setSelectedDivisionId(row.division_id);
             if (job.amount) setBackCalcTarget(String(job.amount));
             setPartLines(
@@ -494,9 +506,10 @@ export const FinalAJobSection = () => {
             return;
         }
 
+        const isWarrantyJob = selectedRow?.job_type_code === "UNDER_WARRANTY";
         setSubmitting(true);
         try {
-            if (isGst) {
+            if (isGst && !isWarrantyJob) {
                 const missingHsnParts = partLines.filter(l => l.part_id && !l.hsn_code.trim()).length;
                 const missingHsnCharges = chargeLines.filter(c => c.charge_name.trim() && !c.hsn_code.trim()).length;
                 if (missingHsnParts > 0 || missingHsnCharges > 0) {
@@ -518,11 +531,11 @@ export const FinalAJobSection = () => {
                     charge_name: c.charge_name.trim(),
                     ref_no: c.ref_no.trim() || null,
                     description: c.description.trim() || null,
-                    hsn_code: isGst ? (c.hsn_code.trim() || null) : null,
-                    gst_rate: isGst ? (parseFloat(c.gst_rate) || 0) : 0,
+                    hsn_code: (isGst && !isWarrantyJob) ? (c.hsn_code.trim() || null) : null,
+                    gst_rate: (isGst && !isWarrantyJob) ? (parseFloat(c.gst_rate) || 0) : 0,
                     qty: parseFloat(c.qty) || 1,
                     cost_price: parseFloat(c.cost_price) || 0,
-                    selling_price: parseFloat(c.selling_price) || 0,
+                    selling_price: isWarrantyJob ? 0 : (parseFloat(c.selling_price) || 0),
                 }));
 
             const xDetails: Record<string, unknown>[] = [];
@@ -533,21 +546,21 @@ export const FinalAJobSection = () => {
                     id: l.id,
                     part_id: l.part_id,
                     cost_price: parseFloat(l.cost_price) || 0,
-                    selling_price: parseFloat(l.selling_price) || 0,
-                    gst_rate: parseFloat(l.gst_rate) || 0,
+                    selling_price: isWarrantyJob ? 0 : (parseFloat(l.selling_price) || 0),
+                    gst_rate: (isGst && !isWarrantyJob) ? (parseFloat(l.gst_rate) || 0) : 0,
                     qty: l.qty,
                     remarks: l.remarks.trim() || null,
-                    hsn_code: isGst ? (l.hsn_code.trim() || null) : null,
+                    hsn_code: (isGst && !isWarrantyJob) ? (l.hsn_code.trim() || null) : null,
                 }));
 
             const newInserts = newParts.map(l => ({
                 part_id: l.part_id,
                 cost_price: parseFloat(l.cost_price) || 0,
-                selling_price: parseFloat(l.selling_price) || 0,
-                gst_rate: parseFloat(l.gst_rate) || 0,
+                selling_price: isWarrantyJob ? 0 : (parseFloat(l.selling_price) || 0),
+                gst_rate: (isGst && !isWarrantyJob) ? (parseFloat(l.gst_rate) || 0) : 0,
                 qty: l.qty,
                 remarks: l.remarks.trim() || null,
-                hsn_code: isGst ? (l.hsn_code.trim() || null) : null,
+                hsn_code: (isGst && !isWarrantyJob) ? (l.hsn_code.trim() || null) : null,
                 xDetails: {
                     tableName: "stock_transaction",
                     fkeyName: "job_part_used_id",
@@ -579,11 +592,10 @@ export const FinalAJobSection = () => {
                 ...(deletedChargeIds.length > 0 ? { deletedIds: deletedChargeIds } : {}),
                 xData: chargeUpsertRows,
             });
-
             const backCalcNum = parseFloat(backCalcTarget);
             const computedTotal = partLines.reduce((s, l) => s + (parseFloat(l.sale_pr_gst) || 0) * l.qty, 0)
                 + chargeLines.reduce((s, c) => s + (parseFloat(c.sale_pr_gst) || 0) * (parseFloat(c.qty) || 1), 0);
-            const amount = (backCalcTarget !== "" && !isNaN(backCalcNum) && backCalcNum > 0) ? backCalcNum : computedTotal;
+            const amount = isWarrantyJob ? 0 : ((backCalcTarget !== "" && !isNaN(backCalcNum) && backCalcNum > 0) ? backCalcNum : computedTotal);
 
             await apolloClient.mutate({
                 mutation: GRAPHQL_MAP.genericUpdate,
@@ -592,7 +604,7 @@ export const FinalAJobSection = () => {
                     schema,
                     value: encodeObj({
                         tableName: "job",
-                        xData: { id: selectedJob.id, is_final: true, is_igst: forceIgst, division_id: selectedDivisionId, amount, xDetails },
+                        xData: { id: selectedJob.id, is_final: true, is_igst: forceIgst, division_id: selectedDivisionId, amount, to_show_parts_in_job_invoice: showPartsInInvoice, xDetails },
                     }),
                 },
             });
@@ -765,9 +777,10 @@ export const FinalAJobSection = () => {
             return;
         }
 
+        const isWarrantyJob = selectedRow?.job_type_code === "UNDER_WARRANTY";
         setSubmitting(true);
         try {
-            if (isGst) {
+            if (isGst && !isWarrantyJob) {
                 const missingHsnParts = partLines.filter(l => l.part_id && !l.hsn_code.trim()).length;
                 const missingHsnCharges = chargeLines.filter(c => c.charge_name.trim() && !c.hsn_code.trim()).length;
                 if (missingHsnParts > 0 || missingHsnCharges > 0) {
@@ -789,11 +802,11 @@ export const FinalAJobSection = () => {
                     charge_name: c.charge_name.trim(),
                     ref_no: c.ref_no.trim() || null,
                     description: c.description.trim() || null,
-                    hsn_code: isGst ? (c.hsn_code.trim() || null) : null,
-                    gst_rate: isGst ? (parseFloat(c.gst_rate) || 0) : 0,
+                    hsn_code: (isGst && !isWarrantyJob) ? (c.hsn_code.trim() || null) : null,
+                    gst_rate: (isGst && !isWarrantyJob) ? (parseFloat(c.gst_rate) || 0) : 0,
                     qty: parseFloat(c.qty) || 1,
                     cost_price: parseFloat(c.cost_price) || 0,
-                    selling_price: parseFloat(c.selling_price) || 0,
+                    selling_price: isWarrantyJob ? 0 : (parseFloat(c.selling_price) || 0),
                 }));
 
             const xDetails: Record<string, unknown>[] = [];
@@ -805,22 +818,22 @@ export const FinalAJobSection = () => {
                     id: l.id,
                     part_id: l.part_id,
                     cost_price: parseFloat(l.cost_price) || 0,
-                    selling_price: parseFloat(l.selling_price) || 0,
-                    gst_rate: parseFloat(l.gst_rate) || 0,
+                    selling_price: isWarrantyJob ? 0 : (parseFloat(l.selling_price) || 0),
+                    gst_rate: (isGst && !isWarrantyJob) ? (parseFloat(l.gst_rate) || 0) : 0,
                     qty: l.qty,
                     remarks: l.remarks.trim() || null,
-                    hsn_code: isGst ? (l.hsn_code.trim() || null) : null,
+                    hsn_code: (isGst && !isWarrantyJob) ? (l.hsn_code.trim() || null) : null,
                 }));
 
             // New part inserts (no id, valid part_id) with stock transactions
             const newInserts = newParts.map(l => ({
                 part_id: l.part_id,
                 cost_price: parseFloat(l.cost_price) || 0,
-                selling_price: parseFloat(l.selling_price) || 0,
-                gst_rate: parseFloat(l.gst_rate) || 0,
+                selling_price: isWarrantyJob ? 0 : (parseFloat(l.selling_price) || 0),
+                gst_rate: (isGst && !isWarrantyJob) ? (parseFloat(l.gst_rate) || 0) : 0,
                 qty: l.qty,
                 remarks: l.remarks.trim() || null,
-                hsn_code: isGst ? (l.hsn_code.trim() || null) : null,
+                hsn_code: (isGst && !isWarrantyJob) ? (l.hsn_code.trim() || null) : null,
                 xDetails: {
                     tableName: "stock_transaction",
                     fkeyName: "job_part_used_id",
@@ -865,7 +878,7 @@ export const FinalAJobSection = () => {
                     schema,
                     value: encodeObj({
                         tableName: "job",
-                        xData: { id: selectedJob.id, is_final: true, is_igst: forceIgst, division_id: selectedDivisionId, amount, xDetails },
+                        xData: { id: selectedJob.id, is_final: true, is_igst: forceIgst, division_id: selectedDivisionId, amount, to_show_parts_in_job_invoice: showPartsInInvoice, xDetails },
                     }),
                 },
             });
@@ -903,11 +916,13 @@ export const FinalAJobSection = () => {
                 deletedPartIds={deletedPartIds}
                 forceIgst={forceIgst}
                 backCalcTarget={backCalcTarget}
+                showPartsInInvoice={showPartsInInvoice}
                 defaultHsnForSparePart={defaultHsnForSparePart}
                 defaultHsnForServiceCharge={defaultHsnForServiceCharge}
                 viewJobId={viewJobId}
                 setForceIgst={setForceIgst}
                 setBackCalcTarget={setBackCalcTarget}
+                setShowPartsInInvoice={setShowPartsInInvoice}
                 setChargeLines={setChargeLines}
                 setPartLines={setPartLines}
                 setViewJobId={setViewJobId}
