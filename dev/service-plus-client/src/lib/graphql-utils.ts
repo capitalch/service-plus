@@ -2,6 +2,10 @@ import _ from "lodash";
 
 export const graphQlUtils = {
 
+    buildGenericBatchItem: ({ sqlId, sqlArgs, schema }: GenericBatchItemType): string => {
+        return encodeObj({ sqlId, sqlArgs, schema })
+    },
+
     buildGenericQueryValue: ({ sqlArgs, sqlId }: GenericQueryValueType): string => {
         return encodeObj({
             sqlArgs,
@@ -21,6 +25,14 @@ export function encodeObj(obj: Record<string, unknown>): string {
     }
     return ret
 }
+
+export type GenericBatchItemType = {
+    sqlId: string;
+    sqlArgs?: Record<string, unknown>;
+    schema?: string;
+}
+
+export type GenericBatchQueryDataType = { genericBatchQuery: unknown[][] | null };
 
 export type GenericQueryValueType = {
     sqlArgs?: Record<string, unknown>;

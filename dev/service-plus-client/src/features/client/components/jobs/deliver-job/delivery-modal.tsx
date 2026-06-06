@@ -417,7 +417,7 @@ export function DeliveryModal({
         try {
             const division    = availableDivisions.find(d => d.id === job.division_id) ?? null;
             const isGst       = isGstDivision(division);
-            const lines       = buildInvoiceLines(job, isGst, job.is_igst ?? false);
+            const lines       = buildInvoiceLines(job, isGst, job.is_igst ?? false, showPartsInInvoiceSetting);
             if (lines.length === 0) {
                 toast.error(MESSAGES.ERROR_JOB_INVOICE_REGEN_NO_LINES);
                 return;

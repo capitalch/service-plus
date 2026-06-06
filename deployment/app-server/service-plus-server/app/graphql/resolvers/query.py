@@ -11,6 +11,7 @@ from .query_helper import (
     resolve_admin_dashboard_stats_helper,
     resolve_audit_log_stats_helper,
     resolve_audit_logs_helper,
+    resolve_generic_batch_query_helper,
     resolve_generic_query_helper,
     resolve_super_admin_clients_data_helper,
     resolve_super_admin_dashboard_stats_helper,
@@ -71,6 +72,18 @@ async def resolve_audit_log_stats(
         return await resolve_audit_log_stats_helper(from_date=from_date, to_date=to_date)
     except Exception as e:
         logger.error("Unexpected audit log stats failure: %s", e, exc_info=True)
+        raise GraphQLException(
+            message=AppMessages.INTERNAL_SERVER_ERROR,
+            extensions={"details": AppMessages.UNEXPECTED_ERROR},
+        )
+
+
+@query.field("genericBatchQuery")
+async def resolve_generic_batch_query(_, info, db_name="", items=None) -> Any:
+    try:
+        return await resolve_generic_batch_query_helper(db_name, items or [])
+    except Exception as e:
+        logger.error("Unexpected genericBatchQuery failure: %s", e, exc_info=True)
         raise GraphQLException(
             message=AppMessages.INTERNAL_SERVER_ERROR,
             extensions={"details": AppMessages.UNEXPECTED_ERROR},

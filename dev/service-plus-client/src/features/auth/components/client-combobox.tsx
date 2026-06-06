@@ -75,7 +75,7 @@ export const ClientCombobox = ({ disabled, error, onValueChange, value }: Client
 
   const selectClient = (id: string, name: string) => {
     setInputValue(name);
-    setCriteria(name);
+    setCriteria('');
     onValueChange(String(id));
     closeDropdown();
   };

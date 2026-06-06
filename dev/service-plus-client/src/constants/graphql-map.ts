@@ -79,6 +79,11 @@ export const GRAPHQL_MAP = {
             dropDatabase(db_name: $db_name, schema: $schema, value: $value)
         }
     `,
+    genericBatchQuery: gql`
+        query GenericBatchQuery($db_name: String!, $items: [String!]!) {
+            genericBatchQuery(db_name: $db_name, items: $items)
+        }
+    `,
     genericQuery: gql`
         query GenericQuery($db_name: String!, $schema: String, $value: String!) {
             genericQuery(db_name: $db_name, schema: $schema, value: $value)

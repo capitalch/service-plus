@@ -733,6 +733,7 @@ class SqlBu:
 
         -- Indexes
         CREATE INDEX branch_state_idx ON branch USING btree (state_id);
+        CREATE INDEX idx_division_branch_active ON division (branch_id, is_active);
         CREATE INDEX idx_customer_contact_mobile ON customer_contact USING btree (mobile);
         CREATE UNIQUE INDEX document_sequence_unique ON document_sequence (document_type_id, branch_id, COALESCE(division_id, 0));
         CREATE INDEX idx_job_delivery_date ON job USING btree (delivery_date);

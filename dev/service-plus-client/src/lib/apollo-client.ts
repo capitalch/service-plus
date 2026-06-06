@@ -1,4 +1,5 @@
-import { ApolloClient, ApolloLink, HttpLink, InMemoryCache } from '@apollo/client';
+import { ApolloClient, ApolloLink, HttpLink, InMemoryCache, Observable } from '@apollo/client';
+import type { ServerError } from '@apollo/client';
 import { setContext } from '@apollo/client/link/context';
 import { ErrorLink } from '@apollo/client/link/error';
 import { CombinedGraphQLErrors } from '@apollo/client/errors';
@@ -6,6 +7,7 @@ import { GraphQLWsLink } from '@apollo/client/link/subscriptions';
 import { OperationTypeNode } from 'graphql';
 import { createClient } from 'graphql-ws';
 import { getApiBaseUrl } from './utils';
+import { refreshAccessToken } from './auth-service';
 
 function getGqlHttpUrl(): string {
     return `${getApiBaseUrl()}/graphql/`;
@@ -32,39 +34,29 @@ const authLink = setContext((_, { headers }) => {
 
 // Error link: handle 401 by refreshing token and retrying
 const errorLink = new ErrorLink(({ error, operation, forward }) => {
-    const isNetworkError = !CombinedGraphQLErrors.is(error);
+    const isUnauthorized =
+        !CombinedGraphQLErrors.is(error) &&
+        (error as ServerError)?.statusCode === 401;
 
-    if (isNetworkError) {
-        const refreshToken = localStorage.getItem('refreshToken');
-        if (!refreshToken) return;
+    if (isUnauthorized) {
+        const storedRefreshToken = localStorage.getItem('refreshToken');
+        if (!storedRefreshToken) return;
 
-        // Synchronously attempt refresh
-        let newToken: string | null = null;
-        const xhr = new XMLHttpRequest();
-        xhr.open('POST', `${getApiBaseUrl()}/api/auth/refresh`, false);
-        xhr.setRequestHeader('Content-Type', 'application/json');
-        xhr.send(JSON.stringify({ refreshToken }));
-
-        if (xhr.status === 200) {
-            try {
-                const data = JSON.parse(xhr.responseText);
-                newToken = data.accessToken;
-                localStorage.setItem('accessToken', data.accessToken);
-                localStorage.setItem('refreshToken', data.refreshToken);
-            } catch {
-                // ignore
-            }
-        }
-
-        if (newToken) {
-            operation.setContext({
-                headers: {
-                    ...operation.getContext().headers,
-                    Authorization: `Bearer ${newToken}`,
-                },
-            });
-            return forward(operation);
-        }
+        return new Observable(observer => {
+            refreshAccessToken(storedRefreshToken)
+                .then(data => {
+                    localStorage.setItem('accessToken', data.accessToken);
+                    localStorage.setItem('refreshToken', data.refreshToken);
+                    operation.setContext({
+                        headers: {
+                            ...operation.getContext().headers,
+                            Authorization: `Bearer ${data.accessToken}`,
+                        },
+                    });
+                    forward(operation).subscribe(observer);
+                })
+                .catch(err => observer.error(err));
+        });
     }
 
     if (CombinedGraphQLErrors.is(error)) {

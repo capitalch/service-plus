@@ -13,7 +13,7 @@ import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { MESSAGES } from "@/constants/messages";
 import { SQL_MAP } from "@/constants/sql-map";
 import { apolloClient } from "@/lib/apollo-client";
-import { graphQlUtils } from "@/lib/graphql-utils";
+import { graphQlUtils, type GenericBatchQueryDataType } from "@/lib/graphql-utils";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { selectCurrentUser, selectDbName } from "@/features/auth/store/auth-slice";
 import {
@@ -23,6 +23,7 @@ import {
     selectCurrentBranch,
     selectCurrentBu,
     selectCurrentDivision,
+    selectDefaultDivisionId,
     setAvailableBranches,
     setAvailableBus,
     setAvailableDivisions,
@@ -41,9 +42,8 @@ import type { DivisionContextType } from "@/features/client/types/division";
 
 type BuBranchSwitcherPropsType = { variant?: 'admin' | 'client' };
 
-type GenericBranchDataType  = { genericQuery: BranchContextType[] | null };
 type GenericDivisionDataType = { genericQuery: DivisionContextType[] | null };
-type GenericAppSettingDataType = { genericQuery: { setting_key: string; setting_value: unknown }[] | null };
+type AppSettingRow          = { setting_key: string; setting_value: unknown };
 
 // ─── Style maps ───────────────────────────────────────────────────────────────
 
@@ -64,40 +64,43 @@ const STYLES = {
     },
 } as const;
 
+// ─── Settings parser (pure, no side-effects) ──────────────────────────────────
+
+function parseAppSettings(settings: AppSettingRow[]) {
+    function coerce(raw: unknown): unknown {
+        if (typeof raw !== 'string') return raw;
+        try { return JSON.parse(raw); } catch { return raw; }
+    }
+
+    const rawDefaultId  = settings.find(s => s.setting_key === 'default_division_id')?.setting_value;
+    const rawForce      = settings.find(s => s.setting_key === 'force_gst_on_parts_for_non_gst_invoices')?.setting_value;
+    const rawSheets     = settings.find(s => s.setting_key === 'no_of_job_sheets_per_print')?.setting_value;
+    const rawInvoices   = settings.find(s => s.setting_key === 'no_of_job_invoices_per_print')?.setting_value;
+
+    const forceParsed   = coerce(rawForce);
+
+    return {
+        defaultDivisionId: rawDefaultId !== undefined ? Number(coerce(rawDefaultId) ?? 1) : 1,
+        forceGst:          rawForce     !== undefined && (forceParsed === true || forceParsed === 'true'),
+        jobSheets:         Math.max(1, Number(coerce(rawSheets)   ?? 1)),
+        jobInvoices:       Math.max(1, Number(coerce(rawInvoices) ?? 1)),
+    };
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export const BuBranchSwitcher = ({ variant = 'admin' }: BuBranchSwitcherPropsType) => {
     const s = STYLES[variant];
-    const dispatch        = useAppDispatch();
-    const dbName          = useAppSelector(selectDbName);
-    const user            = useAppSelector(selectCurrentUser);
+    const dispatch           = useAppDispatch();
+    const dbName             = useAppSelector(selectDbName);
+    const user               = useAppSelector(selectCurrentUser);
     const availableBus       = useAppSelector(selectAvailableBus);
     const availableBranches  = useAppSelector(selectAvailableBranches);
     const availableDivisions = useAppSelector(selectAvailableDivisions);
     const currentBu          = useAppSelector(selectCurrentBu);
     const currentBranch      = useAppSelector(selectCurrentBranch);
     const currentDivision    = useAppSelector(selectCurrentDivision);
-
-    // ── Fetch branches for a given BU ─────────────────────────────────────────
-
-    const fetchBranches = useCallback(async (buCode: string) => {
-        if (!dbName) return;
-        try {
-            const result = await apolloClient.query<GenericBranchDataType>({
-                fetchPolicy: "network-only",
-                query: GRAPHQL_MAP.genericQuery,
-                variables: {
-                    db_name: dbName,
-                    schema: buCode.toLowerCase(),
-                    value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_BU_BRANCHES }),
-                },
-            });
-            return result.data?.genericQuery ?? [];
-        } catch {
-            toast.error(MESSAGES.ERROR_BRANCHES_LOAD_FAILED);
-            return [];
-        }
-    }, [dbName]);
+    const defaultDivisionId  = useAppSelector(selectDefaultDivisionId);
 
     // ── Persist last-used BU and branch to DB ──────────────────────────────────
 
@@ -111,11 +114,7 @@ export const BuBranchSwitcher = ({ variant = 'admin' }: BuBranchSwitcherPropsTyp
                     schema: "security",
                     value: graphQlUtils.buildGenericUpdateValue({
                         tableName: "user",
-                        xData: {
-                            id: Number(user.id),
-                            last_used_bu_id: buId,
-                            last_used_branch_id: branchId,
-                        },
+                        xData: { id: Number(user.id), last_used_bu_id: buId, last_used_branch_id: branchId },
                     }),
                 },
             });
@@ -124,161 +123,144 @@ export const BuBranchSwitcher = ({ variant = 'admin' }: BuBranchSwitcherPropsTyp
         }
     }, [dbName, user?.id]);
 
-    // ── On mount: re-seed context from user (needed after page refresh) ─────────
+    // ── Fetch full context for a BU: branches + settings (parallel), then divisions ──
+    // branches and settings both only need the BU schema, so they are fetched in
+    // parallel. Divisions require the resolved branch id, so they follow sequentially.
+
+    const fetchBuContext = useCallback(async (buCode: string, preferredBranchId?: number | null) => {
+        if (!dbName) return null;
+        const schema = buCode.toLowerCase();
+
+        const batchResult = await apolloClient.query<GenericBatchQueryDataType>({
+            fetchPolicy: 'cache-first',
+            query: GRAPHQL_MAP.genericBatchQuery,
+            variables: {
+                db_name: dbName,
+                items: [
+                    graphQlUtils.buildGenericBatchItem({ sqlId: SQL_MAP.GET_BU_BRANCHES, schema }),
+                    graphQlUtils.buildGenericBatchItem({ sqlId: SQL_MAP.GET_APP_SETTINGS, schema }),
+                ],
+            },
+        });
+
+        const [branches, settings] = (batchResult.data?.genericBatchQuery ?? [[], []]) as [BranchContextType[], AppSettingRow[]];
+
+        const resolvedBranch = branches.find(b => b.id === preferredBranchId)
+            ?? branches.find(b => b.is_head_office)
+            ?? branches[0]
+            ?? null;
+
+        let divisions: DivisionContextType[] = [];
+        if (resolvedBranch) {
+            const divResult = await apolloClient.query<GenericDivisionDataType>({
+                fetchPolicy: 'cache-first',
+                query: GRAPHQL_MAP.genericQuery,
+                variables: {
+                    db_name: dbName, schema,
+                    value: graphQlUtils.buildGenericQueryValue({
+                        sqlId: SQL_MAP.GET_ACTIVE_DIVISIONS_BY_BRANCH,
+                        sqlArgs: { branch_id: resolvedBranch.id },
+                    }),
+                },
+            });
+            divisions = divResult.data?.genericQuery ?? [];
+        }
+
+        return { branches, resolvedBranch, divisions, settings };
+    }, [dbName]);
+
+    // ── Dispatch parsed settings + auto-select division ───────────────────────
+
+    const applyContext = useCallback((
+        ctx: Awaited<ReturnType<typeof fetchBuContext>>,
+        overrideDefaultDivisionId?: number,
+    ) => {
+        if (!ctx) return;
+        const parsed = parseAppSettings(ctx.settings);
+        const effectiveDefaultId = overrideDefaultDivisionId ?? parsed.defaultDivisionId;
+
+        dispatch(setAvailableBranches(ctx.branches));
+        dispatch(setCurrentBranch(ctx.resolvedBranch));
+        dispatch(setAvailableDivisions(ctx.divisions));
+        dispatch(setDefaultDivisionId(parsed.defaultDivisionId));
+        dispatch(setForceGstOnPartsForNonGst(parsed.forceGst));
+        dispatch(setNoOfJobSheetsPerPrint(parsed.jobSheets));
+        dispatch(setNoOfJobInvoicesPerPrint(parsed.jobInvoices));
+
+        if (ctx.divisions.length === 0) {
+            dispatch(setCurrentDivision(null));
+        } else if (ctx.divisions.length === 1) {
+            dispatch(setCurrentDivision(ctx.divisions[0]));
+        } else {
+            dispatch(setCurrentDivision(ctx.divisions.find(d => d.id === effectiveDefaultId) ?? null));
+        }
+    }, [dispatch]);
+
+    // ── On mount: seed full context (BU → branches+settings in parallel → divisions) ─
+    // Everything is dispatched at the end of one async chain, so React batches it
+    // into a single re-render. No chained useEffects — no inter-render stall.
 
     useEffect(() => {
         if (availableBus.length > 0) return;
         if (!user) return;
 
-        if (user.userType === 'A') {
-            // Admin users have access to all BUs — fetch from DB
-            if (!dbName) return;
-            apolloClient.query<{ genericQuery: BuContextType[] | null }>({
-                fetchPolicy: "network-only",
-                query: GRAPHQL_MAP.genericQuery,
-                variables: {
-                    db_name: dbName,
-                    schema: "security",
-                    value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_ALL_BUS_WITH_SCHEMA_STATUS }),
-                },
-            }).then(result => {
-                const buses = result.data?.genericQuery ?? [];
-                dispatch(setAvailableBus(buses));
-                const resolved = buses.find(b => b.id === user.lastUsedBuId && b.schema_exists)
-                    ?? buses.find(b => b.schema_exists)
-                    ?? buses[0]
-                    ?? null;
-                dispatch(setCurrentBu(resolved));
-            }).catch(() => {
-                toast.error(MESSAGES.ERROR_BU_LOAD_FAILED);
-            });
-            return;
-        }
+        async function init() {
+            let buses: BuContextType[];
 
-        if (!user.availableBus?.length) return;
-        const buses = user.availableBus;
-        dispatch(setAvailableBus(buses));
-        const resolved = buses.find(b => b.id === user.lastUsedBuId) ?? buses[0] ?? null;
-        dispatch(setCurrentBu(resolved));
-    }, [user, dbName, availableBus.length, dispatch]);
-
-    // ── On currentBu change: fetch branches ───────────────────────────────────
-
-    useEffect(() => {
-        if (!currentBu) return;
-        fetchBranches(currentBu.code).then(branches => {
-            if (!branches) return;
-            dispatch(setAvailableBranches(branches));
-            const lastId = user?.lastUsedBranchId;
-            const resolved = branches.find(b => b.id === lastId)
-                ?? branches.find(b => b.is_head_office)
-                ?? branches[0]
-                ?? null;
-            dispatch(setCurrentBranch(resolved));
-        });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [currentBu?.id]);
-
-    // ── On currentBranch change: fetch divisions + division app settings ────────
-
-    useEffect(() => {
-        if (!dbName || !currentBu || !currentBranch) {
-            dispatch(setAvailableDivisions([]));
-            dispatch(setCurrentDivision(null));
-            return;
-        }
-        const schema = currentBu.code.toLowerCase();
-
-        const divisionPromise = apolloClient.query<GenericDivisionDataType>({
-            fetchPolicy: 'network-only',
-            query: GRAPHQL_MAP.genericQuery,
-            variables: {
-                db_name: dbName,
-                schema,
-                value: graphQlUtils.buildGenericQueryValue({
-                    sqlId: SQL_MAP.GET_ACTIVE_DIVISIONS_BY_BRANCH,
-                    sqlArgs: { branch_id: currentBranch.id },
-                }),
-            },
-        });
-
-        const settingsPromise = apolloClient.query<GenericAppSettingDataType>({
-            fetchPolicy: 'network-only',
-            query: GRAPHQL_MAP.genericQuery,
-            variables: {
-                db_name: dbName,
-                schema,
-                value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_APP_SETTINGS }),
-            },
-        });
-
-        Promise.all([divisionPromise, settingsPromise]).then(([divRes, setRes]) => {
-            const divisions = divRes.data?.genericQuery ?? [];
-            dispatch(setAvailableDivisions(divisions));
-
-            const settings = setRes.data?.genericQuery ?? [];
-
-            const rawDefaultId = settings.find(s => s.setting_key === 'default_division_id')?.setting_value;
-            let defaultId = 1;
-            if (rawDefaultId !== undefined) {
-                let parsed: unknown = rawDefaultId;
-                if (typeof rawDefaultId === 'string') { try { parsed = JSON.parse(rawDefaultId); } catch { /* keep raw */ } }
-                defaultId = Number(parsed ?? 1);
-            }
-            dispatch(setDefaultDivisionId(defaultId));
-
-            const rawForce = settings.find(s => s.setting_key === 'force_gst_on_parts_for_non_gst_invoices')?.setting_value;
-            let force = false;
-            if (rawForce !== undefined) {
-                let parsed: unknown = rawForce;
-                if (typeof rawForce === 'string') { try { parsed = JSON.parse(rawForce); } catch { /* keep raw */ } }
-                force = parsed === true || parsed === 'true';
-            }
-            dispatch(setForceGstOnPartsForNonGst(force));
-
-            const rawCopies = settings.find(s => s.setting_key === 'no_of_job_sheets_per_print')?.setting_value;
-            let parsedCopies: unknown = rawCopies;
-            if (typeof rawCopies === 'string') { try { parsedCopies = JSON.parse(rawCopies); } catch { /* keep raw */ } }
-            dispatch(setNoOfJobSheetsPerPrint(Math.max(1, Number(parsedCopies ?? 1))));
-
-            const rawInvCopies = settings.find(s => s.setting_key === 'no_of_job_invoices_per_print')?.setting_value;
-            let parsedInvCopies: unknown = rawInvCopies;
-            if (typeof rawInvCopies === 'string') { try { parsedInvCopies = JSON.parse(rawInvCopies); } catch { /* keep raw */ } }
-            dispatch(setNoOfJobInvoicesPerPrint(Math.max(1, Number(parsedInvCopies ?? 1))));
-
-            // Auto-select division
-            if (divisions.length === 0) {
-                dispatch(setCurrentDivision(null));
-            } else if (divisions.length === 1) {
-                dispatch(setCurrentDivision(divisions[0]));
+            if (user!.userType === 'A') {
+                if (!dbName) return;
+                const result = await apolloClient.query<{ genericQuery: BuContextType[] | null }>({
+                    fetchPolicy: 'network-only',
+                    query: GRAPHQL_MAP.genericQuery,
+                    variables: {
+                        db_name: dbName,
+                        schema: 'security',
+                        value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_ALL_BUS_WITH_SCHEMA_STATUS }),
+                    },
+                });
+                buses = result.data?.genericQuery ?? [];
             } else {
-                const byDefault = divisions.find(d => d.id === defaultId) ?? null;
-                dispatch(setCurrentDivision(byDefault));
+                if (!user!.availableBus?.length) return;
+                buses = user!.availableBus;
             }
-        }).catch(() => {
-            dispatch(setAvailableDivisions([]));
-            dispatch(setCurrentDivision(null));
-        });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [currentBranch?.id]);
+
+            if (!buses.length) return;
+            dispatch(setAvailableBus(buses));
+
+            const resolvedBu = buses.find(b => b.id === user!.lastUsedBuId && b.schema_exists !== false)
+                ?? buses.find(b => b.schema_exists !== false)
+                ?? buses[0]
+                ?? null;
+
+            if (!resolvedBu) { dispatch(setCurrentBu(null)); return; }
+
+            const ctx = await fetchBuContext(resolvedBu.code, user!.lastUsedBranchId);
+            if (!ctx) return;
+
+            dispatch(setCurrentBu(resolvedBu));
+            applyContext(ctx);
+        }
+
+        init().catch(() => toast.error(MESSAGES.ERROR_BU_LOAD_FAILED));
+    }, [user, dbName, availableBus.length, dispatch, fetchBuContext, applyContext]);
 
     // ── Handlers ─────────────────────────────────────────────────────────────
 
     async function handleBuChange(buIdStr: string) {
         const bu = availableBus.find(b => String(b.id) === buIdStr);
         if (!bu || bu.id === currentBu?.id) return;
+
         dispatch(setCurrentBu(bu));
         dispatch(setAvailableBranches([]));
         dispatch(setCurrentBranch(null));
         dispatch(setAvailableDivisions([]));
         dispatch(setCurrentDivision(null));
+
         try {
-            const branches = await fetchBranches(bu.code);
-            if (!branches) return;
-            dispatch(setAvailableBranches(branches));
-            const resolved = branches.find(b => b.is_head_office) ?? branches[0] ?? null;
-            dispatch(setCurrentBranch(resolved));
-            await persist(bu.id, resolved?.id ?? null);
+            const ctx = await fetchBuContext(bu.code, null);
+            if (!ctx) return;
+            applyContext(ctx);
+            await persist(bu.id, ctx.resolvedBranch?.id ?? null);
         } catch {
             toast.error(MESSAGES.ERROR_BU_SWITCH_FAILED);
         }
@@ -289,6 +271,34 @@ export const BuBranchSwitcher = ({ variant = 'admin' }: BuBranchSwitcherPropsTyp
         if (!branch || branch.id === currentBranch?.id) return;
         dispatch(setCurrentBranch(branch));
         await persist(currentBu!.id, branch.id);
+
+        if (!dbName || !currentBu) return;
+        try {
+            const divResult = await apolloClient.query<GenericDivisionDataType>({
+                fetchPolicy: 'cache-first',
+                query: GRAPHQL_MAP.genericQuery,
+                variables: {
+                    db_name: dbName,
+                    schema: currentBu.code.toLowerCase(),
+                    value: graphQlUtils.buildGenericQueryValue({
+                        sqlId: SQL_MAP.GET_ACTIVE_DIVISIONS_BY_BRANCH,
+                        sqlArgs: { branch_id: branch.id },
+                    }),
+                },
+            });
+            const divisions = divResult.data?.genericQuery ?? [];
+            dispatch(setAvailableDivisions(divisions));
+            if (divisions.length === 0) {
+                dispatch(setCurrentDivision(null));
+            } else if (divisions.length === 1) {
+                dispatch(setCurrentDivision(divisions[0]));
+            } else {
+                dispatch(setCurrentDivision(divisions.find(d => d.id === defaultDivisionId) ?? null));
+            }
+        } catch {
+            dispatch(setAvailableDivisions([]));
+            dispatch(setCurrentDivision(null));
+        }
     }
 
     function handleDivisionChange(divisionIdStr: string) {
@@ -373,7 +383,7 @@ export const BuBranchSwitcher = ({ variant = 'admin' }: BuBranchSwitcherPropsTyp
                                     ))}
                                 </SelectContent>
                             </Select>
-                        ) }
+                        )}
                     </div>
                 </>
             )}

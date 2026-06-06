@@ -8,7 +8,7 @@ from urllib.parse import unquote
 
 from app.config import settings
 from app.core.audit_log import audit_logger
-from app.db.psycopg_driver import exec_sql
+from app.db.psycopg_driver import SqlBatchItem, exec_sql, exec_sql_batch
 from app.db.sql_store import SqlStore
 from app.exceptions import AppMessages, ValidationException
 from app.logger import logger
@@ -355,6 +355,7 @@ async def resolve_generic_query_helper(db_name: str, schema: str = "public", val
         )
 
     sql_id:   str  = params.get("sqlId", "")
+    logger.info(sql_id)
     sql_args: dict = params.get("sqlArgs", {}) or {}
 
     sql = getattr(SqlStore, sql_id, None)
@@ -372,14 +373,48 @@ async def resolve_generic_query_helper(db_name: str, schema: str = "public", val
     return rows
 
 
+async def resolve_generic_batch_query_helper(db_name: str, items: list[str]) -> list:
+    """Execute multiple SQL queries in one DB connection, returning results in order."""
+    logger.debug("Generic batch query requested: %d items", len(items))
+
+    batch: list[SqlBatchItem] = []
+    for raw in items:
+        try:
+            params: dict = json.loads(unquote(raw))
+        except (json.JSONDecodeError, ValueError) as e:
+            raise ValidationException(
+                message=AppMessages.INVALID_INPUT,
+                extensions={"detail": AppMessages.INVALID_JSON_VALUE},
+            ) from e
+        sql_id: str = params.get("sqlId", "")
+        if not getattr(SqlStore, sql_id, None):
+            logger.error("Unknown sqlId in genericBatchQuery: %r", sql_id)
+            raise ValidationException(
+                message=AppMessages.INVALID_INPUT,
+                extensions={"detail": f"Unknown sqlId: {sql_id}"},
+            )
+        batch.append(SqlBatchItem(
+            sql_id=sql_id,
+            sql_args=params.get("sqlArgs") or {},
+            schema=params.get("schema") or "public",
+            text_dates=params.get("textDates", True),
+        ))
+
+    db_name_arg = db_name if db_name else None
+    results = await exec_sql_batch(db_name_arg, batch)
+    logger.debug("Generic batch query completed: %d items", len(items))
+    return results
+
+
 async def resolve_super_admin_clients_data_helper():
     """Return detailed statistics and admin information for all clients."""
     logger.debug("Super admin clients data requested")
 
-    client_stats_rows = await exec_sql(db_name=None, schema="public", sql=SqlStore.GET_CLIENT_STATS)
+    client_stats_rows, client_rows = await exec_sql_batch(None, [
+        {"sql_id": "GET_CLIENT_STATS"},
+        {"sql_id": "GET_CLIENT_DB_NAMES"},
+    ])
     client_stats = client_stats_rows[0] if client_stats_rows else {}
-
-    client_rows = await exec_sql(db_name=None, schema="public", sql=SqlStore.GET_CLIENT_DB_NAMES)
 
     clients_data = []
     total_active_admins   = 0
@@ -471,10 +506,11 @@ async def resolve_super_admin_dashboard_stats_helper():
     """Return aggregated user and business unit stats across all clients."""
     logger.debug("Super admin dashboard stats requested")
 
-    client_stats_rows = await exec_sql(db_name=None, schema="public", sql=SqlStore.GET_CLIENT_STATS)
+    client_stats_rows, client_rows = await exec_sql_batch(None, [
+        {"sql_id": "GET_CLIENT_STATS"},
+        {"sql_id": "GET_CLIENT_DB_NAMES"},
+    ])
     client_stats = client_stats_rows[0] if client_stats_rows else {}
-
-    client_rows = await exec_sql(db_name=None, schema="public", sql=SqlStore.GET_CLIENT_DB_NAMES)
 
     active_admin_users = active_bu = active_users = inactive_admin_users = inactive_bu = inactive_users = total_admin_users = total_bu = total_users = 0
 

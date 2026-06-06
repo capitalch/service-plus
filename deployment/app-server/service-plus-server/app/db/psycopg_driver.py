@@ -4,13 +4,14 @@ Database connection management using psycopg (psycopg3).
 
 import os
 from contextlib import asynccontextmanager
-from typing import Any, AsyncGenerator
+from typing import Any, AsyncGenerator, Required, TypedDict
 import psycopg
 from psycopg import sql as pgsql
 from psycopg.rows import dict_row
 from psycopg.types.datetime import DateLoader, TimestampLoader, TimestamptzLoader
 from psycopg.types.numeric import FloatLoader
 from app.config import settings
+from app.db.sql_store import SqlStore
 from app.exceptions import AppMessages, DatabaseException
 from app.logger import logger
 
@@ -43,6 +44,13 @@ class _FloatNumericLoader(FloatLoader):  # pylint: disable=too-few-public-method
     """Returns numeric/decimal values as float instead of Decimal (JSON-serializable)."""
 
 
+class SqlBatchItem(TypedDict, total=False):
+    sql_id: Required[str]  # SqlStore attribute name, e.g. "GET_CLIENT_STATS"
+    sql_args: dict         # parameterised args; default {}
+    schema: str            # search_path schema; default "public"
+    text_dates: bool       # return date/timestamp as ISO strings; default False
+
+
 @asynccontextmanager
 async def _open_db_connection(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     host: str,
@@ -68,6 +76,11 @@ async def _open_db_connection(  # pylint: disable=too-many-arguments,too-many-po
             password=password,
             dbname=dbname,
             autocommit=autocommit,
+            connect_timeout=50,
+            keepalives=1,
+            keepalives_idle=30,
+            keepalives_interval=5,
+            keepalives_count=3,
         )
         logger.debug("%s database connection opened (autocommit=%s)", label, autocommit)
         yield conn
@@ -223,6 +236,67 @@ async def exec_sql_object(
             # closing connection and cursor is handled by the context manager automatically
 
     return record_id
+
+
+async def exec_sql_batch(
+    db_name: str | None,
+    items: list[SqlBatchItem],
+) -> list[list[Any] | int]:
+    """
+    Execute multiple queries on a single shared connection.
+
+    Args:
+        db_name: None → client DB; str → service DB (same convention as exec_sql).
+        items:   Ordered list of SqlBatchItem dicts. Each requires a sql_id (SqlStore
+                 attribute name) and accepts optional sql_args, schema, text_dates.
+
+    Returns:
+        List of results in the same order as items:
+          - list[dict] rows for SELECT queries
+          - int rowcount for DML queries
+        All items run in one transaction; any failure rolls back the whole batch.
+    """
+    if not items:
+        return []
+
+    # Resolve all sql_ids before opening a connection so we fail fast on bad ids
+    resolved: list[tuple[str, dict, str, bool]] = []
+    for item in items:
+        sql_id = item["sql_id"]
+        sql = getattr(SqlStore, sql_id, None)
+        if sql is None:
+            raise ValueError(f"Unknown sql_id: {sql_id!r}")
+        resolved.append((
+            sql,
+            item.get("sql_args") or {},
+            item.get("schema") or "public",
+            item.get("text_dates", False),
+        ))
+
+    results: list[list[Any] | int] = []
+    connection = get_service_db_connection(db_name) if db_name else get_client_db_connection()
+
+    async with connection as conn:
+        current_schema: str | None = None
+        for sql, sql_args, schema, text_dates in resolved:
+            async with conn.cursor(row_factory=dict_row) as cur:
+                cur.adapters.register_loader("numeric", _FloatNumericLoader)
+                if text_dates:
+                    cur.adapters.register_loader("date", _IsoDateLoader)
+                    cur.adapters.register_loader("timestamp", _IsoTimestampLoader)
+                    cur.adapters.register_loader("timestamptz", _IsoTimestamptzLoader)
+                if schema != current_schema:
+                    await cur.execute(
+                        pgsql.SQL("SET search_path TO {}").format(pgsql.Identifier(schema))
+                    )
+                    current_schema = schema
+                await cur.execute(sql, sql_args)
+                if cur.description:
+                    results.append(await cur.fetchall())
+                else:
+                    results.append(cur.rowcount if cur.rowcount >= 0 else 0)
+
+    return results
 
 
 @asynccontextmanager
