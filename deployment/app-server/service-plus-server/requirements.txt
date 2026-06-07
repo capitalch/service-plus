@@ -10,6 +10,7 @@ pandas
 Pillow
 python-multipart
 psycopg[binary]
+psycopg-pool
 pydantic
 pydantic-settings
 PyJWT

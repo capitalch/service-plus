@@ -3501,7 +3501,8 @@ class SqlStore:
         with
             "p_branch_id"   as (values(%(branch_id)s::bigint)),
             "p_search"      as (values(%(search)s::text)),
-            "p_show_closed" as (values(%(show_closed)s::boolean))
+            "p_show_closed" as (values(%(show_closed)s::boolean)),
+            "p_status_id"   as (values(%(status_id)s::bigint))
         SELECT COUNT(*) AS total
         FROM job j
         JOIN customer_contact cc ON cc.id = j.customer_contact_id
@@ -3510,6 +3511,7 @@ class SqlStore:
         LEFT JOIN product          p   ON p.id   = pbm.product_id
         WHERE j.branch_id = (table "p_branch_id")
           AND ((table "p_show_closed") IS NULL OR j.is_closed = (table "p_show_closed"))
+          AND ((table "p_status_id")   IS NULL OR j.job_status_id = (table "p_status_id"))
           AND ((table "p_search") = ''
            OR LOWER(j.job_no)     LIKE '%%' || LOWER((table "p_search")) || '%%'
            OR LOWER(cc.mobile)    LIKE '%%' || LOWER((table "p_search")) || '%%'
@@ -3526,6 +3528,7 @@ class SqlStore:
             "p_branch_id"   as (values(%(branch_id)s::bigint)),
             "p_search"      as (values(%(search)s::text)),
             "p_show_closed" as (values(%(show_closed)s::boolean)),
+            "p_status_id"   as (values(%(status_id)s::bigint)),
             "p_limit"       as (values(%(limit)s::int)),
             "p_offset"      as (values(%(offset)s::int))
         SELECT
@@ -3536,6 +3539,8 @@ class SqlStore:
             j.is_closed,
             j.amount,
             j.batch_no,
+            j.job_status_id,
+            js.code      AS job_status_code,
             cc.full_name AS customer_name,
             cc.mobile,
             TRIM(CONCAT_WS(' ', p.name, b.name, pbm.model_name, j.serial_no)) AS device_details,
@@ -3554,6 +3559,7 @@ class SqlStore:
         LEFT JOIN product          p   ON p.id   = pbm.product_id
         WHERE j.branch_id = (table "p_branch_id")
           AND ((table "p_show_closed") IS NULL OR j.is_closed = (table "p_show_closed"))
+          AND ((table "p_status_id")   IS NULL OR j.job_status_id = (table "p_status_id"))
           AND ((table "p_search") = ''
            OR LOWER(j.job_no)     LIKE '%%' || LOWER((table "p_search")) || '%%'
            OR LOWER(cc.mobile)    LIKE '%%' || LOWER((table "p_search")) || '%%'

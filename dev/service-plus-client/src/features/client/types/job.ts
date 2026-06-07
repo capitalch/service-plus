@@ -7,6 +7,8 @@ export type JobSearchRow = {
     file_count:        number;
     mobile:            string;
     job_type_name:     string;
+    job_status_id?:    number;
+    job_status_code?:  string;
     job_status_name:   string;
     receive_condition_name: string | null;
     technician_name:   string | null;

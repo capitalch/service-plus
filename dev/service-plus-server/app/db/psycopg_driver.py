@@ -15,6 +15,8 @@ from app.db.sql_store import SqlStore
 from app.exceptions import AppMessages, DatabaseException
 from app.logger import logger
 
+from app.db.pool_manager import pool_manager
+
 _APP_ENV: str = os.environ.get("APP_ENV", "development")
 _MAX_BULK_PLACEHOLDERS: int = 2000
 
@@ -277,6 +279,112 @@ async def exec_sql_batch(
     connection = get_service_db_connection(db_name) if db_name else get_client_db_connection()
 
     async with connection as conn:
+        current_schema: str | None = None
+        for sql, sql_args, schema, text_dates in resolved:
+            async with conn.cursor(row_factory=dict_row) as cur:
+                cur.adapters.register_loader("numeric", _FloatNumericLoader)
+                if text_dates:
+                    cur.adapters.register_loader("date", _IsoDateLoader)
+                    cur.adapters.register_loader("timestamp", _IsoTimestampLoader)
+                    cur.adapters.register_loader("timestamptz", _IsoTimestamptzLoader)
+                if schema != current_schema:
+                    await cur.execute(
+                        pgsql.SQL("SET search_path TO {}").format(pgsql.Identifier(schema))
+                    )
+                    current_schema = schema
+                await cur.execute(sql, sql_args)
+                if cur.description:
+                    results.append(await cur.fetchall())
+                else:
+                    results.append(cur.rowcount if cur.rowcount >= 0 else 0)
+
+    return results
+
+
+async def exec_sql_query(
+    db_name: str | None,
+    schema: str = "public",
+    sql: str | None = None,
+    sql_args: dict | None = None,
+    text_dates: bool = False,
+) -> list[Any]:
+    """
+    Pool-based SELECT execution for GraphQL query resolvers.
+
+    Borrows a connection from the pre-warmed pool (autocommit, read-only intent).
+    Do NOT use this for mutations — use exec_sql() instead.
+
+    Args:
+        db_name:    Service database name; pass None to use the client DB.
+        schema:     PostgreSQL schema to set for the session (default: "public").
+        sql:        The parameterised SQL query to execute.
+        sql_args:   Parameters to pass to the SQL query.
+        text_dates: When True, date/timestamp columns are returned as ISO strings.
+
+    Returns:
+        List of dict rows for SELECT queries; empty list for no-result queries.
+    """
+    if not sql:
+        raise ValueError(AppMessages.DATABASE_QUERY_FAILED)
+
+    sql_args = sql_args or {}
+    schema_to_set = schema or "public"
+
+    pool = pool_manager.client_pool if not db_name else await pool_manager.get_service_pool(db_name)
+
+    async with pool.connection() as conn:
+        async with conn.cursor(row_factory=dict_row) as cur:
+            cur.adapters.register_loader("numeric", _FloatNumericLoader)
+            if text_dates:
+                cur.adapters.register_loader("date", _IsoDateLoader)
+                cur.adapters.register_loader("timestamp", _IsoTimestampLoader)
+                cur.adapters.register_loader("timestamptz", _IsoTimestamptzLoader)
+            await cur.execute(
+                pgsql.SQL("SET search_path TO {}").format(pgsql.Identifier(schema_to_set))
+            )
+            await cur.execute(sql, sql_args)
+            if cur.description:
+                return await cur.fetchall()
+            return []
+
+
+async def exec_sql_batch_query(
+    db_name: str | None,
+    items: list[SqlBatchItem],
+) -> list[list[Any] | int]:
+    """
+    Pool-based batch SELECT execution for GraphQL query resolvers.
+
+    Runs multiple queries on a single borrowed connection (autocommit).
+    Do NOT use this for mutations — use exec_sql_batch() instead.
+
+    Args:
+        db_name: None → client DB; str → service DB.
+        items:   Ordered list of SqlBatchItem dicts (same format as exec_sql_batch).
+
+    Returns:
+        List of results in the same order as items.
+    """
+    if not items:
+        return []
+
+    resolved: list[tuple[str, dict, str, bool]] = []
+    for item in items:
+        sql_id = item["sql_id"]
+        sql = getattr(SqlStore, sql_id, None)
+        if sql is None:
+            raise ValueError(f"Unknown sql_id: {sql_id!r}")
+        resolved.append((
+            sql,
+            item.get("sql_args") or {},
+            item.get("schema") or "public",
+            item.get("text_dates", False),
+        ))
+
+    pool = pool_manager.client_pool if not db_name else await pool_manager.get_service_pool(db_name)
+    results: list[list[Any] | int] = []
+
+    async with pool.connection() as conn:
         current_schema: str | None = None
         for sql, sql_args, schema, text_dates in resolved:
             async with conn.cursor(row_factory=dict_row) as cur:

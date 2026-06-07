@@ -8,7 +8,7 @@ from urllib.parse import unquote
 
 from app.config import settings
 from app.core.audit_log import audit_logger
-from app.db.psycopg_driver import SqlBatchItem, exec_sql, exec_sql_batch
+from app.db.psycopg_driver import SqlBatchItem, exec_sql_query, exec_sql_batch_query
 from app.db.sql_store import SqlStore
 from app.exceptions import AppMessages, ValidationException
 from app.logger import logger
@@ -23,7 +23,7 @@ async def resolve_admin_dashboard_stats_helper(db_name: str) -> dict:
     today    = date.today()
     week_ago = today - timedelta(days=6)
 
-    bu_rows = await exec_sql(db_name=db_name, schema="security", sql=SqlStore.GET_BU_USER_STATS)
+    bu_rows = await exec_sql_query(db_name=db_name, schema="security", sql=SqlStore.GET_BU_USER_STATS)
     row = bu_rows[0] if bu_rows else {}
 
     audit_stats = await audit_logger.stats(week_ago, today)
@@ -143,7 +143,7 @@ async def resolve_usage_health_helper() -> dict:
         """Verify platform database connectivity and latency."""
         try:
             t0 = _time.perf_counter()
-            await exec_sql(db_name=None, schema="public", sql="SELECT 1 AS ok")
+            await exec_sql_query(db_name=None, schema="public", sql="SELECT 1 AS ok")
             latency_ms = round((_time.perf_counter() - t0) * 1000)
             return {
                 "detail":     "service_plus_client",
@@ -242,7 +242,7 @@ async def resolve_usage_health_helper() -> dict:
                 WHERE datname LIKE 'service_plus_%%'
                 ORDER BY size_bytes DESC
             """
-            rows = await exec_sql(db_name=None, schema="public", sql=sql)
+            rows = await exec_sql_query(db_name=None, schema="public", sql=sql)
             return [{"db_name": r["datname"], "size_bytes": int(r["size_bytes"])} for r in rows]
         except Exception as e:
             logger.warning("DB size query failed: %s", e)
@@ -251,9 +251,9 @@ async def resolve_usage_health_helper() -> dict:
     async def _get_platform_stats() -> dict:
         """Return high-level statistics about clients, admins, and databases."""
         try:
-            client_stats_rows = await exec_sql(db_name=None, schema="public", sql=SqlStore.GET_CLIENT_STATS)
+            client_stats_rows = await exec_sql_query(db_name=None, schema="public", sql=SqlStore.GET_CLIENT_STATS)
             client_stats = client_stats_rows[0] if client_stats_rows else {}
-            client_rows  = await exec_sql(db_name=None, schema="public", sql=SqlStore.GET_CLIENT_DB_NAMES)
+            client_rows  = await exec_sql_query(db_name=None, schema="public", sql=SqlStore.GET_CLIENT_DB_NAMES)
             total_dbs    = sum(1 for r in client_rows if r.get("db_name"))
             total_admins = 0
             for client_row in client_rows:
@@ -261,14 +261,14 @@ async def resolve_usage_health_helper() -> dict:
                 if not db_name_val:
                     continue
                 try:
-                    exists_rows = await exec_sql(
+                    exists_rows = await exec_sql_query(
                         db_name=None, schema="public",
                         sql=SqlStore.CHECK_DB_NAME_EXISTS,
                         sql_args={"db_name": db_name_val},
                     )
                     if not (exists_rows and exists_rows[0].get("exists")):
                         continue
-                    bu_rows = await exec_sql(db_name=db_name_val, schema="security", sql=SqlStore.GET_BU_USER_STATS)
+                    bu_rows = await exec_sql_query(db_name=db_name_val, schema="security", sql=SqlStore.GET_BU_USER_STATS)
                     if bu_rows:
                         total_admins += int(bu_rows[0].get("total_admin_users", 0))
                 except Exception:
@@ -367,7 +367,7 @@ async def resolve_generic_query_helper(db_name: str, schema: str = "public", val
         )
 
     db_name_arg = db_name if db_name else None
-    rows = await exec_sql(db_name_arg, schema or "public", sql, sql_args, text_dates=True)
+    rows = await exec_sql_query(db_name_arg, schema or "public", sql, sql_args, text_dates=True)
 
     logger.debug("Generic query completed: sqlId=%r", sql_id)
     return rows
@@ -401,7 +401,7 @@ async def resolve_generic_batch_query_helper(db_name: str, items: list[str]) -> 
         ))
 
     db_name_arg = db_name if db_name else None
-    results = await exec_sql_batch(db_name_arg, batch)
+    results = await exec_sql_batch_query(db_name_arg, batch)
     logger.debug("Generic batch query completed: %d items", len(items))
     return results
 
@@ -410,7 +410,7 @@ async def resolve_super_admin_clients_data_helper():
     """Return detailed statistics and admin information for all clients."""
     logger.debug("Super admin clients data requested")
 
-    client_stats_rows, client_rows = await exec_sql_batch(None, [
+    client_stats_rows, client_rows = await exec_sql_batch_query(None, [
         {"sql_id": "GET_CLIENT_STATS"},
         {"sql_id": "GET_CLIENT_DB_NAMES"},
     ])
@@ -430,10 +430,10 @@ async def resolve_super_admin_clients_data_helper():
 
         db_name_valid = False
         if db_name_val:
-            exists_rows = await exec_sql(db_name=None, schema="public", sql=SqlStore.CHECK_DB_NAME_EXISTS, sql_args={"db_name": db_name_val})
+            exists_rows = await exec_sql_query(db_name=None, schema="public", sql=SqlStore.CHECK_DB_NAME_EXISTS, sql_args={"db_name": db_name_val})
             if exists_rows and exists_rows[0].get("exists"):
                 db_name_valid = True
-                bu_rows = await exec_sql(db_name=db_name_val, schema="security", sql=SqlStore.GET_BU_USER_STATS)
+                bu_rows = await exec_sql_query(db_name=db_name_val, schema="security", sql=SqlStore.GET_BU_USER_STATS)
                 if bu_rows:
                     r = bu_rows[0]
                     active_admin   = r.get("active_admin_users", 0)
@@ -441,7 +441,7 @@ async def resolve_super_admin_clients_data_helper():
                     inactive_admin = r.get("inactive_admin_users", 0)
                     inactive_bu    = r.get("inactive_bu", 0)
 
-                admin_rows = await exec_sql(db_name=db_name_val, schema="security", sql=SqlStore.GET_ADMIN_USERS)
+                admin_rows = await exec_sql_query(db_name=db_name_val, schema="security", sql=SqlStore.GET_ADMIN_USERS)
                 for a in admin_rows:
                     admins.append({
                         "created_at": a["created_at"].isoformat() if a.get("created_at") else None,
@@ -485,7 +485,7 @@ async def resolve_super_admin_clients_data_helper():
             "updated_at":         client_row["updated_at"].isoformat() if client_row.get("updated_at") else None,
         })
 
-    orphan_rows = await exec_sql(db_name=None, schema="public", sql=SqlStore.GET_ORPHAN_DATABASES)
+    orphan_rows = await exec_sql_query(db_name=None, schema="public", sql=SqlStore.GET_ORPHAN_DATABASES)
     orphan_databases = [row["datname"] for row in orphan_rows]
 
     logger.debug("Super admin clients data completed")
@@ -506,7 +506,7 @@ async def resolve_super_admin_dashboard_stats_helper():
     """Return aggregated user and business unit stats across all clients."""
     logger.debug("Super admin dashboard stats requested")
 
-    client_stats_rows, client_rows = await exec_sql_batch(None, [
+    client_stats_rows, client_rows = await exec_sql_batch_query(None, [
         {"sql_id": "GET_CLIENT_STATS"},
         {"sql_id": "GET_CLIENT_DB_NAMES"},
     ])
@@ -518,12 +518,12 @@ async def resolve_super_admin_dashboard_stats_helper():
         db_name_val = client_row.get("db_name")
 
         if db_name_val:
-            exists_rows = await exec_sql(db_name=None, schema="public", sql=SqlStore.CHECK_DB_NAME_EXISTS, sql_args={"db_name": db_name_val})
+            exists_rows = await exec_sql_query(db_name=None, schema="public", sql=SqlStore.CHECK_DB_NAME_EXISTS, sql_args={"db_name": db_name_val})
             if not (exists_rows and exists_rows[0].get("exists")):
                 logger.warning("Database '%s' not found – skipping", db_name_val)
                 continue
 
-            bu_rows = await exec_sql(db_name=db_name_val, schema="security", sql=SqlStore.GET_BU_USER_STATS)
+            bu_rows = await exec_sql_query(db_name=db_name_val, schema="security", sql=SqlStore.GET_BU_USER_STATS)
             if bu_rows:
                 r = bu_rows[0]
                 active_admin_users   += r.get("active_admin_users", 0)

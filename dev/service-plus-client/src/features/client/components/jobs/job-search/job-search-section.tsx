@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+    ArrowLeft,
     ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon,
     ClipboardList, Eye, FileDown, Paperclip, RefreshCw, Search, X,
 } from "lucide-react";
@@ -16,7 +17,8 @@ import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectCurrentBranch, selectSchema, selectAvailableDivisions } from "@/store/context-slice";
-import type { JobSearchRow } from "@/features/client/types/job";
+import type { JobLookupRow, JobSearchRow } from "@/features/client/types/job";
+import { STATUS_COLORS } from "../job-pipeline/status-transitions";
 import { JobAttachDialog } from "../single-job/job-attach-dialog";
 import { JobDetailsModal } from "../job-pipeline/job-details-modal";
 import { JobPdfModal } from "./job-pdf-modal";
@@ -25,6 +27,9 @@ import { JobPdfModal } from "./job-pdf-modal";
 
 type GenericQueryData<T> = { genericQuery: T[] | null };
 type ClosedFilter = null | boolean;
+type JobFilter =
+    | { group: "closed"; value: ClosedFilter }
+    | { group: "status"; id: number | null };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -43,13 +48,14 @@ export const JobSearchSection = () => {
     const divisions    = useAppSelector(selectAvailableDivisions);
     const branchId     = globalBranch?.id ?? null;
 
-    const [search,       setSearch]       = useState("");
-    const [searchQ,      setSearchQ]      = useState("");
-    const [closedFilter, setClosedFilter] = useState<ClosedFilter>(null);
-    const [page,         setPage]         = useState(1);
-    const [rows,         setRows]         = useState<JobSearchRow[]>([]);
-    const [total,        setTotal]        = useState(0);
-    const [loading,      setLoading]      = useState(false);
+    const [search,      setSearch]      = useState("");
+    const [searchQ,     setSearchQ]     = useState("");
+    const [filter,      setFilter]      = useState<JobFilter>({ group: "closed", value: null });
+    const [jobStatuses, setJobStatuses] = useState<JobLookupRow[]>([]);
+    const [page,           setPage]           = useState(1);
+    const [rows,           setRows]           = useState<JobSearchRow[]>([]);
+    const [total,          setTotal]          = useState(0);
+    const [loading,        setLoading]        = useState(false);
 
     const [attachJobId, setAttachJobId] = useState<number | null>(null);
     const [attachJobNo, setAttachJobNo] = useState<string>("");
@@ -64,7 +70,8 @@ export const JobSearchSection = () => {
     const recalc = useCallback(() => {
         if (scrollWrapperRef.current) {
             const rect = scrollWrapperRef.current.getBoundingClientRect();
-            setMaxHeight(Math.max(200, window.innerHeight - rect.top - 60));
+            const floor = Math.round(window.innerHeight * 0.55);
+            setMaxHeight(Math.max(floor, window.innerHeight - rect.top - 60));
         }
     }, []);
 
@@ -75,12 +82,14 @@ export const JobSearchSection = () => {
     }, [recalc, rows.length]);
 
     const loadData = useCallback(async (
-        bId: number, q: string, pg: number, closed: ClosedFilter,
+        bId: number, q: string, pg: number, f: JobFilter,
     ) => {
         if (!dbName || !schema) return;
         setLoading(true);
         try {
-            const commonArgs = { branch_id: bId, search: q, show_closed: closed };
+            const show_closed = f.group === "closed" ? f.value : null;
+            const status_id   = f.group === "status"  ? f.id   : null;
+            const commonArgs  = { branch_id: bId, search: q, show_closed, status_id };
             const [dataRes, countRes] = await Promise.all([
                 apolloClient.query<GenericQueryData<JobSearchRow>>({
                     fetchPolicy: "network-only",
@@ -115,9 +124,21 @@ export const JobSearchSection = () => {
     }, [dbName, schema]);
 
     useEffect(() => {
+        if (!dbName || !schema) return;
+        void apolloClient.query<GenericQueryData<JobLookupRow>>({
+            fetchPolicy: "network-only",
+            query: GRAPHQL_MAP.genericQuery,
+            variables: {
+                db_name: dbName, schema,
+                value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_JOB_STATUSES }),
+            },
+        }).then(res => setJobStatuses(res.data?.genericQuery ?? []));
+    }, [dbName, schema]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    useEffect(() => {
         if (!branchId) return;
-        void loadData(Number(branchId), searchQ, page, closedFilter);
-    }, [branchId, searchQ, page, closedFilter, loadData]);
+        void loadData(Number(branchId), searchQ, page, filter);
+    }, [branchId, searchQ, page, filter, loadData]);
 
     const handleSearchChange = (value: string) => {
         setSearch(value);
@@ -126,7 +147,11 @@ export const JobSearchSection = () => {
     };
 
     const handleClosedFilterChange = (value: ClosedFilter) => {
-        setClosedFilter(value); setPage(1);
+        setFilter({ group: "closed", value }); setPage(1);
+    };
+
+    const handleStatusFilterChange = (id: number | null) => {
+        setFilter({ group: "status", id }); setPage(1);
     };
 
     // ── List view ─────────────────────────────────────────────────────────────
@@ -148,77 +173,139 @@ export const JobSearchSection = () => {
     return (
         <motion.div
             animate={{ opacity: 1 }}
-            className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden"
+            className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto md:overflow-hidden"
             initial={{ opacity: 0 }}
             transition={{ duration: 0.25 }}
         >
-            {/* ── Header ─────────────────────────────────────────────────────── */}
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-3 border-b border-(--cl-border) bg-(--cl-surface) py-1">
-                <div className="flex items-center gap-3 overflow-hidden">
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-(--cl-accent)/10 text-(--cl-accent)">
-                        <ClipboardList className="h-4 w-4" />
-                    </div>
-                    <div className="flex items-baseline gap-2 overflow-hidden">
-                        <h1 className="text-lg font-bold text-(--cl-text) truncate">Job Search</h1>
-                        <span className="text-xs text-(--cl-text-muted) whitespace-nowrap">
-                            {loading ? "Loading…" : `(${total})`}
-                        </span>
-                    </div>
-                </div>
-            </div>
-
-            {/* ── Toolbar ────────────────────────────────────────────────────── */}
-            <div className="flex flex-wrap items-center gap-2 px-4 py-2 bg-(--cl-surface-2)/30">
-                <div className="relative flex-1 sm:max-w-md">
-                    <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-(--cl-text-muted)" />
-                    <Input
-                        className="h-8 border-(--cl-border) bg-(--cl-surface) pl-8 text-xs"
-                        placeholder="Job no, alt job no, customer, mobile, product, brand, model or serial…"
-                        value={search}
-                        onChange={e => handleSearchChange(e.target.value)}
-                    />
-                    {search && (
-                        <button
-                            className="absolute right-2.5 top-1/2 flex h-4 w-4 -translate-y-1/2 items-center justify-center rounded-full bg-(--cl-text-muted) text-(--cl-surface) hover:bg-(--cl-text) focus:outline-none"
-                            type="button"
-                            onClick={() => handleSearchChange("")}
+            {/* ── Control bar (header + toolbar merged) ──────────────────────── */}
+            {filter.group === "status" ? (
+                <div className="overflow-x-auto border-b border-(--cl-border) bg-(--cl-surface) lg:overflow-x-visible">
+                    <div className="flex min-w-max items-center gap-2 px-3 py-1.5 lg:min-w-0 lg:flex-wrap">
+                        <Button
+                            className="h-8 gap-1.5 px-3 font-semibold text-(--cl-accent) border border-(--cl-accent) hover:bg-(--cl-accent) hover:text-white transition-colors shrink-0"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => { setFilter({ group: "closed", value: null }); setPage(1); }}
                         >
-                            <X className="h-2.5 w-2.5" />
-                        </button>
-                    )}
-                </div>
-
-                {/* Closed filter toggle */}
-                <div className="flex items-center rounded border border-(--cl-border) overflow-hidden">
-                    {filterOptions.map(opt => (
+                            <ArrowLeft className="h-4 w-4" />
+                            Back
+                        </Button>
+                        <div className="h-4 w-px shrink-0 bg-(--cl-border)" />
+                        <div className="relative w-44 shrink-0">
+                            <Search className="absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-(--cl-text-muted)" />
+                            <Input
+                                className="h-7 border-(--cl-border) bg-(--cl-surface) pl-6 pr-6 text-xs"
+                                placeholder="Search…"
+                                value={search}
+                                onChange={e => handleSearchChange(e.target.value)}
+                            />
+                            {search && (
+                                <button
+                                    className="absolute right-1.5 top-1/2 flex h-3.5 w-3.5 -translate-y-1/2 items-center justify-center rounded-full bg-(--cl-text-muted) text-(--cl-surface) hover:bg-(--cl-text) focus:outline-none"
+                                    type="button"
+                                    onClick={() => handleSearchChange("")}
+                                >
+                                    <X className="h-2 w-2" />
+                                </button>
+                            )}
+                        </div>
                         <button
-                            key={String(opt.value)}
                             disabled={loading}
-                            className={`px-3 h-8 text-xs font-semibold transition-colors disabled:opacity-50 cursor-pointer
-                                ${closedFilter === opt.value
-                                    ? "bg-(--cl-accent) text-white"
-                                    : "bg-(--cl-surface) text-(--cl-text-muted) hover:bg-(--cl-hover) hover:text-(--cl-text)"
+                            className={`shrink-0 px-3 h-7 rounded-full text-xs font-semibold transition-colors disabled:opacity-50 cursor-pointer border
+                                ${filter.id === null
+                                    ? "bg-(--cl-accent) text-white border-(--cl-accent)"
+                                    : "bg-(--cl-surface) text-(--cl-text-muted) border-(--cl-border) hover:bg-(--cl-hover) hover:text-(--cl-text)"
                                 }`}
-                            onClick={() => handleClosedFilterChange(opt.value)}
+                            onClick={() => handleStatusFilterChange(null)}
                         >
-                            {opt.label}
+                            All Statuses
                         </button>
-                    ))}
+                        {jobStatuses.filter(s => s.is_active).map(s => {
+                            const colorParts = (STATUS_COLORS[s.code] ?? "bg-slate-400 text-white").trim().split(/\s+/).filter(Boolean);
+                            const activeCls  = colorParts.filter(c => !c.startsWith("hover:")).join(" ");
+                            const dotCls     = colorParts[0] ?? "bg-slate-400";
+                            const isActive   = filter.id === s.id;
+                            return (
+                                <button
+                                    key={s.id}
+                                    disabled={loading}
+                                    className={`shrink-0 flex items-center gap-1.5 px-3 h-7 rounded-full text-xs font-semibold transition-colors disabled:opacity-50 cursor-pointer border
+                                        ${isActive
+                                            ? `${activeCls} border-transparent`
+                                            : "bg-(--cl-surface) text-(--cl-text-muted) border-(--cl-border) hover:bg-(--cl-hover) hover:text-(--cl-text)"
+                                        }`}
+                                    onClick={() => handleStatusFilterChange(s.id)}
+                                >
+                                    {!isActive && <span className={`inline-block h-2 w-2 rounded-full shrink-0 ${dotCls}`} />}
+                                    {s.name}
+                                </button>
+                            );
+                        })}
+                    </div>
                 </div>
-
-                <div className="ml-auto">
+            ) : (
+                /* Main page: icon + title + count + search + filter tabs + refresh — all in one bar */
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-(--cl-border) bg-(--cl-surface) px-3 py-1.5">
+                    <div className="flex shrink-0 items-center gap-1.5">
+                        <ClipboardList className="h-4 w-4 shrink-0 text-(--cl-accent)" />
+                        <span className="text-sm font-bold text-(--cl-text)">Job Search</span>
+                        <span className="text-xs text-(--cl-text-muted)">{loading ? "…" : `(${total})`}</span>
+                    </div>
+                    <div className="relative w-48 shrink-0 md:w-64">
+                        <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-(--cl-text-muted)" />
+                        <Input
+                            className="h-8 border-(--cl-border) bg-(--cl-surface) pl-8 text-xs"
+                            placeholder="Job no, customer, mobile, product, brand, model or serial…"
+                            value={search}
+                            onChange={e => handleSearchChange(e.target.value)}
+                        />
+                        {search && (
+                            <button
+                                className="absolute right-2.5 top-1/2 flex h-4 w-4 -translate-y-1/2 items-center justify-center rounded-full bg-(--cl-text-muted) text-(--cl-surface) hover:bg-(--cl-text) focus:outline-none"
+                                type="button"
+                                onClick={() => handleSearchChange("")}
+                            >
+                                <X className="h-2.5 w-2.5" />
+                            </button>
+                        )}
+                    </div>
+                    <div className="flex items-center rounded border border-(--cl-border) overflow-hidden shrink-0">
+                        {filterOptions.map(opt => (
+                            <button
+                                key={String(opt.value)}
+                                disabled={loading}
+                                className={`px-3 h-8 text-xs font-semibold transition-colors disabled:opacity-50 cursor-pointer
+                                    ${filter.value === opt.value
+                                        ? "bg-(--cl-accent) text-white"
+                                        : "bg-(--cl-surface) text-(--cl-text-muted) hover:bg-(--cl-hover) hover:text-(--cl-text)"
+                                    }`}
+                                onClick={() => handleClosedFilterChange(opt.value)}
+                            >
+                                {opt.label}
+                            </button>
+                        ))}
+                        <div className="w-px self-stretch bg-(--cl-border)" />
+                        <button
+                            disabled={loading}
+                            className="flex items-center gap-1 px-3 h-8 text-xs font-semibold transition-colors disabled:opacity-50 cursor-pointer bg-(--cl-surface) text-(--cl-text-muted) hover:bg-(--cl-accent)/10 hover:text-(--cl-accent)"
+                            onClick={() => { setFilter({ group: "status", id: null }); setPage(1); }}
+                        >
+                            Status
+                            <ChevronRightIcon className="h-3 w-3" />
+                        </button>
+                    </div>
                     <Button
-                        className="h-8 px-2.5 text-xs"
+                        className="ml-auto h-8 px-2.5 text-xs shrink-0"
                         disabled={loading || !branchId}
                         size="sm"
                         variant="outline"
-                        onClick={() => { if (branchId) void loadData(Number(branchId), searchQ, page, closedFilter); }}
+                        onClick={() => { if (branchId) void loadData(Number(branchId), searchQ, page, filter); }}
                     >
                         <RefreshCw className="mr-1.5 h-3 w-3" />
                         Refresh
                     </Button>
                 </div>
-            </div>
+            )}
 
             {/* ── Data Grid ──────────────────────────────────────────────────── */}
             <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-(--cl-border) bg-(--cl-surface) shadow-sm">
@@ -232,7 +319,7 @@ export const JobSearchSection = () => {
                             <thead>
                                 <tr className="bg-(--cl-surface-2)">
                                     {["#", "Date", "Job No", "Customer", "Mobile", "Device Details", "Job Type", "Status", "Amount", "Actions"].map(h => (
-                                        <th key={h} className={thClass}>{h}</th>
+                                        <th key={h} className={`${thClass} ${h === "Actions" ? "hidden md:table-cell" : ""}`}>{h}</th>
                                     ))}
                                 </tr>
                             </thead>
@@ -263,7 +350,7 @@ export const JobSearchSection = () => {
                                     <th className={thClass}>Job Type</th>
                                     <th className={thClass}>Status</th>
                                     <th className={`${thClass} text-right`}>Amount</th>
-                                    <th className={`${thClass} sticky right-0 z-20 !bg-(--cl-surface-2)`}>Actions</th>
+                                    <th className={`${thClass} sticky right-0 z-20 !bg-(--cl-surface-2) hidden md:table-cell`}>Actions</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-(--cl-border) bg-(--cl-surface)">
@@ -320,15 +407,21 @@ export const JobSearchSection = () => {
                                         <td className={`${tdClass} text-xs`}>{job.device_details || "—"}</td>
                                         <td className={tdClass}>{job.job_type_name}</td>
                                         <td className={tdClass}>
-                                            <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-(--cl-accent)/10 text-(--cl-accent)">
-                                                {job.job_status_name}
-                                            </span>
+                                            {(() => {
+                                                const cp = (STATUS_COLORS[job.job_status_code ?? ""] ?? "bg-slate-400 text-white").trim().split(/\s+/).filter(Boolean);
+                                                const cls = cp.filter(c => !c.startsWith("hover:")).join(" ");
+                                                return (
+                                                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${cls}`}>
+                                                        {job.job_status_name}
+                                                    </span>
+                                                );
+                                            })()}
                                         </td>
                                         <td className={`${tdClass} text-right`}>
                                             {job.amount != null ? `₹${Number(job.amount).toFixed(2)}` : "—"}
                                         </td>
                                         <td
-                                            className={`${tdClass} sticky right-0 z-10 bg-(--cl-surface) group-hover:bg-(--cl-surface-2)`}
+                                            className={`${tdClass} sticky right-0 z-10 bg-(--cl-surface) group-hover:bg-(--cl-surface-2) hidden md:table-cell`}
                                             onClick={e => e.stopPropagation()}
                                         >
                                             <div className="flex items-center justify-center gap-1">
@@ -365,9 +458,14 @@ export const JobSearchSection = () => {
                 <div className="flex items-center justify-between border-t border-(--cl-border) px-4 py-2">
                     <span className="text-xs text-(--cl-text-muted)">
                         {total === 0 ? "No jobs" : `Showing ${(page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, total)} of ${total} jobs (Page ${page} of ${totalPages})`}
-                        {closedFilter !== null && (
+                        {filter.group === "closed" && filter.value !== null && (
                             <span className="ml-2 font-semibold text-(--cl-accent)">
-                                ({closedFilterLabel[String(closedFilter)]})
+                                ({closedFilterLabel[String(filter.value)]})
+                            </span>
+                        )}
+                        {filter.group === "status" && filter.id !== null && (
+                            <span className="ml-2 font-semibold text-(--cl-accent)">
+                                · {jobStatuses.find(s => s.id === filter.id)?.name ?? ""}
                             </span>
                         )}
                     </span>
@@ -387,7 +485,7 @@ export const JobSearchSection = () => {
                 mode="attach"
                 onClose={() => { setAttachJobId(null); setAttachJobNo(""); }}
                 onFilesChanged={() => {
-                    if (branchId) void loadData(Number(branchId), searchQ, page, closedFilter);
+                    if (branchId) void loadData(Number(branchId), searchQ, page, filter);
                 }}
             />
 

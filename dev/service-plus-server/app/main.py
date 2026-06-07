@@ -9,6 +9,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.core.audit_log import audit_logger
+from app.db.pool_manager import pool_manager
 from app.exceptions import AppMessages
 from app.graphql.schema import create_graphql_app
 from app.logger import logger, configure_for_uvicorn
@@ -46,9 +47,11 @@ async def lifespan(app: FastAPI):
     if purged:
         logger.info("Purged %d old audit log file(s)", purged)
     logger.info(AppMessages.SERVER_STARTED)
+    await pool_manager.initialize()
     start_scheduler()
     yield  # Shutdown
     stop_scheduler()
+    await pool_manager.close_all()
     logger.info(AppMessages.SERVER_STOPPED)
 
 
