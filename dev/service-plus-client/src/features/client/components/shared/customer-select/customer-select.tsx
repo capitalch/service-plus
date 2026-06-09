@@ -203,6 +203,9 @@ export function CustomerInput({
                         className="absolute left-0 right-0 top-full z-50 mt-1 max-h-56 overflow-y-auto rounded-lg border border-(--cl-border) bg-(--cl-surface) shadow-lg"
                         onMouseDown={e => { e.preventDefault(); skipBlurRef.current = true; }}
                     >
+                        <div className="sticky top-0 px-3 py-1 text-xs font-medium text-(--cl-text-muted) bg-(--cl-surface) border-b border-(--cl-border)">
+                            {results.length} customer{results.length !== 1 ? "s" : ""} found
+                        </div>
                         {results.map(row => (
                             <button
                                 key={row.id}

@@ -158,7 +158,7 @@ export const AddModelDialog = ({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent aria-describedby={undefined} className="sm:max-w-lg">
+            <DialogContent aria-describedby={undefined} className="sm:max-w-lg" onInteractOutside={(e) => e.preventDefault()}>
                 <DialogHeader>
                     <DialogTitle className="text-base font-semibold text-foreground">
                         Add Model
