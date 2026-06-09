@@ -11,7 +11,8 @@ import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectSchema } from "@/store/context-slice";
 
-import { AddCustomerDialog } from "../masters/customer/add-customer-dialog";
+import { AddCustomerDialog } from "../../masters/customer/add-customer-dialog";
+import { CustomerSearchModal } from "./customer-search-modal";
 import type { CustomerTypeOption, StateOption } from "@/features/client/types/customer";
 import type { CustomerSearchRow } from "@/features/client/types/sales";
 
@@ -51,10 +52,11 @@ export function CustomerInput({
     const [loading, setLoading]           = useState(false);
     const [dropdownOpen, setDropdownOpen] = useState(false);
     const [addOpen, setAddOpen]           = useState(false);
+    const [modalOpen, setModalOpen]       = useState(false);
 
-    const debounceRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const inputRef     = useRef<HTMLInputElement | null>(null);
-    const skipBlurRef    = useRef(false);
+    const debounceRef   = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const inputRef      = useRef<HTMLInputElement | null>(null);
+    const skipBlurRef   = useRef(false);
     const justFocusedRef = useRef(false);
 
     const doSearch = useCallback(async (q: string) => {
@@ -85,7 +87,7 @@ export function CustomerInput({
         }
     }, [dbName, schema]);
 
-    // Debounced search
+    // Debounced inline search
     useEffect(() => {
         if (!dbName || !schema) return;
         if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -108,7 +110,6 @@ export function CustomerInput({
     function handleAddSuccess() {
         setAddOpen(false);
         toast.success("Customer added. Search to select.");
-        // Re-run search directly so same query string still fires
         if (customerName.trim()) doSearch(customerName.trim());
     }
 
@@ -120,17 +121,15 @@ export function CustomerInput({
 
     return (
         <>
-            <div className={`relative flex flex-col gap-0.5  py-1 ${className ? ` ${className}` : ""}`}>
+            <div className={`relative flex flex-col gap-0.5 py-1${className ? ` ${className}` : ""}`}>
                 <div className="relative group/cust">
+                    {/* Search icon — opens modal */}
                     <button
                         type="button"
                         tabIndex={-1}
-                        onMouseDown={e => { e.preventDefault(); skipBlurRef.current = true; }}
-                        onClick={() => {
-                            if (results.length > 0) setDropdownOpen(prev => !prev);
-                            inputRef.current?.focus();
-                        }}
-                        className="absolute left-1.5 top-1/2 -translate-y-1/2 rounded-md p-1 bg-(--cl-accent) text-white hover:bg-(--cl-accent)/10 hover:text-(--cl-accent) shadow-sm transition-all z-10"
+                        onMouseDown={e => e.preventDefault()}
+                        onClick={() => setModalOpen(true)}
+                        className="absolute left-1.5 top-1/2 -translate-y-1/2 rounded-md p-1 bg-(--cl-accent)/60 text-white hover:bg-(--cl-accent)/85 shadow-sm hover:shadow-md transition-all z-10 cursor-pointer"
                         title="Search customers"
                     >
                         {loading
@@ -180,14 +179,16 @@ export function CustomerInput({
                             </button>
                         )}
                         {customerId ? (
-                            <span title="Customer selected"><UserCheck className="h-4 w-4 text-emerald-600" /></span>
+                            <span title="Customer selected">
+                                <UserCheck className="h-4 w-4 text-emerald-600" />
+                            </span>
                         ) : (
                             <button
                                 type="button"
                                 tabIndex={-1}
                                 onMouseDown={e => e.preventDefault()}
                                 onClick={() => setAddOpen(true)}
-                                className="rounded-md p-1 bg-emerald-600 text-white hover:bg-emerald-600/10 hover:text-emerald-600 shadow-sm transition-all cursor-pointer"
+                                className="rounded-md p-1 bg-emerald-500 text-white hover:bg-emerald-700 shadow-sm hover:shadow-md transition-all cursor-pointer"
                                 title="Add new customer"
                             >
                                 <Plus className="h-3.5 w-3.5" />
@@ -196,7 +197,7 @@ export function CustomerInput({
                     </div>
                 </div>
 
-                {/* Dropdown */}
+                {/* Inline dropdown */}
                 {dropdownOpen && results.length > 0 && (
                     <div
                         className="absolute left-0 right-0 top-full z-50 mt-1 max-h-56 overflow-y-auto rounded-lg border border-(--cl-border) bg-(--cl-surface) shadow-lg"
@@ -222,6 +223,14 @@ export function CustomerInput({
                     </div>
                 )}
             </div>
+
+            {/* Search modal */}
+            <CustomerSearchModal
+                open={modalOpen}
+                initialSearch={customerName}
+                onOpenChange={setModalOpen}
+                onSelect={row => { handleSelect(row); }}
+            />
 
             <AddCustomerDialog
                 customerTypes={customerTypes}

@@ -19,7 +19,7 @@ import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectSchema } from "@/store/context-slice";
 import type { CustomerSearchRow } from "@/features/client/types/sales";
 import type { JobDetailType, JobLookupRow, ModelRow, TechnicianRow } from "@/features/client/types/job";
-import { CustomerInput } from "@/features/client/components/inventory/customer-input";
+import { CustomerInput } from "@/features/client/components/shared/customer-select";
 import { SearchableCombobox } from "@/components/ui/searchable-combobox";
 import { AddModelDialog } from "@/features/client/components/masters/model/add-model-dialog";
 import { Button } from "@/components/ui/button";

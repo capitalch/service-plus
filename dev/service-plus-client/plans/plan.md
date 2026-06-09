@@ -1,52 +1,48 @@
-# Plan: Warranty Jobs — Allow Parts & Charges Entry (Cost Only)
+# CustomerInput → Shared + Modal Enhancement
 
 ## Context
-
-Currently warranty jobs lock all parts/charges inputs as read-only. The requirement is to allow recording cost prices of parts and additional charges for warranty jobs, while keeping selling prices at zero and the final invoice amount at zero.
-
----
-
-## Rules for Warranty Jobs
-
-- Parts and additional charges **can be added/edited/deleted**.
-- Only **cost price** and **qty** are editable; selling price is always 0.
-- GST fields (rate, HSN, IGST/CGST/SGST) are hidden — no tax applies.
-- **Final amount saved to `job.amount` is always 0**.
-- Selling price written to `job_part_used.selling_price` and `job_additional_charge.selling_price` is always 0.
-
----
+Enhancement to the existing `CustomerInput` component. The inline dropdown (1200ms debounce, up to 50 results) is kept intact. Clicking the search icon now additionally opens a full-screen modal for detailed search across all customer fields. The component is also relocated to a shared folder.
 
 ## Changes
 
-### `final-job-form.tsx`
+### 1. New folder: `src/features/client/components/shared/customer-select/`
+- `customer-select.tsx` — updated main widget (exported as `CustomerInput`)
+- `customer-search-modal.tsx` — new modal search component
+- `index.ts` — barrel export
 
-1. **Warranty banner** — change text to "Warranty job — only cost prices are recorded; selling prices and final amount are ₹0."
+### 2. `customer-select.tsx`
+Same as existing `customer-input.tsx` with one change:
+- Search icon `onClick` → opens `CustomerSearchModal` instead of toggling the inline dropdown
+- Add `modalOpen` state
+- Render `<CustomerSearchModal>` with `initialSearch={customerName}`
+- All existing inline dropdown / debounce logic is untouched
 
-2. **Parts Used section**
-   - Remove `!isWarranty` guard on "Add Part" empty-state button.
-   - Brand `<Select>` and `<PartCodeInput>`: always rendered (remove `isWarranty ? text : input` ternaries).
-   - Part name, remarks inputs: remove `disabled={isWarranty}`.
-   - HSN field: condition `isGst && !isWarranty`.
-   - Profit, GST%, Sale, +GST fields: hidden for warranty.
-   - Qty, Cost inputs: remove `disabled={isWarranty}`.
-   - Amt display: for warranty show `cost_price * qty`.
-   - Add/Remove buttons: always shown.
-   - Parts footer: for warranty show cost total.
+### 3. `customer-search-modal.tsx` (new)
+- `Dialog` (Radix/shadcn) full-width modal
+- Search `Input` auto-focused on open, pre-filled from `initialSearch`
+- Debounce: **1600 ms**, min **2 chars** (noted in placeholder)
+- Empty / < 2 chars → clears results
+- Results table showing all `CustomerSearchRow` columns:
+  Name · Mobile · Type · GSTIN · State · City · Postal · Address line
+- Row click → `onSelect(row)` + close modal
+- Spinner shown in search icon while loading
 
-3. **Additional Charges section**
-   - Remove `!isWarranty` guard on "Add Charge" empty-state button.
-   - Sale, HSN, GST%, Sale+GST columns: hidden for warranty.
-   - All `disabled={isWarranty}` removed from inputs.
-   - Amount cell: for warranty show `cost_price * qty`.
-   - Actions column: always shown.
-   - Charges footer: for warranty show cost total.
+### 4. Update imports in 4 consumer files
+| File | Old import |
+|---|---|
+| `inventory/sales-entry/new-sales-invoice.tsx` | `../customer-input` |
+| `jobs/single-job/new-single-job-form.tsx` | `…/inventory/customer-input` |
+| `jobs/batch-job/new-batch-job-form.tsx` | `…/inventory/customer-input` |
+| `jobs/opening-job/opening-job-form.tsx` | `…/inventory/customer-input` |
+All updated to `@/features/client/components/shared/customer-select`
 
-4. **Grand Summary**
-   - For warranty: show Parts Cost + Charges Cost totals; replace back-calc with "Final Amount ₹0.00".
+### 5. Remove original file
+`src/features/client/components/inventory/customer-input.tsx` deleted after move.
 
-### `final-a-job-section.tsx`
-
-In `handleSaveFinal` and `handleSaveEdit`:
-- `amount = isWarrantyJob ? 0 : (backCalc or computed)`
-- Parts `selling_price`, `gst_rate` → 0; `hsn_code` → null when warranty
-- Charges `selling_price`, `gst_rate` → 0; `hsn_code` → null when warranty
+## Verification
+1. Type in customer field → inline dropdown appears as before
+2. Click search icon → modal opens, pre-filled with typed text
+3. Type 2+ chars in modal → table populates after 1600ms
+4. Click a row → modal closes, parent fields populate
+5. Add new customer via `+` → success toast (modal not auto-opened, user can re-click search)
+6. `tsc --noEmit` passes

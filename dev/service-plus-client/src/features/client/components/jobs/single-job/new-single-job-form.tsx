@@ -22,7 +22,7 @@ import { selectDefaultDivisionId, selectSchema } from "@/store/context-slice";
 import type { DivisionContextType } from "@/features/client/types/division";
 import type { CustomerSearchRow } from "@/features/client/types/sales";
 import type { JobDetailType, JobSearchRow, JobLookupRow, ModelRow, TechnicianRow } from "@/features/client/types/job";
-import { CustomerInput } from "@/features/client/components/inventory/customer-input";
+import { CustomerInput } from "@/features/client/components/shared/customer-select";
 
 import { SearchableCombobox } from "@/components/ui/searchable-combobox";
 import { AddModelDialog } from "@/features/client/components/masters/model/add-model-dialog";
@@ -168,8 +168,8 @@ export function NewSingleJobForm({
                         )}
                     </div>
 
-                        <Card className="border-(--cl-border) shadow-md bg-(--cl-surface) !overflow-visible flex-1 w-full">
-                            <CardContent className="grid grid-cols-1 md:grid-cols-6 lg:grid-cols-12 gap-x-3 gap-y-3 !overflow-visible">
+                        <Card className="border-(--cl-border) shadow-md bg-(--cl-surface) overflow-visible! flex-1 w-full">
+                            <CardContent className="grid grid-cols-1 md:grid-cols-6 lg:grid-cols-12 gap-x-3 gap-y-3 overflow-visible!">
 
                                 {/* Division selector — only shown when multiple divisions exist */}
                                 {divisions.length > 1 && (

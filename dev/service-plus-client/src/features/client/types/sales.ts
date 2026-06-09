@@ -69,16 +69,20 @@ export type DocumentSequenceRow = {
 };
 
 export type CustomerSearchRow = {
-    id:         number;
-    full_name:  string | null;
-    mobile:     string;
-    gstin:      string | null;
-    state_id:   number | null;
-    state_code: string | null;
-    state_name: string | null;
-    address_line1: string | null;
-    address_line2: string | null;
-    city: string | null;
-    postal_code: string | null;
+    id:                 number;
+    full_name:          string | null;
+    mobile:             string;
+    alternate_mobile:   string | null;
+    email:              string | null;
+    gstin:              string | null;
+    state_id:           number | null;
+    state_code:         string | null;
+    state_name:         string | null;
+    address_line1:      string | null;
+    address_line2:      string | null;
+    landmark:           string | null;
+    city:               string | null;
+    postal_code:        string | null;
     customer_type_name: string;
+    remarks:            string | null;
 };

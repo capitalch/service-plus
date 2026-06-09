@@ -45,19 +45,23 @@ type AddCustomerFormType = z.infer<typeof addCustomerSchema>;
 
 // ─── Schema ───────────────────────────────────────────────────────────────────
 
+const MOBILE_REGEX      = /^[6-9]\d{9}$/;
+const GSTIN_REGEX       = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
+const POSTAL_CODE_REGEX = /^[1-9][0-9]{5}$/;
+
 const addCustomerSchema = z.object({
     customer_type_id: z.coerce.number().positive("Customer type is required"),
     full_name:        z.string().min(1, "Full name is required"),
-    mobile:           z.string().min(1, "Mobile is required"),
-    alternate_mobile: z.string().optional(),
+    mobile:           z.string().regex(MOBILE_REGEX, { message: "Enter a valid 10-digit mobile number" }),
+    alternate_mobile: z.string().refine((v) => !v || MOBILE_REGEX.test(v), "Enter a valid 10-digit mobile number").optional(),
     email:            z.string().email("Invalid email address").or(z.literal("")).optional(),
-    gstin:            z.string().optional(),
+    gstin:            z.string().refine((v) => !v || GSTIN_REGEX.test(v), "Enter a valid 15-character GSTIN").optional(),
     address_line1:    z.string().min(1, "Address line 1 is required"),
     address_line2:    z.string().optional(),
     landmark:         z.string().optional(),
     state_id:         z.coerce.number().positive("State is required"),
     city:             z.string().optional(),
-    postal_code:      z.string().optional(),
+    postal_code:      z.string().refine((v) => !v || POSTAL_CODE_REGEX.test(v), "Enter a valid 6-digit postal code").optional(),
     remarks:          z.string().optional(),
 });
 
@@ -148,7 +152,7 @@ export const AddCustomerDialog = ({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent aria-describedby={undefined} className="flex max-h-[90vh] flex-col sm:max-w-2xl overflow-y-auto overflow-x-hidden">
+            <DialogContent aria-describedby={undefined} className="flex max-h-[90vh] flex-col sm:max-w-2xl overflow-y-auto overflow-x-hidden" onInteractOutside={(e) => e.preventDefault()}>
                 <DialogHeader>
                     <DialogTitle className="text-base font-semibold text-foreground">
                         Add Customer
@@ -221,6 +225,7 @@ export const AddCustomerDialog = ({
                                 placeholder="Alternate number"
                                 {...form.register("alternate_mobile")}
                             />
+                            <FieldError message={errors.alternate_mobile?.message} />
                         </div>
                     </div>
 
@@ -246,8 +251,9 @@ export const AddCustomerDialog = ({
                                 className="font-mono uppercase"
                                 id="ac_gstin"
                                 placeholder="15-character GSTIN"
-                                {...form.register("gstin")}
+                                {...form.register("gstin", { setValueAs: (v) => v?.toUpperCase() })}
                             />
+                            <FieldError message={errors.gstin?.message} />
                         </div>
                     </div>
 
@@ -330,6 +336,7 @@ export const AddCustomerDialog = ({
                                 placeholder="Postal code"
                                 {...form.register("postal_code")}
                             />
+                            <FieldError message={errors.postal_code?.message} />
                         </div>
                     </div>
 

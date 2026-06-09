@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { SearchableCombobox } from "@/components/ui/searchable-combobox";
 import { AddModelDialog } from "@/features/client/components/masters/model/add-model-dialog";
-import { CustomerInput } from "@/features/client/components/inventory/customer-input";
+import { CustomerInput } from "@/features/client/components/shared/customer-select";
 
 import type { CustomerSearchRow } from "@/features/client/types/sales";
 import type { JobBatchDetailRow, JobLookupRow, ModelRow } from "@/features/client/types/job";

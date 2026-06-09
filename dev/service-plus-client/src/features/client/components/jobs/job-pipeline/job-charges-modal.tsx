@@ -236,6 +236,12 @@ export const JobChargesModal = ({ job, dbName, schema, onClose, onSaved }: Props
             return;
         }
 
+        const zeroSellingPrice = charges.find(c => c.charge_name.trim() && c.selling_price <= 0);
+        if (zeroSellingPrice) {
+            toast.error("Selling price must be greater than zero for all charges.");
+            return;
+        }
+
         const existingParts   = parts.filter(p => p.id != null);
         const editedParts     = existingParts.filter(isPartEdited);
         const validNewParts   = parts.filter(p => p.id == null && p.part_id != null && p.qty > 0);
@@ -341,7 +347,11 @@ export const JobChargesModal = ({ job, dbName, schema, onClose, onSaved }: Props
 
     return (
         <Dialog open onOpenChange={open => { if (!open) onClose(); }}>
-            <DialogContent className="sm:max-w-4xl max-h-[92vh] overflow-y-auto">
+            <DialogContent
+                className="sm:max-w-4xl max-h-[92vh] overflow-y-auto"
+                onInteractOutside={e => e.preventDefault()}
+                onPointerDownOutside={e => e.preventDefault()}
+            >
                 <DialogHeader>
                     <div className="flex flex-wrap items-center gap-4 pr-8">
                         <DialogTitle className="text-base font-semibold shrink-0">Parts &amp; Charges</DialogTitle>
@@ -566,7 +576,9 @@ export const JobChargesModal = ({ job, dbName, schema, onClose, onSaved }: Props
                                                             onChange={e => setValue(`charges.${index}.cost_price`, e.target.value === "" ? 0 : e.target.valueAsNumber)} />
                                                     </td>
                                                     <td className={`${tdCls} text-right`}>
-                                                        <Input className="h-6 w-24 rounded-sm text-xs text-right px-1" type="number" min={0} step="0.01" placeholder="0.00"
+                                                        <Input
+                                                            className={`h-6 w-24 rounded-sm text-xs text-right px-1 ${(row?.charge_name ?? "").trim() && (row?.selling_price ?? 0) <= 0 ? "border-red-400 focus:border-red-500" : ""}`}
+                                                            type="number" min={0.01} step="0.01" placeholder="0.00"
                                                             value={(row?.selling_price ?? 0) === 0 ? "" : (row?.selling_price ?? "")}
                                                             onFocus={e => e.target.select()}
                                                             onChange={e => setValue(`charges.${index}.selling_price`, e.target.value === "" ? 0 : e.target.valueAsNumber)} />

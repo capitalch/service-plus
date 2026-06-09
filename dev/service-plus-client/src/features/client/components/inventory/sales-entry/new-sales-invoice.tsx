@@ -25,7 +25,7 @@ import { type SalesInvoiceFormValues, getInitialSalesLine } from "./sales-invoic
 import type { SalesLineFormItem } from "./sales-invoice-schema";
 
 import { PartCodeInput } from "../part-code-input";
-import { CustomerInput } from "../customer-input";
+import { CustomerInput } from "@/features/client/components/shared/customer-select";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
