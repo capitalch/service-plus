@@ -187,7 +187,6 @@ export const AddModelDialog = ({
                                 placeholder="Search product..."
                                 renderItem={(p) => <span>{p.name}</span>}
                                 selectedValue={productIdValue?.toString() || ""}
-                                showOnFocus={false}
                             />
                             <FieldError message={errors.product_id?.message} />
                         </div>
@@ -212,7 +211,6 @@ export const AddModelDialog = ({
                                 placeholder="Search brand..."
                                 renderItem={(b) => <span>{b.name}</span>}
                                 selectedValue={brandIdValue?.toString() || ""}
-                                showOnFocus={false}
                             />
                             <FieldError message={errors.brand_id?.message} />
                         </div>
