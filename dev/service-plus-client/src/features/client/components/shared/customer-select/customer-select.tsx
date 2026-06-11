@@ -64,15 +64,16 @@ export function CustomerInput({
     const [results, setResults]           = useState<CustomerSearchRow[]>([]);
     const [loading, setLoading]           = useState(false);
     const [dropdownOpen, setDropdownOpen] = useState(false);
+    const [dropdownWidth, setDropdownWidth] = useState(0);
     const [addOpen, setAddOpen]           = useState(false);
     const [modalOpen, setModalOpen]       = useState(false);
 
-    const debounceRef          = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const inputRef             = useRef<HTMLInputElement | null>(null);
-    const anchorRef            = useRef<HTMLDivElement>(null);
-    const justFocusedRef       = useRef(false);
-    const scrollbarMouseDownRef = useRef(false);
-    const justSelectedRef      = useRef(false);
+    const debounceRef            = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const inputRef               = useRef<HTMLInputElement | null>(null);
+    const anchorRef              = useRef<HTMLDivElement>(null);
+    const justFocusedRef         = useRef(false);
+    const scrollbarMouseDownRef  = useRef(false);
+    const justSelectedRef        = useRef(false);
 
     const doSearch = useCallback(async (q: string) => {
         if (!dbName || !schema || !q.trim()) return;
@@ -109,7 +110,6 @@ export function CustomerInput({
 
         const q = customerName.trim();
         if (!q) {
-            // eslint-disable-next-line react-hooks/set-state-in-effect
             setResults([]);
             setDropdownOpen(false);
             return;
@@ -126,6 +126,13 @@ export function CustomerInput({
             if (debounceRef.current) clearTimeout(debounceRef.current);
         };
     }, [customerName, dbName, doSearch, schema]);
+
+    // Measure anchor width when dropdown opens
+    useEffect(() => {
+        if (dropdownOpen && anchorRef.current) {
+            setDropdownWidth(anchorRef.current.getBoundingClientRect().width);
+        }
+    }, [dropdownOpen]);
 
     function handleAddSuccess() {
         setAddOpen(false);
@@ -220,25 +227,19 @@ export function CustomerInput({
                             </div>
                         </div>
                     </PopoverAnchor>
-                    {customerId && customerMobile && (
-                        <div className="flex items-center gap-1 px-1 py-0.5 text-xs text-(--cl-text-muted)">
-                            <Phone className="h-3 w-3 shrink-0" />
-                            <span className="font-mono">{customerMobile}</span>
-                        </div>
-                    )}
+
                     <PopoverContent
                         className="p-0 max-h-72 overflow-y-auto"
-                        style={{ width: "var(--radix-popover-anchor-width)" }}
+                        style={{ width: dropdownWidth > 0 ? `${dropdownWidth}px` : "var(--radix-popover-anchor-width)" }}
                         onOpenAutoFocus={e => e.preventDefault()}
                         onMouseDown={e => {
                             const el = e.currentTarget as HTMLElement;
                             const isScrollbar = e.clientX > el.getBoundingClientRect().left + el.clientWidth;
                             if (isScrollbar) {
-                                // Scrollbar drag: allow native scroll, suppress blur-close
                                 scrollbarMouseDownRef.current = true;
                                 document.addEventListener("mouseup", () => { scrollbarMouseDownRef.current = false; }, { once: true });
                             } else {
-                                e.preventDefault(); // keep input focused for content clicks
+                                e.preventDefault();
                             }
                         }}
                         onInteractOutside={e => {
@@ -246,48 +247,36 @@ export function CustomerInput({
                         }}
                         onEscapeKeyDown={e => e.stopPropagation()}
                     >
-                        <div className="sticky top-0 z-10 flex items-center justify-between bg-(--cl-surface)/95 backdrop-blur-sm border-b border-(--cl-border) px-3 py-1 select-none">
+                        <div className="sticky top-0 z-10 flex items-center bg-(--cl-surface)/95 backdrop-blur-sm border-b border-(--cl-border) px-3 py-1 select-none">
                             <span className="text-[10px] font-semibold uppercase tracking-wider text-(--cl-text-muted)">
                                 {results.length} customer{results.length !== 1 ? "s" : ""} found
                             </span>
                         </div>
+
                         {results.map(row => {
-                            const initial    = (row.full_name ?? "?").trim()[0]?.toUpperCase() ?? "?";
-                            const colorIndex = initial.charCodeAt(0) % AVATAR_COLORS.length;
+                            const initial  = (row.full_name ?? row.mobile ?? "?").trim()[0]?.toUpperCase() ?? "?";
+                            const colorIdx = initial.charCodeAt(0) % AVATAR_COLORS.length;
                             return (
                                 <button
                                     key={row.id}
                                     type="button"
-                                    className="flex w-full items-start gap-2.5 border-b border-(--cl-border) px-3 py-2 text-left last:border-0 hover:bg-blue-50/60 transition-colors cursor-pointer"
+                                    className="flex w-full items-center gap-2.5 px-3 py-1.5 text-left transition-colors cursor-pointer hover:bg-blue-50/50"
                                     onMouseDown={e => e.preventDefault()}
                                     onClick={() => handleSelect(row)}
                                 >
-                                    <div className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${AVATAR_COLORS[colorIndex]}`}>
+                                    <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold ${AVATAR_COLORS[colorIdx]}`}>
                                         {initial}
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                        <div className="flex items-baseline justify-between gap-1">
-                                            <span className="truncate text-sm font-semibold text-(--cl-text)">
-                                                {row.full_name ?? <span className="italic font-normal text-(--cl-text-muted)">No name</span>}
+                                        <div className="flex items-baseline justify-between gap-2">
+                                            <span className="truncate text-sm font-medium text-(--cl-text)">
+                                                {row.full_name ?? <span className="italic text-(--cl-text-muted)">No name</span>}
                                             </span>
                                             <span className="shrink-0 font-mono text-xs text-(--cl-text-muted)">{row.mobile}</span>
                                         </div>
-                                        <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
-                                            {row.customer_type_name && (
-                                                <span className="inline-flex items-center rounded-sm px-1.5 py-px text-[10px] font-medium bg-blue-50 text-blue-600 ring-1 ring-blue-200/60">
-                                                    {row.customer_type_name}
-                                                </span>
-                                            )}
-                                            {(row.state_name || row.address_line1) && (
-                                                <span className="truncate text-xs text-(--cl-text-muted)">
-                                                    {[row.state_name, row.address_line1].filter(Boolean).join(" · ")}
-                                                </span>
-                                            )}
-                                            {row.gstin && (
-                                                <span className="ml-auto font-mono text-[10px] text-(--cl-text-muted) bg-slate-50 ring-1 ring-slate-200/80 rounded-sm px-1 py-px">
-                                                    {row.gstin}
-                                                </span>
-                                            )}
+                                        <div className="mt-0.5 text-xs text-(--cl-text-muted)">
+                                            {[row.customer_type_name, row.state_name].filter(Boolean).join(" · ")}
+                                            {row.gstin && <span className="ml-2 font-mono">{row.gstin}</span>}
                                         </div>
                                     </div>
                                 </button>
@@ -295,9 +284,15 @@ export function CustomerInput({
                         })}
                     </PopoverContent>
                 </Popover>
+
+                {customerId && customerMobile && (
+                    <div className="flex items-center gap-1 px-1 py-0.5 text-xs text-(--cl-text-muted)">
+                        <Phone className="h-3 w-3 shrink-0" />
+                        <span className="font-mono">{customerMobile}</span>
+                    </div>
+                )}
             </div>
 
-            {/* Search modal */}
             <CustomerSearchModal
                 open={modalOpen}
                 initialSearch={customerName}
