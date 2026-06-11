@@ -124,6 +124,8 @@ export const BatchJobSection = ({ initialEditBatchNo, onEditBatchNoApplied, onRe
     const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
     const [pdfFilename,   setPdfFilename]   = useState<string>("Job-Sheet.pdf");
     const [showPdfModal,  setShowPdfModal]  = useState(false);
+    const [printCopies,   setPrintCopies]   = useState(noOfJobSheetsPerPrint);
+    const pendingPrintRef = useRef<{ jobs: JobDetailType[]; division: ReturnType<typeof availableDivisions.find>; branchCode?: string } | null>(null);
 
     // Post-save file attachment
     const [postSaveJobs,    setPostSaveJobs]    = useState<PostSaveJob[] | null>(null);
@@ -456,7 +458,10 @@ export const BatchJobSection = ({ initialEditBatchNo, onEditBatchNoApplied, onRe
             toast.error("Division info not available");
             return;
         }
-        const url = getBatchJobSheetBlobUrl(batchJobs, batchDivision, globalBranch?.code, noOfJobSheetsPerPrint);
+        const copies = noOfJobSheetsPerPrint;
+        pendingPrintRef.current = { jobs: batchJobs, division: batchDivision, branchCode: globalBranch?.code };
+        setPrintCopies(copies);
+        const url = getBatchJobSheetBlobUrl(batchJobs, batchDivision, globalBranch?.code, copies);
         setPdfPreviewUrl(url);
         setPdfFilename(`Batch-Job-Sheet_${batchJobs[0]?.job_no ?? "batch"}.pdf`);
         setShowPdfModal(true);
@@ -836,6 +841,14 @@ export const BatchJobSection = ({ initialEditBatchNo, onEditBatchNoApplied, onRe
             pdfUrl={pdfPreviewUrl}
             title={`Job Sheet`}
             filename={pdfFilename}
+            printCopies={printCopies}
+            onPrintCopiesChange={n => {
+                setPrintCopies(n);
+                if (pendingPrintRef.current) {
+                    const { jobs: batchJobs, division, branchCode } = pendingPrintRef.current;
+                    setPdfPreviewUrl(getBatchJobSheetBlobUrl(batchJobs, division ?? null, branchCode, n));
+                }
+            }}
             onClose={() => {
                 setShowPdfModal(false);
                 setPdfPreviewUrl(null);
@@ -861,7 +874,8 @@ type BatchGroupRowProps = {
 };
 
 function BatchGroupRow({ availableDivisions, batch, onEdit, onView, onPrint, onDelete, onAttachJob, onDeleteJob }: BatchGroupRowProps) {
-    const batchDivision = batch.division_id ? availableDivisions.find(d => d.id === batch.division_id) : null;
+    const batchDivision    = batch.division_id ? availableDivisions.find(d => d.id === batch.division_id) : null;
+    const isBatchDeletable = batch.jobs.every(j => j.transaction_count <= 1);
     return (
         <>
             {/* Batch Header Row */}
@@ -904,7 +918,12 @@ function BatchGroupRow({ availableDivisions, batch, onEdit, onView, onPrint, onD
                                     <Pencil className="h-4 w-4" />
                                     <span>Edit Batch</span>
                                 </DropdownMenuItem>
-                                <DropdownMenuItem className="flex items-center gap-2 cursor-pointer text-red-500 focus:bg-red-500/10 focus:text-red-600" onClick={onDelete}>
+                                <DropdownMenuItem
+                                    className="flex items-center gap-2 cursor-pointer text-red-500 focus:bg-red-500/10 focus:text-red-600 disabled:opacity-40 disabled:cursor-not-allowed"
+                                    disabled={!isBatchDeletable}
+                                    title={!isBatchDeletable ? "Cannot delete: one or more jobs have activity" : undefined}
+                                    onClick={() => { if (isBatchDeletable) onDelete(); }}
+                                >
                                     <Trash2 className="h-4 w-4" />
                                     <span>Delete Batch</span>
                                 </DropdownMenuItem>
@@ -960,7 +979,13 @@ function BatchGroupRow({ availableDivisions, batch, onEdit, onView, onPrint, onD
                                 <Paperclip className="h-3.5 w-3.5" />
                             </Button>
                             {batch.job_count > 2 && (
-                                <Button className="h-7 w-7 p-0 text-red-500 hover:bg-red-500/10" variant="ghost" title="Delete Job" onClick={() => onDeleteJob(job.id, job.job_no, batch.batch_no, batch.job_count)}>
+                                <Button
+                                    className="h-7 w-7 p-0 text-red-500 hover:bg-red-500/10 disabled:opacity-40 disabled:cursor-not-allowed"
+                                    variant="ghost"
+                                    disabled={job.transaction_count > 1}
+                                    title={job.transaction_count > 1 ? "Cannot delete: job has activity" : "Delete Job"}
+                                    onClick={() => { if (job.transaction_count <= 1) onDeleteJob(job.id, job.job_no, batch.batch_no, batch.job_count); }}
+                                >
                                     <Trash2 className="h-3.5 w-3.5" />
                                 </Button>
                             )}

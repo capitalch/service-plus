@@ -69,6 +69,7 @@ export function NewSingleJobForm({
     const defaultDivisionId = useAppSelector(selectDefaultDivisionId);
     const [showAddModel, setShowAddModel]       = useState(false);
     const [customerMobile, setCustomerMobile]   = useState<string>("");
+    const [customerAddress, setCustomerAddress] = useState<string>("");
     const form = useFormContext<SingleJobFormValues>();
     const { formState: { errors, isSubmitting }, setValue, watch } = form;
     const jobTypeId = watch("job_type_id");
@@ -225,17 +226,19 @@ export function NewSingleJobForm({
                                         customerId={watch("customer_id") ?? null}
                                         customerName={watch("customer_name") ?? ""}
                                         customerMobile={customerMobile}
+                                        customerAddress={customerAddress}
                                         customerTypes={customerTypes}
                                         states={masterStates}
                                         onChange={name => {
                                             setValue("customer_name", name, { shouldValidate: false });
-                                            if (!name.trim()) { setValue("customer_id", undefined as unknown as number, { shouldValidate: true }); setCustomerMobile(""); }
+                                            if (!name.trim()) { setValue("customer_id", undefined as unknown as number, { shouldValidate: true }); setCustomerMobile(""); setCustomerAddress(""); }
                                         }}
                                         onClear={() => {
                                             setValue("customer_id", undefined as unknown as number, { shouldValidate: true });
                                             setValue("customer_name", "", { shouldValidate: false });
                                             setValue("address_snapshot", "", { shouldValidate: false });
                                             setCustomerMobile("");
+                                            setCustomerAddress("");
                                         }}
                                         onSelect={(c: CustomerSearchRow) => {
                                             setValue("customer_id", c.id, { shouldValidate: true });
@@ -243,6 +246,7 @@ export function NewSingleJobForm({
                                             const parts = [c.address_line1, c.address_line2, c.city, c.state_name, c.postal_code].filter(Boolean);
                                             setValue("address_snapshot", parts.join(", "), { shouldValidate: false });
                                             setCustomerMobile(c.mobile ?? "");
+                                            setCustomerAddress(c.address_line1 ?? "");
                                         }}
                                     />
                                     {errors.customer_id && <p className="mt-1 text-xs text-red-500">{errors.customer_id.message}</p>}

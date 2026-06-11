@@ -5,6 +5,7 @@ export type JobSearchRow = {
     job_date:          string;
     customer_name:     string | null;
     file_count:        number;
+    transaction_count: number;
     mobile:            string;
     job_type_name:     string;
     job_status_id?:    number;

@@ -112,16 +112,10 @@ function buildSingleJobSheetDoc(job: JobDetailType, division: DivisionContextTyp
         doc.text("Authorized Signatory", pageWidth - 15, sigY, { align: "right" });
     }
 
-    // Two copies fit on one A4 sheet (top half + bottom half)
-    const HALF_A4 = 148.5;
     drawContent(0);
     for (let i = 1; i < copies; i++) {
-        if (i % 2 === 1) {
-            drawContent(HALF_A4);   // second copy on same page (bottom half)
-        } else {
-            doc.addPage();
-            drawContent(0);          // odd copy count spills to new page (top half)
-        }
+        doc.addPage();
+        drawContent(0);
     }
 
     return doc;

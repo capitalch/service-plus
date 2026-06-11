@@ -1,5 +1,6 @@
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Download, X } from "lucide-react";
 
 type Props = {
@@ -8,9 +9,11 @@ type Props = {
     pdfUrl: string | null;
     title?: string;
     filename?: string;
+    printCopies?: number;
+    onPrintCopiesChange?: (n: number) => void;
 };
 
-export const PdfPreviewModal = ({ isOpen, onClose, pdfUrl, title = "PDF Preview", filename = "document.pdf" }: Props) => {
+export const PdfPreviewModal = ({ isOpen, onClose, pdfUrl, title = "PDF Preview", filename = "document.pdf", printCopies, onPrintCopiesChange }: Props) => {
     const handleDownload = () => {
         if (!pdfUrl) return;
         const link = document.createElement("a");
@@ -31,19 +34,34 @@ export const PdfPreviewModal = ({ isOpen, onClose, pdfUrl, title = "PDF Preview"
                 style={{ width: "90vw", maxWidth: "90vw" }}
                 className="h-[90vh] p-0 gap-0 overflow-hidden flex flex-col rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shadow-2xl"
             >
-                <div className="pl-6 pr-2 py-2 border-b bg-white dark:bg-zinc-900 flex items-center shrink-0">
+                <div className="pl-6 pr-2 py-2 border-b bg-white dark:bg-zinc-900 flex items-center gap-3 shrink-0">
                     <DialogTitle className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">
                         {title}
                     </DialogTitle>
-                    <Button
-                        variant="secondary"
-                        size="sm"
-                        className="ml-auto h-8 gap-2 text-[10px] font-black uppercase tracking-widest bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/50 border border-indigo-100 dark:border-indigo-800 transition-all"
-                        onClick={handleDownload}
-                    >
-                        <Download className="h-3.5 w-3.5 text-indigo-600" />
-                        Download Document
-                    </Button>
+                    <div className="ml-auto flex items-center gap-2">
+                        {onPrintCopiesChange !== undefined && (
+                            <div className="flex items-center gap-1.5">
+                                <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 whitespace-nowrap">Copies</span>
+                                <Input
+                                    type="number"
+                                    min={1}
+                                    max={10}
+                                    value={printCopies ?? 1}
+                                    onChange={e => onPrintCopiesChange(Math.max(1, Math.min(10, Number(e.target.value) || 1)))}
+                                    className="h-8 w-14 px-2 text-center text-sm"
+                                />
+                            </div>
+                        )}
+                        <Button
+                            variant="secondary"
+                            size="sm"
+                            className="h-8 gap-2 text-[10px] font-black uppercase tracking-widest bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/50 border border-indigo-100 dark:border-indigo-800 transition-all"
+                            onClick={handleDownload}
+                        >
+                            <Download className="h-3.5 w-3.5 text-indigo-600" />
+                            Download Document
+                        </Button>
+                    </div>
                     <Button
                         variant="ghost"
                         size="icon"

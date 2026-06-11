@@ -14,6 +14,7 @@ import type { Section } from "./client-layout";
 import { selectCurrentUser } from "@/features/auth/store/auth-slice";
 import { ROUTES } from "@/router/routes";
 import { useAppSelector } from "@/store/hooks";
+import { selectPostDataToAccounts } from "@/store/context-slice";
 
 type Props = { activeSection: Section };
 
@@ -131,6 +132,8 @@ function InventoryExplorer() {
 }
 
 function JobsExplorer() {
+    const postDataToAccounts = useAppSelector(selectPostDataToAccounts);
+
     return (
         <div className="space-y-4">
             <div className="space-y-1">
@@ -142,7 +145,7 @@ function JobsExplorer() {
                 <TreeItem icon={BarChart3}     label="Job Pipeline" />
                 <TreeItem icon={FileText}      label="Final a Job" />
                 <TreeItem icon={Truck}         label="Deliver Job" />
-                <TreeItem icon={BookCheck}     label="Accounts Posting" />
+                {postDataToAccounts && <TreeItem icon={BookCheck} label="Accounts Posting" />}
                 <TreeItem icon={RotateCcw}     label="Opening Jobs" />
                 <TreeItem icon={Receipt}       label="Receipts" />
                 <TreeItem icon={Package}       label="Part Used (Job)" />

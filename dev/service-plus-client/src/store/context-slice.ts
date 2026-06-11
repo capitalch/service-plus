@@ -40,6 +40,7 @@ type ContextStateType = {
     defaultHsnForServiceCharge:  string;
     forceGstOnPartsForNonGst: boolean;
     isGstRegistered:          boolean;
+    postDataToAccounts:       boolean;
 };
 
 // ─── Initial State ────────────────────────────────────────────────────────────
@@ -62,6 +63,7 @@ const initialState: ContextStateType = {
     defaultHsnForServiceCharge: "",
     forceGstOnPartsForNonGst: false,
     isGstRegistered:          false,
+    postDataToAccounts:       false,
 };
 
 // ─── Slice ────────────────────────────────────────────────────────────────────
@@ -139,6 +141,10 @@ export const contextSlice = createSlice({
         setForceGstOnPartsForNonGst: (state, action: PayloadAction<boolean>) => {
             state.forceGstOnPartsForNonGst = action.payload;
         },
+
+        setPostDataToAccounts: (state, action: PayloadAction<boolean>) => {
+            state.postDataToAccounts = action.payload;
+        },
     },
 });
 
@@ -163,6 +169,7 @@ export const {
     setDefaultHsnForServiceCharge,
     setForceGstOnPartsForNonGst,
     setIsGstRegistered,
+    setPostDataToAccounts,
 } = contextSlice.actions;
 
 // ─── Selectors ────────────────────────────────────────────────────────────────
@@ -185,7 +192,8 @@ export const selectNoOfJobSheetsPerPrint    = (state: ContextRootState) => state
 export const selectDefaultHsnForSparePart      = (state: ContextRootState) => state.context.defaultHsnForSparePart;
 export const selectDefaultHsnForServiceCharge  = (state: ContextRootState) => state.context.defaultHsnForServiceCharge;
 export const selectForceGstOnPartsForNonGst = (state: ContextRootState) => state.context.forceGstOnPartsForNonGst;
-export const selectIsGstRegistered       = (state: ContextRootState) => state.context.isGstRegistered;
+export const selectIsGstRegistered          = (state: ContextRootState) => state.context.isGstRegistered;
+export const selectPostDataToAccounts       = (state: ContextRootState) => state.context.postDataToAccounts;
 export const selectHomeStateId           = (state: ContextRootState): number | null =>
     state.context.currentDivision?.state_id ?? null;
 export const selectIsGstMode             = (state: ContextRootState): boolean =>

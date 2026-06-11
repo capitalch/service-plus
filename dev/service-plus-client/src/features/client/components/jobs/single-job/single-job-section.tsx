@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {Briefcase, ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon, Eye,
     Loader2, MoreHorizontal, Paperclip, Pencil, Printer, RefreshCw, Save, Search, Trash2, X} from "lucide-react";
-import { SingleJobViewModal } from "./single-job-view-modal";
+import { JobDetailsModal } from "../job-pipeline/job-details-modal";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 
@@ -93,12 +93,15 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
     // Edit / View
     const [editJob, setEditJob] = useState<JobDetailType | null>(null);
     const [editSourceMode, setEditSourceMode] = useState<ViewMode>("new");
-    const [viewJob, setViewJob] = useState<JobDetailType | null>(null);
+    const [viewJobId, setViewJobId] = useState<number | null>(null);
 
     // PDF Preview
     const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
     const [pdfFilename, setPdfFilename] = useState<string>("Job-Sheet.pdf");
+    const [pdfTitle, setPdfTitle] = useState<string>("Job Sheet");
     const [showPdfModal, setShowPdfModal] = useState(false);
+    const [printCopies, setPrintCopies] = useState(noOfJobSheetsPerPrint);
+    const pendingPrintRef = useRef<{ job: JobDetailType; division: ReturnType<typeof availableDivisions.find>; branchCode?: string } | null>(null);
 
     // Attach Files dialog
     const [attachJobId,  setAttachJobId]  = useState<number | null>(null);
@@ -416,37 +419,6 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
         }
     };
 
-    const handleViewJob = async (job: JobSearchRow) => {
-        if (!dbName || !schema) return;
-        const loadingToast = toast.loading(MESSAGES.INFO_JOB_DETAIL_LOADING);
-
-        try {
-            const res = await apolloClient.query<GenericQueryData<JobDetailType>>({
-                fetchPolicy: "network-only",
-                query: GRAPHQL_MAP.genericQuery,
-                variables: {
-                    db_name: dbName,
-                    schema,
-                    value: graphQlUtils.buildGenericQueryValue({
-                        sqlId: SQL_MAP.GET_JOB_DETAIL,
-                        sqlArgs: { id: job.id },
-                    }),
-                },
-            });
-
-            const details = res.data?.genericQuery?.[0];
-            if (!details) {
-                toast.error(MESSAGES.ERROR_JOB_DETAIL_LOAD_FAILED, { id: loadingToast });
-                return;
-            }
-
-            toast.dismiss(loadingToast);
-            setViewJob(details);
-        } catch {
-            toast.error(MESSAGES.ERROR_JOB_DETAIL_LOAD_FAILED, { id: loadingToast });
-        }
-    };
-
     const handleEditJob = (job: JobSearchRow) => {
         if (job.batch_no && onNavigateToBatchEdit) {
             onNavigateToBatchEdit(job.batch_no);
@@ -457,16 +429,8 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
         setMode("new");
     };
 
-    const handlePrintFromView = () => {
-        if (!viewJob) return;
-        const jobDivision = availableDivisions.find(d => d.id === viewJob.division_id) ?? currentDivision;
-        const url = getJobSheetBlobUrl(viewJob, jobDivision ?? null, globalBranch?.code, noOfJobSheetsPerPrint);
-        setPdfPreviewUrl(url);
-        setPdfFilename(`Job-Sheet_${viewJob.job_date}_${viewJob.customer_name || "customer"}.pdf`);
-        setShowPdfModal(true);
-    };
-
     const handlePrintPdf = async (job: JobSearchRow) => {
+        const copies = noOfJobSheetsPerPrint;
         if (!dbName || !schema) return;
         const loadingToast = toast.loading(MESSAGES.INFO_JOB_DETAIL_LOADING);
         try {
@@ -489,9 +453,12 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
             }
             toast.dismiss(loadingToast);
             const jobDivision = availableDivisions.find(d => d.id === details.division_id) ?? currentDivision;
-            const url = getJobSheetBlobUrl(details, jobDivision ?? null, globalBranch?.code, noOfJobSheetsPerPrint);
+            pendingPrintRef.current = { job: details, division: jobDivision, branchCode: globalBranch?.code };
+            setPrintCopies(copies);
+            const url = getJobSheetBlobUrl(details, jobDivision ?? null, globalBranch?.code, copies);
             setPdfPreviewUrl(url);
             setPdfFilename(`Job-Sheet_${details.job_date}_${details.customer_name || "customer"}.pdf`);
+            setPdfTitle(`Job Sheet #${details.job_no}`);
             setShowPdfModal(true);
         } catch {
             toast.error(MESSAGES.ERROR_JOB_DETAIL_LOAD_FAILED, { id: loadingToast });
@@ -752,7 +719,7 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
                                                                 </DropdownMenuItem>
                                                                 <DropdownMenuItem
                                                                     className="flex items-center gap-2 cursor-pointer text-blue-500 focus:bg-blue-500/10 focus:text-blue-600 font-semibold"
-                                                                    onClick={() => void handleViewJob(job)}
+                                                                    onClick={() => setViewJobId(job.id)}
                                                                 >
                                                                     <Eye className="h-4 w-4" />
                                                                     <span>View Job</span>
@@ -772,8 +739,10 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
                                                                     <span>Attach Files</span>
                                                                 </DropdownMenuItem>
                                                                 <DropdownMenuItem
-                                                                    className="flex items-center gap-2 cursor-pointer text-red-500 focus:bg-red-500/10 focus:text-red-600 font-semibold"
-                                                                    onClick={() => setDeleteId(job.id)}
+                                                                    className="flex items-center gap-2 cursor-pointer text-red-500 focus:bg-red-500/10 focus:text-red-600 font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
+                                                                    disabled={job.transaction_count > 1}
+                                                                    title={job.transaction_count > 1 ? "Cannot delete: job has activity" : undefined}
+                                                                    onClick={() => { if (job.transaction_count <= 1) setDeleteId(job.id); }}
                                                                 >
                                                                     <Trash2 className="h-4 w-4" />
                                                                     <span>Delete Job</span>
@@ -835,12 +804,16 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
             )}
 
             {/* Shared dialogs - visible in both new and view modes */}
-            <SingleJobViewModal
-                isOpen={viewJob !== null}
-                job={viewJob}
-                onClose={() => setViewJob(null)}
-                onPrint={handlePrintFromView}
-            />
+            {viewJobId !== null && (
+                <JobDetailsModal
+                    jobId={viewJobId}
+                    onClose={() => setViewJobId(null)}
+                    onJobChanged={() => {
+                        setViewJobId(null);
+                        if (branchId) void loadData(Number(branchId), searchQ, page);
+                    }}
+                />
+            )}
 
              <JobAttachDialog
                  jobId={attachJobId}
@@ -859,8 +832,16 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
             <PdfPreviewModal
                 isOpen={showPdfModal}
                 pdfUrl={pdfPreviewUrl}
-                title={`Job Sheet #${viewJob?.job_no || ""}`}
+                title={pdfTitle}
                 filename={pdfFilename}
+                printCopies={printCopies}
+                onPrintCopiesChange={n => {
+                    setPrintCopies(n);
+                    if (pendingPrintRef.current) {
+                        const { job, division, branchCode } = pendingPrintRef.current;
+                        setPdfPreviewUrl(getJobSheetBlobUrl(job, division ?? null, branchCode, n));
+                    }
+                }}
                 onClose={() => {
                     setShowPdfModal(false);
                     setPdfPreviewUrl(null);

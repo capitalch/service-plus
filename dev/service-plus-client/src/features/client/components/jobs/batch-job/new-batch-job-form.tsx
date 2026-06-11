@@ -55,7 +55,8 @@ export function NewBatchJobForm({
 
     const [showAddModel, setShowAddModel]     = useState(false);
     const [expandedRows, setExpandedRows]     = useState<Set<string>>(new Set());
-    const [customerMobile, setCustomerMobile] = useState<string>("");
+    const [customerMobile, setCustomerMobile]   = useState<string>("");
+    const [customerAddress, setCustomerAddress] = useState<string>("");
 
     const { control, formState: { isSubmitting, errors }, setValue, watch, register } = useFormContext<BatchJobFormValues>();
 
@@ -167,11 +168,12 @@ export function NewBatchJobForm({
                             customerId={watch("customer_id") ?? null}
                             customerName={watch("customer_name") ?? ""}
                             customerMobile={customerMobile}
+                            customerAddress={customerAddress}
                             customerTypes={customerTypes}
                             states={masterStates}
-                            onChange={name => { setValue("customer_name", name, { shouldValidate: false }); if (!name.trim()) { setValue("customer_id", undefined as unknown as number, { shouldValidate: true }); setCustomerMobile(""); } }}
-                            onClear={() => { setValue("customer_id", undefined as unknown as number, { shouldValidate: true }); setValue("customer_name", "", { shouldValidate: false }); setCustomerMobile(""); }}
-                            onSelect={(c: CustomerSearchRow) => { setValue("customer_id", c.id, { shouldValidate: true }); setValue("customer_name", c.full_name ?? c.mobile, { shouldValidate: false }); setCustomerMobile(c.mobile ?? ""); }}
+                            onChange={name => { setValue("customer_name", name, { shouldValidate: false }); if (!name.trim()) { setValue("customer_id", undefined as unknown as number, { shouldValidate: true }); setCustomerMobile(""); setCustomerAddress(""); } }}
+                            onClear={() => { setValue("customer_id", undefined as unknown as number, { shouldValidate: true }); setValue("customer_name", "", { shouldValidate: false }); setCustomerMobile(""); setCustomerAddress(""); }}
+                            onSelect={(c: CustomerSearchRow) => { setValue("customer_id", c.id, { shouldValidate: true }); setValue("customer_name", c.full_name ?? c.mobile, { shouldValidate: false }); setCustomerMobile(c.mobile ?? ""); setCustomerAddress(c.address_line1 ?? ""); }}
                         />
                     </div>
 

@@ -1,17 +1,21 @@
-import { useCallback, useEffect, useState } from "react";
-import { Building2, Calendar, FileText, Loader2, MapPin, Package, Paperclip, ReceiptText, RotateCcw, User, Wrench } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Building2, Calendar, FileText, Loader2, MapPin, Package, Paperclip, Printer, ReceiptText, RotateCcw, User, Wrench } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { PdfPreviewModal } from "@/components/shared/pdf-preview-modal";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { SQL_MAP } from "@/constants/sql-map";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { apolloClient } from "@/lib/apollo-client";
 import { encodeObj, graphQlUtils } from "@/lib/graphql-utils";
-import { selectAvailableDivisions, selectCurrentBranch, selectSchema } from "@/store/context-slice";
+import { selectAvailableDivisions, selectCurrentBranch, selectNoOfJobInvoicesPerPrint, selectNoOfJobSheetsPerPrint, selectSchema } from "@/store/context-slice";
 import { useAppSelector } from "@/store/hooks";
 import type { JobDetailType, JobTransactionRow } from "@/features/client/types/job";
+import type { JobInvoiceFullRow, JobInvoiceLineRow } from "../deliver-job/deliver-job-schema";
+import { buildInvoicePdf, buildReceiptPdf } from "../deliver-job/deliver-job-pdf";
+import { getJobSheetBlobUrl } from "../job-sheet-pdf";
 import { JobAttachDialog } from "../single-job/job-attach-dialog";
 import { STATUS_COLORS } from "./status-transitions";
 import { UndoTransactionDialog } from "./undo-transaction-dialog";
@@ -47,6 +51,16 @@ type JobFileRow = {
     url:        string;
     about:      string;
     created_at: string;
+};
+
+type JobPaymentRow = {
+    id:           number;
+    receipt_no:   string | null;
+    payment_date: string;
+    payment_mode: string;
+    amount:       number;
+    reference_no: string | null;
+    remarks:      string | null;
 };
 
 function fmtAmount(val: number | null | undefined) {
@@ -95,16 +109,27 @@ export const JobDetailsModal = ({ jobId, onClose, onJobChanged }: Props) => {
     const schema = useAppSelector(selectSchema);
     const currentBranch = useAppSelector(selectCurrentBranch);
     const divisions = useAppSelector(selectAvailableDivisions);
+    const noOfSheets   = useAppSelector(selectNoOfJobSheetsPerPrint);
+    const noOfInvoices = useAppSelector(selectNoOfJobInvoicesPerPrint);
 
     const [job, setJob] = useState<JobDetailType | null>(null);
     const [transactions, setTransactions] = useState<JobTransactionRow[]>([]);
     const [parts,        setParts]        = useState<PartUsedRow[]>([]);
     const [charges,      setCharges]      = useState<AdditionalChargeRow[]>([]);
     const [files,      setFiles]      = useState<JobFileRow[]>([]);
+    const [invoice,    setInvoice]    = useState<JobInvoiceFullRow | null>(null);
+    const [payments,   setPayments]   = useState<JobPaymentRow[]>([]);
     const [attachOpen, setAttachOpen] = useState(false);
     const [loading,   setLoading]  = useState(true);
     const [undoing,   setUndoing]  = useState(false);
     const [showUndo,  setShowUndo] = useState(false);
+
+    // PDF preview
+    const [pdfUrl,       setPdfUrl]       = useState<string | null>(null);
+    const [pdfTitle,     setPdfTitle]     = useState("PDF Preview");
+    const [pdfOpen,      setPdfOpen]      = useState(false);
+    const [printCopies,  setPrintCopies]  = useState(1);
+    const pendingPrintRef = useRef<{ type: "sheet" | "invoice" | "receipt" } | null>(null);
 
     const loadData = useCallback(() => {
         if (!dbName || !schema) return;
@@ -124,12 +149,17 @@ export const JobDetailsModal = ({ jobId, onClose, onJobChanged }: Props) => {
             gq(SQL_MAP.GET_JOB_PART_USED_BY_JOB,          { job_id: jobId }),
             gq(SQL_MAP.GET_JOB_ADDITIONAL_CHARGES_BY_JOB, { job_id: jobId }),
             gq(SQL_MAP.GET_JOB_IMAGE_DOCS,                { job_id: jobId }),
-        ]).then(([jobRes, tranRes, partsRes, chargesRes, filesRes]) => {
+            gq(SQL_MAP.GET_JOB_INVOICE_BY_JOB,            { job_id: jobId }),
+            gq(SQL_MAP.GET_JOB_PAYMENTS_BY_JOB,           { job_id: jobId }),
+        ]).then(([jobRes, tranRes, partsRes, chargesRes, filesRes, invRes, pmtRes]) => {
             setJob((jobRes.data?.genericQuery?.[0] ?? null) as JobDetailType | null);
             setTransactions((tranRes.data?.genericQuery ?? []) as JobTransactionRow[]);
             setParts((partsRes.data?.genericQuery ?? []) as PartUsedRow[]);
             setCharges((chargesRes.data?.genericQuery ?? []) as AdditionalChargeRow[]);
             setFiles((filesRes.data?.genericQuery ?? []) as JobFileRow[]);
+            const rawInv = invRes.data?.genericQuery?.[0] as (JobInvoiceFullRow & { lines: JobInvoiceLineRow[] }) | undefined;
+            setInvoice(rawInv ?? null);
+            setPayments((pmtRes.data?.genericQuery ?? []) as JobPaymentRow[]);
         }).catch(() => {
             toast.error("Failed to load job details.");
         }).finally(() => {
@@ -181,6 +211,70 @@ export const JobDetailsModal = ({ jobId, onClose, onJobChanged }: Props) => {
         }
     }
 
+    function openPdf(url: string, title: string, copies: number, type: "sheet" | "invoice" | "receipt") {
+        if (pdfUrl) URL.revokeObjectURL(pdfUrl);
+        setPdfUrl(url);
+        setPdfTitle(title);
+        setPrintCopies(copies);
+        pendingPrintRef.current = { type };
+        setPdfOpen(true);
+    }
+
+    function handlePrintSheet() {
+        if (!job) return;
+        const jobDivision = job.division_id ? (divisions.find(d => d.id === job.division_id) ?? null) : null;
+        const url = getJobSheetBlobUrl(job, jobDivision, currentBranch?.code, noOfSheets);
+        openPdf(url, `Job Sheet #${job.job_no}`, noOfSheets, "sheet");
+    }
+
+    function handlePrintInvoice() {
+        if (!job || !invoice) return;
+        const jobDivision = job.division_id ? (divisions.find(d => d.id === job.division_id) ?? null) : null;
+        const doc = buildInvoicePdf(
+            { ...job, customer_name: job.customer_name ?? "", payments },
+            invoice,
+            jobDivision,
+            currentBranch?.name ?? currentBranch?.code ?? null,
+            undefined,
+            noOfInvoices,
+        );
+        const url = URL.createObjectURL(doc.output("blob"));
+        openPdf(url, `Invoice #${invoice.invoice_no}`, noOfInvoices, "invoice");
+    }
+
+    function handlePrintReceipt() {
+        if (!job || payments.length === 0) return;
+        const jobDivision = job.division_id ? (divisions.find(d => d.id === job.division_id) ?? null) : null;
+        const doc = buildReceiptPdf(
+            { ...job, customer_name: job.customer_name ?? "", payments },
+            jobDivision,
+        );
+        const url = URL.createObjectURL(doc.output("blob"));
+        openPdf(url, `Receipt — Job #${job.job_no}`, 1, "receipt");
+    }
+
+    function handleCopiesChange(n: number) {
+        setPrintCopies(n);
+        if (!job || !pendingPrintRef.current) return;
+        const type = pendingPrintRef.current.type;
+        const jobDivision = job.division_id ? (divisions.find(d => d.id === job.division_id) ?? null) : null;
+        if (pdfUrl) URL.revokeObjectURL(pdfUrl);
+        if (type === "sheet") {
+            setPdfUrl(getJobSheetBlobUrl(job, jobDivision, currentBranch?.code, n));
+        } else if (type === "invoice" && invoice) {
+            const doc = buildInvoicePdf(
+                { ...job, customer_name: job.customer_name ?? "", payments },
+                invoice,
+                jobDivision,
+                currentBranch?.name ?? currentBranch?.code ?? null,
+                undefined,
+                n,
+            );
+            setPdfUrl(URL.createObjectURL(doc.output("blob")));
+        }
+        // receipt has no copy count — no regen needed
+    }
+
     const device = job
         ? [job.product_name, job.brand_name, job.model_name].filter(Boolean).join(" / ") || null
         : null;
@@ -226,6 +320,44 @@ export const JobDetailsModal = ({ jobId, onClose, onJobChanged }: Props) => {
                                 </>
                             )}
                         </div>
+                        {job && !loading && (
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-7 px-2.5 text-[11px] gap-1.5 border-slate-300 text-slate-700 hover:bg-slate-200"
+                                    onClick={handlePrintSheet}
+                                    title="Print Job Sheet"
+                                >
+                                    <Printer className="h-3 w-3" />
+                                    Job Sheet
+                                </Button>
+                                {invoice && (
+                                    <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="h-7 px-2.5 text-[11px] gap-1.5 border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+                                        onClick={handlePrintInvoice}
+                                        title="Print Invoice"
+                                    >
+                                        <Printer className="h-3 w-3" />
+                                        Invoice
+                                    </Button>
+                                )}
+                                {payments.length > 0 && (
+                                    <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="h-7 px-2.5 text-[11px] gap-1.5 border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                                        onClick={handlePrintReceipt}
+                                        title="Print Money Receipt"
+                                    >
+                                        <Printer className="h-3 w-3" />
+                                        Receipt
+                                    </Button>
+                                )}
+                            </div>
+                        )}
                     </div>
                     {job && (
                         <div className="relative z-10 mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-600">
@@ -592,6 +724,16 @@ export const JobDetailsModal = ({ jobId, onClose, onJobChanged }: Props) => {
                 onClose={() => setShowUndo(false)}
             />
         )}
+
+        <PdfPreviewModal
+            isOpen={pdfOpen}
+            onClose={() => { setPdfOpen(false); if (pdfUrl) URL.revokeObjectURL(pdfUrl); setPdfUrl(null); }}
+            pdfUrl={pdfUrl}
+            title={pdfTitle}
+            filename={`${pdfTitle}.pdf`}
+            printCopies={pendingPrintRef.current?.type !== "receipt" ? printCopies : undefined}
+            onPrintCopiesChange={pendingPrintRef.current?.type !== "receipt" ? handleCopiesChange : undefined}
+        />
         </>
     );
 };

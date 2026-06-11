@@ -118,7 +118,8 @@ export function NewSalesInvoice({
     const summaryRef       = useRef<HTMLDivElement>(null);
 
     const [maxTableHeight, setMaxTableHeight] = useState<number | undefined>(undefined);
-    const [customerMobile, setCustomerMobile] = useState<string>("");
+    const [customerMobile, setCustomerMobile]   = useState<string>("");
+    const [customerAddress, setCustomerAddress] = useState<string>("");
 
     useEffect(() => {
         function recalc() {
@@ -289,6 +290,7 @@ export function NewSalesInvoice({
                                     customerId={customerId}
                                     customerName={customerName}
                                     customerMobile={customerMobile}
+                                    customerAddress={customerAddress}
                                     onChange={name => {
                                         setCustomerName(name);
                                         if (!name.trim()) {
@@ -296,6 +298,7 @@ export function NewSalesInvoice({
                                             setCustomerGstin("");
                                             setCustomerStateCode("");
                                             setCustomerMobile("");
+                                            setCustomerAddress("");
                                         }
                                     }}
                                     onClear={() => {
@@ -304,6 +307,7 @@ export function NewSalesInvoice({
                                         setCustomerGstin("");
                                         setCustomerStateCode("");
                                         setCustomerMobile("");
+                                        setCustomerAddress("");
                                     }}
                                     onSelect={(c: CustomerSearchRow) => {
                                         setCustomerId(c.id);
@@ -311,6 +315,7 @@ export function NewSalesInvoice({
                                         setCustomerGstin(c.gstin ?? "");
                                         setCustomerStateCode(c.state_code ?? "");
                                         setCustomerMobile(c.mobile ?? "");
+                                        setCustomerAddress(c.address_line1 ?? "");
                                     }}
                                     customerTypes={customerTypes}
                                     states={masterStates}

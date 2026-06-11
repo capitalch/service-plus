@@ -3471,7 +3471,8 @@ class SqlStore:
             t.name        AS technician_name,
             j.batch_no    AS batch_no,
             j.division_id,
-            (SELECT COUNT(*) FROM job_image_doc jid WHERE jid.job_id = j.id) AS file_count
+            (SELECT COUNT(*) FROM job_image_doc   jid WHERE jid.job_id = j.id) AS file_count,
+            (SELECT COUNT(*) FROM job_transaction jtr WHERE jtr.job_id = j.id) AS transaction_count
         FROM job j
         JOIN customer_contact cc ON cc.id = j.customer_contact_id
         JOIN job_type          jt ON jt.id = j.job_type_id
@@ -3726,7 +3727,8 @@ class SqlStore:
             js.name                                         AS job_status_name,
             t.name                                          AS technician_name,
             j.division_id,
-            (SELECT COUNT(*) FROM job_image_doc jid WHERE jid.job_id = j.id) AS file_count
+            (SELECT COUNT(*) FROM job_image_doc   jid WHERE jid.job_id = j.id) AS file_count,
+            (SELECT COUNT(*) FROM job_transaction jtr WHERE jtr.job_id = j.id) AS transaction_count
         FROM job j
         JOIN paged_batches           pb  ON pb.batch_no = j.batch_no
         JOIN customer_contact        cc  ON cc.id       = j.customer_contact_id

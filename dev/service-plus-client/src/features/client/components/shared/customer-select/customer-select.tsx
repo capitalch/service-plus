@@ -22,15 +22,16 @@ import type { CustomerSearchRow } from "@/features/client/types/sales";
 type GenericQueryData<T> = { genericQuery: T[] | null };
 
 export type CustomerInputProps = {
-    className?:      string;
-    customerId:      number | null;
-    customerName:    string;
-    customerMobile?: string | null;
-    customerTypes:   CustomerTypeOption[];
-    onChange:        (name: string) => void;
-    onClear:         () => void;
-    onSelect:        (c: CustomerSearchRow) => void;
-    states:          StateOption[];
+    className?:       string;
+    customerId:       number | null;
+    customerName:     string;
+    customerMobile?:  string | null;
+    customerAddress?: string | null;
+    customerTypes:    CustomerTypeOption[];
+    onChange:         (name: string) => void;
+    onClear:          () => void;
+    onSelect:         (c: CustomerSearchRow) => void;
+    states:           StateOption[];
 };
 
 const inputCls = "h-7 border-(--cl-border) bg-white text-sm px-2";
@@ -52,6 +53,7 @@ export function CustomerInput({
     customerId,
     customerName,
     customerMobile,
+    customerAddress,
     customerTypes,
     onChange,
     onClear,
@@ -278,6 +280,11 @@ export function CustomerInput({
                                             {[row.customer_type_name, row.state_name].filter(Boolean).join(" · ")}
                                             {row.gstin && <span className="ml-2 font-mono">{row.gstin}</span>}
                                         </div>
+                                        {row.address_line1 && (
+                                            <div className="mt-0.5 truncate text-xs text-(--cl-text-muted)/70">
+                                                {row.address_line1}
+                                            </div>
+                                        )}
                                     </div>
                                 </button>
                             );
@@ -285,10 +292,17 @@ export function CustomerInput({
                     </PopoverContent>
                 </Popover>
 
-                {customerId && customerMobile && (
-                    <div className="flex items-center gap-1 px-1 py-0.5 text-xs text-(--cl-text-muted)">
-                        <Phone className="h-3 w-3 shrink-0" />
-                        <span className="font-mono">{customerMobile}</span>
+                {customerId && (customerMobile || customerAddress) && (
+                    <div className="flex items-center gap-2 px-1 py-0.5 text-xs text-(--cl-text-muted)">
+                        {customerMobile && (
+                            <>
+                                <Phone className="h-3 w-3 shrink-0" />
+                                <span className="font-mono shrink-0">{customerMobile}</span>
+                            </>
+                        )}
+                        {customerAddress && (
+                            <span className="truncate">{customerAddress}</span>
+                        )}
                     </div>
                 )}
             </div>

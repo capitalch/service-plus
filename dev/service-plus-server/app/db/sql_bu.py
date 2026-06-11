@@ -1033,6 +1033,8 @@ class SqlBu:
             (6, 'default_hsn_for_spare_part',               '92099400',  'Default HSN code for Spare Part',                                                                true),
             (7, 'default_hsn_for_service_charge',           '998726',    'Default HSN code for labour charges, service charges etc.',                                      true),
             (8, 'no_of_job_sheets_per_print',               '2',         'The no of job sheets to be printed when print pdf',                                        true),
-            (9, 'no_of_job_invoices_per_print',               '2',         'The no of job invoices to be printed when print pdf',                                          true)
+            (9, 'no_of_job_invoices_per_print',             '2',       'The no of job invoices to be printed when print pdf',                                          true),
+            (10, 'post_data_to_accounts',             'true',       'Post purchase ,receipts, sale to Trace+ accounts',                                          true)
+
         ON CONFLICT (id) DO NOTHING;
     """

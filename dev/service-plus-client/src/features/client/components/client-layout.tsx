@@ -18,6 +18,7 @@ import {
     setDefaultHsnForServiceCharge,
     setNoOfJobInvoicesPerPrint,
     setNoOfJobSheetsPerPrint,
+    setPostDataToAccounts,
 } from "@/store/context-slice";
 import { ClientActivityBar } from "./client-activity-bar";
 import { ClientExplorerPanel } from "./client-explorer-panel";
@@ -155,6 +156,11 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
             let parsedInvCopies: unknown = rawInvCopies;
             if (typeof rawInvCopies === 'string') { try { parsedInvCopies = JSON.parse(rawInvCopies); } catch { /* keep raw */ } }
             dispatch(setNoOfJobInvoicesPerPrint(Math.max(1, Number(parsedInvCopies ?? 1))));
+
+            const rawPost = settings.find(s => s.setting_key === 'post_data_to_accounts')?.setting_value;
+            let parsedPost: unknown = rawPost;
+            if (typeof rawPost === 'string') { try { parsedPost = JSON.parse(rawPost); } catch { /* keep raw */ } }
+            dispatch(setPostDataToAccounts(parsedPost === true || parsedPost === 'true'));
         }).catch(() => {/* silently ignore */});
     }, [dbName, schema]); // eslint-disable-line react-hooks/exhaustive-deps
 

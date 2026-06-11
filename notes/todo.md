@@ -1,9 +1,13 @@
 # Job life cycle QA
-- Appsettings:post_data_to_accounts
+								- Appsettings:post_data_to_accounts
 - Single Job
-	- Print should print single copy. Counter input to set no of copies to print. Default count 2. App settings default copies to print for job sheets
-	- When delete a job, if transactions there, show a friendly message that transactions are there so cannot delete, instead of error at server
-	- In view job: Give a provision to print job sheet and print invoice and money receipt if available
+								- Print should print single copy. Counter input to set no of copies to print. Default count 2. App settings default copies to print for job sheets
+								- Print count feature for batch jobs also
+								- When delete a job, if transactions there, show a friendly message that transactions are there so cannot delete, instead of error at server
+	- In JobDetailsModal: Give a provision to print job sheet and print invoice and money receipt if available
+	- divison is not populated when edit a batch job
+	- View job will always show the complete list from whichever place it is fired. 
+	- Allow pdf view / print for view job.
 - Job Search
 	- Status page: Statuses to show in background colored pills
 - Final Job

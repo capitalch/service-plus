@@ -58,7 +58,8 @@ export function OpeningJobForm({
     const dbName = useAppSelector(selectDbName);
     const schema = useAppSelector(selectSchema);
 
-    const [showAddModel, setShowAddModel] = useState(false);
+    const [showAddModel, setShowAddModel]       = useState(false);
+    const [customerAddress, setCustomerAddress] = useState<string>("");
 
     const form = useFormContext<OpeningJobFormValues>();
     const { formState: { errors, isSubmitting }, setValue, watch, register } = form;
@@ -168,17 +169,19 @@ export function OpeningJobForm({
                                     customerId={watch("customer_id") ?? null}
                                     customerName={watch("customer_name") ?? ""}
                                     customerMobile={watch("mobile") ?? ""}
+                                    customerAddress={customerAddress}
                                     customerTypes={customerTypes}
                                     states={masterStates}
                                     onChange={name => {
                                         setValue("customer_name", name, { shouldValidate: false });
-                                        if (!name.trim()) { setValue("customer_id", undefined as unknown as number, { shouldValidate: true }); setValue("mobile", "", { shouldValidate: false }); }
+                                        if (!name.trim()) { setValue("customer_id", undefined as unknown as number, { shouldValidate: true }); setValue("mobile", "", { shouldValidate: false }); setCustomerAddress(""); }
                                     }}
-                                    onClear={() => { setValue("customer_id", undefined as unknown as number, { shouldValidate: true }); setValue("customer_name", "", { shouldValidate: false }); setValue("mobile", "", { shouldValidate: false }); }}
+                                    onClear={() => { setValue("customer_id", undefined as unknown as number, { shouldValidate: true }); setValue("customer_name", "", { shouldValidate: false }); setValue("mobile", "", { shouldValidate: false }); setCustomerAddress(""); }}
                                     onSelect={(c: CustomerSearchRow) => {
                                         setValue("customer_id",   c.id,                   { shouldValidate: true });
                                         setValue("customer_name", c.full_name ?? c.mobile, { shouldValidate: false });
                                         setValue("mobile",        c.mobile ?? "",          { shouldValidate: false });
+                                        setCustomerAddress(c.address_line1 ?? "");
                                     }}
                                 />
                                 {errors.customer_id && <p className="mt-1 text-xs text-red-500">{errors.customer_id.message}</p>}
