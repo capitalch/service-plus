@@ -21,7 +21,7 @@ import type { CustomerSearchRow } from "@/features/client/types/sales";
 import type { JobDetailType, JobLookupRow, ModelRow, TechnicianRow } from "@/features/client/types/job";
 import { CustomerInput } from "@/features/client/components/shared/customer-select";
 import { SearchableCombobox } from "@/components/ui/searchable-combobox";
-import { AddModelDialog } from "@/features/client/components/masters/model/add-model-dialog";
+import { AddModelDialog } from "@/features/client/components/shared/model";
 import { Button } from "@/components/ui/button";
 import type { CustomerTypeOption, StateOption } from "@/features/client/types/customer";
 import type { BrandOption, ProductOption } from "@/features/client/types/model";
@@ -167,6 +167,7 @@ export function OpeningJobForm({
                                 <CustomerInput
                                     customerId={watch("customer_id") ?? null}
                                     customerName={watch("customer_name") ?? ""}
+                                    customerMobile={watch("mobile") ?? ""}
                                     customerTypes={customerTypes}
                                     states={masterStates}
                                     onChange={name => {
@@ -256,6 +257,12 @@ export function OpeningJobForm({
                                             getFilterKey={m => `${m.brand_name} ${m.product_name} ${m.model_name}`}
                                             getIdentifier={m => m.id.toString()}
                                             onSelect={m => setValue("model_id", m ? m.id : null, { shouldValidate: false })}
+                                            renderSelectedDisplay={m => (
+                                                <div className="flex flex-col justify-center gap-px">
+                                                    <span className="text-xs font-semibold leading-tight text-(--cl-text) truncate">{m.brand_name}</span>
+                                                    <span className="text-[10px] leading-tight text-(--cl-text-muted) truncate">{m.product_name} — {m.model_name}</span>
+                                                </div>
+                                            )}
                                             renderItem={m => (
                                                 <div className="flex flex-col gap-0.5">
                                                     <span className="font-semibold">{m.brand_name}</span>

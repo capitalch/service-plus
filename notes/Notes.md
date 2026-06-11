@@ -1,6 +1,10 @@
 ## Service management software
         Let us also change quantity -> qty for all variable names, identifiers and state names in client and server to avoid any confusion.
-# Logic for status change
+# Requirement for Product / Model selector in Single Job:
+- When there is no text typed by user, there should not be any list shown
+- When user types part of model, company or product, a filtered list is visible
+- The lst should be more like dropdown list in customer select
+- When user selects a model, that model is shown in the textbox. The corresponding brand and product is shown belowthe text box like mobile no is shown in customerSelect
 
 # Modify features of CustomerInput
 - On search icon click, a modal window should appear with a Search box and list box.

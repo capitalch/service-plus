@@ -186,6 +186,8 @@ export const selectDefaultHsnForSparePart      = (state: ContextRootState) => st
 export const selectDefaultHsnForServiceCharge  = (state: ContextRootState) => state.context.defaultHsnForServiceCharge;
 export const selectForceGstOnPartsForNonGst = (state: ContextRootState) => state.context.forceGstOnPartsForNonGst;
 export const selectIsGstRegistered       = (state: ContextRootState) => state.context.isGstRegistered;
+export const selectHomeStateId           = (state: ContextRootState): number | null =>
+    state.context.currentDivision?.state_id ?? null;
 export const selectIsGstMode             = (state: ContextRootState): boolean =>
     !!state.context.currentDivision?.gstin;
 export const selectSchema                = (state: ContextRootState): string | null =>

@@ -30,7 +30,7 @@ import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
-import { selectSchema } from "@/store/context-slice";
+import { selectHomeStateId, selectSchema } from "@/store/context-slice";
 import type { StateOption } from "@/features/client/types/customer";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -80,8 +80,9 @@ export const AddVendorDialog = ({
 }: AddVendorDialogPropsType) => {
     const [checkingName, setCheckingName] = useState(false);
     const [nameTaken,    setNameTaken]    = useState<boolean | null>(null);
-    const dbName = useAppSelector(selectDbName);
-    const schema = useAppSelector(selectSchema);
+    const dbName      = useAppSelector(selectDbName);
+    const schema      = useAppSelector(selectSchema);
+    const homeStateId = useAppSelector(selectHomeStateId);
 
     const form = useForm<AddVendorFormType>({
         defaultValues: {
@@ -105,14 +106,16 @@ export const AddVendorDialog = ({
     const nameValue     = useWatch({ control: form.control, name: "name" });
     const debouncedName = useDebounce(nameValue, 1200);
 
-    // Reset on close
+    // Reset on close; default to home state on open
     useEffect(() => {
         if (!open) {
             setCheckingName(false);
             setNameTaken(null);
             form.reset();
+            return;
         }
-    }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+        if (homeStateId) form.setValue("state_id", homeStateId);
+    }, [open, homeStateId]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Name uniqueness check
     useEffect(() => {
@@ -292,6 +295,7 @@ export const AddVendorDialog = ({
                                 State <span className="text-red-500">*</span>
                             </Label>
                             <Select
+                                value={String(form.watch("state_id") || "")}
                                 onValueChange={(v) => form.setValue("state_id", Number(v), { shouldValidate: true })}
                             >
                                 <SelectTrigger id="av_state">

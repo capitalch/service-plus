@@ -29,7 +29,7 @@ import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
-import { selectCurrentBranch, selectSchema } from "@/store/context-slice";
+import { selectCurrentBranch, selectHomeStateId, selectSchema } from "@/store/context-slice";
 import { addDivisionSchema } from "./division-schema";
 import type { AddDivisionFormValues } from "./division-schema";
 
@@ -77,6 +77,7 @@ export const AddDivisionDialog = ({
     const dbName        = useAppSelector(selectDbName);
     const schema        = useAppSelector(selectSchema);
     const currentBranch = useAppSelector(selectCurrentBranch);
+    const homeStateId   = useAppSelector(selectHomeStateId);
 
     const form = useForm<AddDivisionFormValues>({
         defaultValues: {
@@ -105,7 +106,7 @@ export const AddDivisionDialog = ({
     const codeValue     = useWatch({ control: form.control, name: "code" });
     const debouncedCode = useDebounce(codeValue, 1200);
 
-    // Fetch states and suggested ID on open
+    // Fetch states and suggested ID on open; default to home state
     useEffect(() => {
         if (!open || !dbName || !schema) return;
         apolloClient
@@ -132,6 +133,7 @@ export const AddDivisionDialog = ({
             })
             .then((res) => setSuggestedId(res.data?.genericQuery?.[0]?.next_id ?? null))
             .catch(() => setSuggestedId(null));
+        if (homeStateId) form.setValue("state_id", homeStateId);
     }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Reset on close
@@ -367,6 +369,7 @@ export const AddDivisionDialog = ({
                                 State <span className="text-red-500">*</span>
                             </Label>
                             <Select
+                                value={String(form.watch("state_id") || "")}
                                 onValueChange={(v) => form.setValue("state_id", Number(v), { shouldValidate: true })}
                             >
                                 <SelectTrigger id="dv_state">

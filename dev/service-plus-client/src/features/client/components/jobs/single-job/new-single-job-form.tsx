@@ -24,8 +24,7 @@ import type { CustomerSearchRow } from "@/features/client/types/sales";
 import type { JobDetailType, JobSearchRow, JobLookupRow, ModelRow, TechnicianRow } from "@/features/client/types/job";
 import { CustomerInput } from "@/features/client/components/shared/customer-select";
 
-import { SearchableCombobox } from "@/components/ui/searchable-combobox";
-import { AddModelDialog } from "@/features/client/components/masters/model/add-model-dialog";
+import { AddModelDialog, ModelCombobox } from "@/features/client/components/shared/model";
 import { Button } from "@/components/ui/button";
 import type { CustomerTypeOption, StateOption } from "@/features/client/types/customer";
 import type { BrandOption, ProductOption } from "@/features/client/types/model";
@@ -68,7 +67,8 @@ export function NewSingleJobForm({
     const dbName = useAppSelector(selectDbName);
     const schema = useAppSelector(selectSchema);
     const defaultDivisionId = useAppSelector(selectDefaultDivisionId);
-    const [showAddModel, setShowAddModel] = useState(false);
+    const [showAddModel, setShowAddModel]       = useState(false);
+    const [customerMobile, setCustomerMobile]   = useState<string>("");
     const form = useFormContext<SingleJobFormValues>();
     const { formState: { errors, isSubmitting }, setValue, watch } = form;
     const jobTypeId = watch("job_type_id");
@@ -120,6 +120,7 @@ export function NewSingleJobForm({
                 remarks: d.remarks ?? "",
                 division_id: d.division_id ?? defaultDivisionId,
             });
+            setCustomerMobile(d.mobile ?? "");
         }).catch(() => toast.error(MESSAGES.ERROR_JOB_LOAD_FAILED));
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [editJob, dbName, schema]);
@@ -223,22 +224,25 @@ export function NewSingleJobForm({
                                     <CustomerInput
                                         customerId={watch("customer_id") ?? null}
                                         customerName={watch("customer_name") ?? ""}
+                                        customerMobile={customerMobile}
                                         customerTypes={customerTypes}
                                         states={masterStates}
                                         onChange={name => {
                                             setValue("customer_name", name, { shouldValidate: false });
-                                            if (!name.trim()) setValue("customer_id", undefined as unknown as number, { shouldValidate: true });
+                                            if (!name.trim()) { setValue("customer_id", undefined as unknown as number, { shouldValidate: true }); setCustomerMobile(""); }
                                         }}
                                         onClear={() => {
                                             setValue("customer_id", undefined as unknown as number, { shouldValidate: true });
                                             setValue("customer_name", "", { shouldValidate: false });
                                             setValue("address_snapshot", "", { shouldValidate: false });
+                                            setCustomerMobile("");
                                         }}
                                         onSelect={(c: CustomerSearchRow) => {
                                             setValue("customer_id", c.id, { shouldValidate: true });
                                             setValue("customer_name", c.full_name ?? c.mobile, { shouldValidate: false });
                                             const parts = [c.address_line1, c.address_line2, c.city, c.state_name, c.postal_code].filter(Boolean);
                                             setValue("address_snapshot", parts.join(", "), { shouldValidate: false });
+                                            setCustomerMobile(c.mobile ?? "");
                                         }}
                                     />
                                     {errors.customer_id && <p className="mt-1 text-xs text-red-500">{errors.customer_id.message}</p>}
@@ -297,30 +301,22 @@ export function NewSingleJobForm({
                                 </div>
 
                                 <div className="space-y-1.5 md:col-span-6 lg:col-span-6 xl:col-span-3">
-                                    <div className="flex items-end gap-2">
+                                    <Label className={labelCls}>
+                                        Product / Model <span className="text-red-500 ml-0.5">*</span>
+                                    </Label>
+                                    <div className="flex items-start gap-2">
                                         <div className="flex-1">
-                                            <SearchableCombobox<ModelRow>
-                                                label={<>Product / Model <span className="text-red-500 ml-0.5">*</span></>}
-                                                placeholder="Search by brand, product or model…"
-                                                items={models.filter(m => m.is_active)}
-                                                selectedValue={watch("model_id")?.toString() ?? ""}
-                                                getDisplayValue={m => `${m.brand_name} — ${m.product_name} — ${m.model_name}`}
-                                                getFilterKey={m => `${m.brand_name} ${m.product_name} ${m.model_name}`}
-                                                getIdentifier={m => m.id.toString()}
+                                            <ModelCombobox
+                                                models={models.filter(m => m.is_active)}
+                                                value={watch("model_id") ?? null}
                                                 isError={!!errors.model_id}
                                                 onSelect={m => setValue("model_id", m ? m.id : (undefined as unknown as number), { shouldValidate: true })}
-                                                renderItem={m => (
-                                                    <div className="flex flex-col gap-0.5">
-                                                        <span className="font-semibold">{m.brand_name}</span>
-                                                        <span className="text-xs opacity-70">{m.product_name} — {m.model_name}</span>
-                                                    </div>
-                                                )}
                                             />
                                         </div>
                                         <Button
                                             type="button"
                                             size="icon"
-                                            className="h-9 w-9 bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm shrink-0"
+                                            className="mt-0.5 h-9 w-9 bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm shrink-0"
                                             title="Add Missing Model"
                                             onClick={() => setShowAddModel(true)}
                                         >

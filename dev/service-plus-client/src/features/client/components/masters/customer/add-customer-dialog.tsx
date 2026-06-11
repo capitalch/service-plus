@@ -28,7 +28,7 @@ import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
-import { selectSchema } from "@/store/context-slice";
+import { selectHomeStateId, selectSchema } from "@/store/context-slice";
 import type { CustomerTypeOption, StateOption } from "@/features/client/types/customer";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -80,8 +80,9 @@ export const AddCustomerDialog = ({
     open,
     states,
 }: AddCustomerDialogPropsType) => {
-    const dbName = useAppSelector(selectDbName);
-    const schema = useAppSelector(selectSchema);
+    const dbName      = useAppSelector(selectDbName);
+    const schema      = useAppSelector(selectSchema);
+    const homeStateId = useAppSelector(selectHomeStateId);
 
     const form = useForm<AddCustomerFormType>({
         defaultValues: {
@@ -105,12 +106,14 @@ export const AddCustomerDialog = ({
 
     const { formState: { errors } } = form;
 
-    // Reset on close
+    // Reset on close; default to home state on open
     useEffect(() => {
         if (!open) {
             form.reset();
+            return;
         }
-    }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+        if (homeStateId) form.setValue("state_id", homeStateId);
+    }, [open, homeStateId]); // eslint-disable-line react-hooks/exhaustive-deps
 
     async function onSubmit(data: AddCustomerFormType) {
         if (!dbName || !schema) return;
@@ -300,6 +303,7 @@ export const AddCustomerDialog = ({
                                 State <span className="text-red-500">*</span>
                             </Label>
                             <Select
+                                value={String(form.watch("state_id") || "")}
                                 onValueChange={(v) => form.setValue("state_id", Number(v), { shouldValidate: true })}
                             >
                                 <SelectTrigger id="ac_state">

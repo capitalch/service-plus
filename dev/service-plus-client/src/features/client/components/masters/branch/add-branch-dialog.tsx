@@ -30,7 +30,7 @@ import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
-import { selectSchema } from "@/store/context-slice";
+import { selectHomeStateId, selectSchema } from "@/store/context-slice";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -93,8 +93,9 @@ export const AddBranchDialog = ({
     const [codeTaken,    setCodeTaken]    = useState<boolean | null>(null);
     const [nameTaken,    setNameTaken]    = useState<boolean | null>(null);
     const [states,       setStates]       = useState<StateType[]>([]);
-    const dbName = useAppSelector(selectDbName);
-    const schema = useAppSelector(selectSchema);
+    const dbName      = useAppSelector(selectDbName);
+    const schema      = useAppSelector(selectSchema);
+    const homeStateId = useAppSelector(selectHomeStateId);
 
     const form = useForm<AddBranchFormType>({
         defaultValues: {
@@ -119,7 +120,7 @@ export const AddBranchDialog = ({
     const nameValue     = useWatch({ control: form.control, name: "name" });
     const debouncedName = useDebounce(nameValue, 1200);
 
-    // Fetch states on open
+    // Fetch states on open; default to home state
     useEffect(() => {
         if (!open || !dbName || !schema) return;
         apolloClient
@@ -134,6 +135,7 @@ export const AddBranchDialog = ({
             })
             .then((res) => setStates(res.data?.genericQuery ?? []))
             .catch(() => toast.error(MESSAGES.ERROR_STATES_LOAD_FAILED));
+        if (homeStateId) form.setValue("state_id", homeStateId);
     }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Reset on close
@@ -335,6 +337,7 @@ export const AddBranchDialog = ({
                                 State <span className="text-red-500">*</span>
                             </Label>
                             <Select
+                                value={String(form.watch("state_id") || "")}
                                 onValueChange={(v) => form.setValue("state_id", Number(v), { shouldValidate: true })}
                             >
                                 <SelectTrigger id="br_state">

@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { SearchableCombobox } from "@/components/ui/searchable-combobox";
-import { AddModelDialog } from "@/features/client/components/masters/model/add-model-dialog";
+import { AddModelDialog } from "@/features/client/components/shared/model";
 import { CustomerInput } from "@/features/client/components/shared/customer-select";
 
 import type { CustomerSearchRow } from "@/features/client/types/sales";
@@ -53,8 +53,9 @@ export function NewBatchJobForm({
     onRefreshModels, onAttachFiles, form,
 }: Props) {
 
-    const [showAddModel, setShowAddModel] = useState(false);
-    const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+    const [showAddModel, setShowAddModel]     = useState(false);
+    const [expandedRows, setExpandedRows]     = useState<Set<string>>(new Set());
+    const [customerMobile, setCustomerMobile] = useState<string>("");
 
     const { control, formState: { isSubmitting, errors }, setValue, watch, register } = useFormContext<BatchJobFormValues>();
 
@@ -84,6 +85,7 @@ export function NewBatchJobForm({
                     file_count:               r.file_count ?? 0,
                 })),
             });
+            setCustomerMobile(first.mobile ?? "");
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [editBatchNo, editRows]);
@@ -164,11 +166,12 @@ export function NewBatchJobForm({
                         <CustomerInput
                             customerId={watch("customer_id") ?? null}
                             customerName={watch("customer_name") ?? ""}
+                            customerMobile={customerMobile}
                             customerTypes={customerTypes}
                             states={masterStates}
-                            onChange={name => { setValue("customer_name", name, { shouldValidate: false }); if (!name.trim()) setValue("customer_id", undefined as unknown as number, { shouldValidate: true }); }}
-                            onClear={() => { setValue("customer_id", undefined as unknown as number, { shouldValidate: true }); setValue("customer_name", "", { shouldValidate: false }); }}
-                            onSelect={(c: CustomerSearchRow) => { setValue("customer_id", c.id, { shouldValidate: true }); setValue("customer_name", c.full_name ?? c.mobile, { shouldValidate: false }); }}
+                            onChange={name => { setValue("customer_name", name, { shouldValidate: false }); if (!name.trim()) { setValue("customer_id", undefined as unknown as number, { shouldValidate: true }); setCustomerMobile(""); } }}
+                            onClear={() => { setValue("customer_id", undefined as unknown as number, { shouldValidate: true }); setValue("customer_name", "", { shouldValidate: false }); setCustomerMobile(""); }}
+                            onSelect={(c: CustomerSearchRow) => { setValue("customer_id", c.id, { shouldValidate: true }); setValue("customer_name", c.full_name ?? c.mobile, { shouldValidate: false }); setCustomerMobile(c.mobile ?? ""); }}
                         />
                     </div>
 
@@ -242,7 +245,13 @@ export function NewBatchJobForm({
                                                     getIdentifier={m => m.id.toString()}
                                                     isError={!!errors.rows?.[idx]?.product_brand_model_id}
                                                     onSelect={m => setValue(`rows.${idx}.product_brand_model_id`, m ? m.id : (undefined as unknown as number), { shouldValidate: true })}
-                                                    renderItem={m => (
+                                                    renderSelectedDisplay={m => (
+                                                    <div className="flex flex-col justify-center gap-px">
+                                                        <span className="text-xs font-semibold leading-tight text-(--cl-text) truncate">{m.brand_name}</span>
+                                                        <span className="text-[10px] leading-tight text-(--cl-text-muted) truncate">{m.product_name} — {m.model_name}</span>
+                                                    </div>
+                                                )}
+                                                renderItem={m => (
                                                         <div className="flex flex-col gap-0.5">
                                                             <span className="font-semibold">{m.brand_name}</span>
                                                             <span className="text-xs opacity-70">{m.product_name} — {m.model_name}</span>

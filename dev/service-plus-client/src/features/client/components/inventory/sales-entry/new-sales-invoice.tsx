@@ -118,6 +118,7 @@ export function NewSalesInvoice({
     const summaryRef       = useRef<HTMLDivElement>(null);
 
     const [maxTableHeight, setMaxTableHeight] = useState<number | undefined>(undefined);
+    const [customerMobile, setCustomerMobile] = useState<string>("");
 
     useEffect(() => {
         function recalc() {
@@ -287,12 +288,14 @@ export function NewSalesInvoice({
                                 <CustomerInput
                                     customerId={customerId}
                                     customerName={customerName}
+                                    customerMobile={customerMobile}
                                     onChange={name => {
                                         setCustomerName(name);
                                         if (!name.trim()) {
                                             setCustomerId(null);
                                             setCustomerGstin("");
                                             setCustomerStateCode("");
+                                            setCustomerMobile("");
                                         }
                                     }}
                                     onClear={() => {
@@ -300,12 +303,14 @@ export function NewSalesInvoice({
                                         setCustomerName("");
                                         setCustomerGstin("");
                                         setCustomerStateCode("");
+                                        setCustomerMobile("");
                                     }}
                                     onSelect={(c: CustomerSearchRow) => {
                                         setCustomerId(c.id);
                                         setCustomerName(c.full_name ?? c.mobile);
                                         setCustomerGstin(c.gstin ?? "");
                                         setCustomerStateCode(c.state_code ?? "");
+                                        setCustomerMobile(c.mobile ?? "");
                                     }}
                                     customerTypes={customerTypes}
                                     states={masterStates}

@@ -1,6 +1,6 @@
-# Modify features of CustomerInput
-- On search icon click, a modal window should appear with a Search box and list box.
-- Text in the customerInput input box is copied to the search box and all customer details fulfilling the search box text populates the list box in the modal window. 
-- User can change the content of search box. Debounce effect will be 1600ms. List box will be repopulated. Search should be possible on any field of customer master and all fields of customer master are visible in list box. Empty value resets the search. At least two chars are required for the search to initiate and mention that in prompt text.
-- Create nice and intuative UI
-- Move CustomerInput and its subcomponents to a new folder "shared" in features/components folder
+# Requirement for Product / Model selector in Single Job:
+- When there is no text typed by user, there should not be any list shown
+- When user types part of model, company or product, a filtered list is visible
+- The list should be nice to look at, more like dropdown list in customer select
+- When user selects a model, that model is shown in the textbox. The corresponding brand and product is shown below the text box like mobile no is shown in customerSelect
+- Overall UI should be better

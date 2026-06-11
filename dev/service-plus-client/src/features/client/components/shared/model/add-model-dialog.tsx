@@ -15,7 +15,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { SearchableCombobox } from "@/components/ui/searchable-combobox";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { SQL_MAP } from "@/constants/sql-map";
 import { useDebounce } from "@/hooks/use-debounce";
@@ -25,6 +24,7 @@ import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectSchema } from "@/store/context-slice";
 import type { BrandOption, ProductOption } from "@/features/client/types/model";
+import { LocalCombobox } from "./local-combobox";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -83,10 +83,10 @@ export const AddModelDialog = ({
     });
 
     const { formState: { errors } } = form;
-    const modelNameValue  = useWatch({ control: form.control, name: "model_name" });
-    const productIdValue  = useWatch({ control: form.control, name: "product_id" });
-    const brandIdValue    = useWatch({ control: form.control, name: "brand_id" });
-    const debouncedModel  = useDebounce(modelNameValue, 1200);
+    const modelNameValue = useWatch({ control: form.control, name: "model_name" });
+    const productIdValue = useWatch({ control: form.control, name: "product_id" });
+    const brandIdValue   = useWatch({ control: form.control, name: "brand_id" });
+    const debouncedModel = useDebounce(modelNameValue, 1200);
 
     useEffect(() => {
         if (!open) {
@@ -158,7 +158,7 @@ export const AddModelDialog = ({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent aria-describedby={undefined} className="sm:max-w-lg">
+            <DialogContent aria-describedby={undefined} className="sm:max-w-lg" onInteractOutside={e => e.preventDefault()} onPointerDownOutside={e => e.preventDefault()}>
                 <DialogHeader>
                     <DialogTitle className="text-base font-semibold text-foreground">
                         Add Model
@@ -168,51 +168,42 @@ export const AddModelDialog = ({
                 <form className="flex flex-col gap-4 pt-1" onSubmit={form.handleSubmit(onSubmit)}>
                     <div className="grid grid-cols-2 gap-4">
                         {/* Product */}
-                        <div className="flex flex-col gap-1">
-                            <SearchableCombobox<ProductOption>
-                                getDisplayValue={(p) => p.name}
-                                getFilterKey={(p) => p.name}
-                                getIdentifier={(p) => p.id.toString()}
+                        <div className="flex flex-col gap-1.5">
+                            <Label>
+                                Product <span className="text-red-500 ml-0.5">*</span>
+                            </Label>
+                            <LocalCombobox<ProductOption>
+                                getLabel={p => p.name}
                                 isError={!!errors.product_id}
                                 items={products}
-                                label={
-                                    <>
-                                        Product <span className="text-red-500 ml-0.5">*</span>
-                                    </>
-                                }
-                                onSelect={(p) => {
-                                    form.setValue("product_id", p ? p.id : null as any, { shouldValidate: true });
+                                placeholder="Select product…"
+                                showOnEmpty={false}
+                                value={Number(productIdValue) || null}
+                                onSelect={id => {
+                                    form.setValue("product_id", id ?? (null as any), { shouldValidate: true });
                                     setModelTaken(null);
                                 }}
-                                placeholder="Search product..."
-                                renderItem={(p) => <span>{p.name}</span>}
-                                selectedValue={productIdValue?.toString() || ""}
-                                showOnFocus={false}
                             />
                             <FieldError message={errors.product_id?.message} />
                         </div>
 
                         {/* Brand */}
-                        <div className="flex flex-col gap-1">
-                            <SearchableCombobox<BrandOption>
-                                getDisplayValue={(b) => b.name}
-                                getFilterKey={(b) => b.name}
-                                getIdentifier={(b) => b.id.toString()}
+                        <div className="flex flex-col gap-1.5">
+                            <Label>
+                                Brand <span className="text-red-500 ml-0.5">*</span>
+                            </Label>
+                            <LocalCombobox<BrandOption>
+                                getLabel={b => b.name}
+                                getSubLabel={b => b.code || null}
                                 isError={!!errors.brand_id}
                                 items={brands}
-                                label={
-                                    <>
-                                        Brand <span className="text-red-500 ml-0.5">*</span>
-                                    </>
-                                }
-                                onSelect={(b) => {
-                                    form.setValue("brand_id", b ? b.id : null as any, { shouldValidate: true });
+                                placeholder="Select brand…"
+                                showOnEmpty={false}
+                                value={Number(brandIdValue) || null}
+                                onSelect={id => {
+                                    form.setValue("brand_id", id ?? (null as any), { shouldValidate: true });
                                     setModelTaken(null);
                                 }}
-                                placeholder="Search brand..."
-                                renderItem={(b) => <span>{b.name}</span>}
-                                selectedValue={brandIdValue?.toString() || ""}
-                                showOnFocus={false}
                             />
                             <FieldError message={errors.brand_id?.message} />
                         </div>

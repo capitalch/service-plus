@@ -38,7 +38,7 @@ import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectSchema } from "@/store/context-slice";
-import { AddModelDialog } from "./add-model-dialog";
+import { AddModelDialog } from "@/features/client/components/shared/model";
 import { DeleteModelDialog } from "./delete-model-dialog";
 import { EditModelDialog } from "./edit-model-dialog";
 import type { ModelType, BrandOption, ProductOption } from "@/features/client/types/model";
