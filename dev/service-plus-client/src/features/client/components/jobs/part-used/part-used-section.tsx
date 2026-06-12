@@ -11,9 +11,6 @@ import type { JobLookupForReceiptType } from "@/features/client/types/receipt";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import {
-    Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
 
 import { ViewModeToggle, type ViewMode } from "@/features/client/components/inventory/view-mode-toggle";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
@@ -31,8 +28,6 @@ import { NewPartUsedForm } from "./new-part-used-form";
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type GenericQueryData<T> = { genericQuery: T[] | null };
-
-type BranchType = { id: number; name: string; code: string };
 
 type ConsumptionRow = {
     id:          number;
@@ -89,8 +84,6 @@ export const PartUsedSection = () => {
     const [txnTypes, setTxnTypes] = useState<StockTransactionTypeRow[]>([]);
 
     // View filters
-    const [branches,       setBranches]       = useState<BranchType[]>([]);
-    const [selectedBranch, setSelectedBranch] = useState("");
     const [fromDate,       setFromDate]       = useState(defaultFrom);
     const [toDate,         setToDate]         = useState(defaultTo);
     const [search,         setSearch]         = useState("");
@@ -135,23 +128,13 @@ export const PartUsedSection = () => {
         if (!dbName || !schema) return;
         const fetchMeta = async () => {
             try {
-                const [branchRes, txnRes] = await Promise.all([
-                    apolloClient.query<GenericQueryData<BranchType>>({
-                        fetchPolicy: "network-only",
-                        query: GRAPHQL_MAP.genericQuery,
-                        variables: { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_ALL_BRANCHES }) },
-                    }),
-                    apolloClient.query<GenericQueryData<StockTransactionTypeRow>>({
-                        fetchPolicy: "network-only",
-                        query: GRAPHQL_MAP.genericQuery,
-                        variables: { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_STOCK_TRANSACTION_TYPES }) },
-                    }),
-                ]);
-                const fetched = branchRes.data?.genericQuery ?? [];
-                setBranches(fetched);
-                if (fetched.length > 0) setSelectedBranch(String(fetched[0].id));
+                const txnRes = await apolloClient.query<GenericQueryData<StockTransactionTypeRow>>({
+                    fetchPolicy: "network-only",
+                    query: GRAPHQL_MAP.genericQuery,
+                    variables: { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_STOCK_TRANSACTION_TYPES }) },
+                });
                 setTxnTypes(txnRes.data?.genericQuery ?? []);
-            } catch { toast.error(MESSAGES.ERROR_BRANCH_LOAD_FAILED); }
+            } catch { toast.error(MESSAGES.ERROR_PART_USED_SAVE_FAILED); }
         };
         void fetchMeta();
     }, [dbName, schema]);
@@ -195,9 +178,9 @@ export const PartUsedSection = () => {
     }, [dbName, schema]);
 
     useEffect(() => {
-        if (!selectedBranch || mode !== "view") return;
-        void loadData(Number(selectedBranch), fromDate, toDate, searchQ, page);
-    }, [selectedBranch, fromDate, toDate, searchQ, page, loadData, mode]);
+        if (!branchId || mode !== "view") return;
+        void loadData(branchId, fromDate, toDate, searchQ, page);
+    }, [branchId, fromDate, toDate, searchQ, page, loadData, mode]);
 
     const handleSearchChange = (value: string) => {
         setSearch(value);
@@ -220,7 +203,7 @@ export const PartUsedSection = () => {
             });
             toast.success(MESSAGES.SUCCESS_PART_USED_DELETED);
             setDeleteRow(null);
-            if (selectedBranch) void loadData(Number(selectedBranch), fromDate, toDate, searchQ, page);
+            if (branchId) void loadData(branchId, fromDate, toDate, searchQ, page);
         } catch { toast.error(MESSAGES.ERROR_PART_USED_DELETE_FAILED); }
         finally { setDeleting(false); }
     };
@@ -279,7 +262,7 @@ export const PartUsedSection = () => {
             toast.success(MESSAGES.SUCCESS_PART_USED_SAVED);
             handleReset();
             setMode("view");
-            if (selectedBranch) void loadData(Number(selectedBranch), fromDate, toDate, searchQ, 1);
+            if (branchId) void loadData(branchId, fromDate, toDate, searchQ, 1);
         } catch {
             toast.error(MESSAGES.ERROR_PART_USED_SAVE_FAILED);
         }
@@ -324,7 +307,7 @@ export const PartUsedSection = () => {
                     onViewClick={() => {
                         handleReset();
                         setMode("view");
-                        if (selectedBranch) void loadData(Number(selectedBranch), fromDate, toDate, searchQ, page);
+                        if (branchId) void loadData(branchId, fromDate, toDate, searchQ, page);
                     }}
                 />
 
@@ -366,27 +349,6 @@ export const PartUsedSection = () => {
                 <>
                     {/* Toolbar */}
                     <div className="flex flex-wrap items-center gap-2 px-4 py-2 bg-(--cl-surface-2)/30">
-                        <div className="w-48">
-                            <Select
-                                disabled={branches.length === 0 || loading}
-                                value={selectedBranch}
-                                onValueChange={v => { setSelectedBranch(v); setPage(1); }}
-                            >
-                                <SelectTrigger className="h-8 bg-white text-xs">
-                                    <SelectValue placeholder="Branch" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {branches.map(b => (
-                                        <SelectItem key={b.id} value={String(b.id)}>{b.name}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div className="flex items-center gap-1">
-                            <Input className="h-8 w-32 border-(--cl-border) bg-white text-xs" disabled={loading} type="date" value={fromDate} onChange={e => { setFromDate(e.target.value); setPage(1); }} />
-                            <span className="text-(--cl-text-muted) text-xs">—</span>
-                            <Input className="h-8 w-32 border-(--cl-border) bg-white text-xs" disabled={loading} type="date" value={toDate}   onChange={e => { setToDate(e.target.value); setPage(1); }} />
-                        </div>
                         <div className="relative flex-1 sm:max-w-xs">
                             <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-(--cl-text-muted)" />
                             <Input className="h-8 border-(--cl-border) bg-white pl-8 text-xs" placeholder="Job no, part code or part name…" value={search} onChange={e => handleSearchChange(e.target.value)} />
@@ -400,7 +362,8 @@ export const PartUsedSection = () => {
                                 </button>
                             )}
                         </div>
-                        <Button className="h-8 px-2.5 text-xs" disabled={loading || !selectedBranch} size="sm" variant="outline" onClick={() => { if (selectedBranch) void loadData(Number(selectedBranch), fromDate, toDate, searchQ, page); }}>
+                        <div className="flex-1" />
+                        <Button className="h-8 px-2.5 text-xs" disabled={loading || !branchId} size="sm" variant="outline" onClick={() => { if (branchId) void loadData(branchId, fromDate, toDate, searchQ, page); }}>
                             <RefreshCw className="mr-1.5 h-3 w-3" /> Refresh
                         </Button>
                     </div>

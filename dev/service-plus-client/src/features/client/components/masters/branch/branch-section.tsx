@@ -263,7 +263,6 @@ export const BranchSection = () => {
                                         <TableHead className={thSortClass} onClick={() => handleSort("state_name")}>State<SortIcon col="state_name" /></TableHead>
                                         <TableHead className={thSortClass} onClick={() => handleSort("city")}>City<SortIcon col="city" /></TableHead>
                                         <TableHead className={thClass}>Phone</TableHead>
-                                        <TableHead className={thClass}>Head Office</TableHead>
                                         <TableHead className={thClass}>Status</TableHead>
                                         <TableHead className={thClass}>Actions</TableHead>
                                     </TableRow>
@@ -293,13 +292,6 @@ export const BranchSection = () => {
                                                 <TableCell className="text-sm text-(--cl-text-muted)">{branch.state_name ?? "—"}</TableCell>
                                                 <TableCell className="text-sm text-(--cl-text-muted)">{branch.city ?? "—"}</TableCell>
                                                 <TableCell className="text-sm text-(--cl-text-muted)">{branch.phone ?? "—"}</TableCell>
-                                                <TableCell>
-                                                    {branch.is_head_office ? (
-                                                        <Badge className="border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-50" variant="outline">Yes</Badge>
-                                                    ) : (
-                                                        <span className="text-xs text-(--cl-text-muted)">—</span>
-                                                    )}
-                                                </TableCell>
                                                 <TableCell>
                                                     <Badge
                                                         className={branch.is_active
