@@ -46,9 +46,11 @@ export type JobSearchRow = {
     job_date:        string;
     branch_id:       number;
     is_closed:       boolean;
+    is_final:        boolean;
+    job_status_code: string;
+    job_status_name: string;
     customer_name:   string;
     mobile:          string;
-    job_status_name: string;
 };
 
 export type ExistingLine = {

@@ -10,6 +10,7 @@ export type SearchableComboboxProps<T> = {
   getDisplayValue:        (item: T) => string;
   getFilterKey:           (item: T) => string;
   getIdentifier?:         (item: T) => string;
+  getItemDisabledReason?: (item: T) => string | null;
   isError?:               boolean;
   isLoading?:             boolean;
   items:                  T[];
@@ -29,6 +30,7 @@ export function SearchableCombobox<T>({
   getDisplayValue,
   getFilterKey,
   getIdentifier,
+  getItemDisabledReason,
   isError,
   isLoading,
   items,
@@ -239,7 +241,19 @@ export function SearchableCombobox<T>({
                 <span className="text-[10px] font-semibold text-(--cl-text-muted)">{filtered.length}</span>
               </div>
               {filtered.map((item, idx) => {
-                const isSelected = !!selectedValue && resolveId(item) === selectedValue;
+                const isSelected     = !!selectedValue && resolveId(item) === selectedValue;
+                const disabledReason = getItemDisabledReason?.(item) ?? null;
+                if (disabledReason) {
+                  return (
+                    <div
+                      key={idx}
+                      className="flex w-full flex-col px-3 py-1.5 text-left text-sm cursor-not-allowed opacity-60 bg-muted/20"
+                    >
+                      <div className="min-w-0 flex-1">{renderItem(item)}</div>
+                      <span className="mt-0.5 text-[10px] font-semibold text-amber-600">{disabledReason}</span>
+                    </div>
+                  );
+                }
                 return (
                   <button
                     key={idx}

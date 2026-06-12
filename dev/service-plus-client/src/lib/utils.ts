@@ -7,7 +7,6 @@ export function getApiBaseUrl(): string {
     // ? "https://serviceplus.cloudjiffy.net"
     : window.location.origin;
 }
-
 /**
  * Utility function for merging Tailwind CSS classes with proper precedence
  * Used by shadcn components

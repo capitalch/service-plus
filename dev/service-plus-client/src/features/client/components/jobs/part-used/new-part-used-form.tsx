@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useFormContext, useFieldArray } from "react-hook-form";
 import { Loader2, X } from "lucide-react";
 import { toast } from "sonner";
@@ -6,8 +6,8 @@ import { motion } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { SearchableCombobox } from "@/components/ui/searchable-combobox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { JobLookupCombobox, partUsedJobRestrictionReason } from "@/features/client/components/jobs/receipts/job-lookup-combobox";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { MESSAGES } from "@/constants/messages";
 import { SQL_MAP } from "@/constants/sql-map";
@@ -15,17 +15,17 @@ import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
-import { selectSchema } from "@/store/context-slice";
+import { selectCurrentBranch, selectSchema } from "@/store/context-slice";
+import type { JobLookupForReceiptType } from "@/features/client/types/receipt";
 import type { BrandOption } from "@/features/client/types/model";
 import { PartCodeInput } from "../../inventory/part-code-input";
 import { LineAddDeleteActions } from "../../inventory/line-add-delete-actions";
 
-import { type PartUsedFormValues, type JobSearchRow, type ExistingLine, getInitialPartUsedLine } from "./part-used-schema";
+import { type PartUsedFormValues, type ExistingLine, getInitialPartUsedLine } from "./part-used-schema";
 
 type GenericQueryData<T> = { genericQuery: T[] | null };
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
+// ─── Constants ────────────────────────────────────────────────────────────────
 
 const thClass = "sticky top-0 z-20 text-xs font-extrabold uppercase tracking-widest text-(--cl-text) py-2 px-2 text-left border-b border-(--cl-border) bg-zinc-200/60 dark:bg-zinc-800/60";
 const tdClass = "p-0.5 border-b border-(--cl-border)";
@@ -34,17 +34,17 @@ const inputCls = "h-7 border-(--cl-border) bg-white text-sm px-2";
 // ─── Component ────────────────────────────────────────────────────────────────
 
 type Props = {
-    branchId:           number | null;
     onLinesValidChange: (isValid: boolean) => void;
-    onJobSelect:        (job: JobSearchRow | null) => void;
+    onJobSelect:        (job: JobLookupForReceiptType | null) => void;
     form:               ReturnType<typeof useFormContext<PartUsedFormValues>>;
 };
 
 export function NewPartUsedForm({
-    branchId, onLinesValidChange, onJobSelect, form,
+    onLinesValidChange, onJobSelect, form,
 }: Props) {
-    const dbName = useAppSelector(selectDbName);
-    const schema = useAppSelector(selectSchema);
+    const dbName    = useAppSelector(selectDbName);
+    const schema    = useAppSelector(selectSchema);
+    const branchId  = useAppSelector(selectCurrentBranch)?.id ?? null;
 
     const { control, register, setValue, watch } = useFormContext<PartUsedFormValues>();
 
@@ -53,15 +53,10 @@ export function NewPartUsedForm({
         name: "newLines",
     });
 
-    const [selectedJob,    setSelectedJob]    = useState<JobSearchRow | null>(null);
-    const [jobQuery,       setJobQuery]       = useState("");
-    const [jobOptions,     setJobOptions]     = useState<JobSearchRow[]>([]);
+    const [selectedJob,    setSelectedJob]    = useState<JobLookupForReceiptType | null>(null);
     const [brands,         setBrands]         = useState<BrandOption[]>([]);
-    const [jobSearching,   setJobSearching]   = useState(false);
     const [existingLines,  setExistingLines]  = useState<ExistingLine[]>([]);
     const [loadingExist,   setLoadingExist]   = useState(false);
-
-    const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Summary calculations
     const rawLines = watch("newLines");
@@ -95,31 +90,6 @@ export function NewPartUsedForm({
         void fetchBrands();
     }, [dbName, schema]);
 
-    // Debounced job search
-    useEffect(() => {
-        if (!dbName || !schema || !branchId) return;
-        if (jobQuery.length < 2) { setJobOptions([]); return; }
-        if (debounceRef.current) clearTimeout(debounceRef.current);
-        debounceRef.current = setTimeout(async () => {
-            setJobSearching(true);
-            try {
-                const res = await apolloClient.query<GenericQueryData<JobSearchRow>>({
-                    fetchPolicy: "network-only",
-                    query: GRAPHQL_MAP.genericQuery,
-                    variables: {
-                        db_name: dbName,
-                        schema,
-                        value: graphQlUtils.buildGenericQueryValue({
-                            sqlId:   SQL_MAP.GET_JOBS_BY_KEYWORD,
-                            sqlArgs: { search: jobQuery.trim(), branch_id: branchId, limit: 20 },
-                        }),
-                    },
-                });
-                setJobOptions(res.data?.genericQuery ?? []);
-            } catch { /* silent */ } finally { setJobSearching(false); }
-        }, 600);
-    }, [jobQuery, branchId, dbName, schema]);
-
     const loadExistingLines = useCallback(async (jobId: number) => {
         if (!dbName || !schema) return;
         setLoadingExist(true);
@@ -141,7 +111,7 @@ export function NewPartUsedForm({
         finally { setLoadingExist(false); }
     }, [dbName, schema]);
 
-    const handleJobSelect = (job: JobSearchRow | null) => {
+    const handleJobSelect = (job: JobLookupForReceiptType | null) => {
         setSelectedJob(job);
         onJobSelect(job);
         setExistingLines([]);
@@ -198,26 +168,10 @@ export function NewPartUsedForm({
                     {/* Job Selection */}
                     <div className="rounded-lg border border-(--cl-border) bg-(--cl-surface) p-4 shadow-sm">
                         <p className="mb-3 text-[10px] font-black uppercase tracking-[0.15em] text-(--cl-text-muted)">Job Selection</p>
-                        <SearchableCombobox
-                            className="max-w-sm"
-                            isError={!selectedJob}
-                            isLoading={jobSearching}
-                            label={<span>Job <span className="text-red-500 ml-0.5">*</span></span>}
-                            placeholder="Search by job no, customer or mobile…"
-                            selectedValue={selectedJob ? String(selectedJob.id) : ""}
-                            items={jobOptions}
-                            getFilterKey={j => j.job_no}
-                            getDisplayValue={j => `${j.job_no} — ${j.customer_name}`}
-                            getIdentifier={j => String(j.id)}
-                            onInputChange={setJobQuery}
-                            onSelect={j => handleJobSelect(j ?? null)}
-                            renderItem={j => (
-                                <div className="flex flex-col gap-0.5">
-                                    <span className="font-mono font-semibold">{j.job_no}</span>
-                                    <span className="text-xs text-(--cl-text-muted)">{j.customer_name} · {j.mobile} · {j.job_date}</span>
-                                    <span className="text-xs text-(--cl-accent)">{j.job_status_name}</span>
-                                </div>
-                            )}
+                        <JobLookupCombobox
+                            getRestrictionReason={partUsedJobRestrictionReason}
+                            value={selectedJob?.id ?? null}
+                            onChange={(_id, job) => handleJobSelect(job)}
                         />
 
                         {selectedJob && (

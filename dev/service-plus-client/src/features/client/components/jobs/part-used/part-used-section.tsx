@@ -5,7 +5,8 @@ import {ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon,
     Loader2, RefreshCw, RotateCcw, Save, Search, Trash2, X} from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
-import { partUsedFormSchema, type PartUsedFormValues, getPartUsedDefaultValues, type JobSearchRow } from "./part-used-schema";
+import { partUsedFormSchema, type PartUsedFormValues, getPartUsedDefaultValues } from "./part-used-schema";
+import type { JobLookupForReceiptType } from "@/features/client/types/receipt";
 
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -108,7 +109,7 @@ export const PartUsedSection = () => {
     // Form
     const [resetKey,   setResetKey]   = useState(0);
     const [linesValid, setLinesValid] = useState(false);
-    const [selectedJob, setSelectedJob] = useState<JobSearchRow | null>(null);
+    const [selectedJob, setSelectedJob] = useState<JobLookupForReceiptType | null>(null);
 
     const debounceRef      = useRef<ReturnType<typeof setTimeout> | null>(null);
     const scrollWrapperRef = useRef<HTMLDivElement>(null);
@@ -355,7 +356,6 @@ export const PartUsedSection = () => {
                     <FormProvider {...form}>
                         <NewPartUsedForm
                             key={resetKey}
-                            branchId={branchId}
                             onLinesValidChange={setLinesValid}
                             onJobSelect={setSelectedJob}
                             form={form}

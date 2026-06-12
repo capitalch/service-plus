@@ -3831,9 +3831,9 @@ class SqlStore:
             "p_branch_id" as (values(%(branch_id)s::bigint)),
             "p_search"    as (values(%(search)s::text)),
             "p_limit"     as (values(%(limit)s::int))
-        SELECT j.id, j.job_no, j.job_date, j.branch_id, j.is_closed,
-               cc.full_name AS customer_name, cc.mobile,
-               js.name AS job_status_name
+        SELECT j.id, j.job_no, j.job_date, j.branch_id, j.is_closed, j.is_final,
+               js.code AS job_status_code, js.name AS job_status_name,
+               cc.full_name AS customer_name, cc.mobile
         FROM job j
         JOIN customer_contact cc ON cc.id = j.customer_contact_id
         JOIN job_status        js ON js.id = j.job_status_id
@@ -3883,7 +3883,8 @@ class SqlStore:
            OR  j.job_no::text ILIKE '%%' || (table "p_search") || '%%'
            OR  LOWER(cc.full_name) LIKE '%%' || LOWER((table "p_search")) || '%%'
            OR  LOWER(jp.payment_mode) LIKE '%%' || LOWER((table "p_search")) || '%%'
-           OR  LOWER(COALESCE(jp.reference_no, '')) LIKE '%%' || LOWER((table "p_search")) || '%%')
+           OR  LOWER(COALESCE(jp.reference_no, '')) LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(COALESCE(jp.receipt_no, '')) LIKE '%%' || LOWER((table "p_search")) || '%%')
     """
 
     GET_JOB_PAYMENTS_PAGED = """
@@ -3894,11 +3895,13 @@ class SqlStore:
             "p_search"     as (values(%(search)s::text)),
             "p_limit"      as (values(%(limit)s::int)),
             "p_offset"     as (values(%(offset)s::int))
-        SELECT jp.id, jp.job_id, j.job_no, cc.full_name AS customer_name, cc.mobile,
+        SELECT jp.id, jp.job_id, jp.receipt_no, j.job_no, j.job_date, cc.full_name AS customer_name, cc.mobile,
                jp.payment_date, jp.payment_mode, jp.amount, jp.reference_no, jp.remarks,
-               jp.is_posted, jp.created_at, jp.updated_at
+               jp.is_posted, jp.created_at, jp.updated_at,
+               j.is_closed, j.is_final, js.code AS job_status_code, js.name AS job_status_name
         FROM job_payment jp
         JOIN job j ON j.id = jp.job_id
+        JOIN job_status js ON js.id = j.job_status_id
         LEFT JOIN customer_contact cc ON cc.id = j.customer_contact_id
         WHERE j.branch_id = (table "p_branch_id")
           AND jp.payment_date BETWEEN (table "p_from_date") AND (table "p_to_date")
@@ -3906,7 +3909,8 @@ class SqlStore:
            OR  j.job_no::text ILIKE '%%' || (table "p_search") || '%%'
            OR  LOWER(cc.full_name) LIKE '%%' || LOWER((table "p_search")) || '%%'
            OR  LOWER(jp.payment_mode) LIKE '%%' || LOWER((table "p_search")) || '%%'
-           OR  LOWER(COALESCE(jp.reference_no, '')) LIKE '%%' || LOWER((table "p_search")) || '%%')
+           OR  LOWER(COALESCE(jp.reference_no, '')) LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(COALESCE(jp.receipt_no, '')) LIKE '%%' || LOWER((table "p_search")) || '%%')
         ORDER BY jp.payment_date DESC, jp.id DESC
         LIMIT  (table "p_limit")
         OFFSET (table "p_offset")
@@ -4046,9 +4050,12 @@ class SqlStore:
             "p_search"    as (values(%(search)s::text)),
             "p_limit"     as (values(%(limit)s::int))
         SELECT j.id, j.job_no, j.alternate_job_no, j.job_date, j.amount, j.is_closed,
-               cc.full_name AS customer_name, cc.mobile
+               j.is_final, js.code AS job_status_code, js.name AS job_status_name, jt.code AS job_type_code,
+               cc.full_name AS customer_name, cc.mobile, cc.address_line1
         FROM job j
         LEFT JOIN customer_contact cc ON cc.id = j.customer_contact_id
+        JOIN  job_status js ON js.id = j.job_status_id
+        JOIN  job_type   jt ON jt.id = j.job_type_id
         WHERE j.branch_id = (table "p_branch_id")
           AND j.is_active = true
           AND ((table "p_search") = ''

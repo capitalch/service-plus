@@ -20,18 +20,37 @@ import type { JobLookupForReceiptType } from "@/features/client/types/receipt";
 type GenericQueryDataType<T> = { genericQuery: T[] | null };
 
 type JobLookupComboboxPropsType = {
-    disabled?: boolean;
-    onChange:  (jobId: number | null, job: JobLookupForReceiptType | null) => void;
-    value:     number | null;
+    disabled?:            boolean;
+    getRestrictionReason?: (job: JobLookupForReceiptType) => string | null;
+    onChange:             (jobId: number | null, job: JobLookupForReceiptType | null) => void;
+    value:                number | null;
 };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const DEBOUNCE_MS = 1600;
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+export function receiptJobRestrictionReason(job: JobLookupForReceiptType): string | null {
+    if (job.is_closed)                               return "Job is closed / delivered";
+    if (job.is_final)                                return "Job is final — no payment applicable";
+    if (job.job_status_code === "ON_HOLD")            return "Job is on hold";
+    if (job.job_status_code === "ESTIMATE_REJECTED")  return "Estimate was rejected";
+    if (job.job_type_code   === "UNDER_WARRANTY")     return "Under warranty — no payment required";
+    return null;
+}
+
+export function partUsedJobRestrictionReason(job: JobLookupForReceiptType): string | null {
+    if (job.is_closed)                              return "Job is closed / delivered — no parts entry allowed";
+    if (job.is_final)                               return "Job is final — no parts entry allowed";
+    if (job.job_status_code === "ON_HOLD")           return "Job is on hold";
+    return null;
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export const JobLookupCombobox = ({ disabled = false, onChange, value }: JobLookupComboboxPropsType) => {
+export const JobLookupCombobox = ({ disabled = false, getRestrictionReason = receiptJobRestrictionReason, onChange, value }: JobLookupComboboxPropsType) => {
     const dbName        = useAppSelector(selectDbName);
     const schema        = useAppSelector(selectSchema);
     const currentBranch = useAppSelector(selectCurrentBranch);
@@ -171,31 +190,65 @@ export const JobLookupCombobox = ({ disabled = false, onChange, value }: JobLook
                             {search.length >= 1 ? "No jobs found." : "Type to search jobs…"}
                         </div>
                     ) : (
-                        results.map(job => (
-                            <button
-                                key={job.id}
-                                className="flex w-full items-start gap-2 px-3 py-2.5 text-left hover:bg-accent transition-colors"
-                                type="button"
-                                onClick={() => handleSelect(job)}
-                            >
-                                <div className="min-w-0">
-                                    <div className="flex items-center gap-2 flex-wrap">
-                                        <span className="font-mono font-semibold text-primary text-sm">#{job.job_no}</span>
-                                        {job.alternate_job_no && (
-                                            <span className="text-xs text-muted-foreground font-mono">Alt: {job.alternate_job_no}</span>
-                                        )}
-                                        <span className="text-sm font-medium text-foreground truncate">{job.customer_name}</span>
-                                        {job.mobile && <span className="text-xs text-muted-foreground">{job.mobile}</span>}
-                                        {job.is_closed && (
-                                            <Badge className="h-4 text-[10px] px-1" variant="secondary">Closed</Badge>
-                                        )}
+                        <>
+                        <div className="sticky top-0 z-10 border-b border-border bg-white/95 px-3 py-1 backdrop-blur-sm select-none">
+                            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Jobs Found: {results.length}</span>
+                        </div>
+                        {results.map(job => {
+                            const reason = getRestrictionReason(job);
+                            if (reason) {
+                                return (
+                                    <div
+                                        key={job.id}
+                                        className="flex w-full items-start gap-2 px-3 py-2.5 text-left cursor-not-allowed opacity-60 bg-muted/30"
+                                    >
+                                        <div className="min-w-0">
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                                <span className="font-mono font-semibold text-primary text-sm">#{job.job_no}</span>
+                                                {job.alternate_job_no && (
+                                                    <span className="text-xs text-muted-foreground font-mono">Alt: {job.alternate_job_no}</span>
+                                                )}
+                                                <span className="text-sm font-medium text-foreground truncate">{job.customer_name}</span>
+                                                {job.mobile && <span className="text-xs text-muted-foreground">{job.mobile}</span>}
+                                            </div>
+                                            <div className="text-xs text-muted-foreground">
+                                                {job.job_date} · ₹{Number(job.amount).toFixed(2)}
+                                                {job.address_line1 && <span> · {job.address_line1}</span>}
+                                            </div>
+                                            <div className="mt-0.5">
+                                                <Badge className="h-4 text-[10px] px-1.5 bg-amber-100 text-amber-700 border-amber-300" variant="outline">
+                                                    {reason}
+                                                </Badge>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div className="text-xs text-muted-foreground">
-                                        {job.job_date} · ₹{Number(job.amount).toFixed(2)}
+                                );
+                            }
+                            return (
+                                <button
+                                    key={job.id}
+                                    className="flex w-full items-start gap-2 px-3 py-2.5 text-left hover:bg-accent transition-colors"
+                                    type="button"
+                                    onClick={() => handleSelect(job)}
+                                >
+                                    <div className="min-w-0">
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                            <span className="font-mono font-semibold text-primary text-sm">#{job.job_no}</span>
+                                            {job.alternate_job_no && (
+                                                <span className="text-xs text-muted-foreground font-mono">Alt: {job.alternate_job_no}</span>
+                                            )}
+                                            <span className="text-sm font-medium text-foreground truncate">{job.customer_name}</span>
+                                            {job.mobile && <span className="text-xs text-muted-foreground">{job.mobile}</span>}
+                                        </div>
+                                        <div className="text-xs text-muted-foreground">
+                                            {job.job_date} · ₹{Number(job.amount).toFixed(2)}
+                                            {job.address_line1 && <span> · {job.address_line1}</span>}
+                                        </div>
                                     </div>
-                                </div>
-                            </button>
-                        ))
+                                </button>
+                            );
+                        })}
+                        </>
                     )}
                 </div>
             )}

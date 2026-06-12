@@ -30,12 +30,14 @@
 							- At present delivered jobs whose invoice have been is_aposted true is allowed to undeliver. That should not be allowed.
 							- Delivered jobs view: new column for is_posted and post_data_to_accounts true
 - Money receipts
-	- Money receipts for closed, cancelled, disposed, on hold, estimate rejected, return, delivered, final jobs cannot be done. They should be greyedout and not selectable in job select.
-	- Deletion not allowed for final, delivered, posted receipts.
-	- A button for unpost a receipt
-	- A column for is_posted if applicable in the view receipts
+							- Money receipts for closed, cancelled, disposed, on hold, estimate rejected, return, delivered, final jobs cannot be done. They should be greyedout and not selectable in job select.
+							- Deletion not allowed for final, delivered, posted receipts.
+							- A button for unpost a receipt
+							- A column for is_posted if applicable in the view receipts
 - Part used
-	- cannot be for jobs: cancelled, closed, posted, final, disposed, on hold. Those items should be greyed out in the list with reasons
+							- cannot be for jobs: cancelled, closed, posted, final, disposed, on hold. Those items should be greyed out in the list with reasons
+	- restrict edit and delete
+	- modify view screen
 - Accounts posting
 - Dashboard design
 	- Blocks

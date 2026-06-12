@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon,
-    DollarSign, Loader2, Pencil, Printer, RefreshCw, Save, Search, Trash2, X} from "lucide-react";
+    DollarSign, Eye, Loader2, MoreHorizontal, Pencil, Printer, RefreshCw, RotateCcw, Save, Search, Trash2, X} from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
+import {
+    DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
     Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
@@ -21,7 +24,7 @@ import { selectDbName } from "@/features/auth/store/auth-slice";
 import { apolloClient } from "@/lib/apollo-client";
 import { encodeObj, graphQlUtils } from "@/lib/graphql-utils";
 import { currentFinancialYearRange } from "@/lib/utils";
-import { selectAvailableDivisions, selectCurrentBranch, selectSchema } from "@/store/context-slice";
+import { selectAvailableDivisions, selectCurrentBranch, selectPostDataToAccounts, selectSchema } from "@/store/context-slice";
 import { useAppSelector } from "@/store/hooks";
 import type { JobReceiptDetailType, JobReceiptListRowType } from "@/features/client/types/receipt";
 import { NewReceiptForm } from "./new-receipt-form";
@@ -30,6 +33,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { receiptFormSchema, type ReceiptFormValues, getReceiptDefaultValues } from "./receipt-form-schema";
 import { buildReceiptPdf } from "@/features/client/components/jobs/deliver-job/deliver-job-pdf";
 import type { JobDetailType } from "@/features/client/types/job";
+import { JobDetailsModal } from "@/features/client/components/jobs/job-pipeline/job-details-modal";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -47,6 +51,13 @@ const tdClass = "p-3 text-sm text-(--cl-text) border-b border-(--cl-border)";
 
 function formatAmount(n: number) {
     return `₹${Number(n).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+function isReceiptJobRestricted(row: JobReceiptListRowType): boolean {
+    if (row.is_closed) return true;
+    if (row.is_final)  return true;
+    if (row.job_status_code === "ON_HOLD") return true;
+    return false;
 }
 
 function modeBadgeClass(mode: string) {
@@ -68,6 +79,7 @@ export const ReceiptsSection = () => {
     const currentBranch      = useAppSelector(selectCurrentBranch);
     const branchId           = currentBranch?.id ?? null;
     const availableDivisions = useAppSelector(selectAvailableDivisions);
+    const postDataToAccounts = useAppSelector(selectPostDataToAccounts);
 
     const { from: defaultFrom, to: defaultTo } = currentFinancialYearRange();
 
@@ -89,6 +101,13 @@ export const ReceiptsSection = () => {
         mode:          "onChange",
         resolver:      zodResolver(receiptFormSchema) as any, // eslint-disable-line @typescript-eslint/no-explicit-any
     });
+
+    // Job view
+    const [viewJobId, setViewJobId] = useState<number | null>(null);
+
+    // Unpost
+    const [unpostRow,   setUnpostRow]   = useState<JobReceiptListRowType | null>(null);
+    const [unposting,   setUnposting]   = useState(false);
 
     // Delete dialog
     const [deleteRow,  setDeleteRow]  = useState<JobReceiptListRowType | null>(null);
@@ -312,6 +331,28 @@ export const ReceiptsSection = () => {
         }
     }
 
+    async function handleUnpost() {
+        if (!unpostRow || !dbName || !schema) return;
+        setUnposting(true);
+        try {
+            await apolloClient.mutate({
+                mutation:  GRAPHQL_MAP.genericUpdate,
+                variables: {
+                    db_name: dbName,
+                    schema,
+                    value: encodeObj({ tableName: "job_payment", xData: { id: unpostRow.id, is_posted: false } }),
+                },
+            });
+            toast.success("Receipt unposted successfully.");
+            setUnpostRow(null);
+            if (branchId) void loadData(branchId, fromDate, toDate, searchQ, page);
+        } catch {
+            toast.error("Failed to unpost receipt. Please try again.");
+        } finally {
+            setUnposting(false);
+        }
+    }
+
     const totalPages   = Math.max(1, Math.ceil(total / PAGE_SIZE));
     const pageTotal    = rows.reduce((acc, r) => acc + Number(r.amount), 0);
 
@@ -323,7 +364,7 @@ export const ReceiptsSection = () => {
             transition={{ duration: 0.25 }}
         >
             {/* Header */}
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-3 border-b border-(--cl-border) bg-(--cl-surface) px-4 py-1">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-3 border-b border-(--cl-border) bg-(--cl-surface) py-1">
                 <div className="flex items-center gap-3">
                     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-(--cl-accent)/10 text-(--cl-accent)">
                         <DollarSign className="h-4 w-4" />
@@ -347,42 +388,26 @@ export const ReceiptsSection = () => {
             </div>
 
             {/* Toolbar */}
-            <div className="flex flex-wrap items-center gap-2 px-4 py-1 bg-(--cl-surface-2)/30">
-                <div className="flex items-center gap-1">
-                    <Input
-                        className="h-8 w-32 border-(--cl-border) bg-(--cl-surface) text-xs"
-                        disabled={loading}
-                        type="date"
-                        value={fromDate}
-                        onChange={e => { setFromDate(e.target.value); setPage(1); }}
-                    />
-                    <span className="text-(--cl-text-muted) text-xs">—</span>
-                    <Input
-                        className="h-8 w-32 border-(--cl-border) bg-(--cl-surface) text-xs"
-                        disabled={loading}
-                        type="date"
-                        value={toDate}
-                        onChange={e => { setToDate(e.target.value); setPage(1); }}
-                    />
-                </div>
+            <div className="flex flex-wrap items-center gap-2 py-1 bg-(--cl-surface-2)/30">
                 <div className="relative flex-1 sm:max-w-xs">
                     <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-(--cl-text-muted)" />
                     <Input
                         className="h-8 border-(--cl-border) bg-(--cl-surface) pl-8 text-xs"
-                        placeholder="Job no, customer, mode, ref no…"
+                        placeholder="Job no, receipt no, customer, mode, ref no…"
                         value={search}
                         onChange={e => handleSearchChange(e.target.value)}
                     />
-                            {search && (
-                                <button
-                                    className="absolute right-2.5 top-1/2 flex h-4 w-4 -translate-y-1/2 items-center justify-center rounded-full bg-(--cl-text-muted) text-(--cl-surface) hover:bg-(--cl-text) focus:outline-none"
-                                    type="button"
-                                    onClick={() => handleSearchChange("")}
-                                >
-                                    <X className="h-2.5 w-2.5" />
-                                </button>
-                            )}
+                    {search && (
+                        <button
+                            className="absolute right-2.5 top-1/2 flex h-4 w-4 -translate-y-1/2 items-center justify-center rounded-full bg-(--cl-text-muted) text-(--cl-surface) hover:bg-(--cl-text) focus:outline-none"
+                            type="button"
+                            onClick={() => handleSearchChange("")}
+                        >
+                            <X className="h-2.5 w-2.5" />
+                        </button>
+                    )}
                 </div>
+                <div className="flex-1" />
                 <Button
                     className="h-8 px-2.5 text-xs"
                     disabled={loading || !branchId}
@@ -395,13 +420,13 @@ export const ReceiptsSection = () => {
             </div>
 
             {/* Grid */}
-            <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-(--cl-border) bg-(--cl-surface) shadow-sm mx-4">
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-(--cl-border) bg-(--cl-surface) shadow-sm">
                 <div ref={scrollRef} className="flex-1 overflow-x-auto overflow-y-auto" style={{ maxHeight: maxHeight || undefined }}>
                     {loading ? (
                         <table className="min-w-full border-collapse">
                             <thead>
                                 <tr>
-                                    {["#","Job No","Customer","Date","Mode","Amount","Ref No","Actions"].map(h => (
+                                    {["#","Date","Receipt No","Job No","Customer","Mode","Amount","Ref No","Actions"].map(h => (
                                         <th key={h} className={thClass}>{h}</th>
                                     ))}
                                 </tr>
@@ -409,7 +434,7 @@ export const ReceiptsSection = () => {
                             <tbody>
                                 {Array.from({ length: 8 }).map((_, i) => (
                                     <tr key={i} className="animate-pulse">
-                                        {Array.from({ length: 8 }).map((__, j) => (
+                                        {Array.from({ length: 9 }).map((__, j) => (
                                             <td key={j} className={tdClass}>
                                                 <div className="h-4 w-16 rounded bg-(--cl-border)" />
                                             </td>
@@ -427,9 +452,10 @@ export const ReceiptsSection = () => {
                             <thead className="sticky top-0 z-10">
                                 <tr>
                                     <th className={thClass}>#</th>
+                                    <th className={thClass}>Date</th>
+                                    <th className={thClass}>Receipt No</th>
                                     <th className={thClass}>Job No</th>
                                     <th className={thClass}>Customer</th>
-                                    <th className={thClass}>Date</th>
                                     <th className={thClass}>Mode</th>
                                     <th className={`${thClass} text-right`}>Amount</th>
                                     <th className={thClass}>Ref No</th>
@@ -446,55 +472,74 @@ export const ReceiptsSection = () => {
                                         transition={{ delay: idx * 0.02, duration: 0.15 }}
                                     >
                                         <td className={`${tdClass} text-(--cl-text-muted)`}>{(page - 1) * PAGE_SIZE + idx + 1}</td>
-                                        <td className={`${tdClass} font-mono font-semibold text-(--cl-accent)`}>#{row.job_no}</td>
+                                        <td className={tdClass}>{row.payment_date}</td>
+                                        <td className={tdClass}>{row.receipt_no || "—"}</td>
+                                        <td className={tdClass}>
+                                            <div className="font-mono font-semibold text-(--cl-accent)">{row.job_no}</div>
+                                            <div className="text-xs text-(--cl-text-muted)">{row.job_date}</div>
+                                            <div className="text-xs text-(--cl-text-muted)">{row.job_status_name}</div>
+                                        </td>
                                         <td className={tdClass}>
                                             <div className="font-medium">{row.customer_name}</div>
                                             {row.mobile && <div className="text-xs text-(--cl-text-muted)">{row.mobile}</div>}
                                         </td>
-                                        <td className={tdClass}>{row.payment_date}</td>
                                         <td className={tdClass}>
                                             <span className={`rounded px-2 py-0.5 text-xs font-semibold ${modeBadgeClass(row.payment_mode)}`}>
                                                 {row.payment_mode}
                                             </span>
                                         </td>
                                         <td className={`${tdClass} text-right font-semibold tabular-nums`}>
-                                            {formatAmount(row.amount)}
+                                            <div>{formatAmount(row.amount)}</div>
+                                            {postDataToAccounts && (
+                                                <div className={`mt-0.5 text-[10px] font-semibold ${row.is_posted ? "text-emerald-600" : "text-amber-600"}`}>
+                                                    {row.is_posted ? "Posted" : "Not Posted"}
+                                                </div>
+                                            )}
                                         </td>
                                         <td className={`${tdClass} text-xs text-(--cl-text-muted)`}>{row.reference_no || "—"}</td>
                                         <td className={`${tdClass} sticky right-0 z-10 bg-(--cl-surface) group-hover:bg-(--cl-surface-2)`}>
-                                            <div className="flex items-center gap-1">
-                                                <Button
-                                                    className="h-7 w-7 p-0 text-(--cl-text-muted) hover:text-sky-600"
-                                                    disabled={pdfLoading === row.id}
-                                                    size="icon"
-                                                    title="Show PDF"
-                                                    variant="ghost"
-                                                    onClick={() => void handleShowPdf(row)}
-                                                >
-                                                    {pdfLoading === row.id
-                                                        ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                                        : <Printer className="h-3.5 w-3.5" />
-                                                    }
-                                                </Button>
-                                                <Button
-                                                    className="h-7 w-7 p-0 text-(--cl-text-muted) hover:text-(--cl-accent)"
-                                                    size="icon"
-                                                    title="Edit"
-                                                    variant="ghost"
-                                                    onClick={() => handleEditReceipt(row)}
-                                                >
-                                                    <Pencil className="h-3.5 w-3.5" />
-                                                </Button>
-                                                <Button
-                                                    className="h-7 w-7 p-0 text-red-500 hover:bg-red-500/10"
-                                                    size="icon"
-                                                    title="Delete"
-                                                    variant="ghost"
-                                                    onClick={() => setDeleteRow(row)}
-                                                >
-                                                    <Trash2 className="h-3.5 w-3.5" />
-                                                </Button>
-                                            </div>
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button className="h-7 w-7 p-0 text-(--cl-text-muted)" size="icon" variant="ghost">
+                                                        {pdfLoading === row.id
+                                                            ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                                            : <MoreHorizontal className="h-4 w-4" />
+                                                        }
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end" className="w-44">
+                                                    <DropdownMenuItem onClick={() => setViewJobId(row.job_id)}>
+                                                        <Eye className="mr-2 h-3.5 w-3.5" /> View Job
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem onClick={() => void handleShowPdf(row)}>
+                                                        <Printer className="mr-2 h-3.5 w-3.5" /> Print Receipt
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuSeparator />
+                                                    <DropdownMenuItem
+                                                        disabled={isReceiptJobRestricted(row)}
+                                                        onClick={() => { if (!isReceiptJobRestricted(row)) handleEditReceipt(row); }}
+                                                    >
+                                                        <Pencil className="mr-2 h-3.5 w-3.5" /> Edit
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem
+                                                        className="text-red-600 focus:text-red-600"
+                                                        onClick={() => setDeleteRow(row)}
+                                                    >
+                                                        <Trash2 className="mr-2 h-3.5 w-3.5" /> Delete
+                                                    </DropdownMenuItem>
+                                                    {postDataToAccounts && row.is_posted && (
+                                                        <>
+                                                            <DropdownMenuSeparator />
+                                                            <DropdownMenuItem
+                                                                className="text-amber-600 focus:text-amber-600"
+                                                                onClick={() => setUnpostRow(row)}
+                                                            >
+                                                                <RotateCcw className="mr-2 h-3.5 w-3.5" /> Unpost
+                                                            </DropdownMenuItem>
+                                                        </>
+                                                    )}
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
                                         </td>
                                     </motion.tr>
                                 ))}
@@ -532,6 +577,7 @@ export const ReceiptsSection = () => {
                 <DialogContent
                     aria-describedby={undefined}
                     className="sm:max-w-lg"
+                    onInteractOutside={(e) => e.preventDefault()}
                 >
                     <DialogHeader>
                         <DialogTitle>
@@ -563,9 +609,27 @@ export const ReceiptsSection = () => {
                 </DialogContent>
             </Dialog>
 
+            {/* Delete — blocked (job status: closed/final/on-hold) */}
+            <AlertDialog
+                open={!!deleteRow && isReceiptJobRestricted(deleteRow)}
+                onOpenChange={open => { if (!open) setDeleteRow(null); }}
+            >
+                <AlertDialogContent className="max-w-sm">
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Cannot Delete Receipt</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Receipt cannot be deleted because the job is in a restricted status (closed, delivered, final, cancelled, disposed, on hold or return). No changes are allowed for such jobs.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel onClick={() => setDeleteRow(null)}>Close</AlertDialogCancel>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
             {/* Delete — blocked (is_posted) */}
             <AlertDialog
-                open={deleteRow !== null && !!deleteRow?.is_posted}
+                open={!!deleteRow && !isReceiptJobRestricted(deleteRow) && !!deleteRow.is_posted}
                 onOpenChange={open => { if (!open) setDeleteRow(null); }}
             >
                 <AlertDialogContent className="max-w-sm">
@@ -582,7 +646,7 @@ export const ReceiptsSection = () => {
             </AlertDialog>
 
             {/* Delete Confirmation Dialog */}
-            <Dialog open={deleteRow !== null && !deleteRow?.is_posted} onOpenChange={open => { if (!open && !deleting) setDeleteRow(null); }}>
+            <Dialog open={!!deleteRow && !isReceiptJobRestricted(deleteRow) && !deleteRow.is_posted} onOpenChange={open => { if (!open && !deleting) setDeleteRow(null); }}>
                 <DialogContent aria-describedby={undefined} className="sm:max-w-sm">
                     <DialogHeader>
                         <DialogTitle>Delete Receipt</DialogTitle>
@@ -614,6 +678,38 @@ export const ReceiptsSection = () => {
                 title={pdfTitle}
                 onClose={() => { if (pdfUrl) URL.revokeObjectURL(pdfUrl); setPdfUrl(null); }}
             />
+
+            {/* Unpost Confirmation */}
+            <AlertDialog open={unpostRow !== null} onOpenChange={open => { if (!open && !unposting) setUnpostRow(null); }}>
+                <AlertDialogContent className="max-w-sm">
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Unpost Receipt?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            You are about to unpost the receipt of{" "}
+                            <span className="font-semibold text-foreground">{unpostRow ? formatAmount(unpostRow.amount) : ""}</span>
+                            {" "}for job{" "}
+                            <span className="font-mono font-semibold text-foreground">#{unpostRow?.job_no}</span>.
+                            {" "}This will reverse the accounting entry and the receipt will need to be re-posted. Are you sure?
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel disabled={unposting} onClick={() => setUnpostRow(null)}>Cancel</AlertDialogCancel>
+                        <Button
+                            className="bg-amber-600 hover:bg-amber-700 text-white"
+                            disabled={unposting}
+                            onClick={() => void handleUnpost()}
+                        >
+                            {unposting && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}
+                            Yes, Unpost
+                        </Button>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            {/* Job Details */}
+            {viewJobId !== null && (
+                <JobDetailsModal jobId={viewJobId} onClose={() => setViewJobId(null)} />
+            )}
         </motion.div>
     );
 };
