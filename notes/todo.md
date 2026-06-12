@@ -1,33 +1,34 @@
 # Job life cycle QA
 								- Appsettings:post_data_to_accounts
-- Single Job
+							- Single Job
 								- Print should print single copy. Counter input to set no of copies to print. Default count 2. App settings default copies to print for job sheets
 								- Print count feature for batch jobs also
 								- When delete a job, if transactions there, show a friendly message that transactions are there so cannot delete, instead of error at server
-	- In JobDetailsModal: Give a provision to print job sheet and print invoice and money receipt if available
-	- divison is not populated when edit a batch job
-	- View job will always show the complete list from whichever place it is fired. 
-	- Allow pdf view / print for view job.
-- Job Search
-	- Status page: Statuses to show in background colored pills
-- Final Job
-	- Part selector
-		- when a part code is typed, show list for validated parts with details, just as in customer selector
-	- Add Part modal
-		- Should be non closure type
-		- hsn code should be default_hsn_for_spare_part, gst rate: default_gst_rate
-		- Add a column for selling_price: as markup_percent_over_cost, MRP: add gst (default gst rate) over selling price: gst_rate: default gst rate
-	- At present, when editing a final job, target amount is calculated amount. It should be the job.amount
-	- Job view
-		- if job is final and not delivered, show a fab indicating that job is final, on right of status. The job should not have been delivered yet
-		- When undo last, do not allow if delivered
-- deliver job
-	- Show pdf will show only one copy per page. Print count facility to print multiple copies, otherwise single copy
-	- Delivered jobs: view: when undo last, then tab page does not refresh
-	- Delivered jobs page: date should show date of delivery. job date should show in job no column. Sorting order should be last delivered first
-	- Delivered jobs page grid view: a button to print invoice and receipts of delivered job
-	- At present delivered jobs whose invoice have been is_aposted true is allowed to undeliver. That should not be allowed.
-	- Delivered jobs view: new column for is_posted and post_data_to_accounts true
+								- In JobDetailsModal: Give a provision to print job sheet and print invoice and money receipt if available
+								- divison is not populated when edit a batch job
+								- View job will always show the complete list from whichever place it is fired. 
+								- Allow pdf view / print for view job.
+							- Job Search
+								- Status page: Statuses to show in background colored pills
+							- Final Job
+								- Check updated_at column update from fastapi
+								- Reverse sort on updated_at field
+							- Part selector
+								- when a part code is typed, show list for validated parts with details, just as in customer selector
+							- Add Part modal
+								- Should be non closure type
+								- hsn code should be default_hsn_for_spare_part, gst rate: default_gst_rate
+								- Add a column for selling_price: as markup_percent_over_cost, MRP: add gst (default gst rate) over selling price: gst_rate: default gst rate
+								- At present, when editing a final job, target amount is calculated amount. It should be the job.amount
+							- Job view
+								- if job is final and not delivered, show a fab indicating that job is final, on right of status. The job should not have been delivered yet
+								- When undo last, do not allow if delivered
+						- deliver job
+							- Show pdf will show only one copy per page. Print count facility to print multiple copies, otherwise single copy
+							- Delivered jobs page: date should show date of delivery. job date should show in job no column. Sorting order should be last delivered first
+							- Delivered jobs page grid view: a button to print invoice and receipts of delivered job
+							- At present delivered jobs whose invoice have been is_aposted true is allowed to undeliver. That should not be allowed.
+							- Delivered jobs view: new column for is_posted and post_data_to_accounts true
 - Dashboard design
 	- Blocks
 		- Received: today,current month name, previous month name, -2 months name
@@ -37,6 +38,7 @@
 		- Revenue branch wise with divison and all branches
 		- Waiting for delivery and corresponding amount
 	- Last few transactions
+	
 # Job features
 	- Job sales return
 								- Repeat repairs

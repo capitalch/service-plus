@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Building2, Calendar, FileText, Loader2, MapPin, Package, Paperclip, Printer, ReceiptText, RotateCcw, User, Wrench } from "lucide-react";
+import { Building2, Calendar, FileText, Loader2, MapPin, Package, Paperclip, Printer, ReceiptText, RotateCcw, Truck, User, Wrench } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -14,8 +14,8 @@ import { selectAvailableDivisions, selectCurrentBranch, selectNoOfJobInvoicesPer
 import { useAppSelector } from "@/store/hooks";
 import type { JobDetailType, JobTransactionRow } from "@/features/client/types/job";
 import type { JobInvoiceFullRow, JobInvoiceLineRow } from "../deliver-job/deliver-job-schema";
-import { buildInvoicePdf, buildReceiptPdf } from "../deliver-job/deliver-job-pdf";
-import { getJobSheetBlobUrl } from "../job-sheet-pdf";
+import { buildInvoicePdf, buildReceiptPdf, buildDeliveryNotePdf } from "../deliver-job/deliver-job-pdf";
+import { getJobSheetBlobUrl, getJobInfoBlobUrl } from "../job-sheet-pdf";
 import { JobAttachDialog } from "../single-job/job-attach-dialog";
 import { STATUS_COLORS } from "./status-transitions";
 import { UndoTransactionDialog } from "./undo-transaction-dialog";
@@ -129,7 +129,7 @@ export const JobDetailsModal = ({ jobId, onClose, onJobChanged }: Props) => {
     const [pdfTitle,     setPdfTitle]     = useState("PDF Preview");
     const [pdfOpen,      setPdfOpen]      = useState(false);
     const [printCopies,  setPrintCopies]  = useState(1);
-    const pendingPrintRef = useRef<{ type: "sheet" | "invoice" | "receipt" } | null>(null);
+    const pendingPrintRef = useRef<{ type: "sheet" | "invoice" | "receipt" | "info" } | null>(null);
 
     const loadData = useCallback(() => {
         if (!dbName || !schema) return;
@@ -211,7 +211,7 @@ export const JobDetailsModal = ({ jobId, onClose, onJobChanged }: Props) => {
         }
     }
 
-    function openPdf(url: string, title: string, copies: number, type: "sheet" | "invoice" | "receipt") {
+    function openPdf(url: string, title: string, copies: number, type: "sheet" | "invoice" | "receipt" | "info") {
         if (pdfUrl) URL.revokeObjectURL(pdfUrl);
         setPdfUrl(url);
         setPdfTitle(title);
@@ -251,6 +251,42 @@ export const JobDetailsModal = ({ jobId, onClose, onJobChanged }: Props) => {
         );
         const url = URL.createObjectURL(doc.output("blob"));
         openPdf(url, `Receipt — Job #${job.job_no}`, 1, "receipt");
+    }
+
+    function handlePrintInfo() {
+        if (!job) return;
+        const jobDivision = job.division_id ? (divisions.find(d => d.id === job.division_id) ?? null) : null;
+        const url = getJobInfoBlobUrl({ job, division: jobDivision, branchCode: currentBranch?.code, transactions, parts, charges, files, invoice, payments });
+        openPdf(url, `Job Info #${job.job_no}`, 1, "info");
+    }
+
+    function handlePrintDeliveryNote() {
+        if (!job) return;
+        const jobDivision = job.division_id ? (divisions.find(d => d.id === job.division_id) ?? null) : null;
+        const deviceParts = [job.brand_name, job.product_name, job.model_name, job.serial_no ? `S/N: ${job.serial_no}` : null].filter(Boolean);
+        const doc = buildDeliveryNotePdf([{
+            job_no:                 job.job_no,
+            alternate_job_no:       job.alternate_job_no,
+            job_date:               job.job_date,
+            customer_name:          job.customer_name ?? "",
+            mobile:                 job.mobile,
+            customer_address_line1: job.customer_address_line1,
+            customer_address_line2: job.customer_address_line2,
+            customer_landmark:      job.customer_landmark,
+            customer_city:          job.customer_city,
+            customer_postal_code:   job.customer_postal_code,
+            customer_state:         job.customer_state,
+            device_details:         deviceParts.join(" ").trim() || null,
+            technician_name:        job.technician_name,
+            amount:                 job.amount,
+            invoice_no:             invoice?.invoice_no ?? null,
+            receipt_nos:            payments.map(p => p.receipt_no).filter((r): r is string => !!r),
+            delivery_ok:            !job.job_status_name.toLowerCase().includes("not ok"),
+            delivery_date:          job.delivery_date ?? "",
+            remarks:                job.remarks,
+        }], jobDivision, currentBranch?.name ?? currentBranch?.code ?? null);
+        const url = URL.createObjectURL(doc.output("blob"));
+        openPdf(url, `Delivery Note — Job #${job.job_no}`, 1, "info");
     }
 
     function handleCopiesChange(n: number) {
@@ -309,6 +345,11 @@ export const JobDetailsModal = ({ jobId, onClose, onJobChanged }: Props) => {
                                     <span className={`rounded-sm px-3 py-1 text-xs font-semibold ${statusColorParts[0] ?? "bg-blue-500"} text-white`}>
                                         {job.job_status_name}
                                     </span>
+                                    {job.is_final && !job.is_closed && (
+                                        <span className="rounded-sm bg-violet-600 px-3 py-0.5 text-[11px] font-bold text-white tracking-wide">
+                                            FINAL
+                                        </span>
+                                    )}
                                     <span className="rounded-sm bg-slate-200/60 px-3 py-1 text-[11px] font-medium text-slate-900">
                                         {job.job_type_name}
                                     </span>
@@ -321,7 +362,7 @@ export const JobDetailsModal = ({ jobId, onClose, onJobChanged }: Props) => {
                             )}
                         </div>
                         {job && !loading && (
-                            <div className="flex items-center gap-1.5 flex-wrap">
+                            <div className="flex items-center gap-1.5 flex-nowrap">
                                 <Button
                                     size="sm"
                                     variant="outline"
@@ -332,30 +373,46 @@ export const JobDetailsModal = ({ jobId, onClose, onJobChanged }: Props) => {
                                     <Printer className="h-3 w-3" />
                                     Job Sheet
                                 </Button>
-                                {invoice && (
-                                    <Button
-                                        size="sm"
-                                        variant="outline"
-                                        className="h-7 px-2.5 text-[11px] gap-1.5 border-indigo-200 text-indigo-700 hover:bg-indigo-50"
-                                        onClick={handlePrintInvoice}
-                                        title="Print Invoice"
-                                    >
-                                        <Printer className="h-3 w-3" />
-                                        Invoice
-                                    </Button>
-                                )}
-                                {payments.length > 0 && (
-                                    <Button
-                                        size="sm"
-                                        variant="outline"
-                                        className="h-7 px-2.5 text-[11px] gap-1.5 border-emerald-200 text-emerald-700 hover:bg-emerald-50"
-                                        onClick={handlePrintReceipt}
-                                        title="Print Money Receipt"
-                                    >
-                                        <Printer className="h-3 w-3" />
-                                        Receipt
-                                    </Button>
-                                )}
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className={`h-7 px-2.5 text-[11px] gap-1.5 border-emerald-200 text-emerald-700 hover:bg-emerald-50 ${payments.length === 0 ? "invisible pointer-events-none" : ""}`}
+                                    onClick={handlePrintReceipt}
+                                    title="Print Money Receipt"
+                                >
+                                    <Printer className="h-3 w-3" />
+                                    Receipt
+                                </Button>
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className={`h-7 px-2.5 text-[11px] gap-1.5 border-indigo-200 text-indigo-700 hover:bg-indigo-50 ${!invoice ? "invisible pointer-events-none" : ""}`}
+                                    onClick={handlePrintInvoice}
+                                    title="Print Invoice + Receipts"
+                                >
+                                    <Printer className="h-3 w-3" />
+                                    Invoice + Receipts
+                                </Button>
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className={`h-7 px-2.5 text-[11px] gap-1.5 border-teal-200 text-teal-700 hover:bg-teal-50 ${!job.is_closed ? "invisible pointer-events-none" : ""}`}
+                                    onClick={handlePrintDeliveryNote}
+                                    title="Print Delivery Note"
+                                >
+                                    <Truck className="h-3 w-3" />
+                                    Del. Note
+                                </Button>
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-7 px-2.5 text-[11px] gap-1.5 border-rose-200 text-rose-700 hover:bg-rose-50"
+                                    onClick={handlePrintInfo}
+                                    title="Print complete job information report"
+                                >
+                                    <FileText className="h-3 w-3" />
+                                    Job Info
+                                </Button>
                             </div>
                         )}
                     </div>
@@ -631,7 +688,7 @@ export const JobDetailsModal = ({ jobId, onClose, onJobChanged }: Props) => {
                                             size="sm"
                                             variant="outline"
                                             className="h-6 px-2 text-[11px] text-amber-700 border-amber-300 hover:bg-amber-50 disabled:opacity-40"
-                                            disabled={undoing || loading || !transactions.some(t => t.id > 0)}
+                                            disabled={undoing || loading || !transactions.some(t => t.id > 0) || !!job?.is_closed}
                                             onClick={() => handleUndoClick()}
                                         >
                                             {undoing
@@ -731,8 +788,8 @@ export const JobDetailsModal = ({ jobId, onClose, onJobChanged }: Props) => {
             pdfUrl={pdfUrl}
             title={pdfTitle}
             filename={`${pdfTitle}.pdf`}
-            printCopies={pendingPrintRef.current?.type !== "receipt" ? printCopies : undefined}
-            onPrintCopiesChange={pendingPrintRef.current?.type !== "receipt" ? handleCopiesChange : undefined}
+            printCopies={pendingPrintRef.current?.type !== "receipt" && pendingPrintRef.current?.type !== "info" ? printCopies : undefined}
+            onPrintCopiesChange={pendingPrintRef.current?.type !== "receipt" && pendingPrintRef.current?.type !== "info" ? handleCopiesChange : undefined}
         />
         </>
     );

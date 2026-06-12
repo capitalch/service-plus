@@ -21,7 +21,7 @@ import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
-import { selectSchema } from "@/store/context-slice";
+import { selectSchema, selectDefaultGstRate, selectDefaultHsnForSparePart } from "@/store/context-slice";
 import type { PartType } from "@/features/client/types/part";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -52,6 +52,7 @@ const schema = z.object({
     model:            z.string().optional(),
     uom:              z.string().min(1, "UOM is required").max(20),
     cost_price:       z.coerce.number().nonnegative().optional().or(z.literal("")).transform(v => v === "" ? undefined : Number(v)),
+    selling_price:    z.coerce.number().nonnegative().optional().or(z.literal("")).transform(v => v === "" ? undefined : Number(v)),
     mrp:              z.coerce.number().nonnegative().optional().or(z.literal("")).transform(v => v === "" ? undefined : Number(v)),
     hsn_code:         z.string().optional().refine(v => !v || (/^\d+$/.test(v) && [4,6,8].includes(v.length)), { message: "HSN must be 4, 6, or 8 digits" }),
     gst_rate:         z.coerce.number().min(0).lt(60, "GST rate must be less than 60%").optional().or(z.literal("")).transform(v => v === "" ? undefined : Number(v)),
@@ -77,8 +78,9 @@ function partDefaultValues(part: PartType): FormType {
     return {
         brand_id:         part.brand_id,
         category:         part.category ?? "",
-        cost_price:       part.cost_price != null ? (Number(part.cost_price).toFixed(2) as any) : "",
-        gst_rate:         part.gst_rate  != null ? (Number(part.gst_rate).toFixed(2)  as any) : "",
+        cost_price:       part.cost_price     != null ? (Number(part.cost_price).toFixed(2)     as any) : "",
+        selling_price:    part.selling_price  != null ? (Number(part.selling_price).toFixed(2)  as any) : "",
+        gst_rate:         part.gst_rate       != null ? (Number(part.gst_rate).toFixed(2)       as any) : "",
         hsn_code:         part.hsn_code  ?? "",
         model:            part.model     ?? "",
         mrp:              part.mrp       != null ? (Number(part.mrp).toFixed(2)       as any) : "",
@@ -93,6 +95,7 @@ const addDefaultValues: FormType = {
     brand_id:         "" as any,
     category:         "",
     cost_price:       "" as any,
+    selling_price:    "" as any,
     gst_rate:         "" as any,
     hsn_code:         "",
     model:            "",
@@ -113,9 +116,12 @@ export const PartDialog = (props: PartDialogProps) => {
     const [checkingCode, setCheckingCode] = useState(false);
     const [codeTaken,    setCodeTaken]    = useState<boolean | null>(null);
     const [submitting,   setSubmitting]   = useState(false);
+    const [markupPct, setMarkupPct] = useState(0);
 
-    const dbName  = useAppSelector(selectDbName);
-    const schema_ = useAppSelector(selectSchema);
+    const dbName               = useAppSelector(selectDbName);
+    const schema_              = useAppSelector(selectSchema);
+    const defaultGstRate       = useAppSelector(selectDefaultGstRate);
+    const defaultHsnSparePart  = useAppSelector(selectDefaultHsnForSparePart);
 
     const form = useForm<FormType>({
         defaultValues: isEdit ? partDefaultValues(part!) : addDefaultValues,
@@ -124,9 +130,26 @@ export const PartDialog = (props: PartDialogProps) => {
     });
 
     const { formState: { errors } } = form;
-    const partCodeValue = useWatch({ control: form.control, name: "part_code" });
-    const brandIdValue  = useWatch({ control: form.control, name: "brand_id" });
-    const debouncedCode = useDebounce(partCodeValue, 1200);
+    const partCodeValue  = useWatch({ control: form.control, name: "part_code" });
+    const brandIdValue   = useWatch({ control: form.control, name: "brand_id" });
+    const costPriceValue    = useWatch({ control: form.control, name: "cost_price" });
+    const sellingPriceValue = useWatch({ control: form.control, name: "selling_price" });
+    const gstRateValue      = useWatch({ control: form.control, name: "gst_rate" });
+
+    // Reference values shown next to labels — derived purely from source fields
+    const refSp = (() => {
+        const cost = Number(costPriceValue);
+        if (!(cost > 0) || markupPct <= 0) return null;
+        return (Math.round(cost * (1 + markupPct / 100) * 100) / 100).toFixed(2);
+    })();
+
+    const refMrp = (() => {
+        const sp  = Number(sellingPriceValue);
+        const gst = Number(gstRateValue);
+        if (!(sp > 0)) return null;
+        return (Math.round(sp * (1 + (gst > 0 ? gst : 0) / 100) * 100) / 100).toFixed(2);
+    })();
+    const debouncedCode  = useDebounce(partCodeValue, 1200);
 
     // ── Reset / populate on open ───────────────────────────────────────────────
     useEffect(() => {
@@ -153,6 +176,30 @@ export const PartDialog = (props: PartDialogProps) => {
             const prefillCode = props.mode === "add" ? props.prefillCode : undefined;
             if (prefillCode) form.setValue("part_code", prefillCode.toUpperCase());
             form.setValue("brand_id", defaultBrandId);
+            if (defaultHsnSparePart) form.setValue("hsn_code", defaultHsnSparePart);
+            if (defaultGstRate > 0)  form.setValue("gst_rate", defaultGstRate as any);
+        }
+
+        // Fetch markup percent for selling_price auto-derivation
+        if (dbName && schema_) {
+            apolloClient
+                .query<{ genericQuery: { setting_value: unknown }[] | null }>({
+                    fetchPolicy: "cache-first",
+                    query: GRAPHQL_MAP.genericQuery,
+                    variables: {
+                        db_name: dbName,
+                        schema:  schema_,
+                        value: graphQlUtils.buildGenericQueryValue({
+                            sqlId:   SQL_MAP.GET_APP_SETTING_BY_KEY,
+                            sqlArgs: { setting_key: "markup_percent_over_cost" },
+                        }),
+                    },
+                })
+                .then(res => {
+                    const raw = res.data?.genericQuery?.[0]?.setting_value;
+                    setMarkupPct(raw != null ? Number(raw) : 0);
+                })
+                .catch(() => setMarkupPct(0));
         }
     }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -217,8 +264,9 @@ export const PartDialog = (props: PartDialogProps) => {
                             category:         data.category || null,
                             model:            data.model || null,
                             uom:              data.uom,
-                            cost_price:       data.cost_price ?? null,
-                            mrp:              data.mrp ?? null,
+                            cost_price:       data.cost_price    ?? null,
+                            selling_price:    data.selling_price ?? null,
+                            mrp:              data.mrp           ?? null,
                             hsn_code:         data.hsn_code || null,
                             gst_rate:         data.gst_rate ?? null,
                         },
@@ -245,6 +293,7 @@ export const PartDialog = (props: PartDialogProps) => {
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent
                 onCloseAutoFocus={(e) => e.preventDefault()}
+                onInteractOutside={(e) => e.preventDefault()}
                 aria-describedby={undefined}
                 className="sm:max-w-2xl max-h-[90vh] overflow-y-auto"
             >
@@ -349,12 +398,23 @@ export const PartDialog = (props: PartDialogProps) => {
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-3 gap-4">
                         {/* Cost Price */}
                         <div className="flex flex-col gap-1.5">
                             <Label htmlFor="pd_cost">Cost Price</Label>
                             <Input
-                                {...form.register("cost_price")}
+                                {...form.register("cost_price", {
+                                    onChange: e => {
+                                        const cost = Number(e.target.value);
+                                        if (markupPct > 0 && cost > 0 && !isNaN(cost)) {
+                                            const sp = Math.round(cost * (1 + markupPct / 100) * 100) / 100;
+                                            form.setValue("selling_price", sp.toFixed(2) as any);
+                                            const gst = Number(form.getValues("gst_rate"));
+                                            const mrp = (Math.round(sp * (1 + (gst > 0 ? gst : 0) / 100) * 100) / 100).toFixed(2);
+                                            form.setValue("mrp", mrp as any);
+                                        }
+                                    },
+                                })}
                                 className="text-right"
                                 id="pd_cost"
                                 inputMode="decimal"
@@ -366,11 +426,59 @@ export const PartDialog = (props: PartDialogProps) => {
                             <FieldError message={errors.cost_price?.message} />
                         </div>
 
+                        {/* Selling Price */}
+                        <div className="flex flex-col gap-1.5">
+                            <Label htmlFor="pd_sp" className="flex items-center gap-1.5">
+                                Selling Price
+                                {refSp && (
+                                    <span className="text-[10px] font-semibold text-teal-600 dark:text-teal-400">
+                                        = {refSp}
+                                    </span>
+                                )}
+                            </Label>
+                            <Input
+                                {...form.register("selling_price", {
+                                    onChange: e => {
+                                        const sp = Number(e.target.value);
+                                        const gst = Number(form.getValues("gst_rate"));
+                                        if (sp > 0 && !isNaN(sp)) {
+                                            const mrp = (Math.round(sp * (1 + (gst > 0 ? gst : 0) / 100) * 100) / 100).toFixed(2);
+                                            form.setValue("mrp", mrp as any);
+                                        }
+                                    },
+                                })}
+                                className="text-right"
+                                id="pd_sp"
+                                inputMode="decimal"
+                                placeholder="0.00"
+                                type="text"
+                                onFocus={e => e.target.select()}
+                                onBlur={e => { const v = parseFloat(e.target.value); if (!isNaN(v)) e.target.value = v.toFixed(2); }}
+                            />
+                            <FieldError message={errors.selling_price?.message} />
+                        </div>
+
                         {/* MRP */}
                         <div className="flex flex-col gap-1.5">
-                            <Label htmlFor="pd_mrp">MRP</Label>
+                            <Label htmlFor="pd_mrp" className="flex items-center gap-1.5">
+                                MRP
+                                {refMrp && (
+                                    <span className="text-[10px] font-semibold text-amber-600 dark:text-amber-400">
+                                        = {refMrp}
+                                    </span>
+                                )}
+                            </Label>
                             <Input
-                                {...form.register("mrp")}
+                                {...form.register("mrp", {
+                                    onChange: e => {
+                                        const mrp = Number(e.target.value);
+                                        const gst = Number(form.getValues("gst_rate"));
+                                        if (mrp > 0 && !isNaN(mrp)) {
+                                            const sp = (Math.round(mrp / (1 + (gst > 0 ? gst : 0) / 100) * 100) / 100).toFixed(2);
+                                            form.setValue("selling_price", sp as any);
+                                        }
+                                    },
+                                })}
                                 className="text-right"
                                 id="pd_mrp"
                                 inputMode="decimal"
@@ -403,7 +511,16 @@ export const PartDialog = (props: PartDialogProps) => {
                         <div className="flex flex-col gap-1.5">
                             <Label htmlFor="pd_gst">GST Rate (%)</Label>
                             <Input
-                                {...form.register("gst_rate")}
+                                {...form.register("gst_rate", {
+                                    onChange: e => {
+                                        const gst = Number(e.target.value);
+                                        const sp  = Number(form.getValues("selling_price"));
+                                        if (sp > 0 && !isNaN(sp)) {
+                                            const mrp = (Math.round(sp * (1 + (gst > 0 ? gst : 0) / 100) * 100) / 100).toFixed(2);
+                                            form.setValue("mrp", mrp as any);
+                                        }
+                                    },
+                                })}
                                 className="text-right"
                                 id="pd_gst"
                                 inputMode="decimal"

@@ -34,7 +34,7 @@ import {
 } from "./deliver-job-schema";
 import { fmtCurrency, isJobInvoiceable } from "./deliver-job-helpers";
 import { MESSAGES } from "@/constants/messages";
-import { buildInvoicePdf, buildPackedInvoicePdf, buildReceiptPdf } from "./deliver-job-pdf";
+import { buildInvoicePdf, buildPackedInvoicePdf, buildReceiptPdf, buildDeliveryNotePdf } from "./deliver-job-pdf";
 import { useAppSelector } from "@/store/hooks";
 import { selectNoOfJobInvoicesPerPrint } from "@/store/context-slice";
 import { DeliveryModalJobsTable } from "./delivery-modal-jobs-table";
@@ -218,8 +218,8 @@ export function DeliveryModal({
     const [jobDetails,        setJobDetails]        = useState<JobDeliveryFullDetail[]>(initialJobs);
     const [creatingInvoices,  setCreatingInvoices]  = useState(false);
     const [delivering,        setDelivering]        = useState(false);
-    const [pdfUrl,            setPdfUrl]            = useState<string | null>(null);
-    const [showPdf,           setShowPdf]           = useState(false);
+    const [pdfUrl,                    setPdfUrl]                    = useState<string | null>(null);
+    const [showInvoiceReceipt,        setShowInvoiceReceipt]        = useState(false);
     const [pdfTitle,          setPdfTitle]          = useState("");
     const [pdfFilename,       setPdfFilename]       = useState("");
     const [loadingPdfJobId,      setLoadingPdfJobId]      = useState<number | null>(null);
@@ -270,7 +270,7 @@ export function DeliveryModal({
     const hasEligiblePending  = jobDetails.some(j => isJobInvoiceable(j.job_type_code, j.job_status_code) && !j.invoice_id && Number(j.amount ?? 0) > 0);
     const hasReceiptPending   = jobDetails.some(j => Number(j.amount ?? 0) > 0 && (j.payments ?? []).reduce((s, p) => s + Number(p.amount), 0) < Number(j.amount ?? 0));
     const canCreateInvoices   = (hasEligiblePending || hasReceiptPending) && !creatingInvoices;
-    const canShowPdf          = hasAnyInvoice;
+    const canShowInvoiceReceipt = hasAnyInvoice;
     const canDeliver          = form.formState.isValid && !delivering && totalDue === 0;
 
     // ── Reload job details ────────────────────────────────────────────────────
@@ -452,9 +452,9 @@ export function DeliveryModal({
         }
     }
 
-    // ── Show PDF ──────────────────────────────────────────────────────────────
+    // ── Invoice + Receipt ─────────────────────────────────────────────────────
 
-    async function handleShowPdf() {
+    async function handleInvoiceReceipt() {
         if (!dbName || !schema) return;
         const items: Parameters<typeof buildPackedInvoicePdf>[0] = [];
         try {
@@ -502,7 +502,43 @@ export function DeliveryModal({
         setPdfUrl(URL.createObjectURL(doc.output("blob")));
         setPdfTitle(`Invoice${items.length > 1 ? "s" : ""} — ${jobDetails.map(j => j.job_no).join(", ")}`);
         setPdfFilename(`invoice-${jobDetails.map(j => j.job_no).join("-")}.pdf`);
-        setShowPdf(true);
+        setShowInvoiceReceipt(true);
+    }
+
+    // ── Delivery Note PDF ─────────────────────────────────────────────────────
+
+    function handleDeliveryNote() {
+        const { delivery_date, delivery_manner, remarks } = form.getValues();
+        const divisionId = jobDetails.length === 1 ? jobDetails[0].division_id : null;
+        const division   = divisionId != null ? (availableDivisions.find(d => d.id === divisionId) ?? null) : null;
+        const jobs = jobDetails.map(j => ({
+            job_no:                  j.job_no,
+            alternate_job_no:        j.alternate_job_no,
+            job_date:                j.job_date,
+            customer_name:           j.customer_name,
+            mobile:                  j.mobile,
+            customer_address_line1:  j.customer_address_line1,
+            customer_address_line2:  j.customer_address_line2,
+            customer_landmark:       j.customer_landmark,
+            customer_city:           j.customer_city,
+            customer_postal_code:    j.customer_postal_code,
+            customer_state:          j.customer_state,
+            device_details:          j.device_details,
+            technician_name:         j.technician_name,
+            amount:                  j.amount,
+            invoice_no:              j.invoice_no ?? null,
+            receipt_nos:             (j.payments ?? []).map(p => p.receipt_no).filter((r): r is string => !!r),
+            delivery_ok:             null as boolean | null,
+            delivery_date,
+            delivery_manner,
+            remarks:                 remarks ?? null,
+        }));
+        const doc = buildDeliveryNotePdf(jobs, division, branchName);
+        if (pdfUrl) URL.revokeObjectURL(pdfUrl);
+        setPdfUrl(URL.createObjectURL(doc.output("blob")));
+        setPdfTitle(`Delivery Note — ${jobDetails.map(j => j.job_no).join(", ")}`);
+        setPdfFilename(`delivery-note-${jobDetails.map(j => j.job_no).join("-")}.pdf`);
+        setShowInvoiceReceipt(true);
     }
 
     // ── Per-job Invoice PDF ────────────────────────────────────────────────────
@@ -549,7 +585,7 @@ export function DeliveryModal({
             setPdfUrl(URL.createObjectURL(doc.output("blob")));
             setPdfTitle(`Invoice ${invoice.invoice_no} — ${job.customer_name}`);
             setPdfFilename(`invoice-${job.job_no}.pdf`);
-            setShowPdf(true);
+            setShowInvoiceReceipt(true);
         } catch {
             toast.error("Failed to generate invoice PDF.");
         } finally {
@@ -566,7 +602,7 @@ export function DeliveryModal({
         setPdfUrl(URL.createObjectURL(doc.output("blob")));
         setPdfTitle(`Receipt — ${job.job_no} / ${job.customer_name}`);
         setPdfFilename(`receipt-${job.job_no}.pdf`);
-        setShowPdf(true);
+        setShowInvoiceReceipt(true);
     }
 
     // ── Add Receipt ───────────────────────────────────────────────────────────
@@ -857,12 +893,20 @@ export function DeliveryModal({
                                 </Button>
                                 <Button
                                     className="h-10 gap-2 px-5 text-base disabled:opacity-40 disabled:cursor-not-allowed"
-                                    disabled={!canShowPdf}
+                                    disabled={!canShowInvoiceReceipt}
                                     variant="outline"
-                                    onClick={() => void handleShowPdf()}
+                                    onClick={() => void handleInvoiceReceipt()}
                                 >
                                     <FileText className="h-4 w-4" />
-                                    Show PDF
+                                    Invoice + Receipt
+                                </Button>
+                                <Button
+                                    className="h-10 gap-2 px-5 text-base"
+                                    variant="outline"
+                                    onClick={handleDeliveryNote}
+                                >
+                                    <Truck className="h-4 w-4" />
+                                    Delivery Note
                                 </Button>
                             </div>
 
@@ -911,8 +955,8 @@ export function DeliveryModal({
 
             {/* PDF preview */}
             <PdfPreviewModal
-                isOpen={showPdf}
-                onClose={() => setShowPdf(false)}
+                isOpen={showInvoiceReceipt}
+                onClose={() => setShowInvoiceReceipt(false)}
                 pdfUrl={pdfUrl}
                 title={pdfTitle}
                 filename={pdfFilename}

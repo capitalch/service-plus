@@ -69,6 +69,7 @@ export function NewBatchJobForm({
                 batch_date:        first.job_date,
                 customer_id:       first.customer_contact_id,
                 customer_name:     first.customer_name ?? first.mobile,
+                division_id:       first.division_id ?? undefined,
                 receive_manner_id: first.job_receive_manner_id,
                 rows: editRows.map(r => ({
                     id:                       r.id,
@@ -87,6 +88,7 @@ export function NewBatchJobForm({
                 })),
             });
             setCustomerMobile(first.mobile ?? "");
+            setCustomerAddress(first.customer_address_line1 ?? "");
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [editBatchNo, editRows]);

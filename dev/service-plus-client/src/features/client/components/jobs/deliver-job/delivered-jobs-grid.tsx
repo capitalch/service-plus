@@ -1,12 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
     ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon,
-    Eye, Paperclip, RefreshCw, Search, Undo2, X,
+    Eye, MoreVertical, Paperclip, Printer, RefreshCw, Search, Truck, Undo2, X,
 } from "lucide-react";
 import { motion } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
 import { Input }  from "@/components/ui/input";
+import {
+    DropdownMenu, DropdownMenuContent, DropdownMenuItem,
+    DropdownMenuSeparator, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { type DivisionContextType, isGstDivision } from "@/features/client/types/division";
 import { PAGE_SIZE, DEBOUNCE_MS, thClass, tdClass, fmtCurrency } from "./deliver-job-helpers";
 
@@ -63,17 +67,20 @@ type Props = {
     setPage:            (v: number | ((p: number) => number)) => void;
     onSearch:           (v: string) => void;
     onRefresh:          () => void;
-    onViewJob:          (id: number) => void;
-    onOpenAttach:       (id: number, jobNo: string) => void;
-    onUndoDelivery:     (row: DeliveredJobRow) => void;
+    onViewJob:                (id: number) => void;
+    onOpenAttach:             (id: number, jobNo: string) => void;
+    postDataToAccounts:       boolean;
+    onUndoDelivery:           (row: DeliveredJobRow) => void;
+    onPrintInvoiceReceipts:   (row: DeliveredJobRow) => void;
+    onDeliveryNote:           (row: DeliveredJobRow) => void;
 };
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export function DeliveredJobsGrid({
     rows, loading, total, page, search,
-    branchId, availableDivisions, setPage,
-    onSearch, onRefresh, onViewJob, onOpenAttach, onUndoDelivery,
+    branchId, availableDivisions, setPage, postDataToAccounts,
+    onSearch, onRefresh, onViewJob, onOpenAttach, onUndoDelivery, onPrintInvoiceReceipts, onDeliveryNote,
 }: Props) {
     const scrollRef  = useRef<HTMLDivElement>(null);
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -170,14 +177,13 @@ export function DeliveredJobsGrid({
                             <thead className="sticky top-0 z-10">
                                 <tr>
                                     <th className={thClass}>#</th>
-                                    <th className={thClass}>Date</th>
+                                    <th className={thClass}>Delivered</th>
                                     <th className={thClass}>Job No</th>
                                     <th className={thClass}>Customer</th>
                                     <th className={thClass}>Mobile</th>
                                     <th className={`${thClass} w-40`}>Device Details</th>
                                     <th className={thClass}>Status</th>
                                     <th className={thClass}>Technician</th>
-                                    <th className={thClass}>Delivery Date</th>
                                     <th className={`${thClass} text-right`}>Invoice Total</th>
                                     <th className={`${thClass} sticky right-0 z-20 !bg-(--cl-surface-2)`}>Actions</th>
                                 </tr>
@@ -196,7 +202,7 @@ export function DeliveredJobsGrid({
                                         {/* Date + division badge + GST tag */}
                                         <td className={`${tdClass} whitespace-nowrap`}>
                                             <div className="flex flex-col gap-0.5">
-                                                <span>{row.job_date}</span>
+                                                <span>{row.delivery_date ?? "—"}</span>
                                                 {row.division_id && (() => {
                                                     const dv = availableDivisions.find(d => d.id === row.division_id);
                                                     if (!dv) return null;
@@ -221,6 +227,7 @@ export function DeliveredJobsGrid({
                                                 <div className="font-mono font-semibold text-(--cl-accent)">
                                                     #{row.job_no}
                                                 </div>
+                                                <span className="text-[10px] text-(--cl-text-muted)">Job: {row.job_date}</span>
                                                 {row.alternate_job_no && (
                                                     <span className="text-[10px] text-(--cl-text-muted)">Alt: {row.alternate_job_no}</span>
                                                 )}
@@ -270,36 +277,52 @@ export function DeliveredJobsGrid({
                                                         {row.job_type_name}
                                                     </span>
                                                 )}
+                                                {postDataToAccounts && (
+                                                    <span className={`text-[10px] font-semibold px-2 ${row.invoice_no && row.invoice_is_posted ? "text-emerald-600 dark:text-emerald-400" : "text-rose-800 dark:text-rose-400"}`}>
+                                                        {row.invoice_no && row.invoice_is_posted ? "Posted" : "Not Posted"}
+                                                    </span>
+                                                )}
                                             </div>
                                         </td>
                                         <td className={tdClass}>{row.technician_name ?? "—"}</td>
-                                        <td className={`${tdClass} whitespace-nowrap`}>{row.delivery_date ?? "—"}</td>
                                         <td className={`${tdClass} text-right tabular-nums`}>{fmtCurrency(row.invoice_total)}</td>
 
                                         {/* Actions */}
                                         <td className={`${tdClass} sticky right-0 z-10 bg-(--cl-surface) group-hover:bg-(--cl-surface-2)`}>
-                                            <div className="flex flex-col items-start gap-1">
-                                                <Button
-                                                    className="h-7 gap-1 px-2 text-xs font-semibold text-sky-700 border border-sky-300 hover:bg-sky-50 dark:text-sky-400 dark:border-sky-700 dark:hover:bg-sky-950/30"
-                                                    size="sm"
-                                                    title="View job details"
-                                                    variant="outline"
-                                                    onClick={() => onViewJob(row.id)}
-                                                >
-                                                    <Eye className="h-3 w-3" />
-                                                    View
-                                                </Button>
-                                                <Button
-                                                    className="h-7 gap-1 px-2 text-xs font-semibold text-red-600 border border-red-300 hover:bg-red-50 dark:text-red-400 dark:border-red-700 dark:hover:bg-red-950/30"
-                                                    size="sm"
-                                                    title="Undo delivery"
-                                                    variant="outline"
-                                                    onClick={() => onUndoDelivery(row)}
-                                                >
-                                                    <Undo2 className="h-3 w-3" />
-                                                    Undo
-                                                </Button>
-                                            </div>
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button
+                                                        className="h-8 w-8 p-0 text-(--cl-text-muted) hover:text-(--cl-text) hover:bg-(--cl-surface-2)"
+                                                        size="icon"
+                                                        title="Actions"
+                                                        variant="ghost"
+                                                    >
+                                                        <MoreVertical className="h-4 w-4" />
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end" className="w-48 text-xs">
+                                                    <DropdownMenuItem className="gap-2 text-xs text-sky-700 dark:text-sky-400 cursor-pointer" onClick={() => onViewJob(row.id)}>
+                                                        <Eye className="h-3.5 w-3.5" /> View
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem className="gap-2 text-xs text-teal-700 dark:text-teal-400 cursor-pointer" onClick={() => onDeliveryNote(row)}>
+                                                        <Truck className="h-3.5 w-3.5" /> Delivery Note
+                                                    </DropdownMenuItem>
+                                                    {row.invoice_no && (
+                                                        <DropdownMenuItem className="gap-2 text-xs text-indigo-700 dark:text-indigo-400 cursor-pointer" onClick={() => onPrintInvoiceReceipts(row)}>
+                                                            <Printer className="h-3.5 w-3.5" /> Invoice + Receipts
+                                                        </DropdownMenuItem>
+                                                    )}
+                                                    <DropdownMenuSeparator />
+                                                    <DropdownMenuItem
+                                                        className="gap-2 text-xs text-red-600 dark:text-red-400 cursor-pointer disabled:opacity-40 disabled:pointer-events-none"
+                                                        disabled={!!row.invoice_is_posted}
+                                                        onClick={() => onUndoDelivery(row)}
+                                                        title={row.invoice_is_posted ? "Cannot undo: invoice is already posted" : undefined}
+                                                    >
+                                                        <Undo2 className="h-3.5 w-3.5" /> Undo Delivery
+                                                    </DropdownMenuItem>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
                                         </td>
                                     </motion.tr>
                                 ))}

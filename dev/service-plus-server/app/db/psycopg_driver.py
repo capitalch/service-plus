@@ -529,14 +529,18 @@ def get_update_sql(x_data: dict, table_name: str) -> tuple[pgsql.Composed, tuple
     """
     data_copy = x_data.copy()
     record_id = data_copy.pop("id")
+    set_updated_at = data_copy.pop("to_set_updated_at", False)
 
     logger.debug("Building UPDATE SQL for table '%s'", table_name)
-    assignments = pgsql.SQL(", ").join(
+    assignments = list(
         pgsql.SQL("{} = %s").format(pgsql.Identifier(col)) for col in data_copy
     )
+    if set_updated_at:
+        assignments.append(pgsql.SQL("updated_at = now()"))
+
     sql = pgsql.SQL("UPDATE {} SET {} WHERE id = %s RETURNING id").format(
         pgsql.Identifier(table_name),
-        assignments,
+        pgsql.SQL(", ").join(assignments),
     )
     return (sql, tuple(data_copy.values()) + (record_id,))
 

@@ -1,10 +1,11 @@
-import { forwardRef, useEffect, useRef, useState } from "react";
+import { forwardRef, useCallback, useEffect, useRef, useState } from "react";
 import { ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, Loader2, Pencil, Plus, Search, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
@@ -105,9 +106,19 @@ export const PartCodeInput = forwardRef<HTMLInputElement, PartCodeInputProps>(({
     const [editPartOpen, setEditPartOpen] = useState(false);
     const [editPartData, setEditPartData] = useState<PartRow | null>(null);
 
-    const partDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const inputRef = useRef<HTMLInputElement | null>(null);
-    const skipBlurRef = useRef(false);
+    // Inline dropdown state
+    const [inlineResults, setInlineResults]   = useState<PartRow[]>([]);
+    const [inlineLoading, setInlineLoading]   = useState(false);
+    const [inlineOpen,    setInlineOpen]      = useState(false);
+    const [inlineWidth,   setInlineWidth]     = useState(0);
+
+    const partDebounceRef       = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const inlineDebounceRef     = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const inputRef              = useRef<HTMLInputElement | null>(null);
+    const anchorRef             = useRef<HTMLDivElement>(null);
+    const skipBlurRef           = useRef(false);
+    const justSelectedRef       = useRef(false);
+    const scrollbarMouseDownRef = useRef(false);
 
     // Part search (debounced 1200ms)
     useEffect(() => {
@@ -161,6 +172,59 @@ export const PartCodeInput = forwardRef<HTMLInputElement, PartCodeInputProps>(({
         }, 1200);
     }, [partCodeQuery, partKeywordQuery, partSearchMode, partPickOpen, partPage, dbName, schema]);
 
+    // Inline dropdown: debounced search as user types
+    const doInlineSearch = useCallback(async (q: string) => {
+        if (!dbName || !schema) return;
+        setInlineLoading(true);
+        try {
+            const res = await apolloClient.query<GenericQueryData<PartRow>>({
+                fetchPolicy: "network-only",
+                query: GRAPHQL_MAP.genericQuery,
+                variables: {
+                    db_name: dbName,
+                    schema,
+                    value: graphQlUtils.buildGenericQueryValue({
+                        sqlId: SQL_MAP.GET_PARTS_BY_CODE_PREFIX,
+                        sqlArgs: { search: q, limit: 12, offset: 0 },
+                    }),
+                },
+            });
+            const rows = res.data?.genericQuery ?? [];
+            setInlineResults(rows);
+            if (document.activeElement === inputRef.current) {
+                setInlineOpen(rows.length > 0);
+            }
+        } catch {
+            // silent
+        } finally {
+            setInlineLoading(false);
+        }
+    }, [dbName, schema]);
+
+    useEffect(() => {
+        if (!dbName || !schema) return;
+        if (inlineDebounceRef.current) clearTimeout(inlineDebounceRef.current);
+
+        const q = partCode.trim();
+        if (!q || partId) {
+            setInlineResults([]);
+            setInlineOpen(false);
+            return;
+        }
+        if (justSelectedRef.current) {
+            justSelectedRef.current = false;
+            return;
+        }
+        inlineDebounceRef.current = setTimeout(() => void doInlineSearch(q), 800);
+        return () => { if (inlineDebounceRef.current) clearTimeout(inlineDebounceRef.current); };
+    }, [partCode, partId, dbName, schema, doInlineSearch]);
+
+    useEffect(() => {
+        if (inlineOpen && anchorRef.current) {
+            setInlineWidth(anchorRef.current.getBoundingClientRect().width);
+        }
+    }, [inlineOpen]);
+
     const focusInput = () => {
         setTimeout(() => {
             inputRef.current?.focus();
@@ -169,7 +233,10 @@ export const PartCodeInput = forwardRef<HTMLInputElement, PartCodeInputProps>(({
     };
 
     const handlePartChosen = (part: PartRow) => {
+        justSelectedRef.current = true;
         onSelect(part);
+        setInlineOpen(false);
+        setInlineResults([]);
         setPartPickOpen(false);
         setPartCodeQuery("");
         setPartKeywordQuery("");
@@ -264,88 +331,156 @@ export const PartCodeInput = forwardRef<HTMLInputElement, PartCodeInputProps>(({
     return (
         <>
             <div className={`flex flex-col gap-0.5 px-1.5 py-1${className ? ` ${className}` : ""}`}>
-                <div className="relative group/part">
-                    <button
-                        type="button"
-                        tabIndex={-1}
-                        onMouseDown={e => { e.preventDefault(); skipBlurRef.current = true; }}
-                        onClick={openPartPick}
-                        className="absolute left-1.5 top-1/2 -translate-y-1/2 rounded-md p-1 bg-(--cl-accent,#007acc) text-white hover:bg-(--cl-accent,#007acc)/10 hover:text-(--cl-accent,#007acc) shadow-sm transition-all focus:ring-2 focus:ring-(--cl-accent,#007acc)/20 cursor-pointer z-10"
-                        title="Browse all parts"
-                    >
-                        <Search className="h-3.5 w-3.5" />
-                    </button>
-                    <Input
-                        ref={el => {
-                            inputRef.current = el;
-                            if (typeof ref === "function") ref(el);
-                            else if (ref) (ref as React.MutableRefObject<HTMLInputElement | null>).current = el;
-                        }}
-                        className={cn(
-                            inputCls,
-                            "font-mono w-full pl-9 pr-14 transition-all text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500",
-                            "hover:border-(--cl-border) focus:border-(--cl-accent) focus:bg-(--cl-surface)",
-                            partId
-                                ? "bg-(--cl-accent,#007acc)/5 border-(--cl-accent,#007acc)/20 !text-(--cl-accent,#007acc) font-bold"
-                                : "border-red-400 focus:border-red-500 ring-red-500/10 bg-white dark:bg-zinc-800"
-                        )}
-                        placeholder="Part Code"
-                        value={partCode}
-                        onChange={e => onChange(e.target.value)}
-                        onKeyDown={e => {
-                            if (e.key === 'Enter') void handleTypedPartSearch(partCode);
-                            if (e.key === 'Tab') {
+                <Popover open={inlineOpen && inlineResults.length > 0} onOpenChange={setInlineOpen}>
+                    <PopoverAnchor asChild>
+                        <div ref={anchorRef} className="relative group/part">
+                            <button
+                                type="button"
+                                tabIndex={-1}
+                                onMouseDown={e => { e.preventDefault(); skipBlurRef.current = true; }}
+                                onClick={openPartPick}
+                                className="absolute left-1.5 top-1/2 -translate-y-1/2 rounded-md p-1 bg-(--cl-accent,#007acc) text-white hover:bg-(--cl-accent,#007acc)/10 hover:text-(--cl-accent,#007acc) shadow-sm transition-all focus:ring-2 focus:ring-(--cl-accent,#007acc)/20 cursor-pointer z-10"
+                                title="Browse all parts"
+                            >
+                                {inlineLoading
+                                    ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                    : <Search className="h-3.5 w-3.5" />}
+                            </button>
+                            <Input
+                                ref={el => {
+                                    inputRef.current = el;
+                                    if (typeof ref === "function") ref(el);
+                                    else if (ref) (ref as React.MutableRefObject<HTMLInputElement | null>).current = el;
+                                }}
+                                className={cn(
+                                    inputCls,
+                                    "font-mono w-full pl-9 pr-14 transition-all text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500",
+                                    "hover:border-(--cl-border) focus:border-(--cl-accent) focus:bg-(--cl-surface)",
+                                    partId
+                                        ? "bg-(--cl-accent,#007acc)/5 border-(--cl-accent,#007acc)/20 !text-(--cl-accent,#007acc) font-bold"
+                                        : "border-red-400 focus:border-red-500 ring-red-500/10 bg-white dark:bg-zinc-800"
+                                )}
+                                placeholder="Part Code"
+                                value={partCode}
+                                onChange={e => onChange(e.target.value)}
+                                onFocus={() => {
+                                    if (inlineResults.length > 0) setInlineOpen(true);
+                                }}
+                                onKeyDown={e => {
+                                    if (e.key === "Escape" && inlineOpen) { setInlineOpen(false); e.stopPropagation(); return; }
+                                    if (e.key === 'Enter') void handleTypedPartSearch(partCode);
+                                    if (e.key === 'Tab') {
+                                        e.preventDefault();
+                                        void handleTypedPartSearch(partCode, true);
+                                    }
+                                }}
+                                onBlur={() => {
+                                    if (scrollbarMouseDownRef.current) return;
+                                    if (skipBlurRef.current) { skipBlurRef.current = false; return; }
+                                    setTimeout(() => setInlineOpen(false), 150);
+                                    if (partCode.trim()) void handleTypedPartSearch(partCode);
+                                }}
+                            />
+                            <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
+                                {partCode && (
+                                    <button
+                                        type="button"
+                                        tabIndex={-1}
+                                        onMouseDown={e => e.preventDefault()}
+                                        onClick={onClear}
+                                        className="rounded-md p-1 hover:bg-red-500/10 text-red-500 transition-all cursor-pointer"
+                                        title="Clear search"
+                                    >
+                                        <X className="h-3.5 w-3.5" />
+                                    </button>
+                                )}
+                                {partId ? (
+                                    <button
+                                        type="button"
+                                        tabIndex={-1}
+                                        onMouseDown={e => e.preventDefault()}
+                                        onClick={() => void handleEditPart()}
+                                        className="rounded-md p-1 bg-amber-500 text-white hover:bg-amber-500/10 hover:text-amber-600 shadow-sm transition-all focus:ring-2 focus:ring-amber-500/20 cursor-pointer"
+                                        title="Edit part details"
+                                    >
+                                        <Pencil className="h-3.5 w-3.5" />
+                                    </button>
+                                ) : (
+                                    <button
+                                        type="button"
+                                        tabIndex={-1}
+                                        onMouseDown={e => e.preventDefault()}
+                                        onClick={() => {
+                                            if (partPickOpen) return;
+                                            setPrefillPartCode(partCode.trim());
+                                            setAddPartOpen(true);
+                                        }}
+                                        className="rounded-md p-1 bg-emerald-600 text-white hover:bg-emerald-600/10 hover:text-emerald-600 shadow-sm transition-all focus:ring-2 focus:ring-emerald-600/20 cursor-pointer"
+                                        title="Add as new part"
+                                    >
+                                        <Plus className="h-3.5 w-3.5" />
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    </PopoverAnchor>
+
+                    <PopoverContent
+                        className="p-0 max-h-80 overflow-y-auto"
+                        style={{ width: inlineWidth > 0 ? `${Math.max(inlineWidth, 320)}px` : undefined }}
+                        onOpenAutoFocus={e => e.preventDefault()}
+                        onMouseDown={e => {
+                            const el = e.currentTarget as HTMLElement;
+                            const isScrollbar = e.clientX > el.getBoundingClientRect().left + el.clientWidth;
+                            if (isScrollbar) {
+                                scrollbarMouseDownRef.current = true;
+                                document.addEventListener("mouseup", () => { scrollbarMouseDownRef.current = false; }, { once: true });
+                            } else {
                                 e.preventDefault();
-                                void handleTypedPartSearch(partCode, true);
                             }
                         }}
-                        onBlur={() => {
-                            if (skipBlurRef.current) { skipBlurRef.current = false; return; }
-                            if (partCode.trim()) void handleTypedPartSearch(partCode);
+                        onInteractOutside={e => {
+                            if (anchorRef.current?.contains(e.target as Node)) e.preventDefault();
                         }}
-                    />
-                    <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
-                        {partCode && (
+                        onEscapeKeyDown={e => e.stopPropagation()}
+                    >
+                        <div className="sticky top-0 z-10 flex items-center bg-(--cl-surface)/95 backdrop-blur-sm border-b border-(--cl-border) px-3 py-1 select-none">
+                            <span className="text-[10px] font-semibold uppercase tracking-wider text-(--cl-text-muted)">
+                                {inlineResults.length} part{inlineResults.length !== 1 ? "s" : ""} found
+                            </span>
+                        </div>
+                        {inlineResults.map(part => (
                             <button
+                                key={part.id}
                                 type="button"
-                                tabIndex={-1}
+                                className="flex w-full items-start gap-2.5 px-3 py-2 text-left transition-colors cursor-pointer hover:bg-blue-50/50 border-b border-(--cl-border) last:border-0"
                                 onMouseDown={e => e.preventDefault()}
-                                onClick={onClear}
-                                className="rounded-md p-1 hover:bg-red-500/10 text-red-500 transition-all cursor-pointer"
-                                title="Clear search"
+                                onClick={() => handlePartChosen(part)}
                             >
-                                <X className="h-3.5 w-3.5" />
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-baseline justify-between gap-2">
+                                        <span className="font-mono text-sm font-bold text-(--cl-text)">{part.part_code}</span>
+                                        <span className="shrink-0 text-xs text-(--cl-text-muted) truncate max-w-[140px]">{part.brand_name}</span>
+                                    </div>
+                                    <div className="text-xs text-(--cl-text) truncate">{part.part_name}</div>
+                                    {(part.part_description || part.category || part.model) && (
+                                        <div className="mt-0.5 text-[10px] text-(--cl-text-muted) truncate">
+                                            {[part.part_description, part.category, part.model].filter(Boolean).join(" · ")}
+                                        </div>
+                                    )}
+                                    <div className="mt-1 flex flex-wrap items-center gap-1">
+                                        {part.uom && <span className="bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded text-[10px]">{part.uom}</span>}
+                                        {part.hsn_code && <span className="bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded text-[10px]">HSN: {part.hsn_code}</span>}
+                                        {part.gst_rate != null && <span className="bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded text-[10px]">GST: {part.gst_rate}%</span>}
+                                        {part.cost_price != null && <span className="bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded text-[10px] text-blue-700">Cost: {formatNumber(part.cost_price)}</span>}
+                                        {part.mrp != null && <span className="bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded text-[10px] text-amber-700">MRP: {formatNumber(part.mrp)}</span>}
+                                    </div>
+                                </div>
                             </button>
-                        )}
-                        {partId ? (
-                            <button
-                                type="button"
-                                tabIndex={-1}
-                                onMouseDown={e => e.preventDefault()}
-                                onClick={() => void handleEditPart()}
-                                className="rounded-md p-1 bg-amber-500 text-white hover:bg-amber-500/10 hover:text-amber-600 shadow-sm transition-all focus:ring-2 focus:ring-amber-500/20 cursor-pointer"
-                                title="Edit part details"
-                            >
-                                <Pencil className="h-3.5 w-3.5" />
-                            </button>
-                        ) : (
-                            <button
-                                type="button"
-                                tabIndex={-1}
-                                onMouseDown={e => e.preventDefault()}
-                                onClick={() => {
-                                    if (partPickOpen) return;
-                                    setPrefillPartCode(partCode.trim());
-                                    setAddPartOpen(true);
-                                }}
-                                className="rounded-md p-1 bg-emerald-600 text-white hover:bg-emerald-600/10 hover:text-emerald-600 shadow-sm transition-all focus:ring-2 focus:ring-emerald-600/20 cursor-pointer"
-                                title="Add as new part"
-                            >
-                                <Plus className="h-3.5 w-3.5" />
-                            </button>
-                        )}
-                    </div>
-                </div>
+                        ))}
+                    </PopoverContent>
+                </Popover>
+
                 {showName && partId && partName && (
                     <div className="flex items-center px-1 overflow-hidden h-3 animate-in fade-in slide-in-from-top-1 duration-200">
                         <span className="truncate text-[10px] font-bold text-(--cl-accent,#007acc)/70 tracking-tight" title={partName}>{partName}</span>

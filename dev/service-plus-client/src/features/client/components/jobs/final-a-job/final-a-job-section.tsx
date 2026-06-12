@@ -604,7 +604,7 @@ export const FinalAJobSection = () => {
                     schema,
                     value: encodeObj({
                         tableName: "job",
-                        xData: { id: selectedJob.id, is_final: true, is_igst: forceIgst, division_id: selectedDivisionId, amount, to_show_parts_in_job_invoice: showPartsInInvoice, xDetails },
+                        xData: { id: selectedJob.id, is_final: true, is_igst: forceIgst, division_id: selectedDivisionId, amount, to_show_parts_in_job_invoice: showPartsInInvoice, to_set_updated_at: true, xDetails },
                     }),
                 },
             });
@@ -878,7 +878,7 @@ export const FinalAJobSection = () => {
                     schema,
                     value: encodeObj({
                         tableName: "job",
-                        xData: { id: selectedJob.id, is_final: true, is_igst: forceIgst, division_id: selectedDivisionId, amount, to_show_parts_in_job_invoice: showPartsInInvoice, xDetails },
+                        xData: { id: selectedJob.id, is_final: true, is_igst: forceIgst, division_id: selectedDivisionId, amount, to_show_parts_in_job_invoice: showPartsInInvoice, to_set_updated_at: true, xDetails },
                     }),
                 },
             });

@@ -637,45 +637,19 @@ export function buildInvoicePdf(
 ): jsPDF {
     const doc = existingDoc ?? new jsPDF({ format: "a4", orientation: "p", unit: "mm" });
 
-    const h = copies > 1 ? measureInvoiceHeight({ job, invoice, division }, branchName) : Infinity;
-    // Pack whenever the invoice fits on 1 page; use actual measured height as offset so copies don't overlap
-    const canPack    = h !== Infinity;
-    const packOffset = Math.ceil(h) + 3;
-
     for (let i = 0; i < copies; i++) {
-        const needsNewPage = (i === 0 && !!existingDoc) || (i > 0 && (!canPack || i % 2 === 0));
-        if (needsNewPage) doc.addPage();
-
-        if (canPack && i % 2 === 1) {
-            const pageW = doc.internal.pageSize.getWidth();
-            doc.setDrawColor(200, 200, 200);
-            doc.setLineWidth(0.3);
-            doc.line(10, packOffset - 1, pageW - 10, packOffset - 1);
-            drawInvoiceContent(doc, job, invoice, division, branchName, packOffset, false);
-        } else {
-            drawInvoiceContent(doc, job, invoice, division, branchName, 0, !canPack);
-        }
+        if (i === 0 ? !!existingDoc : true) doc.addPage();
+        drawInvoiceContent(doc, job, invoice, division, branchName, 0, true);
     }
 
     return doc;
 }
-
-// ── Two-up invoice packing for Show PDF ──────────────────────────────────────
-
-const PACK_THRESHOLD = 138; // mm — max height for a half-page slot (297/2 minus safety margin)
-const HALF_PAGE      = 149; // mm — y offset for the bottom slot
 
 type InvoiceItem = {
     job:      JobBasicInfo;
     invoice:  JobInvoiceFullRow;
     division: DivisionContextType | null;
 };
-
-function measureInvoiceHeight(item: InvoiceItem, branchName?: string | null): number {
-    const tempDoc = new jsPDF({ format: "a4", orientation: "p", unit: "mm" });
-    const finalY = drawInvoiceContent(tempDoc, item.job, item.invoice, item.division, branchName, 0, true);
-    return tempDoc.getNumberOfPages() === 1 ? finalY : Infinity;
-}
 
 export function buildPackedInvoicePdf(
     items: InvoiceItem[],
@@ -687,35 +661,294 @@ export function buildPackedInvoicePdf(
         : items;
     const doc = new jsPDF({ format: "a4", orientation: "p", unit: "mm" });
     let firstPage = true;
-    let i = 0;
 
-    while (i < allItems.length) {
-        const cur  = allItems[i];
-        const next = allItems[i + 1];
-
-        const h1 = measureInvoiceHeight(cur, branchName);
-        const h2 = next ? measureInvoiceHeight(next, branchName) : Infinity;
-
+    for (const item of allItems) {
         if (!firstPage) doc.addPage();
         firstPage = false;
+        drawInvoiceContent(doc, item.job, item.invoice, item.division, branchName, 0, true);
+    }
 
-        if (h1 <= PACK_THRESHOLD && h2 <= PACK_THRESHOLD) {
-            // Both short — draw two on this page
-            drawInvoiceContent(doc, cur.job, cur.invoice, cur.division, branchName, 0, false);
-            // Thin separator line between the two halves
-            const pageW = doc.internal.pageSize.getWidth();
-            doc.setDrawColor(200, 200, 200);
-            doc.setLineWidth(0.3);
-            doc.line(10, HALF_PAGE - 2, pageW - 10, HALF_PAGE - 2);
-            drawInvoiceContent(doc, next!.job, next!.invoice, next!.division, branchName, HALF_PAGE, false);
-            i += 2;
-        } else {
-            // Tall invoice — full page, with internal page breaks allowed
-            drawInvoiceContent(doc, cur.job, cur.invoice, cur.division, branchName, 0, true);
-            i += 1;
+    return doc;
+}
+
+// ── Delivery Note / Certificate PDF (A5) ─────────────────────────────────────
+
+export type DeliveryNoteJobInfo = {
+    job_no:                  string;
+    alternate_job_no:        string | null;
+    job_date:                string;
+    customer_name:           string;
+    mobile:                  string;
+    customer_address_line1?: string | null;
+    customer_address_line2?: string | null;
+    customer_landmark?:      string | null;
+    customer_city?:          string | null;
+    customer_postal_code?:   string | null;
+    customer_state?:         string | null;
+    device_details?:         string | null;
+    technician_name:         string | null;
+    amount:                  number | null;
+    invoice_no?:             string | null;
+    receipt_nos?:            string[];
+    delivery_ok?:            boolean | null;
+    delivery_date:           string;
+    delivery_manner?:        string | null;
+    remarks?:                string | null;
+};
+
+function dashedLine(doc: jsPDF, x1: number, y: number, x2: number) {
+    doc.setLineDashPattern([1.2, 1.5], 0);
+    doc.setDrawColor(190, 190, 190);
+    doc.setLineWidth(0.25);
+    doc.line(x1, y, x2, y);
+    doc.setLineDashPattern([], 0);
+}
+
+function drawDeliveryNoteContent(
+    doc: jsPDF,
+    job: DeliveryNoteJobInfo,
+    division: DivisionContextType | null,
+    branchName?: string | null,
+) {
+    const M     = 10;
+    const pageW = doc.internal.pageSize.getWidth();   // 148.5 mm (A5)
+    const pageH = doc.internal.pageSize.getHeight();  // 210 mm
+    const cW    = pageW - M * 2;
+    const midX  = pageW / 2;
+    let y = M;
+
+    // ── Company header ────────────────────────────────────────────────────────
+    const entityName = division?.name ?? branchName ?? "";
+    if (entityName) {
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(12);
+        doc.text(entityName.toUpperCase(), midX, y, { align: "center" });
+        y += 5;
+        const hdrAddr = buildAddrLines([
+            division?.address_line1, division?.address_line2, division?.city, division?.pincode,
+        ]);
+        if (hdrAddr.length > 0) {
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(7.5);
+            doc.text(hdrAddr.join("  ·  "), midX, y, { align: "center" });
+            y += 4;
+        }
+        if (division?.gstin) {
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(7.5);
+            doc.text(`GSTIN: ${division.gstin}`, midX, y, { align: "center" });
+            y += 4;
         }
     }
 
+    // thick rule
+    doc.setDrawColor(30, 30, 30);
+    doc.setLineWidth(0.8);
+    doc.line(M, y, pageW - M, y);
+    y += 4.5;
+
+    // ── Title ─────────────────────────────────────────────────────────────────
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.text("DELIVERY CERTIFICATE", midX, y, { align: "center" });
+    y += 4.5;
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(8.5);
+    doc.setTextColor(100, 100, 100);
+    doc.text(
+        "This certifies that the customer has received the serviced item described below.",
+        midX, y, { align: "center" },
+    );
+    doc.setTextColor(0, 0, 0);
+    y += 5;
+    doc.setDrawColor(170, 170, 170);
+    doc.setLineWidth(0.25);
+    doc.line(M, y, pageW - M, y);
+    y += 4;
+
+    // ── Info box ──────────────────────────────────────────────────────────────
+    const col1X  = M + 3;
+    const col2X  = M + cW / 2 + 3;
+    const colW   = cW / 2 - 5;
+    const lblW   = 20;
+
+    // Pre-measure right column
+    doc.setFontSize(8);
+    const nameLines = doc.splitTextToSize(job.customer_name, colW) as string[];
+    const addrParts = buildAddrLines([
+        job.customer_address_line1 ?? null, job.customer_address_line2 ?? null,
+        job.customer_landmark ?? null,      job.customer_city ?? null,
+        job.customer_state ?? null,
+        job.customer_postal_code ? `Pin: ${job.customer_postal_code}` : null,
+    ]);
+    const addrWrapped = addrParts.length > 0
+        ? (doc.splitTextToSize(addrParts.join(", "), colW) as string[])
+        : [];
+
+    const leftRows: [string, string][] = [
+        ["Job No",     `#${job.job_no}${job.alternate_job_no ? ` / ${job.alternate_job_no}` : ""}`],
+        ["Job Date",   job.job_date],
+        ["Del. Date",  job.delivery_date || "—"],
+        ["Technician", job.technician_name ?? "—"],
+    ];
+    const leftH  = 4 + leftRows.length * 5.5;
+    const rightH = 4 + 4.5 + nameLines.length * 4.5 + addrWrapped.length * 3.8 + (job.mobile ? 4 : 0);
+    const boxH   = Math.max(leftH, rightH) + 5;
+
+    doc.setFillColor(255, 255, 255);
+    doc.setDrawColor(210, 215, 220);
+    doc.setLineWidth(0.3);
+    doc.roundedRect(M, y, cW, boxH, 2, 2, "FD");
+    // vertical divider
+    doc.setDrawColor(210, 215, 220);
+    doc.setLineWidth(0.25);
+    doc.line(M + cW / 2, y + 2, M + cW / 2, y + boxH - 2);
+
+    let ly = y + 4;
+    doc.setFontSize(8);
+    leftRows.forEach(([lbl, val]) => {
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(90, 90, 90);
+        doc.text(`${lbl}:`, col1X, ly);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(0, 0, 0);
+        doc.text(val, col1X + lblW, ly, { maxWidth: colW - lblW });
+        ly += 5.5;
+    });
+
+    let ry = y + 4;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7);
+    doc.setTextColor(100, 100, 100);
+    doc.text("CUSTOMER", col2X, ry);
+    ry += 4.5;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.setTextColor(0, 0, 0);
+    doc.text(nameLines, col2X, ry);
+    ry += nameLines.length * 4.5;
+    if (addrWrapped.length > 0) {
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(7.5);
+        doc.setTextColor(50, 50, 50);
+        doc.text(addrWrapped, col2X, ry);
+        ry += addrWrapped.length * 3.8;
+    }
+    if (job.mobile) {
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        doc.setTextColor(0, 0, 0);
+        doc.text(`Ph: ${job.mobile}`, col2X, ry);
+    }
+
+    y += boxH + 4;
+
+    // ── Device / Service ──────────────────────────────────────────────────────
+    if (job.device_details) {
+        dashedLine(doc, M, y, pageW - M);
+        y += 3.5;
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(7);
+        doc.setTextColor(100, 100, 100);
+        doc.text("DEVICE / SERVICE", M, y);
+        y += 4;
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8.5);
+        doc.setTextColor(0, 0, 0);
+        const devLines = doc.splitTextToSize(job.device_details, cW) as string[];
+        doc.text(devLines, M, y);
+        y += devLines.length * 4.5 + 2;
+    }
+
+    // ── Documents ─────────────────────────────────────────────────────────────
+    const hasInvoice  = !!job.invoice_no;
+    const receiptNos  = (job.receipt_nos ?? []).filter(Boolean);
+    const hasReceipts = receiptNos.length > 0;
+    if (hasInvoice || hasReceipts) {
+        dashedLine(doc, M, y, pageW - M);
+        y += 3.5;
+        doc.setFontSize(8);
+        if (hasInvoice) {
+            doc.setFont("helvetica", "bold");
+            doc.setTextColor(90, 90, 90);
+            doc.text("Invoice No:", M, y);
+            doc.setFont("helvetica", "normal");
+            doc.setTextColor(0, 0, 0);
+            doc.text(job.invoice_no!, M + 22, y);
+        }
+        if (hasReceipts) {
+            const rcptX = hasInvoice ? midX + 2 : M;
+            doc.setFont("helvetica", "bold");
+            doc.setTextColor(90, 90, 90);
+            doc.text(`Receipt No${receiptNos.length > 1 ? "s" : ""}:`, rcptX, y);
+            doc.setFont("helvetica", "normal");
+            doc.setTextColor(0, 0, 0);
+            doc.text(receiptNos.join(", "), rcptX + 22, y, { maxWidth: pageW - M - rcptX - 22 });
+        }
+        y += 5;
+    }
+
+    // ── Delivery status ───────────────────────────────────────────────────────
+    {
+        dashedLine(doc, M, y, pageW - M);
+        y += 4;
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(7);
+        doc.setTextColor(100, 100, 100);
+        doc.text("DELIVERY STATUS", M, y);
+
+        const label = job.delivery_ok === false ? "Not OK" : "OK";
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(12);
+        doc.setTextColor(0, 0, 0);
+        doc.text(label, M + 35, y);
+
+        y += 5;
+    }
+
+    // ── Remarks ───────────────────────────────────────────────────────────────
+    if (job.remarks?.trim()) {
+        dashedLine(doc, M, y, pageW - M);
+        y += 3.5;
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(7);
+        doc.setTextColor(100, 100, 100);
+        doc.text("REMARKS", M, y);
+        y += 4;
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        doc.setTextColor(0, 0, 0);
+        const remLines = doc.splitTextToSize(job.remarks.trim(), cW) as string[];
+        doc.text(remLines, M, y);
+        y += remLines.length * 4.2 + 2;
+    }
+
+    // ── Signatures (pinned toward bottom) ─────────────────────────────────────
+    const sigAreaTop = Math.max(y + 6, pageH - M - 24);
+    dashedLine(doc, M, sigAreaTop, pageW - M);
+    const sigLineY = sigAreaTop + 13;
+    doc.setDrawColor(60, 60, 60);
+    doc.setLineWidth(0.45);
+    doc.line(M,            sigLineY, M + 52,        sigLineY);
+    doc.line(pageW - M - 52, sigLineY, pageW - M,   sigLineY);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7.5);
+    doc.setTextColor(60, 60, 60);
+    doc.text("Customer Signature", M, sigLineY + 4);
+    doc.text("Date: ___________", M, sigLineY + 8);
+    doc.text("Authorised Signatory", pageW - M, sigLineY + 4, { align: "right" });
+}
+
+export function buildDeliveryNotePdf(
+    jobs: DeliveryNoteJobInfo[],
+    division: DivisionContextType | null,
+    branchName?: string | null,
+): jsPDF {
+    const doc = new jsPDF({ format: "a5", orientation: "l", unit: "mm" });
+    jobs.forEach((job, i) => {
+        if (i > 0) doc.addPage();
+        drawDeliveryNoteContent(doc, job, division, branchName);
+    });
     return doc;
 }
 

@@ -1374,6 +1374,7 @@ async def resolve_create_job_batch_helper(
     jobs = payload.get("jobs", [])
 
     branch_id = shared.get("branch_id")
+    division_id = shared.get("division_id")
     batch_date = shared.get("batch_date")
     customer_contact_id = shared.get("customer_contact_id")
     job_receive_manner_id = shared.get("job_receive_manner_id")
@@ -1412,6 +1413,7 @@ async def resolve_create_job_batch_helper(
 
                 job_data = {
                     "branch_id": branch_id,
+                    "division_id": division_id,
                     "batch_no": batch_no,
                     "job_no": job_no,
                     "job_date": batch_date,
@@ -1522,6 +1524,7 @@ async def resolve_update_job_batch_helper(
                 status_row = await cur.fetchone()
                 job_status_id = status_row["job_status_id"] if status_row else None
                 branch_id = shared.get("branch_id")
+                division_id = shared.get("division_id")
 
                 for job in added_jobs:
                     # Atomically claim the next job number
@@ -1536,13 +1539,14 @@ async def resolve_update_job_batch_helper(
 
                     await cur.execute(
                         "INSERT INTO job"
-                        " (branch_id, batch_no, job_no, job_date, customer_contact_id,"
+                        " (branch_id, division_id, batch_no, job_no, job_date, customer_contact_id,"
                         "  job_type_id, job_receive_manner_id, job_status_id,"
                         "  product_brand_model_id, serial_no, problem_reported,"
                         "  warranty_card_no, job_receive_condition_id, remarks, qty)"
-                        " VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
+                        " VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
                         (
                             branch_id,
+                            division_id,
                             batch_no,
                             job_no,
                             shared.get("batch_date"),

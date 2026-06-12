@@ -122,6 +122,7 @@ export function NewSingleJobForm({
                 division_id: d.division_id ?? defaultDivisionId,
             });
             setCustomerMobile(d.mobile ?? "");
+            setCustomerAddress(d.customer_address_line1 ?? "");
         }).catch(() => toast.error(MESSAGES.ERROR_JOB_LOAD_FAILED));
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [editJob, dbName, schema]);

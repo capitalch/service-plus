@@ -4319,7 +4319,7 @@ class SqlStore:
            OR  LOWER(COALESCE(b.name, ''))             LIKE '%%' || LOWER((table "p_search")) || '%%'
            OR  LOWER(COALESCE(p.name, ''))             LIKE '%%' || LOWER((table "p_search")) || '%%'
            OR  LOWER(COALESCE(pbm.model_name, ''))     LIKE '%%' || LOWER((table "p_search")) || '%%')
-        ORDER BY j.job_date DESC, j.id DESC
+        ORDER BY j.updated_at DESC, j.id DESC
         LIMIT  (table "p_limit")
         OFFSET (table "p_offset")
     """

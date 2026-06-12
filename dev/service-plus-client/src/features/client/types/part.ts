@@ -9,6 +9,7 @@ export type PartType = {
     model:            string | null;
     uom:              string;
     cost_price:       number | null;
+    selling_price:    number | null;
     mrp:              number | null;
     hsn_code:         string | null;
     gst_rate:         number | null;

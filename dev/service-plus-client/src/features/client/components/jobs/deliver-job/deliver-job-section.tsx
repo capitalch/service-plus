@@ -11,10 +11,12 @@ import { SQL_MAP }     from "@/constants/sql-map";
 import { selectCurrentUser, selectDbName } from "@/features/auth/store/auth-slice";
 import { apolloClient }   from "@/lib/apollo-client";
 import { encodeObj, graphQlUtils } from "@/lib/graphql-utils";
-import { selectAvailableDivisions, selectCurrentBranch, selectSchema } from "@/store/context-slice";
+import { selectAvailableDivisions, selectCurrentBranch, selectNoOfJobInvoicesPerPrint, selectPostDataToAccounts, selectSchema } from "@/store/context-slice";
 import { useAppSelector } from "@/store/hooks";
+import { PdfPreviewModal } from "@/components/shared/pdf-preview-modal";
 import { JobAttachDialog } from "../single-job/job-attach-dialog";
 import { JobDetailsModal } from "../job-pipeline/job-details-modal";
+import { buildInvoicePdf, buildDeliveryNotePdf } from "./deliver-job-pdf";
 
 import { PAGE_SIZE, DEBOUNCE_MS } from "./deliver-job-helpers";
 import { DeliverableJobsGrid, type DeliverableJobRow } from "./deliverable-jobs-grid";
@@ -38,6 +40,8 @@ export const DeliverJobSection = () => {
     const currentBranch      = useAppSelector(selectCurrentBranch);
     const currentUser        = useAppSelector(selectCurrentUser);
     const availableDivisions = useAppSelector(selectAvailableDivisions);
+    const noOfInvoices       = useAppSelector(selectNoOfJobInvoicesPerPrint);
+    const postDataToAccounts = useAppSelector(selectPostDataToAccounts);
     const branchId           = currentBranch?.id ?? null;
 
     // ── List state ────────────────────────────────────────────────────────────
@@ -71,6 +75,18 @@ export const DeliverJobSection = () => {
     // ── Undo delivery state ───────────────────────────────────────────────────
     const [undoPendingRow,  setUndoPendingRow]  = useState<DeliveredJobRow | null>(null);
     const [undoSubmitting,  setUndoSubmitting]  = useState(false);
+
+    // ── PDF preview state ─────────────────────────────────────────────────────
+    const [pdfUrl,           setPdfUrl]           = useState<string | null>(null);
+    const [pdfOpen,          setPdfOpen]          = useState(false);
+    const [pdfType,          setPdfType]          = useState<"invoice" | "other">("other");
+    const [invoiceCopies,    setInvoiceCopies]    = useState(1);
+    const pendingInvoiceRef  = useRef<{
+        row:      DeliveredJobRow;
+        invoice:  import("./deliver-job-schema").JobInvoiceFullRow;
+        payments: { id: number; receipt_no: string | null; payment_date: string; payment_mode: string; amount: number; reference_no: string | null; remarks: string | null }[];
+        division: import("@/features/client/types/division").DivisionContextType | null;
+    } | null>(null);
 
     // ── Misc ──────────────────────────────────────────────────────────────────
     const [attachJobId,  setAttachJobId]  = useState<number | null>(null);
@@ -292,6 +308,113 @@ export const DeliverJobSection = () => {
         }
     }
 
+    // ── Invoice + Receipts print ──────────────────────────────────────────────
+    function buildAndShowInvoicePdf(
+        row:      DeliveredJobRow,
+        invoice:  import("./deliver-job-schema").JobInvoiceFullRow,
+        payments: { id: number; receipt_no: string | null; payment_date: string; payment_mode: string; amount: number; reference_no: string | null; remarks: string | null }[],
+        division: import("@/features/client/types/division").DivisionContextType | null,
+        copies:   number,
+    ) {
+        const doc = buildInvoicePdf(
+            { ...row, customer_name: row.customer_name ?? "", payments },
+            invoice,
+            division,
+            currentBranch?.name ?? currentBranch?.code ?? null,
+            undefined,
+            copies,
+        );
+        setPdfUrl(prev => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(doc.output("blob")); });
+    }
+
+    async function handlePrintInvoiceReceipts(row: DeliveredJobRow) {
+        if (!dbName || !schema) return;
+        const gq = <T,>(sqlId: string, sqlArgs?: Record<string, unknown>) =>
+            apolloClient.query<GenericQueryData<T>>({
+                fetchPolicy: "network-only",
+                query: GRAPHQL_MAP.genericQuery,
+                variables: { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId, sqlArgs }) },
+            });
+        try {
+            const [invoiceRes, paymentsRes] = await Promise.all([
+                gq<import("./deliver-job-schema").JobInvoiceFullRow>(SQL_MAP.GET_JOB_INVOICE_BY_JOB, { job_id: row.id }),
+                gq<{ id: number; receipt_no: string | null; payment_date: string; payment_mode: string; amount: number; reference_no: string | null; remarks: string | null }>(SQL_MAP.GET_JOB_PAYMENTS_BY_JOB, { job_id: row.id }),
+            ]);
+            const invoice  = invoiceRes.data?.genericQuery?.[0] ?? null;
+            const payments = paymentsRes.data?.genericQuery ?? [];
+            if (!invoice) { toast.error("Invoice not found."); return; }
+            const division = row.division_id ? (availableDivisions.find(d => d.id === row.division_id) ?? null) : null;
+            const copies   = noOfInvoices ?? 1;
+            pendingInvoiceRef.current = { row, invoice, payments, division };
+            setInvoiceCopies(copies);
+            setPdfType("invoice");
+            buildAndShowInvoicePdf(row, invoice, payments, division, copies);
+            setPdfOpen(true);
+        } catch {
+            toast.error("Failed to load invoice. Please try again.");
+        }
+    }
+
+    function handleInvoiceCopiesChange(n: number) {
+        setInvoiceCopies(n);
+        const ctx = pendingInvoiceRef.current;
+        if (!ctx) return;
+        buildAndShowInvoicePdf(ctx.row, ctx.invoice, ctx.payments, ctx.division, n);
+    }
+
+    // ── Delivery Note print ───────────────────────────────────────────────────
+    async function handleDeliveryNote(row: DeliveredJobRow) {
+        if (!dbName || !schema) return;
+        const gq = <T,>(sqlId: string, sqlArgs?: Record<string, unknown>) =>
+            apolloClient.query<GenericQueryData<T>>({
+                fetchPolicy: "network-only",
+                query: GRAPHQL_MAP.genericQuery,
+                variables: { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId, sqlArgs }) },
+            });
+        try {
+            const [detailRes, paymentsRes] = await Promise.all([
+                gq<{
+                    customer_address_line1: string | null; customer_address_line2: string | null;
+                    customer_landmark: string | null; customer_city: string | null;
+                    customer_postal_code: string | null; customer_state: string | null;
+                    remarks: string | null;
+                }>(SQL_MAP.GET_JOB_DETAIL, { id: row.id }),
+                gq<{ receipt_no: string | null }>(SQL_MAP.GET_JOB_PAYMENTS_BY_JOB, { job_id: row.id }),
+            ]);
+            const detail   = detailRes.data?.genericQuery?.[0];
+            const payments = paymentsRes.data?.genericQuery ?? [];
+            const division = row.division_id ? (availableDivisions.find(d => d.id === row.division_id) ?? null) : null;
+            const isOk     = !row.job_status_name?.toLowerCase().includes("not ok");
+            const doc = buildDeliveryNotePdf([{
+                job_no:                 row.job_no,
+                alternate_job_no:       row.alternate_job_no,
+                job_date:               row.job_date,
+                customer_name:          row.customer_name,
+                mobile:                 row.mobile,
+                customer_address_line1: detail?.customer_address_line1 ?? null,
+                customer_address_line2: detail?.customer_address_line2 ?? null,
+                customer_landmark:      detail?.customer_landmark      ?? null,
+                customer_city:          detail?.customer_city          ?? null,
+                customer_postal_code:   detail?.customer_postal_code   ?? null,
+                customer_state:         detail?.customer_state         ?? null,
+                device_details:         row.device_details,
+                technician_name:        row.technician_name,
+                amount:                 row.amount,
+                invoice_no:             row.invoice_no ?? null,
+                receipt_nos:            payments.map(p => p.receipt_no).filter((r): r is string => !!r),
+                delivery_ok:            isOk,
+                delivery_date:          row.delivery_date ?? "",
+                remarks:                detail?.remarks ?? null,
+            }], division, currentBranch?.name ?? currentBranch?.code ?? null);
+            if (pdfUrl) URL.revokeObjectURL(pdfUrl);
+            setPdfUrl(URL.createObjectURL(doc.output("blob")));
+            setPdfType("other");
+            setPdfOpen(true);
+        } catch {
+            toast.error("Failed to generate delivery note.");
+        }
+    }
+
     // ── Render ────────────────────────────────────────────────────────────────
     return (
         <motion.div
@@ -379,10 +502,13 @@ export const DeliverJobSection = () => {
                     branchId={branchId}
                     availableDivisions={availableDivisions}
                     setPage={setDeliveredPage}
+                    postDataToAccounts={postDataToAccounts}
                     onSearch={handleDeliveredSearchChange}
                     onRefresh={() => void loadDeliveredData()}
                     onViewJob={id => setViewJobId(id)}
                     onOpenAttach={(id, jobNo) => { setAttachJobId(id); setAttachJobNo(jobNo); }}
+                    onPrintInvoiceReceipts={row => void handlePrintInvoiceReceipts(row)}
+                    onDeliveryNote={row => void handleDeliveryNote(row)}
                     onUndoDelivery={row => {
                         if (row.invoice_is_posted) {
                             toast.error(`Cannot undo delivery — invoice ${row.invoice_no ? `#${row.invoice_no}` : ""} is already posted to accounts.`);
@@ -456,6 +582,17 @@ export const DeliverJobSection = () => {
                         </div>
                     </DialogContent>
                 </Dialog>
+            )}
+
+            {pdfOpen && pdfUrl && (
+                <PdfPreviewModal
+                    isOpen={pdfOpen}
+                    pdfUrl={pdfUrl}
+                    title={pdfType === "invoice" ? "Invoice + Receipts" : "Delivery Note"}
+                    printCopies={pdfType === "invoice" ? invoiceCopies : undefined}
+                    onPrintCopiesChange={pdfType === "invoice" ? handleInvoiceCopiesChange : undefined}
+                    onClose={() => { setPdfOpen(false); if (pdfUrl) URL.revokeObjectURL(pdfUrl); setPdfUrl(null); pendingInvoiceRef.current = null; }}
+                />
             )}
 
             {showDeliveryModal && modalJobDetails.length > 0 && (

@@ -222,21 +222,15 @@ export const JobSearchSection = () => {
                         </button>
                         {jobStatuses.filter(s => s.is_active).map(s => {
                             const colorParts = (STATUS_COLORS[s.code] ?? "bg-slate-400 text-white").trim().split(/\s+/).filter(Boolean);
-                            const activeCls  = colorParts.filter(c => !c.startsWith("hover:")).join(" ");
-                            const dotCls     = colorParts[0] ?? "bg-slate-400";
+                            const colorCls   = colorParts.filter(c => !c.startsWith("hover:")).join(" ");
                             const isActive   = filter.id === s.id;
                             return (
                                 <button
                                     key={s.id}
                                     disabled={loading}
-                                    className={`shrink-0 flex items-center gap-1.5 px-3 h-7 rounded-full text-xs font-semibold transition-colors disabled:opacity-50 cursor-pointer border
-                                        ${isActive
-                                            ? `${activeCls} border-transparent`
-                                            : "bg-(--cl-surface) text-(--cl-text-muted) border-(--cl-border) hover:bg-(--cl-hover) hover:text-(--cl-text)"
-                                        }`}
+                                    className={`shrink-0 px-3 h-7 rounded-full text-xs font-semibold transition-all disabled:opacity-30 cursor-pointer ${colorCls} ${isActive ? "opacity-100 ring-2 ring-offset-1 ring-white/70 shadow-md" : "opacity-50 hover:opacity-80"}`}
                                     onClick={() => handleStatusFilterChange(s.id)}
                                 >
-                                    {!isActive && <span className={`inline-block h-2 w-2 rounded-full shrink-0 ${dotCls}`} />}
                                     {s.name}
                                 </button>
                             );

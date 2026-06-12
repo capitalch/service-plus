@@ -31,6 +31,7 @@ import { useAppSelector } from "@/store/hooks";
 import { selectCurrentUser, selectDbName } from "@/features/auth/store/auth-slice";
 import { selectAvailableDivisions, selectCurrentBranch, selectCurrentDivision, selectDefaultDivisionId, selectNoOfJobSheetsPerPrint, selectSchema } from "@/store/context-slice";
 import type { JobDetailType, JobSearchRow, JobLookupRow, ModelRow, TechnicianRow } from "@/features/client/types/job";
+import type { DivisionContextType } from "@/features/client/types/division";
 import type { CustomerTypeOption, StateOption } from "@/features/client/types/customer";
 import type { BrandOption, ProductOption } from "@/features/client/types/model";
 
@@ -101,7 +102,7 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
     const [pdfTitle, setPdfTitle] = useState<string>("Job Sheet");
     const [showPdfModal, setShowPdfModal] = useState(false);
     const [printCopies, setPrintCopies] = useState(noOfJobSheetsPerPrint);
-    const pendingPrintRef = useRef<{ job: JobDetailType; division: ReturnType<typeof availableDivisions.find>; branchCode?: string } | null>(null);
+    const pendingPrintRef = useRef<{ job: JobDetailType; division: DivisionContextType | null; branchCode?: string } | null>(null);
 
     // Attach Files dialog
     const [attachJobId,  setAttachJobId]  = useState<number | null>(null);
@@ -453,7 +454,7 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
             }
             toast.dismiss(loadingToast);
             const jobDivision = availableDivisions.find(d => d.id === details.division_id) ?? currentDivision;
-            pendingPrintRef.current = { job: details, division: jobDivision, branchCode: globalBranch?.code };
+            pendingPrintRef.current = { job: details, division: jobDivision ?? null, branchCode: globalBranch?.code };
             setPrintCopies(copies);
             const url = getJobSheetBlobUrl(details, jobDivision ?? null, globalBranch?.code, copies);
             setPdfPreviewUrl(url);
@@ -547,7 +548,7 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
                         masterStates={masterStates}
                         editJob={editJob}
                         onRefreshModels={refreshModels}
-                        onViewJob={(j: JobSearchRow) => void handleViewJob(j)}
+                        onViewJob={(j: JobSearchRow) => setViewJobId(j.id)}
                         onEditJob={(j: JobSearchRow) => handleEditJob(j)}
                         onPrintPdf={(j: JobSearchRow) => void handlePrintPdf(j)}
                         onAttachFiles={(jobNo: string, jobId: number) => { setAttachJobId(jobId); setAttachJobNo(jobNo); setAttachMode("attach"); }}

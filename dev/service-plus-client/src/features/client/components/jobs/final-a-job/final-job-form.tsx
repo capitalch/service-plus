@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import {
     AlertTriangle, ArrowLeft, CheckCheck, CheckCircle2,
@@ -220,11 +219,8 @@ export function FinalJobForm({
     const grandTotal = partsTotal + chargesAmountTotal;
     const grandProfitTotal = profitTotal + chargesProfitTotal;
 
-    useEffect(() => {
-        if (isEditMode) {
-            setBackCalcTarget(grandTotal > 0 ? grandTotal.toFixed(2) : "");
-        }
-    }, [grandTotal, isEditMode]); // eslint-disable-line react-hooks/exhaustive-deps
+    // backCalcTarget is seeded from job.amount on edit-open in final-a-job-section.tsx;
+    // do not override it here with the computed grandTotal.
     const grandQtyTotal = partsQtyTotal + chargesQtyTotal;
     const grandCgstTotal = partsCgstTotal + chargesCgstTotal;
     const grandSgstTotal = partsSgstTotal + chargesSgstTotal;
@@ -409,7 +405,7 @@ export function FinalJobForm({
                                                 <div className="w-36 shrink-0">
                                                     <Select
                                                         value={line.brand_id ? String(line.brand_id) : ""}
-                                                        onValueChange={v => onUpdatePart(line._key, { brand_id: Number(v), part_id: null, part_code: "", part_name: "" })}
+                                                        onValueChange={v => onUpdatePart(line._key, { brand_id: Number(v), part_id: null, part_code: "", part_name: "", cost_price: "0", selling_price: "0", sale_pr_gst: "0" })}
                                                     >
                                                         <SelectTrigger className="h-7 text-xs bg-transparent border-(--cl-border)">
                                                             <SelectValue placeholder="Brand" />
@@ -431,10 +427,10 @@ export function FinalJobForm({
                                                         brandName={brands.find(b => b.id === line.brand_id)?.name}
                                                         showName={false}
                                                         onChange={code => {
-                                                            if (!code.trim()) onUpdatePart(line._key, { part_code: "", part_id: null, part_name: "" });
+                                                            if (!code.trim()) onUpdatePart(line._key, { part_code: "", part_id: null, part_name: "", cost_price: "0", selling_price: "0", sale_pr_gst: "0" });
                                                             else onUpdatePart(line._key, { part_code: code });
                                                         }}
-                                                        onClear={() => onUpdatePart(line._key, { part_code: "", part_id: null, part_name: "" })}
+                                                        onClear={() => onUpdatePart(line._key, { part_code: "", part_id: null, part_name: "", cost_price: "0", selling_price: "0", sale_pr_gst: "0" })}
                                                         onSelect={part => onPartSelect(line._key, part)}
                                                     />
                                                 </div>
