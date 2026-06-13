@@ -207,25 +207,25 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
                             {displayTitle}
                         </p>
                         {currentDivision && (
-                            <div className="flex items-center gap-2.5">
-                                <div className={`flex items-center gap-1 px-1.5 py-1 rounded-sm border shadow-sm ${
+                            <div className="flex items-center gap-2 rounded-md bg-indigo-50 px-2.5 py-1.5 leading-none dark:bg-indigo-950/40">
+                                <div className={`flex items-center gap-1 rounded-sm border px-1 py-0.5 ${
                                     isGstMode ? "bg-emerald-500/10 border-emerald-500/20" : "bg-red-500/10 border-red-500/20"
                                 }`}>
                                     {isGstMode
-                                        ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-                                        : <XCircle      className="h-3.5 w-3.5 text-red-600" />
+                                        ? <CheckCircle2 className="h-3 w-3 text-emerald-600" />
+                                        : <XCircle      className="h-3 w-3 text-red-600" />
                                     }
-                                    <span className={`text-[10.5px] font-bold uppercase tracking-tighter ${isGstMode ? "text-emerald-700" : "text-red-700"}`}>
+                                    <span className={`text-[10px] font-bold uppercase tracking-tighter ${isGstMode ? "text-emerald-700" : "text-red-700"}`}>
                                         {isGstMode ? "GST" : "Non-GST"}
                                     </span>
                                 </div>
-                                <Building2 className="h-4 w-4 text-(--cl-accent)" />
-                                <div className="flex flex-col leading-none">
-                                    <span className="text-sm font-bold text-(--cl-text) tracking-tight uppercase">
-                                        {currentDivision.name}
-                                    </span>
-                                    <span className="text-[10px] leading-none text-(--cl-text-muted)">(Default division)</span>
-                                </div>
+                                <Building2 className="h-3.5 w-3.5 shrink-0 text-indigo-400" />
+                                <span className="text-sm font-bold text-indigo-700 tracking-tight uppercase dark:text-indigo-300">
+                                    {currentDivision.name}
+                                </span>
+                                <span className="text-[10px] text-indigo-900 bg-indigo-50 rounded-sm px-2 py-0.5 tracking-wide">
+                                    Default division
+                                </span>
                             </div>
                         )}
                     </div>

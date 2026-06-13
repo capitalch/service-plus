@@ -98,7 +98,7 @@ export function AccountsPostingSection() {
             transition={{ duration: 0.25 }}
         >
             {/* Header */}
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-3 border-b border-(--cl-border) bg-(--cl-surface) py-1">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-3 border-b border-(--cl-border) bg-(--cl-surface) px-4 py-2">
                 <div className="flex items-center gap-3">
                     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-(--cl-accent)/10 text-(--cl-accent)">
                         <BookCheck className="h-4 w-4" />

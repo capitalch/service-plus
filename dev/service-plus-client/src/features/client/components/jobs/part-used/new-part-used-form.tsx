@@ -15,7 +15,7 @@ import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
-import { selectCurrentBranch, selectSchema } from "@/store/context-slice";
+import { selectCurrentBranch, selectSchema, selectDefaultGstRate, selectDefaultHsnForSparePart } from "@/store/context-slice";
 import type { JobLookupForReceiptType } from "@/features/client/types/receipt";
 import type { BrandOption } from "@/features/client/types/model";
 import { PartCodeInput } from "../../inventory/part-code-input";
@@ -27,24 +27,56 @@ type GenericQueryData<T> = { genericQuery: T[] | null };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
+const applyMarkup = (cost: number, pct: number) =>
+    Math.round(cost * (1 + pct / 100) * 100) / 100;
+
 const thClass = "sticky top-0 z-20 text-xs font-extrabold uppercase tracking-widest text-(--cl-text) py-2 px-2 text-left border-b border-(--cl-border) bg-zinc-200/60 dark:bg-zinc-800/60";
 const tdClass = "p-0.5 border-b border-(--cl-border)";
 const inputCls = "h-7 border-(--cl-border) bg-white text-sm px-2";
 
+function PriceInput({ value, className, onChange }: {
+    value:    number;
+    onChange: (v: number) => void;
+    className?: string;
+}) {
+    const [editing, setEditing] = useState(false);
+    const [raw,     setRaw]     = useState("");
+    return (
+        <Input
+            className={className}
+            inputMode="decimal"
+            type="text"
+            value={editing ? raw : value.toFixed(2)}
+            onChange={e => setRaw(e.target.value)}
+            onFocus={e => {
+                setEditing(true);
+                setRaw(value === 0 ? "" : String(value));
+                setTimeout(() => e.target.select(), 0);
+            }}
+            onBlur={() => {
+                const n = Math.max(0, parseFloat(raw) || 0);
+                onChange(n);
+                setEditing(false);
+            }}
+        />
+    );
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 type Props = {
-    onLinesValidChange: (isValid: boolean) => void;
-    onJobSelect:        (job: JobLookupForReceiptType | null) => void;
-    form:               ReturnType<typeof useFormContext<PartUsedFormValues>>;
+    onJobSelect: (job: JobLookupForReceiptType | null) => void;
+    form:        ReturnType<typeof useFormContext<PartUsedFormValues>>;
 };
 
 export function NewPartUsedForm({
-    onLinesValidChange, onJobSelect, form,
+    onJobSelect, form,
 }: Props) {
     const dbName    = useAppSelector(selectDbName);
     const schema    = useAppSelector(selectSchema);
     const branchId  = useAppSelector(selectCurrentBranch)?.id ?? null;
+    const defaultGstRate          = useAppSelector(selectDefaultGstRate);
+    const defaultHsnForSparePart  = useAppSelector(selectDefaultHsnForSparePart);
 
     const { control, register, setValue, watch } = useFormContext<PartUsedFormValues>();
 
@@ -54,9 +86,11 @@ export function NewPartUsedForm({
     });
 
     const [selectedJob,    setSelectedJob]    = useState<JobLookupForReceiptType | null>(null);
+    const [jobTouched,     setJobTouched]     = useState(false);
     const [brands,         setBrands]         = useState<BrandOption[]>([]);
     const [existingLines,  setExistingLines]  = useState<ExistingLine[]>([]);
     const [loadingExist,   setLoadingExist]   = useState(false);
+    const [markupPct,      setMarkupPct]      = useState(0);
 
     // Summary calculations
     const rawLines = watch("newLines");
@@ -65,10 +99,6 @@ export function NewPartUsedForm({
 
     const watchDeletedIds = watch("deletedIds") ?? [];
 
-    useEffect(() => {
-        const linesValid = formLines.some(l => l.part_id && (l.qty ?? 0) > 0) || watchDeletedIds.length > 0;
-        onLinesValidChange(linesValid);
-    }, [formLines, watchDeletedIds.length, onLinesValidChange]);
 
     // Fetch Metadata
     useEffect(() => {
@@ -88,6 +118,24 @@ export function NewPartUsedForm({
             } catch { /* silent */ }
         };
         void fetchBrands();
+        apolloClient
+            .query<GenericQueryData<{ setting_value: unknown }>>({
+                fetchPolicy: "cache-first",
+                query:       GRAPHQL_MAP.genericQuery,
+                variables:   {
+                    db_name: dbName,
+                    schema,
+                    value:   graphQlUtils.buildGenericQueryValue({
+                        sqlId:   SQL_MAP.GET_APP_SETTING_BY_KEY,
+                        sqlArgs: { setting_key: "markup_percent_over_cost" },
+                    }),
+                },
+            })
+            .then(res => {
+                const raw = res.data?.genericQuery?.[0]?.setting_value;
+                setMarkupPct(raw != null ? Number(raw) : 0);
+            })
+            .catch(() => setMarkupPct(0));
     }, [dbName, schema]);
 
     const loadExistingLines = useCallback(async (jobId: number) => {
@@ -112,15 +160,16 @@ export function NewPartUsedForm({
     }, [dbName, schema]);
 
     const handleJobSelect = (job: JobLookupForReceiptType | null) => {
+        setJobTouched(true);
         setSelectedJob(job);
         onJobSelect(job);
         setExistingLines([]);
-        form.reset({ ...form.getValues(), newLines: [getInitialPartUsedLine()], deletedIds: [] });
+        form.setValue("deletedIds", []);
         if (job) {
-            form.setValue("job_id", job.id, { shouldValidate: true });
+            form.setValue("job_id", job.id);
             void loadExistingLines(job.id);
         } else {
-            form.setValue("job_id", 0, { shouldValidate: true });
+            form.setValue("job_id", 0);
         }
     };
 
@@ -154,7 +203,7 @@ export function NewPartUsedForm({
     return (
         <motion.div
             animate={{ opacity: 1, y: 0 }}
-            className="flex flex-col gap-4 p-4"
+            className="flex flex-col gap-4"
             initial={{ opacity: 0, y: 10 }}
             transition={{ duration: 0.2 }}
         >
@@ -166,13 +215,18 @@ export function NewPartUsedForm({
             ) : (
                 <>
                     {/* Job Selection */}
-                    <div className="rounded-lg border border-(--cl-border) bg-(--cl-surface) p-4 shadow-sm">
-                        <p className="mb-3 text-[10px] font-black uppercase tracking-[0.15em] text-(--cl-text-muted)">Job Selection</p>
+                    <div className={`rounded-lg border bg-(--cl-surface) p-4 shadow-sm transition-colors ${jobTouched && !selectedJob ? "border-red-400 dark:border-red-500" : "border-(--cl-border)"}`}>
+                        <p className="mb-3 text-[10px] font-black uppercase tracking-[0.15em] text-(--cl-text-muted)">
+                            Job Selection <span className="text-red-500">*</span>
+                        </p>
                         <JobLookupCombobox
                             getRestrictionReason={partUsedJobRestrictionReason}
                             value={selectedJob?.id ?? null}
                             onChange={(_id, job) => handleJobSelect(job)}
                         />
+                        {jobTouched && !selectedJob && (
+                            <p className="mt-1.5 text-xs text-red-500 font-medium">A valid job must be selected to save parts.</p>
+                        )}
 
                         {selectedJob && (
                             <div className="mt-3 flex flex-wrap gap-x-6 gap-y-1 rounded-md border border-(--cl-border) bg-(--cl-surface-2)/50 px-4 py-2 text-sm">
@@ -241,16 +295,20 @@ export function NewPartUsedForm({
                             <p className="text-[10px] font-black uppercase tracking-[0.15em] text-(--cl-text-muted)">Add New Parts</p>
                         </div>
                         <div className="overflow-x-auto pb-2">
-                            <table className="min-w-[520px] w-full border-collapse text-sm">
+                            <table className="min-w-[960px] w-full border-collapse text-sm">
                                 <thead>
                                     <tr>
-                                        <th className={thClass} style={{ width: "4%" }}>#</th>
-                                        <th className={thClass} style={{ width: "16%" }}>Brand <span className="text-red-500">*</span></th>
-                                        <th className={thClass} style={{ width: "22%" }}>Part Code <span className="text-red-500">*</span></th>
-                                        <th className={thClass} style={{ width: "22%" }}>Part Name</th>
-                                        <th className={`${thClass} text-right`} style={{ width: "10%" }}>Qty <span className="text-red-500">*</span></th>
-                                        <th className={thClass} style={{ width: "16%" }}>Remarks</th>
-                                        <th className={thClass} style={{ width: "10%" }}>Actions</th>
+                                        <th className={thClass} style={{ width: "3%" }}>#</th>
+                                        <th className={thClass} style={{ width: "11%" }}>Brand <span className="text-red-500">*</span></th>
+                                        <th className={thClass} style={{ width: "20%" }}>Part Code <span className="text-red-500">*</span></th>
+                                        <th className={thClass} style={{ width: "16%" }}>Part Name</th>
+                                        <th className={`${thClass} text-right`} style={{ width: "7%" }}>Qty <span className="text-red-500">*</span></th>
+                                        <th className={`${thClass} text-right`} style={{ width: "9%" }}>Cost</th>
+                                        <th className={`${thClass} text-right`} style={{ width: "9%" }}>Selling</th>
+                                        <th className={`${thClass} text-right`} style={{ width: "6%" }}>GST %</th>
+                                        <th className={thClass} style={{ width: "9%" }}>HSN</th>
+                                        <th className={thClass} style={{ width: "13%" }}>Remarks</th>
+                                        <th className={thClass} style={{ width: "7%" }}>Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -286,9 +344,10 @@ export function NewPartUsedForm({
                                                     partId={line?.part_id ?? null}
                                                     partName={line?.part_name ?? ""}
                                                     selectedBrandId={line?.brand_id ?? null}
+                                                    showName={false}
                                                     brandName={brands.find(b => b.id === line?.brand_id)?.name}
                                                     onChange={code => {
-                                                        if (!code.trim()) { 
+                                                        if (!code.trim()) {
                                                             setValue(`newLines.${idx}.part_code`, "");
                                                             setValue(`newLines.${idx}.part_id`, null);
                                                             setValue(`newLines.${idx}.part_name`, "");
@@ -302,11 +361,19 @@ export function NewPartUsedForm({
                                                         setValue(`newLines.${idx}.part_name`, "");
                                                     }}
                                                     onSelect={part => {
+                                                        const cost = part.cost_price ?? 0;
+                                                        const effectiveGstRate = (part.gst_rate ?? 0) > 0 ? (part.gst_rate ?? 0) : (Number(defaultGstRate) || 0);
+                                                        const effectiveHsnCode = (part.hsn_code ?? "").trim() || (defaultHsnForSparePart ?? "");
+                                                        const effectiveSellingPrice = markupPct > 0 ? applyMarkup(cost, markupPct) : (part.selling_price ?? 0);
                                                         setValue(`newLines.${idx}.part_id`, part.id);
                                                         setValue(`newLines.${idx}.part_code`, part.part_code);
                                                         setValue(`newLines.${idx}.part_name`, part.part_name);
                                                         setValue(`newLines.${idx}.uom`, part.uom);
                                                         setValue(`newLines.${idx}.brand_id`, part.brand_id);
+                                                        setValue(`newLines.${idx}.cost_price`, cost);
+                                                        setValue(`newLines.${idx}.selling_price`, effectiveSellingPrice);
+                                                        setValue(`newLines.${idx}.gst_rate`, effectiveGstRate);
+                                                        setValue(`newLines.${idx}.hsn_code`, effectiveHsnCode);
                                                     }}
                                                 />
                                             </td>
@@ -319,6 +386,37 @@ export function NewPartUsedForm({
                                                     type="number"
                                                     {...register(`newLines.${idx}.qty`, { valueAsNumber: true })}
                                                     onFocus={e => e.target.select()}
+                                                />
+                                            </td>
+                                            <td className={tdClass}>
+                                                <PriceInput
+                                                    className={`${inputCls} text-right`}
+                                                    value={line?.cost_price ?? 0}
+                                                    onChange={cost => {
+                                                        setValue(`newLines.${idx}.cost_price`, cost, { shouldValidate: true });
+                                                        if (markupPct > 0) setValue(`newLines.${idx}.selling_price`, applyMarkup(cost, markupPct));
+                                                    }}
+                                                />
+                                            </td>
+                                            <td className={tdClass}>
+                                                <PriceInput
+                                                    className={`${inputCls} text-right`}
+                                                    value={line?.selling_price ?? 0}
+                                                    onChange={v => setValue(`newLines.${idx}.selling_price`, v)}
+                                                />
+                                            </td>
+                                            <td className={tdClass}>
+                                                <PriceInput
+                                                    className={`${inputCls} text-right`}
+                                                    value={line?.gst_rate ?? 0}
+                                                    onChange={v => setValue(`newLines.${idx}.gst_rate`, v)}
+                                                />
+                                            </td>
+                                            <td className={tdClass}>
+                                                <Input
+                                                    className={inputCls}
+                                                    placeholder="HSN…"
+                                                    {...register(`newLines.${idx}.hsn_code`)}
                                                 />
                                             </td>
                                             <td className={tdClass}>

@@ -2052,20 +2052,15 @@ class SqlStore:
     GET_PARTS_CONSUMPTION_COUNT = """
         with
             "p_branch_id" as (values(%(branch_id)s::bigint)),
-            "p_from_date" as (values(%(from_date)s::date)),
-            "p_to_date"   as (values(%(to_date)s::date)),
             "p_search"    as (values(%(search)s::text))
         -- with
-        --     "p_branch_id" as (values(1::bigint)),        -- Test line
-        --     "p_from_date" as (values('2024-01-01'::date)), -- Test line
-        --     "p_to_date"   as (values('2024-12-31'::date)), -- Test line
-        --     "p_search"    as (values(''::text))           -- Test line
+        --     "p_branch_id" as (values(1::bigint)), -- Test line
+        --     "p_search"    as (values(''::text))   -- Test line
         SELECT COUNT(*) AS total
         FROM job_part_used jpu
         JOIN job             j  ON j.id  = jpu.job_id
         JOIN spare_part_master sp ON sp.id = jpu.part_id
         WHERE j.branch_id = (table "p_branch_id")
-          AND j.job_date BETWEEN (table "p_from_date") AND (table "p_to_date")
           AND ((table "p_search") = ''
            OR LOWER(j.job_no)     LIKE '%%' || LOWER((table "p_search")) || '%%'
            OR LOWER(sp.part_code) LIKE '%%' || LOWER((table "p_search")) || '%%'
@@ -2075,39 +2070,50 @@ class SqlStore:
     GET_PARTS_CONSUMPTION = """
         with
             "p_branch_id" as (values(%(branch_id)s::bigint)),
-            "p_from_date" as (values(%(from_date)s::date)),
-            "p_to_date"   as (values(%(to_date)s::date)),
             "p_search"    as (values(%(search)s::text)),
             "p_limit"     as (values(%(limit)s::int)),
             "p_offset"    as (values(%(offset)s::int))
         -- with
-        --     "p_branch_id" as (values(1::bigint)),          -- Test line
-        --     "p_from_date" as (values('2024-01-01'::date)),  -- Test line
-        --     "p_to_date"   as (values('2024-12-31'::date)),  -- Test line
-        --     "p_search"    as (values(''::text)),            -- Test line
-        --     "p_limit"     as (values(50::int)),             -- Test line
-        --     "p_offset"    as (values(0::int))              -- Test line
+        --     "p_branch_id" as (values(1::bigint)), -- Test line
+        --     "p_search"    as (values(''::text)),  -- Test line
+        --     "p_limit"     as (values(50::int)),   -- Test line
+        --     "p_offset"    as (values(0::int))     -- Test line
         SELECT
             jpu.id,
+            jpu.created_at,
+            j.id       AS job_id,
             j.job_no,
             j.job_date,
+            j.is_closed,
+            j.is_final,
+            js.name AS job_status_name,
+            jt.name AS job_type_name,
+            jpu.part_id,
+            sp.brand_id,
             sp.part_code,
             sp.part_name,
             sp.uom,
             jpu.qty,
+            jpu.cost_price,
+            jpu.selling_price,
+            jpu.gst_rate,
+            COALESCE(jpu.hsn_code, sp.hsn_code) AS hsn_code,
             jpu.remarks,
-            b.name AS branch_name
+            b.name AS branch_name,
+            st.id  AS stock_transaction_id
         FROM job_part_used jpu
         JOIN job             j  ON j.id  = jpu.job_id
         JOIN spare_part_master sp ON sp.id = jpu.part_id
         JOIN branch          b  ON b.id  = j.branch_id
+        JOIN job_status      js ON js.id = j.job_status_id
+        JOIN job_type        jt ON jt.id = j.job_type_id
+        LEFT JOIN stock_transaction st ON st.job_part_used_id = jpu.id
         WHERE j.branch_id = (table "p_branch_id")
-          AND j.job_date BETWEEN (table "p_from_date") AND (table "p_to_date")
           AND ((table "p_search") = ''
            OR LOWER(j.job_no)     LIKE '%%' || LOWER((table "p_search")) || '%%'
            OR LOWER(sp.part_code) LIKE '%%' || LOWER((table "p_search")) || '%%'
            OR LOWER(sp.part_name) LIKE '%%' || LOWER((table "p_search")) || '%%')
-        ORDER BY j.job_date DESC, j.job_no, sp.part_code
+        ORDER BY jpu.created_at DESC
         LIMIT  (table "p_limit")
         OFFSET (table "p_offset")
     """

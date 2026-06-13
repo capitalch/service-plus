@@ -81,10 +81,7 @@ export const ReceiptsSection = () => {
     const availableDivisions = useAppSelector(selectAvailableDivisions);
     const postDataToAccounts = useAppSelector(selectPostDataToAccounts);
 
-    const { from: defaultFrom, to: defaultTo } = currentFinancialYearRange();
-
-    const [fromDate,    setFromDate]    = useState(defaultFrom);
-    const [toDate,      setToDate]      = useState(defaultTo);
+    const { from: fromDate, to: toDate } = currentFinancialYearRange();
     const [search,      setSearch]      = useState("");
     const [searchQ,     setSearchQ]     = useState("");
     const [page,        setPage]        = useState(1);
@@ -364,7 +361,7 @@ export const ReceiptsSection = () => {
             transition={{ duration: 0.25 }}
         >
             {/* Header */}
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-3 border-b border-(--cl-border) bg-(--cl-surface) py-1">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-3 border-b border-(--cl-border) bg-(--cl-surface) px-4 py-2">
                 <div className="flex items-center gap-3">
                     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-(--cl-accent)/10 text-(--cl-accent)">
                         <DollarSign className="h-4 w-4" />

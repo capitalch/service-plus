@@ -1,15 +1,14 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useForm, FormProvider } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import {ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon,
-    Loader2, RefreshCw, RotateCcw, Save, Search, Trash2, X} from "lucide-react";
+import { ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon,
+    Eye, Loader2, Pencil, RefreshCw, RotateCcw, Save, Search, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
-import { partUsedFormSchema, type PartUsedFormValues, getPartUsedDefaultValues } from "./part-used-schema";
+import { partUsedFormSchema, type PartUsedFormValues, type ConsumptionRow, getPartUsedDefaultValues } from "./part-used-schema";
 import type { JobLookupForReceiptType } from "@/features/client/types/receipt";
 
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 
 import { ViewModeToggle, type ViewMode } from "@/features/client/components/inventory/view-mode-toggle";
@@ -24,35 +23,13 @@ import { selectCurrentBranch, selectSchema } from "@/store/context-slice";
 import type { StockTransactionTypeRow } from "@/features/client/types/purchase";
 
 import { NewPartUsedForm } from "./new-part-used-form";
+import { EditPartUsedDialog } from "./edit-part-used-dialog";
+import { DeletePartUsedDialog } from "./delete-part-used-dialog";
+import { JobDetailsModal } from "@/features/client/components/jobs/job-pipeline/job-details-modal";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type GenericQueryData<T> = { genericQuery: T[] | null };
-
-type ConsumptionRow = {
-    id:          number;
-    job_no:      string;
-    job_date:    string;
-    part_code:   string;
-    part_name:   string;
-    uom:         string;
-    qty:    number;
-    remarks:     string | null;
-    branch_name: string;
-};
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function currentMonthRange() {
-    const now   = new Date();
-    const year  = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, "0");
-    const last  = new Date(year, now.getMonth() + 1, 0).getDate();
-    return {
-        from: `${year}-${month}-01`,
-        to:   `${year}-${month}-${String(last).padStart(2, "0")}`,
-    };
-}
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -76,18 +53,14 @@ export const PartUsedSection = () => {
         resolver: zodResolver(partUsedFormSchema) as any,
     });
 
-    const { from: defaultFrom, to: defaultTo } = currentMonthRange();
-
     const [mode, setMode] = useState<ViewMode>("new");
 
     // Metadata
     const [txnTypes, setTxnTypes] = useState<StockTransactionTypeRow[]>([]);
 
     // View filters
-    const [fromDate,       setFromDate]       = useState(defaultFrom);
-    const [toDate,         setToDate]         = useState(defaultTo);
-    const [search,         setSearch]         = useState("");
-    const [searchQ,        setSearchQ]        = useState("");
+    const [search,  setSearch]  = useState("");
+    const [searchQ, setSearchQ] = useState("");
 
     // View data
     const [rows,    setRows]    = useState<ConsumptionRow[]>([]);
@@ -95,14 +68,20 @@ export const PartUsedSection = () => {
     const [page,    setPage]    = useState(1);
     const [loading, setLoading] = useState(false);
 
-    // Delete
-    const [deleteRow,  setDeleteRow]  = useState<ConsumptionRow | null>(null);
-    const [deleting,   setDeleting]   = useState(false);
+    // Delete / Edit / View
+    const [deleteRow, setDeleteRow] = useState<ConsumptionRow | null>(null);
+    const [editRow,   setEditRow]   = useState<ConsumptionRow | null>(null);
+    const [viewJobId, setViewJobId] = useState<number | null>(null);
+    const [markupPct, setMarkupPct] = useState(0);
 
     // Form
-    const [resetKey,   setResetKey]   = useState(0);
-    const [linesValid, setLinesValid] = useState(false);
+    const [resetKey,    setResetKey]   = useState(0);
     const [selectedJob, setSelectedJob] = useState<JobLookupForReceiptType | null>(null);
+
+    const formNewLines   = form.watch("newLines");
+    const formDeletedIds = form.watch("deletedIds");
+    const linesValid     = (formNewLines?.some(l => l.part_id && (l.qty ?? 0) > 0) ?? false)
+                        || (formDeletedIds?.length ?? 0) > 0;
 
     const debounceRef      = useRef<ReturnType<typeof setTimeout> | null>(null);
     const scrollWrapperRef = useRef<HTMLDivElement>(null);
@@ -137,16 +116,34 @@ export const PartUsedSection = () => {
             } catch { toast.error(MESSAGES.ERROR_PART_USED_SAVE_FAILED); }
         };
         void fetchMeta();
+        apolloClient
+            .query<GenericQueryData<{ setting_value: unknown }>>({
+                fetchPolicy: "cache-first",
+                query:       GRAPHQL_MAP.genericQuery,
+                variables:   {
+                    db_name: dbName,
+                    schema,
+                    value:   graphQlUtils.buildGenericQueryValue({
+                        sqlId:   SQL_MAP.GET_APP_SETTING_BY_KEY,
+                        sqlArgs: { setting_key: "markup_percent_over_cost" },
+                    }),
+                },
+            })
+            .then(res => {
+                const raw = res.data?.genericQuery?.[0]?.setting_value;
+                setMarkupPct(raw != null ? Number(raw) : 0);
+            })
+            .catch(() => setMarkupPct(0));
     }, [dbName, schema]);
 
     // Load view data
     const loadData = useCallback(async (
-        branchIdNum: number, from: string, to: string, q: string, pg: number,
+        branchIdNum: number, q: string, pg: number,
     ) => {
         if (!dbName || !schema) return;
         setLoading(true);
         try {
-            const commonArgs = { branch_id: branchIdNum, from_date: from, to_date: to, search: q };
+            const commonArgs = { branch_id: branchIdNum, search: q };
             const [dataRes, countRes] = await Promise.all([
                 apolloClient.query<GenericQueryData<ConsumptionRow>>({
                     fetchPolicy: "network-only",
@@ -179,8 +176,8 @@ export const PartUsedSection = () => {
 
     useEffect(() => {
         if (!branchId || mode !== "view") return;
-        void loadData(branchId, fromDate, toDate, searchQ, page);
-    }, [branchId, fromDate, toDate, searchQ, page, loadData, mode]);
+        void loadData(branchId, searchQ, page);
+    }, [branchId, searchQ, page, loadData, mode]);
 
     const handleSearchChange = (value: string) => {
         setSearch(value);
@@ -188,29 +185,8 @@ export const PartUsedSection = () => {
         debounceRef.current = setTimeout(() => { setPage(1); setSearchQ(value); }, DEBOUNCE_MS);
     };
 
-    const handleDelete = async () => {
-        if (!deleteRow || !dbName || !schema) return;
-        setDeleting(true);
-        try {
-            const payload = graphQlUtils.buildGenericUpdateValue({
-                tableName:  "job_part_used",
-                deletedIds: [deleteRow.id],
-                xData:      {},
-            });
-            await apolloClient.mutate({
-                mutation:  GRAPHQL_MAP.genericUpdate,
-                variables: { db_name: dbName, schema, value: payload },
-            });
-            toast.success(MESSAGES.SUCCESS_PART_USED_DELETED);
-            setDeleteRow(null);
-            if (branchId) void loadData(branchId, fromDate, toDate, searchQ, page);
-        } catch { toast.error(MESSAGES.ERROR_PART_USED_DELETE_FAILED); }
-        finally { setDeleting(false); }
-    };
-
     const handleReset = () => {
         form.reset(getPartUsedDefaultValues());
-        setLinesValid(false);
         setSelectedJob(null);
         setResetKey(k => k + 1);
     };
@@ -229,17 +205,21 @@ export const PartUsedSection = () => {
         const validNewLines = newLines.filter(l => l.part_id && l.qty > 0);
 
         const xData = validNewLines.map(line => ({
-            job_id:   values.job_id,
-            part_id:  line.part_id,
-            qty: line.qty,
-            remarks:  line.remarks?.trim() || null,
+            job_id:        values.job_id,
+            part_id:       line.part_id,
+            qty:           line.qty,
+            cost_price:    line.cost_price ?? 0,
+            selling_price: line.selling_price ?? 0,
+            gst_rate:      line.gst_rate ?? 0,
+            hsn_code:      line.hsn_code?.trim() || null,
+            remarks:       line.remarks?.trim() || null,
             xDetails: {
                 tableName: "stock_transaction",
                 fkeyName:  "job_part_used_id",
                 xData: {
                     branch_id:                 branchId,
                     part_id:                   line.part_id,
-                    qty:                  line.qty,
+                    qty:                       line.qty,
                     dr_cr:                     "C",
                     transaction_date:          selectedJob.job_date,
                     stock_transaction_type_id: consumeTypeId,
@@ -261,8 +241,6 @@ export const PartUsedSection = () => {
             });
             toast.success(MESSAGES.SUCCESS_PART_USED_SAVED);
             handleReset();
-            setMode("view");
-            if (branchId) void loadData(branchId, fromDate, toDate, searchQ, 1);
         } catch {
             toast.error(MESSAGES.ERROR_PART_USED_SAVE_FAILED);
         }
@@ -270,6 +248,16 @@ export const PartUsedSection = () => {
 
 
     const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+    const groupedRows = useMemo(() => {
+        let groupIdx = -1;
+        let prevJobNo = "";
+        return rows.map(row => {
+            const isFirstInGroup = row.job_no !== prevJobNo;
+            if (isFirstInGroup) { groupIdx++; prevJobNo = row.job_no; }
+            return { ...row, isFirstInGroup, groupIdx };
+        });
+    }, [rows]);
 
     return (
         <motion.div
@@ -307,7 +295,7 @@ export const PartUsedSection = () => {
                     onViewClick={() => {
                         handleReset();
                         setMode("view");
-                        if (branchId) void loadData(branchId, fromDate, toDate, searchQ, page);
+                        if (branchId) void loadData(branchId, searchQ, page);
                     }}
                 />
 
@@ -323,7 +311,7 @@ export const PartUsedSection = () => {
                         </Button>
                         <Button
                             className="h-8 gap-1.5 px-4 text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm font-extrabold uppercase tracking-widest transition-all disabled:opacity-30 disabled:bg-slate-300 disabled:text-slate-600 disabled:shadow-none disabled:cursor-not-allowed"
-                            disabled={!form.formState.isValid || !linesValid || form.formState.isSubmitting}
+                            disabled={!selectedJob || !linesValid || form.formState.isSubmitting}
                             onClick={form.handleSubmit(executeSave)}
                         >
                             {form.formState.isSubmitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
@@ -339,7 +327,6 @@ export const PartUsedSection = () => {
                     <FormProvider {...form}>
                         <NewPartUsedForm
                             key={resetKey}
-                            onLinesValidChange={setLinesValid}
                             onJobSelect={setSelectedJob}
                             form={form}
                         />
@@ -363,7 +350,7 @@ export const PartUsedSection = () => {
                             )}
                         </div>
                         <div className="flex-1" />
-                        <Button className="h-8 px-2.5 text-xs" disabled={loading || !branchId} size="sm" variant="outline" onClick={() => { if (branchId) void loadData(branchId, fromDate, toDate, searchQ, page); }}>
+                        <Button className="h-8 px-2.5 text-xs" disabled={loading || !branchId} size="sm" variant="outline" onClick={() => { if (branchId) void loadData(branchId, searchQ, page); }}>
                             <RefreshCw className="mr-1.5 h-3 w-3" /> Refresh
                         </Button>
                     </div>
@@ -373,9 +360,9 @@ export const PartUsedSection = () => {
                         <div ref={scrollWrapperRef} className="flex-1 overflow-x-auto overflow-y-auto" style={{ maxHeight: maxHeight || undefined }}>
                             {loading ? (
                                 <table className="min-w-full border-collapse">
-                                    <thead><tr>{["#","Job No","Date","Part Code","Part Name","UOM","Qty","Remarks","Actions"].map(h => <th key={h} className={thClass}>{h}</th>)}</tr></thead>
+                                    <thead><tr>{["Date","Job","Part Code","Part Name","UOM","Qty","Remarks","Actions"].map(h => <th key={h} className={thClass}>{h}</th>)}</tr></thead>
                                     <tbody>{Array.from({ length: 8 }).map((_, i) => (
-                                        <tr key={i} className="animate-pulse">{Array.from({ length: 9 }).map((__, j) => (
+                                        <tr key={i} className="animate-pulse">{Array.from({ length: 8 }).map((__, j) => (
                                             <td key={j} className={tdClass}><div className="h-4 w-16 rounded bg-(--cl-border)" /></td>
                                         ))}</tr>
                                     ))}</tbody>
@@ -388,38 +375,91 @@ export const PartUsedSection = () => {
                                 <table className="min-w-full border-collapse">
                                     <thead className="sticky top-0 z-10">
                                         <tr>
-                                            {["#","Job No","Date","Part Code","Part Name","UOM"].map(h => <th key={h} className={thClass}>{h}</th>)}
+                                            <th className={thClass}>Date</th>
+                                            <th className={thClass}>Job</th>
+                                            {["Part Code","Part Name","UOM"].map(h => <th key={h} className={thClass}>{h}</th>)}
                                             <th className={`${thClass} text-right`}>Qty Used</th>
                                             <th className={thClass}>Remarks</th>
                                             <th className={`${thClass} sticky right-0 z-20 !bg-(--cl-surface-2)`}>Actions</th>
                                         </tr>
                                     </thead>
-                                    <tbody className="divide-y divide-(--cl-border) bg-(--cl-surface)">
-                                        {rows.map((row, idx) => (
-                                            <tr key={row.id} className="group transition-colors hover:bg-(--cl-accent)/5">
-                                                <td className={`${tdClass} text-(--cl-text-muted)`}>{(page - 1) * PAGE_SIZE + idx + 1}</td>
-                                                <td className={`${tdClass} font-mono font-medium text-(--cl-accent)`}>{row.job_no}</td>
-                                                <td className={tdClass}>{row.job_date}</td>
-                                                <td className={`${tdClass} font-mono`}>{row.part_code}</td>
-                                                <td className={`${tdClass} font-medium`}>{row.part_name}</td>
-                                                <td className={tdClass}>
-                                                    <span className="rounded bg-(--cl-surface-3) px-2 py-0.5 text-xs font-semibold">{row.uom}</span>
-                                                </td>
-                                                <td className={`${tdClass} text-right font-medium`}>{Number(row.qty).toFixed(2)}</td>
-                                                <td className={`${tdClass} text-xs text-(--cl-text-muted) italic`}>{row.remarks || "—"}</td>
-                                                <td className={`${tdClass} sticky right-0 z-10 bg-(--cl-surface) group-hover:bg-(--cl-surface-2)`}>
-                                                    <Button
-                                                        className="h-7 w-7 p-0 text-red-500 hover:bg-red-500/10"
-                                                        size="icon"
-                                                        title="Delete"
-                                                        variant="ghost"
-                                                        onClick={() => setDeleteRow(row)}
-                                                    >
-                                                        <Trash2 className="h-3.5 w-3.5" />
-                                                    </Button>
-                                                </td>
-                                            </tr>
-                                        ))}
+                                    <tbody className="bg-(--cl-surface)">
+                                        {groupedRows.map((row, idx) => {
+                                            const isEven = row.groupIdx % 2 === 0;
+                                            const groupBg = isEven ? "bg-(--cl-surface)" : "bg-(--cl-accent)/[0.04]";
+                                            const groupBgHover = isEven ? "hover:bg-(--cl-accent)/5" : "hover:bg-(--cl-accent)/10";
+                                            const stickyBg = isEven ? "bg-(--cl-surface)" : "bg-[color-mix(in_srgb,var(--cl-accent)_4%,var(--cl-surface))]";
+                                            const stickyBgHover = isEven ? "group-hover:bg-(--cl-surface-2)" : "group-hover:bg-(--cl-accent)/10";
+                                            const topBorder = row.isFirstInGroup && idx > 0 ? "border-t-2 border-t-(--cl-border)" : "";
+                                            const createdDate = row.created_at ? row.created_at.slice(0, 10) : "";
+                                            const createdTime = row.created_at ? row.created_at.slice(11, 16) : "";
+                                            return (
+                                                <tr key={row.id} className={`group transition-colors ${groupBg} ${groupBgHover} ${topBorder}`}>
+                                                    {/* Col 1: created_at */}
+                                                    <td className={`${tdClass} whitespace-nowrap`}>
+                                                        <span className="font-medium text-(--cl-text)">{createdDate}</span>
+                                                        {createdTime && <span className="ml-1.5 text-xs text-(--cl-text-muted)">{createdTime}</span>}
+                                                    </td>
+                                                    {/* Col 2: Job info — shown only on first row of each group */}
+                                                    <td className={`${tdClass} min-w-[180px]`}>
+                                                        {row.isFirstInGroup ? (
+                                                            <div className="flex flex-col gap-0.5">
+                                                                <span className="font-mono font-bold text-(--cl-accent)">{row.job_no}</span>
+                                                                <span className="text-xs font-medium text-(--cl-text)">{row.job_type_name}</span>
+                                                                <div className="flex items-center gap-1 flex-wrap">
+                                                                    <span className="text-xs text-emerald-600 dark:text-emerald-400">{row.job_status_name}</span>
+                                                                    {row.is_final && <span className="text-[10px] font-semibold px-1.5 py-px rounded bg-violet-100 text-violet-700 dark:bg-violet-950/60 dark:text-violet-300">Final</span>}
+                                                                    {row.is_closed && <span className="text-[10px] font-semibold px-1.5 py-px rounded bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300">Closed</span>}
+                                                                </div>
+                                                                <span className="text-xs text-(--cl-text-muted)">{row.job_date}</span>
+                                                            </div>
+                                                        ) : (
+                                                            <span className="pl-2 text-(--cl-text-muted)/40 select-none text-xs">╰</span>
+                                                        )}
+                                                    </td>
+                                                    <td className={`${tdClass} font-mono`}>{row.part_code}</td>
+                                                    <td className={`${tdClass} font-medium`}>{row.part_name}</td>
+                                                    <td className={tdClass}>
+                                                        <span className="rounded bg-(--cl-surface-3) px-2 py-0.5 text-xs font-semibold">{row.uom}</span>
+                                                    </td>
+                                                    <td className={`${tdClass} text-right font-medium`}>{Number(row.qty).toFixed(2)}</td>
+                                                    <td className={`${tdClass} text-xs text-(--cl-text-muted) italic`}>{row.remarks || "—"}</td>
+                                                    <td className={`${tdClass} sticky right-0 z-10 ${stickyBg} ${stickyBgHover}`}>
+                                                        <div className="flex items-center gap-0.5">
+                                                            <Button
+                                                                className={`h-7 w-7 p-0 text-sky-500 hover:bg-sky-500/10 ${!row.isFirstInGroup ? "invisible" : ""}`}
+                                                                size="icon"
+                                                                title="View Job"
+                                                                variant="ghost"
+                                                                onClick={() => setViewJobId(row.job_id)}
+                                                            >
+                                                                <Eye className="h-3.5 w-3.5" />
+                                                            </Button>
+                                                            <Button
+                                                                className="h-7 w-7 p-0 text-amber-500 hover:bg-amber-500/10 disabled:opacity-30 disabled:cursor-not-allowed"
+                                                                disabled={row.is_closed || row.is_final}
+                                                                size="icon"
+                                                                title={row.is_closed || row.is_final ? "Cannot edit — job is closed/finalised" : "Edit"}
+                                                                variant="ghost"
+                                                                onClick={() => setEditRow(row)}
+                                                            >
+                                                                <Pencil className="h-3.5 w-3.5" />
+                                                            </Button>
+                                                            <Button
+                                                                className="h-7 w-7 p-0 text-red-500 hover:bg-red-500/10 disabled:opacity-30 disabled:cursor-not-allowed"
+                                                                disabled={row.is_closed || row.is_final}
+                                                                size="icon"
+                                                                title={row.is_closed || row.is_final ? "Cannot delete — job is closed/finalised" : "Delete"}
+                                                                variant="ghost"
+                                                                onClick={() => setDeleteRow(row)}
+                                                            >
+                                                                <Trash2 className="h-3.5 w-3.5" />
+                                                            </Button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
                                     </tbody>
                                 </table>
                             )}
@@ -439,26 +479,23 @@ export const PartUsedSection = () => {
                         </div>
                     </div>
 
-                    {/* Delete confirmation dialog */}
-                    <Dialog open={deleteRow !== null} onOpenChange={open => { if (!open && !deleting) setDeleteRow(null); }}>
-                        <DialogContent aria-describedby={undefined} className="sm:max-w-sm !bg-(--cl-surface) text-(--cl-text)">
-                            <DialogHeader>
-                                <DialogTitle>Delete Part Usage</DialogTitle>
-                            </DialogHeader>
-                            <p className="text-sm text-(--cl-text-muted)">
-                                Delete <span className="font-semibold text-(--cl-text)">{deleteRow?.part_name}</span> ({deleteRow?.qty} {deleteRow?.uom}) from job <span className="font-mono font-semibold text-(--cl-accent)">{deleteRow?.job_no}</span>?
-                                <br /><br />
-                                This will also remove the stock transaction and restore the stock balance.
-                            </p>
-                            <DialogFooter>
-                                <Button disabled={deleting} variant="outline" onClick={() => setDeleteRow(null)}>Cancel</Button>
-                                <Button disabled={deleting} variant="destructive" onClick={() => void handleDelete()}>
-                                    {deleting && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}
-                                    Delete
-                                </Button>
-                            </DialogFooter>
-                        </DialogContent>
-                    </Dialog>
+                    {/* Job details modal */}
+                    {viewJobId !== null && (
+                        <JobDetailsModal jobId={viewJobId} onClose={() => setViewJobId(null)} />
+                    )}
+
+                    <EditPartUsedDialog
+                        row={editRow}
+                        markupPct={markupPct}
+                        onClose={() => setEditRow(null)}
+                        onSaved={() => { setEditRow(null); if (branchId) void loadData(branchId, searchQ, page); }}
+                    />
+
+                    <DeletePartUsedDialog
+                        row={deleteRow}
+                        onClose={() => setDeleteRow(null)}
+                        onDeleted={() => { setDeleteRow(null); if (branchId) void loadData(branchId, searchQ, page); }}
+                    />
                 </>
             )}
         </motion.div>

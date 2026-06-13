@@ -330,7 +330,7 @@ export const PartCodeInput = forwardRef<HTMLInputElement, PartCodeInputProps>(({
 
     return (
         <>
-            <div className={`flex flex-col gap-0.5 px-1.5 py-1${className ? ` ${className}` : ""}`}>
+            <div className={`flex flex-col gap-0.5 py-1${className ? ` ${className}` : ""}`}>
                 <Popover open={inlineOpen && inlineResults.length > 0} onOpenChange={setInlineOpen}>
                     <PopoverAnchor asChild>
                         <div ref={anchorRef} className="relative group/part">

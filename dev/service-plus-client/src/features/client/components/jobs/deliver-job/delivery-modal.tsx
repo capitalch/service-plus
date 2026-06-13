@@ -877,9 +877,9 @@ export function DeliveryModal({
                         </div>
 
                         {/* Action buttons row */}
-                        <div className="px-6 pb-5 flex flex-wrap items-center justify-between gap-3">
+                        <div className="px-6 pb-5 flex items-center justify-between gap-3">
                             {/* Left — document actions */}
-                            <div className="flex flex-wrap gap-2">
+                            <div className="flex gap-2">
                                 <Button
                                     className="h-10 gap-2 px-5 text-base bg-sky-600 hover:bg-sky-700 text-white shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
                                     disabled={!canCreateInvoices}

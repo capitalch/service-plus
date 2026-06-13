@@ -323,6 +323,8 @@ export const MESSAGES = {
   ERROR_PART_USED_DELETE_FAILED:       'Failed to delete part usage record. Please try again.',
   SUCCESS_PART_USED_SAVED:             'Parts usage saved successfully.',
   SUCCESS_PART_USED_DELETED:           'Part usage record deleted.',
+  SUCCESS_PART_USED_UPDATED:           'Part usage updated successfully.',
+  ERROR_PART_USED_UPDATE_FAILED:       'Failed to update part usage. Please try again.',
   // Purchase Entry
   ERROR_PURCHASE_LOAD_FAILED:          'Failed to load purchase invoices. Please try again.',
   ERROR_PURCHASE_CREATE_FAILED:        'Failed to create purchase invoice. Please try again.',
