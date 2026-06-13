@@ -1,6 +1,10 @@
 ## Service management software
         Let us also change quantity -> qty for all variable names, identifiers and state names in client and server to avoid any confusion.
-- Job search landing page provides "View Job Details" as actions. This is a complete job details view. Provide the same view in "View Job" of Single Job: View tab: Actions and remove the existing one.
+# Part Used feature enhancement
+- Edit part usage:Selling price should change in the same manner as in new entry
+- Use should be able to edit part code with Part code selector
+- Extract Modal dialogs as separate components
+
 # Requirement for Product / Model selector in Single Job:
 - When there is no text typed by user, there should not be any list shown
 - When user types part of model, company or product, a filtered list is visible
