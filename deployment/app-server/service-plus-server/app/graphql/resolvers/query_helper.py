@@ -355,7 +355,7 @@ async def resolve_generic_query_helper(db_name: str, schema: str = "public", val
         )
 
     sql_id:   str  = params.get("sqlId", "")
-    logger.info(sql_id)
+    logger.debug(sql_id)
     sql_args: dict = params.get("sqlArgs", {}) or {}
 
     sql = getattr(SqlStore, sql_id, None)

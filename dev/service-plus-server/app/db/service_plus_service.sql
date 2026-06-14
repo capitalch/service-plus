@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict RCEgWHF6dySjmoAyv0YR1GzA81Xcw0Gq7tbQqXTbqlYKYgcoBZRYjMTcx1Q7YyL
+\restrict lfOEsDnk8LZbPazEWrVBRA7yPZvlbP2EE79RqiJK13gljcx1cl5wCTjR1wePKCI
 
 -- Dumped from database version 14.6
 -- Dumped by pg_dump version 18.4 (Ubuntu 18.4-0ubuntu0.26.04.1)
@@ -2445,6 +2445,13 @@ CREATE INDEX customer_contact_email_idx ON demo1.customer_contact USING btree (e
 
 
 --
+-- Name: division_branch_id_is_active_idx; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX division_branch_id_is_active_idx ON demo1.division USING btree (branch_id, is_active) WITH (deduplicate_items='true');
+
+
+--
 -- Name: division_code_idx; Type: INDEX; Schema: demo1; Owner: webadmin
 --
 
@@ -3569,5 +3576,5 @@ ALTER TABLE ONLY security.user_bu_role
 -- PostgreSQL database dump complete
 --
 
-\unrestrict RCEgWHF6dySjmoAyv0YR1GzA81Xcw0Gq7tbQqXTbqlYKYgcoBZRYjMTcx1Q7YyL
+\unrestrict lfOEsDnk8LZbPazEWrVBRA7yPZvlbP2EE79RqiJK13gljcx1cl5wCTjR1wePKCI
 

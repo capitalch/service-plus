@@ -473,6 +473,25 @@ export const MESSAGES = {
   SUCCESS_OPENING_STOCK_UPDATED:          'Opening stock updated successfully.',
   SUCCESS_OPENING_STOCK_DELETED:          'Opening stock entry deleted successfully.',
   ERROR_OPENING_STOCK_DELETE_FAILED:      'Failed to delete opening stock entry. Please try again.',
+
+  // Reports — General
+  ERROR_REPORTS_FETCH_FAILED:         'Unable to load report. Please retry.',
+  ERROR_REPORTS_EXPORT_FAILED:        'Failed to export the report.',
+  ERROR_REPORTS_CUSTOM_RANGE_INVALID: 'From date must be on or before To date.',
+  ERROR_REPORTS_RANGE_REQUIRED:       'Please select a date range.',
+  INFO_REPORTS_NO_DATA:               'No data for the selected range.',
+  INFO_REPORTS_PDF_PREPARING:         'Preparing PDF…',
+  SUCCESS_REPORTS_EXPORTED:           'Report exported successfully.',
+
+  // Reports — Dashboard
+  ERROR_DASHBOARD_KPIS_LOAD_FAILED:        'Failed to load dashboard KPIs. Please try again.',
+  ERROR_DASHBOARD_CHART_LOAD_FAILED:       'Failed to load dashboard chart data. Please try again.',
+  ERROR_DASHBOARD_RECENT_JOBS_LOAD_FAILED: 'Failed to load recent jobs. Please try again.',
+
+  // Reports — Warranty (Special)
+  ERROR_WARRANTY_REPORT_LOAD_FAILED:        'Failed to load warranty report. Please try again.',
+  ERROR_WARRANTY_DETAIL_LOAD_FAILED:        'Failed to load warranty job parts. Please try again.',
+  INFO_WARRANTY_NO_JOBS_IN_RANGE:           'No in-warranty jobs found for this range.',
 } as const;
 
 // Type for message keys

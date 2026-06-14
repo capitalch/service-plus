@@ -25,7 +25,7 @@ import { ClientExplorerPanel } from "./client-explorer-panel";
 import { ClientStatusBar } from "./client-status-bar";
 import { ClientTopNav } from "./client-top-nav";
 
-export type Section = 'configurations' | 'dashboard' | 'inventory' | 'jobs' | 'masters' | 'reports';
+export type Section = 'configurations' | 'inventory' | 'jobs' | 'masters' | 'reports';
 
 type ThemeContextType = { isDark: boolean; toggleTheme: () => void };
 
@@ -54,13 +54,11 @@ function sectionFromPath(pathname: string): Section {
     if (pathname.startsWith('/client/inventory'))      return 'inventory';
     if (pathname.startsWith('/client/jobs'))           return 'jobs';
     if (pathname.startsWith('/client/masters'))        return 'masters';
-    if (pathname.startsWith('/client/reports'))        return 'reports';
-    return 'dashboard';
+    return 'reports';
 }
 
 const SECTION_LABELS: Record<Section, string> = {
     configurations: 'Configurations',
-    dashboard:      'Dashboard',
     inventory:      'Inventory',
     jobs:           'Jobs',
     masters:        'Masters',
@@ -69,20 +67,18 @@ const SECTION_LABELS: Record<Section, string> = {
 
 const SECTION_DEFAULTS: Record<Section, string> = {
     configurations: 'Divisions',
-    dashboard:      'Overview',
     inventory:      'Stock Overview',
     jobs:           'Single Job',
     masters:        'Branch',
-    reports:        'Job Status Report',
+    reports:        'Dashboard',
 };
 
 const SECTION_DEFAULT_GROUPS: Record<Section, string> = {
     configurations: '',
-    dashboard:      '',
     inventory:      '',
     jobs:           'New Job',
     masters:        'Organization',
-    reports:        'Job Reports',
+    reports:        '',
 };
 
 type ClientLayoutProps = { children: ReactNode };

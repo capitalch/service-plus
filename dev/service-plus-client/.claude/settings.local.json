@@ -44,7 +44,9 @@
       "Bash(sed -n '1636p' /home/sushant/projects/service-plus/dev/service-plus-client/src/features/client/components/jobs/final-a-job/final-a-job-section.tsx)",
       "Bash(sort -t: -k1,1)",
       "Bash(npx tailwindcss *)",
-      "Bash(npx @tailwindcss/cli --version)"
+      "Bash(npx @tailwindcss/cli --version)",
+      "Bash(pnpm exec *)",
+      "Bash(echo \"EXIT=$?\")"
     ]
   }
 }

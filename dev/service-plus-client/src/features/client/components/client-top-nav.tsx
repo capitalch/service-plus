@@ -12,7 +12,6 @@ type NavItem = { label: string; section: Section; to: string; end?: boolean };
 
 const NAV_ITEMS: NavItem[] = [
     { label: 'Jobs',           section: 'jobs',           to: ROUTES.client.jobs },
-    { label: 'Dashboard',      section: 'dashboard',      to: ROUTES.client.root,           end: true },
     { label: 'Inventory',      section: 'inventory',      to: ROUTES.client.inventory },
     { label: 'Reports',        section: 'reports',        to: ROUTES.client.reports },
     { label: 'Masters',        section: 'masters',        to: ROUTES.client.masters },

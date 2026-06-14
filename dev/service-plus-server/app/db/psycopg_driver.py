@@ -7,6 +7,7 @@ from contextlib import asynccontextmanager
 from typing import Any, AsyncGenerator, Required, TypedDict
 import psycopg
 from psycopg import sql as pgsql
+from psycopg_pool import PoolTimeout
 from psycopg.rows import dict_row
 from psycopg.types.datetime import DateLoader, TimestampLoader, TimestamptzLoader
 from psycopg.types.numeric import FloatLoader
@@ -332,20 +333,24 @@ async def exec_sql_query(
 
     pool = pool_manager.client_pool if not db_name else await pool_manager.get_service_pool(db_name)
 
-    async with pool.connection() as conn:
-        async with conn.cursor(row_factory=dict_row) as cur:
-            cur.adapters.register_loader("numeric", _FloatNumericLoader)
-            if text_dates:
-                cur.adapters.register_loader("date", _IsoDateLoader)
-                cur.adapters.register_loader("timestamp", _IsoTimestampLoader)
-                cur.adapters.register_loader("timestamptz", _IsoTimestamptzLoader)
-            await cur.execute(
-                pgsql.SQL("SET search_path TO {}").format(pgsql.Identifier(schema_to_set))
-            )
-            await cur.execute(sql, sql_args)
-            if cur.description:
-                return await cur.fetchall()
-            return []
+    try:
+        async with pool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cur:
+                cur.adapters.register_loader("numeric", _FloatNumericLoader)
+                if text_dates:
+                    cur.adapters.register_loader("date", _IsoDateLoader)
+                    cur.adapters.register_loader("timestamp", _IsoTimestampLoader)
+                    cur.adapters.register_loader("timestamptz", _IsoTimestamptzLoader)
+                await cur.execute(
+                    pgsql.SQL("SET search_path TO {}").format(pgsql.Identifier(schema_to_set))
+                )
+                await cur.execute(sql, sql_args)
+                if cur.description:
+                    return await cur.fetchall()
+                return []
+    except PoolTimeout as e:
+        logger.error("DB pool timeout (db=%r): %s", db_name, e)
+        raise DatabaseException(AppMessages.DATABASE_UNAVAILABLE) from e
 
 
 async def exec_sql_batch_query(
@@ -384,25 +389,29 @@ async def exec_sql_batch_query(
     pool = pool_manager.client_pool if not db_name else await pool_manager.get_service_pool(db_name)
     results: list[list[Any] | int] = []
 
-    async with pool.connection() as conn:
-        current_schema: str | None = None
-        for sql, sql_args, schema, text_dates in resolved:
-            async with conn.cursor(row_factory=dict_row) as cur:
-                cur.adapters.register_loader("numeric", _FloatNumericLoader)
-                if text_dates:
-                    cur.adapters.register_loader("date", _IsoDateLoader)
-                    cur.adapters.register_loader("timestamp", _IsoTimestampLoader)
-                    cur.adapters.register_loader("timestamptz", _IsoTimestamptzLoader)
-                if schema != current_schema:
-                    await cur.execute(
-                        pgsql.SQL("SET search_path TO {}").format(pgsql.Identifier(schema))
-                    )
-                    current_schema = schema
-                await cur.execute(sql, sql_args)
-                if cur.description:
-                    results.append(await cur.fetchall())
-                else:
-                    results.append(cur.rowcount if cur.rowcount >= 0 else 0)
+    try:
+        async with pool.connection() as conn:
+            current_schema: str | None = None
+            for sql, sql_args, schema, text_dates in resolved:
+                async with conn.cursor(row_factory=dict_row) as cur:
+                    cur.adapters.register_loader("numeric", _FloatNumericLoader)
+                    if text_dates:
+                        cur.adapters.register_loader("date", _IsoDateLoader)
+                        cur.adapters.register_loader("timestamp", _IsoTimestampLoader)
+                        cur.adapters.register_loader("timestamptz", _IsoTimestamptzLoader)
+                    if schema != current_schema:
+                        await cur.execute(
+                            pgsql.SQL("SET search_path TO {}").format(pgsql.Identifier(schema))
+                        )
+                        current_schema = schema
+                    await cur.execute(sql, sql_args)
+                    if cur.description:
+                        results.append(await cur.fetchall())
+                    else:
+                        results.append(cur.rowcount if cur.rowcount >= 0 else 0)
+    except PoolTimeout as e:
+        logger.error("DB pool timeout (db=%r): %s", db_name, e)
+        raise DatabaseException(AppMessages.DATABASE_UNAVAILABLE) from e
 
     return results
 

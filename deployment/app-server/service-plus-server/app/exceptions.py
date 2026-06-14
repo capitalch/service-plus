@@ -153,6 +153,7 @@ class AppMessages:
     # Error messages - Database
     DATABASE_CONNECTION_FAILED = "Failed to connect to database"
     DATABASE_QUERY_FAILED = "Database query failed"
+    DATABASE_UNAVAILABLE = "Database is temporarily unavailable. Please try again later."
     DB_DROP_FAILED = "Failed to drop the database"
     DB_DROP_FORBIDDEN = "Cannot drop a database that is still linked to a client"
     DB_NOT_ORPHAN = "Database is not an orphan — it is still linked to a client"
