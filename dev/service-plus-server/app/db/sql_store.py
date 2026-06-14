@@ -4941,6 +4941,35 @@ class SqlStore:
         ORDER BY js.display_order, js.code
     """
 
+    GET_JOB_PIPELINE_CELL_JOBS = """
+        with
+            "p_status_code" as (values(%(status_code)s::text)),
+            "p_age_min"     as (values(%(age_min)s::int)),
+            "p_age_max"     as (values(%(age_max)s::int))
+        SELECT
+            j.id, j.job_no, j.job_date,
+            (CURRENT_DATE - j.job_date) AS days_old,
+            cc.full_name              AS customer_name,
+            p.name                    AS product_name,
+            b.name                    AS brand_name,
+            pbm.model_name            AS model_name,
+            js.code                   AS status_code,
+            js.name                   AS status_name,
+            t.name                    AS technician_name,
+            (j.warranty_card_no IS NOT NULL AND j.warranty_card_no <> '') AS is_warranty
+        FROM job j
+        JOIN customer_contact         cc  ON cc.id  = j.customer_contact_id
+        JOIN job_status               js  ON js.id  = j.job_status_id
+        LEFT JOIN technician          t   ON t.id   = j.technician_id
+        LEFT JOIN product_brand_model pbm ON pbm.id = j.product_brand_model_id
+        LEFT JOIN brand               b   ON b.id   = pbm.brand_id
+        LEFT JOIN product             p   ON p.id   = pbm.product_id
+        WHERE j.is_closed = false
+          AND js.code = (table "p_status_code")
+          AND (CURRENT_DATE - j.job_date) BETWEEN (table "p_age_min") AND (table "p_age_max")
+        ORDER BY j.job_date ASC, j.id ASC
+    """
+
     GET_JOB_STATUS_TREND_MONTHLY = """
         with
             "p_months_back" as (values(%(months_back)s::int))

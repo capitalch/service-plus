@@ -1,814 +1,697 @@
-# Plan: Reporting & Dashboard System (Client → Reports)
+# Implementation Plan — Posting Service-Plus Data to Trace-Plus Accounts (Option B)
 
-This plan covers the full Reporting & Dashboard module for the **client** feature (`src/features/client`). It is derived **exhaustively** from `plans/tran.md` and the current code in `src/features/client/pages/client-reports-page.tsx`, `src/features/client/components/client-explorer-panel.tsx`, the schema in `src/types/db-schema-service.ts`, and the conventions in `claude.md`.
-
-The user is to be presented with a **modern KPI-driven dashboard**, **grouped report explorer**, **rich chart visualizations** (recharts), **drilldown transaction reports**, and **PDF export** of every report. All ranges are derived from `app_setting.fiscal_year_start_month_num` to compute quarters.
-
----
-
-## 1. Scope, Goals & Non-Goals
-
-### Goals
-- One **Operations Dashboard** (default landing on Reports section) with KPI cards, charts, recent activity, alerts.
-- A **set of grouped reports** under: Job Reports, Financial Reports, Inventory Reports, Performance Reports, Parts Ordering Suggestions.
-- Every "ranged" report supports a **canonical Range Picker** (Today, Yesterday, This Week, Previous Week, This Month, Last Month, Q1, Q2, Q3, Q4, Year-to-Date, Last Year, Custom).
-- Each report has **PDF print/export**, **CSV/Excel export** (xlsx already in deps), **column filters**, **sort**, **search**, and **responsive design**.
-- **Quarters** are computed using `app_setting.fiscal_year_start_month_num` (default 4 = April). Q1 = months [fyStart, fyStart+1, fyStart+2], Q2 next 3, etc.
-- **Warranty vs Out-of-Warranty** distinction is computed from `job.warranty_card_no` IS NOT NULL → warranty; ELSE out-of-warranty.
-- **Profit** = `(job_invoice_line.amount + job_additional_charge.selling_price*qty) − (job_part_used.cost_price*qty + job_additional_charge.cost_price*qty)`.
-- **Spare-parts ordering suggestion**: weighted moving average of last 6 months consumption (weights `[6,5,4,3,2,1]` for months M-1..M-6), suggested order qty = `max(0, ceil(weightedMonthlyConsumption) − stockOnHand)`.
-
-### Non-Goals (for this iteration)
-- New billing/accounting modules. We only **read** from existing tables.
-- Server-side scheduled reports / email.
-- Multi-tenant ACL changes (existing auth gating is reused).
-- Real-time subscriptions for dashboard (use polling refetch with manual Refresh button).
+> Architecture decision is fixed: **Browser → Service-Plus server → Trace-Plus server**
+> (server-to-server relay). The high-level design rationale lives in `plans/design.md`.
+> This document is the **executable implementation plan**: concrete code, account mapping, and
+> ordered steps. Each step is self-contained and can be executed and verified independently.
+>
+> **Conventions reused (verified in source):**
+> - Server: Ariadne GraphQL, resolvers in `mutation.py` → helpers in `mutation_helper.py`;
+>   all SQL in `app/db/sql_store.py` (`SqlStore`); all strings in `app/exceptions.py` (`AppMessages`);
+>   DB via `exec_sql` / `process_data` / `get_service_db_connection`; audit via `audit_logger.log`.
+> - `httpx>=0.27.0` is already a dependency (use it for the S2S call — no new package).
+> - Trace ingest: GraphQL mutation `validateDebitCreditAndUpdate(dbName, value)` where `value` is
+>   `encodeURIComponent(JSON)` carrying `buCode`, `dbParams`, and the voucher `sqlObject`
+>   (`tableName:"TranH"`, `xData{...header..., xDetails:[{tableName:"TranD", xData:[...]}]}`).
+>   Trace auto-generates `autoRefNo` when `xData` has no `id` and has `finYearId+branchId+tranTypeId`,
+>   and rejects the write unless Σdebit == Σcredit per entry.
+> - Client: Apollo + `GRAPHQL_MAP` (gql) + `graphQlUtils`/`encodeObj` + `SQL_MAP`.
 
 ---
 
-## 2. Information Architecture (Explorer Tree)
+## Account Mapping (the accounting model produced per entity)
 
-Update `ReportsExplorer` in `src/features/client/components/client-explorer-panel.tsx`. Final grouped tree:
+All vouchers are double-entry: each `TranH` carries balanced `TranD` rows (`dc` = `'D'`/`'C'`).
+`tranTypeId` per Trace convention: **4 = Sales, 5 = Purchase, 9 = Sales Return, 10 = Purchase Return,
+3 = Receipt**.
 
-```
-Reports
-├─ Dashboard                          (Operations Overview)
-│
-├─ Job Reports
-│  ├─ Job Intake Summary              (Received, with W / OOW splits, all ranges)
-│  ├─ Jobs Repaired (OK)              (status = repaired-ok)
-│  ├─ Jobs Delivered (OK)             (status = delivered-ok)
-│  ├─ Delivered Jobs — Detailed       (line-level invoice + parts + profit)
-│  ├─ Job Transaction Ledger          (complete job_transaction log, date desc)
-│  ├─ Job Pipeline / Aging            (open jobs by status × age buckets)
-│  └─ Job Status Trend                (status mix month over month)
-│
-├─ Warranty Reports                   ⭐ Special
-│  ├─ Warranty Repairs & Parts Value  (in-warranty jobs + parts consumed + parts ₹ value, This/Prev Month + Custom)
-│  ├─ Warranty Parts Consumption Detail (line-level part-by-part for the range)
-│  └─ Warranty Trend (6-month)        (monthly trend of warranty repairs, parts qty, parts value)
-│
-├─ Financial Reports
-│  ├─ Profit Summary                  (range-wise profit, W vs OOW split)
-│  ├─ Revenue Report                  (job_invoice + sales_invoice combined)
-│  ├─ Cash Register                   (job_payment + receipts, daily)
-│  ├─ Sales Report                    (sales_invoice line-level)
-│  └─ GST Summary                     (CGST/SGST/IGST per range)
-│
-├─ Performance Reports
-│  ├─ Technician Scorecard            (per-technician KPI matrix)
-│  ├─ Technician Repaired vs Delivered (chart)
-│  ├─ Technician Profit & Revenue     (chart + table)
-│  └─ Technician Productivity Heatmap (jobs per day per tech)
-│
-├─ Inventory Reports
-│  ├─ Spare Parts Ledger (Op/Dr/Cr/Cl)   (fiscal-year-wise; uses stock_snapshot + stock_transaction)
-│  ├─ Spare Parts Aging                 (FIFO age buckets <30, 30-90, 90-180, 180-365, >365)
-│  ├─ Slow Movers (Aged > 1 year)       (specific filter shortcut into Aging)
-│  ├─ Parts Consumption — Detailed      (weekly / monthly / yearly / all, consumed_date desc)
-│  ├─ Stock Ledger                      (stock_transaction with running balance)
-│  ├─ Stock Movement Summary            (in/out by transaction type)
-│  └─ Parts Reorder Suggestions         (weighted 6-month MA + present stock)
-│
-└─ Trends (Charts)
-   ├─ Jobs Received — Monthly (this year)
-   ├─ Jobs Received — Year-wise (last 4 years)
-   ├─ Jobs Received — 12/24/36-month trailing
-   ├─ Repair vs Deliver Funnel
-   └─ Profit Trend (YoY)
-```
+| Service-Plus entity | tranTypeId | Debit (Dr) | Credit (Cr) |
+|---|---|---|---|
+| **Purchase Invoice** (`is_return=false`) | 5 | Purchase a/c = `aggregate_amount`; Input CGST; Input SGST; Input IGST | Supplier (creditor) = `total_amount` |
+| **Purchase Invoice** (`is_return=true`) | 10 | Supplier = `total_amount` | Purchase a/c = `aggregate_amount`; Input CGST/SGST/IGST |
+| **Sales Invoice** (`is_return=false`) | 4 | Customer (debtor) = `amount` | Sales a/c = `aggregate`; Output CGST; Output SGST; Output IGST |
+| **Sales Invoice** (`is_return=true`) | 9 | Sales a/c = `aggregate`; Output CGST/SGST/IGST | Customer = `amount` |
+| **Job Invoice** | 4 | Customer/Job party = `amount` | Service Income a/c = `aggregate`; Output CGST; Output SGST; Output IGST |
+| **Money Receipt** (`job_payment`) | 3 | Bank or Cash (by `payment_mode`) = `amount` | Customer/Job party = `amount` |
 
-Two new TreeItem groups are added: `Trends` and `Parts Ordering`. Existing `Performance Reports` is extended.
+GST lines are emitted only when the corresponding amount ≠ 0. Counterparty (supplier/customer)
+resolves to a single Trace ledger account via the **account map** (Step 1) — initially a fixed
+control account ("Sundry Debtors" / "Sundry Creditors"); auto-subledger is a later enhancement.
+
+The Trace GL account ids (`accId`) are **not hard-coded**: they come from a per-tenant map row so
+each business unit can point at its own chart of accounts.
 
 ---
 
-## 3. Architecture & Folder Structure
+## Phase 0 — Prerequisites & configuration
 
-All new code lives under:
+### Step 0.1 — Add Trace + posting settings (`app/config.py`)
+Append to `class Settings`:
 
-```
-src/features/client/components/reports/
-   _common/
-      range-picker.tsx                 # Canonical date-range UI (Today, ..., Custom)
-      report-toolbar.tsx               # Range, Branch/Division, Search, Refresh, PDF, Excel
-      report-empty.tsx
-      report-error.tsx
-      report-loading.tsx
-      kpi-card.tsx
-      kpi-grid.tsx
-      report-table.tsx                 # shadcn table wrapper w/ sort + sticky header
-      chart-card.tsx                   # shadcn Card + ResponsiveContainer
-      pdf-export.ts                    # generic jspdf-autotable wrapper
-      xlsx-export.ts                   # generic xlsx wrapper
-      fiscal.ts                        # qtr/range derivation from fiscal_year_start_month_num
-      use-fiscal-setting.ts            # reads app_setting → exposes fyStartMonth, financialYears
-      use-report-range.ts              # range state + custom range
-      report-section.tsx               # Layout shell used by every report page
-      messages.ts                      # local re-export of @/constants/messages keys
-   dashboard/
-      dashboard-section.tsx
-      dashboard-kpis.tsx
-      dashboard-monthly-chart.tsx
-      dashboard-warranty-split.tsx
-      dashboard-recent-jobs.tsx
-      dashboard-alerts.tsx             # overdue, low-stock, aged parts
-   jobs/
-      job-intake-summary-section.tsx
-      jobs-repaired-section.tsx
-      jobs-delivered-section.tsx
-      jobs-delivered-detailed-section.tsx
-      job-transaction-ledger-section.tsx
-      job-pipeline-aging-section.tsx
-      job-status-trend-section.tsx
-   warranty/
-      warranty-repairs-parts-value-section.tsx
-      warranty-parts-consumption-detail-section.tsx
-      warranty-trend-section.tsx
-      warranty-job-detail-dialog.tsx       # drilldown: parts used inside a single warranty job
-   financial/
-      profit-summary-section.tsx
-      revenue-report-section.tsx
-      cash-register-section.tsx
-      sales-report-section.tsx
-      gst-summary-section.tsx
-   performance/
-      technician-scorecard-section.tsx
-      technician-repaired-delivered-section.tsx
-      technician-profit-revenue-section.tsx
-      technician-productivity-heatmap-section.tsx
-   inventory/
-      spare-parts-ledger-section.tsx
-      spare-parts-aging-section.tsx
-      parts-consumption-detailed-section.tsx
-      stock-ledger-section.tsx
-      stock-movement-summary-section.tsx
-      parts-reorder-suggestions-section.tsx
-   trends/
-      jobs-received-monthly-section.tsx
-      jobs-received-yearwise-section.tsx
-      jobs-received-trailing-section.tsx
-      repair-deliver-funnel-section.tsx
-      profit-trend-yoy-section.tsx
+```python
+    # ── Trace-Plus (accounts) integration ──────────────────────────────────────
+    trace_base_url: str = Field(
+        default="http://localhost:8001",
+        description="Trace-Plus server base URL (GraphQL at <base>/graphql/)",
+    )
+    trace_service_username: str = Field(default="", description="Trace service-account login")
+    trace_service_password: str = Field(default="", description="Trace service-account password")
+    trace_service_client_id: str = Field(default="", description="Trace clientId for login")
+    trace_http_timeout_seconds: float = Field(default=30.0, description="S2S call timeout")
+    trace_post_max_retries: int = Field(default=2, description="Retries on transient/network errors only")
 ```
 
-Types live under `src/features/client/types/reports/*.ts` (one type file per major report family), each name ends with `Type` (per `claude.md`).
+`.env` (per environment) supplies real values; **no secrets in code or client**.
+
+### Step 0.2 — Confirm Trace constants (manual, no code)
+In the Trace DB, confirm `TranTypeM` ids for Purchase(5)/Sale(4)/returns(9,10)/Receipt and the GST
+account convention. Record them; they feed Step 1's seed row.
+
+**Verify:** `python -c "from app.config import settings; print(settings.trace_base_url)"` runs clean.
 
 ---
 
-## 4. Range Picker & Fiscal Math
+## Phase 1 — Account map (Service-Plus client DB, `service_plus_client` schema)
 
-`src/features/client/components/reports/_common/fiscal.ts` exports:
+### Step 1.1 — Create the map table (migration SQL, run once)
+Add `db/migrations/2026-06-14_accounts_posting.sql`:
 
+```sql
+-- Per-business-unit mapping to a Trace-Plus business unit + chart-of-accounts ids.
+CREATE TABLE IF NOT EXISTS public.trace_posting_map (
+    id              bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    service_db_name text   NOT NULL,            -- Service-Plus tenant DB
+    service_schema  text   NOT NULL,            -- e.g. 'demo1'
+    branch_id       bigint NOT NULL,            -- Service-Plus branch
+    -- Trace targeting
+    trace_db_name   text   NOT NULL,            -- Trace 'dbName'
+    trace_bu_code   text   NOT NULL,            -- Trace 'buCode' (schema)
+    trace_db_params jsonb  NOT NULL,            -- Trace external DB params (stored encrypted)
+    trace_branch_id int    NOT NULL,            -- Trace branchId
+    trace_fin_year_id int  NOT NULL,            -- Trace finYearId (current FY)
+    -- Trace GL account ids (AccM.id)
+    acc_purchase    int NOT NULL,
+    acc_sales       int NOT NULL,
+    acc_service_income int NOT NULL,
+    acc_input_cgst  int NOT NULL,
+    acc_input_sgst  int NOT NULL,
+    acc_input_igst  int NOT NULL,
+    acc_output_cgst int NOT NULL,
+    acc_output_sgst int NOT NULL,
+    acc_output_igst int NOT NULL,
+    acc_debtors     int NOT NULL,               -- Sundry Debtors control
+    acc_creditors   int NOT NULL,               -- Sundry Creditors control
+    acc_cash        int NOT NULL,
+    acc_bank        int NOT NULL,
+    is_active       boolean NOT NULL DEFAULT true,
+    created_at      timestamptz NOT NULL DEFAULT now(),
+    UNIQUE (service_db_name, service_schema, branch_id)
+);
+
+-- Idempotency + traceability ledger for every posting attempt.
+CREATE TABLE IF NOT EXISTS public.trace_posting_log (
+    id            bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    service_db_name text NOT NULL,
+    service_schema  text NOT NULL,
+    entity_type   text   NOT NULL,              -- 'purchase'|'sales'|'job'|'receipt'
+    entity_id     bigint NOT NULL,
+    user_ref_no   text   NOT NULL,              -- stable key sent to Trace as userRefNo
+    trace_ref_no  text,                         -- Trace autoRefNo on success
+    status        text   NOT NULL,              -- 'posted'|'failed'
+    message       text,
+    posted_by     text,
+    posted_at     timestamptz NOT NULL DEFAULT now(),
+    UNIQUE (service_db_name, service_schema, entity_type, entity_id)
+);
+```
+
+> `trace_db_params` holds Trace's external-DB connection JSON. Reuse the existing encryption used
+> elsewhere if available; otherwise store via a server-side secret and keep the column for non-secret
+> routing only. **Never expose this to the client.**
+
+### Step 1.2 — Seed one row per (tenant, branch) using the Step 0.2 values.
+
+**Verify:** `SELECT * FROM trace_posting_map;` returns the seeded row.
+
+---
+
+## Phase 2 — SQL for assembly, idempotency, and flag flip (`app/db/sql_store.py`)
+
+Add these to `class SqlStore` (CTE-parameter style per project standard; `%%` is escaped `%`).
+
+### Step 2.1 — Fetch the posting map (client DB)
+```python
+    GET_TRACE_POSTING_MAP = """
+        with "service_db_name" as (values (%(service_db_name)s::text)),
+             "service_schema"  as (values (%(service_schema)s::text)),
+             "branch_id"       as (values (%(branch_id)s::bigint))
+        SELECT * FROM public.trace_posting_map
+            WHERE service_db_name = (table "service_db_name")
+              AND service_schema  = (table "service_schema")
+              AND branch_id       = (table "branch_id")
+              AND is_active = true
+    """
+```
+
+### Step 2.2 — Fetch full entity rows for posting (service DB), one query per entity
+Each returns only **unposted** rows for the requested ids, with the fields the voucher needs.
+```python
+    GET_PURCHASE_INVOICES_FOR_POST = """
+        with "ids" as (values (%(ids)s::bigint[]))
+        SELECT pi.id, pi.invoice_no, pi.invoice_date, pi.branch_id, pi.is_return,
+               pi.aggregate_amount, pi.cgst_amount, pi.sgst_amount, pi.igst_amount,
+               pi.total_amount, pi.supplier_id, c.contact_name AS supplier_name
+            FROM purchase_invoice pi
+            LEFT JOIN contact c ON c.id = pi.supplier_id
+            WHERE pi.id = ANY((table "ids")) AND pi.is_posted = false
+    """
+
+    GET_SALES_INVOICES_FOR_POST = """
+        with "ids" as (values (%(ids)s::bigint[]))
+        SELECT si.id, si.invoice_no, si.invoice_date, si.division_id, si.is_return,
+               si.aggregate, si.cgst_amount, si.sgst_amount, si.igst_amount, si.amount,
+               si.customer_contact_id, si.customer_name
+            FROM sales_invoice si
+            WHERE si.id = ANY((table "ids")) AND si.is_posted = false
+    """
+
+    GET_JOB_INVOICES_FOR_POST = """
+        with "ids" as (values (%(ids)s::bigint[]))
+        SELECT ji.id, ji.invoice_no, ji.invoice_date, ji.job_id,
+               ji.aggregate, ji.cgst_amount, ji.sgst_amount, ji.igst_amount, ji.amount,
+               j.customer_name, j.branch_id
+            FROM job_invoice ji
+            JOIN job j ON j.id = ji.job_id
+            WHERE ji.id = ANY((table "ids")) AND ji.is_posted = false
+    """
+
+    GET_JOB_PAYMENTS_FOR_POST = """
+        with "ids" as (values (%(ids)s::bigint[]))
+        SELECT jp.id, jp.receipt_no, jp.payment_date, jp.payment_mode, jp.amount,
+               jp.reference_no, jp.job_id, j.customer_name, j.branch_id
+            FROM job_payment jp
+            JOIN job j ON j.id = jp.job_id
+            WHERE jp.id = ANY((table "ids")) AND jp.is_posted = false
+    """
+```
+> Adjust counterparty joins (`contact`, `job`) to the real column names in `service-plus-demo.sql`
+> during execution; the shapes above match the grid schemas in `accounts-posting-schema.ts`.
+
+### Step 2.3 — Mark posted (service DB) — done via `process_data` (no raw SQL needed)
+The flag flip uses the existing `process_data(x_data={"id":..,"is_posted":True}, cur, table, None, None)`.
+
+### Step 2.4 — Idempotency log upsert (client DB)
+```python
+    UPSERT_TRACE_POSTING_LOG = """
+        with t as (values (
+            %(service_db_name)s::text, %(service_schema)s::text, %(entity_type)s::text,
+            %(entity_id)s::bigint, %(user_ref_no)s::text, %(trace_ref_no)s::text,
+            %(status)s::text, %(message)s::text, %(posted_by)s::text))
+        INSERT INTO public.trace_posting_log
+            (service_db_name, service_schema, entity_type, entity_id, user_ref_no,
+             trace_ref_no, status, message, posted_by)
+        SELECT * FROM t
+        ON CONFLICT (service_db_name, service_schema, entity_type, entity_id)
+        DO UPDATE SET trace_ref_no = EXCLUDED.trace_ref_no, status = EXCLUDED.status,
+                      message = EXCLUDED.message, posted_by = EXCLUDED.posted_by,
+                      posted_at = now()
+    """
+```
+
+**Verify:** import `SqlStore` and read each new attribute is a non-empty string.
+
+---
+
+## Phase 3 — Trace client service (`app/services/trace_client.py`, new file)
+
+Handles service-token login (cached + refreshed on 401) and the GraphQL call.
+
+```python
+"""Server-to-server client for posting vouchers into Trace-Plus."""
+import json
+from urllib.parse import quote
+from typing import Any
+import httpx
+from app.config import settings
+from app.logger import logger
+from app.exceptions import AppMessages
+
+_token_cache: dict[str, str] = {"access": ""}
+
+
+async def _login() -> str:
+    """Obtain a Trace service JWT via Trace's /api/login (form-encoded)."""
+    url = f"{settings.trace_base_url}/api/login"
+    data = {
+        "clientId": settings.trace_service_client_id,
+        "username": settings.trace_service_username,
+        "password": settings.trace_service_password,
+    }
+    async with httpx.AsyncClient(timeout=settings.trace_http_timeout_seconds) as client:
+        resp = await client.post(url, data=data)
+        resp.raise_for_status()
+        bundle = resp.json()
+    token = bundle.get("accessToken") or bundle.get("access_token")
+    if not token:
+        raise RuntimeError(AppMessages.TRACE_LOGIN_FAILED)
+    _token_cache["access"] = token
+    return token
+
+
+async def _ensure_token() -> str:
+    return _token_cache["access"] or await _login()
+
+
+async def post_voucher(trace_db_name: str, value_obj: dict) -> dict:
+    """
+    Call Trace `validateDebitCreditAndUpdate`. `value_obj` already contains
+    buCode, dbParams, autoRefNo flag inputs, and the TranH sqlObject.
+    Returns {"ok": True, "ref": <autoRefNo|None>} or {"ok": False, "detail": <msg>}.
+    """
+    gql_url = f"{settings.trace_base_url}/graphql/"
+    encoded = quote(json.dumps(value_obj))
+    query = (
+        "mutation($dbName:String!,$value:String!){"
+        "validateDebitCreditAndUpdate(dbName:$dbName,value:$value)}"
+    )
+    payload = {"query": query, "variables": {"dbName": trace_db_name, "value": encoded}}
+
+    async def _send(token: str) -> httpx.Response:
+        async with httpx.AsyncClient(timeout=settings.trace_http_timeout_seconds) as client:
+            return await client.post(
+                gql_url, json=payload,
+                headers={"Authorization": f"Bearer {token}"},
+            )
+
+    token = await _ensure_token()
+    resp = await _send(token)
+    if resp.status_code == 401:                      # token expired → refresh once
+        token = await _login()
+        resp = await _send(token)
+    resp.raise_for_status()
+
+    body = resp.json()
+    data = (body.get("data") or {}).get("validateDebitCreditAndUpdate")
+    # Trace returns errors-as-data: {"error": {...}}
+    if isinstance(data, dict) and data.get("error"):
+        detail = data["error"].get("content", {}).get("detail", AppMessages.TRACE_POST_FAILED)
+        return {"ok": False, "detail": detail}
+    if body.get("errors"):
+        return {"ok": False, "detail": str(body["errors"][0].get("message"))}
+    ref = data.get("autoRefNo") if isinstance(data, dict) else None
+    return {"ok": True, "ref": ref}
+```
+
+> Retries (on `httpx.TransportError`/timeout only, never after a confirmed write) are added in the
+> orchestrator (Step 5) using `settings.trace_post_max_retries`.
+
+**Verify:** with a running Trace dev server, `await _login()` returns a token.
+
+---
+
+## Phase 4 — Voucher builder (`app/services/accounts_posting_builder.py`, new file)
+
+Pure functions: `(entity_row, map_row) -> sqlObject`. No I/O — fully unit-testable.
+
+```python
+"""Map Service-Plus entities to balanced Trace double-entry voucher sql_objects."""
+from datetime import date
+from typing import Any
+
+T_SALE, T_PURCHASE, T_SALE_RET, T_PURCHASE_RET, T_RECEIPT = 4, 5, 9, 10, 3
+
+
+def _fin_year_id(d: str, fallback: int) -> int:
+    """Indian FY: Apr–Mar. Use map's current FY by default; derive if needed."""
+    return fallback
+
+
+def _row(acc_id: int, dc: str, amount: float, **extra) -> dict:
+    return {"accId": acc_id, "dc": dc, "amount": round(float(amount), 2), **extra}
+
+
+def _tax_rows(m: dict, kind: str, cgst, sgst, igst) -> list[dict]:
+    """kind='input' for purchase, 'output' for sales/job. Emit only non-zero."""
+    pfx = "input" if kind == "input" else "output"
+    dc = "D" if kind == "input" else "C"   # input GST is a debit; output GST a credit
+    out = []
+    for amt, acc in ((cgst, m[f"acc_{pfx}_cgst"]), (sgst, m[f"acc_{pfx}_sgst"]), (igst, m[f"acc_{pfx}_igst"])):
+        if amt and float(amt) != 0:
+            out.append(_row(acc, dc, amt))
+    return out
+
+
+def _envelope(m: dict, tran_type_id: int, tran_date: str, user_ref_no: str,
+              remarks: str, detail_rows: list[dict]) -> dict:
+    """Wrap balanced TranD rows in the TranH sqlObject Trace expects."""
+    return {
+        "buCode": m["trace_bu_code"],
+        "dbParams": m["trace_db_params"],
+        "tableName": "TranH",
+        "xData": {
+            "tranDate": tran_date,
+            "finYearId": m["trace_fin_year_id"],
+            "branchId": m["trace_branch_id"],
+            "tranTypeId": tran_type_id,
+            "userRefNo": user_ref_no,
+            "remarks": remarks,
+            "xDetails": [{"tableName": "TranD", "xData": detail_rows}],
+        },
+    }
+
+
+def build_purchase(r: dict, m: dict) -> dict:
+    is_ret = r.get("is_return")
+    tt = T_PURCHASE_RET if is_ret else T_PURCHASE
+    gst = _tax_rows(m, "input", r["cgst_amount"], r["sgst_amount"], r["igst_amount"])
+    purchase = _row(m["acc_purchase"], "D" if not is_ret else "C", r["aggregate_amount"])
+    supplier = _row(m["acc_creditors"], "C" if not is_ret else "D", r["total_amount"])
+    rows = [purchase, *gst, supplier]            # debits == credits by construction
+    return _envelope(m, tt, r["invoice_date"], f"PI:{r['invoice_no']}",
+                     f"Purchase {r['invoice_no']} {r.get('supplier_name','')}", rows)
+
+
+def build_sales(r: dict, m: dict) -> dict:
+    is_ret = r.get("is_return")
+    tt = T_SALE_RET if is_ret else T_SALE
+    gst = _tax_rows(m, "output", r["cgst_amount"], r["sgst_amount"], r["igst_amount"])
+    sales = _row(m["acc_sales"], "C" if not is_ret else "D", r["aggregate"])
+    customer = _row(m["acc_debtors"], "D" if not is_ret else "C", r["amount"])
+    rows = [customer, sales, *gst]
+    return _envelope(m, tt, r["invoice_date"], f"SI:{r['invoice_no']}",
+                     f"Sales {r['invoice_no']} {r.get('customer_name','')}", rows)
+
+
+def build_job_invoice(r: dict, m: dict) -> dict:
+    gst = _tax_rows(m, "output", r["cgst_amount"], r["sgst_amount"], r["igst_amount"])
+    income = _row(m["acc_service_income"], "C", r["aggregate"])
+    customer = _row(m["acc_debtors"], "D", r["amount"])
+    rows = [customer, income, *gst]
+    return _envelope(m, T_SALE, r["invoice_date"], f"JI:{r['invoice_no']}",
+                     f"Job invoice {r['invoice_no']} {r.get('customer_name','')}", rows)
+
+
+def build_receipt(r: dict, m: dict) -> dict:
+    mode = (r.get("payment_mode") or "").lower()
+    bank_or_cash = m["acc_cash"] if mode in ("cash",) else m["acc_bank"]
+    rows = [_row(bank_or_cash, "D", r["amount"]),
+            _row(m["acc_debtors"], "C", r["amount"], lineRefNo=r.get("reference_no"))]
+    return _envelope(m, T_RECEIPT, r["payment_date"], f"MR:{r['receipt_no']}",
+                     f"Receipt {r['receipt_no']} {r.get('customer_name','')}", rows)
+
+
+BUILDERS = {"purchase": build_purchase, "sales": build_sales,
+            "job": build_job_invoice, "receipt": build_receipt}
+```
+
+**Verify (unit):** for a sample row, assert `sum(D) == sum(C)` over `xData[0].xData`.
+
+---
+
+## Phase 5 — Posting orchestrator (`app/graphql/resolvers/mutation_helper.py`)
+
+Add the helper. It loops items, builds each voucher, calls Trace, and **only on success** flips
+`is_posted` (service DB) + writes `trace_posting_log` (client DB) + audits.
+
+```python
+# add near other imports
+import asyncio
+import httpx
+from app.db.psycopg_driver import exec_sql
+from app.services.trace_client import post_voucher
+from app.services.accounts_posting_builder import BUILDERS
+
+_POST_SQL = {
+    "purchase": ("GET_PURCHASE_INVOICES_FOR_POST", "purchase_invoice"),
+    "sales":    ("GET_SALES_INVOICES_FOR_POST",    "sales_invoice"),
+    "job":      ("GET_JOB_INVOICES_FOR_POST",      "job_invoice"),
+    "receipt":  ("GET_JOB_PAYMENTS_FOR_POST",      "job_payment"),
+}
+
+
+async def resolve_post_to_accounts_helper(db_name: str, schema: str = "public", value: str = "") -> Any:
+    """
+    value (URL-encoded JSON): { entity_type, ids:[...], branch_id, actor }
+    Returns: { requested, posted, skipped, failed, results:[{id,status,trace_ref,message}] }
+    """
+    payload = _decode_value(value, "postToAccounts")
+    entity_type = payload.get("entity_type")
+    ids = payload.get("ids") or []
+    branch_id = payload.get("branch_id")
+    actor = payload.get("actor") or "business_user"
+
+    if entity_type not in _POST_SQL or not ids or not branch_id:
+        raise ValidationException(message=AppMessages.REQUIRED_FIELD_MISSING,
+                                  extensions={"fields": ["entity_type", "ids", "branch_id"]})
+
+    db_name_arg = db_name if db_name else None
+    schema_name = schema or "public"
+    sql_id, table = _POST_SQL[entity_type]
+
+    # 1. Load the Trace map (client DB) and unposted rows (service DB)
+    map_rows = await exec_sql(None, "public", SqlStore.GET_TRACE_POSTING_MAP,
+                              {"service_db_name": db_name or "", "service_schema": schema_name,
+                               "branch_id": branch_id})
+    if not map_rows:
+        raise ValidationException(message=AppMessages.TRACE_MAP_NOT_FOUND,
+                                  extensions={"branch_id": branch_id})
+    m = map_rows[0]
+    rows = await exec_sql(db_name_arg, schema_name, getattr(SqlStore, sql_id),
+                          {"ids": list(ids)}, text_dates=True)
+    rows_by_id = {r["id"]: r for r in rows}
+
+    results, posted, failed = [], 0, 0
+    build = BUILDERS[entity_type]
+
+    for _id in ids:
+        row = rows_by_id.get(_id)
+        if row is None:                       # already posted or not found → skip
+            results.append({"id": _id, "status": "skipped", "message": AppMessages.ALREADY_POSTED})
+            continue
+        try:
+            voucher = build(row, m)
+            user_ref = voucher["xData"]["userRefNo"]
+            res = await _post_with_retry(m["trace_db_name"], voucher)
+            if not res["ok"]:
+                failed += 1
+                await _record_log(db_name, schema_name, entity_type, _id, user_ref,
+                                  None, "failed", res["detail"], actor)
+                results.append({"id": _id, "status": "failed", "message": res["detail"]})
+                continue
+            # success → flip flag in service DB
+            async with get_service_db_connection(db_name_arg) as conn:
+                async with conn.cursor(row_factory=dict_row) as cur:
+                    await cur.execute(pgsql.SQL("SET search_path TO {}").format(
+                        pgsql.Identifier(schema_name)))
+                    await process_data({"id": _id, "is_posted": True, "to_set_updated_at": True},
+                                       cur, table, None, None)
+            await _record_log(db_name, schema_name, entity_type, _id, user_ref,
+                              res["ref"], "posted", None, actor)
+            await audit_logger.log(action=AuditAction.POST_TO_ACCOUNTS, actor_type="business_user",
+                                   actor_username=actor, outcome="success",
+                                   resource_type=entity_type, resource_id=str(_id),
+                                   resource_name=res["ref"])
+            posted += 1
+            results.append({"id": _id, "status": "posted", "trace_ref": res["ref"]})
+        except Exception as e:               # isolate per-item failure
+            failed += 1
+            logger.error("Posting %s id=%s failed: %s", entity_type, _id, e, exc_info=True)
+            results.append({"id": _id, "status": "failed", "message": str(e)})
+
+    return {"requested": len(ids), "posted": posted, "skipped": len(ids) - posted - failed,
+            "failed": failed, "results": results}
+
+
+async def _post_with_retry(trace_db_name: str, voucher: dict) -> dict:
+    attempts = settings.trace_post_max_retries + 1
+    for i in range(attempts):
+        try:
+            return await post_voucher(trace_db_name, voucher)
+        except (httpx.TransportError, httpx.TimeoutException) as e:
+            if i == attempts - 1:
+                return {"ok": False, "detail": f"{AppMessages.TRACE_UNREACHABLE}: {e}"}
+            await asyncio.sleep(0.5 * (i + 1))
+
+
+async def _record_log(db_name, schema_name, entity_type, entity_id, user_ref,
+                      trace_ref, status, message, actor) -> None:
+    await exec_sql(None, "public", SqlStore.UPSERT_TRACE_POSTING_LOG, {
+        "service_db_name": db_name or "", "service_schema": schema_name,
+        "entity_type": entity_type, "entity_id": entity_id, "user_ref_no": user_ref,
+        "trace_ref_no": trace_ref, "status": status, "message": message, "posted_by": actor})
+```
+
+Add to `app/core/audit_log.py` (`AuditAction`): `POST_TO_ACCOUNTS = "POST_TO_ACCOUNTS"`.
+Add to `app/exceptions.py` (`AppMessages`): `TRACE_LOGIN_FAILED`, `TRACE_POST_FAILED`,
+`TRACE_UNREACHABLE`, `TRACE_MAP_NOT_FOUND`, `ALREADY_POSTED`.
+
+**Verify:** call with a list of ids against a Trace dev BU; confirm `is_posted` flips only for
+successfully posted ids and `trace_posting_log` rows appear.
+
+---
+
+## Phase 6 — GraphQL wiring (server)
+
+### Step 6.1 — `app/graphql/schema.graphql` (add under `type Mutation`)
+```graphql
+    postToAccounts(db_name: String!, schema: String, value: String!): Generic
+```
+
+### Step 6.2 — `app/graphql/resolvers/mutation.py` (register resolver + import helper)
+```python
+from app.graphql.resolvers.mutation_helper import resolve_post_to_accounts_helper  # add to import block
+
+@mutation.field("postToAccounts")
+async def resolve_post_to_accounts(_, info, db_name: str = "", schema: str = "public", value: str = "") -> Any:
+    try:
+        return await resolve_post_to_accounts_helper(db_name, schema, value)
+    except ValidationException:
+        raise
+    except Exception as e:
+        logger.error("Error posting to accounts: %s", e, exc_info=True)
+        raise GraphQLException(message=AppMessages.OPERATION_FAILED, extensions={"details": str(e)})
+```
+
+**Verify:** GraphQL playground shows `postToAccounts`; schema loads without error.
+
+---
+
+## Phase 7 — Client wiring (`service-plus-client`)
+
+### Step 7.1 — `src/constants/graphql-map.ts` (add to `GRAPHQL_MAP`)
 ```ts
-type RangeKeyType =
-  'today' | 'yesterday' | 'thisWeek' | 'prevWeek'
-  | 'thisMonth' | 'lastMonth'
-  | 'q1' | 'q2' | 'q3' | 'q4'
-  | 'ytd' | 'lastYear'
-  | 'custom';
-
-type DateRangeType = { from: Date; to: Date; key: RangeKeyType; label: string };
-
-function getFiscalStartMonth(): number;                              // from app_setting (1-12)
-function getRange(key: RangeKeyType, today: Date, fyStart: number,
-                  custom?: { from: Date; to: Date }): DateRangeType;
-function getCurrentFiscalYearBounds(today: Date, fyStart: number): DateRangeType;
-function getPreviousFiscalYearBounds(today: Date, fyStart: number): DateRangeType;
-function getFiscalQuarterBounds(q: 1|2|3|4, today: Date, fyStart: number): DateRangeType;
-function monthList(fyStart: number): { idx: number; label: string }[];   // for monthwise chart x-axis
+    postToAccounts: gql`
+        mutation PostToAccounts($db_name: String!, $schema: String, $value: String!) {
+            postToAccounts(db_name: $db_name, schema: $schema, value: $value)
+        }
+    `,
 ```
 
-Important rules:
-- **Quarters are fiscal quarters**: Q1 = `[fyStart, fyStart+1, fyStart+2]` etc., aligned to current FY.
-- "This Week" uses **Monday-start** week (or locale; default Monday) and ends on Sunday.
-- "YTD" = `[FY start of current FY, today]`.
-- "Last Year" = entire previous FY.
-
-`use-fiscal-setting.ts` queries `GET_APP_SETTING_BY_KEY` with `{ setting_key: 'fiscal_year_start_month_num' }` (already defined in `SQL_MAP`). It also calls `GET_ALL_FINANCIAL_YEARS` to populate FY dropdowns for fiscal-year-wise reports.
-
-`use-report-range.ts` exposes:
+### Step 7.2 — `src/features/client/components/jobs/accounts-posting/posting-service.ts` (new)
 ```ts
-type UseReportRangeType = {
-  range: DateRangeType;
-  setRange: (key: RangeKeyType, custom?: { from: Date; to: Date }) => void;
+import { apolloClient } from "@/lib/apollo-client";
+import { encodeObj } from "@/lib/graphql-utils";
+import { GRAPHQL_MAP } from "@/constants/graphql-map";
+
+export type PostEntity = "purchase" | "sales" | "job" | "receipt";
+export type PostItemResult = { id: number; status: "posted" | "skipped" | "failed"; trace_ref?: string; message?: string };
+export type PostResult = { requested: number; posted: number; skipped: number; failed: number; results: PostItemResult[] };
+
+export async function postEntityToAccounts(args: {
+    dbName: string; schema: string; entityType: PostEntity; ids: number[]; branchId: number; actor: string;
+}): Promise<PostResult> {
+    const res = await apolloClient.mutate<{ postToAccounts: PostResult }>({
+        mutation: GRAPHQL_MAP.postToAccounts,
+        variables: {
+            db_name: args.dbName, schema: args.schema,
+            value: encodeObj({ entity_type: args.entityType, ids: args.ids, branch_id: args.branchId, actor: args.actor }),
+        },
+    });
+    return res.data!.postToAccounts;
+}
+```
+
+### Step 7.3 — `accounts-posting-section.tsx` — replace `handlePostAllSelected`
+Wire context (dbName/schema/branchId/user) and call the service per non-empty selection set,
+then summarize and refresh. Pseudocode (keeps existing selection state):
+```ts
+const dbName   = useAppSelector(selectDbName);
+const schema   = useAppSelector(selectSchema);
+const branchId = useAppSelector(selectCurrentBranch)?.id;
+const actor    = useAppSelector(/* current username */);
+
+const handlePostAllSelected = async () => {
+    if (!dbName || !schema || !branchId) return;
+    const jobs: Array<[PostEntity, Set<number>]> = [
+        ["purchase", selectedPurchaseIds], ["sales", selectedSalesIds],
+        ["job", selectedJobIds], ["receipt", selectedReceiptIds],
+    ];
+    let posted = 0, failed = 0, skipped = 0;
+    toast.info(`Posting ${totalSelected} item(s)…`);
+    for (const [entityType, set] of jobs) {
+        if (set.size === 0) continue;
+        try {
+            const r = await postEntityToAccounts({ dbName, schema, entityType, ids: [...set], branchId, actor });
+            posted += r.posted; failed += r.failed; skipped += r.skipped;
+        } catch { failed += set.size; }
+    }
+    failed === 0
+        ? toast.success(`Posted ${posted}${skipped ? `, skipped ${skipped}` : ""}.`)
+        : toast.warning(`Posted ${posted}, failed ${failed}${skipped ? `, skipped ${skipped}` : ""}.`);
+    handleDeselectAll();
+    // trigger grid reloads (e.g. bump a refreshKey passed to grids, or call their refresh)
 };
 ```
+Add a `refreshKey` (incrementing number) prop to the four grids so a successful post re-runs their
+`loadData` (posted rows leave **Posting**, appear under **Posted**).
+
+**Verify:** select rows, click **Post selected** → summary toast; posted rows move to **Posted**;
+failures stay selected/visible with a message.
 
 ---
 
-## 5. Shared Components
+## Phase 8 — Trace-side hardening (prerequisite for production)
 
-### 5.1 `report-toolbar.tsx`
-shadcn `Card` header containing:
-- Range picker (`Select` + popover with `Calendar` for Custom)
-- Optional Division selector (defaults to current)
-- Optional Branch selector (multi-select chip)
-- Search input (debounced 1200ms)
-- Buttons: Refresh, Export PDF, Export Excel, Print
-- Title + subtitle slot, status pill ("Live" / "As of HH:mm")
+### Step 8.1 — Enforce Bearer auth on Trace `/graphql/`
+In `trace-server`, wrap the GraphQL ASGI mount (or add an `on_request`/context) to call the existing
+`validate_token(request)` so the relay is genuinely authenticated. Today only REST routes enforce it.
 
-### 5.2 `kpi-card.tsx` & `kpi-grid.tsx`
-- Variants: `default`, `success`, `warning`, `accent` (no red unless error)
-- Shows: label, value, optional delta `(+12% vs prev)`, sparkline (recharts `LineChart` small), trend icon
-- `kpi-grid` is `grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4`
+### Step 8.2 — (Optional) Trace-side idempotency guard
+Use the existing `does_purchase_invoice_exist`-style check keyed on
+`(tranTypeId, finYearId, accId, userRefNo)` to reject a duplicate voucher even if Service-Plus retries.
 
-### 5.3 `report-table.tsx`
-- shadcn `Table` + sticky header
-- Column config: `{ id, header, accessor, align, sortable, format }`
-- Built-in row total/footer row support
-- Virtualization optional — initial impl uses pagination (50 rows)
-- Empty / loading / error built-ins
-
-### 5.4 `chart-card.tsx`
-- shadcn Card wrapping `ResponsiveContainer`
-- Toggle chart type (Bar / Line / Area / Pie) where meaningful
-- Legend, hover tooltip, axis formatters
-- Color tokens use `--cl-accent`, `--cl-accent-text`, semantic non-red palette
-
-### 5.5 `pdf-export.ts`
-Generic exporter built on the existing `jspdf` + `jspdf-autotable` already used by `purchase-invoice-pdf-gen.ts` and `job-sheet-pdf.ts`. Signature:
-
-```ts
-function exportReportPdf(opts: {
-  title: string;
-  subtitle?: string;
-  meta: { label: string; value: string }[];     // range, division, generated_at
-  columns: { header: string; dataKey: string; width?: number; align?: 'left'|'right'|'center' }[];
-  rows: Record<string, string | number>[];
-  totalsRow?: Record<string, string | number>;
-  orientation?: 'portrait' | 'landscape';
-  footerNote?: string;
-}): void;
-```
-
-Renders header (division name/logo from `currentDivision`), table via `autoTable`, totals row in bold, page numbers in footer.
-
-### 5.6 `xlsx-export.ts`
-Wraps `xlsx`'s `utils.json_to_sheet`, `book_append_sheet`, `writeFile`. Supports multi-sheet (e.g., summary + detail).
+**Verify:** an unauthenticated POST to Trace `/graphql/` returns 401; re-posting the same selection
+creates no duplicate `TranH`.
 
 ---
 
-## 6. Data Access Pattern
+## Phase 9 — Testing & rollout
 
-All queries go through `genericQuery`/`genericUpdate` per `claude.md`. The plan introduces **new SQL keys** (added to `service-plus-server/app/db/sql_bu.py` AND `src/constants/sql-map.ts`):
-
-### 6.1 New SQL keys (server)
-Group: **Dashboard / Jobs Aggregates**
-- `GET_JOBS_RECEIVED_RANGE_SPLIT`           — params `{from, to}` → `{warranty_count, oow_count}`
-- `GET_JOBS_REPAIRED_OK_RANGE_SPLIT`        — uses `job.is_final = true` + repaired-ok status
-- `GET_JOBS_DELIVERED_OK_RANGE_SPLIT`       — uses delivered-ok status
-- `GET_JOBS_RECEIVED_BY_MONTH`              — params `{from, to}` → `{month, warranty_count, oow_count}`
-- `GET_JOBS_RECEIVED_BY_YEAR`               — params `{years_back}` → `{fy_label, warranty_count, oow_count}`
-- `GET_JOB_PIPELINE_BY_STATUS_AGE`          — open jobs grouped by status × age bucket
-- `GET_JOB_STATUS_TREND_MONTHLY`            — `{month, status_id, count}`
-- `GET_RECENT_JOBS`                         — last 10 jobs with status, technician, customer
-- `GET_OVERDUE_JOBS`                        — open jobs older than X days
-
-Group: **Profit / Revenue**
-- `GET_PROFIT_RANGE`                        — `{from,to}` → `{warranty_profit, oow_profit, total_profit, total_revenue, total_cost}`
-- `GET_REVENUE_RANGE`                       — `{from,to}` → `{job_invoice_total, sales_invoice_total, gst_total}`
-- `GET_PROFIT_BY_TECHNICIAN`                — `{from,to}` → list per technician
-- `GET_TECH_REPAIRED_DELIVERED_RANGE`       — list per technician with split
-- `GET_GST_SUMMARY_RANGE`                   — `{from,to}` → CGST/SGST/IGST aggregates
-- `GET_CASH_REGISTER_RANGE`                 — `{from,to}` → daily receipts list
-- `GET_SALES_REPORT_RANGE`                  — `{from,to}` → sales invoice line list
-
-Group: **Job detailed transaction**
-- `GET_DELIVERED_JOBS_DETAILED_RANGE`       — line-level: job + customer + invoice + parts + charges + profit
-- `GET_JOB_TRANSACTION_LEDGER_RANGE`        — `job_transaction` joined to `job_status` + `technician` + `user`
-
-Group: **Warranty (special)**
-- `GET_WARRANTY_REPAIRS_SUMMARY_RANGE`      — `{from,to}` → `{warranty_jobs_count, repaired_count, delivered_count, parts_qty, parts_value, distinct_parts_count}`. **Warranty** is determined by `job.warranty_card_no IS NOT NULL`. Parts value uses `job_part_used.cost_price * qty` (cost-of-warranty, no revenue is billed on warranty repairs). Joins: `job` ⨝ `job_part_used` ⨝ `spare_part_master`.
-- `GET_WARRANTY_REPAIRS_LIST_RANGE`         — `{from,to}` → list of warranty jobs with `{job_no, job_date, customer_name, model, technician, status, parts_qty, parts_value}`.
-- `GET_WARRANTY_PARTS_CONSUMPTION_RANGE`    — `{from,to}` → line-level rows `{consumed_date, job_no, part_code, part_name, brand, qty, cost_price, line_value, technician}` for parts consumed in warranty jobs, sorted by `consumed_date desc`.
-- `GET_WARRANTY_PARTS_BY_PART_RANGE`        — `{from,to}` → per-part roll-up `{part_code, part_name, brand, total_qty, total_value, jobs_count}` (powers top-parts chart).
-- `GET_WARRANTY_TREND_MONTHLY`              — `{months_back}` (default 6) → monthly `{month, warranty_jobs, parts_qty, parts_value}`.
-- `GET_WARRANTY_JOB_PARTS_DETAIL`           — `{job_id}` → parts consumed inside a specific warranty job (powers drilldown dialog).
-
-Group: **Inventory / Parts**
-- `GET_PARTS_OPENING_FY`                    — `{fy_id}` → per-part opening qty + value
-- `GET_PARTS_DR_CR_FY`                      — `{fy_id}` → per-part debits + credits in qty + value
-- `GET_PARTS_CLOSING_FY`                    — `{fy_id}` → per-part closing qty + value
-- `GET_PARTS_AGING`                         — present stock with FIFO age buckets
-- `GET_PARTS_AGING_OVER_YEAR`               — subset of above, age > 365 days
-- `GET_PARTS_CONSUMPTION_RANGE`             — `{from,to}` → transactions where consumed (job_part_used + sales)
-- `GET_STOCK_LEDGER_RANGE`                  — `{from,to,part_id?}` → `stock_transaction` rows + running balance
-- `GET_STOCK_MOVEMENT_SUMMARY_RANGE`        — `{from,to}` → totals per `stock_transaction_type`
-- `GET_PARTS_CONSUMPTION_MONTHLY_LAST_6`    — per part, per month qty consumed (M-1..M-6)
-- `GET_PARTS_CURRENT_STOCK`                 — present stock on hand (sum over `stock_balance`)
-
-> Server work is logged in this plan but executed in the server repo (see `Workflow → Server Side`). Each query must follow the existing pattern in `sql_bu.py` (parameterized SQL string keyed by id, executed by `psycopg_driver`).
-
-### 6.2 Client side
-Add SQL_MAP keys in `src/constants/sql-map.ts` mirroring the names above. Add nothing to `GRAPHQL_MAP` — all calls go through existing `genericQuery` with `{ db_name, schema, value: buildGenericQueryValue({ sqlId, sqlArgs }) }` (the helper already used in `client-layout.tsx:128`).
-
-Sample hook (one per report):
-```ts
-const useJobsReceivedRangeSplit = (range: DateRangeType) => {
-   const dbName = useAppSelector(selectDbName);
-   const schema = useAppSelector(selectSchema);
-   return useQuery(GRAPHQL_MAP.genericQuery, {
-      fetchPolicy: 'network-only',
-      variables: {
-         db_name: dbName, schema,
-         value: graphQlUtils.buildGenericQueryValue({
-            sqlId:   SQL_MAP.GET_JOBS_RECEIVED_RANGE_SPLIT,
-            sqlArgs: { from: range.from.toISOString(), to: range.to.toISOString() },
-         }),
-      },
-   });
-};
-```
-
-All hooks live next to their consuming section, named `use-*.ts` (kebab) using arrow-function components per project rules.
+1. **Unit (builder):** debits == credits for each entity; GST lines omitted when zero; return signs flipped.
+2. **Integration (single item):** post one purchase invoice; confirm Trace `TranH/TranD` + `is_posted=true` + `trace_posting_log`.
+3. **Idempotency:** re-post the same selection → all `skipped`, no duplicate vouchers.
+4. **Partial failure:** force one bad row (e.g. missing map account) → others post, bad one `failed`, re-runnable.
+5. **Auth:** expire the Trace service token mid-run → auto re-login, run completes.
+6. **Reconciliation:** sum a posted batch's Trace amounts vs Service-Plus source totals.
 
 ---
 
-## 7. Routing & Selection Wiring
+## Execution Order (checklist)
 
-`ReportsContent` in `client-reports-page.tsx` switches on `useClientSelection().selected`. We replace the current `if (selected === 'Dashboard')` / fallback `ComingSoon` block with a **lookup table**:
-
-```ts
-const REPORT_SECTIONS: Record<string, ComponentType> = {
-   'Dashboard':                       DashboardSection,
-   'Job Intake Summary':              JobIntakeSummarySection,
-   'Jobs Repaired (OK)':              JobsRepairedSection,
-   'Jobs Delivered (OK)':             JobsDeliveredSection,
-   'Delivered Jobs — Detailed':       JobsDeliveredDetailedSection,
-   'Job Transaction Ledger':          JobTransactionLedgerSection,
-   'Job Pipeline / Aging':            JobPipelineAgingSection,
-   'Job Status Trend':                JobStatusTrendSection,
-   'Warranty Repairs & Parts Value':  WarrantyRepairsPartsValueSection,
-   'Warranty Parts Consumption Detail': WarrantyPartsConsumptionDetailSection,
-   'Warranty Trend (6-month)':        WarrantyTrendSection,
-   'Profit Summary':                  ProfitSummarySection,
-   'Revenue Report':                  RevenueReportSection,
-   'Cash Register':                   CashRegisterSection,
-   'Sales Report':                    SalesReportSection,
-   'GST Summary':                     GstSummarySection,
-   'Technician Scorecard':            TechnicianScorecardSection,
-   'Technician Repaired vs Delivered':TechnicianRepairedDeliveredSection,
-   'Technician Profit & Revenue':     TechnicianProfitRevenueSection,
-   'Technician Productivity Heatmap': TechnicianProductivityHeatmapSection,
-   'Spare Parts Ledger (Op/Dr/Cr/Cl)':SparePartsLedgerSection,
-   'Spare Parts Aging':               SparePartsAgingSection,
-   'Slow Movers (Aged > 1 year)':     SparePartsAgingSection,             // pre-filter
-   'Parts Consumption — Detailed':    PartsConsumptionDetailedSection,
-   'Stock Ledger':                    StockLedgerSection,
-   'Stock Movement Summary':          StockMovementSummarySection,
-   'Parts Reorder Suggestions':       PartsReorderSuggestionsSection,
-   'Jobs Received — Monthly':         JobsReceivedMonthlySection,
-   'Jobs Received — Year-wise':       JobsReceivedYearwiseSection,
-   'Jobs Received — 12/24/36-month':  JobsReceivedTrailingSection,
-   'Repair vs Deliver Funnel':        RepairDeliverFunnelSection,
-   'Profit Trend (YoY)':              ProfitTrendYoYSection,
-};
-```
-
-A new `Section` is rendered with its own `ReportToolbar` so range/branch state is owned per section.
-
-Existing labels in `ReportsExplorer` are renamed/added to match — see Step 2 of execution.
-
-No router change required (the page already mounts at `/client/reports`).
+1. **Phase 0** — config settings + confirm Trace constants.
+2. **Phase 1** — create + seed `trace_posting_map`, create `trace_posting_log`.
+3. **Phase 2** — add `SqlStore` queries.
+4. **Phase 3** — `trace_client.py`.
+5. **Phase 4** — `accounts_posting_builder.py` (+ unit tests).
+6. **Phase 5** — orchestrator helper + `AuditAction`/`AppMessages` additions.
+7. **Phase 6** — GraphQL schema + resolver.
+8. **Phase 7** — client `GRAPHQL_MAP`, `posting-service.ts`, button wiring + grid refresh.
+9. **Phase 8** — Trace auth hardening (+ optional idempotency guard).
+10. **Phase 9** — tests + reconciliation, then enable for one tenant before wider rollout.
 
 ---
 
-## 8. Operations Dashboard (Default Landing)
-
-### 8.1 KPI Cards (top row, 4 cards on xl, 2 on md, 1 on sm)
-1. **Jobs Received Today** — warranty + OOW split, delta vs yesterday.
-2. **Jobs Delivered Today** — delivered-ok count, delta vs yesterday.
-3. **Revenue Today (₹)** — sum of `job_invoice.amount` + `sales_invoice.amount` invoice_date = today.
-4. **Profit Today (₹)** — derived (see formula §1).
-
-Second row (4 more):
-5. **Open Jobs** — count where `is_closed = false`.
-6. **Overdue Jobs** — open jobs older than 7 days (config: app_setting later).
-7. **Low-Stock Parts** — parts with `stock_balance.qty < reorder_level` (no field today → use reorder suggestion as proxy).
-8. **Aged Parts** — count of parts aged > 1 year.
-
-### 8.2 Charts row
-- **Monthly Job Intake (this FY)** — stacked Bar (Warranty / OOW) per month.
-- **Profit Trend (last 12 months)** — Line.
-- **Status Mix (this month)** — Donut/Pie of jobs by `job_status`.
-- **Top 5 Technicians by Profit (this month)** — Horizontal Bar.
-
-### 8.3 Lists row
-- **Recent Repair Queue** — exactly the current table, fed live from `GET_RECENT_JOBS`.
-- **Alerts panel** — overdue jobs + low-stock parts + aged parts (top 5 each, links to detail).
-
-### 8.4 Range scope
-Dashboard top-bar has a global range that drives all KPIs & charts. Default = `Today` for KPIs, `This FY` for charts.
-
----
-
-## 9. Individual Reports — Specification Matrix
-
-### 9.1 Jobs Received — Job Intake Summary
-- Columns: **Range Bucket** | **Warranty** | **Out of Warranty** | **Total**
-- Buckets row: Today, Yesterday, This Week, Prev Week, This Month, Last Month, Q1..Q4, YTD, Last Year
-- Side chart: bar chart for the active row's range (or month-wise for "YTD").
-- Drilldown: clicking a row opens `JobIntakeRangeDetailDialog` with the underlying job list.
-
-### 9.2 Jobs Repaired (OK) — same matrix as 9.1 using `job_status='REPAIRED_OK'` (or `is_final && delivery_date IS NULL`).
-
-### 9.3 Jobs Delivered (OK) — same matrix using `job_status='DELIVERED_OK'` and `job.delivery_date IS NOT NULL`.
-
-### 9.4 Delivered Jobs — Detailed (per range)
-- Columns: **Job No** | **Date Delivered** | **Customer** | **Model** | **Technician** | **Warranty?** | **Parts Cost** | **Charges Cost** | **Selling Total** | **Profit** | **GST**
-- Sort by `delivery_date desc`.
-- Footer totals row.
-- PDF landscape.
-
-### 9.5 Job Transaction Ledger
-- Columns: **Date** | **Job No** | **Status** | **Technician** | **Amount** | **Performed By** | **Remarks**
-- Sort by `transaction_date desc` (per tran.md "datewise decr sorted").
-- Range filter + Job No search.
-
-### 9.6 Job Pipeline / Aging
-- Cross-tab: **Status** × age buckets `<24h, 1-3d, 3-7d, 7-15d, 15-30d, >30d`.
-- Cells are counts. Clicking opens job list dialog.
-- Visual heatmap coloring (orange scale for older — no red).
-
-### 9.7 Job Status Trend
-- Stacked area chart, x-axis = month (last 12), stacks = statuses.
-
-### 9.7a Warranty Repairs & Parts Value (⭐ Special)
-
-**Purpose.** Single-pane view of the cost-of-warranty: how many in-warranty jobs are being serviced and how much spare-parts value is being consumed against them. Per `tran.md`, the named ranges are **This Month**, **Previous Month**, and **Custom** — these are surfaced as primary tabs; the standard Range Picker is still available (Today / Yesterday / Week / FY / quarters / YTD) for power users.
-
-**Definition of "in-warranty".** A job is in-warranty when `job.warranty_card_no IS NOT NULL` (matches the existing rule in §1). No revenue is billed against these jobs; only cost-of-parts is tracked.
-
-**Toolbar (left → right):**
-- Range tabs: `This Month` (default), `Previous Month`, `Custom` (opens date-range Popover with Calendar).
-- Standard Range Picker (collapsible "More ranges" link).
-- Branch / Division filter.
-- Brand filter (chips, multi-select).
-- Technician filter.
-- Refresh, Export PDF, Export Excel, Print.
-
-**Header KPI strip (4 cards via `kpi-grid`):**
-1. **Warranty Jobs**       — count of distinct in-warranty jobs touched in range (from `GET_WARRANTY_REPAIRS_SUMMARY_RANGE.warranty_jobs_count`). Delta vs prior period of same length.
-2. **Parts Consumed (Qty)**— `parts_qty` total. Delta vs prior period.
-3. **Parts Value (₹)**     — `parts_value` total, formatted INR. Delta vs prior period, colored success/warning (no red unless above an alert threshold from `app_setting` later).
-4. **Distinct Parts**      — `distinct_parts_count`. Tooltip: "How varied is the parts usage."
-
-**Body (two-column on `lg+`, stacked on smaller):**
-
-- **Left column — Warranty Jobs list** (`report-table`)
-  Source: `GET_WARRANTY_REPAIRS_LIST_RANGE`.
-  Columns:
-  | Job No | Job Date | Customer | Model | Technician | Status | Parts Qty | Parts Value (₹) |
-  Sort default `job_date desc`. Footer totals row sums Qty + Value.
-  Row click → opens `WarrantyJobDetailDialog` showing parts consumed inside that single job (sourced from `GET_WARRANTY_JOB_PARTS_DETAIL`).
-
-- **Right column — Top Parts by Value** (`chart-card`)
-  Source: `GET_WARRANTY_PARTS_BY_PART_RANGE` truncated to top 10.
-  Horizontal Bar chart (recharts). Hover tooltip shows qty, value, jobs_count.
-
-**Below — Parts Consumption breakdown table** (`report-table`)
-Source: `GET_WARRANTY_PARTS_BY_PART_RANGE` (full list).
-Columns:
-| Part Code | Part Name | Brand | Total Qty | Total Value (₹) | # Jobs |
-Sort by `Total Value desc`. Footer totals row. Brand filter from toolbar narrows this list and the chart in tandem.
-
-**Side panel — Period Comparison (always visible)**
-Two-cell mini-card showing:
-- **This Month** → jobs, qty, value.
-- **Previous Month** → jobs, qty, value, with delta arrows.
-This is computed via two parallel queries (`This Month` + `Previous Month` ranges) so the comparison is consistent regardless of which tab is currently active.
-
-**PDF export.**
-Landscape A4. Sections in order: KPI strip, Warranty Jobs list (autoTable), Parts Consumption breakdown (autoTable), Period Comparison block. Top Parts chart is rasterized into the PDF via the SVG → canvas pipeline in §10.
-
-**Excel export.**
-Multi-sheet workbook:
-- `Summary` — KPIs + period comparison.
-- `Warranty Jobs` — list table.
-- `Parts Consumption` — breakdown table.
-
-### 9.7b Warranty Parts Consumption Detail (⭐ Special)
-Line-level companion to 9.7a — every individual `job_part_used` row that hit an in-warranty job in the range.
-
-Toolbar identical to 9.7a (range tabs This Month / Previous Month / Custom + standard ranges + Branch + Brand + Technician + Part search).
-
-Table (`report-table`):
-| Consumed Date | Job No | Part Code | Part Name | Brand | Qty | Cost Price | Line Value (₹) | Technician |
-
-Sort default `consumed_date desc` (per `tran.md` convention). Footer totals for Qty + Line Value. Click on Job No drills to `WarrantyJobDetailDialog`.
-
-PDF: landscape, autoTable with totals row.
-
-### 9.7c Warranty Trend (6-month chart) (⭐ Special)
-Source: `GET_WARRANTY_TREND_MONTHLY` (default `months_back = 6`; selector allows 3 / 6 / 12 / 24).
-
-Chart: combo (Bar = Parts Value ₹ on left axis, Line = Warranty Jobs count on right axis). Optional toggle to switch to Parts Qty.
-
-Below the chart, a small data table mirrors the chart values. PDF export rasterizes chart + autoTable for the data table.
-
-### 9.8 Profit Summary
-- Same range matrix as Jobs Received but cells are profit ₹.
-- W vs OOW split, total column.
-- Side bar chart per bucket.
-
-### 9.9 Revenue Report
-- Cards: total invoice value, GST collected, # invoices.
-- Table: invoice list with filters.
-- Charts: monthly revenue.
-
-### 9.10 Cash Register
-- Daily receipts from `job_payment` + sales (cash payments only).
-- Group by day, then by payment_mode.
-
-### 9.11 Sales Report
-- `sales_invoice_line` flattened with brand + customer.
-- Range, brand, customer filters.
-
-### 9.12 GST Summary
-- CGST / SGST / IGST per period (monthly within range), plus totals.
-
-### 9.13 Technician Scorecard
-- One row per technician. Columns: **Tech** | **Received** | **Repaired OK** | **Delivered OK** | **Avg Turnaround (days)** | **Revenue ₹** | **Profit ₹**
-- W vs OOW sub-columns under Received / Repaired / Delivered (toggleable).
-- Highlight top performer per column.
-
-### 9.14 Technician Repaired vs Delivered (chart)
-- Grouped bar: per technician, Repaired (orange) and Delivered (accent blue).
-
-### 9.15 Technician Profit & Revenue
-- Two charts side-by-side: Bar (Profit per tech), Bar (Revenue per tech).
-- Table with totals.
-
-### 9.16 Technician Productivity Heatmap
-- X = days in range, Y = technician, value = #jobs touched. Color scale accent.
-
-### 9.17 Spare Parts Ledger (Op / Dr / Cr / Cl) — FY-wise
-- FY dropdown (defaults to current FY).
-- Columns: **Part Code** | **Part Name** | **Brand** | **Op Qty** | **Op Value** | **Dr Qty** | **Dr Value** | **Cr Qty** | **Cr Value** | **Cl Qty** | **Cl Value**
-- Use `stock_snapshot` for opening of period start, sum `stock_transaction` (dr/cr) inside FY, derive closing.
-- Total row.
-
-### 9.18 Spare Parts Aging
-- Compute age via FIFO purchase lines remaining on hand. Approach:
-  1. For each part, list `purchase_invoice_line` rows ordered by `invoice_date asc`.
-  2. Consume from earliest as `stock_transaction` debits accumulate.
-  3. Remaining qty per lot → age = today − invoice_date.
-- Buckets: `0-30, 31-90, 91-180, 181-365, >365`.
-- Slow Movers report opens this section with bucket = `>365` preset.
-
-### 9.19 Parts Consumption — Detailed
-- Tabs: **Weekly | Monthly | Yearly | All**.
-- Columns: **Consumed Date** | **Part Code** | **Part Name** | **Qty** | **Source (Job/Sales)** | **Ref No** | **Branch** | **Remarks**
-- Sort by `transaction_date desc` (per tran.md).
-
-### 9.20 Stock Ledger
-- Per-part running balance ledger.
-- Columns: **Date** | **Txn Type** | **Ref** | **Dr Qty** | **Cr Qty** | **Balance** | **Unit Cost** | **Remarks**
-
-### 9.21 Stock Movement Summary
-- Range. Group by `stock_transaction_type`. Sum dr + cr.
-- Bar chart.
-
-### 9.22 Parts Reorder Suggestions
-- Algorithm (client-side over server returns):
-  1. Fetch `GET_PARTS_CONSUMPTION_MONTHLY_LAST_6` returning `{ part_id, month_offset, qty }` for offsets 1..6.
-  2. Compute weighted mean `W = sum(qty_i * w_i) / sum(w_i)`, weights `[6,5,4,3,2,1]` for offsets `[1,2,3,4,5,6]` so most recent gets highest weight (matches tran.md).
-  3. Fetch current stock via `GET_PARTS_CURRENT_STOCK` per part.
-  4. `suggestedOrderQty = max(0, ceil(W) − stockOnHand)`.
-  5. If `W = 0 && stockOnHand > 0` → flag as "Dead stock candidate" (informational).
-- Columns: **Part Code** | **Part Name** | **Brand** | **Stock On Hand** | **M-1 Qty** | **M-2** | ... | **M-6** | **Weighted Monthly Demand** | **Suggested Order Qty** | **Action**
-- Filter: brand, category, "Order > 0 only".
-- Bulk action: export as draft PO (CSV) - phase 2.
-
-### 9.23 Trends section reports
-All five are pure chart pages with a range/year selector. Each also offers a data table beneath the chart and PDF export of both.
-
----
-
-## 10. PDF Export Details
-
-`pdf-export.ts` produces consistent PDFs:
-- Page header: division name (left), report title (center), generated_at + page (right).
-- Subheader band: Range, Branch (if multi), Filters.
-- `autoTable` body with zebra striping (gray, no red).
-- Totals row in bold with top border.
-- For chart-only reports, render the recharts SVG to canvas (`html2canvas` is **not** in deps — instead use `recharts`' `getSnapshotBeforeUpdate` + `<svg>` → `jsPDF.addSvgAsImage` via `jspdf` SVG handling; if that proves brittle, render an offscreen `<canvas>` from the SVG with `XMLSerializer` + `Image.onload` + `ctx.drawImage`, then `doc.addImage(...)`).
-- File name: `<report-title>_<range>_<YYYY-MM-DD>.pdf`.
-
-A `<PrintButton>` shadcn dropdown offers `PDF`, `Excel`, `CSV`, `Print` (browser).
-
----
-
-## 11. Performance, Errors, Loading
-
-- All sections use `report-loading.tsx` (skeleton matching layout) on Apollo `loading`.
-- All sections show `report-error.tsx` on Apollo `error` with retry button — error message text via `@/constants/messages.ts` keys (new keys added: `reports.fetchFailed`, `reports.noData`, `reports.exportFailed`, `reports.printingPdf`, etc.).
-- Heavy reports (ledger, aging) limit to first 500 rows in UI, with "Export Full" PDF/Excel button doing a separate large fetch.
-- Debounced search at 1200ms (project default per `claude.md`).
-
----
-
-## 12. Responsive & Accessibility
-
-- All KPI / chart grids use `grid-cols-1 sm:grid-cols-2 lg:grid-cols-4` patterns.
-- Tables fall back to a card list on `<sm` (per existing pattern in `client-explorer-panel.tsx`).
-- Range picker collapses to bottom sheet on mobile.
-- Charts use `ResponsiveContainer` with min-height 280.
-- Color tokens reference existing `--cl-*` theme; no red except errors.
-- All buttons have `aria-label`.
-
----
-
-## 13. Messages (centralized)
-
-Add to `src/constants/messages.ts`:
-```ts
-reportsFetchFailed:        'Unable to load report. Please retry.',
-reportsNoData:             'No data for the selected range.',
-reportsExportFailed:       'Failed to export the report.',
-reportsExportSuccess:      'Report exported.',
-reportsPdfPreparing:       'Preparing PDF...',
-reportsConfirmLargeExport: 'This export is large, continue?',
-reportsCustomRangeInvalid: 'From date must be on or before To date.',
-reportsRangeRequired:      'Please select a date range.',
-```
-
-All other UI strings ≤ 2 words remain inline.
-
----
-
-## 14. Step-by-Step Execution
-
-### **Step 1 — Server-side SQL keys** (`service-plus-server/app/db/sql_bu.py`)
-Add all SQL constants listed in §6.1. Each is a parameterized SQL string keyed by id, surfaced through the existing `genericQuery` resolver. Add unit-tested SQL for: jobs received range split, repaired/delivered, monthly intake, profit ranges, technician aggregates, stock ledger, parts aging, parts consumption monthly last 6, current stock, GST summary, cash register, sales report range, recent jobs, overdue jobs.
-
-### **Step 2 — Update Explorer**
-Edit `src/features/client/components/client-explorer-panel.tsx` → `ReportsExplorer`:
-- Replace existing items with the IA in §2.
-- Add groups: **Job Reports**, **Financial Reports**, **Performance Reports**, **Inventory Reports**, **Trends**.
-- Reuse `TreeItem` with appropriate `lucide-react` icons.
-- Keep `Dashboard` at top, ungrouped.
-
-### **Step 3 — SQL_MAP additions**
-Edit `src/constants/sql-map.ts` to add every new SQL id in §6.1 (TypeScript constants), keep them sorted alphabetically within their group (per `claude.md`).
-
-### **Step 4 — Shared `_common`**
-Create the files under `src/features/client/components/reports/_common/`:
-- `fiscal.ts`, `use-fiscal-setting.ts`, `use-report-range.ts`
-- `range-picker.tsx`, `report-toolbar.tsx`, `report-section.tsx`
-- `kpi-card.tsx`, `kpi-grid.tsx`
-- `report-table.tsx`, `chart-card.tsx`
-- `report-empty.tsx`, `report-error.tsx`, `report-loading.tsx`
-- `pdf-export.ts`, `xlsx-export.ts`
-Use shadcn primitives (Card, Button, Select, Calendar, Popover, Table, Tabs, Tooltip) + framer-motion fade-in.
-
-### **Step 5 — Reports page wiring**
-Rewrite `src/features/client/pages/client-reports-page.tsx`:
-- Replace inline `DashboardOverview` + `ComingSoon` with the `REPORT_SECTIONS` lookup of §7.
-- Default to `DashboardSection`.
-- Wrap children in `ClientLayout` (unchanged).
-
-### **Step 6 — Dashboard module** (`reports/dashboard/`)
-Implement KPIs, monthly chart, warranty split, recent jobs, alerts as per §8.
-
-### **Step 7 — Job Reports**
-Implement seven sections under `reports/jobs/`. Each uses `report-toolbar` + matrix/table + chart panel + drilldown dialog where listed.
-
-### **Step 7a — Warranty Reports (⭐ Special)**
-Implement three sections under `reports/warranty/`:
-- `warranty-repairs-parts-value-section.tsx` (§9.7a) — KPI strip, jobs list, top-parts chart, breakdown table, period comparison panel, all wired to the new SQL keys in §6.1 "Warranty (special)".
-- `warranty-parts-consumption-detail-section.tsx` (§9.7b).
-- `warranty-trend-section.tsx` (§9.7c).
-- `warranty-job-detail-dialog.tsx` — drilldown invoked from rows in 9.7a/9.7b, fed by `GET_WARRANTY_JOB_PARTS_DETAIL`.
-
-Range tabs (`This Month` / `Previous Month` / `Custom`) are implemented as a thin wrapper on top of `useReportRange`, preselecting the appropriate `RangeKeyType` and surfacing a `Custom` Popover with shadcn `Calendar`. Period-comparison panel issues two parallel `genericQuery` calls (current + previous month) regardless of the active tab.
-
-### **Step 8 — Financial Reports**
-Implement five sections under `reports/financial/`.
-
-### **Step 9 — Performance Reports**
-Implement four sections under `reports/performance/`. Technician Scorecard table + three chart-led pages.
-
-### **Step 10 — Inventory Reports**
-Implement six sections under `reports/inventory/` including the Reorder Suggestions algorithm (§9.22) and FIFO aging (§9.18).
-
-### **Step 11 — Trends module**
-Implement five chart-led sections under `reports/trends/`.
-
-### **Step 12 — PDF / Excel exporters**
-Wire the toolbar dropdown to `pdf-export.ts` and `xlsx-export.ts`. Validate for: table reports (autoTable), chart-only reports (SVG → image), large datasets (background fetch + progress toast).
-
-### **Step 13 — Messages**
-Add new keys to `src/constants/messages.ts` (§13). Wire all toasts via `sonner`.
-
-### **Step 14 — Types**
-Add type files under `src/features/client/types/reports/` per report family. All ending in `Type` (per `claude.md`).
-
-### **Step 15 — Responsive QA**
-- iPhone SE, iPad, 1280px, 1920px viewports.
-- Ensure explorer + toolbar + table + chart stack correctly.
-- Verify color tokens in light/dark themes.
-
-### **Step 16 — Performance pass**
-- Memoize `useMemo` for computed aggregates (especially Reorder Suggestions weighting).
-- Add `React.lazy` for each section so initial Reports route doesn't ship the entire bundle.
-
-### **Step 17 — Manual verification** (Verify workflow)
-Run `pnpm start`, click through each report, verify:
-- Range buckets show correct numbers vs raw DB.
-- Quarter math respects `fiscal_year_start_month_num`.
-- W vs OOW split sums equal totals.
-- Profit formula matches a spot-checked job manually.
-- Aging buckets sum to total stock-on-hand.
-- Reorder suggestion = `max(0, ceil(W) − stockOnHand)`.
-- PDFs render cleanly portrait + landscape.
-
-### **Step 18 — Cleanup**
-- Remove old hard-coded `STATS` / `JOBS` arrays in `client-reports-page.tsx` once `DashboardSection` is live.
-- Delete `ComingSoon` once all sections exist.
-- Lint pass (`pnpm lint`) + format (`pnpm format`).
-
----
-
-## 15. Workflow
+## Workflow (runtime logic)
 
 ```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                         Reporting & Dashboard Workflow                      │
-└─────────────────────────────────────────────────────────────────────────────┘
-
-User opens /client/reports
-        │
+User clicks "Post selected"
+        │  (per entity type with a non-empty selection)
         ▼
-ClientLayout mounts → fetches GET_APP_SETTINGS (default_gst_rate, fiscal_year_start_month_num, …)
-        │
+Client → postToAccounts(db_name, schema, value{entity_type, ids, branch_id, actor})   [user JWT]
         ▼
-ClientExplorerPanel → ReportsExplorer renders groups (Dashboard, Job Reports, Financial, …)
-        │
+SP server: load trace_posting_map (client DB) + unposted rows (service DB)
         ▼
-User clicks "Dashboard"  ──►  REPORT_SECTIONS['Dashboard'] = <DashboardSection/>
-                                       │
-                                       ├─► useFiscalSetting() reads fyStartMonth → builds quarters
-                                       ├─► useReportRange('today')
-                                       ├─► dashboardKPIs hook → GET_JOBS_RECEIVED_RANGE_SPLIT, …
-                                       ├─► dashboardCharts hooks → GET_JOBS_RECEIVED_BY_MONTH, …
-                                       └─► dashboardLists hooks → GET_RECENT_JOBS, GET_OVERDUE_JOBS, …
-
-User switches to a report (e.g. "Spare Parts Aging")
-        │
+for each id:
+   ├─ build balanced TranH/TranD voucher (builder)            ── Σdebit == Σcredit
+   ├─ post_voucher → Trace validateDebitCreditAndUpdate       ── service JWT, buCode/dbParams
+   │       ├─ transient/network error → bounded retry
+   │       ├─ Trace error-as-data    → mark FAILED (flag stays false), log, continue
+   │       └─ success {autoRefNo}    → flip is_posted=true (service DB) +
+   │                                   upsert trace_posting_log + audit
+   ▼
+return {requested, posted, skipped, failed, results[]}
         ▼
-REPORT_SECTIONS['Spare Parts Aging'] = <SparePartsAgingSection/>
-        │
-        ├─► Toolbar: range, branch, brand, "Aged > 1 year" toggle
-        ├─► Apollo genericQuery(GET_PARTS_AGING, {as_of, branch_id?, brand_id?})
-        ├─► report-table renders rows + footer totals
-        └─► Export menu → pdf-export / xlsx-export
-
-For Reorder Suggestions:
-        │
-        ├─► Apollo genericQuery(GET_PARTS_CONSUMPTION_MONTHLY_LAST_6)
-        ├─► Apollo genericQuery(GET_PARTS_CURRENT_STOCK)
-        ├─► Client merges into weighted-average view (weights [6,5,4,3,2,1])
-        ├─► report-table with computed Suggested Qty
-        └─► Export menu → pdf-export
-
-Every report:
-        Toolbar Range Change ──► refetch hooks (network-only)
-        Toolbar Export PDF   ──► pdf-export.ts → jspdf-autotable
-        Toolbar Export Excel ──► xlsx-export.ts → xlsx
-        Toolbar Print        ──► window.print() with print stylesheet
+Client: summary toast + per-row failures + refresh grids (posted → "Posted" tab)
+        ▼
+Re-running a partial batch re-posts only still-unposted ids (idempotent)
 ```
-
----
-
-## 16. Risk Register & Mitigations
-
-| Risk | Mitigation |
-|------|------------|
-| Server-side SQL not yet in place | Each section is gated by Apollo loading/error states; mock SQL ids can return empty arrays so client work proceeds in parallel. |
-| FIFO aging is expensive over large lot history | Server precomputes via window functions; client only consumes; cap to current FY. |
-| Profit double-counting if invoices and parts overlap | Calculation uses `job_invoice_line + job_additional_charge.selling_price*qty` for revenue and `job_part_used.cost_price*qty + job_additional_charge.cost_price*qty` for cost — invoice lines are the single source of revenue, parts_used is cost only. |
-| Quarters across FY rollover ambiguous | `getFiscalQuarterBounds` always resolves to current FY's quarter; "Last Year" picks prior FY's full year. |
-| PDF SVG export from recharts brittle | Fall back to canvas rasterization using XMLSerializer pipeline. |
-| Bundle size growth from recharts everywhere | `React.lazy` per section. |
-
----
-
-## 17. Acceptance Criteria (from tran.md, mapped)
-
-- [x] Warranty + OOW received counts for all named ranges → §9.1
-- [x] Same for Repaired OK → §9.2
-- [x] Same for Delivered OK → §9.3
-- [x] Profits for same ranges → §9.8
-- [x] Technician-wise W + OOW repaired, delivered, profit, revenue → §9.13–9.15
-- [x] Job delivered OK detailed transaction report for same ranges → §9.4
-- [x] Complete Job transaction report date-desc → §9.5
-- [x] Spare parts opening / debits / credits / closing / value FY-wise → §9.17
-- [x] Spare parts aging + aged > 1 year → §9.18
-- [x] Spare parts detailed consumption weekly / monthly / yearly / all desc by consumed date → §9.19
-- [x] Dynamic ordering suggestions with weighted last-6-month consumption + present stock → §9.22
-- [x] PDF printing of all reports → §10 + Step 12
-- [x] Use `fiscal_year_start_month_num` for quarters → §4
-- [x] Monthwise graphs this year / last year / last 2 / last 3 years + year-wise graph → §9.23 (Trends)
-- [x] Industry-pattern grouping, dashboards, overviews, chart-based reports → §2 + §8
-- [x] **Special warranty report**: in-warranty job repairs + spare parts consumed + spare parts value for This Month / Previous Month / Custom → §2 (Warranty Reports group), §6.1 "Warranty (special)" SQL keys, §9.7a / §9.7b / §9.7c, and Step 7a

@@ -1,9 +1,12 @@
+import { useState } from "react";
 import { toast } from "sonner";
 
 import { MESSAGES } from "@/constants/messages";
 import { SQL_MAP } from "@/constants/sql-map";
 import { cn } from "@/lib/utils";
 
+import { JobPipelineCellDialog } from "./job-pipeline-cell-dialog";
+import type { PipelineCellType } from "./job-pipeline-cell-dialog";
 import { ChartCard } from "../_common/chart-card";
 import { formatNumber } from "../_common/formatters";
 import { ReportEmpty } from "../_common/report-empty";
@@ -28,12 +31,12 @@ type RowType = {
 };
 
 const BUCKET_HEADERS = [
-    { key: "bucket_0",       label: "<24h" },
-    { key: "bucket_1_3",     label: "1-3d" },
-    { key: "bucket_4_7",     label: "4-7d" },
-    { key: "bucket_8_15",    label: "8-15d" },
-    { key: "bucket_16_30",   label: "16-30d" },
-    { key: "bucket_over_30", label: ">30d" },
+    { ageMax: 0,       ageMin: 0,  key: "bucket_0",       label: "<24h" },
+    { ageMax: 3,       ageMin: 1,  key: "bucket_1_3",     label: "1-3d" },
+    { ageMax: 7,       ageMin: 4,  key: "bucket_4_7",     label: "4-7d" },
+    { ageMax: 15,      ageMin: 8,  key: "bucket_8_15",    label: "8-15d" },
+    { ageMax: 30,      ageMin: 16, key: "bucket_16_30",   label: "16-30d" },
+    { ageMax: 1000000, ageMin: 31, key: "bucket_over_30", label: ">30d" },
 ] as const;
 
 function heatColor(value: number, max: number): string {
@@ -48,6 +51,8 @@ export const JobPipelineAgingSection = () => {
     const q = useGenericQuery<RowType>({
         sqlId: SQL_MAP.GET_JOB_PIPELINE_BY_STATUS_AGE,
     });
+
+    const [cell, setCell] = useState<PipelineCellType | null>(null);
 
     const max = Math.max(0, ...q.data.flatMap(r => [
         Number(r.bucket_0), Number(r.bucket_1_3), Number(r.bucket_4_7),
@@ -117,7 +122,7 @@ export const JobPipelineAgingSection = () => {
 
             {q.error && <ReportError onRetry={q.refetch} />}
 
-            <ChartCard description="Click a cell to drill (coming soon)" title="Pipeline Heatmap">
+            <ChartCard description="Click a cell to view its jobs" title="Pipeline Heatmap">
                 {q.loading
                     ? <ReportLoading lines={4} />
                     : q.data.length === 0
@@ -141,7 +146,24 @@ export const JobPipelineAgingSection = () => {
                                                 {BUCKET_HEADERS.map(b => {
                                                     const v = Number(row[b.key as keyof RowType] ?? 0);
                                                     return (
-                                                        <td key={b.key} className={cn("px-3 py-2 text-center", heatColor(v, max))}>
+                                                        <td
+                                                            key={b.key}
+                                                            aria-label={`${row.status_name} ${b.label}: ${v} jobs`}
+                                                            className={cn(
+                                                                "px-3 py-2 text-center",
+                                                                heatColor(v, max),
+                                                                v > 0 && "cursor-pointer hover:ring-2 hover:ring-(--cl-accent) hover:ring-inset",
+                                                            )}
+                                                            onClick={v > 0
+                                                                ? () => setCell({
+                                                                    ageMax:      b.ageMax,
+                                                                    ageMin:      b.ageMin,
+                                                                    bucketLabel: b.label,
+                                                                    statusCode:  row.status_code,
+                                                                    statusName:  row.status_name,
+                                                                })
+                                                                : undefined}
+                                                        >
                                                             {v}
                                                         </td>
                                                     );
@@ -157,6 +179,8 @@ export const JobPipelineAgingSection = () => {
                         )
                 }
             </ChartCard>
+
+            <JobPipelineCellDialog cell={cell} onClose={() => setCell(null)} />
         </ReportSection>
     );
 };
