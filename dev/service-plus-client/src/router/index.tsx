@@ -15,7 +15,6 @@ import { BusinessUnitsPage } from '@/features/admin/pages/business-units-page';
 import { BusinessUsersPage } from '@/features/admin/pages/business-users-page';
 import { RolesPage } from '@/features/admin/pages/roles-page';
 import { ClientConfigurationsPage } from '@/features/client/pages/client-configurations-page';
-import { ClientDashboardPage } from '@/features/client/pages/client-dashboard-page';
 import { ClientInventoryPage } from '@/features/client/pages/client-inventory-page';
 import { ClientJobsPage } from '@/features/client/pages/client-jobs-page';
 import { ClientMastersPage } from '@/features/client/pages/client-masters-page';
@@ -53,7 +52,7 @@ export const router = createBrowserRouter([
     errorElement: <ErrorPage />,
     element: <ProtectedRoute requiredSessionMode="client" />,
     children: [
-      { element: <ClientDashboardPage />,      index: true },
+      { element: <ClientReportsPage />,         index: true },
       { element: <ClientConfigurationsPage />, path: 'configurations' },
       { element: <ClientInventoryPage />,      path: 'inventory' },
       { element: <ClientJobsPage />,           path: 'jobs' },

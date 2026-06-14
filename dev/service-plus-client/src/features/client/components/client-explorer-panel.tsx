@@ -1,11 +1,11 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import type { ComponentType } from "react";
 import {
-    BarChart3, BookCheck, BookOpen, Building2, Camera, ChevronDown, ChevronRight,
+    Activity, BarChart3, BookCheck, BookOpen, Building2, Camera, ChevronDown, ChevronRight,
     ClipboardList, DollarSign, FileText, Globe, Hash,
-    LayoutDashboard, MapPin, Package, PlusCircle, Receipt,
-    RefreshCcw, RotateCcw, Settings2, ShoppingCart,
-    Tag, TrendingUp, Truck, User, UserCog, Users, Wrench,
+    LayoutDashboard, LineChart, MapPin, Package, PieChart, PlusCircle, Receipt,
+    RefreshCcw, RotateCcw, Settings2, ShieldCheck, ShoppingCart,
+    Tag, Timer, TrendingUp, Truck, User, UserCog, Users, Wrench,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
 
@@ -87,19 +87,6 @@ function ConfigurationsExplorer() {
                 <TreeItem icon={Building2}    label="Divisions" />
                 <TreeItem icon={Settings2}    label="App Settings" />
                 <TreeItem icon={Hash}         label="Numbering / Auto Series" />
-            </div>
-        </div>
-    );
-}
-
-function DashboardExplorer() {
-    return (
-        <div className="space-y-4">
-            <div className="space-y-1">
-                <TreeItem icon={LayoutDashboard} label="Overview" />
-                <TreeItem icon={ClipboardList}   label="Job Status" />
-                <TreeItem icon={DollarSign}      label="Revenue" />
-                <TreeItem icon={TrendingUp}      label="Technician Performance" />
             </div>
         </div>
     );
@@ -192,24 +179,51 @@ function MastersExplorer() {
 function ReportsExplorer() {
     return (
         <div className="space-y-3">
+            <div className="space-y-1">
+                <TreeItem icon={LayoutDashboard} label="Dashboard" />
+            </div>
             <CollapsibleGroup label="Job Reports">
-                <TreeItem icon={ClipboardList} label="Job Status Report" />
-                <TreeItem icon={FileText}      label="Job History" />
+                <TreeItem icon={ClipboardList} label="Job Intake Summary" />
+                <TreeItem icon={Wrench}        label="Jobs Repaired (OK)" />
+                <TreeItem icon={Truck}         label="Jobs Delivered (OK)" />
+                <TreeItem icon={FileText}      label="Delivered Jobs — Detailed" />
+                <TreeItem icon={Activity}      label="Job Transaction Ledger" />
+                <TreeItem icon={Timer}         label="Job Pipeline / Aging" />
+                <TreeItem icon={LineChart}     label="Job Status Trend" />
             </CollapsibleGroup>
-            <CollapsibleGroup label="Financial Reports">
+            <CollapsibleGroup label="Warranty Reports">
+                <TreeItem icon={ShieldCheck} iconColor="text-emerald-500" label="Warranty Repairs & Parts Value" />
+                <TreeItem icon={FileText}    iconColor="text-emerald-500" label="Warranty Parts Consumption Detail" />
+                <TreeItem icon={LineChart}   iconColor="text-emerald-500" label="Warranty Trend (6-month)" />
+            </CollapsibleGroup>
+            <CollapsibleGroup label="Financial Reports" defaultOpen={false}>
+                <TreeItem icon={DollarSign} label="Profit Summary" />
                 <TreeItem icon={DollarSign} label="Revenue Report" />
                 <TreeItem icon={FileText}   label="Cash Register" />
                 <TreeItem icon={BarChart3}  label="Sales Report" />
-            </CollapsibleGroup>
-            <CollapsibleGroup label="Inventory Reports" defaultOpen={false}>
-                <TreeItem icon={Package}       label="Parts Summary" />
-                <TreeItem icon={ClipboardList} label="Stock Ledger" />
-                <TreeItem icon={RotateCcw}     label="Stock Movement" />
+                <TreeItem icon={Receipt}    label="GST Summary" />
             </CollapsibleGroup>
             <CollapsibleGroup label="Performance Reports" defaultOpen={false}>
-                <TreeItem icon={TrendingUp} label="Technician Performance" />
-                <TreeItem icon={BarChart3}  label="Summary Performance" />
-                <TreeItem icon={BarChart3}  label="Detailed Performance" />
+                <TreeItem icon={TrendingUp} label="Technician Scorecard" />
+                <TreeItem icon={BarChart3}  label="Technician Repaired vs Delivered" />
+                <TreeItem icon={BarChart3}  label="Technician Profit & Revenue" />
+                <TreeItem icon={Activity}   label="Technician Productivity Heatmap" />
+            </CollapsibleGroup>
+            <CollapsibleGroup label="Inventory Reports" defaultOpen={false}>
+                <TreeItem icon={Package}       label="Spare Parts Ledger (Op/Dr/Cr/Cl)" />
+                <TreeItem icon={Timer}         label="Spare Parts Aging" />
+                <TreeItem icon={Timer}         label="Slow Movers (Aged > 1 year)" />
+                <TreeItem icon={ClipboardList} label="Parts Consumption — Detailed" />
+                <TreeItem icon={FileText}      label="Stock Ledger" />
+                <TreeItem icon={RotateCcw}     label="Stock Movement Summary" />
+                <TreeItem icon={ShoppingCart}  label="Parts Reorder Suggestions" />
+            </CollapsibleGroup>
+            <CollapsibleGroup label="Trends" defaultOpen={false}>
+                <TreeItem icon={BarChart3} label="Jobs Received — Monthly" />
+                <TreeItem icon={BarChart3} label="Jobs Received — Year-wise" />
+                <TreeItem icon={LineChart} label="Jobs Received — 12/24/36-month" />
+                <TreeItem icon={PieChart}  label="Repair vs Deliver Funnel" />
+                <TreeItem icon={TrendingUp} label="Profit Trend (YoY)" />
             </CollapsibleGroup>
         </div>
     );
@@ -217,7 +231,6 @@ function ReportsExplorer() {
 
 const EXPLORERS: Record<Section, ComponentType> = {
     configurations: ConfigurationsExplorer,
-    dashboard:      DashboardExplorer,
     inventory:      InventoryExplorer,
     jobs:           JobsExplorer,
     masters:        MastersExplorer,
@@ -226,7 +239,6 @@ const EXPLORERS: Record<Section, ComponentType> = {
 
 const SECTION_TITLES: Record<Section, string> = {
     configurations: 'System Configuration',
-    dashboard:      'Quick Insights',
     inventory:      'Stock & Parts',
     jobs:           'Job Lifecycle',
     masters:        'Master Data',
@@ -237,7 +249,6 @@ type MobileNavItem = { label: string; section: Section; to: string; end?: boolea
 
 const MOBILE_NAV_ITEMS: MobileNavItem[] = [
     { label: 'Jobs',    section: 'jobs',           to: ROUTES.client.jobs },
-    { label: 'Dash',    section: 'dashboard',      to: ROUTES.client.root,           end: true },
     { label: 'Inv',     section: 'inventory',      to: ROUTES.client.inventory },
     { label: 'Reports', section: 'reports',        to: ROUTES.client.reports },
     { label: 'Masters', section: 'masters',        to: ROUTES.client.masters },

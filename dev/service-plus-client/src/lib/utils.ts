@@ -35,15 +35,15 @@ export function currentFinancialYearRange() {
 
   let startYear, endYear;
   if (currentMonth >= 3) {
-      startYear = currentYear;
-      endYear = currentYear + 1;
+    startYear = currentYear;
+    endYear = currentYear + 1;
   } else {
-      startYear = currentYear - 1;
-      endYear = currentYear;
+    startYear = currentYear - 1;
+    endYear = currentYear;
   }
 
   return {
-      from: `${startYear}-04-01`,
-      to:   `${endYear}-03-31`,
+    from: `${startYear}-04-01`,
+    to: `${endYear}-03-31`,
   };
 }

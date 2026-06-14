@@ -5,7 +5,7 @@ GraphQL Query resolvers.
 from typing import Any
 from ariadne import QueryType
 from app.logger import logger
-from app.exceptions import GraphQLException, AppMessages
+from app.exceptions import AppMessages, GraphQLException, ServicePlusException
 # from app.config import settings
 from .query_helper import (
     resolve_admin_dashboard_stats_helper,
@@ -28,6 +28,8 @@ query = QueryType()
 async def resolve_admin_dashboard_stats(_, info, db_name: str = "") -> Any:
     try:
         return await resolve_admin_dashboard_stats_helper(db_name)
+    except ServicePlusException:
+        raise
     except Exception as e:
         logger.error("Unexpected admin dashboard stats failure: %s", e, exc_info=True)
         raise GraphQLException(
@@ -54,6 +56,8 @@ async def resolve_audit_logs(
             outcome=outcome, page=page, page_size=page_size,
             search=search, to_date=to_date,
         )
+    except ServicePlusException:
+        raise
     except Exception as e:
         logger.error("Unexpected audit logs failure: %s", e, exc_info=True)
         raise GraphQLException(
@@ -70,6 +74,8 @@ async def resolve_audit_log_stats(
 ) -> Any:
     try:
         return await resolve_audit_log_stats_helper(from_date=from_date, to_date=to_date)
+    except ServicePlusException:
+        raise
     except Exception as e:
         logger.error("Unexpected audit log stats failure: %s", e, exc_info=True)
         raise GraphQLException(
@@ -82,6 +88,8 @@ async def resolve_audit_log_stats(
 async def resolve_generic_batch_query(_, info, db_name="", items=None) -> Any:
     try:
         return await resolve_generic_batch_query_helper(db_name, items or [])
+    except ServicePlusException:
+        raise
     except Exception as e:
         logger.error("Unexpected genericBatchQuery failure: %s", e, exc_info=True)
         raise GraphQLException(
@@ -100,13 +108,13 @@ async def resolve_generic_query(_, info, db_name="", schema="public", value="") 
     """
     try:
         return await resolve_generic_query_helper(db_name, schema, value)
-
+    except ServicePlusException:
+        raise
     except Exception as e:
-        # Catch-all ONLY for unexpected crashes
         logger.error("Unexpected generic query failure: %s", e, exc_info=True)
         raise GraphQLException(
             message=AppMessages.INTERNAL_SERVER_ERROR,
-            extensions={"details": AppMessages.UNEXPECTED_ERROR}
+            extensions={"details": AppMessages.UNEXPECTED_ERROR},
         )
 
 
@@ -120,12 +128,13 @@ async def resolve_super_admin_clients_data(_, info) -> Any:
     """
     try:
         return await resolve_super_admin_clients_data_helper()
-
+    except ServicePlusException:
+        raise
     except Exception as e:
         logger.error("Unexpected super admin clients data failure: %s", e, exc_info=True)
         raise GraphQLException(
             message=AppMessages.INTERNAL_SERVER_ERROR,
-            extensions={"details": AppMessages.UNEXPECTED_ERROR}
+            extensions={"details": AppMessages.UNEXPECTED_ERROR},
         )
 
 
@@ -133,6 +142,8 @@ async def resolve_super_admin_clients_data(_, info) -> Any:
 async def resolve_usage_health(_, info) -> Any:
     try:
         return await resolve_usage_health_helper()
+    except ServicePlusException:
+        raise
     except Exception as e:
         logger.error("Unexpected usage health failure: %s", e, exc_info=True)
         raise GraphQLException(
@@ -145,6 +156,8 @@ async def resolve_usage_health(_, info) -> Any:
 async def resolve_system_settings(_, info) -> Any:
     try:
         return await resolve_system_settings_helper()
+    except ServicePlusException:
+        raise
     except Exception as e:
         logger.error("Unexpected system settings failure: %s", e, exc_info=True)
         raise GraphQLException(
@@ -162,13 +175,12 @@ async def resolve_super_admin_dashboard_stats(_, info) -> Any:
         Aggregated stats across all clients, BUs and admin users
     """
     try:
-
         return await resolve_super_admin_dashboard_stats_helper()
-
+    except ServicePlusException:
+        raise
     except Exception as e:
-        # Catch-all ONLY for unexpected crashes
         logger.error("Unexpected super admin dashboard stats failure: %s", e, exc_info=True)
         raise GraphQLException(
             message=AppMessages.INTERNAL_SERVER_ERROR,
-            extensions={"details": AppMessages.UNEXPECTED_ERROR}
+            extensions={"details": AppMessages.UNEXPECTED_ERROR},
         )

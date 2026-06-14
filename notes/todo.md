@@ -1,4 +1,21 @@
-# Job life cycle QA
+# To Do 14-06-2026
+- Enhancements
+- Bug fix / QA
+	- Connection pool closes arbitrarily in local server
+- Features
+	- Job sales return
+	- Accounts posting
+		- Trace+
+			- Create authenticated json based api to listen: define mechanism: dry run
+			- Define json fields and format to receive
+			- Input json successfully enters data in the target db
+		- Service+
+			- Define config for Trace+ connection
+			- Create json with available fields
+			- Execute API
+			
+			
+						# Job life cycle QA
 								- Appsettings:post_data_to_accounts
 							- Single Job
 								- Print should print single copy. Counter input to set no of copies to print. Default count 2. App settings default copies to print for job sheets
@@ -41,21 +58,19 @@
 								- When a new row is entered, The save button is not enabled. It is enabled only when + button is clicked and another row is added
 								- Add new fields for new entry and edits
 								- part select: Name is not required here. Provide a mechanism to set off the part name from part selector
-- Accounts posting
-- Dashboard and reports design
-	- Make the sequence of menu items as Jobs Inventory Reports Masters Configurations
-	- Merge Reports and dashboard to Reports
-	- Blocks
-		- Received: today,current month name, previous month name, -2 months name
-		- delivered ok:
-		- returns:
-		- Completed OK:
-		- Revenue branch wise with divison and all branches
-		- Waiting for delivery and corresponding amount
-	- Last few transactions
+							- Dashboard and reports design
+								- Make the sequence of menu items as Jobs Inventory Reports Masters Configurations
+								- Merge Reports and dashboard to Reports
+								- Blocks
+									- Received: today,current month name, previous month name, -2 months name
+									- delivered ok:
+									- returns:
+									- Completed OK:
+									- Revenue branch wise with divison and all branches
+									- Waiting for delivery and corresponding amount
+								- Last few transactions
 	
-# Job features
-	- Job sales return
+						# Job features
 								- Repeat repairs
 								- global settings: no of job slips to be printed
 								- global settings: no of job invoices to be printed
@@ -72,32 +87,6 @@
 								- Undo delivery
 								- DELETE INVOICE
 								- Warranty issue parts and claim back
-# Dashboard
-	- No Dashboard
-	- Reports
-		- Job reports
-			- Overview
-			- Dashboard: Status wise Jobs in squares
-			- Warranty
-		- Performance Reports
-			- Technician
-			- Divison
-			- Branch
-			
-		- Inventory Reports
-			- Parts Summary
-			- Stock ledger
-	- Landing page is Jobs:  Single Job
-	- Overview: Jobs Overview
-		- Active Jobs
-		- Pending final
-		- Pending Delivery
-		- Customers
-		- Recent repair queue: received jobs recent
-	- Job Status
-# Accounts posting
-								- UI
-	- Implementation of transfer to Accounts
 
 					- Final a Job
 							- Undo final
