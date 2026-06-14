@@ -2052,20 +2052,15 @@ class SqlStore:
     GET_PARTS_CONSUMPTION_COUNT = """
         with
             "p_branch_id" as (values(%(branch_id)s::bigint)),
-            "p_from_date" as (values(%(from_date)s::date)),
-            "p_to_date"   as (values(%(to_date)s::date)),
             "p_search"    as (values(%(search)s::text))
         -- with
-        --     "p_branch_id" as (values(1::bigint)),        -- Test line
-        --     "p_from_date" as (values('2024-01-01'::date)), -- Test line
-        --     "p_to_date"   as (values('2024-12-31'::date)), -- Test line
-        --     "p_search"    as (values(''::text))           -- Test line
+        --     "p_branch_id" as (values(1::bigint)), -- Test line
+        --     "p_search"    as (values(''::text))   -- Test line
         SELECT COUNT(*) AS total
         FROM job_part_used jpu
         JOIN job             j  ON j.id  = jpu.job_id
         JOIN spare_part_master sp ON sp.id = jpu.part_id
         WHERE j.branch_id = (table "p_branch_id")
-          AND j.job_date BETWEEN (table "p_from_date") AND (table "p_to_date")
           AND ((table "p_search") = ''
            OR LOWER(j.job_no)     LIKE '%%' || LOWER((table "p_search")) || '%%'
            OR LOWER(sp.part_code) LIKE '%%' || LOWER((table "p_search")) || '%%'
@@ -2075,39 +2070,50 @@ class SqlStore:
     GET_PARTS_CONSUMPTION = """
         with
             "p_branch_id" as (values(%(branch_id)s::bigint)),
-            "p_from_date" as (values(%(from_date)s::date)),
-            "p_to_date"   as (values(%(to_date)s::date)),
             "p_search"    as (values(%(search)s::text)),
             "p_limit"     as (values(%(limit)s::int)),
             "p_offset"    as (values(%(offset)s::int))
         -- with
-        --     "p_branch_id" as (values(1::bigint)),          -- Test line
-        --     "p_from_date" as (values('2024-01-01'::date)),  -- Test line
-        --     "p_to_date"   as (values('2024-12-31'::date)),  -- Test line
-        --     "p_search"    as (values(''::text)),            -- Test line
-        --     "p_limit"     as (values(50::int)),             -- Test line
-        --     "p_offset"    as (values(0::int))              -- Test line
+        --     "p_branch_id" as (values(1::bigint)), -- Test line
+        --     "p_search"    as (values(''::text)),  -- Test line
+        --     "p_limit"     as (values(50::int)),   -- Test line
+        --     "p_offset"    as (values(0::int))     -- Test line
         SELECT
             jpu.id,
+            jpu.created_at,
+            j.id       AS job_id,
             j.job_no,
             j.job_date,
+            j.is_closed,
+            j.is_final,
+            js.name AS job_status_name,
+            jt.name AS job_type_name,
+            jpu.part_id,
+            sp.brand_id,
             sp.part_code,
             sp.part_name,
             sp.uom,
             jpu.qty,
+            jpu.cost_price,
+            jpu.selling_price,
+            jpu.gst_rate,
+            COALESCE(jpu.hsn_code, sp.hsn_code) AS hsn_code,
             jpu.remarks,
-            b.name AS branch_name
+            b.name AS branch_name,
+            st.id  AS stock_transaction_id
         FROM job_part_used jpu
         JOIN job             j  ON j.id  = jpu.job_id
         JOIN spare_part_master sp ON sp.id = jpu.part_id
         JOIN branch          b  ON b.id  = j.branch_id
+        JOIN job_status      js ON js.id = j.job_status_id
+        JOIN job_type        jt ON jt.id = j.job_type_id
+        LEFT JOIN stock_transaction st ON st.job_part_used_id = jpu.id
         WHERE j.branch_id = (table "p_branch_id")
-          AND j.job_date BETWEEN (table "p_from_date") AND (table "p_to_date")
           AND ((table "p_search") = ''
            OR LOWER(j.job_no)     LIKE '%%' || LOWER((table "p_search")) || '%%'
            OR LOWER(sp.part_code) LIKE '%%' || LOWER((table "p_search")) || '%%'
            OR LOWER(sp.part_name) LIKE '%%' || LOWER((table "p_search")) || '%%')
-        ORDER BY j.job_date DESC, j.job_no, sp.part_code
+        ORDER BY jpu.created_at DESC
         LIMIT  (table "p_limit")
         OFFSET (table "p_offset")
     """
@@ -3831,9 +3837,9 @@ class SqlStore:
             "p_branch_id" as (values(%(branch_id)s::bigint)),
             "p_search"    as (values(%(search)s::text)),
             "p_limit"     as (values(%(limit)s::int))
-        SELECT j.id, j.job_no, j.job_date, j.branch_id, j.is_closed,
-               cc.full_name AS customer_name, cc.mobile,
-               js.name AS job_status_name
+        SELECT j.id, j.job_no, j.job_date, j.branch_id, j.is_closed, j.is_final,
+               js.code AS job_status_code, js.name AS job_status_name,
+               cc.full_name AS customer_name, cc.mobile
         FROM job j
         JOIN customer_contact cc ON cc.id = j.customer_contact_id
         JOIN job_status        js ON js.id = j.job_status_id
@@ -3883,7 +3889,8 @@ class SqlStore:
            OR  j.job_no::text ILIKE '%%' || (table "p_search") || '%%'
            OR  LOWER(cc.full_name) LIKE '%%' || LOWER((table "p_search")) || '%%'
            OR  LOWER(jp.payment_mode) LIKE '%%' || LOWER((table "p_search")) || '%%'
-           OR  LOWER(COALESCE(jp.reference_no, '')) LIKE '%%' || LOWER((table "p_search")) || '%%')
+           OR  LOWER(COALESCE(jp.reference_no, '')) LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(COALESCE(jp.receipt_no, '')) LIKE '%%' || LOWER((table "p_search")) || '%%')
     """
 
     GET_JOB_PAYMENTS_PAGED = """
@@ -3894,11 +3901,13 @@ class SqlStore:
             "p_search"     as (values(%(search)s::text)),
             "p_limit"      as (values(%(limit)s::int)),
             "p_offset"     as (values(%(offset)s::int))
-        SELECT jp.id, jp.job_id, j.job_no, cc.full_name AS customer_name, cc.mobile,
+        SELECT jp.id, jp.job_id, jp.receipt_no, j.job_no, j.job_date, cc.full_name AS customer_name, cc.mobile,
                jp.payment_date, jp.payment_mode, jp.amount, jp.reference_no, jp.remarks,
-               jp.is_posted, jp.created_at, jp.updated_at
+               jp.is_posted, jp.created_at, jp.updated_at,
+               j.is_closed, j.is_final, js.code AS job_status_code, js.name AS job_status_name
         FROM job_payment jp
         JOIN job j ON j.id = jp.job_id
+        JOIN job_status js ON js.id = j.job_status_id
         LEFT JOIN customer_contact cc ON cc.id = j.customer_contact_id
         WHERE j.branch_id = (table "p_branch_id")
           AND jp.payment_date BETWEEN (table "p_from_date") AND (table "p_to_date")
@@ -3906,7 +3915,8 @@ class SqlStore:
            OR  j.job_no::text ILIKE '%%' || (table "p_search") || '%%'
            OR  LOWER(cc.full_name) LIKE '%%' || LOWER((table "p_search")) || '%%'
            OR  LOWER(jp.payment_mode) LIKE '%%' || LOWER((table "p_search")) || '%%'
-           OR  LOWER(COALESCE(jp.reference_no, '')) LIKE '%%' || LOWER((table "p_search")) || '%%')
+           OR  LOWER(COALESCE(jp.reference_no, '')) LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(COALESCE(jp.receipt_no, '')) LIKE '%%' || LOWER((table "p_search")) || '%%')
         ORDER BY jp.payment_date DESC, jp.id DESC
         LIMIT  (table "p_limit")
         OFFSET (table "p_offset")
@@ -4046,9 +4056,12 @@ class SqlStore:
             "p_search"    as (values(%(search)s::text)),
             "p_limit"     as (values(%(limit)s::int))
         SELECT j.id, j.job_no, j.alternate_job_no, j.job_date, j.amount, j.is_closed,
-               cc.full_name AS customer_name, cc.mobile
+               j.is_final, js.code AS job_status_code, js.name AS job_status_name, jt.code AS job_type_code,
+               cc.full_name AS customer_name, cc.mobile, cc.address_line1
         FROM job j
         LEFT JOIN customer_contact cc ON cc.id = j.customer_contact_id
+        JOIN  job_status js ON js.id = j.job_status_id
+        JOIN  job_type   jt ON jt.id = j.job_type_id
         WHERE j.branch_id = (table "p_branch_id")
           AND j.is_active = true
           AND ((table "p_search") = ''
