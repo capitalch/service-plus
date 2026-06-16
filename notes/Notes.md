@@ -10,7 +10,31 @@
 - Create a complete plan with available options
 - At this stage give a detailed overview of entire process incorporating best practises. No need to write detaied code. This is only the design phase
 - Write you plan to plans/plan.md. 
+
+# Account Setting
+{
+        "clientCode":"demoAccounts",
+        "buCode":"demounit1",
+        "purchase":{
+                "debitAccountCode":"",
+                "creditAccountCode":"",
+                "productCode":"*****",
+                "defaultPartHsn":"",
+                "defaultGstRate":"18"
+        },
+        "sale":{
+                "debitAccountCode":"",
+                "creditAccountCode":"",
+                "productCode":"*****",
+                "defaultPartHsn":"",
+                "defaultGstRate":"18"
+        },
+        "receipt":{
+                "debitAccountCode":"",
+                "creditAccountCode":""
+        }
         
+}
 
 ###
 - For "Assigned" as target status, selection of technician through drop down is mandatory in modal window if not already selected earlier.

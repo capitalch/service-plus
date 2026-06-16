@@ -22,15 +22,12 @@
 ## Account Mapping (the accounting model produced per entity)
 
 All vouchers are double-entry: each `TranH` carries balanced `TranD` rows (`dc` = `'D'`/`'C'`).
-`tranTypeId` per Trace convention: **4 = Sales, 5 = Purchase, 9 = Sales Return, 10 = Purchase Return,
-3 = Receipt**.
+`tranTypeId` per Trace convention: **4 = Sales, 5 = Purchase, 3 = Receipt**.
 
 | Service-Plus entity | tranTypeId | Debit (Dr) | Credit (Cr) |
 |---|---|---|---|
-| **Purchase Invoice** (`is_return=false`) | 5 | Purchase a/c = `aggregate_amount`; Input CGST; Input SGST; Input IGST | Supplier (creditor) = `total_amount` |
-| **Purchase Invoice** (`is_return=true`) | 10 | Supplier = `total_amount` | Purchase a/c = `aggregate_amount`; Input CGST/SGST/IGST |
-| **Sales Invoice** (`is_return=false`) | 4 | Customer (debtor) = `amount` | Sales a/c = `aggregate`; Output CGST; Output SGST; Output IGST |
-| **Sales Invoice** (`is_return=true`) | 9 | Sales a/c = `aggregate`; Output CGST/SGST/IGST | Customer = `amount` |
+| **Purchase Invoice** | 5 | Purchase a/c = `aggregate_amount`; Input CGST; Input SGST; Input IGST | Supplier (creditor) = `total_amount` |
+| **Sales Invoice** | 4 | Customer (debtor) = `amount` | Sales a/c = `aggregate`; Output CGST; Output SGST; Output IGST |
 | **Job Invoice** | 4 | Customer/Job party = `amount` | Service Income a/c = `aggregate`; Output CGST; Output SGST; Output IGST |
 | **Money Receipt** (`job_payment`) | 3 | Bank or Cash (by `payment_mode`) = `amount` | Customer/Job party = `amount` |
 
@@ -64,7 +61,7 @@ Append to `class Settings`:
 `.env` (per environment) supplies real values; **no secrets in code or client**.
 
 ### Step 0.2 — Confirm Trace constants (manual, no code)
-In the Trace DB, confirm `TranTypeM` ids for Purchase(5)/Sale(4)/returns(9,10)/Receipt and the GST
+In the Trace DB, confirm `TranTypeM` ids for Purchase(5)/Sale(4)/Receipt(3) and the GST
 account convention. Record them; they feed Step 1's seed row.
 
 **Verify:** `python -c "from app.config import settings; print(settings.trace_base_url)"` runs clean.
@@ -158,21 +155,21 @@ Each returns only **unposted** rows for the requested ids, with the fields the v
 ```python
     GET_PURCHASE_INVOICES_FOR_POST = """
         with "ids" as (values (%(ids)s::bigint[]))
-        SELECT pi.id, pi.invoice_no, pi.invoice_date, pi.branch_id, pi.is_return,
+        SELECT pi.id, pi.invoice_no, pi.invoice_date, pi.branch_id,
                pi.aggregate_amount, pi.cgst_amount, pi.sgst_amount, pi.igst_amount,
                pi.total_amount, pi.supplier_id, c.contact_name AS supplier_name
             FROM purchase_invoice pi
             LEFT JOIN contact c ON c.id = pi.supplier_id
-            WHERE pi.id = ANY((table "ids")) AND pi.is_posted = false
+            WHERE pi.id = ANY((table "ids")) AND pi.is_posted = false AND pi.is_return = false
     """
 
     GET_SALES_INVOICES_FOR_POST = """
         with "ids" as (values (%(ids)s::bigint[]))
-        SELECT si.id, si.invoice_no, si.invoice_date, si.division_id, si.is_return,
+        SELECT si.id, si.invoice_no, si.invoice_date, si.division_id,
                si.aggregate, si.cgst_amount, si.sgst_amount, si.igst_amount, si.amount,
                si.customer_contact_id, si.customer_name
             FROM sales_invoice si
-            WHERE si.id = ANY((table "ids")) AND si.is_posted = false
+            WHERE si.id = ANY((table "ids")) AND si.is_posted = false AND si.is_return = false
     """
 
     GET_JOB_INVOICES_FOR_POST = """
@@ -318,7 +315,7 @@ Pure functions: `(entity_row, map_row) -> sqlObject`. No I/O — fully unit-test
 from datetime import date
 from typing import Any
 
-T_SALE, T_PURCHASE, T_SALE_RET, T_PURCHASE_RET, T_RECEIPT = 4, 5, 9, 10, 3
+T_SALE, T_PURCHASE, T_RECEIPT = 4, 5, 3
 
 
 def _fin_year_id(d: str, fallback: int) -> int:
@@ -361,24 +358,20 @@ def _envelope(m: dict, tran_type_id: int, tran_date: str, user_ref_no: str,
 
 
 def build_purchase(r: dict, m: dict) -> dict:
-    is_ret = r.get("is_return")
-    tt = T_PURCHASE_RET if is_ret else T_PURCHASE
     gst = _tax_rows(m, "input", r["cgst_amount"], r["sgst_amount"], r["igst_amount"])
-    purchase = _row(m["acc_purchase"], "D" if not is_ret else "C", r["aggregate_amount"])
-    supplier = _row(m["acc_creditors"], "C" if not is_ret else "D", r["total_amount"])
+    purchase = _row(m["acc_purchase"], "D", r["aggregate_amount"])
+    supplier = _row(m["acc_creditors"], "C", r["total_amount"])
     rows = [purchase, *gst, supplier]            # debits == credits by construction
-    return _envelope(m, tt, r["invoice_date"], f"PI:{r['invoice_no']}",
+    return _envelope(m, T_PURCHASE, r["invoice_date"], f"PI:{r['invoice_no']}",
                      f"Purchase {r['invoice_no']} {r.get('supplier_name','')}", rows)
 
 
 def build_sales(r: dict, m: dict) -> dict:
-    is_ret = r.get("is_return")
-    tt = T_SALE_RET if is_ret else T_SALE
     gst = _tax_rows(m, "output", r["cgst_amount"], r["sgst_amount"], r["igst_amount"])
-    sales = _row(m["acc_sales"], "C" if not is_ret else "D", r["aggregate"])
-    customer = _row(m["acc_debtors"], "D" if not is_ret else "C", r["amount"])
+    sales = _row(m["acc_sales"], "C", r["aggregate"])
+    customer = _row(m["acc_debtors"], "D", r["amount"])
     rows = [customer, sales, *gst]
-    return _envelope(m, tt, r["invoice_date"], f"SI:{r['invoice_no']}",
+    return _envelope(m, T_SALE, r["invoice_date"], f"SI:{r['invoice_no']}",
                      f"Sales {r['invoice_no']} {r.get('customer_name','')}", rows)
 
 
@@ -647,7 +640,7 @@ creates no duplicate `TranH`.
 
 ## Phase 9 — Testing & rollout
 
-1. **Unit (builder):** debits == credits for each entity; GST lines omitted when zero; return signs flipped.
+1. **Unit (builder):** debits == credits for each entity; GST lines omitted when zero.
 2. **Integration (single item):** post one purchase invoice; confirm Trace `TranH/TranD` + `is_posted=true` + `trace_posting_log`.
 3. **Idempotency:** re-post the same selection → all `skipped`, no duplicate vouchers.
 4. **Partial failure:** force one bad row (e.g. missing map account) → others post, bad one `failed`, re-runnable.
