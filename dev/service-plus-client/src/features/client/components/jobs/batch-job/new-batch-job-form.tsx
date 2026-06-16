@@ -135,8 +135,8 @@ export function NewBatchJobForm({
             </p>
 
             {/* Shared header card — single compact row */}
-            <Card className="border-(--cl-border) shadow-md bg-(--cl-surface) !overflow-visible">
-                <CardContent className="py-2 px-3 flex flex-wrap lg:flex-nowrap items-end gap-2 !overflow-visible">
+            <Card className="border-(--cl-border) shadow-md bg-(--cl-surface) overflow-visible!">
+                <CardContent className="py-2 px-3 flex flex-wrap lg:flex-nowrap gap-2 overflow-visible!">
 
                     {divisions.length > 1 && (
                         <div className="space-y-0.5 shrink-0 w-44">

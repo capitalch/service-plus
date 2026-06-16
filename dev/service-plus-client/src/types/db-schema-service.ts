@@ -235,6 +235,7 @@ export interface Division {
   branch_id: number;
   code: string;
   web_site: string | null;
+  account_setting: Json | null;
 }
 export interface DivisionInput {
   id: number;
@@ -254,10 +255,11 @@ export interface DivisionInput {
   branch_id: number;
   code: string;
   web_site?: string | null;
+  account_setting?: Json | null;
 }
 const division = {
   tableName: 'division',
-  columns: ['id', 'name', 'address_line1', 'address_line2', 'city', 'state_id', 'country', 'pincode', 'phone', 'email', 'gstin', 'is_active', 'created_at', 'updated_at', 'branch_id', 'code', 'web_site'],
+  columns: ['id', 'name', 'address_line1', 'address_line2', 'city', 'state_id', 'country', 'pincode', 'phone', 'email', 'gstin', 'is_active', 'created_at', 'updated_at', 'branch_id', 'code', 'web_site', 'account_setting'],
   requiredForInsert: ['id', 'name', 'address_line1', 'state_id', 'branch_id', 'code'],
   primaryKey: 'id',
   foreignKeys: {

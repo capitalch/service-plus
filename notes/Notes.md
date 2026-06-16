@@ -1,3 +1,14 @@
+# New field in divison
+- A new field account_setting of type jsonb is added to divison table
+- In Configurations > Divisons for Add / Edit divison provide entry in the form for following JSON type in the account_setting if post_data_to_accounts is true
+        - {
+                "clientCode":"demoAccounts",
+                "buCode":"demounit1",
+                "receipt":{
+                "debitAccountId":"",
+                "creditAccountId":""
+                }
+        }
 # Service management software Post data to accounts
 ## Trace plus is an accounting software with postgresql database and GraphQL based API. The app server is written in fastApi. It is in folder /projects/trace-plus/dev/trace-server. Service plus is service jobs management software. its server is in folder /projects/service-plus/dev/service-plus-server. DB schema is in files /projects/service-plus/db/service-plus-demo.sql and /projects/service-plus/db/service-plus-client.sql
 - A need is felt to post the data for Purchase Invoices, Sales Invoices, Job Invoices and Money Receipts from service-plus to trace-plus. The process should be robust and in service plus, is_posted flag is to be made true after successful posting to accounts.
