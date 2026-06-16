@@ -3767,6 +3767,12 @@ class SqlStore:
             j.*,
             cc.full_name  AS customer_name,
             cc.mobile,
+            cc.address_line1 AS customer_address_line1,
+            cc.address_line2 AS customer_address_line2,
+            cc.landmark      AS customer_landmark,
+            cc.city          AS customer_city,
+            cc.postal_code   AS customer_postal_code,
+            s.name           AS customer_state,
             CONCAT_WS(', ', NULLIF(cc.address_line1, ''), NULLIF(cc.address_line2, ''), NULLIF(cc.city, ''), NULLIF(cc.postal_code, '')) AS address_snapshot,
             jt.name       AS job_type_name,
             jrm.name      AS job_receive_manner_name,
@@ -3777,6 +3783,7 @@ class SqlStore:
             (SELECT COUNT(*) FROM job_image_doc  jd  WHERE jd.job_id  = j.id) AS file_count
         FROM job j
         JOIN customer_contact      cc  ON cc.id  = j.customer_contact_id
+        LEFT JOIN state            s   ON s.id   = cc.state_id
         JOIN job_type              jt  ON jt.id  = j.job_type_id
         JOIN job_receive_manner    jrm ON jrm.id = j.job_receive_manner_id
         LEFT JOIN product_brand_model pbm ON pbm.id = j.product_brand_model_id
