@@ -1,15 +1,64 @@
 # New field in divison
 - A new field account_setting of type jsonb is added to divison table
-- In Configurations > Divisons for Add / Edit divison provide entry in the form for following JSON type in the account_setting if post_data_to_accounts is true
+- In Configurations > Divisons for Add / Edit divison provide form entry in the form for following JSON type in the account_setting field. This field entry will be visible only when post_data_to_accounts is true
         - {
                 "clientCode":"demoAccounts",
                 "buCode":"demounit1",
                 "receipt":{
-                "debitAccountId":"",
-                "creditAccountId":""
+                        "debitAccountId":"",
+                        "creditAccountId":""
                 }
-        }
+          }
+- Set typescript type and put proper validations in place.
 - The above setting will be used for posting of data to accounts software
+
+# Money receipt payload
+
+{
+  "tableName": "TranH",
+  "dbParams": {
+    "conn": "Encrypted string"
+  },
+  "xData": {
+    "tranDate": "2026-06-17",
+    "userRefNo": "user ref no",
+    "remarks": "common remarks",
+    "tranTypeId": 3,
+    "finYearId": 2026,
+    "branchId": 1,
+    "posId": 1,
+    "xDetails": [
+      {
+        "tableName": "TranD",
+        "fkeyName": "tranHeaderId",
+        "xData": [
+          {
+            "accId": 389,
+            "remarks": "Line Remarks 1",
+            "dc": "C",
+            "amount": 1000,
+            "lineRefNo": "line ref 1",
+            "instrNo": null
+          },
+          {
+            "accId": 118,
+            "remarks": "Line Remarks 1",
+            "dc": "D",
+            "amount": 1000,
+            "lineRefNo": "line ref 1",
+            "instrNo": "instr1"
+          }
+        ],
+        "deletedIds": [
+          
+        ]
+      }
+    ]
+  },
+  "buCode": "demounit1"
+}
+
+
 # Service management software Post data to accounts
 ## Trace plus is an accounting software with postgresql database and GraphQL based API. The app server is written in fastApi. It is in folder /projects/trace-plus/dev/trace-server. Service plus is service jobs management software. its server is in folder /projects/service-plus/dev/service-plus-server. DB schema is in files /projects/service-plus/db/service-plus-demo.sql and /projects/service-plus/db/service-plus-client.sql
 - A need is felt to post the data for Purchase Invoices, Sales Invoices, Job Invoices and Money Receipts from service-plus to trace-plus. The process should be robust and in service plus, is_posted flag is to be made true after successful posting to accounts.

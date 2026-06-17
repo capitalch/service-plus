@@ -29,7 +29,7 @@ import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
-import { selectCurrentBranch, selectSchema } from "@/store/context-slice";
+import { selectCurrentBranch, selectPostDataToAccounts, selectSchema } from "@/store/context-slice";
 import { divisionSchema } from "./division-schema";
 import type { DivisionFormValues } from "./division-schema";
 import type { DivisionType } from "@/features/client/types/division";
@@ -76,25 +76,36 @@ export const EditDivisionDialog = ({
     const [checkingCode, setCheckingCode] = useState(false);
     const [codeTaken,    setCodeTaken]    = useState<boolean | null>(null);
     const [states,       setStates]       = useState<StateType[]>([]);
-    const dbName        = useAppSelector(selectDbName);
-    const schema        = useAppSelector(selectSchema);
-    const currentBranch = useAppSelector(selectCurrentBranch);
+    const dbName             = useAppSelector(selectDbName);
+    const schema             = useAppSelector(selectSchema);
+    const currentBranch      = useAppSelector(selectCurrentBranch);
+    const postDataToAccounts = useAppSelector(selectPostDataToAccounts);
 
     const form = useForm<DivisionFormValues>({
         defaultValues: {
-            code:          division.code,
-            address_line1: division.address_line1,
-            address_line2: division.address_line2 ?? "",
-            city:          division.city ?? "",
-            country:       division.country ?? "",
-            email:         division.email ?? "",
-            gstin:         division.gstin ?? "",
-            is_active:     division.is_active,
-            name:          division.name,
-            phone:         division.phone ?? "",
-            pincode:       division.pincode ?? "",
-            state_id:      division.state_id,
-            web_site:      division.web_site ?? "",
+            code:            division.code,
+            address_line1:   division.address_line1,
+            address_line2:   division.address_line2 ?? "",
+            city:            division.city ?? "",
+            country:         division.country ?? "",
+            email:           division.email ?? "",
+            gstin:           division.gstin ?? "",
+            is_active:       division.is_active,
+            name:            division.name,
+            phone:           division.phone ?? "",
+            pincode:         division.pincode ?? "",
+            state_id:        division.state_id,
+            web_site:        division.web_site ?? "",
+            account_setting: division.account_setting
+                ? {
+                    clientCode: division.account_setting.clientCode ?? "",
+                    buCode:     division.account_setting.buCode ?? "",
+                    receipt: {
+                        debitAccountId:  division.account_setting.receipt?.debitAccountId  ?? "",
+                        creditAccountId: division.account_setting.receipt?.creditAccountId ?? "",
+                    },
+                  }
+                : null,
         },
         mode:     "onChange",
         resolver: zodResolver(divisionSchema) as any,
@@ -110,19 +121,29 @@ export const EditDivisionDialog = ({
     useEffect(() => {
         if (!open) return;
         form.reset({
-            code:          division.code,
-            address_line1: division.address_line1,
-            address_line2: division.address_line2 ?? "",
-            city:          division.city ?? "",
-            country:       division.country ?? "",
-            email:         division.email ?? "",
-            gstin:         division.gstin ?? "",
-            is_active:     division.is_active,
-            name:          division.name,
-            phone:         division.phone ?? "",
-            pincode:       division.pincode ?? "",
-            state_id:      division.state_id,
-            web_site:      division.web_site ?? "",
+            code:            division.code,
+            address_line1:   division.address_line1,
+            address_line2:   division.address_line2 ?? "",
+            city:            division.city ?? "",
+            country:         division.country ?? "",
+            email:           division.email ?? "",
+            gstin:           division.gstin ?? "",
+            is_active:       division.is_active,
+            name:            division.name,
+            phone:           division.phone ?? "",
+            pincode:         division.pincode ?? "",
+            state_id:        division.state_id,
+            web_site:        division.web_site ?? "",
+            account_setting: division.account_setting
+                ? {
+                    clientCode: division.account_setting.clientCode ?? "",
+                    buCode:     division.account_setting.buCode ?? "",
+                    receipt: {
+                        debitAccountId:  division.account_setting.receipt?.debitAccountId  ?? "",
+                        creditAccountId: division.account_setting.receipt?.creditAccountId ?? "",
+                    },
+                  }
+                : null,
         });
         setNameTaken(null);
         setCodeTaken(null);
@@ -201,6 +222,17 @@ export const EditDivisionDialog = ({
 
     async function onSubmit(data: DivisionFormValues) {
         if (!dbName || !schema) return;
+        const as = data.account_setting;
+        const accountSettingValue = (postDataToAccounts && as?.clientCode)
+            ? {
+                clientCode: as.clientCode,
+                buCode:     as.buCode,
+                receipt: {
+                    debitAccountId:  as.receipt?.debitAccountId  ?? "",
+                    creditAccountId: as.receipt?.creditAccountId ?? "",
+                },
+              }
+            : null;
         try {
             await apolloClient.mutate({
                 mutation: GRAPHQL_MAP.genericUpdate,
@@ -210,20 +242,21 @@ export const EditDivisionDialog = ({
                     value: graphQlUtils.buildGenericUpdateValue({
                         tableName: "division",
                         xData: {
-                            address_line1: data.address_line1,
-                            address_line2: data.address_line2 || null,
-                            city:          data.city || null,
-                            code:          data.code,
-                            country:       data.country || null,
-                            email:         data.email || null,
-                            gstin:         data.gstin || null,
-                            id:            division.id,
-                            is_active:     data.is_active,
-                            name:          data.name,
-                            phone:         data.phone || null,
-                            pincode:       data.pincode || null,
-                            state_id:      data.state_id,
-                            web_site:      data.web_site || null,
+                            address_line1:   data.address_line1,
+                            address_line2:   data.address_line2 || null,
+                            city:            data.city || null,
+                            code:            data.code,
+                            country:         data.country || null,
+                            email:           data.email || null,
+                            gstin:           data.gstin || null,
+                            id:              division.id,
+                            is_active:       data.is_active,
+                            name:            data.name,
+                            phone:           data.phone || null,
+                            pincode:         data.pincode || null,
+                            state_id:        data.state_id,
+                            web_site:        data.web_site || null,
+                            account_setting: accountSettingValue ? JSON.stringify(accountSettingValue) : null,
                         },
                     }),
                 },
@@ -436,6 +469,57 @@ export const EditDivisionDialog = ({
                             {...form.register("web_site")}
                         />
                     </div>
+
+                    {/* Accounts Integration — visible only when post_data_to_accounts is enabled */}
+                    {postDataToAccounts && (
+                        <div className="flex flex-col gap-3 rounded-md border p-3">
+                            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                                Accounts Integration
+                            </p>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="flex flex-col gap-1.5">
+                                    <Label htmlFor="edv_client_code">Client Code</Label>
+                                    <Input
+                                        autoComplete="off"
+                                        id="edv_client_code"
+                                        placeholder="e.g. demoAccounts"
+                                        {...form.register("account_setting.clientCode")}
+                                    />
+                                    <FieldError message={errors.account_setting?.clientCode?.message} />
+                                </div>
+                                <div className="flex flex-col gap-1.5">
+                                    <Label htmlFor="edv_bu_code">BU Code</Label>
+                                    <Input
+                                        autoComplete="off"
+                                        id="edv_bu_code"
+                                        placeholder="e.g. demounit1"
+                                        {...form.register("account_setting.buCode")}
+                                    />
+                                    <FieldError message={errors.account_setting?.buCode?.message} />
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="flex flex-col gap-1.5">
+                                    <Label htmlFor="edv_debit_acc">Receipt Debit A/c ID</Label>
+                                    <Input
+                                        autoComplete="off"
+                                        id="edv_debit_acc"
+                                        placeholder="Debit account ID"
+                                        {...form.register("account_setting.receipt.debitAccountId")}
+                                    />
+                                </div>
+                                <div className="flex flex-col gap-1.5">
+                                    <Label htmlFor="edv_credit_acc">Receipt Credit A/c ID</Label>
+                                    <Input
+                                        autoComplete="off"
+                                        id="edv_credit_acc"
+                                        placeholder="Credit account ID"
+                                        {...form.register("account_setting.receipt.creditAccountId")}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
                 </div>
 

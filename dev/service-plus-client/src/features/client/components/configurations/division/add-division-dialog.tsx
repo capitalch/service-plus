@@ -29,7 +29,7 @@ import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
-import { selectCurrentBranch, selectHomeStateId, selectSchema } from "@/store/context-slice";
+import { selectCurrentBranch, selectHomeStateId, selectPostDataToAccounts, selectSchema } from "@/store/context-slice";
 import { addDivisionSchema } from "./division-schema";
 import type { AddDivisionFormValues } from "./division-schema";
 
@@ -74,27 +74,29 @@ export const AddDivisionDialog = ({
     const [codeTaken,    setCodeTaken]    = useState<boolean | null>(null);
     const [states,       setStates]       = useState<StateType[]>([]);
     const [suggestedId,  setSuggestedId]  = useState<number | null>(null);
-    const dbName        = useAppSelector(selectDbName);
-    const schema        = useAppSelector(selectSchema);
-    const currentBranch = useAppSelector(selectCurrentBranch);
-    const homeStateId   = useAppSelector(selectHomeStateId);
+    const dbName             = useAppSelector(selectDbName);
+    const schema             = useAppSelector(selectSchema);
+    const currentBranch      = useAppSelector(selectCurrentBranch);
+    const homeStateId        = useAppSelector(selectHomeStateId);
+    const postDataToAccounts = useAppSelector(selectPostDataToAccounts);
 
     const form = useForm<AddDivisionFormValues>({
         defaultValues: {
-            id:            0,
-            code:          "",
-            address_line1: "",
-            address_line2: "",
-            city:          "",
-            country:       "",
-            email:         "",
-            gstin:         "",
-            is_active:     true,
-            name:          "",
-            phone:         "",
-            pincode:       "",
-            state_id:      0,
-            web_site:      "",
+            id:              0,
+            code:            "",
+            address_line1:   "",
+            address_line2:   "",
+            city:            "",
+            country:         "",
+            email:           "",
+            gstin:           "",
+            is_active:       true,
+            name:            "",
+            phone:           "",
+            pincode:         "",
+            state_id:        0,
+            web_site:        "",
+            account_setting: null,
         },
         mode:     "onChange",
         resolver: zodResolver(addDivisionSchema) as any,
@@ -207,6 +209,17 @@ export const AddDivisionDialog = ({
 
     async function onSubmit(data: AddDivisionFormValues) {
         if (!dbName || !schema || !currentBranch) return;
+        const as = data.account_setting;
+        const accountSettingValue = (postDataToAccounts && as?.clientCode)
+            ? {
+                clientCode: as.clientCode,
+                buCode:     as.buCode,
+                receipt: {
+                    debitAccountId:  as.receipt?.debitAccountId  ?? "",
+                    creditAccountId: as.receipt?.creditAccountId ?? "",
+                },
+              }
+            : null;
         try {
             await apolloClient.mutate({
                 mutation: GRAPHQL_MAP.genericUpdate,
@@ -216,22 +229,23 @@ export const AddDivisionDialog = ({
                     value: graphQlUtils.buildGenericUpdateValue({
                         tableName: "division",
                         xData: {
-                            id:            data.id,
-                            isIdInsert:    true,
-                            address_line1: data.address_line1,
-                            address_line2: data.address_line2 || null,
-                            branch_id:     currentBranch.id,
-                            city:          data.city || null,
-                            country:       data.country || null,
-                            email:         data.email || null,
-                            gstin:         data.gstin || null,
-                            code:          data.code,
-                            is_active:     data.is_active,
-                            name:          data.name,
-                            phone:         data.phone || null,
-                            pincode:       data.pincode || null,
-                            state_id:      data.state_id,
-                            web_site:      data.web_site || null,
+                            id:              data.id,
+                            isIdInsert:      true,
+                            address_line1:   data.address_line1,
+                            address_line2:   data.address_line2 || null,
+                            branch_id:       currentBranch.id,
+                            city:            data.city || null,
+                            country:         data.country || null,
+                            email:           data.email || null,
+                            gstin:           data.gstin || null,
+                            code:            data.code,
+                            is_active:       data.is_active,
+                            name:            data.name,
+                            phone:           data.phone || null,
+                            pincode:         data.pincode || null,
+                            state_id:        data.state_id,
+                            web_site:        data.web_site || null,
+                            account_setting: accountSettingValue ? JSON.stringify(accountSettingValue) : null,
                         },
                     }),
                 },
@@ -474,6 +488,57 @@ export const AddDivisionDialog = ({
                             />
                         </div>
                     </div>
+
+                    {/* Accounts Integration — visible only when post_data_to_accounts is enabled */}
+                    {postDataToAccounts && (
+                        <div className="flex flex-col gap-3 rounded-md border p-3">
+                            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                                Accounts Integration
+                            </p>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="flex flex-col gap-1.5">
+                                    <Label htmlFor="dv_client_code">Client Code</Label>
+                                    <Input
+                                        autoComplete="off"
+                                        id="dv_client_code"
+                                        placeholder="e.g. demoAccounts"
+                                        {...form.register("account_setting.clientCode")}
+                                    />
+                                    <FieldError message={errors.account_setting?.clientCode?.message} />
+                                </div>
+                                <div className="flex flex-col gap-1.5">
+                                    <Label htmlFor="dv_bu_code">BU Code</Label>
+                                    <Input
+                                        autoComplete="off"
+                                        id="dv_bu_code"
+                                        placeholder="e.g. demounit1"
+                                        {...form.register("account_setting.buCode")}
+                                    />
+                                    <FieldError message={errors.account_setting?.buCode?.message} />
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="flex flex-col gap-1.5">
+                                    <Label htmlFor="dv_debit_acc">Receipt Debit A/c ID</Label>
+                                    <Input
+                                        autoComplete="off"
+                                        id="dv_debit_acc"
+                                        placeholder="Debit account ID"
+                                        {...form.register("account_setting.receipt.debitAccountId")}
+                                    />
+                                </div>
+                                <div className="flex flex-col gap-1.5">
+                                    <Label htmlFor="dv_credit_acc">Receipt Credit A/c ID</Label>
+                                    <Input
+                                        autoComplete="off"
+                                        id="dv_credit_acc"
+                                        placeholder="Credit account ID"
+                                        {...form.register("account_setting.receipt.creditAccountId")}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
                 </div>
 

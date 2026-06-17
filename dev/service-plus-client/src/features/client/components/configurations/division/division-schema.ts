@@ -1,5 +1,14 @@
 import { z } from "zod";
 
+export const accountSettingSchema = z.object({
+    clientCode: z.string().min(1, "Client code is required"),
+    buCode:     z.string().min(1, "BU code is required"),
+    receipt: z.object({
+        debitAccountId:  z.string(),
+        creditAccountId: z.string(),
+    }),
+});
+
 export const divisionSchema = z.object({
     code:          z.string()
         .min(2, "Code must be at least 2 characters")
@@ -21,8 +30,9 @@ export const divisionSchema = z.object({
     name:          z.string().min(2, "Name must be at least 2 characters"),
     phone:         z.string().optional(),
     pincode:       z.string().optional(),
-    state_id:      z.coerce.number().positive("State is required"),
-    web_site:      z.string().optional(),
+    state_id:        z.coerce.number().positive("State is required"),
+    web_site:        z.string().optional(),
+    account_setting: accountSettingSchema.nullable().optional(),
 });
 
 export const addDivisionSchema = divisionSchema.extend({

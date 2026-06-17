@@ -1,8 +1,14 @@
 import { useState } from "react";
-import { BookCheck, CheckCheck, CheckSquare, Square } from "lucide-react";
+import { BookCheck, CheckCheck, CheckSquare, Loader2, Square } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 
+import { GRAPHQL_MAP } from "@/constants/graphql-map";
+import { selectDbName } from "@/features/auth/store/auth-slice";
+import { apolloClient } from "@/lib/apollo-client";
+import { encodeObj } from "@/lib/graphql-utils";
+import { selectCurrentDivision, selectSchema } from "@/store/context-slice";
+import { useAppSelector } from "@/store/hooks";
 import { PurchaseInvoicesGrid } from "./purchase-invoices-grid";
 import { SalesInvoicesGrid }    from "./sales-invoices-grid";
 import { JobInvoicesGrid }      from "./job-invoices-grid";
@@ -36,8 +42,13 @@ function TabBtn({ active, label, count, onClick }: { active: boolean; label: str
 }
 
 export function AccountsPostingSection() {
+    const dbName       = useAppSelector(selectDbName);
+    const schema       = useAppSelector(selectSchema);
+    const division     = useAppSelector(selectCurrentDivision);
+
     const [outerTab, setOuterTab] = useState<OuterTab>("posting");
     const [innerTab, setInnerTab] = useState<InnerTab>("purchase");
+    const [posting,  setPosting]  = useState(false);
 
     // Selection state — lives here so all tabs share it
     const [selectedPurchaseIds, setSelectedPurchaseIds] = useState<Set<number>>(new Set());
@@ -90,6 +101,32 @@ export function AccountsPostingSection() {
         toast.info(`Posting ${totalSelected} item${totalSelected !== 1 ? "s" : ""}…`);
     };
 
+    const handleAccountsPosting = async () => {
+        if (!division?.code) { toast.error("No division selected."); return; }
+        if (!dbName || !schema) return;
+        setPosting(true);
+        try {
+            const result = await apolloClient.mutate<{ accountsPosting: { error?: string } | null }>({
+                mutation: GRAPHQL_MAP.accountsPosting,
+                variables: {
+                    db_name: dbName,
+                    schema,
+                    value: encodeObj({ divisionCode: division.code }),
+                },
+            });
+            const data = result.data?.accountsPosting;
+            if (data?.error) {
+                toast.error(data.error);
+            } else {
+                toast.success("Accounts posting completed successfully.");
+            }
+        } catch {
+            toast.error("Accounts posting failed.");
+        } finally {
+            setPosting(false);
+        }
+    };
+
     return (
         <motion.div
             animate={{ opacity: 1 }}
@@ -105,6 +142,16 @@ export function AccountsPostingSection() {
                     </div>
                     <h1 className="text-lg font-bold text-(--cl-text)">Accounts Posting</h1>
                 </div>
+                <button
+                    disabled={posting || !division?.code}
+                    onClick={() => void handleAccountsPosting()}
+                    className="ml-auto flex items-center gap-2 rounded-md bg-(--cl-accent) px-4 py-1.5 text-sm font-semibold text-white shadow transition-colors hover:bg-(--cl-accent)/90 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                    {posting
+                        ? <><Loader2 className="h-4 w-4 animate-spin" /><span>Posting…</span></>
+                        : <><BookCheck className="h-4 w-4" /><span>Accounts Posting</span></>
+                    }
+                </button>
             </div>
 
             {/* Tab bar — wraps on small screens */}

@@ -597,7 +597,7 @@ class SqlStore:
         with "p_branch_id" as (values(%(branch_id)s::bigint))
         SELECT d.id, d.branch_id, d.code, d.name, d.address_line1, d.address_line2,
                d.city, d.state_id, d.country, d.pincode, d.phone, d.email,
-               d.gstin, d.web_site, d.is_active,
+               d.gstin, d.web_site, d.is_active, d.account_setting,
                s.gst_state_code
         FROM division d
         LEFT JOIN state s ON s.id = d.state_id
