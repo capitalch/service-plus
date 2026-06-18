@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
-import { Check, Loader2 } from "lucide-react";
+import { Check, Loader2, Receipt, ShoppingCart } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -21,6 +21,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { MESSAGES } from "@/constants/messages";
 import { SQL_MAP } from "@/constants/sql-map";
@@ -55,10 +56,23 @@ type StatesQueryDataType = {
     genericQuery: StateType[] | null;
 };
 
-// ─── Field error ──────────────────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function FieldError({ message }: { message?: string }) {
     return message ? <p className="text-xs text-red-500">{message}</p> : null;
+}
+
+function SectionLabel({ icon, children, iconClass }: { icon: React.ReactNode; children: React.ReactNode; iconClass?: string }) {
+    return (
+        <div className="flex items-center gap-2 mb-1">
+            <span className={`flex h-6 w-6 items-center justify-center rounded ${iconClass ?? "bg-(--cl-accent)/10 text-(--cl-accent)"}`}>
+                {icon}
+            </span>
+            <p className="text-xs font-semibold uppercase tracking-wider text-(--cl-text)">
+                {children}
+            </p>
+        </div>
+    );
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -136,6 +150,13 @@ export const AddDivisionDialog = ({
             .then((res) => setSuggestedId(res.data?.genericQuery?.[0]?.next_id ?? null))
             .catch(() => setSuggestedId(null));
         if (homeStateId) form.setValue("state_id", homeStateId);
+        if (postDataToAccounts) {
+            form.setValue("account_setting", {
+                clientCode: "", buCode: "", branchId: 0,
+                receipt: { debitAccountId: "", creditAccountId: "" },
+                purchaseInvoice: { debitAccountId: "", creditAccountId: "", productCode: "*****", defaultProductHsn: "", defaultGstRate: "18" },
+            });
+        }
     }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Reset on close
@@ -214,10 +235,12 @@ export const AddDivisionDialog = ({
             ? {
                 clientCode: as.clientCode,
                 buCode:     as.buCode,
+                branchId:   as.branchId,
                 receipt: {
                     debitAccountId:  as.receipt?.debitAccountId  ?? "",
                     creditAccountId: as.receipt?.creditAccountId ?? "",
                 },
+                ...(as.purchaseInvoice ? { purchaseInvoice: as.purchaseInvoice } : {}),
               }
             : null;
         try {
@@ -268,7 +291,11 @@ export const AddDivisionDialog = ({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent aria-describedby={undefined} className="sm:max-w-lg flex flex-col max-h-[90vh]">
+            <DialogContent
+                aria-describedby={undefined}
+                className="sm:max-w-lg flex flex-col h-[85vh]"
+                onInteractOutside={(e) => e.preventDefault()}
+            >
                 <DialogHeader className="shrink-0">
                     <DialogTitle className="text-base font-semibold text-foreground">
                         Add Division
@@ -276,271 +303,375 @@ export const AddDivisionDialog = ({
                 </DialogHeader>
 
                 <form className="flex flex-col min-h-0 flex-1" onSubmit={form.handleSubmit(onSubmit)}>
-                <div className="flex flex-col gap-4 pt-1 overflow-y-auto min-h-0 flex-1 pr-1">
-                    <div className="grid grid-cols-2 gap-4">
-                        {/* ID */}
-                        <div className="flex flex-col gap-1.5">
-                            <div className="flex items-baseline justify-between">
-                                <Label htmlFor="dv_id">
-                                    ID <span className="text-red-500">*</span>
-                                </Label>
-                                {suggestedId !== null && (
-                                    <button
-                                        className="text-xs text-sky-600 hover:underline focus:outline-none cursor-pointer"
-                                        type="button"
-                                        onClick={() => form.setValue("id", suggestedId, { shouldValidate: true })}
-                                    >
-                                        Use {suggestedId}
-                                    </button>
-                                )}
-                            </div>
-                            <Input
-                                autoComplete="off"
-                                id="dv_id"
-                                placeholder="Unique integer ID"
-                                type="number"
-                                {...form.register("id")}
-                            />
-                            <FieldError message={errors.id?.message} />
-                        </div>
-
-                        {/* Code */}
-                        <div className="flex flex-col gap-1.5">
-                            <Label htmlFor="dv_code">
-                                Code <span className="text-red-500">*</span>
-                            </Label>
-                            <div className="relative">
-                                <Input
-                                    autoComplete="off"
-                                    className="pr-8 font-mono uppercase"
-                                    id="dv_code"
-                                    placeholder="e.g. MAIN"
-                                    {...form.register("code", { setValueAs: (v: string) => v.toUpperCase() })}
-                                />
-                                {checkingCode && (
-                                    <Loader2 className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-slate-400" />
-                                )}
-                                {!checkingCode && codeTaken === false && !errors.code && (
-                                    <Check className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-500" />
-                                )}
-                            </div>
-                            <FieldError message={errors.code?.message} />
-                        </div>
-                    </div>
-
-                    {/* Name */}
-                    <div className="flex flex-col gap-1.5">
-                        <Label htmlFor="dv_name">
-                            Name <span className="text-red-500">*</span>
-                        </Label>
-                        <div className="relative">
-                            <Input
-                                autoComplete="off"
-                                className="pr-8"
-                                id="dv_name"
-                                placeholder="e.g. Main Division"
-                                {...form.register("name")}
-                            />
-                            {checkingName && (
-                                <Loader2 className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-slate-400" />
+                    <Tabs defaultValue="details" className="flex flex-col min-h-0 flex-1">
+                        <TabsList className="shrink-0">
+                            <TabsTrigger value="details">Details</TabsTrigger>
+                            {postDataToAccounts && (
+                                <TabsTrigger value="accounts">Trace+ Accounts Integration</TabsTrigger>
                             )}
-                            {!checkingName && nameTaken === false && !errors.name && (
-                                <Check className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-500" />
-                            )}
-                        </div>
-                        <FieldError message={errors.name?.message} />
-                    </div>
+                        </TabsList>
 
-                    {/* Address line 1 */}
-                    <div className="flex flex-col gap-1.5">
-                        <Label htmlFor="dv_addr1">
-                            Address <span className="text-red-500">*</span>
-                        </Label>
-                        <Input
-                            autoComplete="off"
-                            id="dv_addr1"
-                            placeholder="Street address"
-                            {...form.register("address_line1")}
-                        />
-                        <FieldError message={errors.address_line1?.message} />
-                    </div>
+                        <TabsContent value="details">
+                            <div className="flex flex-col gap-3 pt-1 overflow-y-auto min-h-0 flex-1 pr-1">
 
-                    {/* Address line 2 */}
-                    <div className="flex flex-col gap-1.5">
-                        <Label htmlFor="dv_addr2">Address Line 2</Label>
-                        <Input
-                            autoComplete="off"
-                            id="dv_addr2"
-                            placeholder="Apartment, suite, etc."
-                            {...form.register("address_line2")}
-                        />
-                    </div>
+                                {/* ── Identity ── */}
+                                <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
+                                    <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-amber-600">Identity</p>
+                                    <div className="flex flex-col gap-3">
+                                        <div className="grid grid-cols-2 gap-3">
+                                            {/* ID */}
+                                            <div className="flex flex-col gap-1.5">
+                                                <div className="flex items-baseline justify-between">
+                                                    <Label htmlFor="dv_id">
+                                                        ID <span className="text-red-500">*</span>
+                                                    </Label>
+                                                    {suggestedId !== null && (
+                                                        <button
+                                                            className="text-xs text-sky-600 hover:underline focus:outline-none cursor-pointer"
+                                                            type="button"
+                                                            onClick={() => form.setValue("id", suggestedId, { shouldValidate: true })}
+                                                        >
+                                                            Use {suggestedId}
+                                                        </button>
+                                                    )}
+                                                </div>
+                                                <Input
+                                                    autoComplete="off"
+                                                    id="dv_id"
+                                                    placeholder="Unique integer ID"
+                                                    type="number"
+                                                    {...form.register("id")}
+                                                />
+                                                <FieldError message={errors.id?.message} />
+                                            </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                        {/* State */}
-                        <div className="flex flex-col gap-1.5">
-                            <Label htmlFor="dv_state">
-                                State <span className="text-red-500">*</span>
-                            </Label>
-                            <Select
-                                value={String(form.watch("state_id") || "")}
-                                onValueChange={(v) => form.setValue("state_id", Number(v), { shouldValidate: true })}
-                            >
-                                <SelectTrigger id="dv_state">
-                                    <SelectValue placeholder="Select state" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {states.map((s) => (
-                                        <SelectItem key={s.id} value={String(s.id)}>
-                                            {s.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                            <FieldError message={errors.state_id?.message} />
-                        </div>
+                                            {/* Code */}
+                                            <div className="flex flex-col gap-1.5">
+                                                <Label htmlFor="dv_code">
+                                                    Code <span className="text-red-500">*</span>
+                                                </Label>
+                                                <div className="relative">
+                                                    <Input
+                                                        autoComplete="off"
+                                                        className="pr-8 font-mono uppercase"
+                                                        id="dv_code"
+                                                        placeholder="e.g. MAIN"
+                                                        {...form.register("code", { setValueAs: (v: string) => v.toUpperCase() })}
+                                                    />
+                                                    {checkingCode && (
+                                                        <Loader2 className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-slate-400" />
+                                                    )}
+                                                    {!checkingCode && codeTaken === false && !errors.code && (
+                                                        <Check className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-500" />
+                                                    )}
+                                                </div>
+                                                <FieldError message={errors.code?.message} />
+                                            </div>
+                                        </div>
 
-                        {/* City */}
-                        <div className="flex flex-col gap-1.5">
-                            <Label htmlFor="dv_city">City</Label>
-                            <Input
-                                autoComplete="off"
-                                id="dv_city"
-                                placeholder="City"
-                                {...form.register("city")}
-                            />
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                        {/* Country */}
-                        <div className="flex flex-col gap-1.5">
-                            <Label htmlFor="dv_country">Country</Label>
-                            <Input
-                                autoComplete="off"
-                                id="dv_country"
-                                placeholder="Country"
-                                {...form.register("country")}
-                            />
-                        </div>
-
-                        {/* Pincode */}
-                        <div className="flex flex-col gap-1.5">
-                            <Label htmlFor="dv_pin">Pincode</Label>
-                            <Input
-                                autoComplete="off"
-                                id="dv_pin"
-                                placeholder="Pincode"
-                                {...form.register("pincode")}
-                            />
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                        {/* Phone */}
-                        <div className="flex flex-col gap-1.5">
-                            <Label htmlFor="dv_phone">Phone</Label>
-                            <Input
-                                autoComplete="off"
-                                id="dv_phone"
-                                placeholder="Phone number"
-                                {...form.register("phone")}
-                            />
-                        </div>
-
-                        {/* Email */}
-                        <div className="flex flex-col gap-1.5">
-                            <Label htmlFor="dv_email">Email</Label>
-                            <Input
-                                autoComplete="off"
-                                id="dv_email"
-                                placeholder="division@example.com"
-                                type="email"
-                                {...form.register("email")}
-                            />
-                            <FieldError message={errors.email?.message} />
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                        {/* GSTIN */}
-                        <div className="flex flex-col gap-1.5">
-                            <Label htmlFor="dv_gstin">GSTIN</Label>
-                            <Input
-                                autoComplete="off"
-                                className="font-mono uppercase"
-                                id="dv_gstin"
-                                placeholder="15-char GSTIN"
-                                {...form.register("gstin")}
-                            />
-                            <FieldError message={errors.gstin?.message} />
-                        </div>
-
-                        {/* Web Site */}
-                        <div className="flex flex-col gap-1.5">
-                            <Label htmlFor="dv_website">Web Site</Label>
-                            <Input
-                                autoComplete="off"
-                                id="dv_website"
-                                placeholder="https://example.com"
-                                type="url"
-                                {...form.register("web_site")}
-                            />
-                        </div>
-                    </div>
-
-                    {/* Accounts Integration — visible only when post_data_to_accounts is enabled */}
-                    {postDataToAccounts && (
-                        <div className="flex flex-col gap-3 rounded-md border p-3">
-                            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-                                Accounts Integration
-                            </p>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="flex flex-col gap-1.5">
-                                    <Label htmlFor="dv_client_code">Client Code</Label>
-                                    <Input
-                                        autoComplete="off"
-                                        id="dv_client_code"
-                                        placeholder="e.g. demoAccounts"
-                                        {...form.register("account_setting.clientCode")}
-                                    />
-                                    <FieldError message={errors.account_setting?.clientCode?.message} />
+                                        {/* Name */}
+                                        <div className="flex flex-col gap-1.5">
+                                            <Label htmlFor="dv_name">
+                                                Name <span className="text-red-500">*</span>
+                                            </Label>
+                                            <div className="relative">
+                                                <Input
+                                                    autoComplete="off"
+                                                    className="pr-8"
+                                                    id="dv_name"
+                                                    placeholder="e.g. Main Division"
+                                                    {...form.register("name")}
+                                                />
+                                                {checkingName && (
+                                                    <Loader2 className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-slate-400" />
+                                                )}
+                                                {!checkingName && nameTaken === false && !errors.name && (
+                                                    <Check className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-500" />
+                                                )}
+                                            </div>
+                                            <FieldError message={errors.name?.message} />
+                                        </div>
+                                    </div>
                                 </div>
-                                <div className="flex flex-col gap-1.5">
-                                    <Label htmlFor="dv_bu_code">BU Code</Label>
-                                    <Input
-                                        autoComplete="off"
-                                        id="dv_bu_code"
-                                        placeholder="e.g. demounit1"
-                                        {...form.register("account_setting.buCode")}
-                                    />
-                                    <FieldError message={errors.account_setting?.buCode?.message} />
+
+                                {/* ── Address ── */}
+                                <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3">
+                                    <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-blue-600">Address</p>
+                                    <div className="flex flex-col gap-3">
+                                        <div className="flex flex-col gap-1.5">
+                                            <Label htmlFor="dv_addr1">
+                                                Address <span className="text-red-500">*</span>
+                                            </Label>
+                                            <Input
+                                                autoComplete="off"
+                                                id="dv_addr1"
+                                                placeholder="Street address"
+                                                {...form.register("address_line1")}
+                                            />
+                                            <FieldError message={errors.address_line1?.message} />
+                                        </div>
+
+                                        <div className="flex flex-col gap-1.5">
+                                            <Label htmlFor="dv_addr2">Address Line 2</Label>
+                                            <Input
+                                                autoComplete="off"
+                                                id="dv_addr2"
+                                                placeholder="Apartment, suite, etc."
+                                                {...form.register("address_line2")}
+                                            />
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div className="flex flex-col gap-1.5">
+                                                <Label htmlFor="dv_state">
+                                                    State <span className="text-red-500">*</span>
+                                                </Label>
+                                                <Select
+                                                    value={String(form.watch("state_id") || "")}
+                                                    onValueChange={(v) => form.setValue("state_id", Number(v), { shouldValidate: true })}
+                                                >
+                                                    <SelectTrigger id="dv_state">
+                                                        <SelectValue placeholder="Select state" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        {states.map((s) => (
+                                                            <SelectItem key={s.id} value={String(s.id)}>
+                                                                {s.name}
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                                <FieldError message={errors.state_id?.message} />
+                                            </div>
+
+                                            <div className="flex flex-col gap-1.5">
+                                                <Label htmlFor="dv_city">City</Label>
+                                                <Input
+                                                    autoComplete="off"
+                                                    id="dv_city"
+                                                    placeholder="City"
+                                                    {...form.register("city")}
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div className="flex flex-col gap-1.5">
+                                                <Label htmlFor="dv_country">Country</Label>
+                                                <Input
+                                                    autoComplete="off"
+                                                    id="dv_country"
+                                                    placeholder="Country"
+                                                    {...form.register("country")}
+                                                />
+                                            </div>
+
+                                            <div className="flex flex-col gap-1.5">
+                                                <Label htmlFor="dv_pin">Pincode</Label>
+                                                <Input
+                                                    autoComplete="off"
+                                                    id="dv_pin"
+                                                    placeholder="Pincode"
+                                                    {...form.register("pincode")}
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
+
+                                {/* ── Contact & Legal ── */}
+                                <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3">
+                                    <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-rose-600">Contact & Legal</p>
+                                    <div className="flex flex-col gap-3">
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div className="flex flex-col gap-1.5">
+                                                <Label htmlFor="dv_phone">Phone</Label>
+                                                <Input
+                                                    autoComplete="off"
+                                                    id="dv_phone"
+                                                    placeholder="Phone number"
+                                                    {...form.register("phone")}
+                                                />
+                                            </div>
+
+                                            <div className="flex flex-col gap-1.5">
+                                                <Label htmlFor="dv_email">Email</Label>
+                                                <Input
+                                                    autoComplete="off"
+                                                    id="dv_email"
+                                                    placeholder="division@example.com"
+                                                    type="email"
+                                                    {...form.register("email")}
+                                                />
+                                                <FieldError message={errors.email?.message} />
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div className="flex flex-col gap-1.5">
+                                                <Label htmlFor="dv_gstin">GSTIN</Label>
+                                                <Input
+                                                    autoComplete="off"
+                                                    className="font-mono uppercase"
+                                                    id="dv_gstin"
+                                                    placeholder="15-char GSTIN"
+                                                    {...form.register("gstin")}
+                                                />
+                                                <FieldError message={errors.gstin?.message} />
+                                            </div>
+
+                                            <div className="flex flex-col gap-1.5">
+                                                <Label htmlFor="dv_website">Web Site</Label>
+                                                <Input
+                                                    autoComplete="off"
+                                                    id="dv_website"
+                                                    placeholder="https://example.com"
+                                                    type="url"
+                                                    {...form.register("web_site")}
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
                             </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="flex flex-col gap-1.5">
-                                    <Label htmlFor="dv_debit_acc">Receipt Debit A/c ID</Label>
-                                    <Input
-                                        autoComplete="off"
-                                        id="dv_debit_acc"
-                                        placeholder="Debit account ID"
-                                        {...form.register("account_setting.receipt.debitAccountId")}
-                                    />
-                                </div>
-                                <div className="flex flex-col gap-1.5">
-                                    <Label htmlFor="dv_credit_acc">Receipt Credit A/c ID</Label>
-                                    <Input
-                                        autoComplete="off"
-                                        id="dv_credit_acc"
-                                        placeholder="Credit account ID"
-                                        {...form.register("account_setting.receipt.creditAccountId")}
-                                    />
-                                </div>
-                            </div>
-                        </div>
-                    )}
+                        </TabsContent>
 
-                </div>
+                        {postDataToAccounts && (
+                            <TabsContent value="accounts">
+                                <div className="flex flex-col gap-4 pt-1 overflow-y-auto min-h-0 flex-1 pr-1">
+                                    {/* ── Common ── */}
+                                    <div className="rounded-lg border border-sky-200 bg-sky-50 px-4 py-3">
+                                        <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-sky-600">
+                                            Common
+                                        </p>
+                                        <div className="grid grid-cols-3 gap-3">
+                                            <div className="flex flex-col gap-1.5">
+                                                <Label htmlFor="dv_client_code" className="text-xs">Client Code</Label>
+                                                <Input
+                                                    autoComplete="off"
+                                                    className="h-8 text-sm"
+                                                    id="dv_client_code"
+                                                    placeholder="e.g. demoAccounts"
+                                                    {...form.register("account_setting.clientCode")}
+                                                />
+                                                <FieldError message={errors.account_setting?.clientCode?.message} />
+                                            </div>
+                                            <div className="flex flex-col gap-1.5">
+                                                <Label htmlFor="dv_bu_code" className="text-xs">BU Code</Label>
+                                                <Input
+                                                    autoComplete="off"
+                                                    className="h-8 text-sm"
+                                                    id="dv_bu_code"
+                                                    placeholder="e.g. demounit1"
+                                                    {...form.register("account_setting.buCode")}
+                                                />
+                                                <FieldError message={errors.account_setting?.buCode?.message} />
+                                            </div>
+                                            <div className="flex flex-col gap-1.5">
+                                                <Label htmlFor="dv_branch_id" className="text-xs">Branch ID</Label>
+                                                <Input
+                                                    autoComplete="off"
+                                                    className="h-8 text-sm"
+                                                    id="dv_branch_id"
+                                                    placeholder="e.g. 1"
+                                                    type="number"
+                                                    {...form.register("account_setting.branchId")}
+                                                />
+                                                <FieldError message={errors.account_setting?.branchId?.message} />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* ── Money Receipt ── */}
+                                    <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 shadow-sm">
+                                        <SectionLabel icon={<Receipt className="h-3.5 w-3.5" />} iconClass="bg-emerald-100 text-emerald-600">Money Receipt</SectionLabel>
+                                        <div className="mt-3 grid grid-cols-2 gap-3">
+                                            <div className="flex flex-col gap-1.5">
+                                                <Label htmlFor="dv_r_debit" className="text-xs">Debit A/c ID</Label>
+                                                <Input
+                                                    autoComplete="off"
+                                                    className="h-8 text-sm font-mono"
+                                                    id="dv_r_debit"
+                                                    placeholder="Debit account ID"
+                                                    {...form.register("account_setting.receipt.debitAccountId")}
+                                                />
+                                            </div>
+                                            <div className="flex flex-col gap-1.5">
+                                                <Label htmlFor="dv_r_credit" className="text-xs">Credit A/c ID</Label>
+                                                <Input
+                                                    autoComplete="off"
+                                                    className="h-8 text-sm font-mono"
+                                                    id="dv_r_credit"
+                                                    placeholder="Credit account ID"
+                                                    {...form.register("account_setting.receipt.creditAccountId")}
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* ── Purchase Invoice ── */}
+                                    <div className="rounded-lg border border-violet-200 bg-violet-50 px-4 py-3 shadow-sm">
+                                        <SectionLabel icon={<ShoppingCart className="h-3.5 w-3.5" />} iconClass="bg-violet-100 text-violet-600">Purchase Invoice</SectionLabel>
+                                        <div className="mt-3 grid grid-cols-2 gap-3">
+                                            <div className="flex flex-col gap-1.5">
+                                                <Label htmlFor="dv_pi_debit" className="text-xs">Debit A/c ID</Label>
+                                                <Input
+                                                    autoComplete="off"
+                                                    className="h-8 text-sm font-mono"
+                                                    id="dv_pi_debit"
+                                                    placeholder="Debit account ID"
+                                                    {...form.register("account_setting.purchaseInvoice.debitAccountId")}
+                                                />
+                                            </div>
+                                            <div className="flex flex-col gap-1.5">
+                                                <Label htmlFor="dv_pi_credit" className="text-xs">Credit A/c ID</Label>
+                                                <Input
+                                                    autoComplete="off"
+                                                    className="h-8 text-sm font-mono"
+                                                    id="dv_pi_credit"
+                                                    placeholder="Credit account ID"
+                                                    {...form.register("account_setting.purchaseInvoice.creditAccountId")}
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="mt-3 grid grid-cols-3 gap-3">
+                                            <div className="flex flex-col gap-1.5">
+                                                <Label htmlFor="dv_pi_prod" className="text-xs">Product Code</Label>
+                                                <Input
+                                                    autoComplete="off"
+                                                    className="h-8 text-sm font-mono"
+                                                    id="dv_pi_prod"
+                                                    placeholder="e.g. *****"
+                                                    {...form.register("account_setting.purchaseInvoice.productCode")}
+                                                />
+                                            </div>
+                                            <div className="flex flex-col gap-1.5">
+                                                <Label htmlFor="dv_pi_hsn" className="text-xs">Default HSN</Label>
+                                                <Input
+                                                    autoComplete="off"
+                                                    className="h-8 text-sm"
+                                                    id="dv_pi_hsn"
+                                                    placeholder="HSN code"
+                                                    {...form.register("account_setting.purchaseInvoice.defaultProductHsn")}
+                                                />
+                                            </div>
+                                            <div className="flex flex-col gap-1.5">
+                                                <Label htmlFor="dv_pi_gst" className="text-xs">GST Rate %</Label>
+                                                <Input
+                                                    autoComplete="off"
+                                                    className="h-8 text-sm"
+                                                    id="dv_pi_gst"
+                                                    placeholder="e.g. 18"
+                                                    {...form.register("account_setting.purchaseInvoice.defaultGstRate")}
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </TabsContent>
+                        )}
+                    </Tabs>
 
                     <DialogFooter className="pt-2 shrink-0">
                         <Button

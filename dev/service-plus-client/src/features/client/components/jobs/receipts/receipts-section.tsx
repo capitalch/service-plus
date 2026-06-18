@@ -235,7 +235,7 @@ export const ReceiptsSection = () => {
                 }),
             ]);
             const job = jobRes.data?.genericQuery?.[0];
-            const payments = paymentsRes.data?.genericQuery ?? [];
+            const payments = (paymentsRes.data?.genericQuery ?? []).filter(p => p.id === row.id);
             if (!job) { toast.error("Failed to load job details."); return; }
             const division = availableDivisions.find(d => d.id === (job as unknown as { division_id: number | null }).division_id) ?? null;
             const doc = buildReceiptPdf({ ...job, customer_name: job.customer_name ?? "", payments }, division);

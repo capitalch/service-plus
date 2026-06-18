@@ -1,12 +1,22 @@
 import { z } from "zod";
 
+const invoiceSubSchema = z.object({
+    debitAccountId:    z.string(),
+    creditAccountId:   z.string(),
+    productCode:       z.string(),
+    defaultProductHsn: z.string(),
+    defaultGstRate:    z.string(),
+});
+
 export const accountSettingSchema = z.object({
     clientCode: z.string().min(1, "Client code is required"),
     buCode:     z.string().min(1, "BU code is required"),
+    branchId:   z.coerce.number().int().positive("Branch ID must be a positive integer"),
     receipt: z.object({
         debitAccountId:  z.string(),
         creditAccountId: z.string(),
     }),
+    purchaseInvoice: invoiceSubSchema.optional(),
 });
 
 export const divisionSchema = z.object({

@@ -712,6 +712,14 @@ class SqlStore:
         ORDER BY dt.id
     """
 
+    GET_DIVISION_ACCOUNT_SETTING_BY_CODE = """
+        WITH "p_code" AS (VALUES(%(code)s::text))
+        SELECT d.id, d.account_setting
+        FROM division d
+        WHERE LOWER(d.code) = LOWER((TABLE "p_code"))
+        LIMIT 1
+    """
+
     # ── Customer Types ────────────────────────────────────────────────────────
 
     CHECK_CUSTOMER_TYPE_CODE_EXISTS = """
@@ -4078,6 +4086,37 @@ class SqlStore:
            OR  LOWER(COALESCE(j.alternate_job_no, '')) LIKE '%%' || LOWER((table "p_search")) || '%%')
         ORDER BY j.job_date DESC, j.id DESC
         LIMIT (table "p_limit")
+    """
+
+    GET_ONE_UNPOSTED_MONEY_RECEIPT = """
+        WITH "p_division_code" AS (VALUES(%(division_code)s::text))
+        SELECT
+            jp.id,
+            jp.job_id,
+            j.job_no,
+            jp.receipt_no,
+            jp.payment_date,
+            jp.payment_mode,
+            jp.amount,
+            jp.reference_no,
+            jp.remarks,
+            cc.full_name AS customer_name,
+            cc.mobile AS customer_mobile,
+            cc.gstin AS customer_gstin,
+            cc.postal_code AS customer_pin,
+            CONCAT_WS(', ',
+                NULLIF(cc.address_line1, ''),
+                NULLIF(cc.address_line2, ''),
+                NULLIF(cc.city, '')
+            ) AS customer_address
+        FROM job_payment jp
+        JOIN job j ON j.id = jp.job_id
+        JOIN division d ON d.id = j.division_id
+        LEFT JOIN customer_contact cc ON cc.id = j.customer_contact_id
+        WHERE LOWER(d.code) = LOWER((TABLE "p_division_code"))
+          AND jp.is_posted = false
+        ORDER BY jp.payment_date DESC, jp.id DESC
+        LIMIT 1
     """
 
     # ── Final a Job ────────────────────────────────────────────────────

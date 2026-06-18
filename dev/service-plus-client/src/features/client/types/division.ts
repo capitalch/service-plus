@@ -1,10 +1,20 @@
+export type InvoiceAccountSettingType = {
+    debitAccountId:    string;
+    creditAccountId:   string;
+    productCode:       string;
+    defaultProductHsn: string;
+    defaultGstRate:    string;
+};
+
 export type AccountSettingType = {
-    clientCode: string;
-    buCode:     string;
+    clientCode:       string;
+    buCode:           string;
+    branchId:         number;
     receipt: {
         debitAccountId:  string;
         creditAccountId: string;
     };
+    purchaseInvoice?: InvoiceAccountSettingType;
 };
 
 export type DivisionType = {
