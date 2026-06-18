@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
-import { Check, Loader2, Receipt, ShoppingCart } from "lucide-react";
+import { Check, Loader2, Receipt, ShoppingCart, Tag, Wrench } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -77,9 +77,9 @@ function SectionLabel({ icon, children, iconClass }: { icon: React.ReactNode; ch
     );
 }
 
-const DEFAULT_PURCHASE_INVOICE = {
-    debitAccountId: "", creditAccountId: "",
-    productCode: "*****", defaultProductHsn: "", defaultGstRate: "18",
+const DEFAULT_INVOICE = {
+    debitAccountId: 0, creditAccountId: 0,
+    productId: 0, defaultProductHsn: 0, defaultGstRate: 18,
 };
 
 function buildAccountSetting(division: DivisionType) {
@@ -90,12 +90,12 @@ function buildAccountSetting(division: DivisionType) {
         buCode:     as.buCode ?? "",
         branchId:   as.branchId ?? 0,
         receipt: {
-            debitAccountId:  as.receipt?.debitAccountId  ?? "",
-            creditAccountId: as.receipt?.creditAccountId ?? "",
+            debitAccountId:  as.receipt?.debitAccountId  ?? 0,
+            creditAccountId: as.receipt?.creditAccountId ?? 0,
         },
-        purchaseInvoice: as.purchaseInvoice
-            ? { ...as.purchaseInvoice }
-            : { ...DEFAULT_PURCHASE_INVOICE },
+        purchaseInvoice: as.purchaseInvoice ? { ...as.purchaseInvoice } : { ...DEFAULT_INVOICE },
+        salesInvoice:    as.salesInvoice    ? { ...as.salesInvoice }    : { ...DEFAULT_INVOICE },
+        jobInvoice:      as.jobInvoice      ? { ...as.jobInvoice }      : { ...DEFAULT_INVOICE },
     };
 }
 
@@ -247,10 +247,12 @@ export const EditDivisionDialog = ({
                 buCode:     as.buCode,
                 branchId:   as.branchId,
                 receipt: {
-                    debitAccountId:  as.receipt?.debitAccountId  ?? "",
-                    creditAccountId: as.receipt?.creditAccountId ?? "",
+                    debitAccountId:  as.receipt?.debitAccountId  ?? 0,
+                    creditAccountId: as.receipt?.creditAccountId ?? 0,
                 },
                 ...(as.purchaseInvoice ? { purchaseInvoice: as.purchaseInvoice } : {}),
+                ...(as.salesInvoice    ? { salesInvoice:    as.salesInvoice }    : {}),
+                ...(as.jobInvoice      ? { jobInvoice:      as.jobInvoice }      : {}),
               }
             : null;
         try {
@@ -574,6 +576,7 @@ export const EditDivisionDialog = ({
                                                     className="h-8 text-sm font-mono"
                                                     id="edv_r_debit"
                                                     placeholder="Debit account ID"
+                                                    type="number"
                                                     {...form.register("account_setting.receipt.debitAccountId")}
                                                 />
                                             </div>
@@ -584,6 +587,7 @@ export const EditDivisionDialog = ({
                                                     className="h-8 text-sm font-mono"
                                                     id="edv_r_credit"
                                                     placeholder="Credit account ID"
+                                                    type="number"
                                                     {...form.register("account_setting.receipt.creditAccountId")}
                                                 />
                                             </div>
@@ -601,6 +605,7 @@ export const EditDivisionDialog = ({
                                                     className="h-8 text-sm font-mono"
                                                     id="edv_pi_debit"
                                                     placeholder="Debit account ID"
+                                                    type="number"
                                                     {...form.register("account_setting.purchaseInvoice.debitAccountId")}
                                                 />
                                             </div>
@@ -611,19 +616,21 @@ export const EditDivisionDialog = ({
                                                     className="h-8 text-sm font-mono"
                                                     id="edv_pi_credit"
                                                     placeholder="Credit account ID"
+                                                    type="number"
                                                     {...form.register("account_setting.purchaseInvoice.creditAccountId")}
                                                 />
                                             </div>
                                         </div>
                                         <div className="mt-3 grid grid-cols-3 gap-3">
                                             <div className="flex flex-col gap-1.5">
-                                                <Label htmlFor="edv_pi_prod" className="text-xs">Product Code</Label>
+                                                <Label htmlFor="edv_pi_prod" className="text-xs">Product Id</Label>
                                                 <Input
                                                     autoComplete="off"
                                                     className="h-8 text-sm font-mono"
                                                     id="edv_pi_prod"
-                                                    placeholder="e.g. *****"
-                                                    {...form.register("account_setting.purchaseInvoice.productCode")}
+                                                    placeholder="e.g. 278"
+                                                    type="number"
+                                                    {...form.register("account_setting.purchaseInvoice.productId")}
                                                 />
                                             </div>
                                             <div className="flex flex-col gap-1.5">
@@ -633,6 +640,7 @@ export const EditDivisionDialog = ({
                                                     className="h-8 text-sm"
                                                     id="edv_pi_hsn"
                                                     placeholder="HSN code"
+                                                    type="number"
                                                     {...form.register("account_setting.purchaseInvoice.defaultProductHsn")}
                                                 />
                                             </div>
@@ -643,7 +651,136 @@ export const EditDivisionDialog = ({
                                                     className="h-8 text-sm"
                                                     id="edv_pi_gst"
                                                     placeholder="e.g. 18"
+                                                    type="number"
                                                     {...form.register("account_setting.purchaseInvoice.defaultGstRate")}
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* ── Sales Invoice ── */}
+                                    <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 shadow-sm">
+                                        <SectionLabel icon={<Tag className="h-3.5 w-3.5" />} iconClass="bg-amber-100 text-amber-600">Sales Invoice</SectionLabel>
+                                        <div className="mt-3 grid grid-cols-2 gap-3">
+                                            <div className="flex flex-col gap-1.5">
+                                                <Label htmlFor="edv_si_debit" className="text-xs">Debit A/c ID</Label>
+                                                <Input
+                                                    autoComplete="off"
+                                                    className="h-8 text-sm font-mono"
+                                                    id="edv_si_debit"
+                                                    placeholder="Debit account ID"
+                                                    type="number"
+                                                    {...form.register("account_setting.salesInvoice.debitAccountId")}
+                                                />
+                                            </div>
+                                            <div className="flex flex-col gap-1.5">
+                                                <Label htmlFor="edv_si_credit" className="text-xs">Credit A/c ID</Label>
+                                                <Input
+                                                    autoComplete="off"
+                                                    className="h-8 text-sm font-mono"
+                                                    id="edv_si_credit"
+                                                    placeholder="Credit account ID"
+                                                    type="number"
+                                                    {...form.register("account_setting.salesInvoice.creditAccountId")}
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="mt-3 grid grid-cols-3 gap-3">
+                                            <div className="flex flex-col gap-1.5">
+                                                <Label htmlFor="edv_si_prod" className="text-xs">Product Id</Label>
+                                                <Input
+                                                    autoComplete="off"
+                                                    className="h-8 text-sm font-mono"
+                                                    id="edv_si_prod"
+                                                    placeholder="e.g. 278"
+                                                    type="number"
+                                                    {...form.register("account_setting.salesInvoice.productId")}
+                                                />
+                                            </div>
+                                            <div className="flex flex-col gap-1.5">
+                                                <Label htmlFor="edv_si_hsn" className="text-xs">Default HSN</Label>
+                                                <Input
+                                                    autoComplete="off"
+                                                    className="h-8 text-sm"
+                                                    id="edv_si_hsn"
+                                                    placeholder="HSN code"
+                                                    type="number"
+                                                    {...form.register("account_setting.salesInvoice.defaultProductHsn")}
+                                                />
+                                            </div>
+                                            <div className="flex flex-col gap-1.5">
+                                                <Label htmlFor="edv_si_gst" className="text-xs">GST Rate %</Label>
+                                                <Input
+                                                    autoComplete="off"
+                                                    className="h-8 text-sm"
+                                                    id="edv_si_gst"
+                                                    placeholder="e.g. 18"
+                                                    type="number"
+                                                    {...form.register("account_setting.salesInvoice.defaultGstRate")}
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* ── Job Invoice ── */}
+                                    <div className="rounded-lg border border-teal-200 bg-teal-50 px-4 py-3 shadow-sm">
+                                        <SectionLabel icon={<Wrench className="h-3.5 w-3.5" />} iconClass="bg-teal-100 text-teal-600">Job Invoice</SectionLabel>
+                                        <div className="mt-3 grid grid-cols-2 gap-3">
+                                            <div className="flex flex-col gap-1.5">
+                                                <Label htmlFor="edv_ji_debit" className="text-xs">Debit A/c ID</Label>
+                                                <Input
+                                                    autoComplete="off"
+                                                    className="h-8 text-sm font-mono"
+                                                    id="edv_ji_debit"
+                                                    placeholder="Debit account ID"
+                                                    type="number"
+                                                    {...form.register("account_setting.jobInvoice.debitAccountId")}
+                                                />
+                                            </div>
+                                            <div className="flex flex-col gap-1.5">
+                                                <Label htmlFor="edv_ji_credit" className="text-xs">Credit A/c ID</Label>
+                                                <Input
+                                                    autoComplete="off"
+                                                    className="h-8 text-sm font-mono"
+                                                    id="edv_ji_credit"
+                                                    placeholder="Credit account ID"
+                                                    type="number"
+                                                    {...form.register("account_setting.jobInvoice.creditAccountId")}
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="mt-3 grid grid-cols-3 gap-3">
+                                            <div className="flex flex-col gap-1.5">
+                                                <Label htmlFor="edv_ji_prod" className="text-xs">Product Id</Label>
+                                                <Input
+                                                    autoComplete="off"
+                                                    className="h-8 text-sm font-mono"
+                                                    id="edv_ji_prod"
+                                                    placeholder="e.g. 278"
+                                                    type="number"
+                                                    {...form.register("account_setting.jobInvoice.productId")}
+                                                />
+                                            </div>
+                                            <div className="flex flex-col gap-1.5">
+                                                <Label htmlFor="edv_ji_hsn" className="text-xs">Default HSN</Label>
+                                                <Input
+                                                    autoComplete="off"
+                                                    className="h-8 text-sm"
+                                                    id="edv_ji_hsn"
+                                                    placeholder="HSN code"
+                                                    type="number"
+                                                    {...form.register("account_setting.jobInvoice.defaultProductHsn")}
+                                                />
+                                            </div>
+                                            <div className="flex flex-col gap-1.5">
+                                                <Label htmlFor="edv_ji_gst" className="text-xs">GST Rate %</Label>
+                                                <Input
+                                                    autoComplete="off"
+                                                    className="h-8 text-sm"
+                                                    id="edv_ji_gst"
+                                                    placeholder="e.g. 18"
+                                                    type="number"
+                                                    {...form.register("account_setting.jobInvoice.defaultGstRate")}
                                                 />
                                             </div>
                                         </div>

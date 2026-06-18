@@ -1,9 +1,9 @@
 export type InvoiceAccountSettingType = {
-    debitAccountId:    string;
-    creditAccountId:   string;
-    productCode:       string;
-    defaultProductHsn: string;
-    defaultGstRate:    string;
+    debitAccountId:    number;
+    creditAccountId:   number;
+    productId:         number;
+    defaultProductHsn: number;
+    defaultGstRate:    number;
 };
 
 export type AccountSettingType = {
@@ -11,10 +11,12 @@ export type AccountSettingType = {
     buCode:           string;
     branchId:         number;
     receipt: {
-        debitAccountId:  string;
-        creditAccountId: string;
+        debitAccountId:  number;
+        creditAccountId: number;
     };
     purchaseInvoice?: InvoiceAccountSettingType;
+    salesInvoice?:    InvoiceAccountSettingType;
+    jobInvoice?:      InvoiceAccountSettingType;
 };
 
 export type DivisionType = {

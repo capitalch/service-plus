@@ -1,239 +1,244 @@
-# Plan: Division Dialog — Trace+ Accounts Integration Tab
+# Plan: Apply `tran.md` — full `account_setting` structure (receipt + 3 invoice types)
 
-Extends `account_setting` with `purchaseInvoice` (+ `salesInvoice` / `jobInvoice` later).
-Converts the division dialog to a two-tab layout; adds Purchase Invoice section inside the Accounts tab.
+## Context
+
+`tran.md` finalizes the JSON shape of the `division.account_setting` field after user
+input. The field must hold a `receipt` block plus three invoice blocks —
+`purchaseInvoice`, `salesInvoice`, `jobInvoice` — each with the same five fields,
+where the product field is **`productId`** (numeric) and **all account / product /
+HSN / GST values are numbers**:
+
+```jsonc
+{
+  "buCode": "demounit1",
+  "branchId": 1,
+  "receipt":         { "debitAccountId": 118, "creditAccountId": 389 },
+  "purchaseInvoice": { "debitAccountId": 0, "creditAccountId": 0, "productId": 278, "defaultProductHsn": 0, "defaultGstRate": 18 },
+  "salesInvoice":    { "debitAccountId": 0, "creditAccountId": 0, "productId": 278, "defaultProductHsn": 0, "defaultGstRate": 18 },
+  "jobInvoice":      { "debitAccountId": 0, "creditAccountId": 0, "productId": 278, "defaultProductHsn": 0, "defaultGstRate": 18 },
+  "clientCode": "demoAccounts"
+}
+```
+
+### Current state (already in the codebase)
+
+The division dialogs already support a two-tab layout ("Details" + "Trace+ Accounts
+Integration") with `Common`, `Money Receipt`, and a single `Purchase Invoice`
+section. But the current model diverges from `tran.md`:
+
+- Invoice product field is named `productCode` (string `"*****"`) — must become `productId` (number).
+- All values (`debitAccountId`, `creditAccountId`, HSN, GST, receipt IDs) are **strings** — must become **numbers**.
+- `salesInvoice` and `jobInvoice` do not exist yet — must be added.
+
+### Decisions (confirmed with user)
+
+1. **Rename** `productCode` → `productId` everywhere.
+2. **Use numbers** for all account / product / HSN / GST values (and receipt IDs).
+3. This document is **plan only** — no code changes yet.
+
+### Key fact about the posting flow
+
+`account_setting` is **write-only on the client**: only `add-division-dialog.tsx` and
+`edit-division-dialog.tsx` build and persist it (via `genericUpdate`, `JSON.stringify`).
+The `accountsPosting` mutation in `accounts-posting-section.tsx` only sends
+`{ divisionCode }` — the **backend** reads `account_setting` from the DB to post receipts.
+No client code reads `receipt.debitAccountId` directly. So "receipt flow works as before"
+= preserve the `receipt` JSON key shape. The only behavioral change is string → number
+for the receipt IDs (intended, matches `tran.md`). **This is the main thing to verify
+end-to-end.**
 
 ---
 
-## Step 1 — `division.ts`: extend `AccountSettingType`
+## Files to change
 
-**File:** `src/features/client/types/division.ts`
+| # | File | Change |
+|---|------|--------|
+| 1 | `src/features/client/types/division.ts` | Types → numbers + `productId` + 3 invoice keys |
+| 2 | `src/features/client/components/configurations/division/division-schema.ts` | Schema → `z.coerce.number()` + 3 invoice keys |
+| 3 | `src/features/client/components/configurations/division/add-division-dialog.tsx` | Defaults, `onSubmit`, UI sections |
+| 4 | `src/features/client/components/configurations/division/edit-division-dialog.tsx` | `buildAccountSetting`, defaults, `onSubmit`, UI sections |
 
-Add `purchaseInvoice` (optional — not mandatory on save):
+No change to `src/types/db-schema-service.ts` (`account_setting` stays `Json`).
+No change to `accounts-posting-section.tsx` or any grid.
+
+---
+
+## Step 1 — `division.ts`: types
+
+Replace `InvoiceAccountSettingType` and `AccountSettingType`:
 
 ```ts
 export type InvoiceAccountSettingType = {
-    debitAccountId:    string;
-    creditAccountId:   string;
-    productCode:       string;
-    defaultProductHsn: string;
-    defaultGstRate:    string;
+    debitAccountId:    number;
+    creditAccountId:   number;
+    productId:         number;
+    defaultProductHsn: number;
+    defaultGstRate:    number;
 };
 
 export type AccountSettingType = {
-    clientCode:       string;
-    buCode:           string;
-    branchId:         number;
+    clientCode: string;
+    buCode:     string;
+    branchId:   number;
     receipt: {
-        debitAccountId:  string;
-        creditAccountId: string;
+        debitAccountId:  number;
+        creditAccountId: number;
     };
     purchaseInvoice?: InvoiceAccountSettingType;
+    salesInvoice?:    InvoiceAccountSettingType;
+    jobInvoice?:      InvoiceAccountSettingType;
 };
 ```
 
 ---
 
-## Step 2 — `division-schema.ts`: extend `accountSettingSchema`
+## Step 2 — `division-schema.ts`: zod schema
 
-**File:** `src/features/client/components/configurations/division/division-schema.ts`
-
-Add `invoiceSubSchema` helper and `purchaseInvoice` field:
+Use `z.coerce.number()` so the text/number `<input>`s coerce to numbers on submit
+(`branchId` already follows this pattern). Empty inputs coerce to `0`, which matches the
+`tran.md` defaults.
 
 ```ts
 const invoiceSubSchema = z.object({
-    debitAccountId:    z.string(),
-    creditAccountId:   z.string(),
-    productCode:       z.string(),
-    defaultProductHsn: z.string(),
-    defaultGstRate:    z.string(),
+    debitAccountId:    z.coerce.number().int().min(0),
+    creditAccountId:   z.coerce.number().int().min(0),
+    productId:         z.coerce.number().int().min(0),
+    defaultProductHsn: z.coerce.number().int().min(0),
+    defaultGstRate:    z.coerce.number().min(0),
 });
 
 export const accountSettingSchema = z.object({
-    clientCode:      z.string().min(1, "Client code is required"),
-    buCode:          z.string().min(1, "BU code is required"),
-    branchId:        z.coerce.number().int().positive("Branch ID must be a positive integer"),
+    clientCode: z.string().min(1, "Client code is required"),
+    buCode:     z.string().min(1, "BU code is required"),
+    branchId:   z.coerce.number().int().positive("Branch ID must be a positive integer"),
     receipt: z.object({
-        debitAccountId:  z.string(),
-        creditAccountId: z.string(),
+        debitAccountId:  z.coerce.number().int().min(0),
+        creditAccountId: z.coerce.number().int().min(0),
     }),
     purchaseInvoice: invoiceSubSchema.optional(),
+    salesInvoice:    invoiceSubSchema.optional(),
+    jobInvoice:      invoiceSubSchema.optional(),
 });
 ```
 
-No changes to `divisionSchema` — `account_setting` remains `accountSettingSchema.nullable().optional()`.
+`divisionSchema.account_setting` stays `accountSettingSchema.nullable().optional()`.
 
 ---
 
-## Step 3 — Add `tabs.tsx` UI primitive
+## Step 3 — `add-division-dialog.tsx`
 
-**File:** `src/components/ui/tabs.tsx`
+**3a. Default values** (the `if (postDataToAccounts)` block, currently ~line 154).
+Replace the single `purchaseInvoice` with all three, numeric, `productId`:
 
-The project does not have a Tabs component. Add a minimal custom one (no shadcn install needed):
-
-```tsx
-import * as React from "react";
-import { cn } from "@/lib/utils";
-
-type TabsContextType = { active: string; setActive: (v: string) => void };
-const TabsCtx = React.createContext<TabsContextType>({ active: "", setActive: () => {} });
-
-export function Tabs({ defaultValue, children, className }: {
-    defaultValue: string; children: React.ReactNode; className?: string;
-}) {
-    const [active, setActive] = React.useState(defaultValue);
-    return <TabsCtx.Provider value={{ active, setActive }}><div className={cn("flex flex-col", className)}>{children}</div></TabsCtx.Provider>;
-}
-
-export function TabsList({ children, className }: { children: React.ReactNode; className?: string }) {
-    return <div className={cn("flex border-b border-(--cl-border) mb-3", className)}>{children}</div>;
-}
-
-export function TabsTrigger({ value, children }: { value: string; children: React.ReactNode }) {
-    const { active, setActive } = React.useContext(TabsCtx);
-    return (
-        <button
-            type="button"
-            className={cn(
-                "px-4 py-1.5 text-sm font-medium border-b-2 -mb-px transition-colors",
-                active === value
-                    ? "border-(--cl-accent) text-(--cl-accent)"
-                    : "border-transparent text-(--cl-text-muted) hover:text-(--cl-text)"
-            )}
-            onClick={() => setActive(value)}
-        >
-            {children}
-        </button>
-    );
-}
-
-export function TabsContent({ value, children }: { value: string; children: React.ReactNode }) {
-    const { active } = React.useContext(TabsCtx);
-    return active === value ? <>{children}</> : null;
-}
-```
-
----
-
-## Step 4 — `add-division-dialog.tsx`: tab layout + purchase invoice
-
-**File:** `src/features/client/components/configurations/division/add-division-dialog.tsx`
-
-### 4a — non-closeable on outside click
-Add `onInteractOutside={(e) => e.preventDefault()}` to `<DialogContent>`.
-
-### 4b — import Tabs
 ```ts
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-```
-
-### 4c — form `defaultValues`: add `purchaseInvoice`
-```ts
-account_setting: null,
-// (schema already handles purchaseInvoice as optional)
-```
-No change needed — `purchaseInvoice` is optional in the schema so `null` / `undefined` is fine as a starting point.
-
-When `postDataToAccounts` is true and user fills in Client Code, prefill `purchaseInvoice` defaults:
-```ts
-account_setting: {
+const DEFAULT_INVOICE = { debitAccountId: 0, creditAccountId: 0, productId: 0, defaultProductHsn: 0, defaultGstRate: 18 };
+// ...
+form.setValue("account_setting", {
     clientCode: "", buCode: "", branchId: 0,
-    receipt: { debitAccountId: "", creditAccountId: "" },
-    purchaseInvoice: { debitAccountId: "", creditAccountId: "", productCode: "*****", defaultProductHsn: "", defaultGstRate: "18" },
-},
+    receipt: { debitAccountId: 0, creditAccountId: 0 },
+    purchaseInvoice: { ...DEFAULT_INVOICE },
+    salesInvoice:    { ...DEFAULT_INVOICE },
+    jobInvoice:      { ...DEFAULT_INVOICE },
+});
 ```
-Set this via `form.setValue` in the `useEffect` when `postDataToAccounts` is true and the dialog opens.
 
-### 4d — `onSubmit`: include `purchaseInvoice` in `accountSettingValue`
+**3b. `onSubmit`** (~line 234). Receipt IDs become numeric defaults; spread all three
+invoices (they're always present once defaults are set, so an unconditional spread is fine):
+
 ```ts
 const accountSettingValue = (postDataToAccounts && as?.clientCode)
     ? {
-        clientCode:  as.clientCode,
-        buCode:      as.buCode,
-        branchId:    as.branchId,
+        clientCode: as.clientCode,
+        buCode:     as.buCode,
+        branchId:   as.branchId,
         receipt: {
-            debitAccountId:  as.receipt?.debitAccountId  ?? "",
-            creditAccountId: as.receipt?.creditAccountId ?? "",
+            debitAccountId:  as.receipt?.debitAccountId  ?? 0,
+            creditAccountId: as.receipt?.creditAccountId ?? 0,
         },
         ...(as.purchaseInvoice ? { purchaseInvoice: as.purchaseInvoice } : {}),
+        ...(as.salesInvoice    ? { salesInvoice:    as.salesInvoice }    : {}),
+        ...(as.jobInvoice      ? { jobInvoice:      as.jobInvoice }      : {}),
       }
     : null;
 ```
 
-### 4e — dialog layout: two tabs
-Replace the current single-scroll form body with `<Tabs defaultValue="details">`:
+**3c. UI (Accounts tab).**
+- Receipt inputs → `type="number"`.
+- Existing Purchase Invoice section: rename label **"Product Code" → "Product Id"**, change
+  register path `account_setting.purchaseInvoice.productCode` → `...productId`, set numeric
+  inputs to `type="number"`, drop the `*****` placeholder (use e.g. `"e.g. 278"`).
+- **Add two new sections** mirroring Purchase Invoice — `Sales Invoice` and `Job Invoice` —
+  registering under `account_setting.salesInvoice.*` and `account_setting.jobInvoice.*`.
+  Reuse the existing `SectionLabel` helper; give each a distinct lucide icon (e.g.
+  `ShoppingCart` purchase, `Tag` sales, `Wrench` job — add the new imports).
 
-```tsx
-<Tabs defaultValue="details">
-    <TabsList>
-        <TabsTrigger value="details">Details</TabsTrigger>
-        {postDataToAccounts && (
-            <TabsTrigger value="accounts">Trace+ Accounts Integration</TabsTrigger>
-        )}
-    </TabsList>
+Each invoice section has 5 fields:
 
-    <TabsContent value="details">
-        {/* — all existing fields: ID, Code, Name, Address, State, City, … — */}
-    </TabsContent>
-
-    {postDataToAccounts && (
-        <TabsContent value="accounts">
-            {/* Section: Money Receipt */}
-            <p className="section-label">Money Receipt</p>
-            {/* Client Code / BU Code / Branch ID (3-col grid) */}
-            {/* Debit A/c ID / Credit A/c ID (2-col grid) */}
-
-            {/* Section: Purchase Invoice */}
-            <p className="section-label">Purchase Invoice</p>
-            {/* Debit A/c ID / Credit A/c ID (2-col grid) */}
-            {/* Product Code / Default Product HSN / Default GST Rate (3-col grid) */}
-        </TabsContent>
-    )}
-</Tabs>
-```
-
-**Purchase Invoice fields** (register paths under `account_setting.purchaseInvoice.*`):
-| Label | Field | Placeholder |
+| Label | Register path suffix | Input |
 |---|---|---|
-| Debit A/c ID | `account_setting.purchaseInvoice.debitAccountId` | Debit account ID |
-| Credit A/c ID | `account_setting.purchaseInvoice.creditAccountId` | Credit account ID |
-| Product Code | `account_setting.purchaseInvoice.productCode` | e.g. `*****` |
-| Default Product HSN | `account_setting.purchaseInvoice.defaultProductHsn` | HSN code |
-| Default GST Rate | `account_setting.purchaseInvoice.defaultGstRate` | e.g. 18 |
+| Debit A/c ID | `.debitAccountId` | `type="number"` |
+| Credit A/c ID | `.creditAccountId` | `type="number"` |
+| Product Id | `.productId` | `type="number"` |
+| Default HSN | `.defaultProductHsn` | `type="number"` |
+| GST Rate % | `.defaultGstRate` | `type="number"` |
 
 ---
 
-## Step 5 — `edit-division-dialog.tsx`: same changes as Step 4
+## Step 4 — `edit-division-dialog.tsx`
 
-**File:** `src/features/client/components/configurations/division/edit-division-dialog.tsx`
+**4a. `DEFAULT_PURCHASE_INVOICE` → `DEFAULT_INVOICE`** (~line 80): numeric, `productId`:
 
-### 5a — non-closeable: add `onInteractOutside={(e) => e.preventDefault()}`
-
-### 5b — import `Tabs` (same as Step 4b)
-
-### 5c — prefill `purchaseInvoice` in `defaultValues` and `form.reset()`:
 ```ts
-purchaseInvoice: division.account_setting?.purchaseInvoice
-    ? { ...division.account_setting.purchaseInvoice }
-    : { debitAccountId: "", creditAccountId: "", productCode: "*****", defaultProductHsn: "", defaultGstRate: "18" },
+const DEFAULT_INVOICE = { debitAccountId: 0, creditAccountId: 0, productId: 0, defaultProductHsn: 0, defaultGstRate: 18 };
 ```
 
-### 5d — `onSubmit`: same `purchaseInvoice` spread as Step 4d
+**4b. `buildAccountSetting`** (~line 85): numeric receipt fallbacks + prefill all three
+invoices from the stored `account_setting`, falling back to `DEFAULT_INVOICE`:
 
-### 5e — same two-tab layout as Step 4e
+```ts
+receipt: {
+    debitAccountId:  as.receipt?.debitAccountId  ?? 0,
+    creditAccountId: as.receipt?.creditAccountId ?? 0,
+},
+purchaseInvoice: as.purchaseInvoice ? { ...as.purchaseInvoice } : { ...DEFAULT_INVOICE },
+salesInvoice:    as.salesInvoice    ? { ...as.salesInvoice }    : { ...DEFAULT_INVOICE },
+jobInvoice:      as.jobInvoice      ? { ...as.jobInvoice }      : { ...DEFAULT_INVOICE },
+```
+
+**4c. `onSubmit`** (~line 244): same numeric receipt + three-invoice spread as Step 3b.
+
+**4d. UI:** identical edits to Step 3c (rename Product Code→Product Id + `productId`,
+`type="number"` inputs, add Sales Invoice + Job Invoice sections). Use the `edv_`-prefixed
+ids already in use in this file.
 
 ---
 
-## Step 6 — Verify
+## Step 5 — Verify
 
-- Open Add Division with `postDataToAccounts = true` → "Trace+ Accounts Integration" tab visible; outside click does not close.
-- Open Add Division with `postDataToAccounts = false` → only "Details" tab; no Accounts tab.
-- Fill in Money Receipt + Purchase Invoice → save → re-open in Edit → all fields pre-filled.
-- `account_setting` JSON in DB contains `purchaseInvoice` object.
+1. **Typecheck / build:** `pnpm tsc -b` (or `pnpm build`) — confirms the `productCode`→`productId`
+   rename and number types are consistent; the grep below should return nothing:
+   `rg -n "productCode" src` (should be empty after the change).
+2. **Add Division** with `postDataToAccounts = true`: the "Trace+ Accounts Integration" tab
+   shows Common, Money Receipt, Purchase Invoice, Sales Invoice, Job Invoice. Fill values,
+   save, then inspect the persisted `division.account_setting` JSON — it must contain
+   `receipt` + all three invoice objects with **numeric** values and a `productId` key
+   (matching the `tran.md` shape).
+3. **Edit Division**: reopen the saved division → every field (receipt + 3 invoices) is
+   pre-filled from the stored JSON.
+4. **Receipt posting regression (critical):** with a division whose `account_setting.receipt`
+   holds valid numeric `debitAccountId`/`creditAccountId`, run **Accounts Posting** from the
+   Accounts Posting section and confirm receipts post successfully — i.e. the backend accepts
+   the numeric receipt IDs. If the backend rejects numbers, reconsider keeping receipt IDs as
+   strings (see Context note).
 
 ---
 
-## Notes
+## Notes / risks
 
-- `salesInvoice` and `jobInvoice` sections are deferred — the schema and type can be extended later by adding the same `invoiceSubSchema` to both.
-- `postDataToAccounts` is read from Redux `selectPostDataToAccounts` — already imported in both dialogs.
+- The string→number switch changes the persisted JSON for **existing** divisions only when
+  they are next re-saved; old rows keep their string values until edited. Backend should
+  tolerate both, or a data migration may be needed — confirm during Step 5.4.
+- `productId` default is `0` for a fresh form (the old `"*****"` wildcard no longer applies).
+  `tran.md`'s `278` is illustrative of a populated value, not a default.
+- `salesInvoice` / `jobInvoice` are schema-`.optional()` but always written because defaults
+  populate them; this matches `tran.md` (all three present).
