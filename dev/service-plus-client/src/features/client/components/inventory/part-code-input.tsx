@@ -119,6 +119,7 @@ export const PartCodeInput = forwardRef<HTMLInputElement, PartCodeInputProps>(({
     const skipBlurRef           = useRef(false);
     const justSelectedRef       = useRef(false);
     const scrollbarMouseDownRef = useRef(false);
+    const dropdownOpeningRef    = useRef(false);
 
     // Part search (debounced 1200ms)
     useEffect(() => {
@@ -169,7 +170,7 @@ export const PartCodeInput = forwardRef<HTMLInputElement, PartCodeInputProps>(({
             } finally {
                 setPartLoading(false);
             }
-        }, 1200);
+        }, 1600);
     }, [partCodeQuery, partKeywordQuery, partSearchMode, partPickOpen, partPage, dbName, schema]);
 
     // Inline dropdown: debounced search as user types
@@ -192,6 +193,7 @@ export const PartCodeInput = forwardRef<HTMLInputElement, PartCodeInputProps>(({
             const rows = res.data?.genericQuery ?? [];
             setInlineResults(rows);
             if (document.activeElement === inputRef.current) {
+                if (rows.length > 0) dropdownOpeningRef.current = true;
                 setInlineOpen(rows.length > 0);
             }
         } catch {
@@ -377,6 +379,7 @@ export const PartCodeInput = forwardRef<HTMLInputElement, PartCodeInputProps>(({
                                 onBlur={() => {
                                     if (scrollbarMouseDownRef.current) return;
                                     if (skipBlurRef.current) { skipBlurRef.current = false; return; }
+                                    if (dropdownOpeningRef.current) { dropdownOpeningRef.current = false; return; }
                                     setTimeout(() => setInlineOpen(false), 150);
                                     if (partCode.trim()) void handleTypedPartSearch(partCode);
                                 }}
@@ -428,7 +431,7 @@ export const PartCodeInput = forwardRef<HTMLInputElement, PartCodeInputProps>(({
                     <PopoverContent
                         className="p-0 max-h-80 overflow-y-auto"
                         style={{ width: inlineWidth > 0 ? `${Math.max(inlineWidth, 320)}px` : undefined }}
-                        onOpenAutoFocus={e => e.preventDefault()}
+                        onOpenAutoFocus={e => { e.preventDefault(); inputRef.current?.focus(); }}
                         onMouseDown={e => {
                             const el = e.currentTarget as HTMLElement;
                             const isScrollbar = e.clientX > el.getBoundingClientRect().left + el.clientWidth;

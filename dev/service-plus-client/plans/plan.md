@@ -1,71 +1,35 @@
-# Plan: Apply `tran.md` — full `account_setting` structure (receipt + 3 invoice types)
+# Plan: Post Purchase Invoice to Trace-Plus (Minimum / Testing)
 
-## Context
+Extends the existing `accountsPosting` flow so that one unposted purchase invoice
+is also included in the same request that already posts one money receipt.
 
-`tran.md` finalizes the JSON shape of the `division.account_setting` field after user
-input. The field must hold a `receipt` block plus three invoice blocks —
-`purchaseInvoice`, `salesInvoice`, `jobInvoice` — each with the same five fields,
-where the product field is **`productId`** (numeric) and **all account / product /
-HSN / GST values are numbers**:
+---
 
-```jsonc
-{
-  "buCode": "demounit1",
-  "branchId": 1,
-  "receipt":         { "debitAccountId": 118, "creditAccountId": 389 },
-  "purchaseInvoice": { "debitAccountId": 0, "creditAccountId": 0, "productId": 278, "defaultProductHsn": 0, "defaultGstRate": 18 },
-  "salesInvoice":    { "debitAccountId": 0, "creditAccountId": 0, "productId": 278, "defaultProductHsn": 0, "defaultGstRate": 18 },
-  "jobInvoice":      { "debitAccountId": 0, "creditAccountId": 0, "productId": 278, "defaultProductHsn": 0, "defaultGstRate": 18 },
-  "clientCode": "demoAccounts"
-}
+## Overview of current flow
+
+```
+service-plus client
+  → accountsPosting mutation (service-plus-server)
+      → builds single TranH payload  { tableName, dbParams, xData: {…receipt…}, buCode }
+      → calls trace-server accountsPosting mutation
+          → accounts_posting_helper: fetches db_params from ClientM, injects into data
+          → validate_debit_credit_and_update_helper:
+              → validate_each_tran_entry(valueDict)   ← expects data["xData"]["xDetails"]
+              → exec_sql_object(…, sqlObject=sqlObj)
+                  → handle_auto_ref_no(sqlObject, acur)  ← expects xData to be a dict
+                  → process_details(sqlObject, acur)     ← already handles xData as list ✓
 ```
 
-### Current state (already in the codebase)
-
-The division dialogs already support a two-tab layout ("Details" + "Trace+ Accounts
-Integration") with `Common`, `Money Receipt`, and a single `Purchase Invoice`
-section. But the current model diverges from `tran.md`:
-
-- Invoice product field is named `productCode` (string `"*****"`) — must become `productId` (number).
-- All values (`debitAccountId`, `creditAccountId`, HSN, GST, receipt IDs) are **strings** — must become **numbers**.
-- `salesInvoice` and `jobInvoice` do not exist yet — must be added.
-
-### Decisions (confirmed with user)
-
-1. **Rename** `productCode` → `productId` everywhere.
-2. **Use numbers** for all account / product / HSN / GST values (and receipt IDs).
-3. This document is **plan only** — no code changes yet.
-
-### Key fact about the posting flow
-
-`account_setting` is **write-only on the client**: only `add-division-dialog.tsx` and
-`edit-division-dialog.tsx` build and persist it (via `genericUpdate`, `JSON.stringify`).
-The `accountsPosting` mutation in `accounts-posting-section.tsx` only sends
-`{ divisionCode }` — the **backend** reads `account_setting` from the DB to post receipts.
-No client code reads `receipt.debitAccountId` directly. So "receipt flow works as before"
-= preserve the `receipt` JSON key shape. The only behavioral change is string → number
-for the receipt IDs (intended, matches `tran.md`). **This is the main thing to verify
-end-to-end.**
+**Change summary**: `xData` becomes a list `[receiptTranH, purchaseInvoiceTranH]`.
+Two functions in trace-server assume `xData` is a dict and must be updated.
 
 ---
 
-## Files to change
+## Step 1 — `division.ts`: fix types to numbers
 
-| # | File | Change |
-|---|------|--------|
-| 1 | `src/features/client/types/division.ts` | Types → numbers + `productId` + 3 invoice keys |
-| 2 | `src/features/client/components/configurations/division/division-schema.ts` | Schema → `z.coerce.number()` + 3 invoice keys |
-| 3 | `src/features/client/components/configurations/division/add-division-dialog.tsx` | Defaults, `onSubmit`, UI sections |
-| 4 | `src/features/client/components/configurations/division/edit-division-dialog.tsx` | `buildAccountSetting`, defaults, `onSubmit`, UI sections |
+**File:** `src/features/client/types/division.ts`
 
-No change to `src/types/db-schema-service.ts` (`account_setting` stays `Json`).
-No change to `accounts-posting-section.tsx` or any grid.
-
----
-
-## Step 1 — `division.ts`: types
-
-Replace `InvoiceAccountSettingType` and `AccountSettingType`:
+The dialog code already uses `DEFAULT_INVOICE` with numeric zeros. Align the types.
 
 ```ts
 export type InvoiceAccountSettingType = {
@@ -85,160 +49,314 @@ export type AccountSettingType = {
         creditAccountId: number;
     };
     purchaseInvoice?: InvoiceAccountSettingType;
-    salesInvoice?:    InvoiceAccountSettingType;
-    jobInvoice?:      InvoiceAccountSettingType;
 };
 ```
 
 ---
 
-## Step 2 — `division-schema.ts`: zod schema
+## Step 2 — `division-schema.ts`: align Zod schema to numbers
 
-Use `z.coerce.number()` so the text/number `<input>`s coerce to numbers on submit
-(`branchId` already follows this pattern). Empty inputs coerce to `0`, which matches the
-`tran.md` defaults.
+**File:** `src/features/client/components/configurations/division/division-schema.ts`
 
 ```ts
 const invoiceSubSchema = z.object({
-    debitAccountId:    z.coerce.number().int().min(0),
-    creditAccountId:   z.coerce.number().int().min(0),
-    productId:         z.coerce.number().int().min(0),
-    defaultProductHsn: z.coerce.number().int().min(0),
-    defaultGstRate:    z.coerce.number().min(0),
+    debitAccountId:    z.coerce.number().int(),
+    creditAccountId:   z.coerce.number().int(),
+    productId:         z.coerce.number().int(),
+    defaultProductHsn: z.coerce.number(),
+    defaultGstRate:    z.coerce.number(),
 });
 
-export const accountSettingSchema = z.object({
-    clientCode: z.string().min(1, "Client code is required"),
-    buCode:     z.string().min(1, "BU code is required"),
-    branchId:   z.coerce.number().int().positive("Branch ID must be a positive integer"),
-    receipt: z.object({
-        debitAccountId:  z.coerce.number().int().min(0),
-        creditAccountId: z.coerce.number().int().min(0),
-    }),
-    purchaseInvoice: invoiceSubSchema.optional(),
-    salesInvoice:    invoiceSubSchema.optional(),
-    jobInvoice:      invoiceSubSchema.optional(),
-});
+// inside accountSettingSchema — receipt sub-object:
+receipt: z.object({
+    debitAccountId:  z.coerce.number().int(),
+    creditAccountId: z.coerce.number().int(),
+}),
 ```
-
-`divisionSchema.account_setting` stays `accountSettingSchema.nullable().optional()`.
 
 ---
 
-## Step 3 — `add-division-dialog.tsx`
+## Step 3 — `sql_store.py`: add new SQL constant
 
-**3a. Default values** (the `if (postDataToAccounts)` block, currently ~line 154).
-Replace the single `purchaseInvoice` with all three, numeric, `productId`:
+**File:** `service-plus-server/app/db/sql_store.py`
 
-```ts
-const DEFAULT_INVOICE = { debitAccountId: 0, creditAccountId: 0, productId: 0, defaultProductHsn: 0, defaultGstRate: 18 };
-// ...
-form.setValue("account_setting", {
-    clientCode: "", buCode: "", branchId: 0,
-    receipt: { debitAccountId: 0, creditAccountId: 0 },
-    purchaseInvoice: { ...DEFAULT_INVOICE },
-    salesInvoice:    { ...DEFAULT_INVOICE },
-    jobInvoice:      { ...DEFAULT_INVOICE },
-});
+Add after `GET_ONE_UNPOSTED_MONEY_RECEIPT` (~line 4120):
+
+```python
+GET_ONE_UNPOSTED_PURCHASE_INVOICE = """
+    WITH
+        "p_division_code" AS (VALUES(%(division_code)s::text)),
+        "p_branch_id" AS (
+            SELECT branch_id FROM division
+            WHERE LOWER(code) = LOWER((TABLE "p_division_code"))
+            LIMIT 1
+        )
+    SELECT
+        pi.id,
+        pi.invoice_no,
+        pi.invoice_date,
+        pi.aggregate_amount,
+        pi.cgst_amount,
+        pi.sgst_amount,
+        pi.igst_amount,
+        pi.total_amount,
+        pi.remarks,
+        s.gstin  AS supplier_gstin,
+        json_agg(
+            json_build_object(
+                'hsn_code',         pil.hsn_code,
+                'qty',              pil.qty,
+                'unit_price',       pil.unit_price,
+                'aggregate_amount', pil.aggregate_amount,
+                'gst_rate',         pil.gst_rate,
+                'cgst_amount',      pil.cgst_amount,
+                'sgst_amount',      pil.sgst_amount,
+                'igst_amount',      pil.igst_amount,
+                'total_amount',     pil.total_amount
+            ) ORDER BY pil.id
+        ) AS lines
+    FROM purchase_invoice pi
+    JOIN supplier              s   ON s.id  = pi.supplier_id
+    JOIN purchase_invoice_line pil ON pil.purchase_invoice_id = pi.id
+    WHERE pi.branch_id = (TABLE "p_branch_id")
+      AND pi.is_posted = false
+    GROUP BY pi.id, s.gstin
+    ORDER BY pi.invoice_date ASC, pi.id ASC
+    LIMIT 1
+"""
 ```
 
-**3b. `onSubmit`** (~line 234). Receipt IDs become numeric defaults; spread all three
-invoices (they're always present once defaults are set, so an unconditional spread is fine):
-
-```ts
-const accountSettingValue = (postDataToAccounts && as?.clientCode)
-    ? {
-        clientCode: as.clientCode,
-        buCode:     as.buCode,
-        branchId:   as.branchId,
-        receipt: {
-            debitAccountId:  as.receipt?.debitAccountId  ?? 0,
-            creditAccountId: as.receipt?.creditAccountId ?? 0,
-        },
-        ...(as.purchaseInvoice ? { purchaseInvoice: as.purchaseInvoice } : {}),
-        ...(as.salesInvoice    ? { salesInvoice:    as.salesInvoice }    : {}),
-        ...(as.jobInvoice      ? { jobInvoice:      as.jobInvoice }      : {}),
-      }
-    : null;
-```
-
-**3c. UI (Accounts tab).**
-- Receipt inputs → `type="number"`.
-- Existing Purchase Invoice section: rename label **"Product Code" → "Product Id"**, change
-  register path `account_setting.purchaseInvoice.productCode` → `...productId`, set numeric
-  inputs to `type="number"`, drop the `*****` placeholder (use e.g. `"e.g. 278"`).
-- **Add two new sections** mirroring Purchase Invoice — `Sales Invoice` and `Job Invoice` —
-  registering under `account_setting.salesInvoice.*` and `account_setting.jobInvoice.*`.
-  Reuse the existing `SectionLabel` helper; give each a distinct lucide icon (e.g.
-  `ShoppingCart` purchase, `Tag` sales, `Wrench` job — add the new imports).
-
-Each invoice section has 5 fields:
-
-| Label | Register path suffix | Input |
-|---|---|---|
-| Debit A/c ID | `.debitAccountId` | `type="number"` |
-| Credit A/c ID | `.creditAccountId` | `type="number"` |
-| Product Id | `.productId` | `type="number"` |
-| Default HSN | `.defaultProductHsn` | `type="number"` |
-| GST Rate % | `.defaultGstRate` | `type="number"` |
+**Notes:**
+- Resolves division code → service-plus `branch_id` via a CTE.
+- `json_agg` collects only the line columns needed for trace-plus payload.
+- `ORDER BY … ASC` posts oldest first (FIFO).
 
 ---
 
-## Step 4 — `edit-division-dialog.tsx`
+## Step 4 — `mutation_helper.py`: extend `resolve_accounts_posting_helper`
 
-**4a. `DEFAULT_PURCHASE_INVOICE` → `DEFAULT_INVOICE`** (~line 80): numeric, `productId`:
+**File:** `service-plus-server/app/graphql/resolvers/mutation_helper.py`
 
-```ts
-const DEFAULT_INVOICE = { debitAccountId: 0, creditAccountId: 0, productId: 0, defaultProductHsn: 0, defaultGstRate: 18 };
+### 4a — Extract purchaseInvoice settings (after existing receipt extraction, ~line 1967)
+
+```python
+pi_settings      = account_setting.get("purchaseInvoice", {})
+pi_debit_acc_id  = pi_settings.get("debitAccountId")
+pi_credit_acc_id = pi_settings.get("creditAccountId")
+pi_product_id    = pi_settings.get("productId")
+pi_default_hsn   = pi_settings.get("defaultProductHsn")
+pi_default_gst   = pi_settings.get("defaultGstRate")
 ```
 
-**4b. `buildAccountSetting`** (~line 85): numeric receipt fallbacks + prefill all three
-invoices from the stored `account_setting`, falling back to `DEFAULT_INVOICE`:
+### 4b — Fetch one unposted purchase invoice (~line 1983, after money receipt fetch)
 
-```ts
-receipt: {
-    debitAccountId:  as.receipt?.debitAccountId  ?? 0,
-    creditAccountId: as.receipt?.creditAccountId ?? 0,
-},
-purchaseInvoice: as.purchaseInvoice ? { ...as.purchaseInvoice } : { ...DEFAULT_INVOICE },
-salesInvoice:    as.salesInvoice    ? { ...as.salesInvoice }    : { ...DEFAULT_INVOICE },
-jobInvoice:      as.jobInvoice      ? { ...as.jobInvoice }      : { ...DEFAULT_INVOICE },
+```python
+pi_rows = await exec_sql(
+    db_name=db_name, schema=schema,
+    sql=SqlStore.GET_ONE_UNPOSTED_PURCHASE_INVOICE,
+    sql_args={"division_code": division_code},
+)
 ```
 
-**4c. `onSubmit`** (~line 244): same numeric receipt + three-invoice spread as Step 3b.
+### 4c — Build purchase invoice TranH (insert between Step 4b and existing token fetch)
 
-**4d. UI:** identical edits to Step 3c (rename Product Code→Product Id + `productId`,
-`type="number"` inputs, add Sales Invoice + Job Invoice sections). Use the `edv_`-prefixed
-ids already in use in this file.
+```python
+pi_x_data = None
+if pi_rows and pi_debit_acc_id and pi_credit_acc_id and pi_product_id:
+    pi_row   = _serialize_row(pi_rows[0])
+    pi_lines = pi_row.get("lines") or []
+
+    # SalePurchaseDetails — one entry per purchase_invoice_line
+    sale_purchase_lines = []
+    for line in pi_lines:
+        spd: dict = {
+            "productId": int(pi_product_id),
+            "qty":       float(line["qty"]),
+            "price":     float(line["unit_price"]),
+            "priceGst":  (float(line["total_amount"]) / float(line["qty"])
+                          if line.get("qty") else 0),
+            "amount":    float(line["total_amount"]),
+            "hsn":       (line.get("hsn_code")
+                          or (str(pi_default_hsn) if pi_default_hsn else "")),
+            "gstRate":   (float(line["gst_rate"]) if line.get("gst_rate")
+                          else (float(pi_default_gst) if pi_default_gst else 0)),
+        }
+        for out_key, db_key in [("cgst", "cgst_amount"), ("sgst", "sgst_amount"), ("igst", "igst_amount")]:
+            if line.get(db_key) is not None:
+                spd[out_key] = float(line[db_key])
+        sale_purchase_lines.append(spd)
+
+    # ExtGstTranD — header-level GST totals
+    ext_gst: dict = {"isInput": True}
+    if pi_row.get("supplier_gstin"):
+        ext_gst["gstin"] = pi_row["supplier_gstin"]
+    for out_key, db_key in [("cgst", "cgst_amount"), ("sgst", "sgst_amount"), ("igst", "igst_amount")]:
+        if pi_row.get(db_key) is not None:
+            ext_gst[out_key] = float(pi_row[db_key])
+
+    # Debit TranD entry (holds GST + line details)
+    debit_entry: dict = {
+        "accId": int(pi_debit_acc_id),
+        "dc":    "D",
+        "amount": float(pi_row["total_amount"]),
+        "xDetails": [
+            {"tableName": "ExtGstTranD",        "fkeyName": "tranDetailsId", "xData": ext_gst},
+            {"tableName": "SalePurchaseDetails", "fkeyName": "tranDetailsId", "xData": sale_purchase_lines},
+        ],
+    }
+
+    # Credit TranD entry (no sub-details)
+    credit_entry: dict = {
+        "accId": int(pi_credit_acc_id),
+        "dc":    "C",
+        "amount": float(pi_row["total_amount"]),
+    }
+
+    pi_fin_year = int(str(pi_row.get("invoice_date", str(date.today())))[:4])
+
+    pi_x_data = {
+        "tranDate":   pi_row["invoice_date"],
+        "tranTypeId": 5,
+        "finYearId":  pi_fin_year,
+        "branchId":   branch_id,
+        "posId":      1,
+        "xDetails": [{"tableName": "TranD", "fkeyName": "tranHeaderId",
+                      "xData": [debit_entry, credit_entry]}],
+    }
+    if pi_row.get("invoice_no"):
+        pi_x_data["userRefNo"] = pi_row["invoice_no"]
+    if pi_row.get("remarks"):
+        pi_x_data["remarks"] = pi_row["remarks"]
+```
+
+### 4d — Change xData to list in TranH payload (~line 1999)
+
+```python
+# Build list: money receipt always first, purchase invoice appended if available
+x_data_list = [x_data]
+if pi_x_data:
+    x_data_list.append(pi_x_data)
+
+tran_h_payload = {
+    "tableName": "TranH",
+    "dbParams":  {"conn": ""},
+    "xData":     x_data_list,   # ← was: x_data (single dict)
+    "buCode":    bu_code,
+}
+```
 
 ---
 
-## Step 5 — Verify
+## Step 5 — `graphql_helper.py` (trace-server): fix `validate_each_tran_entry`
 
-1. **Typecheck / build:** `pnpm tsc -b` (or `pnpm build`) — confirms the `productCode`→`productId`
-   rename and number types are consistent; the grep below should return nothing:
-   `rg -n "productCode" src` (should be empty after the change).
-2. **Add Division** with `postDataToAccounts = true`: the "Trace+ Accounts Integration" tab
-   shows Common, Money Receipt, Purchase Invoice, Sales Invoice, Job Invoice. Fill values,
-   save, then inspect the persisted `division.account_setting` JSON — it must contain
-   `receipt` + all three invoice objects with **numeric** values and a `productId` key
-   (matching the `tran.md` shape).
-3. **Edit Division**: reopen the saved division → every field (receipt + 3 invoices) is
-   pre-filled from the stored JSON.
-4. **Receipt posting regression (critical):** with a division whose `account_setting.receipt`
-   holds valid numeric `debitAccountId`/`creditAccountId`, run **Accounts Posting** from the
-   Accounts Posting section and confirm receipts post successfully — i.e. the backend accepts
-   the numeric receipt IDs. If the backend rejects numbers, reconsider keeping receipt IDs as
-   strings (see Context note).
+**File:** `trace-plus-server/app/graphql/graphql_helper.py`  
+**Location:** `validate_each_tran_entry` function (~line 534)
+
+**Before:**
+```python
+def validate_each_tran_entry(data: dict) -> bool:
+    try:
+        x_details = data["xData"]["xDetails"]
+        for detail_group in x_details:
+            ...
+```
+
+**After:**
+```python
+def validate_each_tran_entry(data: dict) -> bool:
+    try:
+        x_data = data["xData"]
+        tran_entries = x_data if isinstance(x_data, list) else [x_data]
+        for tran_entry in tran_entries:
+            x_details = tran_entry["xDetails"]
+            for detail_group in x_details:
+                entries = detail_group.get("xData", [])
+                debit_total = sum(Decimal(str(x.get("amount", 0)))
+                                  for x in entries if x.get("dc") == "D")
+                credit_total = sum(Decimal(str(x.get("amount", 0)))
+                                   for x in entries if x.get("dc") == "C")
+                if debit_total != credit_total:
+                    print(f"Mismatch found: Debit={debit_total}, Credit={credit_total}")
+                    return False
+        return True
+    except (KeyError, IndexError, TypeError) as e:
+        print(f"Validation error: {e}")
+        return False
+```
 
 ---
 
-## Notes / risks
+## Step 6 — `psycopg_async_helper.py` (trace-server): fix `handle_auto_ref_no`
 
-- The string→number switch changes the persisted JSON for **existing** divisions only when
-  they are next re-saved; old rows keep their string values until edited. Backend should
-  tolerate both, or a data migration may be needed — confirm during Step 5.4.
-- `productId` default is `0` for a fresh form (the old `"*****"` wildcard no longer applies).
-  `tran.md`'s `278` is illustrative of a populated value, not a default.
-- `salesInvoice` / `jobInvoice` are schema-`.optional()` but always written because defaults
-  populate them; this matches `tran.md` (all three present).
+**File:** `trace-plus-server/app/graphql/db/psycopg_async_helper.py`  
+**Location:** `handle_auto_ref_no` function (~line 165)
+
+Each TranH entry in the list needs its own `autoRefNo` (different `tranTypeId` → different counter).
+
+**Before:**
+```python
+async def handle_auto_ref_no(sqlObject, acur):
+    xData = sqlObject.get("xData", {})
+    if not xData:
+        return
+    if (
+        ("id" not in xData or not xData["id"]) and
+        ("finYearId" in xData) and ...
+    ):
+        ...
+        xData["autoRefNo"] = autoRefNo
+        ...
+```
+
+**After** — wrap body in a loop:
+```python
+async def handle_auto_ref_no(sqlObject, acur):
+    x_data_raw = sqlObject.get("xData", {})
+    if not x_data_raw:
+        return
+    items = x_data_raw if isinstance(x_data_raw, list) else [x_data_raw]
+    for xData in items:
+        if (
+            ("id" not in xData or not xData["id"]) and
+            ("finYearId"  in xData) and
+            ("branchId"   in xData) and
+            ("tranTypeId" in xData)
+        ):
+            finYearId  = xData["finYearId"]
+            branchId   = xData["branchId"]
+            tranTypeId = xData["tranTypeId"]
+            await acur.execute(SqlAccounts.get_branch_code_tran_code,
+                               {"branchId": branchId, "tranTypeId": tranTypeId})
+            codes      = await acur.fetchone()
+            branchCode = codes.get("branchCode", "")
+            tranCode   = codes.get("tranCode", "")
+            await acur.execute(SqlAccounts.get_last_no,
+                               {"finYearId": finYearId, "branchId": branchId, "tranTypeId": tranTypeId})
+            no     = await acur.fetchone()
+            lastNo = no.get("lastNo", 0) or 1
+            xData["autoRefNo"] = f'{branchCode}/{tranCode}/{lastNo}/{finYearId}'
+            await acur.execute(SqlAccounts.increment_last_no,
+                               {"finYearId": finYearId, "branchId": branchId, "tranTypeId": tranTypeId})
+```
+
+---
+
+## Out of scope (deferred)
+
+- Marking `purchase_invoice.is_posted = true` after successful posting (same gap exists today for money receipts).
+- Handling `is_return = true` purchase invoices (D/C flip).
+- Sales invoice / job invoice posting.
+- Posting more than one invoice per button click.
+
+---
+
+## File change summary
+
+| # | File | Change |
+|---|------|--------|
+| 1 | `src/features/client/types/division.ts` | `InvoiceAccountSettingType` + `receipt` fields → `number` |
+| 2 | `src/features/client/components/configurations/division/division-schema.ts` | `invoiceSubSchema` + `receipt` → `z.coerce.number()` |
+| 3 | `service-plus-server/app/db/sql_store.py` | Add `GET_ONE_UNPOSTED_PURCHASE_INVOICE` |
+| 4 | `service-plus-server/app/graphql/resolvers/mutation_helper.py` | Extend `resolve_accounts_posting_helper` |
+| 5 | `trace-plus-server/app/graphql/graphql_helper.py` | Fix `validate_each_tran_entry` for list xData |
+| 6 | `trace-plus-server/app/graphql/db/psycopg_async_helper.py` | Fix `handle_auto_ref_no` for list xData |

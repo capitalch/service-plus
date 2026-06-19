@@ -32,7 +32,7 @@ import { encodeObj, graphQlUtils } from "@/lib/graphql-utils";
 import { formatCurrency, currentFinancialYearRange } from "@/lib/utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
-import { selectCurrentBranch, selectDefaultDivisionId, selectIsGstRegistered, selectSchema, selectCompanyName } from "@/store/context-slice";
+import { selectAvailableDivisions, selectCurrentBranch, selectDefaultDivisionId, selectSchema, selectCompanyName } from "@/store/context-slice";
 import type { BranchType } from "@/features/client/components/masters/branch/branch";
 import type { VendorType } from "@/features/client/types/vendor";
 import type { PurchaseInvoiceType, PurchaseLineType, StockTransactionTypeRow } from "@/features/client/types/purchase";
@@ -67,11 +67,11 @@ const tdClass = "p-3 text-sm text-(--cl-text) border-b border-(--cl-border)";
 export const PurchaseEntrySection = () => {
     const dbName = useAppSelector(selectDbName);
     const schema = useAppSelector(selectSchema);
-    const globalBranch = useAppSelector(selectCurrentBranch);
-    const branchId = globalBranch?.id ?? null;
-    const isGstRegistered   = useAppSelector(selectIsGstRegistered);
-    const companyName       = useAppSelector(selectCompanyName) || "Service Plus";
-    const defaultDivisionId = useAppSelector(selectDefaultDivisionId);
+    const globalBranch       = useAppSelector(selectCurrentBranch);
+    const branchId           = globalBranch?.id ?? null;
+    const availableDivisions = useAppSelector(selectAvailableDivisions);
+    const companyName        = useAppSelector(selectCompanyName) || "Service Plus";
+    const defaultDivisionId  = useAppSelector(selectDefaultDivisionId);
 
     const { from: defaultFrom, to: defaultTo } = currentFinancialYearRange();
 
@@ -124,6 +124,9 @@ export const PurchaseEntrySection = () => {
         mode:          "onChange",
         resolver:      zodResolver(purchaseInvoiceSchema) as any,
     });
+
+    const selectedDivisionId = form.watch("division_id");
+    const isGstRegistered    = !!availableDivisions.find(d => d.id === selectedDivisionId)?.gstin;
 
     const canSave = form.formState.isValid && !!selectedBrand && !invoiceExists && !checkingDuplicate && linesValid;
 

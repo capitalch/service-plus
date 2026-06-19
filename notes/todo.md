@@ -4,9 +4,10 @@
 	- Connection pool closes arbitrarily in local server
 - Features
 	- Job sales return
+	- Change spelling of divison to division all over the codebase
 	- Accounts posting
 		- Trace+
-			- Create authenticated json based api to listen: define mechanism: dry run
+			- Create authenticated json based api to listen: dry run
 			- Define json fields and format to receive
 			- Input json successfully enters data in the target db
 		- Service+

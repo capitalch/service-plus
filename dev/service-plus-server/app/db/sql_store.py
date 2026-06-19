@@ -4119,6 +4119,48 @@ class SqlStore:
         LIMIT 1
     """
 
+    GET_ONE_UNPOSTED_PURCHASE_INVOICE = """
+        WITH
+            "p_division_code" AS (VALUES(%(division_code)s::text)),
+            "p_branch_id" AS (
+                SELECT branch_id FROM division
+                WHERE LOWER(code) = LOWER((TABLE "p_division_code"))
+                LIMIT 1
+            )
+        SELECT
+            pi.id,
+            pi.invoice_no,
+            pi.invoice_date,
+            pi.aggregate_amount,
+            pi.cgst_amount,
+            pi.sgst_amount,
+            pi.igst_amount,
+            pi.total_amount,
+            pi.remarks,
+            s.gstin  AS supplier_gstin,
+            json_agg(
+                json_build_object(
+                    'hsn_code',         pil.hsn_code,
+                    'qty',              pil.qty,
+                    'unit_price',       pil.unit_price,
+                    'aggregate_amount', pil.aggregate_amount,
+                    'gst_rate',         pil.gst_rate,
+                    'cgst_amount',      pil.cgst_amount,
+                    'sgst_amount',      pil.sgst_amount,
+                    'igst_amount',      pil.igst_amount,
+                    'total_amount',     pil.total_amount
+                ) ORDER BY pil.id
+            ) AS lines
+        FROM purchase_invoice pi
+        JOIN supplier              s   ON s.id  = pi.supplier_id
+        JOIN purchase_invoice_line pil ON pil.purchase_invoice_id = pi.id
+        WHERE pi.branch_id = (TABLE "p_branch_id")
+          AND pi.is_posted = false
+        GROUP BY pi.id, s.gstin
+        ORDER BY pi.invoice_date ASC, pi.id ASC
+        LIMIT 1
+    """
+
     # ── Final a Job ────────────────────────────────────────────────────
 
     GET_COMPLETED_JOBS_COUNT = """

@@ -17,7 +17,7 @@ import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
-import { selectAvailableDivisions, selectDefaultDivisionId, selectEffectiveGstStateCode, selectDefaultGstRate, selectIsGstRegistered, selectSchema } from "@/store/context-slice";
+import { selectAvailableDivisions, selectDefaultDivisionId, selectEffectiveGstStateCode, selectDefaultGstRate, selectSchema } from "@/store/context-slice";
 import type { VendorType } from "@/features/client/types/vendor";
 import type { PurchaseInvoiceType, PurchaseLineFormItem, StockTransactionTypeRow } from "@/features/client/types/purchase";
 import type { PurchaseInvoiceFormValues } from "./purchase-invoice-schema";
@@ -107,7 +107,6 @@ export const NewPurchaseInvoice = forwardRef<PurchaseInvoiceHandle, Props>(
     }, ref) {
         const dbName                = useAppSelector(selectDbName);
         const schema                = useAppSelector(selectSchema);
-        const isGstRegistered       = useAppSelector(selectIsGstRegistered);
         const defaultGstRate        = useAppSelector(selectDefaultGstRate);
         const effectiveGstStateCode = useAppSelector(selectEffectiveGstStateCode);
         const availableDivisions    = useAppSelector(selectAvailableDivisions);
@@ -116,6 +115,8 @@ export const NewPurchaseInvoice = forwardRef<PurchaseInvoiceHandle, Props>(
         const form        = useFormContext<PurchaseInvoiceFormValues>();
         const vendorId    = form.watch("vendor_id");
         const divisionId  = form.watch("division_id");
+
+        const isGstRegistered = !!availableDivisions.find(d => d.id === divisionId)?.gstin;
         const invoiceNo   = form.watch("invoice_no");
         const invoiceDate = form.watch("invoice_date");
 
@@ -403,7 +404,6 @@ export const NewPurchaseInvoice = forwardRef<PurchaseInvoiceHandle, Props>(
 
             const headerFields = {
                 supplier_id:   vendor_id,
-                division_id:   divisionId,
                 invoice_no:    invoice_no.trim(),
                 invoice_date:  invoice_date,
                 aggregate_amount: totals.aggregate,
@@ -660,8 +660,8 @@ export const NewPurchaseInvoice = forwardRef<PurchaseInvoiceHandle, Props>(
                                         {fields.map((line, idx) => {
                                             const c = calcLine(line);
                                             return (
-                                                <tr key={line.id} className="hover:bg-(--cl-surface-2)/30 group transition-colors">
-                                                    <td className={`${tdClass} pl-4 text-xs font-medium text-(--cl-text-muted)`}>{idx + 1}</td>
+                                                <tr key={line._key} className="hover:bg-(--cl-surface-2)/30 group transition-colors align-top">
+                                                    <td className={`${tdClass} pt-2 pl-4 text-xs font-medium text-(--cl-text-muted)`}>{idx + 1}</td>
 
                                                     {/* Part */}
                                                     <td className={tdClass}>
@@ -674,11 +674,13 @@ export const NewPurchaseInvoice = forwardRef<PurchaseInvoiceHandle, Props>(
                                                             selectedBrandId={selectedBrandId}
                                                             brandName={brandName}
                                                             onChange={code => {
-                                                                const patch: Partial<PurchaseLineFormItem> = { part_code: code };
-                                                                if (!code.trim()) { patch.part_id = null; patch.part_name = ""; }
-                                                                updateLine(idx, patch);
+                                                                if (!code.trim()) {
+                                                                    updateLine(idx, { part_code: "", part_id: null, part_name: "", hsn_code: "", unit_price: 0, gst_rate: 0, cgst_rate: 0, sgst_rate: 0, igst_rate: 0 });
+                                                                } else {
+                                                                    updateLine(idx, { part_code: code });
+                                                                }
                                                             }}
-                                                            onClear={() => updateLine(idx, { part_code: "", part_id: null, part_name: "" })}
+                                                            onClear={() => updateLine(idx, { part_code: "", part_id: null, part_name: "", hsn_code: "", unit_price: 0, gst_rate: 0, cgst_rate: 0, sgst_rate: 0, igst_rate: 0 })}
                                                             onSelect={part => {
                                                                 const masterGstRate    = Number(part.gst_rate ?? 0);
                                                                 const effectiveGstRate = (isGstRegistered && masterGstRate === 0)
@@ -703,7 +705,7 @@ export const NewPurchaseInvoice = forwardRef<PurchaseInvoiceHandle, Props>(
                                                     </td>
 
                                                     {/* Warranty */}
-                                                    <td className={`${tdClass} text-center`}>
+                                                    <td className={`${tdClass} text-center pt-1.5`}>
                                                         <button
                                                             type="button"
                                                             title={line.under_warranty ? "Under Warranty — click to remove" : "Not under warranty — click to mark"}
@@ -762,7 +764,7 @@ export const NewPurchaseInvoice = forwardRef<PurchaseInvoiceHandle, Props>(
                                                     </td>
 
                                                     {/* Subtotal (read-only) */}
-                                                    <td className={`${tdClass} text-right pt-1 font-mono tabular-nums text-sm font-medium text-(--cl-text) border-l border-(--cl-border) bg-(--cl-surface-2)/40`}>
+                                                    <td className={`${tdClass} text-right pt-2 font-mono tabular-nums text-sm font-medium text-(--cl-text) border-l border-(--cl-border) bg-(--cl-surface-2)/40`}>
                                                         {formatNumber(c.aggregate)}
                                                     </td>
 
@@ -781,15 +783,15 @@ export const NewPurchaseInvoice = forwardRef<PurchaseInvoiceHandle, Props>(
 
                                                     {!isIgst ? (
                                                         <>
-                                                            <td className={`${tdClass} px-2 text-right pt-1 font-mono tabular-nums text-sm font-medium text-(--cl-text-muted) bg-(--cl-surface-2)/40`}>
+                                                            <td className={`${tdClass} px-2 text-right pt-1.5 font-mono tabular-nums text-sm font-medium text-(--cl-text-muted) bg-(--cl-surface-2)/40`}>
                                                                 {formatNumber(c.cgstAmt)}
                                                             </td>
-                                                            <td className={`${tdClass} px-2 text-right pt-1 font-mono tabular-nums text-sm font-medium text-(--cl-text-muted) bg-(--cl-surface-2)/40`}>
+                                                            <td className={`${tdClass} px-2 text-right pt-1.5 font-mono tabular-nums text-sm font-medium text-(--cl-text-muted) bg-(--cl-surface-2)/40`}>
                                                                 {formatNumber(c.sgstAmt)}
                                                             </td>
                                                         </>
                                                     ) : (
-                                                        <td className={`${tdClass} px-2 text-right pt-1 font-mono tabular-nums text-sm font-medium text-(--cl-text-muted) bg-(--cl-surface-2)/40`} title="IGST Amount">
+                                                        <td className={`${tdClass} px-2 text-right pt-1.5 font-mono tabular-nums text-sm font-medium text-(--cl-text-muted) bg-(--cl-surface-2)/40`} title="IGST Amount">
                                                             {formatNumber(c.igstAmt)}
                                                         </td>
                                                     )}

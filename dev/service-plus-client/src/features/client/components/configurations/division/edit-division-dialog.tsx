@@ -558,6 +558,7 @@ export const EditDivisionDialog = ({
                                                     id="edv_branch_id"
                                                     placeholder="e.g. 1"
                                                     type="number"
+                                                    onFocus={(e) => e.target.select()}
                                                     {...form.register("account_setting.branchId")}
                                                 />
                                                 <FieldError message={errors.account_setting?.branchId?.message} />
@@ -577,6 +578,7 @@ export const EditDivisionDialog = ({
                                                     id="edv_r_debit"
                                                     placeholder="Debit account ID"
                                                     type="number"
+                                                    onFocus={(e) => e.target.select()}
                                                     {...form.register("account_setting.receipt.debitAccountId")}
                                                 />
                                             </div>
@@ -588,6 +590,7 @@ export const EditDivisionDialog = ({
                                                     id="edv_r_credit"
                                                     placeholder="Credit account ID"
                                                     type="number"
+                                                    onFocus={(e) => e.target.select()}
                                                     {...form.register("account_setting.receipt.creditAccountId")}
                                                 />
                                             </div>
@@ -606,6 +609,7 @@ export const EditDivisionDialog = ({
                                                     id="edv_pi_debit"
                                                     placeholder="Debit account ID"
                                                     type="number"
+                                                    onFocus={(e) => e.target.select()}
                                                     {...form.register("account_setting.purchaseInvoice.debitAccountId")}
                                                 />
                                             </div>
@@ -617,6 +621,7 @@ export const EditDivisionDialog = ({
                                                     id="edv_pi_credit"
                                                     placeholder="Credit account ID"
                                                     type="number"
+                                                    onFocus={(e) => e.target.select()}
                                                     {...form.register("account_setting.purchaseInvoice.creditAccountId")}
                                                 />
                                             </div>
@@ -630,6 +635,7 @@ export const EditDivisionDialog = ({
                                                     id="edv_pi_prod"
                                                     placeholder="e.g. 278"
                                                     type="number"
+                                                    onFocus={(e) => e.target.select()}
                                                     {...form.register("account_setting.purchaseInvoice.productId")}
                                                 />
                                             </div>
@@ -641,17 +647,19 @@ export const EditDivisionDialog = ({
                                                     id="edv_pi_hsn"
                                                     placeholder="HSN code"
                                                     type="number"
+                                                    onFocus={(e) => e.target.select()}
                                                     {...form.register("account_setting.purchaseInvoice.defaultProductHsn")}
                                                 />
                                             </div>
                                             <div className="flex flex-col gap-1.5">
-                                                <Label htmlFor="edv_pi_gst" className="text-xs">GST Rate %</Label>
+                                                <Label htmlFor="edv_pi_gst" className="text-xs">Default GST Rate %</Label>
                                                 <Input
                                                     autoComplete="off"
                                                     className="h-8 text-sm"
                                                     id="edv_pi_gst"
                                                     placeholder="e.g. 18"
                                                     type="number"
+                                                    onFocus={(e) => e.target.select()}
                                                     {...form.register("account_setting.purchaseInvoice.defaultGstRate")}
                                                 />
                                             </div>
@@ -670,6 +678,7 @@ export const EditDivisionDialog = ({
                                                     id="edv_si_debit"
                                                     placeholder="Debit account ID"
                                                     type="number"
+                                                    onFocus={(e) => e.target.select()}
                                                     {...form.register("account_setting.salesInvoice.debitAccountId")}
                                                 />
                                             </div>
@@ -681,6 +690,7 @@ export const EditDivisionDialog = ({
                                                     id="edv_si_credit"
                                                     placeholder="Credit account ID"
                                                     type="number"
+                                                    onFocus={(e) => e.target.select()}
                                                     {...form.register("account_setting.salesInvoice.creditAccountId")}
                                                 />
                                             </div>
@@ -694,6 +704,7 @@ export const EditDivisionDialog = ({
                                                     id="edv_si_prod"
                                                     placeholder="e.g. 278"
                                                     type="number"
+                                                    onFocus={(e) => e.target.select()}
                                                     {...form.register("account_setting.salesInvoice.productId")}
                                                 />
                                             </div>
@@ -705,17 +716,19 @@ export const EditDivisionDialog = ({
                                                     id="edv_si_hsn"
                                                     placeholder="HSN code"
                                                     type="number"
+                                                    onFocus={(e) => e.target.select()}
                                                     {...form.register("account_setting.salesInvoice.defaultProductHsn")}
                                                 />
                                             </div>
                                             <div className="flex flex-col gap-1.5">
-                                                <Label htmlFor="edv_si_gst" className="text-xs">GST Rate %</Label>
+                                                <Label htmlFor="edv_si_gst" className="text-xs">Default GST Rate %</Label>
                                                 <Input
                                                     autoComplete="off"
                                                     className="h-8 text-sm"
                                                     id="edv_si_gst"
                                                     placeholder="e.g. 18"
                                                     type="number"
+                                                    onFocus={(e) => e.target.select()}
                                                     {...form.register("account_setting.salesInvoice.defaultGstRate")}
                                                 />
                                             </div>
@@ -734,6 +747,7 @@ export const EditDivisionDialog = ({
                                                     id="edv_ji_debit"
                                                     placeholder="Debit account ID"
                                                     type="number"
+                                                    onFocus={(e) => e.target.select()}
                                                     {...form.register("account_setting.jobInvoice.debitAccountId")}
                                                 />
                                             </div>
@@ -745,6 +759,7 @@ export const EditDivisionDialog = ({
                                                     id="edv_ji_credit"
                                                     placeholder="Credit account ID"
                                                     type="number"
+                                                    onFocus={(e) => e.target.select()}
                                                     {...form.register("account_setting.jobInvoice.creditAccountId")}
                                                 />
                                             </div>
@@ -758,6 +773,7 @@ export const EditDivisionDialog = ({
                                                     id="edv_ji_prod"
                                                     placeholder="e.g. 278"
                                                     type="number"
+                                                    onFocus={(e) => e.target.select()}
                                                     {...form.register("account_setting.jobInvoice.productId")}
                                                 />
                                             </div>
@@ -769,17 +785,19 @@ export const EditDivisionDialog = ({
                                                     id="edv_ji_hsn"
                                                     placeholder="HSN code"
                                                     type="number"
+                                                    onFocus={(e) => e.target.select()}
                                                     {...form.register("account_setting.jobInvoice.defaultProductHsn")}
                                                 />
                                             </div>
                                             <div className="flex flex-col gap-1.5">
-                                                <Label htmlFor="edv_ji_gst" className="text-xs">GST Rate %</Label>
+                                                <Label htmlFor="edv_ji_gst" className="text-xs">Default GST Rate %</Label>
                                                 <Input
                                                     autoComplete="off"
                                                     className="h-8 text-sm"
                                                     id="edv_ji_gst"
                                                     placeholder="e.g. 18"
                                                     type="number"
+                                                    onFocus={(e) => e.target.select()}
                                                     {...form.register("account_setting.jobInvoice.defaultGstRate")}
                                                 />
                                             </div>

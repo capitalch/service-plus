@@ -1937,7 +1937,7 @@ async def _get_trace_plus_token() -> str:
 async def resolve_accounts_posting_helper(
     db_name: str, schema: str = "public", value: str = ""
 ) -> dict:
-    """Fetch one unposted money receipt and post it to trace-plus accounts."""
+    """Fetch one unposted money receipt and purchase invoice and post both to trace-plus."""
     # pylint: disable=too-many-locals
     payload = _decode_value(value, "accountsPosting")
     division_code = payload.get("divisionCode", "").strip()
@@ -1966,6 +1966,13 @@ async def resolve_accounts_posting_helper(
     debit_account_id  = account_setting.get("receipt", {}).get("debitAccountId")
     credit_account_id = account_setting.get("receipt", {}).get("creditAccountId")
 
+    pi_settings      = account_setting.get("purchaseInvoice", {})
+    pi_debit_acc_id  = pi_settings.get("debitAccountId")
+    pi_credit_acc_id = pi_settings.get("creditAccountId")
+    pi_product_id    = pi_settings.get("productId")
+    pi_default_hsn   = pi_settings.get("defaultProductHsn")
+    pi_default_gst   = pi_settings.get("defaultGstRate")
+
     if not client_code or \
        not bu_code or not branch_id or not debit_account_id or not credit_account_id:
         raise ValidationException(
@@ -1983,7 +1990,14 @@ async def resolve_accounts_posting_helper(
         return {"message": "No unposted money receipts found."}
     row = _serialize_row(receipts[0])
 
-    # 3. Build TranD lines
+    # 3. Fetch 1 unposted purchase invoice
+    pi_rows = await exec_sql(
+        db_name=db_name, schema=schema,
+        sql=SqlStore.GET_ONE_UNPOSTED_PURCHASE_INVOICE,
+        sql_args={"division_code": division_code},
+    )
+
+    # 4. Build money receipt TranD lines
     detail_entry_c: dict = {"accId": int(debit_account_id),  "dc": "D", "amount": row["amount"]}
     detail_entry_d: dict = {"accId": int(credit_account_id), "dc": "C", "amount": row["amount"]}
     for entry in (detail_entry_c, detail_entry_d):
@@ -1995,7 +2009,7 @@ async def resolve_accounts_posting_helper(
 
     fin_year = int(str(row.get("payment_date", str(date.today())))[:4])
 
-    # 4. Build TranH payload
+    # 5. Build money receipt TranH
     x_data: dict = {
         "tranDate":   row["payment_date"],
         "tranTypeId": 3,
@@ -2021,10 +2035,92 @@ async def resolve_accounts_posting_helper(
     if remarks_parts:
         x_data["remarks"] = ", ".join(remarks_parts)
 
+    # 6. Build purchase invoice TranH (if available and settings present)
+    pi_x_data = None
+    if pi_rows and pi_debit_acc_id and pi_credit_acc_id and pi_product_id:
+        pi_row   = _serialize_row(pi_rows[0])
+        pi_lines = pi_row.get("lines") or []
+
+        sale_purchase_lines = []
+        for line in pi_lines:
+            spd: dict = {
+                "productId": int(pi_product_id),
+                "qty":       float(line["qty"]),
+                "price":     float(line["unit_price"]),
+                "priceGst":  (float(line["total_amount"]) / float(line["qty"])
+                              if line.get("qty") else 0),
+                "amount":    float(line["total_amount"]),
+                "hsn":       (line.get("hsn_code")
+                              or (str(pi_default_hsn) if pi_default_hsn else "")),
+                "gstRate":   (float(line["gst_rate"]) if line.get("gst_rate")
+                              else (float(pi_default_gst) if pi_default_gst else 0)),
+            }
+            for out_key, db_key in [
+                ("cgst", "cgst_amount"),
+                ("sgst", "sgst_amount"),
+                ("igst", "igst_amount"),
+            ]:
+                if line.get(db_key) is not None:
+                    spd[out_key] = float(line[db_key])
+            sale_purchase_lines.append(spd)
+
+        ext_gst: dict = {"isInput": True}
+        if pi_row.get("supplier_gstin"):
+            ext_gst["gstin"] = pi_row["supplier_gstin"]
+        for out_key, db_key in [
+            ("cgst", "cgst_amount"),
+            ("sgst", "sgst_amount"),
+            ("igst", "igst_amount"),
+        ]:
+            if pi_row.get(db_key) is not None:
+                ext_gst[out_key] = float(pi_row[db_key])
+
+        debit_pi: dict = {
+            "accId":  int(pi_debit_acc_id),
+            "dc":     "D",
+            "amount": float(pi_row["total_amount"]),
+            "xDetails": [
+                {"tableName": "ExtGstTranD",
+                 "fkeyName":  "tranDetailsId",
+                 "xData":     ext_gst},
+                {"tableName": "SalePurchaseDetails",
+                 "fkeyName":  "tranDetailsId",
+                 "xData":     sale_purchase_lines},
+            ],
+        }
+        credit_pi: dict = {
+            "accId":  int(pi_credit_acc_id),
+            "dc":     "C",
+            "amount": float(pi_row["total_amount"]),
+        }
+
+        pi_fin_year = int(str(pi_row.get("invoice_date", str(date.today())))[:4])
+        pi_x_data = {
+            "tranDate":   pi_row["invoice_date"],
+            "tranTypeId": 5,
+            "finYearId":  pi_fin_year,
+            "branchId":   branch_id,
+            "posId":      1,
+            "xDetails": [{
+                "tableName": "TranD",
+                "fkeyName":  "tranHeaderId",
+                "xData":     [debit_pi, credit_pi],
+            }],
+        }
+        if pi_row.get("invoice_no"):
+            pi_x_data["userRefNo"] = pi_row["invoice_no"]
+        if pi_row.get("remarks"):
+            pi_x_data["remarks"] = pi_row["remarks"]
+
+    # 7. Combine into list payload
+    x_data_list = [x_data]
+    if pi_x_data:
+        x_data_list.append(pi_x_data)
+
     tran_h_payload = {
         "tableName": "TranH",
         "dbParams":  {"conn": ""},
-        "xData":     x_data,
+        "xData":     x_data_list,
         "buCode":    bu_code,
     }
 

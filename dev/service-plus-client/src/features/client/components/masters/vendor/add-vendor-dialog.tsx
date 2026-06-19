@@ -52,15 +52,23 @@ type CheckQueryDataType = {
 
 const addVendorSchema = z.object({
     name:          z.string().min(2, "Name must be at least 2 characters"),
-    phone:         z.string().optional(),
+    phone:         z.string()
+        .regex(/^(\+91)?[6-9]\d{9}$/, "Invalid phone number (10 digits, starts with 6-9)")
+        .or(z.literal("")).optional(),
     email:         z.string().email("Invalid email address").or(z.literal("")).optional(),
-    gstin:         z.string().optional(),
-    pan:           z.string().optional(),
+    gstin:         z.string()
+        .regex(/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/, "Invalid GSTIN format")
+        .or(z.literal("")).optional(),
+    pan:           z.string()
+        .regex(/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/, "Invalid PAN (e.g. ABCDE1234F)")
+        .or(z.literal("")).optional(),
     address_line1: z.string().optional(),
     address_line2: z.string().optional(),
     city:          z.string().optional(),
     state_id:      z.coerce.number().positive("State is required"),
-    pincode:       z.string().optional(),
+    pincode:       z.string()
+        .regex(/^[1-9][0-9]{5}$/, "Invalid pincode (6 digits)")
+        .or(z.literal("")).optional(),
     remarks:       z.string().optional(),
 });
 
@@ -183,7 +191,7 @@ export const AddVendorDialog = ({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent aria-describedby={undefined} className="sm:max-w-xl">
+            <DialogContent aria-describedby={undefined} className="sm:max-w-xl" onInteractOutside={(e) => e.preventDefault()}>
                 <DialogHeader>
                     <DialogTitle className="text-base font-semibold text-foreground">
                         Add Vendor
@@ -221,9 +229,10 @@ export const AddVendorDialog = ({
                             <Input
                                 autoComplete="off"
                                 id="av_phone"
-                                placeholder="Phone number"
+                                placeholder="10-digit mobile number"
                                 {...form.register("phone")}
                             />
+                            <FieldError message={errors.phone?.message} />
                         </div>
 
                         {/* Email */}
@@ -249,8 +258,9 @@ export const AddVendorDialog = ({
                                 className="font-mono uppercase"
                                 id="av_gstin"
                                 placeholder="15-character GSTIN"
-                                {...form.register("gstin")}
+                                {...form.register("gstin", { setValueAs: (v: string) => v.toUpperCase() })}
                             />
+                            <FieldError message={errors.gstin?.message} />
                         </div>
 
                         {/* PAN */}
@@ -261,8 +271,9 @@ export const AddVendorDialog = ({
                                 className="font-mono uppercase"
                                 id="av_pan"
                                 placeholder="10-character PAN"
-                                {...form.register("pan")}
+                                {...form.register("pan", { setValueAs: (v: string) => v.toUpperCase() })}
                             />
+                            <FieldError message={errors.pan?.message} />
                         </div>
                     </div>
 
@@ -329,9 +340,10 @@ export const AddVendorDialog = ({
                             <Input
                                 autoComplete="off"
                                 id="av_pin"
-                                placeholder="Pincode"
+                                placeholder="6-digit pincode"
                                 {...form.register("pincode")}
                             />
+                            <FieldError message={errors.pincode?.message} />
                         </div>
                     </div>
 
