@@ -1,3 +1,107 @@
+# Receipt + purchase invoiec payload
+{
+  "clientCode": "demoAccounts",
+  "buCode": "demounit1",
+  "data": {
+    "tableName": "TranH",
+    "dbParams": {
+      "conn": ""
+    },
+    "xData": [
+      {
+        "tranDate": "2026-06-18",
+        "tranTypeId": 3,
+        "finYearId": 2026,
+        "branchId": 1,
+        "posId": 1,
+        "xDetails": [
+          {
+            "tableName": "TranD",
+            "fkeyName": "tranHeaderId",
+            "xData": [
+              {
+                "accId": 118,
+                "dc": "D",
+                "amount": 1000.0,
+                "remarks": "This is an advance",
+                "lineRefNo": "Service+ Posting",
+                "instrNo": "reference 1"
+              },
+              {
+                "accId": 389,
+                "dc": "C",
+                "amount": 1000.0,
+                "remarks": "This is an advance",
+                "lineRefNo": "Service+ Posting",
+                "instrNo": "reference 1"
+              }
+            ]
+          }
+        ],
+        "userRefNo": "CAP/00015",
+        "remarks": "JOB:143, Usha Nambiar, Mobile:9577777778, GSTIN:08AABC00018R1ZP, Address:18, Service Road, Block 8, Pune, PIN:411006"
+      },
+      {
+        "tranDate": "2026-06-19",
+        "tranTypeId": 5,
+        "finYearId": 2026,
+        "branchId": 1,
+        "posId": 1,
+        "xDetails": [
+          {
+            "tableName": "TranD",
+            "fkeyName": "tranHeaderId",
+            "xData": [
+              {
+                "accId": 168,
+                "dc": "D",
+                "amount": 236.0,
+                "xDetails": [
+                  {
+                    "tableName": "ExtGstTranD",
+                    "fkeyName": "tranDetailsId",
+                    "xData": {
+                      "isInput": true,
+                      "gstin": "27AAACC3448H1ZA",
+                      "cgst": 0.0,
+                      "sgst": 0.0,
+                      "igst": 36.0
+                    }
+                  },
+                  {
+                    "tableName": "SalePurchaseDetails",
+                    "fkeyName": "tranDetailsId",
+                    "xData": [
+                      {
+                        "productId": 278,
+                        "qty": 1.0,
+                        "price": 200.0,
+                        "priceGst": 236.0,
+                        "amount": 236.0,
+                        "hsn": "2312",
+                        "gstRate": 18.0,
+                        "cgst": 0.0,
+                        "sgst": 0.0,
+                        "igst": 36.0
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "accId": 390,
+                "dc": "C",
+                "amount": 236.0
+              }
+            ]
+          }
+        ],
+        "userRefNo": "AAVV-132"
+      }
+    ],
+    "buCode": "demounit1"
+  }
+}
 # New field in divison
 - A new field account_setting of type jsonb is added to divison table
 - In Configurations > Divisons for Add / Edit divison provide form entry in the form for following JSON type in the account_setting field. This field entry will be visible only when post_data_to_accounts is true

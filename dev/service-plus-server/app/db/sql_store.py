@@ -4157,7 +4157,7 @@ class SqlStore:
         WHERE pi.branch_id = (TABLE "p_branch_id")
           AND pi.is_posted = false
         GROUP BY pi.id, s.gstin
-        ORDER BY pi.invoice_date ASC, pi.id ASC
+        ORDER BY pi.invoice_date DESC, pi.id DESC
         LIMIT 1
     """
 

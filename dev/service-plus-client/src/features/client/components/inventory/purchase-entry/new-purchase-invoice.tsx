@@ -346,14 +346,14 @@ export const NewPurchaseInvoice = forwardRef<PurchaseInvoiceHandle, Props>(
 
         // executeSave: fires the actual DB mutation
         const executeSave = async (physical: PhysicalValues) => {
-            const { vendor_id, invoice_no, invoice_date, remarks } = form.getValues();
+            const { vendor_id, division_id, invoice_no, invoice_date, remarks } = form.getValues();
             const lines           = form.getValues("lines");
             const purchaseTypeId  = txnTypes.find(t => t.code === "PURCHASE")?.id;
             const returnTypeId    = txnTypes.find(t => t.code === "PURCHASE_RETURN")?.id;
             const warrantyTypeId  = txnTypes.find(t => t.code === "WARRANTY_IN")?.id;
             const hasWarrantyLine = lines.some(l => l.under_warranty);
             if (!purchaseTypeId || (isReturn && !returnTypeId) || (hasWarrantyLine && !isReturn && !warrantyTypeId)
-                || !branchId || !dbName || !schema || !vendor_id || !invoice_no.trim() || !invoice_date) {
+                || !branchId || !dbName || !schema || !vendor_id || !division_id || !invoice_no.trim() || !invoice_date) {
                 toast.error(MESSAGES.ERROR_PURCHASE_CREATE_FAILED);
                 return;
             }
@@ -404,6 +404,7 @@ export const NewPurchaseInvoice = forwardRef<PurchaseInvoiceHandle, Props>(
 
             const headerFields = {
                 supplier_id:   vendor_id,
+                division_id:   division_id,
                 invoice_no:    invoice_no.trim(),
                 invoice_date:  invoice_date,
                 aggregate_amount: totals.aggregate,
@@ -783,15 +784,15 @@ export const NewPurchaseInvoice = forwardRef<PurchaseInvoiceHandle, Props>(
 
                                                     {!isIgst ? (
                                                         <>
-                                                            <td className={`${tdClass} px-2 text-right pt-1.5 font-mono tabular-nums text-sm font-medium text-(--cl-text-muted) bg-(--cl-surface-2)/40`}>
+                                                            <td className={`${tdClass} px-2 text-right pt-2 font-mono tabular-nums text-sm font-medium text-(--cl-text-muted) bg-(--cl-surface-2)/40`}>
                                                                 {formatNumber(c.cgstAmt)}
                                                             </td>
-                                                            <td className={`${tdClass} px-2 text-right pt-1.5 font-mono tabular-nums text-sm font-medium text-(--cl-text-muted) bg-(--cl-surface-2)/40`}>
+                                                            <td className={`${tdClass} px-2 text-right pt-2 font-mono tabular-nums text-sm font-medium text-(--cl-text-muted) bg-(--cl-surface-2)/40`}>
                                                                 {formatNumber(c.sgstAmt)}
                                                             </td>
                                                         </>
                                                     ) : (
-                                                        <td className={`${tdClass} px-2 text-right pt-1.5 font-mono tabular-nums text-sm font-medium text-(--cl-text-muted) bg-(--cl-surface-2)/40`} title="IGST Amount">
+                                                        <td className={`${tdClass} px-2 text-right pt-2 font-mono tabular-nums text-sm font-medium text-(--cl-text-muted) bg-(--cl-surface-2)/40`} title="IGST Amount">
                                                             {formatNumber(c.igstAmt)}
                                                         </td>
                                                     )}

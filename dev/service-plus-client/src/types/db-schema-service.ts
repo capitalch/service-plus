@@ -956,7 +956,7 @@ export interface PurchaseInvoice {
   brand_id: number;
   is_return: boolean;
   is_posted: boolean;
-  divison_id: number;
+  division_id: number;
 }
 export interface PurchaseInvoiceInput {
   id: number;
@@ -976,18 +976,18 @@ export interface PurchaseInvoiceInput {
   brand_id: number;
   is_return?: boolean;
   is_posted?: boolean;
-  divison_id: number;
+  division_id: number;
 }
 const purchase_invoice = {
   tableName: 'purchase_invoice',
-  columns: ['id', 'supplier_id', 'invoice_no', 'invoice_date', 'aggregate_amount', 'cgst_amount', 'sgst_amount', 'igst_amount', 'total_tax', 'total_amount', 'branch_id', 'remarks', 'created_at', 'updated_at', 'brand_id', 'is_return', 'is_posted', 'divison_id'],
-  requiredForInsert: ['id', 'supplier_id', 'invoice_no', 'invoice_date', 'aggregate_amount', 'total_tax', 'total_amount', 'branch_id', 'brand_id', 'divison_id'],
+  columns: ['id', 'supplier_id', 'invoice_no', 'invoice_date', 'aggregate_amount', 'cgst_amount', 'sgst_amount', 'igst_amount', 'total_tax', 'total_amount', 'branch_id', 'remarks', 'created_at', 'updated_at', 'brand_id', 'is_return', 'is_posted', 'division_id'],
+  requiredForInsert: ['id', 'supplier_id', 'invoice_no', 'invoice_date', 'aggregate_amount', 'total_tax', 'total_amount', 'branch_id', 'brand_id', 'division_id'],
   primaryKey: 'id',
   foreignKeys: {
     supplier_id: { table: 'supplier', column: 'id', $type: null as unknown as Supplier },
     branch_id: { table: 'branch', column: 'id', $type: null as unknown as Branch },
     brand_id: { table: 'brand', column: 'id', $type: null as unknown as Brand },
-    divison_id: { table: 'division', column: 'id', $type: null as unknown as Division },
+    division_id: { table: 'division', column: 'id', $type: null as unknown as Division },
   },
   $type: null as unknown as PurchaseInvoice,
   $input: null as unknown as PurchaseInvoiceInput
