@@ -176,6 +176,14 @@ function MastersExplorer() {
     );
 }
 
+function AdminExplorer() {
+    return (
+        <div className="space-y-1">
+            <TreeItem icon={BookCheck} label="Post / Unpost" />
+        </div>
+    );
+}
+
 function ReportsExplorer() {
     return (
         <div className="space-y-3">
@@ -230,6 +238,7 @@ function ReportsExplorer() {
 }
 
 const EXPLORERS: Record<Section, ComponentType> = {
+    admin:          AdminExplorer,
     configurations: ConfigurationsExplorer,
     inventory:      InventoryExplorer,
     jobs:           JobsExplorer,
@@ -238,6 +247,7 @@ const EXPLORERS: Record<Section, ComponentType> = {
 };
 
 const SECTION_TITLES: Record<Section, string> = {
+    admin:          'Administration',
     configurations: 'System Configuration',
     inventory:      'Stock & Parts',
     jobs:           'Job Lifecycle',
@@ -253,6 +263,7 @@ const MOBILE_NAV_ITEMS: MobileNavItem[] = [
     { label: 'Reports', section: 'reports',        to: ROUTES.client.reports },
     { label: 'Masters', section: 'masters',        to: ROUTES.client.masters },
     { label: 'Config',  section: 'configurations', to: ROUTES.client.configurations },
+    { label: 'Admin',   section: 'admin',          to: ROUTES.client.admin },
 ];
 
 export const ClientExplorerPanel = ({ activeSection }: Props) => {

@@ -16,6 +16,7 @@ const NAV_ITEMS: NavItem[] = [
     { label: 'Reports',        section: 'reports',        to: ROUTES.client.reports },
     { label: 'Masters',        section: 'masters',        to: ROUTES.client.masters },
     { label: 'Configurations', section: 'configurations', to: ROUTES.client.configurations },
+    { label: 'Admin',          section: 'admin',          to: ROUTES.client.admin },
 ];
 
 type Props = { activeSection: Section };

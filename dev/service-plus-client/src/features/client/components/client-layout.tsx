@@ -25,7 +25,7 @@ import { ClientExplorerPanel } from "./client-explorer-panel";
 import { ClientStatusBar } from "./client-status-bar";
 import { ClientTopNav } from "./client-top-nav";
 
-export type Section = 'configurations' | 'inventory' | 'jobs' | 'masters' | 'reports';
+export type Section = 'admin' | 'configurations' | 'inventory' | 'jobs' | 'masters' | 'reports';
 
 type ThemeContextType = { isDark: boolean; toggleTheme: () => void };
 
@@ -50,6 +50,7 @@ export const LayoutContext = createContext<LayoutContextType>({ explorerOpen: tr
 export const useLayout = () => useContext(LayoutContext);
 
 function sectionFromPath(pathname: string): Section {
+    if (pathname.startsWith('/client/admin'))          return 'admin';
     if (pathname.startsWith('/client/configurations')) return 'configurations';
     if (pathname.startsWith('/client/inventory'))      return 'inventory';
     if (pathname.startsWith('/client/jobs'))           return 'jobs';
@@ -58,6 +59,7 @@ function sectionFromPath(pathname: string): Section {
 }
 
 const SECTION_LABELS: Record<Section, string> = {
+    admin:          'Admin',
     configurations: 'Configurations',
     inventory:      'Inventory',
     jobs:           'Jobs',
@@ -66,6 +68,7 @@ const SECTION_LABELS: Record<Section, string> = {
 };
 
 const SECTION_DEFAULTS: Record<Section, string> = {
+    admin:          'Post / Unpost',
     configurations: 'Divisions',
     inventory:      'Stock Overview',
     jobs:           'Single Job',
@@ -74,6 +77,7 @@ const SECTION_DEFAULTS: Record<Section, string> = {
 };
 
 const SECTION_DEFAULT_GROUPS: Record<Section, string> = {
+    admin:          '',
     configurations: '',
     inventory:      '',
     jobs:           'New Job',

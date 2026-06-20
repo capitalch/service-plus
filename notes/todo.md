@@ -4,7 +4,8 @@
 	- Connection pool closes arbitrarily in local server
 - Features
 	- Job sales return
-	- Change spelling of divison to division all over the codebase
+								- mechanism to unpost a receipt, purchase invoice, sales invoice, job invoice
+								- Change spelling of divison to division all over the codebase
 	- Accounts posting
 		- Trace+
 			- Create authenticated json based api to listen: dry run

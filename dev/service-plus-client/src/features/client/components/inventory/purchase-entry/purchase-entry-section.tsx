@@ -958,7 +958,7 @@ export const PurchaseEntrySection = () => {
                         open={deleteId !== null}
                         onOpenChange={open => { if (!open && !deleting) setDeleteId(null); }}
                     >
-                        <DialogContent aria-describedby={undefined} className="sm:max-w-sm !bg-(--cl-surface) text-(--cl-text)">
+                        <DialogContent aria-describedby={undefined} className="sm:max-w-sm text-(--cl-text) bg-white">
                             <DialogHeader>
                                 <DialogTitle>Delete Purchase Invoice</DialogTitle>
                             </DialogHeader>

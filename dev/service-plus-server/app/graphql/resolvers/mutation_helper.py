@@ -2055,6 +2055,8 @@ async def resolve_accounts_posting_helper(
                 "gstRate":   (float(line["gst_rate"]) if line.get("gst_rate")
                               else (float(pi_default_gst) if pi_default_gst else 0)),
             }
+            if line.get("part_code"):
+                spd["jData"] = json.dumps({"remarks": f"Part Code:{line['part_code']}"})
             for out_key, db_key in [
                 ("cgst", "cgst_amount"),
                 ("sgst", "sgst_amount"),
@@ -2109,8 +2111,15 @@ async def resolve_accounts_posting_helper(
         }
         if pi_row.get("invoice_no"):
             pi_x_data["userRefNo"] = pi_row["invoice_no"]
-        if pi_row.get("remarks"):
-            pi_x_data["remarks"] = pi_row["remarks"]
+        vendor_address_parts = [p for p in [
+            pi_row.get("supplier_address_line1"),
+            pi_row.get("supplier_address_line2"),
+            pi_row.get("supplier_city"),
+            pi_row.get("supplier_state"),
+            f"PIN:{pi_row['supplier_pincode']}" if pi_row.get("supplier_pincode") else None,
+        ] if p]
+        if vendor_address_parts:
+            pi_x_data["remarks"] = ", ".join(vendor_address_parts)
 
     # 7. Combine into list payload
     x_data_list = [x_data]

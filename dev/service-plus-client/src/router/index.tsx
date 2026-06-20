@@ -19,6 +19,7 @@ import { ClientInventoryPage } from '@/features/client/pages/client-inventory-pa
 import { ClientJobsPage } from '@/features/client/pages/client-jobs-page';
 import { ClientMastersPage } from '@/features/client/pages/client-masters-page';
 import { ClientReportsPage } from '@/features/client/pages/client-reports-page';
+import { ClientAdminPage } from '@/features/client/pages/client-admin-page';
 import { ProtectedRoute } from './protected-route';
 import { ROUTES } from './routes';
 
@@ -58,6 +59,7 @@ export const router = createBrowserRouter([
       { element: <ClientJobsPage />,           path: 'jobs' },
       { element: <ClientMastersPage />,        path: 'masters' },
       { element: <ClientReportsPage />,        path: 'reports' },
+      { element: <ClientAdminPage />,          path: 'admin' },
     ],
   },
   {
