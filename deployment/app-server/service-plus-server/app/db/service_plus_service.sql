@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict lfOEsDnk8LZbPazEWrVBRA7yPZvlbP2EE79RqiJK13gljcx1cl5wCTjR1wePKCI
+\restrict UQTaDVLOE6rv02B1YzMhsflrecIjQIjj78lvE4UaZmgFsgkRUOhSE6UZNPmuJJ7
 
 -- Dumped from database version 14.6
 -- Dumped by pg_dump version 18.4 (Ubuntu 18.4-0ubuntu0.26.04.1)
@@ -287,7 +287,8 @@ CREATE TABLE demo1.division (
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     branch_id bigint NOT NULL,
     code text NOT NULL,
-    web_site text
+    web_site text,
+    account_setting jsonb
 );
 
 
@@ -868,7 +869,7 @@ CREATE TABLE demo1.purchase_invoice (
     brand_id bigint NOT NULL,
     is_return boolean DEFAULT false NOT NULL,
     is_posted boolean DEFAULT false NOT NULL,
-    divison_id bigint NOT NULL
+    division_id bigint NOT NULL
 );
 
 
@@ -3185,15 +3186,15 @@ ALTER TABLE ONLY demo1.purchase_invoice
 --
 
 ALTER TABLE ONLY demo1.purchase_invoice
-    ADD CONSTRAINT purchase_invoice_brand_id_fkey FOREIGN KEY (brand_id) REFERENCES demo1.brand(id) NOT VALID;
+    ADD CONSTRAINT purchase_invoice_brand_id_fkey FOREIGN KEY (brand_id) REFERENCES demo1.brand(id);
 
 
 --
--- Name: purchase_invoice purchase_invoice_divison_id_fkey; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+-- Name: purchase_invoice purchase_invoice_division_id_fkey; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
 --
 
 ALTER TABLE ONLY demo1.purchase_invoice
-    ADD CONSTRAINT purchase_invoice_divison_id_fkey FOREIGN KEY (divison_id) REFERENCES demo1.division(id) NOT VALID;
+    ADD CONSTRAINT purchase_invoice_division_id_fkey FOREIGN KEY (division_id) REFERENCES demo1.division(id) NOT VALID;
 
 
 --
@@ -3576,5 +3577,5 @@ ALTER TABLE ONLY security.user_bu_role
 -- PostgreSQL database dump complete
 --
 
-\unrestrict lfOEsDnk8LZbPazEWrVBRA7yPZvlbP2EE79RqiJK13gljcx1cl5wCTjR1wePKCI
+\unrestrict UQTaDVLOE6rv02B1YzMhsflrecIjQIjj78lvE4UaZmgFsgkRUOhSE6UZNPmuJJ7
 

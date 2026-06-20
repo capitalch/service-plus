@@ -597,7 +597,7 @@ class SqlStore:
         with "p_branch_id" as (values(%(branch_id)s::bigint))
         SELECT d.id, d.branch_id, d.code, d.name, d.address_line1, d.address_line2,
                d.city, d.state_id, d.country, d.pincode, d.phone, d.email,
-               d.gstin, d.web_site, d.is_active,
+               d.gstin, d.web_site, d.is_active, d.account_setting,
                s.gst_state_code
         FROM division d
         LEFT JOIN state s ON s.id = d.state_id
@@ -710,6 +710,14 @@ class SqlStore:
             'SALES_RETURN_INVOICE', 'SERVICE_RETURN_INVOICE'
         )
         ORDER BY dt.id
+    """
+
+    GET_DIVISION_ACCOUNT_SETTING_BY_CODE = """
+        WITH "p_code" AS (VALUES(%(code)s::text))
+        SELECT d.id, d.account_setting
+        FROM division d
+        WHERE LOWER(d.code) = LOWER((TABLE "p_code"))
+        LIMIT 1
     """
 
     # ── Customer Types ────────────────────────────────────────────────────────
@@ -3767,6 +3775,12 @@ class SqlStore:
             j.*,
             cc.full_name  AS customer_name,
             cc.mobile,
+            cc.address_line1 AS customer_address_line1,
+            cc.address_line2 AS customer_address_line2,
+            cc.landmark      AS customer_landmark,
+            cc.city          AS customer_city,
+            cc.postal_code   AS customer_postal_code,
+            s.name           AS customer_state,
             CONCAT_WS(', ', NULLIF(cc.address_line1, ''), NULLIF(cc.address_line2, ''), NULLIF(cc.city, ''), NULLIF(cc.postal_code, '')) AS address_snapshot,
             jt.name       AS job_type_name,
             jrm.name      AS job_receive_manner_name,
@@ -3777,6 +3791,7 @@ class SqlStore:
             (SELECT COUNT(*) FROM job_image_doc  jd  WHERE jd.job_id  = j.id) AS file_count
         FROM job j
         JOIN customer_contact      cc  ON cc.id  = j.customer_contact_id
+        LEFT JOIN state            s   ON s.id   = cc.state_id
         JOIN job_type              jt  ON jt.id  = j.job_type_id
         JOIN job_receive_manner    jrm ON jrm.id = j.job_receive_manner_id
         LEFT JOIN product_brand_model pbm ON pbm.id = j.product_brand_model_id
@@ -3918,6 +3933,258 @@ class SqlStore:
            OR  LOWER(COALESCE(jp.reference_no, '')) LIKE '%%' || LOWER((table "p_search")) || '%%'
            OR  LOWER(COALESCE(jp.receipt_no, '')) LIKE '%%' || LOWER((table "p_search")) || '%%')
         ORDER BY jp.payment_date DESC, jp.id DESC
+        LIMIT  (table "p_limit")
+        OFFSET (table "p_offset")
+    """
+
+    # ── Post / Unpost — all records, no is_posted filter, with division + gst_type ──
+
+    GET_JOB_PAYMENTS_POST_UNPOST_STATS = """
+        with
+            "p_branch_id" as (values(%(branch_id)s::bigint)),
+            "p_search"     as (values(%(search)s::text))
+        SELECT
+            COUNT(*) FILTER (WHERE jp.is_posted = true)  AS posted,
+            COUNT(*) FILTER (WHERE jp.is_posted = false) AS unposted,
+            COUNT(*)                                      AS total
+        FROM job_payment jp
+        JOIN job j ON j.id = jp.job_id
+        LEFT JOIN customer_contact cc ON cc.id = j.customer_contact_id
+        WHERE j.branch_id = (table "p_branch_id")
+          AND ((table "p_search") = ''
+           OR  j.job_no::text ILIKE '%%' || (table "p_search") || '%%'
+           OR  LOWER(cc.full_name)               LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(jp.payment_mode)            LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(COALESCE(jp.receipt_no,'')) LIKE '%%' || LOWER((table "p_search")) || '%%')
+    """
+
+    GET_JOB_PAYMENTS_POST_UNPOST_COUNT = """
+        with
+            "p_branch_id" as (values(%(branch_id)s::bigint)),
+            "p_search"     as (values(%(search)s::text))
+        SELECT COUNT(*) AS total
+        FROM job_payment jp
+        JOIN job j ON j.id = jp.job_id
+        LEFT JOIN customer_contact cc ON cc.id = j.customer_contact_id
+        WHERE j.branch_id = (table "p_branch_id")
+          AND ((table "p_search") = ''
+           OR  j.job_no::text ILIKE '%%' || (table "p_search") || '%%'
+           OR  LOWER(cc.full_name)               LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(jp.payment_mode)            LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(COALESCE(jp.receipt_no,'')) LIKE '%%' || LOWER((table "p_search")) || '%%')
+    """
+
+    GET_JOB_PAYMENTS_POST_UNPOST_PAGED = """
+        with
+            "p_branch_id" as (values(%(branch_id)s::bigint)),
+            "p_search"     as (values(%(search)s::text)),
+            "p_limit"      as (values(%(limit)s::int)),
+            "p_offset"     as (values(%(offset)s::int))
+        SELECT
+            jp.id,
+            jp.job_id,
+            j.job_no,
+            cc.full_name    AS customer_name,
+            cc.mobile,
+            jp.receipt_no,
+            jp.payment_date,
+            jp.payment_mode,
+            jp.amount,
+            jp.reference_no,
+            d.name          AS division_name,
+            CASE WHEN d.gstin IS NOT NULL AND d.gstin <> '' THEN 'GST' ELSE 'NON-GST' END AS gst_type,
+            jp.is_posted
+        FROM job_payment jp
+        JOIN job j ON j.id = jp.job_id
+        JOIN division d ON d.id = j.division_id
+        LEFT JOIN customer_contact cc ON cc.id = j.customer_contact_id
+        WHERE j.branch_id = (table "p_branch_id")
+          AND ((table "p_search") = ''
+           OR  j.job_no::text ILIKE '%%' || (table "p_search") || '%%'
+           OR  LOWER(cc.full_name)               LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(jp.payment_mode)            LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(COALESCE(jp.receipt_no,'')) LIKE '%%' || LOWER((table "p_search")) || '%%')
+        ORDER BY jp.payment_date DESC, jp.id DESC
+        LIMIT  (table "p_limit")
+        OFFSET (table "p_offset")
+    """
+
+    GET_PURCHASE_INVOICES_POST_UNPOST_STATS = """
+        with
+            "p_branch_id" as (values(%(branch_id)s::bigint)),
+            "p_search"     as (values(%(search)s::text))
+        SELECT
+            COUNT(*) FILTER (WHERE pi.is_posted = true)  AS posted,
+            COUNT(*) FILTER (WHERE pi.is_posted = false) AS unposted,
+            COUNT(*)                                      AS total
+        FROM purchase_invoice pi
+        JOIN supplier s ON s.id = pi.supplier_id
+        WHERE pi.branch_id = (table "p_branch_id")
+          AND ((table "p_search") = ''
+           OR LOWER(pi.invoice_no) LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(s.name)        LIKE '%%' || LOWER((table "p_search")) || '%%')
+    """
+
+    GET_PURCHASE_INVOICES_POST_UNPOST_COUNT = """
+        with
+            "p_branch_id" as (values(%(branch_id)s::bigint)),
+            "p_search"     as (values(%(search)s::text))
+        SELECT COUNT(*) AS total
+        FROM purchase_invoice pi
+        JOIN supplier s ON s.id = pi.supplier_id
+        WHERE pi.branch_id = (table "p_branch_id")
+          AND ((table "p_search") = ''
+           OR LOWER(pi.invoice_no) LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(s.name)        LIKE '%%' || LOWER((table "p_search")) || '%%')
+    """
+
+    GET_PURCHASE_INVOICES_POST_UNPOST_PAGED = """
+        with
+            "p_branch_id" as (values(%(branch_id)s::bigint)),
+            "p_search"     as (values(%(search)s::text)),
+            "p_limit"      as (values(%(limit)s::int)),
+            "p_offset"     as (values(%(offset)s::int))
+        SELECT
+            pi.id,
+            pi.branch_id,
+            pi.invoice_no,
+            pi.invoice_date,
+            s.name           AS supplier_name,
+            pi.total_amount,
+            d.name           AS division_name,
+            CASE WHEN d.gstin IS NOT NULL AND d.gstin <> '' THEN 'GST' ELSE 'NON-GST' END AS gst_type,
+            pi.is_posted
+        FROM purchase_invoice pi
+        JOIN supplier  s ON s.id = pi.supplier_id
+        JOIN division  d ON d.id = pi.division_id
+        WHERE pi.branch_id = (table "p_branch_id")
+          AND ((table "p_search") = ''
+           OR LOWER(pi.invoice_no) LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(s.name)        LIKE '%%' || LOWER((table "p_search")) || '%%')
+        ORDER BY pi.invoice_date DESC, pi.id DESC
+        LIMIT  (table "p_limit")
+        OFFSET (table "p_offset")
+    """
+
+    GET_SALES_INVOICES_POST_UNPOST_STATS = """
+        with
+            "p_branch_id" as (values(%(branch_id)s::bigint)),
+            "p_search"     as (values(%(search)s::text))
+        SELECT
+            COUNT(*) FILTER (WHERE si.is_posted = true)  AS posted,
+            COUNT(*) FILTER (WHERE si.is_posted = false) AS unposted,
+            COUNT(*)                                      AS total
+        FROM sales_invoice si
+        JOIN division d ON d.id = si.division_id
+        WHERE d.branch_id = (table "p_branch_id")
+          AND ((table "p_search") = ''
+           OR LOWER(si.invoice_no)    LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(si.customer_name) LIKE '%%' || LOWER((table "p_search")) || '%%')
+    """
+
+    GET_SALES_INVOICES_POST_UNPOST_COUNT = """
+        with
+            "p_branch_id" as (values(%(branch_id)s::bigint)),
+            "p_search"     as (values(%(search)s::text))
+        SELECT COUNT(*) AS total
+        FROM sales_invoice si
+        JOIN division d ON d.id = si.division_id
+        WHERE d.branch_id = (table "p_branch_id")
+          AND ((table "p_search") = ''
+           OR LOWER(si.invoice_no)    LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(si.customer_name) LIKE '%%' || LOWER((table "p_search")) || '%%')
+    """
+
+    GET_SALES_INVOICES_POST_UNPOST_PAGED = """
+        with
+            "p_branch_id" as (values(%(branch_id)s::bigint)),
+            "p_search"     as (values(%(search)s::text)),
+            "p_limit"      as (values(%(limit)s::int)),
+            "p_offset"     as (values(%(offset)s::int))
+        SELECT
+            si.id,
+            si.division_id,
+            si.invoice_no,
+            si.invoice_date,
+            si.customer_name,
+            si.amount         AS total_amount,
+            si.is_return,
+            d.name            AS division_name,
+            CASE WHEN d.gstin IS NOT NULL AND d.gstin <> '' THEN 'GST' ELSE 'NON-GST' END AS gst_type,
+            si.is_posted
+        FROM sales_invoice si
+        JOIN division d ON d.id = si.division_id
+        WHERE d.branch_id = (table "p_branch_id")
+          AND ((table "p_search") = ''
+           OR LOWER(si.invoice_no)    LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(si.customer_name) LIKE '%%' || LOWER((table "p_search")) || '%%')
+        ORDER BY si.invoice_date DESC, si.id DESC
+        LIMIT  (table "p_limit")
+        OFFSET (table "p_offset")
+    """
+
+    GET_JOB_INVOICES_POST_UNPOST_STATS = """
+        with
+            "p_branch_id" as (values(%(branch_id)s::bigint)),
+            "p_search"     as (values(%(search)s::text))
+        SELECT
+            COUNT(*) FILTER (WHERE ji.is_posted = true)  AS posted,
+            COUNT(*) FILTER (WHERE ji.is_posted = false) AS unposted,
+            COUNT(*)                                      AS total
+        FROM job_invoice ji
+        JOIN job j ON j.id = ji.job_id
+        LEFT JOIN customer_contact cc ON cc.id = j.customer_contact_id
+        WHERE j.branch_id = (table "p_branch_id")
+          AND ((table "p_search") = ''
+           OR  j.job_no::text       ILIKE '%%' || (table "p_search") || '%%'
+           OR  LOWER(ji.invoice_no)  LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(cc.full_name)   LIKE '%%' || LOWER((table "p_search")) || '%%')
+    """
+
+    GET_JOB_INVOICES_POST_UNPOST_COUNT = """
+        with
+            "p_branch_id" as (values(%(branch_id)s::bigint)),
+            "p_search"     as (values(%(search)s::text))
+        SELECT COUNT(*) AS total
+        FROM job_invoice ji
+        JOIN job j ON j.id = ji.job_id
+        LEFT JOIN customer_contact cc ON cc.id = j.customer_contact_id
+        WHERE j.branch_id = (table "p_branch_id")
+          AND ((table "p_search") = ''
+           OR  j.job_no::text       ILIKE '%%' || (table "p_search") || '%%'
+           OR  LOWER(ji.invoice_no)  LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(cc.full_name)   LIKE '%%' || LOWER((table "p_search")) || '%%')
+    """
+
+    GET_JOB_INVOICES_POST_UNPOST_PAGED = """
+        with
+            "p_branch_id" as (values(%(branch_id)s::bigint)),
+            "p_search"     as (values(%(search)s::text)),
+            "p_limit"      as (values(%(limit)s::int)),
+            "p_offset"     as (values(%(offset)s::int))
+        SELECT
+            ji.id,
+            ji.job_id,
+            j.job_no,
+            j.job_date,
+            cc.full_name  AS customer_name,
+            cc.mobile,
+            ji.invoice_no,
+            ji.invoice_date,
+            ji.amount,
+            d.name        AS division_name,
+            CASE WHEN d.gstin IS NOT NULL AND d.gstin <> '' THEN 'GST' ELSE 'NON-GST' END AS gst_type,
+            ji.is_posted
+        FROM job_invoice ji
+        JOIN job j ON j.id = ji.job_id
+        JOIN division d ON d.id = j.division_id
+        LEFT JOIN customer_contact cc ON cc.id = j.customer_contact_id
+        WHERE j.branch_id = (table "p_branch_id")
+          AND ((table "p_search") = ''
+           OR  j.job_no::text       ILIKE '%%' || (table "p_search") || '%%'
+           OR  LOWER(ji.invoice_no)  LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(cc.full_name)   LIKE '%%' || LOWER((table "p_search")) || '%%')
+        ORDER BY ji.invoice_date DESC, ji.id DESC
         LIMIT  (table "p_limit")
         OFFSET (table "p_offset")
     """
@@ -4071,6 +4338,87 @@ class SqlStore:
            OR  LOWER(COALESCE(j.alternate_job_no, '')) LIKE '%%' || LOWER((table "p_search")) || '%%')
         ORDER BY j.job_date DESC, j.id DESC
         LIMIT (table "p_limit")
+    """
+
+    GET_ONE_UNPOSTED_MONEY_RECEIPT = """
+        WITH "p_division_code" AS (VALUES(%(division_code)s::text))
+        SELECT
+            jp.id,
+            jp.job_id,
+            j.job_no,
+            jp.receipt_no,
+            jp.payment_date,
+            jp.payment_mode,
+            jp.amount,
+            jp.reference_no,
+            jp.remarks,
+            cc.full_name AS customer_name,
+            cc.mobile AS customer_mobile,
+            cc.gstin AS customer_gstin,
+            cc.postal_code AS customer_pin,
+            CONCAT_WS(', ',
+                NULLIF(cc.address_line1, ''),
+                NULLIF(cc.address_line2, ''),
+                NULLIF(cc.city, '')
+            ) AS customer_address
+        FROM job_payment jp
+        JOIN job j ON j.id = jp.job_id
+        JOIN division d ON d.id = j.division_id
+        LEFT JOIN customer_contact cc ON cc.id = j.customer_contact_id
+        WHERE LOWER(d.code) = LOWER((TABLE "p_division_code"))
+          AND jp.is_posted = false
+        ORDER BY jp.payment_date DESC, jp.id DESC
+        LIMIT 1
+    """
+
+    GET_ONE_UNPOSTED_PURCHASE_INVOICE = """
+        WITH
+            "p_division_code" AS (VALUES(%(division_code)s::text)),
+            "p_branch_id" AS (
+                SELECT branch_id FROM division
+                WHERE LOWER(code) = LOWER((TABLE "p_division_code"))
+                LIMIT 1
+            )
+        SELECT
+            pi.id,
+            pi.invoice_no,
+            pi.invoice_date,
+            pi.aggregate_amount,
+            pi.cgst_amount,
+            pi.sgst_amount,
+            pi.igst_amount,
+            pi.total_amount,
+            pi.remarks,
+            s.gstin          AS supplier_gstin,
+            s.address_line1  AS supplier_address_line1,
+            s.address_line2  AS supplier_address_line2,
+            s.city           AS supplier_city,
+            st.name          AS supplier_state,
+            s.pincode        AS supplier_pincode,
+            json_agg(
+                json_build_object(
+                    'hsn_code',         pil.hsn_code,
+                    'qty',              pil.qty,
+                    'unit_price',       pil.unit_price,
+                    'aggregate_amount', pil.aggregate_amount,
+                    'gst_rate',         pil.gst_rate,
+                    'cgst_amount',      pil.cgst_amount,
+                    'sgst_amount',      pil.sgst_amount,
+                    'igst_amount',      pil.igst_amount,
+                    'total_amount',     pil.total_amount,
+                    'part_code',        spm.part_code
+                ) ORDER BY pil.id
+            ) AS lines
+        FROM purchase_invoice pi
+        JOIN supplier              s   ON s.id   = pi.supplier_id
+        LEFT JOIN state            st  ON st.id  = s.state_id
+        JOIN purchase_invoice_line pil ON pil.purchase_invoice_id = pi.id
+        LEFT JOIN spare_part_master spm ON spm.id = pil.part_id
+        WHERE pi.branch_id = (TABLE "p_branch_id")
+          AND pi.is_posted = false
+        GROUP BY pi.id, s.gstin, s.address_line1, s.address_line2, s.city, st.name, s.pincode
+        ORDER BY pi.invoice_date DESC, pi.id DESC
+        LIMIT 1
     """
 
     # ── Final a Job ────────────────────────────────────────────────────
@@ -4939,6 +5287,35 @@ class SqlStore:
         WHERE j.is_closed = false
         GROUP BY js.code, js.name, js.display_order
         ORDER BY js.display_order, js.code
+    """
+
+    GET_JOB_PIPELINE_CELL_JOBS = """
+        with
+            "p_status_code" as (values(%(status_code)s::text)),
+            "p_age_min"     as (values(%(age_min)s::int)),
+            "p_age_max"     as (values(%(age_max)s::int))
+        SELECT
+            j.id, j.job_no, j.job_date,
+            (CURRENT_DATE - j.job_date) AS days_old,
+            cc.full_name              AS customer_name,
+            p.name                    AS product_name,
+            b.name                    AS brand_name,
+            pbm.model_name            AS model_name,
+            js.code                   AS status_code,
+            js.name                   AS status_name,
+            t.name                    AS technician_name,
+            (j.warranty_card_no IS NOT NULL AND j.warranty_card_no <> '') AS is_warranty
+        FROM job j
+        JOIN customer_contact         cc  ON cc.id  = j.customer_contact_id
+        JOIN job_status               js  ON js.id  = j.job_status_id
+        LEFT JOIN technician          t   ON t.id   = j.technician_id
+        LEFT JOIN product_brand_model pbm ON pbm.id = j.product_brand_model_id
+        LEFT JOIN brand               b   ON b.id   = pbm.brand_id
+        LEFT JOIN product             p   ON p.id   = pbm.product_id
+        WHERE j.is_closed = false
+          AND js.code = (table "p_status_code")
+          AND (CURRENT_DATE - j.job_date) BETWEEN (table "p_age_min") AND (table "p_age_max")
+        ORDER BY j.job_date ASC, j.id ASC
     """
 
     GET_JOB_STATUS_TREND_MONTHLY = """

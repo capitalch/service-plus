@@ -1,12 +1,17 @@
+"""Helper functions for GraphQL mutation resolvers."""
+# pylint: disable=too-many-lines
+
 import json
 import re
 import secrets
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
-from urllib.parse import unquote
+from urllib.parse import quote, unquote
 
-from psycopg import sql as pgsql
-from psycopg.rows import dict_row
+import httpx  # pylint: disable=import-error
+
+from psycopg import sql as pgsql  # pylint: disable=import-error
+from psycopg.rows import dict_row  # pylint: disable=import-error
 
 from app.core.audit_log import AuditAction, audit_logger
 from app.core.email import send_email
@@ -40,11 +45,11 @@ def _decode_value(value: str, context: str) -> dict:
         raise ValidationException(
             message=AppMessages.INVALID_INPUT,
             extensions={"detail": AppMessages.INVALID_JSON_VALUE},
-        )
+        ) from e
 
 
 def _serialize_row(row: dict) -> dict:
-    return {k: v.isoformat() if isinstance(v, datetime) else v for k, v in row.items()}
+    return {k: v.isoformat() if isinstance(v, (date, datetime)) else v for k, v in row.items()}
 
 
 async def resolve_create_admin_user_helper(
@@ -56,6 +61,7 @@ async def resolve_create_admin_user_helper(
 
     Value payload (URL-encoded JSON): { client_id, email, full_name, mobile, username }
     """
+    # pylint: disable=too-many-locals
     payload = _decode_value(value, "createAdminUser")
 
     client_id = payload.get("client_id")
@@ -112,7 +118,7 @@ async def resolve_create_admin_user_helper(
             ),
         )
         email_sent = True
-    except Exception as mail_err:
+    except Exception as mail_err:  # pylint: disable=broad-except
         logger.warning("Failed to send welcome email to %s: %s", email, mail_err)
 
     await audit_logger.log(
@@ -133,6 +139,7 @@ async def resolve_create_bu_schema_and_feed_seed_data_helper(
 
     Value payload (URL-encoded JSON): { code, name }
     """
+    # pylint: disable=unused-argument
     payload = _decode_value(value, "createBuSchemaAndFeedSeedData")
 
     code: str = (payload.get("code") or "").lower().strip()
@@ -253,6 +260,7 @@ async def resolve_create_business_user_helper(
 
     Value payload (URL-encoded JSON): { email, full_name, mobile, username }
     """
+    # pylint: disable=too-many-locals
     payload = _decode_value(value, "createBusinessUser")
 
     email = payload.get("email", "")
@@ -330,7 +338,7 @@ async def resolve_create_business_user_helper(
             ),
         )
         email_sent = True
-    except Exception as mail_err:
+    except Exception as mail_err:  # pylint: disable=broad-except
         logger.warning("Failed to send setup link email to %s: %s", email, mail_err)
 
     await audit_logger.log(
@@ -351,6 +359,7 @@ async def resolve_create_client_helper(db_name: str, schema: str, value: str) ->
         code, country_code?, email?, gstin?, is_active, name, pan?, phone?,
         pincode?, state? }
     """
+    # pylint: disable=unused-argument
     payload = _decode_value(value, "createClient")
 
     code = payload.get("code", "")
@@ -363,7 +372,7 @@ async def resolve_create_client_helper(db_name: str, schema: str, value: str) ->
             extensions={"fields": ["code", "name"]},
         )
 
-    xData: dict = {
+    x_data: dict = {
         "code": code,
         "name": name,
         "is_active": payload.get("is_active", True),
@@ -382,9 +391,9 @@ async def resolve_create_client_helper(db_name: str, schema: str, value: str) ->
     ):
         val = payload.get(field)
         if val:
-            xData[field] = val
+            x_data[field] = val
 
-    sql_object = {"tableName": "client", "xData": xData}
+    sql_object = {"tableName": "client", "xData": x_data}
     record_id = await exec_sql_object(None, "public", sql_object)
     logger.info("Client '%s' created with id=%s", name, record_id)
 
@@ -397,7 +406,7 @@ async def resolve_create_client_helper(db_name: str, schema: str, value: str) ->
                 body=AppMessages.EMAIL_CLIENT_WELCOME_BODY.format(code=code, name=name),
             )
             email_sent = True
-        except Exception as mail_err:
+        except Exception as mail_err:  # pylint: disable=broad-except
             logger.warning("Failed to send welcome email to %s: %s", email, mail_err)
 
     await audit_logger.log(
@@ -418,6 +427,7 @@ async def resolve_create_service_db_helper(
 
     Value payload (URL-encoded JSON): { client_id, new_db_name }
     """
+    # pylint: disable=unused-argument
     payload = _decode_value(value, "createServiceDb")
 
     client_id = payload.get("client_id")
@@ -496,6 +506,7 @@ async def resolve_feed_bu_seed_data_helper(
 
     Value payload (URL-encoded JSON): { code }
     """
+    # pylint: disable=unused-argument
     payload = _decode_value(value, "feedBuSeedData")
 
     code: str = (payload.get("code") or "").lower().strip()
@@ -556,6 +567,7 @@ async def resolve_delete_bu_schema_helper(
     - code: schema name (lowercase, 3–9 chars, alphanumeric + underscore)
     - delete_bu_row: if true, also DELETE FROM security.bu WHERE LOWER(code) = code
     """
+    # pylint: disable=unused-argument
     payload = _decode_value(value, "deleteBuSchema")
 
     code: str = (payload.get("code") or "").lower().strip()
@@ -612,6 +624,7 @@ async def resolve_delete_client_helper(db_name: str, schema: str, value: str) ->
 
     Value payload (URL-encoded JSON): { client_id }
     """
+    # pylint: disable=unused-argument
     payload = _decode_value(value, "deleteClient")
 
     client_id = payload.get("client_id")
@@ -674,6 +687,7 @@ async def resolve_drop_database_helper(db_name: str, schema: str, value: str) ->
 
     Value payload (URL-encoded JSON): { db_name }
     """
+    # pylint: disable=unused-argument
     payload = _decode_value(value, "dropDatabase")
 
     target_db = payload.get("db_name", "")
@@ -789,7 +803,7 @@ async def resolve_mail_business_user_credentials_helper(
             ),
         )
         email_sent = True
-    except Exception as mail_err:
+    except Exception as mail_err:  # pylint: disable=broad-except
         email_error = str(mail_err)
         logger.warning(
             "Failed to send reset link email to %s: %s", user["email"], mail_err
@@ -818,7 +832,7 @@ async def resolve_generic_update_helper(
             extensions={"field": "value"},
         )
 
-    db_name_arg = db_name if db_name else None
+    db_name_arg: str = db_name or ""
     logger.debug("Updating database entry in: %s", db_name_arg or "client_db")
 
     value_string = unquote(value)
@@ -829,7 +843,7 @@ async def resolve_generic_update_helper(
         raise ValidationException(
             message=AppMessages.INVALID_INPUT,
             extensions={"detail": AppMessages.INVALID_JSON_VALUE},
-        )
+        ) from e
     if not isinstance(sql_object, dict):
         raise ValidationException(
             message=AppMessages.INVALID_INPUT,
@@ -869,12 +883,12 @@ async def resolve_create_sales_invoice_helper(
         raise ValidationException(
             message=AppMessages.INVALID_INPUT,
             extensions={"detail": AppMessages.INVALID_JSON_OBJECT},
-        )
+        ) from e
 
     doc_sequence_id = payload.pop("doc_sequence_id", None)
     doc_sequence_next = payload.pop("doc_sequence_next", None)
 
-    db_name_arg = db_name if db_name else None
+    db_name_arg: str = db_name or ""
     schema_name = schema or "public"
 
     record_id = await exec_sql_object(db_name_arg, schema_name, payload)
@@ -901,6 +915,7 @@ async def resolve_create_job_invoice_helper(
     The client sends all invoice data (including lines) plus branch_id and division_id.
     The server claims the next SERVICE_INVOICE sequence number and inserts everything atomically.
     """
+    # pylint: disable=too-many-locals
     payload = _decode_value(value, "createJobInvoice")
     x_data = payload.get("xData", {})
 
@@ -924,7 +939,7 @@ async def resolve_create_job_invoice_helper(
             extensions={"field": "xDetails"},
         )
 
-    db_name_arg = db_name if db_name else None
+    db_name_arg: str = db_name or ""
     schema_name = schema or "public"
 
     async with get_service_db_connection(db_name_arg) as conn:
@@ -943,7 +958,9 @@ async def resolve_create_job_invoice_helper(
             if not seq:
                 raise ValidationException(
                     message=AppMessages.RESOURCE_NOT_FOUND,
-                    extensions={"detail": "SERVICE_INVOICE sequence not configured for this division"},
+                    extensions={
+                        "detail": "SERVICE_INVOICE sequence not configured for this division"
+                    },
                 )
 
             # 2. Format invoice number
@@ -964,6 +981,8 @@ async def resolve_create_job_invoice_helper(
 async def resolve_create_job_payment_helper(
     db_name: str, schema: str = "public", value: str = ""
 ) -> Any:
+    """Record a payment against a job and update its status."""
+    # pylint: disable=too-many-locals
     payload = _decode_value(value, "createJobPayment")
     x_data = payload.get("xData", {})
     branch_id = x_data.pop("branch_id", None)
@@ -975,7 +994,7 @@ async def resolve_create_job_payment_helper(
             extensions={"field": "branch_id/job_id"},
         )
 
-    db_name_arg = db_name if db_name else None
+    db_name_arg: str = db_name or ""
     schema_name = schema or "public"
 
     async with get_service_db_connection(db_name_arg) as conn:
@@ -991,7 +1010,9 @@ async def resolve_create_job_payment_helper(
             if not seq:
                 raise ValidationException(
                     message=AppMessages.RESOURCE_NOT_FOUND,
-                    extensions={"detail": "MONEY_RECEIPT sequence not configured for this division"},
+                    extensions={
+                        "detail": "MONEY_RECEIPT sequence not configured for this division"
+                    },
                 )
             receipt_no = (
                 f"{seq['prefix'] or ''}"
@@ -1012,6 +1033,7 @@ async def resolve_regenerate_job_invoice_helper(
     Regenerate a job invoice atomically: delete existing lines, update header amounts
     (preserving invoice_no and id), then insert new lines — all in one transaction.
     """
+    # pylint: disable=too-many-locals
     payload     = _decode_value(value, "regenerateJobInvoice")
     x_data      = payload.get("xData", {})
     invoice_id  = x_data["invoice_id"]
@@ -1028,7 +1050,7 @@ async def resolve_regenerate_job_invoice_helper(
             extensions={"field": "lines"},
         )
 
-    db_name_arg = db_name if db_name else None
+    db_name_arg: str = db_name or ""
     schema_name = schema or "public"
 
     async with get_service_db_connection(db_name_arg) as conn:
@@ -1072,7 +1094,7 @@ async def resolve_create_single_job_helper(
         raise ValidationException(
             message=AppMessages.INVALID_INPUT,
             extensions={"detail": AppMessages.INVALID_JSON_OBJECT},
-        )
+        ) from e
 
     x_data = payload.get("xData", {})
     x_data.pop("performed_by_user_id", None)
@@ -1084,7 +1106,7 @@ async def resolve_create_single_job_helper(
             extensions={"field": "branch_id"},
         )
 
-    db_name_arg = db_name if db_name else None
+    db_name_arg: str = db_name or ""
     schema_name = schema or "public"
 
     async with get_service_db_connection(db_name_arg) as conn:
@@ -1107,7 +1129,10 @@ async def resolve_create_single_job_helper(
                 )
 
             # 2. Format job number
-            job_no = f"{seq['prefix'] or ''}{seq['separator'] or ''}{str(seq['assigned_number']).zfill(seq['padding'])}"
+            job_no = (
+                f"{seq['prefix'] or ''}{seq['separator'] or ''}"
+                f"{str(seq['assigned_number']).zfill(seq['padding'])}"
+            )
             x_data["job_no"] = job_no
 
             # 3. Insert the job
@@ -1120,6 +1145,8 @@ async def resolve_create_single_job_helper(
 async def resolve_update_job_helper(
     db_name: str, schema: str = "public", value: str = ""
 ) -> Any:
+    """Update fields on an existing job record."""
+    # pylint: disable=too-many-locals
     payload = _decode_value(value, "updateJob")
 
     job_id = payload.pop("job_id")
@@ -1139,7 +1166,7 @@ async def resolve_update_job_helper(
     technician_id = x_data.get("technician_id")
     amount = x_data.get("amount")
 
-    db_name_arg = db_name if db_name else None
+    db_name_arg: str = db_name or ""
     schema_name = schema or "public"
 
     txn_data: dict = {
@@ -1210,11 +1237,13 @@ _STATUS_FLAGS: dict[int, dict[str, bool]] = {
 async def resolve_undo_job_transaction_helper(
     db_name: str, schema: str = "public", value: str = ""
 ) -> Any:
+    """Undo the last transaction on a job and restore its previous state."""
+    # pylint: disable=too-many-locals
     payload     = _decode_value(value, "undoJobTransaction")
     job_id      = payload["job_id"]
     last_txn_id = payload["last_transaction_id"]
 
-    db_name_arg = db_name if db_name else None
+    db_name_arg: str = db_name or ""
     schema_name = schema or "public"
 
     async with get_service_db_connection(db_name_arg) as conn:
@@ -1253,7 +1282,9 @@ async def resolve_undo_job_transaction_helper(
                 if not prev_rows:
                     raise ValidationException("Previous transaction not found.")
                 prev  = prev_rows[0]
-                flags = _STATUS_FLAGS.get(prev["status_id"], {"is_final": False, "is_closed": False})
+                flags = _STATUS_FLAGS.get(
+                    prev["status_id"], {"is_final": False, "is_closed": False}
+                )
             else:
                 # No earlier real transaction — restore to the job's implicit initial Received state
                 prev  = {"status_id": 1, "technician_id": None, "amount": 0, "estimate_amount": 0}
@@ -1273,7 +1304,8 @@ async def resolve_undo_job_transaction_helper(
                     "job_status_id":       prev["status_id"],
                     "technician_id":       prev["technician_id"],
                     "amount":              prev["amount"],
-                    "estimate_amount":     prev.get("estimate_amount"),  # None → COALESCE keeps existing
+                    # None → COALESCE keeps existing
+                    "estimate_amount":     prev.get("estimate_amount"),
                     "is_final":            flags["is_final"],
                     "is_closed":           flags["is_closed"],
                     "last_transaction_id": prev_txn_id,
@@ -1287,6 +1319,8 @@ async def resolve_undo_job_transaction_helper(
 async def resolve_deliver_job_helper(
     db_name: str, schema: str = "public", value: str = ""
 ) -> Any:
+    """Mark a job as delivered and record the delivery transaction."""
+    # pylint: disable=too-many-locals
     payload = _decode_value(value, "deliverJob")
 
     job_id = payload.pop("job_id")
@@ -1298,7 +1332,7 @@ async def resolve_deliver_job_helper(
     remarks = payload.pop("remarks", "")
     payment = payload.pop("payment", {})
 
-    db_name_arg = db_name if db_name else None
+    db_name_arg: str = db_name or ""
     schema_name = schema or "public"
 
     # 1. Insert job_payment if amount > 0
@@ -1369,6 +1403,8 @@ async def resolve_deliver_job_helper(
 async def resolve_create_job_batch_helper(
     db_name: str, schema: str = "public", value: str = ""
 ) -> Any:
+    """Create a batch of jobs from shared data and per-job overrides."""
+    # pylint: disable=too-many-locals
     payload = _decode_value(value, "createJobBatch")
     shared = payload.get("sharedData", {})
     jobs = payload.get("jobs", [])
@@ -1387,7 +1423,7 @@ async def resolve_create_job_batch_helper(
             extensions={"field": "branch_id"},
         )
 
-    db_name_arg = db_name if db_name else None
+    db_name_arg: str = db_name or ""
     schema_name = schema or "public"
 
     async with get_service_db_connection(db_name_arg) as conn:
@@ -1409,7 +1445,10 @@ async def resolve_create_job_batch_helper(
                         message=AppMessages.RESOURCE_NOT_FOUND,
                         extensions={"detail": "Job sequence not configured for this branch"},
                     )
-                job_no = f"{seq['prefix'] or ''}{seq['separator'] or ''}{str(seq['assigned_number']).zfill(seq['padding'])}"
+                job_no = (
+                    f"{seq['prefix'] or ''}{seq['separator'] or ''}"
+                    f"{str(seq['assigned_number']).zfill(seq['padding'])}"
+                )
 
                 job_data = {
                     "branch_id": branch_id,
@@ -1451,6 +1490,8 @@ async def resolve_create_job_batch_helper(
 async def resolve_update_job_batch_helper(
     db_name: str, schema: str = "public", value: str = ""
 ) -> Any:
+    """Update header and line items for an existing job batch."""
+    # pylint: disable=too-many-locals
     payload = _decode_value(value, "updateJobBatch")
     batch_no = payload.get("batch_no")
     shared = payload.get("sharedData", {})
@@ -1459,7 +1500,7 @@ async def resolve_update_job_batch_helper(
     deleted_ids = payload.get("deletedJobIds", [])
     performed_by = shared.get("performed_by_user_id")
 
-    db_name_arg = db_name if db_name else None
+    db_name_arg: str = db_name or ""
     schema_name = schema or "public"
 
     async with get_service_db_connection(db_name_arg) as conn:
@@ -1535,7 +1576,10 @@ async def resolve_update_job_batch_helper(
                             message="Job sequence not configured for this branch",
                             extensions={"detail": "No document_sequence row found for JOB_SHEET"},
                         )
-                    job_no = f"{seq['prefix'] or ''}{seq['separator'] or ''}{str(seq['assigned_number']).zfill(seq['padding'])}"
+                    job_no = (
+                        f"{seq['prefix'] or ''}{seq['separator'] or ''}"
+                        f"{str(seq['assigned_number']).zfill(seq['padding'])}"
+                    )
 
                     await cur.execute(
                         "INSERT INTO job"
@@ -1577,10 +1621,11 @@ async def resolve_update_job_batch_helper(
 async def resolve_delete_job_batch_helper(
     db_name: str, schema: str = "public", value: str = ""
 ) -> Any:
+    """Delete a job batch and its associated job records."""
     payload = _decode_value(value, "deleteJobBatch")
     batch_no = payload.get("batch_no")
 
-    db_name_arg = db_name if db_name else None
+    db_name_arg: str = db_name or ""
     schema_name = schema or "public"
 
     async with get_service_db_connection(db_name_arg) as conn:
@@ -1649,7 +1694,7 @@ async def resolve_generic_update_script_helper(
         )
 
     sql_args = payload.get("sql_args") or {}
-    db_name_arg = db_name if db_name else None
+    db_name_arg: str = db_name or ""
 
     logger.debug("Executing script '%s' on: %s", sql_id, db_name_arg or "client_db")
     result = await exec_sql(db_name_arg, schema or "public", sql, sql_args)
@@ -1714,7 +1759,7 @@ async def resolve_import_spare_parts_helper(
             extensions={"detail": "Expected a list of part records"},
         )
 
-    db_name_arg = db_name if db_name else None
+    db_name_arg: str = db_name or ""
     logger.info(
         "Bulk importing %d spare parts into: %s",
         len(payload),
@@ -1791,7 +1836,7 @@ async def resolve_mail_admin_credentials_helper(
             ),
         )
         email_sent = True
-    except Exception as mail_err:
+    except Exception as mail_err:  # pylint: disable=broad-except
         email_error = str(mail_err)
         logger.warning(
             "Failed to send reset link email to %s: %s", user["email"], mail_err
@@ -1871,3 +1916,253 @@ async def resolve_set_user_bu_role_helper(
         resource_type="business_user",
     )
     return {"user_id": user_id}
+
+
+async def _get_trace_plus_token() -> str:
+    """Authenticate with trace-plus-server and return a Bearer access token."""
+    async with httpx.AsyncClient() as client:
+        resp = await client.post(
+            f"{settings.trace_plus_url}/api/login",
+            data={
+                "username": settings.trace_plus_super_admin_uid,
+                "password": settings.trace_plus_super_admin_password,
+            },
+            timeout=10.0,
+        )
+        resp.raise_for_status()
+        body = resp.json()
+        return body.get("accessToken", "")
+
+
+async def resolve_accounts_posting_helper(
+    db_name: str, schema: str = "public", value: str = ""
+) -> dict:
+    """Fetch one unposted money receipt and purchase invoice and post both to trace-plus."""
+    # pylint: disable=too-many-locals
+    payload = _decode_value(value, "accountsPosting")
+    division_code = payload.get("divisionCode", "").strip()
+
+    if not division_code:
+        raise ValidationException(
+            message=AppMessages.REQUIRED_FIELD_MISSING,
+            extensions={"field": "divisionCode"},
+        )
+
+    # 1. Get division account_setting
+    rows = await exec_sql(
+        db_name=db_name, schema=schema,
+        sql=SqlStore.GET_DIVISION_ACCOUNT_SETTING_BY_CODE,
+        sql_args={"code": division_code},
+    )
+    if not rows:
+        raise ValidationException(
+            message=AppMessages.RESOURCE_NOT_FOUND,
+            extensions={"detail": f"Division '{division_code}' not found"},
+        )
+    account_setting   = rows[0].get("account_setting") or {}
+    client_code       = account_setting.get("clientCode", "")
+    bu_code           = account_setting.get("buCode", "")
+    branch_id         = account_setting.get("branchId")
+    debit_account_id  = account_setting.get("receipt", {}).get("debitAccountId")
+    credit_account_id = account_setting.get("receipt", {}).get("creditAccountId")
+
+    pi_settings      = account_setting.get("purchaseInvoice", {})
+    pi_debit_acc_id  = pi_settings.get("debitAccountId")
+    pi_credit_acc_id = pi_settings.get("creditAccountId")
+    pi_product_id    = pi_settings.get("productId")
+    pi_default_hsn   = pi_settings.get("defaultProductHsn")
+    pi_default_gst   = pi_settings.get("defaultGstRate")
+
+    if not client_code or \
+       not bu_code or not branch_id or not debit_account_id or not credit_account_id:
+        raise ValidationException(
+            message=AppMessages.INVALID_INPUT,
+            extensions={"detail": "Division account_setting is incomplete"},
+        )
+
+    # 2. Fetch 1 unposted money receipt
+    receipts = await exec_sql(
+        db_name=db_name, schema=schema,
+        sql=SqlStore.GET_ONE_UNPOSTED_MONEY_RECEIPT,
+        sql_args={"division_code": division_code},
+    )
+    if not receipts:
+        return {"message": "No unposted money receipts found."}
+    row = _serialize_row(receipts[0])
+
+    # 3. Fetch 1 unposted purchase invoice
+    pi_rows = await exec_sql(
+        db_name=db_name, schema=schema,
+        sql=SqlStore.GET_ONE_UNPOSTED_PURCHASE_INVOICE,
+        sql_args={"division_code": division_code},
+    )
+
+    # 4. Build money receipt TranD lines
+    detail_entry_c: dict = {"accId": int(debit_account_id),  "dc": "D", "amount": row["amount"]}
+    detail_entry_d: dict = {"accId": int(credit_account_id), "dc": "C", "amount": row["amount"]}
+    for entry in (detail_entry_c, detail_entry_d):
+        if row.get("remarks"):
+            entry["remarks"]   = row["remarks"]
+        entry["lineRefNo"] = "Service+ Posting"
+        if row.get("reference_no"):
+            entry["instrNo"]   = row["reference_no"]
+
+    fin_year = int(str(row.get("payment_date", str(date.today())))[:4])
+
+    # 5. Build money receipt TranH
+    x_data: dict = {
+        "tranDate":   row["payment_date"],
+        "tranTypeId": 3,
+        "finYearId":  fin_year,
+        "branchId":   branch_id,
+        "posId":      1,
+        "xDetails": [{
+            "tableName": "TranD",
+            "fkeyName":  "tranHeaderId",
+            "xData":     [detail_entry_c, detail_entry_d],
+        }],
+    }
+    if row.get("receipt_no"):
+        x_data["userRefNo"] = row["receipt_no"]
+    remarks_parts = [p for p in [
+        f"JOB:{row['job_no']}" if row.get("job_no") else None,
+        row.get("customer_name"),
+        f"Mobile:{row['customer_mobile']}" if row.get("customer_mobile") else None,
+        f"GSTIN:{row['customer_gstin']}" if row.get("customer_gstin") else None,
+        f"Address:{row['customer_address']}" if row.get("customer_address") else None,
+        f"PIN:{row['customer_pin']}" if row.get("customer_pin") else None,
+    ] if p]
+    if remarks_parts:
+        x_data["remarks"] = ", ".join(remarks_parts)
+
+    # 6. Build purchase invoice TranH (if available and settings present)
+    pi_x_data = None
+    if pi_rows and pi_debit_acc_id and pi_credit_acc_id and pi_product_id:
+        pi_row   = _serialize_row(pi_rows[0])
+        pi_lines = pi_row.get("lines") or []
+
+        sale_purchase_lines = []
+        for line in pi_lines:
+            spd: dict = {
+                "productId": int(pi_product_id),
+                "qty":       float(line["qty"]),
+                "price":     float(line["unit_price"]),
+                "priceGst":  (float(line["total_amount"]) / float(line["qty"])
+                              if line.get("qty") else 0),
+                "amount":    float(line["total_amount"]),
+                "hsn":       (line.get("hsn_code")
+                              or (str(pi_default_hsn) if pi_default_hsn else "")),
+                "gstRate":   (float(line["gst_rate"]) if line.get("gst_rate")
+                              else (float(pi_default_gst) if pi_default_gst else 0)),
+            }
+            if line.get("part_code"):
+                spd["jData"] = json.dumps({"remarks": f"Part Code:{line['part_code']}"})
+            for out_key, db_key in [
+                ("cgst", "cgst_amount"),
+                ("sgst", "sgst_amount"),
+                ("igst", "igst_amount"),
+            ]:
+                if line.get(db_key) is not None:
+                    spd[out_key] = float(line[db_key])
+            sale_purchase_lines.append(spd)
+
+        ext_gst: dict = {"isInput": True}
+        if pi_row.get("supplier_gstin"):
+            ext_gst["gstin"] = pi_row["supplier_gstin"]
+        for out_key, db_key in [
+            ("cgst", "cgst_amount"),
+            ("sgst", "sgst_amount"),
+            ("igst", "igst_amount"),
+        ]:
+            if pi_row.get(db_key) is not None:
+                ext_gst[out_key] = float(pi_row[db_key])
+
+        debit_pi: dict = {
+            "accId":  int(pi_debit_acc_id),
+            "dc":     "D",
+            "amount": float(pi_row["total_amount"]),
+            "xDetails": [
+                {"tableName": "ExtGstTranD",
+                 "fkeyName":  "tranDetailsId",
+                 "xData":     ext_gst},
+                {"tableName": "SalePurchaseDetails",
+                 "fkeyName":  "tranDetailsId",
+                 "xData":     sale_purchase_lines},
+            ],
+        }
+        credit_pi: dict = {
+            "accId":  int(pi_credit_acc_id),
+            "dc":     "C",
+            "amount": float(pi_row["total_amount"]),
+        }
+
+        pi_fin_year = int(str(pi_row.get("invoice_date", str(date.today())))[:4])
+        pi_x_data = {
+            "tranDate":   pi_row["invoice_date"],
+            "tranTypeId": 5,
+            "finYearId":  pi_fin_year,
+            "branchId":   branch_id,
+            "posId":      1,
+            "xDetails": [{
+                "tableName": "TranD",
+                "fkeyName":  "tranHeaderId",
+                "xData":     [debit_pi, credit_pi],
+            }],
+        }
+        if pi_row.get("invoice_no"):
+            pi_x_data["userRefNo"] = pi_row["invoice_no"]
+        vendor_address_parts = [p for p in [
+            pi_row.get("supplier_address_line1"),
+            pi_row.get("supplier_address_line2"),
+            pi_row.get("supplier_city"),
+            pi_row.get("supplier_state"),
+            f"PIN:{pi_row['supplier_pincode']}" if pi_row.get("supplier_pincode") else None,
+        ] if p]
+        if vendor_address_parts:
+            pi_x_data["remarks"] = ", ".join(vendor_address_parts)
+
+    # 7. Combine into list payload
+    x_data_list = [x_data]
+    if pi_x_data:
+        x_data_list.append(pi_x_data)
+
+    tran_h_payload = {
+        "tableName": "TranH",
+        "dbParams":  {"conn": ""},
+        "xData":     x_data_list,
+        "buCode":    bu_code,
+    }
+
+    # 5. Authenticate with trace-plus-server
+    token = await _get_trace_plus_token()
+
+    # 6. Call trace-plus-server accountsPosting mutation
+    trace_value = quote(json.dumps({
+        "clientCode": client_code,
+        "buCode":     bu_code,
+        "data":       tran_h_payload,
+    }))
+    gql_body = {
+        "query": "mutation AccountsPosting($value: Generic) { accountsPosting(value: $value) }",
+        "variables": {"value": trace_value},
+    }
+    async with httpx.AsyncClient() as http_client:
+        resp = await http_client.post(
+            f"{settings.trace_plus_url}/graphql/",
+            json=gql_body,
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=30.0,
+        )
+        resp.raise_for_status()
+        result = resp.json()
+
+    if result.get("errors"):
+        raise RuntimeError(str(result["errors"]))
+
+    posting_result = result.get("data", {}).get("accountsPosting", {})
+    if isinstance(posting_result, dict) and posting_result.get("error"):
+        detail = posting_result["error"].get("content", {}).get(
+            "detail", "Trace-plus posting failed"
+        )
+        raise RuntimeError(detail)
+    return posting_result
