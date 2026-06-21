@@ -288,19 +288,21 @@ export const DeliverJobSection = () => {
         if (!undoPendingRow || !dbName || !schema) return;
         setUndoSubmitting(true);
         try {
+            // Undeliver: removes the delivery transaction(s) and restores the job's
+            // pre-delivery status, flags (incl. is_closed) and last_transaction_id.
             await apolloClient.mutate({
-                mutation: GRAPHQL_MAP.genericUpdate,
+                mutation: GRAPHQL_MAP.undeliverJob,
                 variables: {
                     db_name: dbName, schema,
-                    value: encodeObj({ tableName: "job", xData: { id: undoPendingRow.id, is_closed: false } }),
+                    value: encodeObj({ job_id: undoPendingRow.id }),
                 },
             });
-            toast.success(`Delivery undone — Job #${undoPendingRow.job_no} marked as not delivered.`);
+            toast.success(`Delivery undone — Job #${undoPendingRow.job_no} restored to its previous status.`);
             setUndoPendingRow(null);
             if (branchId) void loadData(branchId, searchQ, page);
             void loadDeliveredData();
         } catch (err) {
-            const msg = (err as { errors?: { message: string }[] })?.errors?.[0]?.message
+            const msg = (err as { graphQLErrors?: { message: string }[] })?.graphQLErrors?.[0]?.message
                 ?? "Failed to undo delivery. Please try again.";
             toast.error(msg);
         } finally {

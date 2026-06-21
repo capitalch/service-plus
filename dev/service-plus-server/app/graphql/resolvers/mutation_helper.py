@@ -28,6 +28,7 @@ from app.db.psycopg_driver import (
 from app.db.sql_store import SqlStore
 from app.db.sql_bu import SqlBu
 from app.exceptions import AppMessages, ValidationException
+from app.graphql.pubsub import pubsub
 from app.logger import logger
 
 
@@ -1316,6 +1317,64 @@ async def resolve_undo_job_transaction_helper(
     return {"job_id": job_id, "restored_transaction_id": prev_txn_id}
 
 
+async def resolve_undeliver_job_helper(
+    db_name: str, schema: str = "public", value: str = ""
+) -> Any:
+    """Undeliver a job: restore the status it had before delivery and reopen it.
+
+    Reverts the job to its most recent non-delivered transaction (skipping any
+    delivery transactions, so stacked re-deliveries are handled), deletes the
+    delivery transaction(s), clears the delivery date and the is_closed flag.
+    """
+    payload = _decode_value(value, "undeliverJob")
+    job_id  = payload["job_id"]
+
+    db_name_arg: str = db_name or ""
+    schema_name = schema or "public"
+
+    async with get_service_db_connection(db_name_arg) as conn:
+        async with conn.cursor(row_factory=dict_row) as cur:
+            await cur.execute(
+                pgsql.SQL("SET search_path TO {}").format(pgsql.Identifier(schema_name))
+            )
+
+            # 1. Find the state the job was in just before it was delivered
+            await cur.execute(
+                SqlStore.GET_LAST_NON_DELIVERED_TRANSACTION, {"job_id": job_id}
+            )
+            rows = await cur.fetchall()
+            if rows:
+                prev          = rows[0]
+                target_txn_id = prev["id"]
+                status_id     = prev["status_id"]
+                technician_id = prev["technician_id"]
+                amount        = prev["amount"]
+            else:
+                # No earlier non-delivered transaction — fall back to Received
+                target_txn_id = None
+                status_id     = 1
+                technician_id = None
+                amount        = None
+            flags = _STATUS_FLAGS.get(status_id, {"is_final": False, "is_closed": False})
+
+            # 2. Remove the delivery transaction(s), then restore the job (atomic)
+            await cur.execute(SqlStore.DELETE_DELIVERY_TRANSACTIONS, {"job_id": job_id})
+            await cur.execute(
+                SqlStore.UNDELIVER_JOB,
+                {
+                    "job_id":              job_id,
+                    "job_status_id":       status_id,
+                    "technician_id":       technician_id,
+                    "amount":              amount,
+                    "is_final":            flags["is_final"],
+                    "last_transaction_id": target_txn_id,
+                },
+            )
+            logger.info("Job %s undelivered, restored to status %s", job_id, status_id)
+
+    return {"job_id": job_id, "restored_status_id": status_id}
+
+
 async def resolve_deliver_job_helper(
     db_name: str, schema: str = "public", value: str = ""
 ) -> Any:
@@ -1934,70 +1993,10 @@ async def _get_trace_plus_token() -> str:
         return body.get("accessToken", "")
 
 
-async def resolve_accounts_posting_helper(
-    db_name: str, schema: str = "public", value: str = ""
+def _build_money_receipt_tran_h(
+    row: dict, debit_account_id: Any, credit_account_id: Any, branch_id: Any
 ) -> dict:
-    """Fetch one unposted money receipt and purchase invoice and post both to trace-plus."""
-    # pylint: disable=too-many-locals
-    payload = _decode_value(value, "accountsPosting")
-    division_code = payload.get("divisionCode", "").strip()
-
-    if not division_code:
-        raise ValidationException(
-            message=AppMessages.REQUIRED_FIELD_MISSING,
-            extensions={"field": "divisionCode"},
-        )
-
-    # 1. Get division account_setting
-    rows = await exec_sql(
-        db_name=db_name, schema=schema,
-        sql=SqlStore.GET_DIVISION_ACCOUNT_SETTING_BY_CODE,
-        sql_args={"code": division_code},
-    )
-    if not rows:
-        raise ValidationException(
-            message=AppMessages.RESOURCE_NOT_FOUND,
-            extensions={"detail": f"Division '{division_code}' not found"},
-        )
-    account_setting   = rows[0].get("account_setting") or {}
-    client_code       = account_setting.get("clientCode", "")
-    bu_code           = account_setting.get("buCode", "")
-    branch_id         = account_setting.get("branchId")
-    debit_account_id  = account_setting.get("receipt", {}).get("debitAccountId")
-    credit_account_id = account_setting.get("receipt", {}).get("creditAccountId")
-
-    pi_settings      = account_setting.get("purchaseInvoice", {})
-    pi_debit_acc_id  = pi_settings.get("debitAccountId")
-    pi_credit_acc_id = pi_settings.get("creditAccountId")
-    pi_product_id    = pi_settings.get("productId")
-    pi_default_hsn   = pi_settings.get("defaultProductHsn")
-    pi_default_gst   = pi_settings.get("defaultGstRate")
-
-    if not client_code or \
-       not bu_code or not branch_id or not debit_account_id or not credit_account_id:
-        raise ValidationException(
-            message=AppMessages.INVALID_INPUT,
-            extensions={"detail": "Division account_setting is incomplete"},
-        )
-
-    # 2. Fetch 1 unposted money receipt
-    receipts = await exec_sql(
-        db_name=db_name, schema=schema,
-        sql=SqlStore.GET_ONE_UNPOSTED_MONEY_RECEIPT,
-        sql_args={"division_code": division_code},
-    )
-    if not receipts:
-        return {"message": "No unposted money receipts found."}
-    row = _serialize_row(receipts[0])
-
-    # 3. Fetch 1 unposted purchase invoice
-    pi_rows = await exec_sql(
-        db_name=db_name, schema=schema,
-        sql=SqlStore.GET_ONE_UNPOSTED_PURCHASE_INVOICE,
-        sql_args={"division_code": division_code},
-    )
-
-    # 4. Build money receipt TranD lines
+    """Build a single money-receipt TranH voucher from a serialized job_payment row."""
     detail_entry_c: dict = {"accId": int(debit_account_id),  "dc": "D", "amount": row["amount"]}
     detail_entry_d: dict = {"accId": int(credit_account_id), "dc": "C", "amount": row["amount"]}
     for entry in (detail_entry_c, detail_entry_d):
@@ -2009,7 +2008,6 @@ async def resolve_accounts_posting_helper(
 
     fin_year = int(str(row.get("payment_date", str(date.today())))[:4])
 
-    # 5. Build money receipt TranH
     x_data: dict = {
         "tranDate":   row["payment_date"],
         "tranTypeId": 3,
@@ -2034,109 +2032,117 @@ async def resolve_accounts_posting_helper(
     ] if p]
     if remarks_parts:
         x_data["remarks"] = ", ".join(remarks_parts)
+    return x_data
 
-    # 6. Build purchase invoice TranH (if available and settings present)
-    pi_x_data = None
-    if pi_rows and pi_debit_acc_id and pi_credit_acc_id and pi_product_id:
-        pi_row   = _serialize_row(pi_rows[0])
-        pi_lines = pi_row.get("lines") or []
 
-        sale_purchase_lines = []
-        for line in pi_lines:
-            spd: dict = {
-                "productId": int(pi_product_id),
-                "qty":       float(line["qty"]),
-                "price":     float(line["unit_price"]),
-                "priceGst":  (float(line["total_amount"]) / float(line["qty"])
-                              if line.get("qty") else 0),
-                "amount":    float(line["total_amount"]),
-                "hsn":       (line.get("hsn_code")
-                              or (str(pi_default_hsn) if pi_default_hsn else "")),
-                "gstRate":   (float(line["gst_rate"]) if line.get("gst_rate")
-                              else (float(pi_default_gst) if pi_default_gst else 0)),
-            }
-            if line.get("part_code"):
-                spd["jData"] = json.dumps({"remarks": f"Part Code:{line['part_code']}"})
-            for out_key, db_key in [
-                ("cgst", "cgst_amount"),
-                ("sgst", "sgst_amount"),
-                ("igst", "igst_amount"),
-            ]:
-                if line.get(db_key) is not None:
-                    spd[out_key] = float(line[db_key])
-            sale_purchase_lines.append(spd)
+def _build_purchase_invoice_tran_h(
+    pi_row: dict,
+    pi_debit_acc_id: Any,
+    pi_credit_acc_id: Any,
+    pi_product_id: Any,
+    pi_default_hsn: Any,
+    pi_default_gst: Any,
+    branch_id: Any,
+) -> dict:
+    """Build a single purchase-invoice TranH voucher from a serialized purchase_invoice row."""
+    pi_lines = pi_row.get("lines") or []
 
-        ext_gst: dict = {"isInput": True}
-        if pi_row.get("supplier_gstin"):
-            ext_gst["gstin"] = pi_row["supplier_gstin"]
+    sale_purchase_lines = []
+    for line in pi_lines:
+        spd: dict = {
+            "productId": int(pi_product_id),
+            "qty":       float(line["qty"]),
+            "price":     float(line["unit_price"]),
+            "priceGst":  (float(line["total_amount"]) / float(line["qty"])
+                          if line.get("qty") else 0),
+            "amount":    float(line["total_amount"]),
+            "hsn":       (line.get("hsn_code")
+                          or (str(pi_default_hsn) if pi_default_hsn else "")),
+            "gstRate":   (float(line["gst_rate"]) if line.get("gst_rate")
+                          else (float(pi_default_gst) if pi_default_gst else 0)),
+        }
+        if line.get("part_code"):
+            spd["jData"] = json.dumps({"remarks": f"Part Code:{line['part_code']}"})
         for out_key, db_key in [
             ("cgst", "cgst_amount"),
             ("sgst", "sgst_amount"),
             ("igst", "igst_amount"),
         ]:
-            if pi_row.get(db_key) is not None:
-                ext_gst[out_key] = float(pi_row[db_key])
+            if line.get(db_key) is not None:
+                spd[out_key] = float(line[db_key])
+        sale_purchase_lines.append(spd)
 
-        debit_pi: dict = {
-            "accId":  int(pi_debit_acc_id),
-            "dc":     "D",
-            "amount": float(pi_row["total_amount"]),
-            "xDetails": [
-                {"tableName": "ExtGstTranD",
-                 "fkeyName":  "tranDetailsId",
-                 "xData":     ext_gst},
-                {"tableName": "SalePurchaseDetails",
-                 "fkeyName":  "tranDetailsId",
-                 "xData":     sale_purchase_lines},
-            ],
-        }
-        credit_pi: dict = {
-            "accId":  int(pi_credit_acc_id),
-            "dc":     "C",
-            "amount": float(pi_row["total_amount"]),
-        }
+    ext_gst: dict = {"isInput": True}
+    if pi_row.get("supplier_gstin"):
+        ext_gst["gstin"] = pi_row["supplier_gstin"]
+    for out_key, db_key in [
+        ("cgst", "cgst_amount"),
+        ("sgst", "sgst_amount"),
+        ("igst", "igst_amount"),
+    ]:
+        if pi_row.get(db_key) is not None:
+            ext_gst[out_key] = float(pi_row[db_key])
 
-        pi_fin_year = int(str(pi_row.get("invoice_date", str(date.today())))[:4])
-        pi_x_data = {
-            "tranDate":   pi_row["invoice_date"],
-            "tranTypeId": 5,
-            "finYearId":  pi_fin_year,
-            "branchId":   branch_id,
-            "posId":      1,
-            "xDetails": [{
-                "tableName": "TranD",
-                "fkeyName":  "tranHeaderId",
-                "xData":     [debit_pi, credit_pi],
-            }],
-        }
-        if pi_row.get("invoice_no"):
-            pi_x_data["userRefNo"] = pi_row["invoice_no"]
-        vendor_address_parts = [p for p in [
-            pi_row.get("supplier_address_line1"),
-            pi_row.get("supplier_address_line2"),
-            pi_row.get("supplier_city"),
-            pi_row.get("supplier_state"),
-            f"PIN:{pi_row['supplier_pincode']}" if pi_row.get("supplier_pincode") else None,
-        ] if p]
-        if vendor_address_parts:
-            pi_x_data["remarks"] = ", ".join(vendor_address_parts)
+    debit_pi: dict = {
+        "accId":  int(pi_debit_acc_id),
+        "dc":     "D",
+        "amount": float(pi_row["total_amount"]),
+        "xDetails": [
+            {"tableName": "ExtGstTranD",
+             "fkeyName":  "tranDetailsId",
+             "xData":     ext_gst},
+            {"tableName": "SalePurchaseDetails",
+             "fkeyName":  "tranDetailsId",
+             "xData":     sale_purchase_lines},
+        ],
+    }
+    credit_pi: dict = {
+        "accId":  int(pi_credit_acc_id),
+        "dc":     "C",
+        "amount": float(pi_row["total_amount"]),
+    }
 
-    # 7. Combine into list payload
-    x_data_list = [x_data]
-    if pi_x_data:
-        x_data_list.append(pi_x_data)
+    pi_fin_year = int(str(pi_row.get("invoice_date", str(date.today())))[:4])
+    pi_x_data: dict = {
+        "tranDate":   pi_row["invoice_date"],
+        "tranTypeId": 5,
+        "finYearId":  pi_fin_year,
+        "branchId":   branch_id,
+        "posId":      1,
+        "xDetails": [{
+            "tableName": "TranD",
+            "fkeyName":  "tranHeaderId",
+            "xData":     [debit_pi, credit_pi],
+        }],
+    }
+    if pi_row.get("invoice_no"):
+        pi_x_data["userRefNo"] = pi_row["invoice_no"]
+    vendor_address_parts = [p for p in [
+        pi_row.get("supplier_address_line1"),
+        pi_row.get("supplier_address_line2"),
+        pi_row.get("supplier_city"),
+        pi_row.get("supplier_state"),
+        f"PIN:{pi_row['supplier_pincode']}" if pi_row.get("supplier_pincode") else None,
+    ] if p]
+    if vendor_address_parts:
+        pi_x_data["remarks"] = ", ".join(vendor_address_parts)
+    return pi_x_data
 
+
+async def _post_tran_h_to_trace_plus(
+    http_client: httpx.AsyncClient,
+    token: str,
+    client_code: str,
+    bu_code: str,
+    tran_h: dict,
+) -> dict:
+    """Post a single TranH voucher to trace-plus and return its result (raises on failure)."""
     tran_h_payload = {
         "tableName": "TranH",
         "dbParams":  {"conn": ""},
-        "xData":     x_data_list,
+        "xData":     [tran_h],
         "buCode":    bu_code,
     }
-
-    # 5. Authenticate with trace-plus-server
-    token = await _get_trace_plus_token()
-
-    # 6. Call trace-plus-server accountsPosting mutation
     trace_value = quote(json.dumps({
         "clientCode": client_code,
         "buCode":     bu_code,
@@ -2146,15 +2152,14 @@ async def resolve_accounts_posting_helper(
         "query": "mutation AccountsPosting($value: Generic) { accountsPosting(value: $value) }",
         "variables": {"value": trace_value},
     }
-    async with httpx.AsyncClient() as http_client:
-        resp = await http_client.post(
-            f"{settings.trace_plus_url}/graphql/",
-            json=gql_body,
-            headers={"Authorization": f"Bearer {token}"},
-            timeout=30.0,
-        )
-        resp.raise_for_status()
-        result = resp.json()
+    resp = await http_client.post(
+        f"{settings.trace_plus_url}/graphql/",
+        json=gql_body,
+        headers={"Authorization": f"Bearer {token}"},
+        timeout=30.0,
+    )
+    resp.raise_for_status()
+    result = resp.json()
 
     if result.get("errors"):
         raise RuntimeError(str(result["errors"]))
@@ -2166,3 +2171,200 @@ async def resolve_accounts_posting_helper(
         )
         raise RuntimeError(detail)
     return posting_result
+
+
+async def resolve_accounts_posting_helper(
+    db_name: str, schema: str = "public", value: str = ""
+) -> dict:
+    """Post unposted money receipts and purchase invoices for every division in a branch.
+
+    The server determines the divisions to post from the branch: each division with a
+    valid account_setting and unposted data is posted separately, using its own account
+    settings. Each record is posted in its own trace-plus call and marked
+    ``is_posted = true`` only when its own post succeeds. A failing record is recorded and
+    skipped so the remaining records still post (partial success, continue on error).
+    """
+    # pylint: disable=too-many-locals,too-many-branches,too-many-statements
+    payload = _decode_value(value, "accountsPosting")
+    branch_id_arg = payload.get("branchId")
+
+    if not branch_id_arg:
+        raise ValidationException(
+            message=AppMessages.REQUIRED_FIELD_MISSING,
+            extensions={"field": "branchId"},
+        )
+
+    # 1. Get all divisions in the branch (includes account_setting)
+    divisions = await exec_sql(
+        db_name=db_name, schema=schema,
+        sql=SqlStore.GET_DIVISIONS_BY_BRANCH,
+        sql_args={"branch_id": branch_id_arg},
+    )
+
+    # 2. Build the work list: divisions with valid account settings AND unposted data.
+    #    Divisions with incomplete settings or no unposted data are skipped silently.
+    work: list[dict] = []
+    total = 0
+    for div in divisions:
+        if not div.get("is_active"):
+            continue
+        account_setting   = div.get("account_setting") or {}
+        client_code       = account_setting.get("clientCode", "")
+        bu_code           = account_setting.get("buCode", "")
+        branch_id         = account_setting.get("branchId")
+        debit_account_id  = account_setting.get("receipt", {}).get("debitAccountId")
+        credit_account_id = account_setting.get("receipt", {}).get("creditAccountId")
+        if not (client_code and bu_code and branch_id
+                and debit_account_id and credit_account_id):
+            continue
+
+        division_code = (div.get("code") or "").strip()
+        receipts = await exec_sql(
+            db_name=db_name, schema=schema,
+            sql=SqlStore.GET_UNPOSTED_MONEY_RECEIPTS,
+            sql_args={"division_code": division_code},
+        )
+        pi_rows = await exec_sql(
+            db_name=db_name, schema=schema,
+            sql=SqlStore.GET_UNPOSTED_PURCHASE_INVOICES,
+            sql_args={"division_code": division_code},
+        )
+        if not receipts and not pi_rows:
+            continue
+
+        pi_settings = account_setting.get("purchaseInvoice", {})
+        work.append({
+            "division_code":     division_code,
+            "division_name":     div.get("name") or division_code,
+            "client_code":       client_code,
+            "bu_code":           bu_code,
+            "branch_id":         branch_id,
+            "debit_account_id":  debit_account_id,
+            "credit_account_id": credit_account_id,
+            "pi_debit_acc_id":   pi_settings.get("debitAccountId"),
+            "pi_credit_acc_id":  pi_settings.get("creditAccountId"),
+            "pi_product_id":     pi_settings.get("productId"),
+            "pi_default_hsn":    pi_settings.get("defaultProductHsn"),
+            "pi_default_gst":    pi_settings.get("defaultGstRate"),
+            "receipts":          receipts,
+            "pi_rows":           pi_rows,
+        })
+        total += len(receipts) + len(pi_rows)
+
+    if not work:
+        return {"message": "No unposted records found."}
+
+    posted_money_receipts = 0
+    posted_purchase_invoices = 0
+    failed: list[dict] = []
+
+    async def publish_progress(
+        current_ref: Any = None, current_division: str = "",
+        done: bool = False, message: str = "",
+    ) -> None:
+        """Emit a progress event for live UI updates (best-effort, never fatal)."""
+        try:
+            await pubsub.publish("accounts_posting_progress", {
+                "branchId":        str(branch_id_arg),
+                "total":           total,
+                "posted":          posted_money_receipts + posted_purchase_invoices,
+                "failed":          len(failed),
+                "currentRef":      current_ref,
+                "currentDivision": current_division,
+                "done":            done,
+                "message":         message,
+            })
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error("Failed to publish accounts posting progress: %s", e)
+
+    # 3. Authenticate once and reuse a single HTTP client for the whole run
+    token = await _get_trace_plus_token()
+    async with httpx.AsyncClient() as http_client:
+        for w in work:
+            division_name = w["division_name"]
+            # 4. Post each money receipt for this division, marking it on success
+            for raw in w["receipts"]:
+                row = _serialize_row(raw)
+                try:
+                    tran_h = _build_money_receipt_tran_h(
+                        row, w["debit_account_id"], w["credit_account_id"], w["branch_id"]
+                    )
+                    await _post_tran_h_to_trace_plus(
+                        http_client, token, w["client_code"], w["bu_code"], tran_h
+                    )
+                    await exec_sql(
+                        db_name=db_name, schema=schema,
+                        sql=SqlStore.MARK_MONEY_RECEIPT_POSTED,
+                        sql_args={"id": row["id"]},
+                    )
+                    posted_money_receipts += 1
+                except Exception as e:  # pylint: disable=broad-except
+                    logger.error("Failed to post money receipt %s: %s", row.get("id"), e)
+                    failed.append({
+                        "type":  "moneyReceipt",
+                        "id":    row.get("id"),
+                        "ref":   row.get("receipt_no"),
+                        "error": str(e),
+                    })
+                await publish_progress(
+                    current_ref=row.get("receipt_no"), current_division=division_name
+                )
+
+            # 5. Post each purchase invoice (only if PI account settings are present)
+            pi_settings_ok = bool(
+                w["pi_debit_acc_id"] and w["pi_credit_acc_id"] and w["pi_product_id"]
+            )
+            for raw in w["pi_rows"]:
+                pi_row = _serialize_row(raw)
+                if not pi_settings_ok:
+                    failed.append({
+                        "type":  "purchaseInvoice",
+                        "id":    pi_row.get("id"),
+                        "ref":   pi_row.get("invoice_no"),
+                        "error": "Skipped: purchaseInvoice account settings missing",
+                    })
+                    await publish_progress(
+                        current_ref=pi_row.get("invoice_no"), current_division=division_name
+                    )
+                    continue
+                try:
+                    pi_tran_h = _build_purchase_invoice_tran_h(
+                        pi_row, w["pi_debit_acc_id"], w["pi_credit_acc_id"], w["pi_product_id"],
+                        w["pi_default_hsn"], w["pi_default_gst"], w["branch_id"],
+                    )
+                    await _post_tran_h_to_trace_plus(
+                        http_client, token, w["client_code"], w["bu_code"], pi_tran_h
+                    )
+                    await exec_sql(
+                        db_name=db_name, schema=schema,
+                        sql=SqlStore.MARK_PURCHASE_INVOICE_POSTED,
+                        sql_args={"id": pi_row["id"]},
+                    )
+                    posted_purchase_invoices += 1
+                except Exception as e:  # pylint: disable=broad-except
+                    logger.error("Failed to post purchase invoice %s: %s", pi_row.get("id"), e)
+                    failed.append({
+                        "type":  "purchaseInvoice",
+                        "id":    pi_row.get("id"),
+                        "ref":   pi_row.get("invoice_no"),
+                        "error": str(e),
+                    })
+                await publish_progress(
+                    current_ref=pi_row.get("invoice_no"), current_division=division_name
+                )
+
+    message = (
+        f"Posted {posted_money_receipts} money receipt(s) and "
+        f"{posted_purchase_invoices} purchase invoice(s) "
+        f"across {len(work)} division(s)."
+    )
+    if failed:
+        message += f" {len(failed)} record(s) failed."
+    await publish_progress(done=True, message=message)
+    return {
+        "postedMoneyReceipts":    posted_money_receipts,
+        "postedPurchaseInvoices": posted_purchase_invoices,
+        "divisionsPosted":        len(work),
+        "failed":                 failed,
+        "message":                message,
+    }

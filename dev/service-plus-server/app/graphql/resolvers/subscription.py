@@ -45,6 +45,44 @@ async def service_order_updated_generator(
         logger.info(f"Subscription to {event_name} ended (orderId: {orderId})")
 
 
+@subscription.source("accountsPostingProgress")
+async def accounts_posting_progress_generator(
+    obj: Any,
+    info: Any,
+    db_name: str,
+    branchId: str,
+) -> AsyncGenerator:
+    """
+    Subscription source for accounts-posting progress.
+
+    Yields progress events for the given branch as each unposted record across
+    its divisions is posted to trace-plus by the accountsPosting mutation.
+
+    Args:
+        db_name: Service database name (part of the operation contract; unused for filtering)
+        branchId: Branch whose posting progress to stream
+
+    Yields:
+        Progress payloads ({total, posted, failed, currentRef, currentDivision, done, ...})
+    """
+    event_name = "accounts_posting_progress"
+    try:
+        logger.info(f"New subscription to {event_name} (branchId: {branchId})")
+        async for data in pubsub.subscribe(event_name):
+            if str(data.get("branchId")) == str(branchId):
+                yield data
+    except Exception as e:
+        logger.error(f"Error in accountsPostingProgress subscription: {str(e)}")
+    finally:
+        logger.info(f"Subscription to {event_name} ended (branchId: {branchId})")
+
+
+@subscription.field("accountsPostingProgress")
+def accounts_posting_progress_resolver(data: Any, info: Any, **kwargs: Any) -> Any:
+    """Return the progress payload yielded by the generator as-is (Generic scalar)."""
+    return data
+
+
 # @subscription.field("serviceOrderUpdated")
 # async def service_order_updated_resolver(service_order: Any, info: Any) -> Any:
 #     """

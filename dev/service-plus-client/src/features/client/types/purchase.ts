@@ -40,6 +40,7 @@ export type PurchaseInvoiceType = {
     total_amount:        number;
     remarks:             string | null;
     is_return:           boolean;
+    is_posted:           boolean;
     lines?:              PurchaseLineType[];
 };
 

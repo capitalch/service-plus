@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon,
-    DollarSign, Eye, Loader2, MoreHorizontal, Pencil, Printer, RefreshCw, RotateCcw, Save, Search, Trash2, X} from "lucide-react";
+    DollarSign, Eye, Loader2, MoreHorizontal, Pencil, Printer, RefreshCw, Save, Search, Trash2, X} from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 
@@ -101,10 +101,6 @@ export const ReceiptsSection = () => {
 
     // Job view
     const [viewJobId, setViewJobId] = useState<number | null>(null);
-
-    // Unpost
-    const [unpostRow,   setUnpostRow]   = useState<JobReceiptListRowType | null>(null);
-    const [unposting,   setUnposting]   = useState(false);
 
     // Delete dialog
     const [deleteRow,  setDeleteRow]  = useState<JobReceiptListRowType | null>(null);
@@ -328,30 +324,13 @@ export const ReceiptsSection = () => {
         }
     }
 
-    async function handleUnpost() {
-        if (!unpostRow || !dbName || !schema) return;
-        setUnposting(true);
-        try {
-            await apolloClient.mutate({
-                mutation:  GRAPHQL_MAP.genericUpdate,
-                variables: {
-                    db_name: dbName,
-                    schema,
-                    value: encodeObj({ tableName: "job_payment", xData: { id: unpostRow.id, is_posted: false } }),
-                },
-            });
-            toast.success("Receipt unposted successfully.");
-            setUnpostRow(null);
-            if (branchId) void loadData(branchId, fromDate, toDate, searchQ, page);
-        } catch {
-            toast.error("Failed to unpost receipt. Please try again.");
-        } finally {
-            setUnposting(false);
-        }
-    }
 
     const totalPages   = Math.max(1, Math.ceil(total / PAGE_SIZE));
     const pageTotal    = rows.reduce((acc, r) => acc + Number(r.amount), 0);
+
+    const columns = [
+        "#", "Date", "Receipt No", "Job No", "Customer", "Mode", "Amount", "Ref No", "Actions",
+    ];
 
     return (
         <motion.div
@@ -423,7 +402,7 @@ export const ReceiptsSection = () => {
                         <table className="min-w-full border-collapse">
                             <thead>
                                 <tr>
-                                    {["#","Date","Receipt No","Job No","Customer","Mode","Amount","Ref No","Actions"].map(h => (
+                                    {columns.map(h => (
                                         <th key={h} className={thClass}>{h}</th>
                                     ))}
                                 </tr>
@@ -431,7 +410,7 @@ export const ReceiptsSection = () => {
                             <tbody>
                                 {Array.from({ length: 8 }).map((_, i) => (
                                     <tr key={i} className="animate-pulse">
-                                        {Array.from({ length: 9 }).map((__, j) => (
+                                        {Array.from({ length: columns.length }).map((__, j) => (
                                             <td key={j} className={tdClass}>
                                                 <div className="h-4 w-16 rounded bg-(--cl-border)" />
                                             </td>
@@ -470,7 +449,14 @@ export const ReceiptsSection = () => {
                                     >
                                         <td className={`${tdClass} text-(--cl-text-muted)`}>{(page - 1) * PAGE_SIZE + idx + 1}</td>
                                         <td className={tdClass}>{row.payment_date}</td>
-                                        <td className={tdClass}>{row.receipt_no || "—"}</td>
+                                        <td className={tdClass}>
+                                            <div>{row.receipt_no || "—"}</div>
+                                            {postDataToAccounts && (
+                                                <div className={`mt-0.5 text-[10px] font-semibold ${row.is_posted ? "text-emerald-600" : "text-amber-600"}`}>
+                                                    {row.is_posted ? "Posted" : "Not Posted"}
+                                                </div>
+                                            )}
+                                        </td>
                                         <td className={tdClass}>
                                             <div className="font-mono font-semibold text-(--cl-accent)">{row.job_no}</div>
                                             <div className="text-xs text-(--cl-text-muted)">{row.job_date}</div>
@@ -486,12 +472,7 @@ export const ReceiptsSection = () => {
                                             </span>
                                         </td>
                                         <td className={`${tdClass} text-right font-semibold tabular-nums`}>
-                                            <div>{formatAmount(row.amount)}</div>
-                                            {postDataToAccounts && (
-                                                <div className={`mt-0.5 text-[10px] font-semibold ${row.is_posted ? "text-emerald-600" : "text-amber-600"}`}>
-                                                    {row.is_posted ? "Posted" : "Not Posted"}
-                                                </div>
-                                            )}
+                                            {formatAmount(row.amount)}
                                         </td>
                                         <td className={`${tdClass} text-xs text-(--cl-text-muted)`}>{row.reference_no || "—"}</td>
                                         <td className={`${tdClass} sticky right-0 z-10 bg-(--cl-surface) group-hover:bg-(--cl-surface-2)`}>
@@ -524,17 +505,6 @@ export const ReceiptsSection = () => {
                                                     >
                                                         <Trash2 className="mr-2 h-3.5 w-3.5" /> Delete
                                                     </DropdownMenuItem>
-                                                    {postDataToAccounts && row.is_posted && (
-                                                        <>
-                                                            <DropdownMenuSeparator />
-                                                            <DropdownMenuItem
-                                                                className="text-amber-600 focus:text-amber-600"
-                                                                onClick={() => setUnpostRow(row)}
-                                                            >
-                                                                <RotateCcw className="mr-2 h-3.5 w-3.5" /> Unpost
-                                                            </DropdownMenuItem>
-                                                        </>
-                                                    )}
                                                 </DropdownMenuContent>
                                             </DropdownMenu>
                                         </td>
@@ -675,33 +645,6 @@ export const ReceiptsSection = () => {
                 title={pdfTitle}
                 onClose={() => { if (pdfUrl) URL.revokeObjectURL(pdfUrl); setPdfUrl(null); }}
             />
-
-            {/* Unpost Confirmation */}
-            <AlertDialog open={unpostRow !== null} onOpenChange={open => { if (!open && !unposting) setUnpostRow(null); }}>
-                <AlertDialogContent className="max-w-sm">
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>Unpost Receipt?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            You are about to unpost the receipt of{" "}
-                            <span className="font-semibold text-foreground">{unpostRow ? formatAmount(unpostRow.amount) : ""}</span>
-                            {" "}for job{" "}
-                            <span className="font-mono font-semibold text-foreground">#{unpostRow?.job_no}</span>.
-                            {" "}This will reverse the accounting entry and the receipt will need to be re-posted. Are you sure?
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel disabled={unposting} onClick={() => setUnpostRow(null)}>Cancel</AlertDialogCancel>
-                        <Button
-                            className="bg-amber-600 hover:bg-amber-700 text-white"
-                            disabled={unposting}
-                            onClick={() => void handleUnpost()}
-                        >
-                            {unposting && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}
-                            Yes, Unpost
-                        </Button>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
 
             {/* Job Details */}
             {viewJobId !== null && (

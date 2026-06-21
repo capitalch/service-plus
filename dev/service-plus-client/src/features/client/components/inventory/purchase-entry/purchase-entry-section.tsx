@@ -32,7 +32,7 @@ import { encodeObj, graphQlUtils } from "@/lib/graphql-utils";
 import { formatCurrency, currentFinancialYearRange } from "@/lib/utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
-import { selectAvailableDivisions, selectCurrentBranch, selectDefaultDivisionId, selectSchema, selectCompanyName } from "@/store/context-slice";
+import { selectAvailableDivisions, selectCurrentBranch, selectDefaultDivisionId, selectSchema, selectCompanyName, selectPostDataToAccounts } from "@/store/context-slice";
 import type { BranchType } from "@/features/client/components/masters/branch/branch";
 import type { VendorType } from "@/features/client/types/vendor";
 import type { PurchaseInvoiceType, PurchaseLineType, StockTransactionTypeRow } from "@/features/client/types/purchase";
@@ -72,6 +72,7 @@ export const PurchaseEntrySection = () => {
     const availableDivisions = useAppSelector(selectAvailableDivisions);
     const companyName        = useAppSelector(selectCompanyName) || "Service Plus";
     const defaultDivisionId  = useAppSelector(selectDefaultDivisionId);
+    const postDataToAccounts = useAppSelector(selectPostDataToAccounts);
 
     const { from: defaultFrom, to: defaultTo } = currentFinancialYearRange();
 
@@ -776,6 +777,11 @@ export const PurchaseEntrySection = () => {
                                                         <span className="ml-1.5 text-[10px] font-bold text-red-600 bg-red-100 dark:bg-red-950/40 rounded px-1 py-0.5">
                                                             RTN
                                                         </span>
+                                                    )}
+                                                    {postDataToAccounts && (
+                                                        <div className={`mt-0.5 text-[10px] font-semibold ${inv.is_posted ? "text-emerald-600" : "text-amber-600"}`}>
+                                                            {inv.is_posted ? "Posted" : "Not Posted"}
+                                                        </div>
                                                     )}
                                                 </td>
                                                 <td className={tdClass} style={{ width: "25%" }}>

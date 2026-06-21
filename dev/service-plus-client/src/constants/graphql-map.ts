@@ -179,9 +179,19 @@ export const GRAPHQL_MAP = {
             undoJobTransaction(db_name: $db_name, schema: $schema, value: $value)
         }
     `,
+    undeliverJob: gql`
+        mutation UndeliverJob($db_name: String!, $schema: String, $value: String!) {
+            undeliverJob(db_name: $db_name, schema: $schema, value: $value)
+        }
+    `,
     accountsPosting: gql`
         mutation AccountsPosting($db_name: String!, $schema: String, $value: String!) {
             accountsPosting(db_name: $db_name, schema: $schema, value: $value)
+        }
+    `,
+    accountsPostingProgress: gql`
+        subscription AccountsPostingProgress($db_name: String!, $branchId: String!) {
+            accountsPostingProgress(db_name: $db_name, branchId: $branchId)
         }
     `,
     superAdminClientsData: gql`

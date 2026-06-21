@@ -3,6 +3,8 @@
 - Bug fix / QA
 	- Connection pool closes arbitrarily in local server
 - Features
+	- When undeliver a job, its status delivered_ok does not change
+	- Remove unpost from Jobs > Receipts > Actions dropdown
 	- Job sales return
 								- mechanism to unpost a receipt, purchase invoice, sales invoice, job invoice
 								- Change spelling of divison to division all over the codebase
