@@ -1,3 +1,5 @@
+# Strategy for job cost price / sale price and job final and Parts & charges
+- 
 # Strategy for change in division
 - One branch can have many divisions. Each division can post data to specific accounts database, based on its account_setting
 - User can receive a job in any available division.
