@@ -257,6 +257,7 @@ export function FinalJobForm({
                             <Select
                                 value={selectedDivisionId ? String(selectedDivisionId) : ""}
                                 onValueChange={v => onDivisionChange(Number(v))}
+                                disabled={selectedJob.is_final}
                             >
                                 <SelectTrigger className="h-7 w-40 text-xs">
                                     <SelectValue placeholder="Select division" />

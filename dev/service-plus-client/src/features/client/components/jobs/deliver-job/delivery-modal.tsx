@@ -318,7 +318,7 @@ export function DeliveryModal({
                 const cgst_amount = Math.round(lines.reduce((s, l) => s + l.cgst_amount, 0) * 100) / 100;
                 const sgst_amount = Math.round(lines.reduce((s, l) => s + l.sgst_amount, 0) * 100) / 100;
                 const igst_amount = Math.round(lines.reduce((s, l) => s + l.igst_amount, 0) * 100) / 100;
-                const amount      = Math.round(Number(job.amount ?? 0) * 100) / 100;
+                const amount      = Math.round((aggregate + cgst_amount + sgst_amount + igst_amount) * 100) / 100;
 
                 await apolloClient.mutate({
                     mutation:  GRAPHQL_MAP.createJobInvoice,
@@ -426,7 +426,7 @@ export function DeliveryModal({
             const cgst_amount = Math.round(lines.reduce((s, l) => s + l.cgst_amount, 0) * 100) / 100;
             const sgst_amount = Math.round(lines.reduce((s, l) => s + l.sgst_amount, 0) * 100) / 100;
             const igst_amount = Math.round(lines.reduce((s, l) => s + l.igst_amount, 0) * 100) / 100;
-            const amount      = Math.round(Number(job.amount ?? 0) * 100) / 100;
+            const amount      = Math.round((aggregate + cgst_amount + sgst_amount + igst_amount) * 100) / 100;
 
             await apolloClient.mutate({
                 mutation:  GRAPHQL_MAP.regenerateJobInvoice,

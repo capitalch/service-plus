@@ -34,6 +34,7 @@ from app.graphql.resolvers.mutation_helper import (
     resolve_delete_job_batch_helper,
     resolve_deliver_job_helper,
     resolve_undo_job_transaction_helper,
+    resolve_undeliver_job_helper,
     resolve_accounts_posting_helper,
 )
 # from app.graphql.pubsub import pubsub
@@ -394,6 +395,22 @@ async def resolve_undo_job_transaction(
         raise
     except Exception as e:
         logger.error("Error undoing job transaction: %s", e, exc_info=True)
+        raise GraphQLException(
+            message=AppMessages.OPERATION_FAILED, extensions={"details": str(e)}
+        ) from e
+
+
+@mutation.field("undeliverJob")
+async def resolve_undeliver_job(
+    _, _info, db_name: str = "", schema: str = "public", value: str = ""
+) -> Any:
+    """Undeliver a job and restore its pre-delivery status."""
+    try:
+        return await resolve_undeliver_job_helper(db_name, schema, value)
+    except ValidationException:
+        raise
+    except Exception as e:
+        logger.error("Error undelivering job: %s", e, exc_info=True)
         raise GraphQLException(
             message=AppMessages.OPERATION_FAILED, extensions={"details": str(e)}
         ) from e

@@ -577,7 +577,7 @@ function drawInvoiceContent(
         { label: "Sgst:", value: invoice.sgst_amount },
         { label: "Igst:", value: invoice.igst_amount },
         { label: "Calculated amount:", value: invoice.aggregate + invoice.cgst_amount + invoice.sgst_amount + invoice.igst_amount, bold: false },
-        { label: "Invoice amount:", value: job.amount ?? 0, bold: true },
+        { label: "Invoice amount:", value: invoice.amount, bold: true },
     ];
     const rowH = 5.5;
     const boxH = sumRows.length * rowH + 6;

@@ -279,7 +279,7 @@ export function DeliveredJobsGrid({
                                                 )}
                                                 {postDataToAccounts && (
                                                     <span className={`text-[10px] font-semibold px-2 ${row.invoice_no && row.invoice_is_posted ? "text-emerald-600 dark:text-emerald-400" : "text-rose-800 dark:text-rose-400"}`}>
-                                                        {row.invoice_no && row.invoice_is_posted ? "Posted" : "Not Posted"}
+                                                        {row.invoice_no && row.invoice_is_posted ? "Invoice: Posted" : "Invoice: Not Posted"}
                                                     </span>
                                                 )}
                                             </div>

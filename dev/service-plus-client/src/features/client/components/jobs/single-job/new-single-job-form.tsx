@@ -182,6 +182,7 @@ export function NewSingleJobForm({
                                             className={`w-full h-9 rounded-md border text-sm px-2 bg-(--cl-surface-2) text-(--cl-text) ${!watch("division_id") ? "border-red-400" : "border-(--cl-border)"}`}
                                             value={watch("division_id") ?? ""}
                                             onChange={e => setValue("division_id", e.target.value ? Number(e.target.value) : (undefined as unknown as number), { shouldValidate: true })}
+                                            disabled={!!editJob?.is_final}
                                         >
                                             <option value="">Select Division…</option>
                                             {divisions.map(d => (

@@ -17,8 +17,8 @@ _APP_ENV: str = os.environ.get("APP_ENV", "development")
 
 # _POOL_MIN_SIZE: int = 2
 _POOL_MAX_SIZE: int = 10
-_POOL_MAX_IDLE: float = 300.0      # seconds before an idle connection is closed
-_POOL_MAX_LIFETIME: float = 600.0  # seconds max before a connection is recycled
+_POOL_MAX_IDLE: float = 60.0       # seconds before an idle connection is closed
+_POOL_MAX_LIFETIME: float = 300.0  # seconds max before a connection is recycled
 _POOL_RECONNECT_TIMEOUT: float = 30.0
 
 
@@ -62,6 +62,7 @@ class PoolManager:
             reconnect_timeout=_POOL_RECONNECT_TIMEOUT,
             kwargs={"autocommit": True},
             reset=_reset_conn,
+            check=AsyncConnectionPool.check_connection,
             open=False,
         )
         await self._client_pool.open(wait=True)
@@ -93,6 +94,7 @@ class PoolManager:
                         reconnect_timeout=_POOL_RECONNECT_TIMEOUT,
                         kwargs={"autocommit": True},
                         reset=_reset_conn,
+                        check=AsyncConnectionPool.check_connection,
                         open=False,
                     )
                     await pool.open(wait=True)

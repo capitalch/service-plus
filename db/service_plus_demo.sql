@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict UQTaDVLOE6rv02B1YzMhsflrecIjQIjj78lvE4UaZmgFsgkRUOhSE6UZNPmuJJ7
+\restrict FbJ1SyQNb1ElAMT6jJEewdh3SSjxk89cGL3NZaK0Xzh0phjaj5SqLJgrl6Ocs7g
 
 -- Dumped from database version 14.6
 -- Dumped by pg_dump version 18.4 (Ubuntu 18.4-0ubuntu0.26.04.1)
@@ -1928,6 +1928,14 @@ ALTER TABLE ONLY demo1.job_invoice
 
 
 --
+-- Name: job_invoice job_invoice_job_id_uidx; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.job_invoice
+    ADD CONSTRAINT job_invoice_job_id_uidx UNIQUE (job_id);
+
+
+--
 -- Name: job_invoice_line job_invoice_line_pkey; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
 --
 
@@ -3577,5 +3585,5 @@ ALTER TABLE ONLY security.user_bu_role
 -- PostgreSQL database dump complete
 --
 
-\unrestrict UQTaDVLOE6rv02B1YzMhsflrecIjQIjj78lvE4UaZmgFsgkRUOhSE6UZNPmuJJ7
+\unrestrict FbJ1SyQNb1ElAMT6jJEewdh3SSjxk89cGL3NZaK0Xzh0phjaj5SqLJgrl6Ocs7g
 

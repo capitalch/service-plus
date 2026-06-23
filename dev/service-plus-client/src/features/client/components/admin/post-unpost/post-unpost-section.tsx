@@ -153,7 +153,7 @@ export function PostUnpostSection() {
                 <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-(--cl-accent)/10 text-(--cl-accent)">
                     <BookCheck className="h-4 w-4" />
                 </div>
-                <h1 className="text-lg font-bold text-(--cl-text)">Post / Unpost to Accounting System</h1>
+                <h1 className="text-lg font-bold text-(--cl-text)">Post / Unpost</h1>
             </div>
 
             {/* Tab bar + stats + save */}

@@ -1,22 +1,27 @@
 # To Do 14-06-2026
 - Enhancements
 - Bug fix / QA
-	- Connection pool closes arbitrarily in local server
+								- Connection pool closes arbitrarily in local server
 - Features
 	- When undeliver a job, its status delivered_ok does not change
-	- Remove unpost from Jobs > Receipts > Actions dropdown
+								- Remove unpost from Jobs > Receipts > Actions dropdown
 	- Job sales return
 								- mechanism to unpost a receipt, purchase invoice, sales invoice, job invoice
 								- Change spelling of divison to division all over the codebase
 	- Accounts posting
-		- Trace+
-			- Create authenticated json based api to listen: dry run
-			- Define json fields and format to receive
-			- Input json successfully enters data in the target db
-		- Service+
-			- Define config for Trace+ connection
-			- Create json with available fields
-			- Execute API
+		- When divison is non-gst, still gst calculations appear. Gst calculations are meaningful for gst divisions only
+		- Device a strategy where the user can change a division. Should not be allowed everywhere especially when gst
+		- Sales Invoices
+		- Job Invoices
+		- All divisons
+							- Trace+
+								- Create authenticated json based api to listen: dry run
+								- Define json fields and format to receive
+								- Input json successfully enters data in the target db
+							- Service+
+								- Define config for Trace+ connection
+								- Create json with available fields
+								- Execute API
 			
 			
 						# Job life cycle QA

@@ -1,3 +1,11 @@
+# Strategy for change in division
+- One branch can have many divisions. Each division can post data to specific accounts database, based on its account_setting
+- User can receive a job in any available division.
+- Invoicing should be done GST or non-gst, based on account_setting of the division
+- User should be able to change division anytime before it is final and accordingly gst aspects change
+- User should not be allowed to change division once it is done final
+- GST aspects of an invoice should depend on whether division is GST or non-gst.
+- A division is gst if gstin no is there in account_setting, non-gst otherwise
 # provide a new restricted menu item
 - Create a new menu item "Admin" at top level menu
   - Add submenu item as "Post / Unpost"

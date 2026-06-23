@@ -1,6 +1,9 @@
-# Modify Accounts Posting
-- At present we are posting only one division, the division code being sent from client to server
-- We need to modify this to post all the divisions for which valid account setting exists an for which unposted data exists.
-- No need to send the division code from client to server. Server can itself determine the divisions to post as per their respective account setting.
-- The accounts posting should be done for each division separately. 
-- The clint should show the unposted counts for each division separately for money receipt and purchase invoice, sales invoices and job invoices.
+# Strategy for change in division
+- One branch can have many divisions. Each division can post data to specific accounts database, based on its account_setting
+- User can receive a job in any available division.
+- A division is gst if gstin no is there in account_setting, non-gst otherwise.
+- GST aspects of an invoice should depend on whether division is GST or non-gst.
+- Invoicing should be done GST or non-gst, based on account_setting of the division
+- User should be able to change division anytime before it is final and accordingly gst aspects change
+- User should not be allowed to change division once job is done final
+

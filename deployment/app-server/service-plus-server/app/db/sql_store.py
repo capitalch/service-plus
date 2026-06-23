@@ -2187,7 +2187,8 @@ class SqlStore:
             pi.total_tax,
             pi.total_amount,
             pi.remarks,
-            pi.is_return
+            pi.is_return,
+            pi.is_posted
         FROM purchase_invoice pi
         JOIN supplier s ON s.id = pi.supplier_id
         WHERE pi.branch_id = (table "p_branch_id")
@@ -3428,10 +3429,44 @@ class SqlStore:
         UPDATE job
         SET    job_status_id       = %(job_status_id)s,
                technician_id       = %(technician_id)s,
-               amount              = %(amount)s,
+               amount              = COALESCE(%(amount)s, amount, 0),
                estimate_amount     = COALESCE(%(estimate_amount)s, estimate_amount, 0),
                is_final            = %(is_final)s,
                is_closed           = %(is_closed)s,
+               last_transaction_id = %(last_transaction_id)s
+        WHERE  id = %(job_id)s
+    """
+
+    # ── Undeliver Job ─────────────────────────────────────────────────────────
+    # Most recent transaction whose status is NOT a delivered status — i.e. the
+    # state the job was in just before it was delivered.
+    GET_LAST_NON_DELIVERED_TRANSACTION = """
+        SELECT t.id, t.status_id, t.technician_id, t.amount
+        FROM   job_transaction t
+        JOIN   job_status js ON js.id = t.status_id
+        WHERE  t.job_id = %(job_id)s
+          AND  js.code NOT IN ('DELIVERED_OK', 'DELIVERED_NOT_OK')
+        ORDER  BY t.id DESC
+        LIMIT  1
+    """
+
+    # Remove every delivery transaction on the job (handles re-deliveries too).
+    DELETE_DELIVERY_TRANSACTIONS = """
+        DELETE FROM job_transaction t
+        USING  job_status js
+        WHERE  t.status_id = js.id
+          AND  t.job_id = %(job_id)s
+          AND  js.code IN ('DELIVERED_OK', 'DELIVERED_NOT_OK')
+    """
+
+    UNDELIVER_JOB = """
+        UPDATE job
+        SET    job_status_id       = %(job_status_id)s,
+               technician_id       = %(technician_id)s,
+               amount              = COALESCE(%(amount)s, amount, 0),
+               is_final            = %(is_final)s,
+               is_closed           = false,
+               delivery_date       = NULL,
                last_transaction_id = %(last_transaction_id)s
         WHERE  id = %(job_id)s
     """
@@ -4340,7 +4375,7 @@ class SqlStore:
         LIMIT (table "p_limit")
     """
 
-    GET_ONE_UNPOSTED_MONEY_RECEIPT = """
+    GET_UNPOSTED_MONEY_RECEIPTS = """
         WITH "p_division_code" AS (VALUES(%(division_code)s::text))
         SELECT
             jp.id,
@@ -4367,15 +4402,18 @@ class SqlStore:
         LEFT JOIN customer_contact cc ON cc.id = j.customer_contact_id
         WHERE LOWER(d.code) = LOWER((TABLE "p_division_code"))
           AND jp.is_posted = false
-        ORDER BY jp.payment_date DESC, jp.id DESC
-        LIMIT 1
+        ORDER BY jp.payment_date ASC, jp.id ASC
     """
 
-    GET_ONE_UNPOSTED_PURCHASE_INVOICE = """
+    MARK_MONEY_RECEIPT_POSTED = """
+        UPDATE job_payment SET is_posted = true WHERE id = %(id)s
+    """
+
+    GET_UNPOSTED_PURCHASE_INVOICES = """
         WITH
             "p_division_code" AS (VALUES(%(division_code)s::text)),
-            "p_branch_id" AS (
-                SELECT branch_id FROM division
+            "p_division_id" AS (
+                SELECT id FROM division
                 WHERE LOWER(code) = LOWER((TABLE "p_division_code"))
                 LIMIT 1
             )
@@ -4414,11 +4452,37 @@ class SqlStore:
         LEFT JOIN state            st  ON st.id  = s.state_id
         JOIN purchase_invoice_line pil ON pil.purchase_invoice_id = pi.id
         LEFT JOIN spare_part_master spm ON spm.id = pil.part_id
-        WHERE pi.branch_id = (TABLE "p_branch_id")
+        WHERE pi.division_id = (TABLE "p_division_id")
           AND pi.is_posted = false
         GROUP BY pi.id, s.gstin, s.address_line1, s.address_line2, s.city, st.name, s.pincode
-        ORDER BY pi.invoice_date DESC, pi.id DESC
-        LIMIT 1
+        ORDER BY pi.invoice_date ASC, pi.id ASC
+    """
+
+    MARK_PURCHASE_INVOICE_POSTED = """
+        UPDATE purchase_invoice SET is_posted = true WHERE id = %(id)s
+    """
+
+    # Per-division unposted counts for all four document types, for a branch.
+    GET_UNPOSTED_COUNTS_BY_DIVISION = """
+        with "p_branch_id" as (values(%(branch_id)s::bigint))
+        SELECT
+            d.id   AS division_id,
+            d.code AS division_code,
+            d.name AS division_name,
+            (SELECT COUNT(*) FROM job_payment jp
+                JOIN job j ON j.id = jp.job_id
+                WHERE j.division_id = d.id AND jp.is_posted = false) AS money_receipts,
+            (SELECT COUNT(*) FROM purchase_invoice pi
+                WHERE pi.division_id = d.id AND pi.is_posted = false) AS purchase_invoices,
+            (SELECT COUNT(*) FROM sales_invoice si
+                WHERE si.division_id = d.id AND si.is_posted = false) AS sales_invoices,
+            (SELECT COUNT(*) FROM job_invoice ji
+                JOIN job j ON j.id = ji.job_id
+                WHERE j.division_id = d.id AND ji.is_posted = false) AS job_invoices
+        FROM division d
+        WHERE d.branch_id = (table "p_branch_id")
+          AND d.is_active = true
+        ORDER BY d.name
     """
 
     # ── Final a Job ────────────────────────────────────────────────────
@@ -4720,7 +4784,7 @@ class SqlStore:
         SELECT j.id, j.job_no, j.alternate_job_no, j.job_date, j.delivery_date,
                j.amount, j.last_transaction_id,
                j.division_id, j.batch_no, j.serial_no,
-               TRIM(CONCAT_WS(' ', p.name, b.name, pbm.model_name, j.serial_no)) AS device_details,
+               TRIM(CONCAT_WS(' ', p.name, b.name, pbm.model_name)) AS device_details,
                cc.full_name  AS customer_name, cc.mobile,
                js.name       AS job_status_name,
                jt.name       AS job_type_name,

@@ -683,12 +683,14 @@ export const FinalAJobSection = () => {
         }
     }
 
-    // ── Change division (UI-only; DB write happens on save) ──────────────────
-    function handleDivisionChange(newDivisionId: number) {
+    // ── Change division ───────────────────────────────────────────────────────
+    async function handleDivisionChange(newDivisionId: number) {
         setSelectedDivisionId(newDivisionId);
         const newDivision = availableDivisions.find(d => d.id === newDivisionId) ?? null;
         const newIsGst = isGstDivision(newDivision);
-        setPartLines(prev => prev.map(line => {
+        const gstStatusChanged = newIsGst !== isGst;
+
+        const newPartLines = partLines.map(line => {
             if (newIsGst) {
                 const effectiveGstRate = parseFloat(line.gst_rate) > 0 ? parseFloat(line.gst_rate) : defaultGstRate;
                 const effectiveHsn = line.hsn_code.trim() || defaultHsnForSparePart;
@@ -703,8 +705,9 @@ export const FinalAJobSection = () => {
                 return { ...line, cost_price: adjustedCost.toFixed(2), selling_price: newSelling.toFixed(2), gst_rate: "0", sale_pr_gst: newSelling.toFixed(2) };
             }
             return { ...line, ...calculateLinePricing(line, {}, false) };
-        }));
-        setChargeLines(prev => prev.map(c => {
+        });
+
+        const newChargeLines = chargeLines.map(c => {
             const sp = parseFloat(c.selling_price) || 0;
             if (newIsGst) {
                 const gstRate = parseFloat(c.gst_rate) > 0 ? parseFloat(c.gst_rate) : defaultGstRate;
@@ -712,7 +715,61 @@ export const FinalAJobSection = () => {
                 return { ...c, gst_rate: String(gstRate), hsn_code, sale_pr_gst: (sp * (1 + gstRate / 100)).toFixed(2) };
             }
             return { ...c, gst_rate: "0", sale_pr_gst: sp.toFixed(2) };
-        }));
+        });
+
+        setPartLines(newPartLines);
+        setChargeLines(newChargeLines);
+
+        // When GST status changes, immediately persist the recalculated rates to the DB
+        // so that reopening the job before finalization shows correct values.
+        if (!gstStatusChanged || !selectedJob || !dbName || !schema) return;
+
+        const partsToUpdate = newPartLines.filter(p => p.id !== undefined);
+        const chargesToUpdate = newChargeLines.filter(c => c.id !== undefined);
+        if (partsToUpdate.length === 0 && chargesToUpdate.length === 0) return;
+
+        const xDetails: object[] = [];
+        if (partsToUpdate.length > 0) {
+            xDetails.push({
+                tableName: "job_part_used",
+                fkeyName: "job_id",
+                xData: partsToUpdate.map(p => ({
+                    id: p.id,
+                    gst_rate: parseFloat(p.gst_rate) || 0,
+                    hsn_code: p.hsn_code,
+                    cost_price: parseFloat(p.cost_price) || 0,
+                    selling_price: parseFloat(p.selling_price) || 0,
+                })),
+            });
+        }
+        if (chargesToUpdate.length > 0) {
+            xDetails.push({
+                tableName: "job_additional_charge",
+                fkeyName: "job_id",
+                xData: chargesToUpdate.map(c => ({
+                    id: c.id,
+                    gst_rate: parseFloat(c.gst_rate) || 0,
+                    hsn_code: c.hsn_code,
+                    selling_price: parseFloat(c.selling_price) || 0,
+                })),
+            });
+        }
+
+        try {
+            await apolloClient.mutate({
+                mutation: GRAPHQL_MAP.genericUpdate,
+                variables: {
+                    db_name: dbName,
+                    schema,
+                    value: encodeObj({
+                        tableName: "job",
+                        xData: { id: selectedJob.id, division_id: newDivisionId, to_set_updated_at: true, xDetails },
+                    }),
+                },
+            });
+        } catch {
+            toast.error("Failed to persist GST rate changes. Save the job manually to avoid stale rates.");
+        }
     }
 
     // ── Part mutations ──────────────────────────────────────────────────────

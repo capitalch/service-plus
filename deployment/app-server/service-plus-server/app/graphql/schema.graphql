@@ -38,11 +38,13 @@ type Mutation {
     deleteJobBatch(db_name: String!, schema: String, value: String!): Generic
     deliverJob(db_name: String!, schema: String, value: String!): Generic
     undoJobTransaction(db_name: String!, schema: String, value: String!): Generic
+    undeliverJob(db_name: String!, schema: String, value: String!): Generic
     accountsPosting(db_name: String!, schema: String, value: String!): Generic
 }
 
 type Subscription {
     genericSubscription(db_name: String!):Generic
+    accountsPostingProgress(db_name: String!, branchId: String!): Generic
 }
 
 scalar Generic

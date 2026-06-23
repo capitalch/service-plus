@@ -24,6 +24,7 @@ from app.db.psycopg_driver import (
     exec_sql_object,
     get_service_db_connection,
     process_data,
+    process_details,
 )
 from app.db.sql_store import SqlStore
 from app.db.sql_bu import SqlBu
@@ -949,8 +950,16 @@ async def resolve_create_job_invoice_helper(
                 pgsql.SQL("SET search_path TO {}").format(pgsql.Identifier(schema_name))
             )
 
-            # 1. Claim next invoice number atomically
+            # 1. Idempotency check — return existing invoice if already created
+            await cur.execute(
+                SqlStore.GET_JOB_INVOICE_ID_BY_JOB_FOR_UPDATE,
+                {"job_id": x_data.get("job_id")},
+            )
+            existing = await cur.fetchone()
+            if existing:
+                return existing["id"]
 
+            # 2. Claim next invoice number atomically
             await cur.execute(
                 SqlStore.CLAIM_NEXT_INVOICE_NUMBER,
                 {"branch_id": branch_id, "division_id": division_id},
@@ -964,7 +973,7 @@ async def resolve_create_job_invoice_helper(
                     },
                 )
 
-            # 2. Format invoice number
+            # 3. Format invoice number
             invoice_no = (
                 f"{seq['prefix'] or ''}"
                 f"{seq['separator'] or ''}"
@@ -972,7 +981,7 @@ async def resolve_create_job_invoice_helper(
             )
             x_data["invoice_no"] = invoice_no
 
-            # 3. Insert job_invoice + lines in the same transaction
+            # 4. Insert job_invoice + lines in the same transaction
             invoice_id = await process_data(x_data, cur, "job_invoice", None, None)
             logger.info("Job invoice created id=%s invoice_no=%s", invoice_id, invoice_no)
 
@@ -1194,11 +1203,21 @@ async def resolve_update_job_helper(
                 pgsql.SQL("SET search_path TO {}").format(pgsql.Identifier(schema_name))
             )
 
-            # 1. Update the job row
+            # 1. Guard: block division change on a finalised job
+            if "division_id" in x_data:
+                await cur.execute(SqlStore.GET_JOB_IS_FINAL, {"id": job_id})
+                job_row = await cur.fetchone()
+                if job_row and job_row["is_final"]:
+                    raise ValidationException(
+                        message="Cannot change division after job is finalized.",
+                        extensions={"field": "division_id"},
+                    )
+
+            # 2. Update the job row
             await process_data(x_data, cur, "job", None, None)
             logger.info("Job %s updated", job_id)
 
-            # 2. Insert job_transaction
+            # 3. Insert job_transaction
             new_txn_id = await process_data(txn_data, cur, "job_transaction", None, None)
             logger.debug("Job transaction inserted, id=%s", new_txn_id)
 
@@ -1357,8 +1376,9 @@ async def resolve_undeliver_job_helper(
                 amount        = None
             flags = _STATUS_FLAGS.get(status_id, {"is_final": False, "is_closed": False})
 
-            # 2. Remove the delivery transaction(s), then restore the job (atomic)
+            # 2. Remove the delivery transaction(s), delete the invoice, then restore the job (atomic)
             await cur.execute(SqlStore.DELETE_DELIVERY_TRANSACTIONS, {"job_id": job_id})
+            await cur.execute(SqlStore.DELETE_JOB_INVOICE_BY_JOB, {"job_id": job_id})
             await cur.execute(
                 SqlStore.UNDELIVER_JOB,
                 {
@@ -1370,7 +1390,7 @@ async def resolve_undeliver_job_helper(
                     "last_transaction_id": target_txn_id,
                 },
             )
-            logger.info("Job %s undelivered, restored to status %s", job_id, status_id)
+            logger.info("Job %s undelivered, invoice deleted, restored to status %s", job_id, status_id)
 
     return {"job_id": job_id, "restored_status_id": status_id}
 
@@ -1394,38 +1414,16 @@ async def resolve_deliver_job_helper(
     db_name_arg: str = db_name or ""
     schema_name = schema or "public"
 
-    # 1. Insert job_payment if amount > 0
     payment_amount = payment.get("amount", 0) or 0
-    if payment_amount > 0:
-        payment_data = {
-            "job_id": job_id,
-            "payment_date": payment.get("payment_date"),
-            "payment_mode": payment.get("payment_mode", ""),
-            "amount": payment_amount,
-            "reference_no": payment.get("reference_no", ""),
-            "remarks": payment.get("remarks", ""),
-        }
-        await exec_sql_object(
-            db_name_arg,
-            schema_name,
-            {"tableName": "job_payment", "xData": payment_data},
-        )
-        logger.info("Payment inserted for job %s, amount=%s", job_id, payment_amount)
-
-    # 2. Update job: close it and record delivery
-    job_object = {
-        "tableName": "job",
-        "xData": {
-            "id": job_id,
-            "is_closed": True,
-            "delivery_date": delivery_date,
-            "job_status_id": delivered_status_id,
-        },
+    payment_data = {
+        "job_id": job_id,
+        "payment_date": payment.get("payment_date"),
+        "payment_mode": payment.get("payment_mode", ""),
+        "amount": payment_amount,
+        "reference_no": payment.get("reference_no", ""),
+        "remarks": payment.get("remarks", ""),
     }
-    await exec_sql_object(db_name_arg, schema_name, job_object)
-    logger.info("Job %s closed, delivery_date=%s", job_id, delivery_date)
 
-    # 3. Insert job_transaction
     notes_parts = [p for p in [delivery_manner_name, remarks] if p]
     full_notes = ". ".join(notes_parts)
 
@@ -1439,22 +1437,47 @@ async def resolve_deliver_job_helper(
     if last_transaction_id is not None:
         txn_data["previous_transaction_id"] = last_transaction_id
 
-    new_txn_id = await exec_sql_object(
-        db_name_arg, schema_name, {"tableName": "job_transaction", "xData": txn_data}
-    )
-    logger.debug("Delivery transaction inserted, id=%s", new_txn_id)
+    new_txn_id: int | None = None
 
-    # 4. Update job.last_transaction_id
-    if new_txn_id:
-        await exec_sql_object(
-            db_name_arg,
-            schema_name,
-            {
-                "tableName": "job",
-                "xData": {"id": job_id, "last_transaction_id": new_txn_id},
-            },
-        )
-        logger.debug("job.last_transaction_id updated to %s", new_txn_id)
+    async with get_service_db_connection(db_name_arg) as conn:
+        async with conn.cursor(row_factory=dict_row) as cur:
+            await cur.execute(
+                pgsql.SQL("SET search_path TO {}").format(pgsql.Identifier(schema_name))
+            )
+
+            # 1. Insert job_payment if amount > 0
+            if payment_amount > 0:
+                await process_details({"tableName": "job_payment", "xData": payment_data}, cur)
+                logger.info("Payment inserted for job %s, amount=%s", job_id, payment_amount)
+
+            # 2. Update job: close it and record delivery
+            await process_details(
+                {
+                    "tableName": "job",
+                    "xData": {
+                        "id": job_id,
+                        "is_closed": True,
+                        "delivery_date": delivery_date,
+                        "job_status_id": delivered_status_id,
+                    },
+                },
+                cur,
+            )
+            logger.info("Job %s closed, delivery_date=%s", job_id, delivery_date)
+
+            # 3. Insert job_transaction
+            new_txn_id = await process_details(
+                {"tableName": "job_transaction", "xData": txn_data}, cur
+            )
+            logger.debug("Delivery transaction inserted, id=%s", new_txn_id)
+
+            # 4. Update job.last_transaction_id
+            if new_txn_id:
+                await process_details(
+                    {"tableName": "job", "xData": {"id": job_id, "last_transaction_id": new_txn_id}},
+                    cur,
+                )
+                logger.debug("job.last_transaction_id updated to %s", new_txn_id)
 
     return new_txn_id
 
