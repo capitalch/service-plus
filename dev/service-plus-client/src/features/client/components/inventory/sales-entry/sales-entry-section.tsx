@@ -462,8 +462,12 @@ export const SalesEntrySection = () => {
                 setMode("view");
                 if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, 1, currentDivision?.id ?? null);
             } else {
+                if (!sinvSequence || !sinvSequence.prefix.trim()) {
+                    toast.error(MESSAGES.ERROR_DOC_SEQ_SINV_NOT_CONFIGURED);
+                    return;
+                }
                 const docSequence = sinvSequence;
-                const invoiceNo   = docSequence ? buildInvoiceNo(docSequence) : "";
+                const invoiceNo   = buildInvoiceNo(docSequence);
                 const sqlObject   = {
                     tableName:         "sales_invoice",
                     doc_sequence_id:   docSequence?.id ?? null,

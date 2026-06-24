@@ -46,7 +46,8 @@
       "Bash(npx tailwindcss *)",
       "Bash(npx @tailwindcss/cli --version)",
       "Bash(pnpm exec *)",
-      "Bash(echo \"EXIT=$?\")"
+      "Bash(echo \"EXIT=$?\")",
+      "Bash(git -C /home/sushant/projects/service-plus/dev/service-plus-client diff -- src/constants/messages.ts src/features/client/components/inventory/sales-entry/sales-entry-section.tsx src/features/client/components/jobs/deliver-job/delivery-modal.tsx src/features/client/components/jobs/opening-job/opening-job-section.tsx src/features/client/components/jobs/single-job/single-job-section.tsx)"
     ]
   }
 }

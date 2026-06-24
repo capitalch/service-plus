@@ -28,6 +28,7 @@ import { selectCurrentBranch, selectSchema } from "@/store/context-slice";
 import type { JobDetailType, JobSearchRow, JobLookupRow, ModelRow, TechnicianRow } from "@/features/client/types/job";
 import type { CustomerTypeOption, StateOption } from "@/features/client/types/customer";
 import type { BrandOption, ProductOption } from "@/features/client/types/model";
+import type { DocumentSequenceRow } from "@/features/client/types/sales";
 
 import { OpeningJobForm } from "./opening-job-form";
 import { openingJobFormSchema, type OpeningJobFormValues, getOpeningJobDefaultValues, normalizeJobNo } from "./opening-job-schema";
@@ -64,6 +65,7 @@ export const OpeningJobSection = () => {
     const [mode, setMode] = useState<ViewMode>("new");
 
     // Metadata
+    const [docSequences,      setDocSequences]      = useState<DocumentSequenceRow[]>([]);
     const [jobStatuses,       setJobStatuses]       = useState<JobLookupRow[]>([]);
     const [jobTypes,          setJobTypes]          = useState<JobLookupRow[]>([]);
     const [receiveMannners,   setReceiveManners]    = useState<JobLookupRow[]>([]);
@@ -94,6 +96,10 @@ export const OpeningJobSection = () => {
         resolver:      zodResolver(openingJobFormSchema) as any,
     });
     const currentUser = useAppSelector(selectCurrentUser);
+
+    const jobSheetSequence = docSequences.find(
+        ds => ds.document_type_code === "JOB_SHEET" && ds.id != null
+    ) ?? null;
 
     const debounceRef      = useRef<ReturnType<typeof setTimeout> | null>(null);
     const scrollWrapperRef = useRef<HTMLDivElement>(null);
@@ -131,7 +137,7 @@ export const OpeningJobSection = () => {
         if (!dbName || !schema || !branchId) return;
         const fetchMeta = async () => {
             try {
-                const [statusRes, typeRes, mannerRes, condRes, techRes, modelRes, brandRes, prodRes, custTypeRes, stateRes] =
+                const [statusRes, typeRes, mannerRes, condRes, techRes, modelRes, brandRes, prodRes, custTypeRes, stateRes, seqRes] =
                     await Promise.all([
                         apolloClient.query<GenericQueryData<JobLookupRow>>({
                             fetchPolicy: "network-only",
@@ -183,6 +189,11 @@ export const OpeningJobSection = () => {
                             query: GRAPHQL_MAP.genericQuery,
                             variables: { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_ALL_STATES }) },
                         }),
+                        apolloClient.query<GenericQueryData<DocumentSequenceRow>>({
+                            fetchPolicy: "network-only",
+                            query: GRAPHQL_MAP.genericQuery,
+                            variables: { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_BRANCH_ONLY_DOCUMENT_SEQUENCES, sqlArgs: { branch_id: branchId } }) },
+                        }),
                     ]);
                 setJobStatuses(statusRes.data?.genericQuery ?? []);
                 setJobTypes(typeRes.data?.genericQuery ?? []);
@@ -196,6 +207,7 @@ export const OpeningJobSection = () => {
                 setMasterStates((stateRes.data?.genericQuery ?? []).map(s => ({
                     id: s.id, code: (s as any).gst_state_code ?? s.code, name: s.name,
                 })));
+                setDocSequences(seqRes.data?.genericQuery ?? []);
             } catch {
                 toast.error(MESSAGES.ERROR_OPENING_JOB_LOAD_FAILED);
             }
@@ -280,6 +292,10 @@ export const OpeningJobSection = () => {
     const executeSave = async (values: OpeningJobFormValues) => {
         if (!branchId || !dbName || !schema) {
             toast.error(MESSAGES.ERROR_OPENING_JOB_CREATE_FAILED);
+            return;
+        }
+        if (!editJob && (!jobSheetSequence || !jobSheetSequence.prefix.trim())) {
+            toast.error(MESSAGES.ERROR_DOC_SEQ_JOB_NOT_CONFIGURED);
             return;
         }
         const normalizedJobNo = normalizeJobNo(values.job_no);

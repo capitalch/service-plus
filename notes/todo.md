@@ -9,7 +9,7 @@
 								- mechanism to unpost a receipt, purchase invoice, sales invoice, job invoice
 								- Change spelling of divison to division all over the codebase
 	- Accounts posting
-		- Inspect the document no strategy for divisions. At present if proper doc prefix is missing from a division, it results in a cryptic error
+								- Inspect the document no strategy for divisions. At present if proper doc prefix is missing from a division, it results in a cryptic error
 		- When a division is changed for a job from gst to non-gst, and already some part is registered with gst, theninvoice figures become wrong. Device a strategy for that. Suggestion is thatgst application on parts be applied only during finalizing stage and not before that. When undo final then gst parameters should reset.
 		-  When in final the job form: division is changed from gst to non-gst and vice-versa, the sale price and amount does not remain consistent.
 							- When divison is non-gst, still gst calculations appear. Gst calculations are meaningful for gst divisions only

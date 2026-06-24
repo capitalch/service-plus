@@ -308,9 +308,13 @@ export const MESSAGES = {
   ERROR_UNKNOWN: 'An unexpected error occurred. Please try again.',
 
   // Document Sequences (Configurations)
-  ERROR_DOCUMENT_SEQUENCE_LOAD_FAILED: 'Failed to load document sequences. Please try again.',
-  ERROR_DOCUMENT_SEQUENCE_SAVE_FAILED: 'Failed to save document sequences. Please try again.',
-  SUCCESS_DOCUMENT_SEQUENCE_SAVED:     'Document sequences saved successfully.',
+  ERROR_DOCUMENT_SEQUENCE_LOAD_FAILED:       'Failed to load document sequences. Please try again.',
+  ERROR_DOCUMENT_SEQUENCE_SAVE_FAILED:       'Failed to save document sequences. Please try again.',
+  SUCCESS_DOCUMENT_SEQUENCE_SAVED:           'Document sequences saved successfully.',
+  ERROR_DOC_SEQ_SINV_NOT_CONFIGURED:         'Sales Invoice document sequence is not configured or has no prefix. Set it up in Settings → Document Sequence.',
+  ERROR_DOC_SEQ_JOB_NOT_CONFIGURED:          'Job Sheet document sequence is not configured or has no prefix. Set it up in Settings → Document Sequence.',
+  ERROR_DOC_SEQ_SERVICE_INV_NOT_CONFIGURED:  'Service Invoice document sequence is not configured or has no prefix. Set it up in Settings → Document Sequence.',
+  ERROR_DOC_SEQ_RECEIPT_NOT_CONFIGURED:      'Money Receipt document sequence is not configured or has no prefix. Set it up in Settings → Document Sequence.',
 
   // Inventory
   ERROR_STOCK_OVERVIEW_LOAD_FAILED:    'Failed to load stock overview. Please try again.',

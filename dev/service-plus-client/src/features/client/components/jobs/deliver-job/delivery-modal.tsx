@@ -26,6 +26,7 @@ import { apolloClient } from "@/lib/apollo-client";
 import { encodeObj, graphQlUtils } from "@/lib/graphql-utils";
 import { type DivisionContextType, isGstDivision } from "@/features/client/types/division";
 import type { UserInstanceType } from "@/lib/auth-service";
+import type { DocumentSequenceRow } from "@/features/client/types/sales";
 
 import {
     deliveryModalSchema, getDeliveryModalDefaults,
@@ -232,6 +233,26 @@ export function DeliveryModal({
     const [receiptQueue,      setReceiptQueue]      = useState<JobDeliveryFullDetail[]>([]);
     const [deliveredOkStatusId,    setDeliveredOkStatusId]    = useState<number | null>(null);
     const [deliveredNotOkStatusId, setDeliveredNotOkStatusId] = useState<number | null>(null);
+    const [divisionSequences, setDivisionSequences] = useState<Map<number, DocumentSequenceRow[]>>(new Map());
+
+    useEffect(() => {
+        if (!dbName || !schema || !branchId || jobDetails.length === 0) return;
+        const divIds = [...new Set(jobDetails.map(j => j.division_id).filter((id): id is number => id != null))];
+        Promise.all(
+            divIds.map(divId =>
+                apolloClient.query<GenericQueryData<DocumentSequenceRow>>({
+                    fetchPolicy: "network-only",
+                    query: GRAPHQL_MAP.genericQuery,
+                    variables: { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_DOCUMENT_SEQUENCES_BY_DIVISION, sqlArgs: { branch_id: branchId, division_id: divId } }) },
+                }).then(res => ({ divId, rows: res.data?.genericQuery ?? [] }))
+            )
+        ).then(results => {
+            const map = new Map<number, DocumentSequenceRow[]>();
+            results.forEach(({ divId, rows }) => map.set(divId, rows));
+            setDivisionSequences(map);
+        }).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [dbName, schema, branchId, jobDetails.length]);
 
     useEffect(() => {
         if (!dbName || !schema) return;
@@ -307,6 +328,14 @@ export function DeliveryModal({
 
                 const division = availableDivisions.find(d => d.id === job.division_id) ?? null;
                 const isGst    = isGstDivision(division);
+
+                const divSeqs  = divisionSequences.get(job.division_id) ?? [];
+                const svcSeq   = divSeqs.find(ds => ds.document_type_code === "SERVICE_INVOICE" && ds.id != null);
+                if (!svcSeq || !svcSeq.prefix.trim()) {
+                    toast.error(`${MESSAGES.ERROR_DOC_SEQ_SERVICE_INV_NOT_CONFIGURED} (Job #${job.job_no})`);
+                    skipped++;
+                    continue;
+                }
 
                 const lines = buildInvoiceLines(job, isGst, job.is_igst ?? false, showPartsInInvoiceSetting);
                 if (lines.length === 0) {
@@ -609,6 +638,12 @@ export function DeliveryModal({
 
     async function handleAddReceipt(values: AddReceiptFormValues) {
         if (!receiptJob || !dbName || !schema) return;
+        const divSeqs  = divisionSequences.get(receiptJob.division_id) ?? [];
+        const rcptSeq  = divSeqs.find(ds => ds.document_type_code === "MONEY_RECEIPT" && ds.id != null);
+        if (!rcptSeq || !rcptSeq.prefix.trim()) {
+            toast.error(MESSAGES.ERROR_DOC_SEQ_RECEIPT_NOT_CONFIGURED);
+            return;
+        }
         await apolloClient.mutate({
             mutation:  GRAPHQL_MAP.createJobPayment,
             variables: {

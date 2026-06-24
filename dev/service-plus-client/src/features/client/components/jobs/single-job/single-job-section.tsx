@@ -34,6 +34,7 @@ import type { JobDetailType, JobSearchRow, JobLookupRow, ModelRow, TechnicianRow
 import type { DivisionContextType } from "@/features/client/types/division";
 import type { CustomerTypeOption, StateOption } from "@/features/client/types/customer";
 import type { BrandOption, ProductOption } from "@/features/client/types/model";
+import type { DocumentSequenceRow } from "@/features/client/types/sales";
 
 import { NewSingleJobForm } from "./new-single-job-form";
 import { JobAttachDialog } from "./job-attach-dialog";
@@ -72,6 +73,7 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
     const [mode, setMode] = useState<ViewMode>("new");
 
     // Metadata
+    const [docSequences,    setDocSequences]    = useState<DocumentSequenceRow[]>([]);
     const [jobStatuses, setJobStatuses] = useState<JobLookupRow[]>([]);
     const [jobTypes, setJobTypes] = useState<JobLookupRow[]>([]);
     const [receiveMannners, setReceiveManners] = useState<JobLookupRow[]>([]);
@@ -122,9 +124,17 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
         resolver: zodResolver(singleJobFormSchema) as unknown as any, // eslint-disable-line @typescript-eslint/no-explicit-any
     });
 
+    const jobSheetSequence = docSequences.find(
+        ds => ds.document_type_code === "JOB_SHEET" && ds.id != null
+    ) ?? null;
+
     const executeSave = async (values: SingleJobFormValues) => {
         if (!branchId || !dbName || !schema) {
             toast.error(MESSAGES.ERROR_JOB_CREATE_FAILED);
+            return;
+        }
+        if (!editJob && (!jobSheetSequence || !jobSheetSequence.prefix.trim())) {
+            toast.error(MESSAGES.ERROR_DOC_SEQ_JOB_NOT_CONFIGURED);
             return;
         }
         setSubmitting(true);
@@ -268,7 +278,7 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
         if (!dbName || !schema || !branchId) return;
         const fetchMeta = async () => {
             try {
-                const [statusRes, typeRes, mannerRes, condRes, techRes, modelRes, brandRes, prodRes, custTypeRes, stateRes] =
+                const [statusRes, typeRes, mannerRes, condRes, techRes, modelRes, brandRes, prodRes, custTypeRes, stateRes, seqRes] =
                     await Promise.all([
                         apolloClient.query<GenericQueryData<JobLookupRow>>({
                             fetchPolicy: "network-only",
@@ -320,6 +330,11 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
                             query: GRAPHQL_MAP.genericQuery,
                             variables: { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_ALL_STATES }) },
                         }),
+                        apolloClient.query<GenericQueryData<DocumentSequenceRow>>({
+                            fetchPolicy: "network-only",
+                            query: GRAPHQL_MAP.genericQuery,
+                            variables: { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_BRANCH_ONLY_DOCUMENT_SEQUENCES, sqlArgs: { branch_id: branchId } }) },
+                        }),
                     ]);
                 setJobStatuses(statusRes.data?.genericQuery ?? []);
                 setJobTypes(typeRes.data?.genericQuery ?? []);
@@ -333,6 +348,7 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
                 setMasterStates((stateRes.data?.genericQuery ?? []).map(s => ({
                     id: s.id, code: (s as { gst_state_code?: string }).gst_state_code ?? s.code, name: s.name,
                 })));
+                setDocSequences(seqRes.data?.genericQuery ?? []);
             } catch {
                 toast.error(MESSAGES.ERROR_JOB_LOAD_FAILED);
             }
