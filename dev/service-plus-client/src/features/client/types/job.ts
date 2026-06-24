@@ -15,6 +15,7 @@ export type JobSearchRow = {
     technician_name:   string | null;
     amount:            number | null;
     is_closed:         boolean;
+    is_final:          boolean;
     device_details:    string | null;
     batch_no?:         number | null;
     division_id?:      number | null;

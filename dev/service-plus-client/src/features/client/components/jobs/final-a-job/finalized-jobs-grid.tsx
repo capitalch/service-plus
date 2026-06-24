@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
     CheckCircle2,
     ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon,
-    Eye, Loader2, Paperclip, Pencil, RefreshCw, Search, Undo2, X,
+    Eye, Loader2, Paperclip, RefreshCw, Search, Undo2, X,
 } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -34,20 +34,18 @@ type Props = {
     search:             string;
     branchId:           number | null;
     availableDivisions: DivisionContextType[];
-    loadingDetail:      number | null;
     undoingJobId:       number | null;
     onSearchChange:     (v: string) => void;
     onRefresh:          () => void;
     onViewJob:          (id: number) => void;
-    onEdit:             (row: FinalizedJobRow) => void;
     onUndo:             (row: FinalizedJobRow) => void;
     onOpenAttach:       (id: number, jobNo: string) => void;
 };
 
 export function FinalizedJobsGrid({
     rows, loading, total, page, setPage,
-    search, branchId, availableDivisions, loadingDetail, undoingJobId,
-    onSearchChange, onRefresh, onViewJob, onEdit, onUndo, onOpenAttach,
+    search, branchId, availableDivisions, undoingJobId,
+    onSearchChange, onRefresh, onViewJob, onUndo, onOpenAttach,
 }: Props) {
     const scrollRef = useRef<HTMLDivElement>(null);
     const [maxHeight, setMaxHeight] = useState(0);
@@ -215,16 +213,9 @@ export function FinalizedJobsGrid({
                                     </td>
                                     <td className={`${tdClass} font-mono text-xs`}>{row.mobile}</td>
 
-                                    {/* Device details */}
+                                    {/* device_details already contains serial_no (built by SQL CONCAT_WS) */}
                                     <td className={`${tdClass} max-w-40`}>
-                                        <div className="flex flex-col gap-0.5">
-                                            {row.device_details && (
-                                                <span className="text-xs leading-snug">{row.device_details}</span>
-                                            )}
-                                            {row.serial_no && (
-                                                <span className="font-mono text-[10px] text-(--cl-text-muted)">S/N: {row.serial_no}</span>
-                                            )}
-                                        </div>
+                                        <span className="text-xs leading-snug">{row.device_details || "—"}</span>
                                     </td>
 
                                     <td className={tdClass}>{row.technician_name ?? "—"}</td>
@@ -244,20 +235,6 @@ export function FinalizedJobsGrid({
                                             >
                                                 <Eye className="h-3 w-3" />
                                                 View
-                                            </Button>
-                                            <Button
-                                                className="h-7 gap-1 px-2 text-xs font-semibold text-amber-700 border border-amber-300 hover:bg-amber-50 dark:text-amber-400 dark:border-amber-700 dark:hover:bg-amber-950/30"
-                                                disabled={loadingDetail !== null || row.is_posted}
-                                                size="sm"
-                                                title={row.is_posted ? "Cannot edit a posted job" : "Edit finalized job"}
-                                                variant="outline"
-                                                onClick={() => onEdit(row)}
-                                            >
-                                                {loadingDetail === row.id
-                                                    ? <Loader2 className="h-3 w-3 animate-spin" />
-                                                    : <Pencil className="h-3 w-3" />
-                                                }
-                                                Edit
                                             </Button>
                                             <Button
                                                 className="h-7 gap-1 px-2 text-xs font-semibold text-rose-700 border border-rose-300 hover:bg-rose-50 dark:text-rose-400 dark:border-rose-700 dark:hover:bg-rose-950/30"

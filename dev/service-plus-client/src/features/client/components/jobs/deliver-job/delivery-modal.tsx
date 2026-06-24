@@ -329,7 +329,7 @@ export function DeliveryModal({
                 const division = availableDivisions.find(d => d.id === job.division_id) ?? null;
                 const isGst    = isGstDivision(division);
 
-                const divSeqs  = divisionSequences.get(job.division_id) ?? [];
+                const divSeqs  = (job.division_id != null ? divisionSequences.get(job.division_id) : undefined) ?? [];
                 const svcSeq   = divSeqs.find(ds => ds.document_type_code === "SERVICE_INVOICE" && ds.id != null);
                 if (!svcSeq || !svcSeq.prefix.trim()) {
                     toast.error(`${MESSAGES.ERROR_DOC_SEQ_SERVICE_INV_NOT_CONFIGURED} (Job #${job.job_no})`);
@@ -638,7 +638,7 @@ export function DeliveryModal({
 
     async function handleAddReceipt(values: AddReceiptFormValues) {
         if (!receiptJob || !dbName || !schema) return;
-        const divSeqs  = divisionSequences.get(receiptJob.division_id) ?? [];
+        const divSeqs  = (receiptJob.division_id != null ? divisionSequences.get(receiptJob.division_id) : undefined) ?? [];
         const rcptSeq  = divSeqs.find(ds => ds.document_type_code === "MONEY_RECEIPT" && ds.id != null);
         if (!rcptSeq || !rcptSeq.prefix.trim()) {
             toast.error(MESSAGES.ERROR_DOC_SEQ_RECEIPT_NOT_CONFIGURED);

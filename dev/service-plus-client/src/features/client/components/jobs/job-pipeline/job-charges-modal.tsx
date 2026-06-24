@@ -18,6 +18,8 @@ import type { BrandOption } from "@/features/client/types/model";
 import { ChargeNameCombobox } from "../final-a-job/charge-name-combobox";
 import type { AdditionalChargeMasterRow } from "../final-a-job/final-a-job-schema";
 import { STATUS_COLORS } from "./status-transitions";
+import { useAppSelector } from "@/store/hooks";
+import { selectDefaultGstRate, selectDefaultHsnForSparePart, selectDefaultHsnForServiceCharge } from "@/store/context-slice";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -47,10 +49,12 @@ const partRowSchema = z.object({
     part_code:     z.string(),
     part_name:     z.string(),
     uom:           z.string(),
-    qty:      z.number(),
+    qty:           z.number(),
     cost_price:    z.number().nullable(),
     selling_price: z.number().nullable(),
     remarks:       z.string(),
+    gst_rate:      z.number().nullable(),
+    hsn_code:      z.string().nullable(),
 });
 
 const chargeRowSchema = z.object({
@@ -60,6 +64,8 @@ const chargeRowSchema = z.object({
     description:   z.string(),
     cost_price:    z.number(),
     selling_price: z.number(),
+    gst_rate:      z.number(),
+    hsn_code:      z.string().nullable(),
 });
 
 const formSchema = z.object({
@@ -74,11 +80,11 @@ type ChargeItem  = FormValues["charges"][number];
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function newPartRow(): PartItem {
-    return { id: null, part_id: null, part_code: "", part_name: "", uom: "", qty: 1, cost_price: null, selling_price: null, remarks: "" };
+    return { id: null, part_id: null, part_code: "", part_name: "", uom: "", qty: 1, cost_price: null, selling_price: null, remarks: "", gst_rate: null, hsn_code: null };
 }
 
 function newChargeRow(): ChargeItem {
-    return { id: null, charge_name: "", ref_no: "", description: "", cost_price: 0, selling_price: 0 };
+    return { id: null, charge_name: "", ref_no: "", description: "", cost_price: 0, selling_price: 0, gst_rate: 0, hsn_code: null };
 }
 
 function applyMarkup(costPrice: number | null, markupPct: number): number | null {
@@ -89,6 +95,10 @@ function applyMarkup(costPrice: number | null, markupPct: number): number | null
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export const JobChargesModal = ({ job, dbName, schema, onClose, onSaved }: Props) => {
+    const defaultGstRate           = useAppSelector(selectDefaultGstRate);
+    const defaultHsnForSparePart   = useAppSelector(selectDefaultHsnForSparePart);
+    const defaultHsnForServiceCharge = useAppSelector(selectDefaultHsnForServiceCharge);
+
     const [loading,  setLoading]  = useState(true);
     const [saving,   setSaving]   = useState(false);
     const [markupPct, setMarkupPct] = useState(0);
@@ -173,12 +183,16 @@ export const JobChargesModal = ({ job, dbName, schema, onClose, onSaved }: Props
         const cost = part.cost_price ?? null;
         const masterSelling = (part.selling_price != null && part.selling_price > 0) ? part.selling_price : null;
         const selling = masterSelling ?? applyMarkup(cost, markupPct);
+        const gstRate = (part.gst_rate ?? 0) > 0 ? (part.gst_rate ?? 0) : defaultGstRate;
+        const hsnCode = part.hsn_code?.trim() || defaultHsnForSparePart || null;
         setValue(`parts.${index}.part_id`,       part.id);
         setValue(`parts.${index}.part_code`,     part.part_code);
         setValue(`parts.${index}.part_name`,     part.part_name);
         setValue(`parts.${index}.uom`,           part.uom);
         setValue(`parts.${index}.cost_price`,    cost);
         setValue(`parts.${index}.selling_price`, selling);
+        setValue(`parts.${index}.gst_rate`,      gstRate);
+        setValue(`parts.${index}.hsn_code`,      hsnCode);
     }
 
     function handlePartClear(index: number) {
@@ -188,6 +202,8 @@ export const JobChargesModal = ({ job, dbName, schema, onClose, onSaved }: Props
         setValue(`parts.${index}.uom`,           "");
         setValue(`parts.${index}.cost_price`,    null);
         setValue(`parts.${index}.selling_price`, null);
+        setValue(`parts.${index}.gst_rate`,      null);
+        setValue(`parts.${index}.hsn_code`,      null);
     }
 
     function handleCostPriceChange(index: number, cost: number | null) {
@@ -279,6 +295,8 @@ export const JobChargesModal = ({ job, dbName, schema, onClose, onSaved }: Props
                         cost_price:    p.cost_price,
                         selling_price: p.selling_price,
                         remarks:       p.remarks || null,
+                        gst_rate:      p.gst_rate ?? defaultGstRate,
+                        hsn_code:      p.hsn_code || defaultHsnForSparePart || null,
                     })),
                 ];
                 mutations.push(apolloClient.mutate({
@@ -311,6 +329,8 @@ export const JobChargesModal = ({ job, dbName, schema, onClose, onSaved }: Props
                         description:   c.description || null,
                         cost_price:    c.cost_price,
                         selling_price: c.selling_price,
+                        gst_rate:      c.gst_rate || defaultGstRate,
+                        hsn_code:      c.hsn_code || defaultHsnForServiceCharge || null,
                     })),
                 ];
                 mutations.push(apolloClient.mutate({
@@ -556,7 +576,10 @@ export const JobChargesModal = ({ job, dbName, schema, onClose, onSaved }: Props
                                                             options={chargeOptions}
                                                             invalid={!(row?.charge_name ?? "").trim()}
                                                             onChange={name => setValue(`charges.${index}.charge_name`, name)}
-                                                            onSelect={(name) => setValue(`charges.${index}.charge_name`, name)}
+                                                            onSelect={(name, hsnCode) => {
+                                                                setValue(`charges.${index}.charge_name`, name);
+                                                                setValue(`charges.${index}.hsn_code`, hsnCode || defaultHsnForServiceCharge || null);
+                                                            }}
                                                         />
                                                     </td>
                                                     <td className={tdCls}>

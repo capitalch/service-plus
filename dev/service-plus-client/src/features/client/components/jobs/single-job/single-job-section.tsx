@@ -721,8 +721,11 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
                                                             </DropdownMenuTrigger>
                                                             <DropdownMenuContent align="end" className="w-[140px] bg-white dark:bg-zinc-950 border-(--cl-border) shadow-[0_10px_30px_rgba(0,0,0,0.2)] z-50">
                                                                 <DropdownMenuItem
-                                                                    className="flex items-center gap-2 cursor-pointer text-amber-500 focus:bg-amber-500/10 focus:text-amber-600"
+                                                                    className="flex items-center gap-2 cursor-pointer text-amber-500 focus:bg-amber-500/10 focus:text-amber-600 disabled:opacity-40 disabled:cursor-not-allowed"
+                                                                    disabled={!!job.is_final}
+                                                                    title={job.is_final ? "Job is finalized — edit not allowed" : undefined}
                                                                     onClick={() => {
+                                                                        if (job.is_final) return;
                                                                         if (job.batch_no && onNavigateToBatchEdit) {
                                                                             onNavigateToBatchEdit(job.batch_no);
                                                                         } else {

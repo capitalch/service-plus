@@ -89,13 +89,13 @@ These are correct and complementary to the strategy — commit them before start
 
 ## Full Task Plan
 
-### Task 0 — Commit in-progress document sequence validation work
+### Task 0 — ✅ DONE — Commit in-progress document sequence validation work
 **Scope**: Commit the 5 already-modified files as a clean standalone changeset.
 - Files: `messages.ts`, `delivery-modal.tsx`, `opening-job-section.tsx`, `single-job-section.tsx`, `sales-entry-section.tsx`
 
 ---
 
-### Task 1 — Persist `gst_rate` + `hsn_code` in Parts & Charges modal
+### Task 1 — ✅ DONE — Persist `gst_rate` + `hsn_code` in Parts & Charges modal
 **File**: `src/features/client/components/jobs/job-pipeline/job-charges-modal.tsx`
 
 **Step 1.1** — Load two additional app settings on mount:
@@ -138,50 +138,50 @@ Only include `gst_rate` and `hsn_code` on **new** inserts. Updates should not cl
 
 ---
 
-### Task 2 — Block Edit action for finalized jobs in single-job and opening-job sections
+### Task 2 — ✅ DONE — Remove Edit for finalized jobs across all job grids
 
-**Step 2.1** — Add `is_final` to `JobSearchRow` type (`src/features/client/types/job.ts`):
-```ts
-export type JobSearchRow = {
-    ...
-    is_final: boolean;  // add this
-};
-```
+#### 2A — FinalizedJobsGrid (Final a Job section)
 
-**Step 2.2** — Verify that the SQL queries `GET_SINGLE_JOBS_PAGED` and `GET_OPENING_JOBS_PAGED` (in `sql_store.py`) return the `is_final` column from the `job` table. If not, add `j.is_final` to the SELECT list in both queries.
+All rows in this grid are `is_final=true` by definition, so the Edit button must be removed entirely.
 
-**Step 2.3** — In `single-job-section.tsx`, update the Edit Job dropdown item (~line 723) to disable/hide when `job.is_final`:
-```tsx
-<DropdownMenuItem
-    disabled={!!job.is_final}
-    title={job.is_final ? "Job is finalized — edit not allowed" : undefined}
-    onClick={...}
->
-    <Pencil className="h-4 w-4" />
-    <span>Edit Job</span>
-</DropdownMenuItem>
-```
+**Step 2A.1** — Remove the Edit `<Button>` block (lines 248–261) from `finalized-jobs-grid.tsx`. Also remove the `Pencil` and `Loader2` imports if no longer used after removal.
 
-**Step 2.4** — Apply the same change to `opening-job-section.tsx` (~line 607).
+**Step 2A.2** — Remove the `onEdit` prop from the `FinalizedJobsGrid` Props type and component signature.
 
-**Step 2.5 (optional review)** — `new-single-job-form.tsx` line 185 disables the `is_final` checkbox when editing a finalized job. Confirm whether ALL form fields should be locked when `editJob.is_final` is true. If the intent is "no editing at all", gate the entire form on `editJob?.is_final` rather than individual fields.
+**Step 2A.3** — In `final-a-job-section.tsx`, remove the `onEdit={row => void handleOpenFinalForEdit(row)}` prop from the `<FinalizedJobsGrid>` usage.
 
----
+**Step 2A.4** — Delete the now-dead code in `final-a-job-section.tsx`:
+- `isEditMode` state (`useState(false)`)
+- `handleOpenFinalForEdit` function
+- `handleSaveEdit` function
+- The `onSave={isEditMode ? handleSaveEdit : handleSaveFinal}` branch in `FinalJobForm` → simplify to `onSave={handleSaveFinal}`
+- Any remaining `isEditMode` consumers in `handleBack`, `FinalJobForm` props
 
-### Task 3 — Wire `ChargeNameCombobox` to populate `gst_rate` / `hsn_code` on charge selection
-**File**: `src/features/client/components/jobs/job-pipeline/job-charges-modal.tsx` + `final-a-job/charge-name-combobox.tsx`
+#### 2B — single-job-section.tsx and opening-job-section.tsx
 
-The `ChargeNameCombobox` currently only fires `onSelect(name)`. If the combobox is supposed to also supply `gst_rate` and `hsn_code` from the charge master when a predefined charge is selected, extend the callback signature:
-```ts
-onSelect: (name: string, charge?: AdditionalChargeMasterRow) => void
-```
-Then in the modal's charge select handler, apply `charge.gst_rate` and `charge.hsn_code` to the row.
+**Step 2B.1** — Add `is_final: boolean` to `JobSearchRow` type in `src/features/client/types/job.ts`.
 
-This also applies inside `FinalJobForm` / `final-a-job-section.tsx` where charge lines are managed during finalization.
+**Step 2B.2** — Verify the SQL queries `GET_SINGLE_JOBS_PAGED` and `GET_OPENING_JOBS_PAGED` in `sql_store.py` return `j.is_final`. Add it if missing.
+
+**Step 2B.3** — In `single-job-section.tsx`, disable/hide the Edit Job dropdown item when `job.is_final` is true.
+
+**Step 2B.4** — Apply the same change to `opening-job-section.tsx`.
 
 ---
 
-### Task 4 — Verify DB columns exist (server-side confirmation)
+### Task 3 — ✅ DONE — Wire `ChargeNameCombobox` GST data propagation
+
+**Findings**: The `additional_charge` master table has no `gst_rate` column (`id, name, hsn_code` only), so the combobox cannot pass `gst_rate` from the master. The full propagation path is:
+
+- `ChargeNameCombobox` already passes `(name, hsnCode)` — both callers capture `hsnCode` ✅ (Task 1)
+- In `job-charges-modal.tsx`, new charge rows default `gst_rate: 0` (no GST UI in modal). Fixed `handleSave` to use `c.gst_rate || defaultGstRate` so new charges get the correct default rate from app settings.
+- In `final-job-form.tsx`, charge lines are initialized via `emptyChargeLine(isGst ? defaultGstRate : 0, ...)`, so the right `gst_rate` is pre-populated when a line is added. `onPatchCharge` on combobox select correctly leaves `gst_rate` untouched (user may have already set it).
+
+**Change**: `job-charges-modal.tsx` line ~332: `gst_rate: c.gst_rate || defaultGstRate`
+
+---
+
+### Task 4 — ✅ DONE — Verify DB columns exist (server-side confirmation)
 Check `service_plus_client.sql` to confirm:
 - `job_part_used` table has `gst_rate` and `hsn_code` columns (the `GET_JOB_PART_USED_BY_JOB` SQL already selects them, so they exist — confirmed).
 - `job_additional_charge` table has `gst_rate`, `hsn_code`, `qty` columns (already in the SELECT of `GET_JOB_ADDITIONAL_CHARGES_BY_JOB` — confirmed).

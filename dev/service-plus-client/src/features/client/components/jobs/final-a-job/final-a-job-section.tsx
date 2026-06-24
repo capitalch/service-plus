@@ -65,78 +65,6 @@ type AdditionalChargeRow = {
     selling_price: number;
 };
 
-type InvoiceLine = {
-    description: string;
-    part_code:   string | null;
-    hsn_code:    string | null;
-    qty:         number;
-    price:       number;
-    aggregate:   number;
-    gst_rate:    number;
-    cgst_amount: number;
-    sgst_amount: number;
-    igst_amount: number;
-    amount:      number;
-};
-
-function buildInvoiceLinesFromEditable(
-    partLines: EditablePartLine[],
-    chargeLines: EditableChargeLine[],
-    isGst: boolean,
-    forceIgst: boolean,
-): InvoiceLine[] {
-    function computeTax(taxable: number, gstRate: number) {
-        if (!isGst || gstRate === 0) return { cgst: 0, sgst: 0, igst: 0 };
-        if (forceIgst) return { cgst: 0, sgst: 0, igst: Math.round(taxable * gstRate) / 100 };
-        const half = Math.round(taxable * gstRate / 2) / 100;
-        return { cgst: half, sgst: half, igst: 0 };
-    }
-    const parts: InvoiceLine[] = partLines
-        .filter(l => l.part_id !== null)
-        .map(l => {
-            const sp      = parseFloat(l.selling_price) || 0;
-            const qty     = l.qty;
-            const rate    = isGst ? (parseFloat(l.gst_rate) || 0) : 0;
-            const taxable = Math.round(sp * qty * 100) / 100;
-            const { cgst, sgst, igst } = computeTax(taxable, rate);
-            return {
-                description: l.part_name,
-                part_code:   l.part_code || null,
-                hsn_code:    isGst ? (l.hsn_code.trim() || null) : null,
-                qty,
-                price:       sp,
-                aggregate:   taxable,
-                gst_rate:    rate,
-                cgst_amount: cgst,
-                sgst_amount: sgst,
-                igst_amount: igst,
-                amount:      Math.round((taxable + cgst + sgst + igst) * 100) / 100,
-            };
-        });
-    const charges: InvoiceLine[] = chargeLines
-        .filter(c => c.charge_name.trim())
-        .map(c => {
-            const sp      = parseFloat(c.selling_price) || 0;
-            const qty     = parseFloat(c.qty) || 1;
-            const rate    = isGst ? (parseFloat(c.gst_rate) || 0) : 0;
-            const taxable = Math.round(sp * qty * 100) / 100;
-            const { cgst, sgst, igst } = computeTax(taxable, rate);
-            return {
-                description: c.charge_name.trim(),
-                part_code:   null,
-                hsn_code:    isGst ? (c.hsn_code.trim() || null) : null,
-                qty,
-                price:       sp,
-                aggregate:   taxable,
-                gst_rate:    rate,
-                cgst_amount: cgst,
-                sgst_amount: sgst,
-                igst_amount: igst,
-                amount:      Math.round((taxable + cgst + sgst + igst) * 100) / 100,
-            };
-        });
-    return [...parts, ...charges];
-}
 
 function emptyPartLine(gstRate = 0, hsn = ""): EditablePartLine {
     return { _key: crypto.randomUUID(), brand_id: null, part_id: null, part_code: "", part_name: "", cost_price: "0", selling_price: "0", sale_pr_gst: "0", gst_rate: String(gstRate), qty: 1, remarks: "", hsn_code: hsn };
@@ -215,9 +143,6 @@ export const FinalAJobSection = () => {
     const [finalizedSearch, setFinalizedSearch] = useState("");
     const [finalizedSearchQ, setFinalizedSearchQ] = useState("");
     const [finalizedLoading, setFinalizedLoading] = useState(false);
-
-    // ── Edit mode state ─────────────────────────────────────────────────────
-    const [isEditMode, setIsEditMode] = useState(false);
 
     // ── Final sub-view state ────────────────────────────────────────────────
     const [selectedJob, setSelectedJob] = useState<JobDetailType | null>(null);
@@ -459,21 +384,6 @@ export const FinalAJobSection = () => {
         }
     }
 
-    async function handleOpenFinalForEdit(row: FinalizedJobRow) {
-        const editable = !row.is_posted && (!row.invoice_id || !row.invoice_is_posted);
-        if (!editable) {
-            const reason = row.is_posted
-                ? MESSAGES.INFO_FINALIZED_JOB_NOT_EDITABLE_POSTED
-                : MESSAGES.INFO_FINALIZED_JOB_NOT_EDITABLE_INVOICE_POSTED;
-            toast.info(reason);
-            setIsEditMode(false);
-            await handleOpenFinal(row as unknown as FinalJobRow);
-            return;
-        }
-        setIsEditMode(true);
-        await handleOpenFinal(row as unknown as FinalJobRow);
-    }
-
     function handleBack() {
         setSubView("list");
         setSelectedJob(null);
@@ -483,178 +393,6 @@ export const FinalAJobSection = () => {
         setDeletedPartIds([]);
         setBackCalcTarget("");
         setForceIgst(false);
-        if (isEditMode) {
-            setIsEditMode(false);
-            setActiveTab("finalized");
-        }
-    }
-
-    async function handleSaveEdit() {
-        if (!selectedJob || !dbName || !schema || !branchId) return;
-
-        const newParts = partLines.filter(l => !l.id && l.part_id && l.qty > 0);
-        if (newParts.length > 0 && !jobConsumeTypeId) {
-            toast.error("Stock transaction type not loaded. Please try again.");
-            return;
-        }
-
-        const backCalcNumEdit = parseFloat(backCalcTarget);
-        const hasTargetEdit   = backCalcTarget !== "" && !isNaN(backCalcNumEdit) && backCalcNumEdit > 0;
-        const hasLinesEdit    = partLines.some(l => l.part_id) || chargeLines.some(c => c.charge_name.trim());
-        if (hasTargetEdit && !hasLinesEdit) {
-            toast.error("Target amount cannot be set without any parts or charges. Please add at least one part or charge, or clear the target amount.");
-            return;
-        }
-
-        const isWarrantyJob = selectedRow?.job_type_code === "UNDER_WARRANTY";
-        setSubmitting(true);
-        try {
-            if (isGst && !isWarrantyJob) {
-                const missingHsnParts = partLines.filter(l => l.part_id && !l.hsn_code.trim()).length;
-                const missingHsnCharges = chargeLines.filter(c => c.charge_name.trim() && !c.hsn_code.trim()).length;
-                if (missingHsnParts > 0 || missingHsnCharges > 0) {
-                    toast.error("HSN is required for all parts and charges in a GST invoice.");
-                    return;
-                }
-                const missingGstRateParts = partLines.filter(l => l.part_id && !(parseFloat(l.gst_rate) > 0)).length;
-                const missingGstRateCharges = chargeLines.filter(c => c.charge_name.trim() && !(parseFloat(c.gst_rate) > 0)).length;
-                if (missingGstRateParts > 0 || missingGstRateCharges > 0) {
-                    toast.error("GST rate must be greater than 0 for all parts and charges in a GST invoice.");
-                    return;
-                }
-            }
-
-            const chargeUpsertRows = chargeLines
-                .filter(c => c.charge_name.trim())
-                .map(c => ({
-                    ...(c.id !== undefined ? { id: c.id } : {}),
-                    charge_name: c.charge_name.trim(),
-                    ref_no: c.ref_no.trim() || null,
-                    description: c.description.trim() || null,
-                    hsn_code: (isGst && !isWarrantyJob) ? (c.hsn_code.trim() || null) : null,
-                    gst_rate: (isGst && !isWarrantyJob) ? (parseFloat(c.gst_rate) || 0) : 0,
-                    qty: parseFloat(c.qty) || 1,
-                    cost_price: parseFloat(c.cost_price) || 0,
-                    selling_price: isWarrantyJob ? 0 : (parseFloat(c.selling_price) || 0),
-                }));
-
-            const xDetails: Record<string, unknown>[] = [];
-
-            const existingUpdates = partLines
-                .filter(l => l.id !== undefined && l.part_id)
-                .map(l => ({
-                    id: l.id,
-                    part_id: l.part_id,
-                    cost_price: parseFloat(l.cost_price) || 0,
-                    selling_price: isWarrantyJob ? 0 : (parseFloat(l.selling_price) || 0),
-                    gst_rate: (isGst && !isWarrantyJob) ? (parseFloat(l.gst_rate) || 0) : 0,
-                    qty: l.qty,
-                    remarks: l.remarks.trim() || null,
-                    hsn_code: (isGst && !isWarrantyJob) ? (l.hsn_code.trim() || null) : null,
-                }));
-
-            const newInserts = newParts.map(l => ({
-                part_id: l.part_id,
-                cost_price: parseFloat(l.cost_price) || 0,
-                selling_price: isWarrantyJob ? 0 : (parseFloat(l.selling_price) || 0),
-                gst_rate: (isGst && !isWarrantyJob) ? (parseFloat(l.gst_rate) || 0) : 0,
-                qty: l.qty,
-                remarks: l.remarks.trim() || null,
-                hsn_code: (isGst && !isWarrantyJob) ? (l.hsn_code.trim() || null) : null,
-                xDetails: {
-                    tableName: "stock_transaction",
-                    fkeyName: "job_part_used_id",
-                    xData: {
-                        branch_id: branchId,
-                        part_id: l.part_id,
-                        qty: l.qty,
-                        dr_cr: "C",
-                        transaction_date: selectedJob.job_date,
-                        stock_transaction_type_id: jobConsumeTypeId,
-                        remarks: l.remarks.trim() || null,
-                    },
-                },
-            }));
-
-            const allPartXData = [...existingUpdates, ...newInserts];
-            if (allPartXData.length > 0 || deletedPartIds.length > 0) {
-                xDetails.push({
-                    tableName: "job_part_used",
-                    fkeyName: "job_id",
-                    ...(deletedPartIds.length > 0 ? { deletedIds: deletedPartIds } : {}),
-                    xData: allPartXData,
-                });
-            }
-
-            xDetails.push({
-                tableName: "job_additional_charge",
-                fkeyName: "job_id",
-                ...(deletedChargeIds.length > 0 ? { deletedIds: deletedChargeIds } : {}),
-                xData: chargeUpsertRows,
-            });
-            const backCalcNum = parseFloat(backCalcTarget);
-            const computedTotal = partLines.reduce((s, l) => s + (parseFloat(l.sale_pr_gst) || 0) * l.qty, 0)
-                + chargeLines.reduce((s, c) => s + (parseFloat(c.sale_pr_gst) || 0) * (parseFloat(c.qty) || 1), 0);
-            const amount = isWarrantyJob ? 0 : ((backCalcTarget !== "" && !isNaN(backCalcNum) && backCalcNum > 0) ? backCalcNum : computedTotal);
-
-            await apolloClient.mutate({
-                mutation: GRAPHQL_MAP.genericUpdate,
-                variables: {
-                    db_name: dbName,
-                    schema,
-                    value: encodeObj({
-                        tableName: "job",
-                        xData: { id: selectedJob.id, is_final: true, is_igst: forceIgst, division_id: selectedDivisionId, amount, to_show_parts_in_job_invoice: showPartsInInvoice, to_set_updated_at: true, xDetails },
-                    }),
-                },
-            });
-
-            // Regenerate invoice if one exists and job was in edit mode
-            if (selectedRow && (selectedRow as unknown as FinalizedJobRow).invoice_id) {
-                const invoiceId = (selectedRow as unknown as FinalizedJobRow).invoice_id!;
-                try {
-                    const lines = buildInvoiceLinesFromEditable(partLines, chargeLines, isGst, forceIgst);
-                    if (lines.length === 0) {
-                        toast.info(MESSAGES.INFO_JOB_INVOICE_REGEN_SKIPPED_NO_LINES);
-                    } else {
-                    const inv_aggregate   = Math.round(lines.reduce((s, l) => s + l.aggregate, 0) * 100) / 100;
-                    const inv_cgst_amount = Math.round(lines.reduce((s, l) => s + l.cgst_amount, 0) * 100) / 100;
-                    const inv_sgst_amount = Math.round(lines.reduce((s, l) => s + l.sgst_amount, 0) * 100) / 100;
-                    const inv_igst_amount = Math.round(lines.reduce((s, l) => s + l.igst_amount, 0) * 100) / 100;
-                    await apolloClient.mutate({
-                        mutation: GRAPHQL_MAP.regenerateJobInvoice,
-                        variables: {
-                            db_name: dbName,
-                            schema,
-                            value: encodeObj({
-                                xData: {
-                                    invoice_id:   invoiceId,
-                                    aggregate:    inv_aggregate,
-                                    cgst_amount:  inv_cgst_amount,
-                                    sgst_amount:  inv_sgst_amount,
-                                    igst_amount:  inv_igst_amount,
-                                    amount,
-                                    lines,
-                                },
-                            }),
-                        },
-                    });
-                    }
-                } catch {
-                    toast.error(MESSAGES.ERROR_FINALIZED_JOB_REGEN_INVOICE_FAILED);
-                }
-            }
-            toast.success("Finalized job updated.");
-            setIsEditMode(false);
-            setSubView("list");
-            setBackCalcTarget("");
-            setActiveTab("finalized");
-            void loadFinalizedData();
-        } catch {
-            toast.error("Failed to save. Please try again.");
-        } finally {
-            setSubmitting(false);
-        }
     }
 
     // ── Undo Final ──────────────────────────────────────────────────────────
@@ -959,7 +697,6 @@ export const FinalAJobSection = () => {
             <FinalJobForm
                 selectedJob={selectedJob}
                 selectedRow={selectedRow}
-                isEditMode={isEditMode}
                 submitting={submitting}
                 loadingDetail={loadingDetail !== null}
                 selectedDivisionId={selectedDivisionId}
@@ -984,7 +721,7 @@ export const FinalAJobSection = () => {
                 setPartLines={setPartLines}
                 setViewJobId={setViewJobId}
                 onBack={handleBack}
-                onSave={isEditMode ? handleSaveEdit : handleSaveFinal}
+                onSave={handleSaveFinal}
                 onRefresh={() => handleOpenFinal(selectedRow)}
                 onAddPart={addPartLine}
                 onRemovePart={removePartLine}
@@ -1079,12 +816,10 @@ export const FinalAJobSection = () => {
                         search={finalizedSearch}
                         branchId={branchId}
                         availableDivisions={availableDivisions}
-                        loadingDetail={loadingDetail}
                         undoingJobId={undoingJobId}
                         onSearchChange={handleFinalizedSearchChange}
                         onRefresh={() => void loadFinalizedData()}
                         onViewJob={id => setViewJobId(id)}
-                        onEdit={row => void handleOpenFinalForEdit(row)}
                         onUndo={row => setUndoConfirmRow(row)}
                         onOpenAttach={(id, jobNo) => { setAttachSource("finalized"); setAttachJobId(id); setAttachJobNo(jobNo); }}
                     />

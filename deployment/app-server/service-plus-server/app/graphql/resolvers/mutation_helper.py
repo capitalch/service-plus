@@ -950,8 +950,16 @@ async def resolve_create_job_invoice_helper(
                 pgsql.SQL("SET search_path TO {}").format(pgsql.Identifier(schema_name))
             )
 
-            # 1. Claim next invoice number atomically
+            # 1. Idempotency check — return existing invoice if already created
+            await cur.execute(
+                SqlStore.GET_JOB_INVOICE_ID_BY_JOB_FOR_UPDATE,
+                {"job_id": x_data.get("job_id")},
+            )
+            existing = await cur.fetchone()
+            if existing:
+                return existing["id"]
 
+            # 2. Claim next invoice number atomically
             await cur.execute(
                 SqlStore.CLAIM_NEXT_INVOICE_NUMBER,
                 {"branch_id": branch_id, "division_id": division_id},
@@ -965,7 +973,7 @@ async def resolve_create_job_invoice_helper(
                     },
                 )
 
-            # 2. Format invoice number
+            # 3. Format invoice number
             invoice_no = (
                 f"{seq['prefix'] or ''}"
                 f"{seq['separator'] or ''}"
@@ -973,7 +981,7 @@ async def resolve_create_job_invoice_helper(
             )
             x_data["invoice_no"] = invoice_no
 
-            # 3. Insert job_invoice + lines in the same transaction
+            # 4. Insert job_invoice + lines in the same transaction
             invoice_id = await process_data(x_data, cur, "job_invoice", None, None)
             logger.info("Job invoice created id=%s invoice_no=%s", invoice_id, invoice_no)
 
@@ -1195,11 +1203,21 @@ async def resolve_update_job_helper(
                 pgsql.SQL("SET search_path TO {}").format(pgsql.Identifier(schema_name))
             )
 
-            # 1. Update the job row
+            # 1. Guard: block division change on a finalised job
+            if "division_id" in x_data:
+                await cur.execute(SqlStore.GET_JOB_IS_FINAL, {"id": job_id})
+                job_row = await cur.fetchone()
+                if job_row and job_row["is_final"]:
+                    raise ValidationException(
+                        message="Cannot change division after job is finalized.",
+                        extensions={"field": "division_id"},
+                    )
+
+            # 2. Update the job row
             await process_data(x_data, cur, "job", None, None)
             logger.info("Job %s updated", job_id)
 
-            # 2. Insert job_transaction
+            # 3. Insert job_transaction
             new_txn_id = await process_data(txn_data, cur, "job_transaction", None, None)
             logger.debug("Job transaction inserted, id=%s", new_txn_id)
 
@@ -1358,8 +1376,9 @@ async def resolve_undeliver_job_helper(
                 amount        = None
             flags = _STATUS_FLAGS.get(status_id, {"is_final": False, "is_closed": False})
 
-            # 2. Remove the delivery transaction(s), then restore the job (atomic)
+            # 2. Remove the delivery transaction(s), delete the invoice, then restore the job (atomic)
             await cur.execute(SqlStore.DELETE_DELIVERY_TRANSACTIONS, {"job_id": job_id})
+            await cur.execute(SqlStore.DELETE_JOB_INVOICE_BY_JOB, {"job_id": job_id})
             await cur.execute(
                 SqlStore.UNDELIVER_JOB,
                 {
@@ -1371,7 +1390,7 @@ async def resolve_undeliver_job_helper(
                     "last_transaction_id": target_txn_id,
                 },
             )
-            logger.info("Job %s undelivered, restored to status %s", job_id, status_id)
+            logger.info("Job %s undelivered, invoice deleted, restored to status %s", job_id, status_id)
 
     return {"job_id": job_id, "restored_status_id": status_id}
 

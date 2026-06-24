@@ -3522,6 +3522,7 @@ class SqlStore:
             j.alternate_job_no,
             j.job_date,
             j.is_closed,
+            j.is_final,
             j.amount,
             cc.full_name  AS customer_name,
             cc.mobile,

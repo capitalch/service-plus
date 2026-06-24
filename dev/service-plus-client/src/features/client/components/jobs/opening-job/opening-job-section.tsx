@@ -600,8 +600,10 @@ export const OpeningJobSection = () => {
                                                             </DropdownMenuTrigger>
                                                             <DropdownMenuContent align="end" className="w-[140px] bg-white dark:bg-zinc-950 border-(--cl-border) shadow-[0_10px_30px_rgba(0,0,0,0.2)] z-50">
                                                                 <DropdownMenuItem
-                                                                    className="flex items-center gap-2 cursor-pointer text-amber-500 focus:bg-amber-500/10 focus:text-amber-600"
-                                                                    onClick={() => { setEditJob(job as unknown as JobDetailType); setMode("new"); }}
+                                                                    className="flex items-center gap-2 cursor-pointer text-amber-500 focus:bg-amber-500/10 focus:text-amber-600 disabled:opacity-40 disabled:cursor-not-allowed"
+                                                                    disabled={!!job.is_final}
+                                                                    title={job.is_final ? "Job is finalized — edit not allowed" : undefined}
+                                                                    onClick={() => { if (!job.is_final) { setEditJob(job as unknown as JobDetailType); setMode("new"); } }}
                                                                 >
                                                                     <Pencil className="h-4 w-4" />
                                                                     <span>Edit Job</span>

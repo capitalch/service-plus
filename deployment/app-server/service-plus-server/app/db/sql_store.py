@@ -859,6 +859,18 @@ class SqlStore:
         DELETE FROM job_invoice_line WHERE job_invoice_id = %(invoice_id)s
     """
 
+    DELETE_JOB_INVOICE_BY_JOB = """
+        DELETE FROM job_invoice WHERE job_id = %(job_id)s
+    """
+
+    GET_JOB_IS_FINAL = """
+        SELECT is_final FROM job WHERE id = %(id)s
+    """
+
+    GET_JOB_INVOICE_ID_BY_JOB_FOR_UPDATE = """
+        SELECT id FROM job_invoice WHERE job_id = %(job_id)s FOR UPDATE
+    """
+
     UPDATE_JOB_INVOICE_AMOUNTS = """
         UPDATE job_invoice
         SET aggregate   = %(aggregate)s,
@@ -3510,6 +3522,7 @@ class SqlStore:
             j.alternate_job_no,
             j.job_date,
             j.is_closed,
+            j.is_final,
             j.amount,
             cc.full_name  AS customer_name,
             cc.mobile,
