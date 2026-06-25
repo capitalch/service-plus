@@ -24,6 +24,7 @@ import { ClientActivityBar } from "./client-activity-bar";
 import { ClientExplorerPanel } from "./client-explorer-panel";
 import { ClientStatusBar } from "./client-status-bar";
 import { ClientTopNav } from "./client-top-nav";
+import { HelpPanel } from "./help/help-panel";
 
 export type Section = 'admin' | 'configurations' | 'inventory' | 'jobs' | 'masters' | 'reports';
 
@@ -48,6 +49,12 @@ type LayoutContextType = { explorerOpen: boolean; toggleExplorer: () => void };
 export const LayoutContext = createContext<LayoutContextType>({ explorerOpen: true, toggleExplorer: () => {} });
 
 export const useLayout = () => useContext(LayoutContext);
+
+type HelpContextType = { helpOpen: boolean; openHelp: () => void; closeHelp: () => void };
+
+export const HelpContext = createContext<HelpContextType>({ helpOpen: false, openHelp: () => {}, closeHelp: () => {} });
+
+export const useHelp = () => useContext(HelpContext);
 
 function sectionFromPath(pathname: string): Section {
     if (pathname.startsWith('/client/admin'))          return 'admin';
@@ -98,6 +105,7 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
     const [selected, setSelected]           = useState(() => SECTION_DEFAULTS[activeSection]);
     const [selectedGroup, setSelectedGroup] = useState(() => SECTION_DEFAULT_GROUPS[activeSection]);
     const [explorerOpen, setExplorerOpen]   = useState(() => window.innerWidth >= 1024);
+    const [helpOpen, setHelpOpen]           = useState(false);
     const [isDark, setIsDark]               = useState(() => {
         const stored = localStorage.getItem('client-theme');
         return stored ? stored === 'dark' : false;
@@ -166,6 +174,8 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
 
     const toggleTheme    = useCallback(() => setIsDark(d => !d), []);
     const toggleExplorer = useCallback(() => setExplorerOpen(o => !o), []);
+    const openHelp       = useCallback(() => setHelpOpen(true),  []);
+    const closeHelp      = useCallback(() => setHelpOpen(false), []);
 
     const onSelect = useCallback((label: string, group?: string) => {
         setSelected(label);
@@ -187,6 +197,7 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
     return (
         <ThemeContext.Provider value={{ isDark, toggleTheme }}>
         <LayoutContext.Provider value={{ explorerOpen, toggleExplorer }}>
+        <HelpContext.Provider value={{ helpOpen, openHelp, closeHelp }}>
         <ClientSelectionContext.Provider value={{ onSelect, selected, selectedGroup }}>
             <div className="client-theme relative h-full bg-(--cl-bg) text-(--cl-text)" data-theme={isDark ? 'dark' : 'light'}>
                 <ClientTopNav activeSection={activeSection} />
@@ -234,8 +245,10 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
                     </div>
                 </main>
                 <ClientStatusBar />
+                <HelpPanel open={helpOpen} onClose={closeHelp} />
             </div>
         </ClientSelectionContext.Provider>
+        </HelpContext.Provider>
         </LayoutContext.Provider>
         </ThemeContext.Provider>
     );

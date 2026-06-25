@@ -32,6 +32,7 @@ import { PAGE_SIZE, DEBOUNCE_MS, calculateLinePricing } from "./final-a-job-help
 import { FinalJobForm } from "./final-job-form";
 import { PendingJobsGrid } from "./pending-jobs-grid";
 import { FinalizedJobsGrid } from "./finalized-jobs-grid";
+import { JobChargesReadonlyModal, type ChargesViewPartLine, type ChargesViewChargeLine } from "./job-charges-readonly-modal";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -51,6 +52,9 @@ type LoadedPartRow = {
     gst_rate: number | null;
     remarks: string | null;
     hsn_code: string | null;
+    master_cost_price:    number | null;
+    master_selling_price: number | null;
+    master_gst_rate:      number | null;
 };
 
 type AdditionalChargeRow = {
@@ -67,7 +71,7 @@ type AdditionalChargeRow = {
 
 
 function emptyPartLine(gstRate = 0, hsn = ""): EditablePartLine {
-    return { _key: crypto.randomUUID(), brand_id: null, part_id: null, part_code: "", part_name: "", cost_price: "0", selling_price: "0", sale_pr_gst: "0", gst_rate: String(gstRate), qty: 1, remarks: "", hsn_code: hsn };
+    return { _key: crypto.randomUUID(), brand_id: null, part_id: null, part_code: "", part_name: "", cost_price: "0", selling_price: "0", sale_pr_gst: "0", gst_rate: String(gstRate), qty: 1, remarks: "", hsn_code: hsn, master_cost_price: 0, master_selling_price: 0, master_gst_rate: 0 };
 }
 
 // ─── Pricing helpers ──────────────────────────────────────────────────────────
@@ -82,28 +86,32 @@ function computePartPricesOnSelect(
     forceGstOnPartsForNonGst: boolean,
     defaultGstRate: number,
     markupPct: number,
+    currentCostPrice = 0,    // customcp — existing line cost before selection
+    currentSellingPrice = 0, // customsp — existing line selling price before selection
 ): Pick<EditablePartLine, "cost_price" | "selling_price" | "sale_pr_gst" | "gst_rate"> {
-    const rawCost = part.cost_price ?? 0;
-    const masterSelling = (part.selling_price != null && part.selling_price > 0) ? part.selling_price : null;
+    const dbcp = part.cost_price ?? 0;
     const effectiveGstRate = (part.gst_rate ?? 0) > 0 ? (part.gst_rate ?? 0) : defaultGstRate;
 
-    if (!isGst) {
-        if (forceGstOnPartsForNonGst) {
-            const adjustedCost = rawCost * (1 + effectiveGstRate / 100);
-            const markupAmt = masterSelling != null ? masterSelling - rawCost : rawCost * markupPct / 100;
-            const sale = adjustedCost + markupAmt;
-            return { cost_price: adjustedCost.toFixed(2), selling_price: sale.toFixed(2), gst_rate: "0", sale_pr_gst: sale.toFixed(2) };
-        }
-        const sale = masterSelling ?? applyMarkup(rawCost, markupPct);
-        return { cost_price: rawCost.toFixed(2), selling_price: sale.toFixed(2), gst_rate: "0", sale_pr_gst: sale.toFixed(2) };
+    // ccp = first non-zero of (dbcp, customcp)
+    const ccp = dbcp > 0 ? dbcp : currentCostPrice;
+
+    let cp: number;
+    if (!isGst && forceGstOnPartsForNonGst) {
+        // inflate only when master has a price; otherwise keep customcp un-inflated
+        cp = dbcp > 0 ? dbcp * (1 + effectiveGstRate / 100) : currentCostPrice;
+    } else {
+        cp = ccp;
     }
 
-    const sale = masterSelling ?? applyMarkup(rawCost, markupPct);
+    // sp = customsp or cp*(1+markup/100)  [first non-zero]
+    const sp = currentSellingPrice > 0 ? currentSellingPrice : applyMarkup(cp, markupPct);
+
+    const displayGstRate = isGst ? effectiveGstRate : 0;
     return {
-        cost_price: rawCost.toFixed(2),
-        selling_price: sale.toFixed(2),
-        gst_rate: String(effectiveGstRate),
-        sale_pr_gst: (sale * (1 + effectiveGstRate / 100)).toFixed(2),
+        cost_price:    cp.toFixed(2),
+        selling_price: sp.toFixed(2),
+        gst_rate:      String(displayGstRate),
+        sale_pr_gst:   (sp * (1 + displayGstRate / 100)).toFixed(2),
     };
 }
 
@@ -357,6 +365,9 @@ export const FinalAJobSection = () => {
                             qty: Number(p.qty),
                             remarks: p.remarks ?? "",
                             hsn_code: p.hsn_code?.trim() || defaultHsnForSparePart,
+                            master_cost_price:    p.master_cost_price ?? 0,
+                            master_selling_price: p.master_selling_price ?? 0,
+                            master_gst_rate:      p.master_gst_rate ?? 0,
                         };
                     })
                     : [],
@@ -399,6 +410,55 @@ export const FinalAJobSection = () => {
     const [undoingJobId, setUndoingJobId] = useState<number | null>(null);
     const [undoConfirmRow, setUndoConfirmRow] = useState<FinalizedJobRow | null>(null);
 
+    // ── Charges view ─────────────────────────────────────────────────────────
+    const [chargesViewOpen, setChargesViewOpen] = useState(false);
+    const [chargesLoadingJobId, setChargesLoadingJobId] = useState<number | null>(null);
+    const [chargesViewJobNo, setChargesViewJobNo] = useState("");
+    const [chargesViewIsGst, setChargesViewIsGst] = useState(false);
+    const [chargesViewIsWarranty, setChargesViewIsWarranty] = useState(false);
+    const [chargesViewForceIgst, setChargesViewForceIgst] = useState(false);
+    const [chargesViewAmount, setChargesViewAmount] = useState<number | null>(null);
+    const [chargesViewParts, setChargesViewParts] = useState<ChargesViewPartLine[]>([]);
+    const [chargesViewCharges, setChargesViewCharges] = useState<ChargesViewChargeLine[]>([]);
+
+    async function handleOpenChargesView(row: FinalizedJobRow) {
+        if (!dbName || !schema) return;
+        setChargesLoadingJobId(row.id);
+        try {
+            const [partsRes, chargesRes, jobRes] = await Promise.all([
+                apolloClient.query<GenericQueryData<LoadedPartRow>>({
+                    fetchPolicy: "network-only",
+                    query: GRAPHQL_MAP.genericQuery,
+                    variables: { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_JOB_PART_USED_BY_JOB, sqlArgs: { job_id: row.id } }) },
+                }),
+                apolloClient.query<GenericQueryData<AdditionalChargeRow>>({
+                    fetchPolicy: "network-only",
+                    query: GRAPHQL_MAP.genericQuery,
+                    variables: { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_JOB_ADDITIONAL_CHARGES_BY_JOB, sqlArgs: { job_id: row.id } }) },
+                }),
+                apolloClient.query<GenericQueryData<JobDetailType>>({
+                    fetchPolicy: "network-only",
+                    query: GRAPHQL_MAP.genericQuery,
+                    variables: { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_JOB_DETAIL, sqlArgs: { id: row.id } }) },
+                }),
+            ]);
+            const jobDetail = jobRes.data?.genericQuery?.[0] ?? null;
+            const division = availableDivisions.find(d => d.id === row.division_id) ?? null;
+            setChargesViewJobNo(row.job_no);
+            setChargesViewIsGst(isGstDivision(division));
+            setChargesViewIsWarranty(row.job_type_code === "UNDER_WARRANTY");
+            setChargesViewForceIgst(jobDetail?.is_igst ?? false);
+            setChargesViewAmount(row.amount);
+            setChargesViewParts(partsRes.data?.genericQuery ?? []);
+            setChargesViewCharges(chargesRes.data?.genericQuery ?? []);
+            setChargesViewOpen(true);
+        } catch {
+            toast.error("Failed to load charges. Please try again.");
+        } finally {
+            setChargesLoadingJobId(null);
+        }
+    }
+
     async function handleUndoFinal(row: FinalizedJobRow) {
         if (!dbName || !schema) return;
         setUndoingJobId(row.id);
@@ -429,20 +489,29 @@ export const FinalAJobSection = () => {
         const gstStatusChanged = newIsGst !== isGst;
 
         const newPartLines = partLines.map(line => {
-            if (newIsGst) {
-                const effectiveGstRate = parseFloat(line.gst_rate) > 0 ? parseFloat(line.gst_rate) : defaultGstRate;
-                const effectiveHsn = line.hsn_code.trim() || defaultHsnForSparePart;
-                return { ...line, ...calculateLinePricing(line, { gst_rate: String(effectiveGstRate) }, true), hsn_code: effectiveHsn };
-            }
-            if (forceGstOnPartsForNonGst && line.part_id !== null) {
-                const currentGstRate = parseFloat(line.gst_rate) || 0;
-                const rawCost = parseFloat(line.cost_price) || 0;
-                const adjustedCost = rawCost * (1 + currentGstRate / 100);
-                const margin = Math.max(0, (parseFloat(line.selling_price) || 0) - rawCost);
-                const newSelling = adjustedCost + margin;
-                return { ...line, cost_price: adjustedCost.toFixed(2), selling_price: newSelling.toFixed(2), gst_rate: "0", sale_pr_gst: newSelling.toFixed(2) };
-            }
-            return { ...line, ...calculateLinePricing(line, {}, false) };
+            if (line.part_id === null) return line;
+            // Always compute from master reference fields so toggling back is idempotent
+            const syntheticPart = {
+                id: line.part_id,
+                brand_id: line.brand_id ?? 0,
+                part_code: line.part_code,
+                part_name: line.part_name,
+                cost_price:    line.master_cost_price,
+                selling_price: line.master_selling_price,
+                gst_rate:      line.master_gst_rate,
+                hsn_code:      line.hsn_code || null,
+                part_description: null, category: null, model: null,
+                uom: "", mrp: null, is_active: true, brand_name: "",
+            } satisfies PartRow;
+            const pricePatch = computePartPricesOnSelect(
+                syntheticPart, newIsGst, forceGstOnPartsForNonGst,
+                defaultGstRate, markupPct,
+                0, 0,
+            );
+            const effectiveHsn = newIsGst
+                ? (line.hsn_code.trim() || defaultHsnForSparePart)
+                : line.hsn_code;
+            return { ...line, ...pricePatch, hsn_code: effectiveHsn };
         });
 
         const newChargeLines = chargeLines.map(c => {
@@ -525,13 +594,22 @@ export const FinalAJobSection = () => {
     }
 
     function handlePartSelect(key: string, part: PartRow) {
-        const pricePatch = computePartPricesOnSelect(part, isGst, forceGstOnPartsForNonGst, defaultGstRate, markupPct);
+        const line = partLines.find(l => l._key === key);
+        const currentCostPrice    = parseFloat(line?.cost_price    ?? "0") || 0;
+        const currentSellingPrice = parseFloat(line?.selling_price ?? "0") || 0;
+        const pricePatch = computePartPricesOnSelect(
+            part, isGst, forceGstOnPartsForNonGst, defaultGstRate, markupPct,
+            currentCostPrice, currentSellingPrice,
+        );
         updatePartLine(key, {
-            part_id: part.id,
-            part_code: part.part_code,
-            part_name: part.part_name,
-            brand_id: part.brand_id,
-            hsn_code: part.hsn_code?.trim() || defaultHsnForSparePart,
+            part_id:              part.id,
+            part_code:            part.part_code,
+            part_name:            part.part_name,
+            brand_id:             part.brand_id,
+            hsn_code:             part.hsn_code?.trim() || defaultHsnForSparePart,
+            master_cost_price:    part.cost_price ?? 0,
+            master_selling_price: part.selling_price ?? 0,
+            master_gst_rate:      part.gst_rate ?? 0,
             ...pricePatch,
         });
     }
@@ -552,6 +630,42 @@ export const FinalAJobSection = () => {
 
     function patchChargeLine(key: string, patch: Partial<EditableChargeLine>) {
         setChargeLines(prev => prev.map(c => c._key === key ? { ...c, ...patch } : c));
+    }
+
+    // ── Reset prices ────────────────────────────────────────────────────────
+    function handleReset() {
+        setPartLines(prev => prev.map(line => {
+            if (line.part_id === null) return line;
+            // Build a minimal PartRow-compatible object from the master data stored on the line
+            const syntheticPart = {
+                id: line.part_id,
+                brand_id: line.brand_id ?? 0,
+                part_code: line.part_code,
+                part_name: line.part_name,
+                part_description: null, category: null, model: null,
+                uom: "", mrp: null, is_active: true, brand_name: "",
+                cost_price:    line.master_cost_price,
+                selling_price: line.master_selling_price,
+                gst_rate:      line.master_gst_rate,   // use stored master rate, not mutable line.gst_rate
+                hsn_code:      line.hsn_code || null,
+            } satisfies PartRow;
+            const pricePatch = computePartPricesOnSelect(
+                syntheticPart, isGst, forceGstOnPartsForNonGst, defaultGstRate, markupPct,
+                0, 0, // force fresh computation — no custom overrides
+            );
+            return { ...line, ...pricePatch };
+        }));
+        setChargeLines(prev => prev.map(c => {
+            if (!c.charge_name.trim()) return c;
+            const gstRate = isGst ? defaultGstRate : 0;
+            const sp = parseFloat(c.selling_price) || 0;
+            return {
+                ...c,
+                gst_rate:    String(gstRate),
+                hsn_code:    c.hsn_code.trim() || defaultHsnForServiceCharge,
+                sale_pr_gst: (sp * (1 + gstRate / 100)).toFixed(2),
+            };
+        }));
     }
 
     // ── Save final ──────────────────────────────────────────────────────────
@@ -723,6 +837,7 @@ export const FinalAJobSection = () => {
                 onBack={handleBack}
                 onSave={handleSaveFinal}
                 onRefresh={() => handleOpenFinal(selectedRow)}
+                onReset={handleReset}
                 onAddPart={addPartLine}
                 onRemovePart={removePartLine}
                 onUpdatePart={updatePartLine}
@@ -817,11 +932,13 @@ export const FinalAJobSection = () => {
                         branchId={branchId}
                         availableDivisions={availableDivisions}
                         undoingJobId={undoingJobId}
+                        chargesLoadingJobId={chargesLoadingJobId}
                         onSearchChange={handleFinalizedSearchChange}
                         onRefresh={() => void loadFinalizedData()}
                         onViewJob={id => setViewJobId(id)}
                         onUndo={row => setUndoConfirmRow(row)}
                         onOpenAttach={(id, jobNo) => { setAttachSource("finalized"); setAttachJobId(id); setAttachJobNo(jobNo); }}
+                        onViewCharges={row => void handleOpenChargesView(row)}
                     />
                 )}
             </motion.div>
@@ -855,6 +972,18 @@ export const FinalAJobSection = () => {
                     }}
                 />
             )}
+
+            <JobChargesReadonlyModal
+                open={chargesViewOpen}
+                onClose={() => setChargesViewOpen(false)}
+                jobNo={chargesViewJobNo}
+                isGst={chargesViewIsGst}
+                isWarranty={chargesViewIsWarranty}
+                forceIgst={chargesViewForceIgst}
+                amount={chargesViewAmount}
+                parts={chargesViewParts}
+                charges={chargesViewCharges}
+            />
 
             <AlertDialog open={!!undoConfirmRow} onOpenChange={open => { if (!open) setUndoConfirmRow(null); }}>
                 <AlertDialogContent className="max-w-sm">

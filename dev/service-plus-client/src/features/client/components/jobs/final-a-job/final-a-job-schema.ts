@@ -56,9 +56,12 @@ export type EditablePartLine = {
     selling_price: string;
     sale_pr_gst:   string;
     gst_rate:      string;
-    qty:      number;
+    qty:           number;
     remarks:       string;
     hsn_code:      string;
+    master_cost_price:    number;
+    master_selling_price: number;
+    master_gst_rate:      number;
 };
 
 export type EditableChargeLine = {

@@ -1,17 +1,16 @@
-# Strategy for job cost price / sale price, Parts & charges and job final. This should be the strategy:
-- When through Job Pipeline user selects "Parts & Charges", a modal window for "Parts & Charges" opens. User can add part and select a part from part selector. Cost of spare parts is taken from spare part master (if not there then 0) and sale price is obtained after adding markup for sale price (if not present in spare part master). The cost and sale prices are populated in the newly added row. Please note that there should be no consideration of gst calculations at this stage.
-- When data saved, job_part_used table is populated with cost_price, selling_price, gst_rate(from spare_part_master or default gst rate for part), hsn (from spare_part_master or default hsn code for part). Gst information is always saved based on available data irrespective of whether gst or non-gst division.
-- For additional charges also the hsn_code and gst_rate are stored in job_additional_charge table along with cost_price and sale_price irrespective of whether division is gst or non-gst.
-- User can always alter the cost_price and sale_price fetched from master or calculated, and save
-- Once user is doing finalization of a job, following is important:
-  - if selected division is gst, then hsn, gst%, force igst, +GST fields appear, otherwise these fields don't appear in the UI
-  - When gst then calulations for gst is done on sale_price and +gst field is populated accordingly. Amt is same as +gst * qty.
-  - When non-gst:
-    - if force_gst_on_parts_for_non_gst_invoices is true then set cost_price = cost_price + applicable gst and sale price as per markup else
-    no effect of gst on prices. Amt is same as sale * qty.
-  - When user changes any editable value, recalculation is done
-  - When user changes division and GST changes to non-gst or vice versa then also recalculation is done
-  - calculated and total values are evaluated as normal. traget amout is set to job.amount or total. Back calculate will do bacward calculation.
-  - Remove Edit functionality from is_final = true jobs: finalized Jobs > Actions > No edit button
-  - Deliver job will generate GST or non-gst bill based on division
-
+# Computation of cost_price and selling_price and other values during finalization process of job. This is applicable for spare parts charges to be stored in job_part_used table:
+- let dbcp = cost_price of spare part in spare_part_master table, dbsp = selling_price of spare part in spare_part_master table, isGst = gst applicable for the selected division, rate = gst_rate in percent for the part (from job_part_used or (from spare_part_master) or (from default_gst_rate))
+- When "Parts & charges" is executed in various screens of Job Pipeline, cost_price, selling_price, gst_rate, hsn of the spare_part is stored in job_part_used table. When a part is selected using the PartCodeInput: dbcp is the default value for cost_price and dbsp or (dbcp + markup) is default value for selling_price. User can edit them. If already these values exist in job_part_used table, those existing values are used and shown for cost_price and selling_price without any further calculations. hsn_code, gst_rate are silently put in respective fields from spare_part_master (if not present or 0 value then use default_hsn_for_spare_part and default_gst_rate instead). This action is irrespective of gst or non-gst division.
+- Remove force_gst_on_parts_for_non_gst_invoices app_settings and all associated logic in the codebase.
+- In final a job > Final :
+  - For isGst
+    - show hsn, cost, sale, +gst, amt as usual, based on cost_price, selling_price, gst_rate and hsn values in job_part_used table
+    - If new part is added then the values are calculated as in case of "Parts & Charges"
+  - For !isGst
+    - hsn, +gst columns are not shown
+    - if values are present in job_part_used table, they are used without any calculations. Otherwise cost_price = dbcp*(1 + rate/100), selling price calculations as before
+  - For reset:
+    All values are recalculated from begining
+  - When division changes from gst <-> non-gst, all values are recalculated from begining
+  - Computed and total values are normal. Back Calculate will respect above logic and be sensible.
+  - Target amount is job.amount or total (The first non zero)

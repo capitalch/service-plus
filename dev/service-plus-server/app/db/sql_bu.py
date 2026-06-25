@@ -1029,7 +1029,6 @@ class SqlBu:
             (2, 'show_parts_in_job_invoice',              '{"gst_rate":18,"hsn": 11236,"show": true,"text": "Overall repair cost"}',  'When showing parts in invoice, use a single combined line with this label and HSN code', true),
             (3, 'markup_percent_over_cost',                  '20',    'Default markup percent over cost price to get selling price',                                    true),
             (4, 'default_division_id',                       '1',     'Default division selected when creating a new job',                                              true),
-            (5, 'force_gst_on_parts_for_non_gst_invoices',  'false',     'For non-GST invoices, apply 18% GST implicitly on part cost price; service/labor tax = 0',      true),
             (6, 'default_hsn_for_spare_part',               '92099400',  'Default HSN code for Spare Part',                                                                true),
             (7, 'default_hsn_for_service_charge',           '998726',    'Default HSN code for labour charges, service charges etc.',                                      true),
             (8, 'no_of_job_sheets_per_print',               '2',         'The no of job sheets to be printed when print pdf',                                        true),

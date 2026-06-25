@@ -1,3 +1,54 @@
+# website creation: I want to create a website for end user which does following
+	- User can get detailed job information after selecting the client, business unit and giving job no
+	- If job is final, user can request delivery after payment of repair cost and delivery cost
+	- A listing of spare part from stock with the image of certain parts. User can order parts and pay online
+	- User can search spare parts on model, name, part code and order the parts if in stock
+	- Web site needs to be integrated with existing codebase and also integrate with Trace-plus
+	- Sort out the suggested technology and create an architecture
+
+# Plan out a complete help system for end user. The help system should be modern and detailed and to the point addressing each aspect of the software, including how to do a particular work. Provide normal questions and answers. Help system should be exhaustive, useful, informative and meaningful and easy to use.
+
+# Computation of cost_price and selling_price and other values during finalization process of job. This is applicable for spare parts charges to be stored in job_part_used table:
+- let dbcp = cost_price of spare part in spare_part_master table, dbsp = selling_price of spare part in spare_part_master table, isGst = gst applicable for the selected division, rate = gst_rate in percent for the part (from job_part_used or (from spare_part_master) or (from default_gst_rate))
+- When "Parts & charges" is executed in various screens of Job Pipeline, cost_price, selling_price, gst_rate, hsn of the spare_part is stored in job_part_used table. When a part is selected using the PartCodeInput: dbcp is the default value for cost_price and dbsp or (dbcp + markup) is default value for selling_price. User can edit them. If already these values exist in job_part_used table, those existing values are used and shown for cost_price and selling_price without any further calculations. hsn_code, gst_rate are silently put in respective fields from spare_part_master (if not present or 0 value then use default_hsn_for_spare_part and default_gst_rate instead). This action is irrespective of gst or non-gst division.
+- Remove force_gst_on_parts_for_non_gst_invoices app_settings and all associated logic in the codebase.
+- In final a job > Final :
+  - For isGst
+    - show hsn, cost, sale, +gst, amt as usual, based on cost_price, selling_price, gst_rate and hsn values in job_part_used table
+    - If new part is added then the values are calculated as in case of "Parts & Charges"
+  - For !isGst
+    - hsn, +gst columns are not shown
+    - if values are present in job_part_used table, they are used without any calculations. Otherwise cost_price = dbcp*(1 + rate/100), selling price calculations as before
+  - For reset:
+    All values are recalculated from begining
+  - When division changes from gst <-> non-gst, all values are recalculated from begining
+  - Computed and total values are normal. Back Calculate will respect above logic and be sensible.
+  - Target amount is job.amount or total (The first non zero)
+
+# Computation of cost_price and selling_price and other values during finalization process of job
+- let dbcp = cost_price of spare part in spare_part_master table, customcp = current cost_price of part in job_part_used table, cp = calculated cost_price, patch = force_gst_on_parts_for_non_gst_invoices, isGst = gst applicable for the division, rate = gst_rate in percent for the part, sp = calculated selling_price, markup = markup_percent_over_cost, customsp = current selling_price of part in job_part_used table
+- Logic for computation of cp is as follows:
+  let ccp = dbcp or custom (or:First non zero value)
+    if !isGst
+      if patch
+        if(dbcp)
+          cp = (1 + rate/100)*dbcp
+        else
+          cp = custom
+      else
+        cp = ccp
+    else
+      cp = ccp
+    end
+- Logic for computation of sp is as follows:
+  sp = customsp or cp * (1 + markup/100) [or:First non zero value]
+- +gst is sp(1 + rate/100)
+- Computed and total values are normal. Back Calculate will respect above logic and be sensible.
+- Target amount is job.amount or total (or:First non zero value)
+- Change of division will do recalculation if gst-> non-gst or reverse happens.
+- Provide a reset button which resets all values but does not delete any rows from Parts Used or Additional Charges block
+  
+
 # Strategy for job cost price / sale price, Parts & charges and job final. This should be the strategy:
 - When through Job Pipeline user selects "Parts & Charges", a modal window for "Parts & Charges" opens. User can add part and select a part from part selector. Cost of spare parts is taken from spare part master (if not there then 0) and sale price is obtained after adding markup for sale price (if not present in spare part master). The cost and sale prices are populated in the newly added row. Please note that there should be no consideration of gst calculations at this stage.
 - When data saved, job_part_used table is populated with cost_price, selling_price, gst_rate(from spare_part_master or default gst rate for part), hsn (from spare_part_master or default hsn code for part). Gst information is always saved based on available data irrespective of whether gst or non-gst division.

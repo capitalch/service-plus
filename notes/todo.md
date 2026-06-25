@@ -1,22 +1,25 @@
+
 # To Do 14-06-2026
 - Enhancements
+								- Provide a button in Finalized jobs actions, which shows a detailed view of all charges as it is shown in "Final a Job", but it will be in readonly mode.
 - Bug fix / QA
+	-  When in final the job form: division is changed from gst to non-gst and vice-versa, the sale price and amount does not remain consistent.
 								- Connection pool closes arbitrarily in local server
 - Features
-	- When undeliver a job, its status delivered_ok does not change
+								- When undeliver a job, its status delivered_ok does not change
 								- Remove unpost from Jobs > Receipts > Actions dropdown
-	- Job sales return
 								- mechanism to unpost a receipt, purchase invoice, sales invoice, job invoice
 								- Change spelling of divison to division all over the codebase
 	- Accounts posting
-								- Inspect the document no strategy for divisions. At present if proper doc prefix is missing from a division, it results in a cryptic error
-		- When a division is changed for a job from gst to non-gst, and already some part is registered with gst, theninvoice figures become wrong. Device a strategy for that. Suggestion is thatgst application on parts be applied only during finalizing stage and not before that. When undo final then gst parameters should reset.
-		-  When in final the job form: division is changed from gst to non-gst and vice-versa, the sale price and amount does not remain consistent.
-							- When divison is non-gst, still gst calculations appear. Gst calculations are meaningful for gst divisions only
-		- Device a strategy where the user can change a division. Should not be allowed everywhere especially when gst
 		- Sales Invoices
 		- Job Invoices
 		- All divisons
+		
+								- Inspect the document no strategy for divisions. At present if proper doc prefix is missing from a division, it results in a cryptic error
+								- When a division is changed for a job from gst to non-gst, and already some part is registered with gst, theninvoice figures become wrong. Device a strategy for that. Suggestion is thatgst application on parts be applied only during finalizing stage and not before that. When undo final then gst parameters should reset.
+		
+							- When divison is non-gst, still gst calculations appear. Gst calculations are meaningful for gst divisions only
+							- Device a strategy where the user can change a division. Should not be allowed everywhere especially when gst
 							- Trace+
 								- Create authenticated json based api to listen: dry run
 								- Define json fields and format to receive

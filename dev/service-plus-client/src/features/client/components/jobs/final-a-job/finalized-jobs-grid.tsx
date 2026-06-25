@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
     CheckCircle2,
     ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon,
-    Eye, Loader2, Paperclip, RefreshCw, Search, Undo2, X,
+    Eye, Loader2, Paperclip, ReceiptText, RefreshCw, Search, Undo2, X,
 } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -34,18 +34,20 @@ type Props = {
     search:             string;
     branchId:           number | null;
     availableDivisions: DivisionContextType[];
-    undoingJobId:       number | null;
-    onSearchChange:     (v: string) => void;
-    onRefresh:          () => void;
-    onViewJob:          (id: number) => void;
-    onUndo:             (row: FinalizedJobRow) => void;
-    onOpenAttach:       (id: number, jobNo: string) => void;
+    undoingJobId:         number | null;
+    chargesLoadingJobId:  number | null;
+    onSearchChange:       (v: string) => void;
+    onRefresh:            () => void;
+    onViewJob:            (id: number) => void;
+    onUndo:               (row: FinalizedJobRow) => void;
+    onOpenAttach:         (id: number, jobNo: string) => void;
+    onViewCharges:        (row: FinalizedJobRow) => void;
 };
 
 export function FinalizedJobsGrid({
     rows, loading, total, page, setPage,
-    search, branchId, availableDivisions, undoingJobId,
-    onSearchChange, onRefresh, onViewJob, onUndo, onOpenAttach,
+    search, branchId, availableDivisions, undoingJobId, chargesLoadingJobId,
+    onSearchChange, onRefresh, onViewJob, onUndo, onOpenAttach, onViewCharges,
 }: Props) {
     const scrollRef = useRef<HTMLDivElement>(null);
     const [maxHeight, setMaxHeight] = useState(0);
@@ -235,6 +237,20 @@ export function FinalizedJobsGrid({
                                             >
                                                 <Eye className="h-3 w-3" />
                                                 View
+                                            </Button>
+                                            <Button
+                                                className="h-7 gap-1 px-2 text-xs font-semibold text-teal-700 border border-teal-300 hover:bg-teal-50 dark:text-teal-400 dark:border-teal-700 dark:hover:bg-teal-950/30"
+                                                disabled={chargesLoadingJobId === row.id}
+                                                size="sm"
+                                                title="View parts and charges breakdown"
+                                                variant="outline"
+                                                onClick={() => onViewCharges(row)}
+                                            >
+                                                {chargesLoadingJobId === row.id
+                                                    ? <Loader2 className="h-3 w-3 animate-spin" />
+                                                    : <ReceiptText className="h-3 w-3" />
+                                                }
+                                                Charges
                                             </Button>
                                             <Button
                                                 className="h-7 gap-1 px-2 text-xs font-semibold text-rose-700 border border-rose-300 hover:bg-rose-50 dark:text-rose-400 dark:border-rose-700 dark:hover:bg-rose-950/30"

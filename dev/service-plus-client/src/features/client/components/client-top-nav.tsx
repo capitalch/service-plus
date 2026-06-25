@@ -5,7 +5,7 @@ import { BuBranchSwitcher } from "@/features/admin/components/bu-branch-switcher
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { logout, selectCurrentUser } from "@/features/auth/store/auth-slice";
 import { ROUTES } from "@/router/routes";
-import { useLayout, useTheme } from "./client-layout";
+import { useHelp, useLayout, useTheme } from "./client-layout";
 import type { Section } from "./client-layout";
 
 type NavItem = { label: string; section: Section; to: string; end?: boolean };
@@ -27,6 +27,7 @@ export const ClientTopNav = ({ activeSection }: Props) => {
     const user                     = useAppSelector(selectCurrentUser);
     const { isDark, toggleTheme }  = useTheme();
     const { toggleExplorer }       = useLayout();
+    const { openHelp }             = useHelp();
 
     function handleLogout() {
         dispatch(logout());
@@ -72,6 +73,12 @@ export const ClientTopNav = ({ activeSection }: Props) => {
                             {label}
                         </NavLink>
                     ))}
+                    <button
+                        onClick={openHelp}
+                        className="flex h-full cursor-pointer items-center pb-1 text-[13px] lg:text-sm font-medium tracking-tight transition-all active:scale-95 whitespace-nowrap text-(--cl-text-muted) hover:text-(--cl-accent)"
+                    >
+                        Help
+                    </button>
                 </nav>
             </div>
 

@@ -1,7 +1,7 @@
 import type { Dispatch, SetStateAction } from "react";
 import {
     AlertTriangle, ArrowLeft, CheckCheck, CheckCircle2,
-    Eye, Loader2, Plus, RefreshCw, Trash2, XCircle,
+    Eye, Loader2, Plus, RefreshCw, RotateCcw, Trash2, XCircle,
 } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -176,6 +176,7 @@ export type FinalJobFormProps = {
     onBack: () => void;
     onSave: () => Promise<void>;
     onRefresh: () => Promise<void>;
+    onReset: () => void;
     onAddPart: () => void;
     onRemovePart: (key: string, id?: number) => void;
     onUpdatePart: (key: string, patch: Partial<EditablePartLine>) => void;
@@ -195,7 +196,7 @@ export function FinalJobForm({
     partLines, chargeLines, deletedPartIds, forceIgst, backCalcTarget, showPartsInInvoice,
     defaultHsnForServiceCharge, viewJobId,
     setForceIgst, setBackCalcTarget, setShowPartsInInvoice, setChargeLines, setPartLines, setViewJobId,
-    onBack, onSave, onRefresh, onAddPart, onRemovePart, onUpdatePart, onPartSelect,
+    onBack, onSave, onRefresh, onReset, onAddPart, onRemovePart, onUpdatePart, onPartSelect,
     onAddCharge, onRemoveCharge, onUpdateCharge, onPatchCharge, onDivisionChange,
 }: FinalJobFormProps) {
     const isWarranty = selectedRow.job_type_code === "UNDER_WARRANTY";
@@ -272,11 +273,22 @@ export function FinalJobForm({
                             className="h-7 w-7 p-0 text-(--cl-text-muted) hover:text-(--cl-accent)"
                             disabled={loadingDetail || submitting}
                             size="icon"
-                            title="Refresh"
+                            title="Refresh from DB"
                             variant="ghost"
                             onClick={() => void onRefresh()}
                         >
                             {loadingDetail ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                        </Button>
+                        <Button
+                            className="h-7 gap-1 px-2 text-xs text-amber-700 border border-amber-300 hover:bg-amber-50 dark:text-amber-400 dark:border-amber-700 dark:hover:bg-amber-950/30"
+                            disabled={submitting}
+                            size="sm"
+                            title="Reset all prices from master data — keeps all rows"
+                            variant="outline"
+                            onClick={onReset}
+                        >
+                            <RotateCcw className="h-3 w-3" />
+                            Reset
                         </Button>
                     </div>
                     <div className={`flex items-center gap-1 px-1.5 py-1 rounded-sm border shadow-sm ${isGst ? "bg-emerald-500/10 border-emerald-500/20" : "bg-red-500/10 border-red-500/20"}`}>

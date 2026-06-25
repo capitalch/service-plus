@@ -1,4 +1,4 @@
-import { BarChart3, BookOpen, HelpCircle, Package, ShieldCheck, SlidersHorizontal, UserCircle, Wrench } from "lucide-react";
+import { BarChart3, BookOpen, Package, ShieldCheck, SlidersHorizontal, UserCircle, Wrench } from "lucide-react";
 import type { ComponentType } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 
@@ -66,9 +66,7 @@ export const ClientActivityBar = ({ activeSection }: Props) => {
                 <button className="cursor-pointer text-(--cl-text-muted) transition-all hover:text-(--cl-text)" title="Account">
                     <UserCircle className="h-5 w-5" />
                 </button>
-                <button className="cursor-pointer text-(--cl-text-muted) transition-all hover:text-(--cl-text)" title="Help">
-                    <HelpCircle className="h-5 w-5" />
-                </button>
+
             </div>
         </aside>
     );
