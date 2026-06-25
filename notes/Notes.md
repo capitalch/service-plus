@@ -1,9 +1,13 @@
 # Testing plan for charges
   - Job 120 (id 125), Parts & Charge, Add part 11006549 (cost 1100, mrp 1700) and save, check db value saved
 - repeat and edit cp to 1200 and save, check db: OK, sp=1440
-- final: div: capital
+- final: div: capital: gst
   - GST all ok. Target ok
-  - changed cost to 1300
+  - Back calculate ok
+  - changed cost to 1300: OK
+  - Added additional charges: Ok
+- refreshed: cost 1100
+- final: changed div to no gst without saving: with only parts ok
 # website creation: I want to create a website for end user which does following
 	- User can get detailed job information after selecting the client, business unit and giving job no
 	- If job is final, user can request delivery after payment of repair cost and delivery cost
