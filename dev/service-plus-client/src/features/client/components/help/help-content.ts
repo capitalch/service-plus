@@ -737,13 +737,11 @@ export const HELP_ARTICLES: HelpArticle[] = [
                 ["no_of_invoice_copies_per_print",         "Number of invoice copies printed"],
                 ["show_parts_in_job_invoice",              "Default for 'Show Parts in Invoice' on job finalization"],
                 ["markup_percent_over_cost",               "Auto-calculates selling price = cost × (1 + markup%)"],
-                ["force_gst_on_parts_for_non_gst_invoices","Inflates part cost in non-GST invoices to include GST paid to supplier"],
                 ["post_data_to_accounts",                  "Enables accounting system integration (Post to Accounts)"],
             ]},
         ],
         faqs: [
             { q: "How does markup_percent_over_cost work?", a: "When a part is added to a job, if no selling price is set on the part master, selling price is calculated as: Cost Price × (1 + markup% / 100). For example, 20% markup on ₹100 cost = ₹120 selling price." },
-            { q: "What does force_gst_on_parts_for_non_gst_invoices do?", a: "When ON: in non-GST invoices, the cost price is inflated by the part's GST rate (to absorb the GST you paid the supplier into your cost). When OFF: raw cost price is used without adjustment." },
             { q: "Why can't I edit some settings?", a: "Some settings are marked as non-editable (system-fixed). These are managed by the platform administrator and cannot be changed from the UI." },
         ],
     },

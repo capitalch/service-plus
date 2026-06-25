@@ -38,7 +38,6 @@ type ContextStateType = {
     noOfJobSheetsPerPrint:    number;
     defaultHsnForSparePart:      string;
     defaultHsnForServiceCharge:  string;
-    forceGstOnPartsForNonGst: boolean;
     isGstRegistered:          boolean;
     postDataToAccounts:       boolean;
 };
@@ -61,7 +60,6 @@ const initialState: ContextStateType = {
     noOfJobSheetsPerPrint:    1,
     defaultHsnForSparePart:     "",
     defaultHsnForServiceCharge: "",
-    forceGstOnPartsForNonGst: false,
     isGstRegistered:          false,
     postDataToAccounts:       false,
 };
@@ -138,10 +136,6 @@ export const contextSlice = createSlice({
             state.defaultDivisionId = action.payload;
         },
 
-        setForceGstOnPartsForNonGst: (state, action: PayloadAction<boolean>) => {
-            state.forceGstOnPartsForNonGst = action.payload;
-        },
-
         setPostDataToAccounts: (state, action: PayloadAction<boolean>) => {
             state.postDataToAccounts = action.payload;
         },
@@ -167,7 +161,6 @@ export const {
     setNoOfJobInvoicesPerPrint,
     setNoOfJobSheetsPerPrint,
     setDefaultHsnForServiceCharge,
-    setForceGstOnPartsForNonGst,
     setIsGstRegistered,
     setPostDataToAccounts,
 } = contextSlice.actions;
@@ -191,7 +184,6 @@ export const selectNoOfJobInvoicesPerPrint  = (state: ContextRootState) => state
 export const selectNoOfJobSheetsPerPrint    = (state: ContextRootState) => state.context.noOfJobSheetsPerPrint;
 export const selectDefaultHsnForSparePart      = (state: ContextRootState) => state.context.defaultHsnForSparePart;
 export const selectDefaultHsnForServiceCharge  = (state: ContextRootState) => state.context.defaultHsnForServiceCharge;
-export const selectForceGstOnPartsForNonGst = (state: ContextRootState) => state.context.forceGstOnPartsForNonGst;
 export const selectIsGstRegistered          = (state: ContextRootState) => state.context.isGstRegistered;
 export const selectPostDataToAccounts       = (state: ContextRootState) => state.context.postDataToAccounts;
 export const selectHomeStateId           = (state: ContextRootState): number | null =>

@@ -15,7 +15,9 @@ export function calculateLinePricing(
     patch: Partial<Pick<EditablePartLine, "selling_price" | "gst_rate" | "cost_price">>,
     isGst: boolean,
 ): Partial<EditablePartLine> {
-    const sp      = parseFloat(patch.selling_price ?? line.selling_price) || 0;
-    const gstRate = isGst ? (parseFloat(patch.gst_rate ?? line.gst_rate) || 0) : 0;
-    return { ...patch, gst_rate: String(gstRate), sale_pr_gst: (sp * (1 + gstRate / 100)).toFixed(2) };
+    const sp         = parseFloat(patch.selling_price ?? line.selling_price) || 0;
+    // gst_rate always stores the master rate; GST is only added to sale_pr_gst when the division is GST
+    const masterRate = parseFloat(patch.gst_rate ?? line.gst_rate) || 0;
+    const effRate    = isGst ? masterRate : 0;
+    return { ...patch, gst_rate: String(masterRate), sale_pr_gst: (sp * (1 + effRate / 100)).toFixed(2) };
 }

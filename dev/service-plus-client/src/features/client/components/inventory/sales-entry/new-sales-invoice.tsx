@@ -18,7 +18,7 @@ import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
-import { selectAvailableDivisions, selectDefaultDivisionId, selectDefaultGstRate, selectEffectiveGstStateCode, selectForceGstOnPartsForNonGst, selectIsGstMode, selectSchema } from "@/store/context-slice";
+import { selectAvailableDivisions, selectDefaultDivisionId, selectDefaultGstRate, selectEffectiveGstStateCode, selectIsGstMode, selectSchema } from "@/store/context-slice";
 import type { SalesInvoiceType, DocumentSequenceRow, CustomerSearchRow } from "@/features/client/types/sales";
 import type { CustomerTypeOption, StateOption } from "@/features/client/types/customer";
 import { type SalesInvoiceFormValues, getInitialSalesLine } from "./sales-invoice-schema";
@@ -98,7 +98,6 @@ export function NewSalesInvoice({
     const isGstMode                 = useAppSelector(selectIsGstMode);
     const defaultGstRate            = useAppSelector(selectDefaultGstRate);
     const effectiveGstStateCode     = useAppSelector(selectEffectiveGstStateCode);
-    const forceGstOnPartsForNonGst  = useAppSelector(selectForceGstOnPartsForNonGst);
     const availableDivisions        = useAppSelector(selectAvailableDivisions);
     const defaultDivisionId         = useAppSelector(selectDefaultDivisionId);
 
@@ -482,16 +481,15 @@ export function NewSalesInvoice({
                                                         onClear={() => updateLine(idx, { part_code: "", part_id: null, part_name: "" })}
                                                         onSelect={part => {
                                                             const masterGstRate   = Number(part.gst_rate ?? 0);
-                                                            const forceGstOnParts = !isGstMode && forceGstOnPartsForNonGst;
                                                             const effectiveGstRate = isGstMode
                                                                 ? (masterGstRate === 0 ? defaultGstRate : masterGstRate)
                                                                 : 0;
                                                             const costPrice  = Number(part.cost_price ?? 0);
+                                                            // non-GST sales absorb the supplier GST (part's own rate) into the unit price
+                                                            const nonGstRate = masterGstRate > 0 ? masterGstRate : (Number(defaultGstRate) || 0);
                                                             const unitPrice  = isGstMode
                                                                 ? Number(part.mrp ?? costPrice)
-                                                                : forceGstOnParts
-                                                                    ? Math.round(costPrice * 1.18 * 100) / 100
-                                                                    : costPrice;
+                                                                : Math.round(costPrice * (1 + nonGstRate / 100) * 100) / 100;
                                                             updateLine(idx, {
                                                                 part_id:    part.id,
                                                                 brand_id:   part.brand_id,

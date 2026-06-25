@@ -31,7 +31,6 @@ import {
     setCurrentBu,
     setCurrentDivision,
     setDefaultDivisionId,
-    setForceGstOnPartsForNonGst,
     setNoOfJobInvoicesPerPrint,
     setNoOfJobSheetsPerPrint,
 } from "@/store/context-slice";
@@ -73,15 +72,11 @@ function parseAppSettings(settings: AppSettingRow[]) {
     }
 
     const rawDefaultId  = settings.find(s => s.setting_key === 'default_division_id')?.setting_value;
-    const rawForce      = settings.find(s => s.setting_key === 'force_gst_on_parts_for_non_gst_invoices')?.setting_value;
     const rawSheets     = settings.find(s => s.setting_key === 'no_of_job_sheets_per_print')?.setting_value;
     const rawInvoices   = settings.find(s => s.setting_key === 'no_of_job_invoices_per_print')?.setting_value;
 
-    const forceParsed   = coerce(rawForce);
-
     return {
         defaultDivisionId: rawDefaultId !== undefined ? Number(coerce(rawDefaultId) ?? 1) : 1,
-        forceGst:          rawForce     !== undefined && (forceParsed === true || forceParsed === 'true'),
         jobSheets:         Math.max(1, Number(coerce(rawSheets)   ?? 1)),
         jobInvoices:       Math.max(1, Number(coerce(rawInvoices) ?? 1)),
     };
@@ -183,7 +178,6 @@ export const BuBranchSwitcher = ({ variant = 'admin' }: BuBranchSwitcherPropsTyp
         dispatch(setCurrentBranch(ctx.resolvedBranch));
         dispatch(setAvailableDivisions(ctx.divisions));
         dispatch(setDefaultDivisionId(parsed.defaultDivisionId));
-        dispatch(setForceGstOnPartsForNonGst(parsed.forceGst));
         dispatch(setNoOfJobSheetsPerPrint(parsed.jobSheets));
         dispatch(setNoOfJobInvoicesPerPrint(parsed.jobInvoices));
 

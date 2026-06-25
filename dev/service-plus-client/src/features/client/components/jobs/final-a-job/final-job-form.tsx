@@ -65,6 +65,7 @@ function scaleParts(
     active: EditablePartLine[],
     curTotal: number,
     newTotal: number,
+    isGst: boolean,
 ): EditablePartLine[] {
     if (curTotal <= 0) return allParts;
     const rowAmounts = active.map(l =>
@@ -76,7 +77,7 @@ function scaleParts(
     const patch = new Map<string, Pick<EditablePartLine, "selling_price" | "sale_pr_gst">>();
     let runningTotal = 0;
     active.forEach((l, i) => {
-        const gstRate = parseFloat(l.gst_rate) || 0;
+        const gstRate = isGst ? (parseFloat(l.gst_rate) || 0) : 0;
         const multiplier = 1 + gstRate / 100;
         const costPrice = parseFloat(l.cost_price) || 0;
         if (i < active.length - 1) {
@@ -114,7 +115,7 @@ function computeBackCalc(
     if (activeParts.length > 0) {
         const curPartsAmt = activeParts.reduce((s, l) => s + (parseFloat(l.sale_pr_gst) || 0) * l.qty, 0);
         if (curPartsAmt > 0) {
-            newPartLines = scaleParts(partLines, activeParts, curPartsAmt, curPartsAmt + diff);
+            newPartLines = scaleParts(partLines, activeParts, curPartsAmt, curPartsAmt + diff, isGst);
             const actualNewPartsTotal = newPartLines.reduce((s, l) => {
                 if (l.part_id === null) return s;
                 return s + (parseFloat(l.sale_pr_gst) || 0) * l.qty;
@@ -180,6 +181,7 @@ export type FinalJobFormProps = {
     onAddPart: () => void;
     onRemovePart: (key: string, id?: number) => void;
     onUpdatePart: (key: string, patch: Partial<EditablePartLine>) => void;
+    onCostChange: (key: string, value: string) => void;
     onPartSelect: (key: string, part: PartRow) => void;
     onAddCharge: () => void;
     onRemoveCharge: (key: string, id?: number) => void;
@@ -196,7 +198,7 @@ export function FinalJobForm({
     partLines, chargeLines, deletedPartIds, forceIgst, backCalcTarget, showPartsInInvoice,
     defaultHsnForServiceCharge, viewJobId,
     setForceIgst, setBackCalcTarget, setShowPartsInInvoice, setChargeLines, setPartLines, setViewJobId,
-    onBack, onSave, onRefresh, onReset, onAddPart, onRemovePart, onUpdatePart, onPartSelect,
+    onBack, onSave, onRefresh, onReset, onAddPart, onRemovePart, onUpdatePart, onCostChange, onPartSelect,
     onAddCharge, onRemoveCharge, onUpdateCharge, onPatchCharge, onDivisionChange,
 }: FinalJobFormProps) {
     const isWarranty = selectedRow.job_type_code === "UNDER_WARRANTY";
@@ -400,8 +402,8 @@ export function FinalJobForm({
                             <div className="flex flex-col gap-1 bg-white">
                                 {partLines.map((line, idx) => {
                                     const costAmt = (parseFloat(line.cost_price) || 0) * line.qty;
-                                    const gstRate = parseFloat(line.gst_rate) || 0;
-                                    const saleAmt = isWarranty ? 0 : (parseFloat(line.selling_price) || 0) * line.qty * (1 + gstRate / 100);
+                                    // sale_pr_gst already encodes GST (or not) per the job's division
+                                    const saleAmt = isWarranty ? 0 : (parseFloat(line.sale_pr_gst) || 0) * line.qty;
                                     const profit = ((parseFloat(line.selling_price) || 0) - (parseFloat(line.cost_price) || 0)) * line.qty;
                                     return (
                                         <div key={line._key} className="px-1 py-3 space-y-2.5 bg-(--cl-surface) hover:bg-(--cl-surface-2)/50 transition-colors">
@@ -527,7 +529,7 @@ export function FinalJobForm({
                                                             className="h-6 w-24 border-(--cl-border) bg-white text-xs text-right"
                                                             min="0" step="0.01" type="number"
                                                             value={line.cost_price}
-                                                            onChange={e => onUpdatePart(line._key, { cost_price: e.target.value })}
+                                                            onChange={e => onCostChange(line._key, e.target.value)}
                                                             onFocus={e => e.target.select()}
                                                         />
                                                     </div>
@@ -739,9 +741,7 @@ export function FinalJobForm({
                                                                 onChange={e => {
                                                                     const sp = e.target.value;
                                                                     const gstRate = isGst ? (parseFloat(c.gst_rate) || 0) : 0;
-                                                                    setChargeLines(prev => prev.map(cl => cl._key === c._key
-                                                                        ? { ...cl, selling_price: sp, sale_pr_gst: ((parseFloat(sp) || 0) * (1 + gstRate / 100)).toFixed(2) }
-                                                                        : cl));
+                                                                    onPatchCharge(c._key, { selling_price: sp, sale_pr_gst: ((parseFloat(sp) || 0) * (1 + gstRate / 100)).toFixed(2) });
                                                                 }}
                                                                 onFocus={e => e.target.select()}
                                                             />
@@ -757,10 +757,8 @@ export function FinalJobForm({
                                                                 value={c.sale_pr_gst}
                                                                 onChange={e => {
                                                                     const spg = e.target.value;
-                                                                    const gstRate = parseFloat(c.gst_rate) || 0;
-                                                                    setChargeLines(prev => prev.map(cl => cl._key === c._key
-                                                                        ? { ...cl, sale_pr_gst: spg, selling_price: ((parseFloat(spg) || 0) / (1 + gstRate / 100)).toFixed(2) }
-                                                                        : cl));
+                                                                    const gstRate = isGst ? (parseFloat(c.gst_rate) || 0) : 0;
+                                                                    onPatchCharge(c._key, { sale_pr_gst: spg, selling_price: ((parseFloat(spg) || 0) / (1 + gstRate / 100)).toFixed(2) });
                                                                 }}
                                                                 onFocus={e => e.target.select()}
                                                             />

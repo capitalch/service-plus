@@ -10,7 +10,7 @@ import { SQL_MAP } from "@/constants/sql-map";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { apolloClient } from "@/lib/apollo-client";
 import { encodeObj, graphQlUtils } from "@/lib/graphql-utils";
-import { selectAvailableDivisions, selectCurrentBranch, selectCurrentDivision, selectDefaultGstRate, selectDefaultHsnForSparePart, selectDefaultHsnForServiceCharge, selectForceGstOnPartsForNonGst, selectSchema } from "@/store/context-slice";
+import { selectAvailableDivisions, selectCurrentBranch, selectCurrentDivision, selectDefaultGstRate, selectDefaultHsnForSparePart, selectDefaultHsnForServiceCharge, selectSchema } from "@/store/context-slice";
 import { useAppSelector } from "@/store/hooks";
 import type { JobDetailType } from "@/features/client/types/job";
 import { isGstDivision } from "@/features/client/types/division";
@@ -28,7 +28,7 @@ import {
     type AdditionalChargeMasterRow,
     emptyChargeLine,
 } from "./final-a-job-schema";
-import { PAGE_SIZE, DEBOUNCE_MS, calculateLinePricing } from "./final-a-job-helpers";
+import { PAGE_SIZE, DEBOUNCE_MS } from "./final-a-job-helpers";
 import { FinalJobForm } from "./final-job-form";
 import { PendingJobsGrid } from "./pending-jobs-grid";
 import { FinalizedJobsGrid } from "./finalized-jobs-grid";
@@ -83,7 +83,7 @@ function applyMarkup(cost: number, markupPct: number): number {
 function computePartPricesOnSelect(
     part: PartRow,
     isGst: boolean,
-    forceGstOnPartsForNonGst: boolean,
+    inflateCostForNonGst: boolean, // true in Final-a-Job for non-GST: absorb supplier GST into cost
     defaultGstRate: number,
     markupPct: number,
     currentCostPrice = 0,    // customcp — existing line cost before selection
@@ -92,26 +92,22 @@ function computePartPricesOnSelect(
     const dbcp = part.cost_price ?? 0;
     const effectiveGstRate = (part.gst_rate ?? 0) > 0 ? (part.gst_rate ?? 0) : defaultGstRate;
 
-    // ccp = first non-zero of (dbcp, customcp)
-    const ccp = dbcp > 0 ? dbcp : currentCostPrice;
-
     let cp: number;
-    if (!isGst && forceGstOnPartsForNonGst) {
+    if (!isGst && inflateCostForNonGst) {
         // inflate only when master has a price; otherwise keep customcp un-inflated
         cp = dbcp > 0 ? dbcp * (1 + effectiveGstRate / 100) : currentCostPrice;
     } else {
-        cp = ccp;
+        cp = dbcp > 0 ? dbcp : currentCostPrice;
     }
 
     // sp = customsp or cp*(1+markup/100)  [first non-zero]
     const sp = currentSellingPrice > 0 ? currentSellingPrice : applyMarkup(cp, markupPct);
 
-    const displayGstRate = isGst ? effectiveGstRate : 0;
     return {
         cost_price:    cp.toFixed(2),
         selling_price: sp.toFixed(2),
-        gst_rate:      String(displayGstRate),
-        sale_pr_gst:   (sp * (1 + displayGstRate / 100)).toFixed(2),
+        gst_rate:      String(effectiveGstRate),                          // always store master rate
+        sale_pr_gst:   (isGst ? sp * (1 + effectiveGstRate / 100) : sp).toFixed(2), // GST only when isGst
     };
 }
 
@@ -126,7 +122,6 @@ export const FinalAJobSection = () => {
     const defaultGstRate = useAppSelector(selectDefaultGstRate);
     const defaultHsnForSparePart = useAppSelector(selectDefaultHsnForSparePart);
     const defaultHsnForServiceCharge = useAppSelector(selectDefaultHsnForServiceCharge);
-    const forceGstOnPartsForNonGst = useAppSelector(selectForceGstOnPartsForNonGst);
     const branchId = currentBranch?.id ?? null;
 
     // ── List state ──────────────────────────────────────────────────────────
@@ -341,16 +336,20 @@ export const FinalAJobSection = () => {
             const parts = partsRes.data?.genericQuery ?? [];
             const charges = chargesRes.data?.genericQuery ?? [];
 
+            // GST status of the job's own division — drives sale_pr_gst on load (before state is set)
+            const loadedDivision = availableDivisions.find(d => d.id === row.division_id) ?? null;
+            const loadedIsGst = isGstDivision(loadedDivision);
+
             setSelectedJob(job);
             setSelectedRow(row);
             setForceIgst(job.is_igst ?? false);
             setShowPartsInInvoice(job.to_show_parts_in_job_invoice ?? true);
             setSelectedDivisionId(row.division_id);
-            if (job.amount) setBackCalcTarget(String(job.amount));
             setPartLines(
                 parts.length > 0
                     ? parts.map(p => {
                         const gr = (p.gst_rate ?? 0) > 0 ? (p.gst_rate ?? 0) : defaultGstRate;
+                        const sp = p.selling_price ?? 0;
                         return {
                             _key: crypto.randomUUID(),
                             id: p.id,
@@ -359,9 +358,9 @@ export const FinalAJobSection = () => {
                             part_code: p.part_code,
                             part_name: p.part_name,
                             cost_price: String(p.cost_price ?? 0),
-                            selling_price: String(p.selling_price ?? 0),
+                            selling_price: String(sp),
                             gst_rate: String(gr),
-                            sale_pr_gst: ((p.selling_price ?? 0) * (1 + gr / 100)).toFixed(2),
+                            sale_pr_gst: (loadedIsGst ? sp * (1 + gr / 100) : sp).toFixed(2),
                             qty: Number(p.qty),
                             remarks: p.remarks ?? "",
                             hsn_code: p.hsn_code?.trim() || defaultHsnForSparePart,
@@ -384,9 +383,23 @@ export const FinalAJobSection = () => {
                 qty: String(c.qty ?? 1),
                 cost_price: String(c.cost_price),
                 selling_price: String(c.selling_price),
-                sale_pr_gst: (c.selling_price * (1 + (c.gst_rate ?? 0) / 100)).toFixed(2),
+                sale_pr_gst: (loadedIsGst ? c.selling_price * (1 + (c.gst_rate ?? 0) / 100) : c.selling_price).toFixed(2),
             })));
             setDeletedChargeIds([]);
+
+            // Seed back-calc target: job.amount if set, else the computed grand total
+            const computedTotal =
+                parts.reduce((s, p) => {
+                    const gr = (p.gst_rate ?? 0) > 0 ? (p.gst_rate ?? 0) : defaultGstRate;
+                    const sp = p.selling_price ?? 0;
+                    return s + (loadedIsGst ? sp * (1 + gr / 100) : sp) * Number(p.qty);
+                }, 0) +
+                charges.reduce((s, c) => {
+                    const sp = c.selling_price ?? 0;
+                    return s + (loadedIsGst ? sp * (1 + (c.gst_rate ?? 0) / 100) : sp) * Number(c.qty ?? 1);
+                }, 0);
+            const seedTarget = (job.amount && Number(job.amount) > 0) ? Number(job.amount) : computedTotal;
+            setBackCalcTarget(seedTarget > 0 ? seedTarget.toFixed(2) : "");
             setSubView("final");
         } catch {
             toast.error(MESSAGES.ERROR_JOB_LOAD_FAILED);
@@ -504,7 +517,7 @@ export const FinalAJobSection = () => {
                 uom: "", mrp: null, is_active: true, brand_name: "",
             } satisfies PartRow;
             const pricePatch = computePartPricesOnSelect(
-                syntheticPart, newIsGst, forceGstOnPartsForNonGst,
+                syntheticPart, newIsGst, !newIsGst,
                 defaultGstRate, markupPct,
                 0, 0,
             );
@@ -584,13 +597,47 @@ export const FinalAJobSection = () => {
         setPartLines(prev => [...prev, emptyPartLine(isGst ? defaultGstRate : 0, defaultHsnForSparePart)]);
     }
 
+    // Re-seed the back-calc target to the current grand total whenever lines change,
+    // so "Total" tracks parts + charges as the user edits. Manual target entry and
+    // Back Calculate bypass these handlers, so they are left untouched.
+    function resyncTarget(parts: EditablePartLine[], charges: EditableChargeLine[]) {
+        const total =
+            parts.reduce((s, l) => s + (parseFloat(l.sale_pr_gst) || 0) * l.qty, 0) +
+            charges.reduce((s, c) => s + (parseFloat(c.sale_pr_gst) || 0) * (parseFloat(c.qty) || 1), 0);
+        setBackCalcTarget(total > 0 ? total.toFixed(2) : "");
+    }
+
     function removePartLine(key: string, id?: number) {
-        setPartLines(prev => prev.filter(l => l._key !== key));
+        const next = partLines.filter(l => l._key !== key);
+        setPartLines(next);
         if (id !== undefined) setDeletedPartIds(prev => [...prev, id]);
+        resyncTarget(next, chargeLines);
     }
 
     function updatePartLine(key: string, patch: Partial<EditablePartLine>) {
-        setPartLines(prev => prev.map(l => l._key === key ? { ...l, ...patch } : l));
+        const next = partLines.map(l => l._key === key ? { ...l, ...patch } : l);
+        setPartLines(next);
+        resyncTarget(next, chargeLines);
+    }
+
+    // Cost edit cascades: selling = cost*(1+markup%), sale_pr_gst = selling*(1+gst%) when GST,
+    // then re-seed the back-calc target to the new grand total.
+    function handleCostChange(key: string, value: string) {
+        const isWarrantyJob = selectedRow?.job_type_code === "UNDER_WARRANTY";
+        const cp = parseFloat(value) || 0;
+        const next = partLines.map(l => {
+            if (l._key !== key) return l;
+            const sp = isWarrantyJob ? (parseFloat(l.selling_price) || 0) : applyMarkup(cp, markupPct);
+            const rate = isGst ? (parseFloat(l.gst_rate) || 0) : 0;
+            return {
+                ...l,
+                cost_price:    value,
+                selling_price: sp.toFixed(2),
+                sale_pr_gst:   (sp * (1 + rate / 100)).toFixed(2),
+            };
+        });
+        setPartLines(next);
+        resyncTarget(next, chargeLines);
     }
 
     function handlePartSelect(key: string, part: PartRow) {
@@ -598,7 +645,7 @@ export const FinalAJobSection = () => {
         const currentCostPrice    = parseFloat(line?.cost_price    ?? "0") || 0;
         const currentSellingPrice = parseFloat(line?.selling_price ?? "0") || 0;
         const pricePatch = computePartPricesOnSelect(
-            part, isGst, forceGstOnPartsForNonGst, defaultGstRate, markupPct,
+            part, isGst, !isGst, defaultGstRate, markupPct,
             currentCostPrice, currentSellingPrice,
         );
         updatePartLine(key, {
@@ -620,16 +667,22 @@ export const FinalAJobSection = () => {
     }
 
     function removeChargeLine(key: string, id?: number) {
-        setChargeLines(prev => prev.filter(c => c._key !== key));
+        const next = chargeLines.filter(c => c._key !== key);
+        setChargeLines(next);
         if (id !== undefined) setDeletedChargeIds(prev => [...prev, id]);
+        resyncTarget(partLines, next);
     }
 
     function updateChargeLine(key: string, field: keyof EditableChargeLine, value: string) {
-        setChargeLines(prev => prev.map(c => c._key === key ? { ...c, [field]: value } : c));
+        const next = chargeLines.map(c => c._key === key ? { ...c, [field]: value } : c);
+        setChargeLines(next);
+        resyncTarget(partLines, next);
     }
 
     function patchChargeLine(key: string, patch: Partial<EditableChargeLine>) {
-        setChargeLines(prev => prev.map(c => c._key === key ? { ...c, ...patch } : c));
+        const next = chargeLines.map(c => c._key === key ? { ...c, ...patch } : c);
+        setChargeLines(next);
+        resyncTarget(partLines, next);
     }
 
     // ── Reset prices ────────────────────────────────────────────────────────
@@ -650,7 +703,7 @@ export const FinalAJobSection = () => {
                 hsn_code:      line.hsn_code || null,
             } satisfies PartRow;
             const pricePatch = computePartPricesOnSelect(
-                syntheticPart, isGst, forceGstOnPartsForNonGst, defaultGstRate, markupPct,
+                syntheticPart, isGst, !isGst, defaultGstRate, markupPct,
                 0, 0, // force fresh computation — no custom overrides
             );
             return { ...line, ...pricePatch };
@@ -712,7 +765,7 @@ export const FinalAJobSection = () => {
                     ref_no: c.ref_no.trim() || null,
                     description: c.description.trim() || null,
                     hsn_code: (isGst && !isWarrantyJob) ? (c.hsn_code.trim() || null) : null,
-                    gst_rate: (isGst && !isWarrantyJob) ? (parseFloat(c.gst_rate) || 0) : 0,
+                    gst_rate: !isWarrantyJob ? (parseFloat(c.gst_rate) || 0) : 0,
                     qty: parseFloat(c.qty) || 1,
                     cost_price: parseFloat(c.cost_price) || 0,
                     selling_price: isWarrantyJob ? 0 : (parseFloat(c.selling_price) || 0),
@@ -728,7 +781,7 @@ export const FinalAJobSection = () => {
                     part_id: l.part_id,
                     cost_price: parseFloat(l.cost_price) || 0,
                     selling_price: isWarrantyJob ? 0 : (parseFloat(l.selling_price) || 0),
-                    gst_rate: (isGst && !isWarrantyJob) ? (parseFloat(l.gst_rate) || 0) : 0,
+                    gst_rate: !isWarrantyJob ? (parseFloat(l.gst_rate) || 0) : 0,
                     qty: l.qty,
                     remarks: l.remarks.trim() || null,
                     hsn_code: (isGst && !isWarrantyJob) ? (l.hsn_code.trim() || null) : null,
@@ -739,7 +792,7 @@ export const FinalAJobSection = () => {
                 part_id: l.part_id,
                 cost_price: parseFloat(l.cost_price) || 0,
                 selling_price: isWarrantyJob ? 0 : (parseFloat(l.selling_price) || 0),
-                gst_rate: (isGst && !isWarrantyJob) ? (parseFloat(l.gst_rate) || 0) : 0,
+                gst_rate: !isWarrantyJob ? (parseFloat(l.gst_rate) || 0) : 0,
                 qty: l.qty,
                 remarks: l.remarks.trim() || null,
                 hsn_code: (isGst && !isWarrantyJob) ? (l.hsn_code.trim() || null) : null,
@@ -841,6 +894,7 @@ export const FinalAJobSection = () => {
                 onAddPart={addPartLine}
                 onRemovePart={removePartLine}
                 onUpdatePart={updatePartLine}
+                onCostChange={handleCostChange}
                 onPartSelect={handlePartSelect}
                 onAddCharge={addChargeLine}
                 onRemoveCharge={removeChargeLine}
