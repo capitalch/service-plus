@@ -295,7 +295,7 @@ export function DeliverableJobsGrid({
 
                                         <td className={tdClass}>
                                             <div className="flex flex-col gap-0.5">
-                                                <span className="rounded-full px-2 py-0.5 text-xs font-medium bg-(--cl-accent)/10 text-(--cl-accent)">
+                                                <span className="rounded-sm px-2 py-0.5 text-xs font-medium bg-(--cl-accent)/10 text-(--cl-accent)">
                                                     {row.job_status_name}
                                                 </span>
                                                 {row.receive_manner_name && (

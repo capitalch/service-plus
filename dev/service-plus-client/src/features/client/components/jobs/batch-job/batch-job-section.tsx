@@ -965,7 +965,7 @@ function BatchGroupRow({ availableDivisions, batch, onEdit, onView, onPrint, onD
                     <td className={`${tdClass} text-xs`}>{job.device_details ?? "—"}</td>
                     <td className={`${tdClass} text-xs`}>{job.job_type_name}</td>
                     <td className={`${tdClass} text-xs`}>
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-(--cl-accent)/10 text-(--cl-accent)">
+                        <span className="px-2 py-0.5 rounded-sm text-[10px] font-medium bg-(--cl-accent)/10 text-(--cl-accent)">
                             {job.job_status_name}
                         </span>
                     </td>

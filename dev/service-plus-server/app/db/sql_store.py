@@ -3623,12 +3623,14 @@ class SqlStore:
             js.name      AS job_status_name,
             t.name       AS technician_name,
             j.division_id,
+            ji.is_posted AS invoice_is_posted,
             (SELECT COUNT(*) FROM job_image_doc   jid WHERE jid.job_id = j.id) AS file_count,
             (SELECT COUNT(*) FROM job_transaction  jtr WHERE jtr.job_id = j.id) AS transaction_count
         FROM job j
         JOIN customer_contact cc ON cc.id = j.customer_contact_id
         JOIN job_type          jt ON jt.id = j.job_type_id
         JOIN job_status        js ON js.id = j.job_status_id
+        LEFT JOIN job_invoice  ji ON ji.job_id = j.id
         LEFT JOIN technician   t  ON t.id  = j.technician_id
         LEFT JOIN product_brand_model pbm ON pbm.id = j.product_brand_model_id
         LEFT JOIN brand            b   ON b.id   = pbm.brand_id

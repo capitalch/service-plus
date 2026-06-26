@@ -702,7 +702,7 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
                                                 <td className={`${tdClass} text-xs`}>{job.device_details || "—"}</td>
                                                 <td className={tdClass}>{job.job_type_name}</td>
                                                 <td className={tdClass}>
-                                                    <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-(--cl-accent)/10 text-(--cl-accent)">
+                                                    <span className="px-2 py-0.5 rounded-sm text-xs font-medium bg-(--cl-accent)/10 text-(--cl-accent)">
                                                         {job.job_status_name}
                                                     </span>
                                                 </td>

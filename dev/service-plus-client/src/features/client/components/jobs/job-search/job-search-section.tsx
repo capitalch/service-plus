@@ -22,6 +22,7 @@ import { useAppSelector } from "@/store/hooks";
 import { selectCurrentUser, selectDbName } from "@/features/auth/store/auth-slice";
 import { selectCurrentBranch, selectSchema, selectAvailableDivisions } from "@/store/context-slice";
 import type { JobLookupRow, JobSearchRow, TechnicianRow } from "@/features/client/types/job";
+import { isGstDivision } from "@/features/client/types/division";
 import { getTransitions, STATUS_COLORS, STATUS_FLAGS } from "../job-pipeline/status-transitions";
 import type { Transition } from "../job-pipeline/status-transitions";
 import { StatusTransitionModal } from "../job-pipeline/status-transition-modal";
@@ -60,6 +61,17 @@ function canUndo(row: JobSearchRow): boolean {
     if (row.transaction_count < 1) return false;
     return true;
 }
+
+// Distinct color per batch (keyed by batch_no) so adjacent batches are visually
+// separable instead of sharing one continuous left border.
+const BATCH_COLORS = [
+    { border: "border-l-violet-400 dark:border-l-violet-500",   badge: "text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-950/40" },
+    { border: "border-l-amber-400 dark:border-l-amber-500",     badge: "text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40" },
+    { border: "border-l-sky-400 dark:border-l-sky-500",         badge: "text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-950/40" },
+    { border: "border-l-rose-400 dark:border-l-rose-500",       badge: "text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40" },
+    { border: "border-l-emerald-400 dark:border-l-emerald-500", badge: "text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40" },
+    { border: "border-l-fuchsia-400 dark:border-l-fuchsia-500", badge: "text-fuchsia-600 dark:text-fuchsia-400 bg-fuchsia-50 dark:bg-fuchsia-950/40" },
+];
 
 const thClass = "sticky top-0 z-20 text-xs font-semibold uppercase tracking-wide text-(--cl-text-muted) p-3 text-left border-b border-(--cl-border) bg-(--cl-surface-2)";
 const tdClass = "p-3 text-sm text-(--cl-text) border-b border-(--cl-border)";
@@ -523,10 +535,16 @@ export const JobSearchSection = () => {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-(--cl-border) bg-(--cl-surface)">
-                                {rows.map((job, idx) => (
+                                {rows.map((job, idx) => {
+                                    const batchColor   = job.batch_no != null ? BATCH_COLORS[job.batch_no % BATCH_COLORS.length] : null;
+                                    const isBatchStart = job.batch_no != null && (idx === 0 || rows[idx - 1].batch_no !== job.batch_no);
+                                    const batchClasses = batchColor
+                                        ? `border-l-2 ${batchColor.border}${isBatchStart ? " border-t-2 border-t-(--cl-text-muted)/40" : ""}`
+                                        : "";
+                                    return (
                                     <tr
                                         key={job.id}
-                                        className={`group cursor-pointer transition-colors hover:bg-(--cl-accent)/5 ${job.batch_no ? "border-l-2 border-l-violet-400 dark:border-l-violet-500" : ""}`}
+                                        className={`group cursor-pointer transition-colors hover:bg-(--cl-accent)/5 ${batchClasses}`}
                                         onClick={() => setViewJobId(job.id)}
                                     >
                                         <td className={`${tdClass} text-(--cl-text-muted)`}>
@@ -557,7 +575,7 @@ export const JobSearchSection = () => {
                                                     <span className="text-[10px] text-(--cl-text-muted)">Alt: {job.alternate_job_no}</span>
                                                 )}
                                                 {job.batch_no != null && (
-                                                    <span className="text-[9px] font-bold text-violet-600 dark:text-violet-400 w-fit bg-violet-50 dark:bg-violet-950/40 rounded px-1 py-0.5">Batch #{job.batch_no}</span>
+                                                    <span className={`text-[9px] font-bold w-fit rounded px-1 py-0.5 ${batchColor?.badge}`}>Batch #{job.batch_no}</span>
                                                 )}
                                                 {job.file_count > 0 && (
                                                     <button
@@ -576,15 +594,39 @@ export const JobSearchSection = () => {
                                         <td className={`${tdClass} text-xs`}>{job.device_details || "—"}</td>
                                         <td className={tdClass}>{job.job_type_name}</td>
                                         <td className={tdClass}>
-                                            {(() => {
-                                                const cp = (STATUS_COLORS[job.job_status_code ?? ""] ?? "bg-slate-400 text-white").trim().split(/\s+/).filter(Boolean);
-                                                const cls = cp.filter(c => !c.startsWith("hover:")).join(" ");
-                                                return (
-                                                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${cls}`}>
-                                                        {job.job_status_name}
-                                                    </span>
-                                                );
-                                            })()}
+                                            <div className="flex flex-col items-start gap-1">
+                                                {(() => {
+                                                    const cp = (STATUS_COLORS[job.job_status_code ?? ""] ?? "bg-slate-400 text-white").trim().split(/\s+/).filter(Boolean);
+                                                    const cls = cp.filter(c => !c.startsWith("hover:")).join(" ");
+                                                    return (
+                                                        <span className={`px-2 py-0.5 rounded-sm text-xs font-medium ${cls}`}>
+                                                            {job.job_status_name}
+                                                        </span>
+                                                    );
+                                                })()}
+                                                <div className="flex flex-wrap gap-1">
+                                                    {job.is_final && !job.is_closed && (
+                                                        <span className="text-[11px] font-bold rounded px-1 py-0.5 text-indigo-600 dark:text-indigo-300 bg-indigo-100 dark:bg-indigo-950/40">FINAL</span>
+                                                    )}
+                                                    {(() => {
+                                                        const gst = isGstDivision(divisions.find(d => d.id === job.division_id) ?? null);
+                                                        return (
+                                                            <span className={`text-[11px] font-bold rounded px-1 py-0.5 ${gst
+                                                                ? "text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40"
+                                                                : "text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40"}`}>
+                                                                {gst ? "GST" : "Non-GST"}
+                                                            </span>
+                                                        );
+                                                    })()}
+                                                    {job.invoice_is_posted != null && (
+                                                        <span className={`text-[11px] font-bold rounded px-1 py-0.5 ${job.invoice_is_posted
+                                                            ? "text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40"
+                                                            : "text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40"}`}>
+                                                            {job.invoice_is_posted ? "Invoice: Posted" : "Invoice: Unposted"}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
                                         </td>
                                         <td className={`${tdClass} text-right`}>
                                             {job.amount != null ? `₹${Number(job.amount).toFixed(2)}` : "—"}
@@ -733,7 +775,8 @@ export const JobSearchSection = () => {
                                             </div>
                                         </td>
                                     </tr>
-                                ))}
+                                    );
+                                })}
                             </tbody>
                         </table>
                     )}

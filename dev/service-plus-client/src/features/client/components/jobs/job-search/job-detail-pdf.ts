@@ -5,6 +5,24 @@ import type { JobDetailType } from "@/features/client/types/job";
 import type { JobTransactionRow } from "@/features/client/types/job";
 import type { DivisionContextType } from "@/features/client/types/division";
 
+export type JobPartUsedRow = {
+    id:            number;
+    part_code:     string;
+    part_name:     string;
+    uom:           string;
+    qty:           number;
+    selling_price: number | null;
+    remarks:       string | null;
+};
+
+export type JobAdditionalChargeRow = {
+    id:            number;
+    charge_name:   string;
+    ref_no:        string | null;
+    description:   string | null;
+    selling_price: number;
+};
+
 function fmt(val: string | number | null | undefined, fallback = "—"): string {
     if (val == null || val === "") return fallback;
     return String(val);
@@ -29,6 +47,8 @@ function buildJobDetailDoc(
     job: JobDetailType,
     transactions: JobTransactionRow[],
     division: DivisionContextType | null,
+    parts: JobPartUsedRow[] = [],
+    charges: JobAdditionalChargeRow[] = [],
 ): jsPDF {
     const doc       = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
@@ -116,6 +136,82 @@ function buildJobDetailDoc(
         y += 2;
     }
 
+    // ── Parts Used ────────────────────────────────────────────────────────────
+    const partsSelling   = parts.reduce((s, p) => s + Number(p.selling_price ?? 0) * Number(p.qty), 0);
+    const chargesSelling = charges.reduce((s, c) => s + Number(c.selling_price ?? 0), 0);
+    const grandTotal     = partsSelling + chargesSelling;
+
+    if (parts.length > 0) {
+        if (y > pageHeight - 40) { doc.addPage(); y = 14; }
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "bold");
+        doc.text("Parts Used", 14, y);
+        y += 5;
+        autoTable(doc, {
+            head: [["#", "Code", "Part Name", "UOM", "Qty", "Unit Price", "Total"]],
+            body: parts.map((p, i) => [
+                String(i + 1),
+                fmt(p.part_code),
+                fmt(p.part_name),
+                fmt(p.uom),
+                Number(p.qty).toFixed(2),
+                fmtAmount(p.selling_price),
+                p.selling_price != null ? fmtAmount(Number(p.selling_price) * Number(p.qty)) : "—",
+            ]),
+            margin:     { left: 14, right: 14 },
+            startY:     y,
+            styles:     { cellPadding: 1.8, fontSize: 7.5, lineColor: [200, 200, 200], lineWidth: 0.2, overflow: "linebreak" },
+            headStyles: { fontSize: 7, fontStyle: "bold", fillColor: [240, 240, 240], textColor: [50, 50, 50] },
+            columnStyles: { 0: { cellWidth: 8 }, 4: { halign: "right" }, 5: { halign: "right" }, 6: { halign: "right" } },
+            theme: "grid",
+        });
+        y = (doc as any).lastAutoTable.finalY + 5;
+    }
+
+    // ── Additional Charges ────────────────────────────────────────────────────
+    if (charges.length > 0) {
+        if (y > pageHeight - 40) { doc.addPage(); y = 14; }
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "bold");
+        doc.text("Additional Charges", 14, y);
+        y += 5;
+        autoTable(doc, {
+            head: [["#", "Charge Name", "Ref No", "Description", "Amount"]],
+            body: charges.map((c, i) => [
+                String(i + 1),
+                fmt(c.charge_name),
+                fmt(c.ref_no),
+                fmt(c.description),
+                fmtAmount(c.selling_price),
+            ]),
+            margin:     { left: 14, right: 14 },
+            startY:     y,
+            styles:     { cellPadding: 1.8, fontSize: 7.5, lineColor: [200, 200, 200], lineWidth: 0.2, overflow: "linebreak" },
+            headStyles: { fontSize: 7, fontStyle: "bold", fillColor: [240, 240, 240], textColor: [50, 50, 50] },
+            columnStyles: { 0: { cellWidth: 8 }, 4: { halign: "right" } },
+            theme: "grid",
+        });
+        y = (doc as any).lastAutoTable.finalY + 5;
+    }
+
+    // ── Summary ───────────────────────────────────────────────────────────────
+    if ((parts.length > 0 || charges.length > 0) && grandTotal > 0) {
+        if (y > pageHeight - 30) { doc.addPage(); y = 14; }
+        autoTable(doc, {
+            body: [
+                ...(parts.length   > 0 ? [["Parts",   fmtAmount(partsSelling)]]   : []),
+                ...(charges.length > 0 ? [["Charges", fmtAmount(chargesSelling)]] : []),
+                ["Grand Total", fmtAmount(grandTotal)],
+            ],
+            margin:       { left: pageWidth - 84, right: 14 },
+            startY:       y,
+            styles:       { cellPadding: 1.8, fontSize: 8.5, lineColor: [200, 200, 200], lineWidth: 0.2 },
+            columnStyles: { 0: { fontStyle: "bold", cellWidth: 34 }, 1: { halign: "right" } },
+            theme: "grid",
+        });
+        y = (doc as any).lastAutoTable.finalY + 5;
+    }
+
     // ── Transactions ──────────────────────────────────────────────────────────
     if (y > pageHeight - 50) { doc.addPage(); y = 14; }
 
@@ -175,6 +271,18 @@ export function getJobDetailPdfBlobUrl(
     job: JobDetailType,
     transactions: JobTransactionRow[],
     division: DivisionContextType | null,
+    parts: JobPartUsedRow[] = [],
+    charges: JobAdditionalChargeRow[] = [],
 ): string {
-    return String(buildJobDetailDoc(job, transactions, division).output("bloburl"));
+    return String(buildJobDetailDoc(job, transactions, division, parts, charges).output("bloburl"));
+}
+
+export function downloadJobDetailPdf(
+    job: JobDetailType,
+    transactions: JobTransactionRow[],
+    division: DivisionContextType | null,
+    parts: JobPartUsedRow[] = [],
+    charges: JobAdditionalChargeRow[] = [],
+): void {
+    buildJobDetailDoc(job, transactions, division, parts, charges).save(`Job-Detail_${job.job_no}.pdf`);
 }

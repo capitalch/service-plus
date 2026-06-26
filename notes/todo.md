@@ -1,10 +1,12 @@
 
-# To Do 14-06-2026
+# To Do
+- QA
+	- Massive transactions testing
 - Enhancements
-	- Guard invoice without delivery
+								- Guard invoice without delivery
 								- Provide a button in Finalized jobs actions, which shows a detailed view of all charges as it is shown in "Final a Job", but it will be in readonly mode.
 - Bug fix / QA
-	- When invoice is created on delivery, invoice amount is 0
+								Job Search- When invoice is created on delivery, invoice amount is 0
 								-  When in final the job form: division is changed from gst to non-gst and vice-versa, the sale price and amount does not remain consistent.
 								- Connection pool closes arbitrarily in local server
 - Features

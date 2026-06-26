@@ -20,6 +20,7 @@ export type JobSearchRow = {
     last_transaction_id:   number | null;
     is_closed:             boolean;
     is_final:              boolean;
+    invoice_is_posted:     boolean | null;
     device_details:        string | null;
     batch_no?:             number | null;
     division_id?:          number | null;
