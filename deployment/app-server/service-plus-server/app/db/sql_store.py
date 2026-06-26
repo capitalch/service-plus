@@ -867,6 +867,10 @@ class SqlStore:
         SELECT is_final FROM job WHERE id = %(id)s
     """
 
+    GET_JOB_IS_CLOSED = """
+        SELECT is_closed FROM job WHERE id = %(job_id)s
+    """
+
     GET_JOB_INVOICE_ID_BY_JOB_FOR_UPDATE = """
         SELECT id FROM job_invoice WHERE job_id = %(job_id)s FOR UPDATE
     """
@@ -3569,11 +3573,14 @@ class SqlStore:
         SELECT COUNT(*) AS total
         FROM job j
         JOIN customer_contact cc ON cc.id = j.customer_contact_id
+        JOIN job_status        js ON js.id = j.job_status_id
         LEFT JOIN product_brand_model pbm ON pbm.id = j.product_brand_model_id
         LEFT JOIN brand            b   ON b.id   = pbm.brand_id
         LEFT JOIN product          p   ON p.id   = pbm.product_id
         WHERE j.branch_id = (table "p_branch_id")
-          AND ((table "p_show_closed") IS NULL OR j.is_closed = (table "p_show_closed"))
+          AND ((table "p_show_closed") IS NULL
+               OR (CASE WHEN js.code IN ('DELIVERED_OK', 'DELIVERED_NOT_OK', 'DISPOSED')
+                        THEN true ELSE j.is_closed END) = (table "p_show_closed"))
           AND ((table "p_status_id")   IS NULL OR j.job_status_id = (table "p_status_id"))
           AND ((table "p_search") = ''
            OR LOWER(j.job_no)     LIKE '%%' || LOWER((table "p_search")) || '%%'
@@ -3600,10 +3607,15 @@ class SqlStore:
             j.alternate_job_no,
             j.job_date,
             j.is_closed,
+            j.is_final,
             j.amount,
+            j.estimate_amount,
             j.batch_no,
+            j.last_transaction_id,
+            j.technician_id,
             j.job_status_id,
             js.code      AS job_status_code,
+            jt.code      AS job_type_code,
             cc.full_name AS customer_name,
             cc.mobile,
             TRIM(CONCAT_WS(' ', p.name, b.name, pbm.model_name, j.serial_no)) AS device_details,
@@ -3611,17 +3623,22 @@ class SqlStore:
             js.name      AS job_status_name,
             t.name       AS technician_name,
             j.division_id,
-            (SELECT COUNT(*) FROM job_image_doc jid WHERE jid.job_id = j.id) AS file_count
+            ji.is_posted AS invoice_is_posted,
+            (SELECT COUNT(*) FROM job_image_doc   jid WHERE jid.job_id = j.id) AS file_count,
+            (SELECT COUNT(*) FROM job_transaction  jtr WHERE jtr.job_id = j.id) AS transaction_count
         FROM job j
         JOIN customer_contact cc ON cc.id = j.customer_contact_id
         JOIN job_type          jt ON jt.id = j.job_type_id
         JOIN job_status        js ON js.id = j.job_status_id
+        LEFT JOIN job_invoice  ji ON ji.job_id = j.id
         LEFT JOIN technician   t  ON t.id  = j.technician_id
         LEFT JOIN product_brand_model pbm ON pbm.id = j.product_brand_model_id
         LEFT JOIN brand            b   ON b.id   = pbm.brand_id
         LEFT JOIN product          p   ON p.id   = pbm.product_id
         WHERE j.branch_id = (table "p_branch_id")
-          AND ((table "p_show_closed") IS NULL OR j.is_closed = (table "p_show_closed"))
+          AND ((table "p_show_closed") IS NULL
+               OR (CASE WHEN js.code IN ('DELIVERED_OK', 'DELIVERED_NOT_OK', 'DISPOSED')
+                        THEN true ELSE j.is_closed END) = (table "p_show_closed"))
           AND ((table "p_status_id")   IS NULL OR j.job_status_id = (table "p_status_id"))
           AND ((table "p_search") = ''
            OR LOWER(j.job_no)     LIKE '%%' || LOWER((table "p_search")) || '%%'
@@ -3919,7 +3936,10 @@ class SqlStore:
         with "p_job_id" as (values(%(job_id)s::bigint))
         SELECT jpu.id, jpu.part_id, jpu.qty, jpu.cost_price, jpu.selling_price, jpu.gst_rate, jpu.remarks,
                sp.part_code, sp.part_name, sp.uom, sp.brand_id,
-               COALESCE(jpu.hsn_code, sp.hsn_code) as hsn_code
+               COALESCE(jpu.hsn_code, sp.hsn_code) AS hsn_code,
+               sp.cost_price    AS master_cost_price,
+               sp.selling_price AS master_selling_price,
+               sp.gst_rate      AS master_gst_rate
         FROM job_part_used jpu
         JOIN spare_part_master sp ON sp.id = jpu.part_id
         WHERE jpu.job_id = (table "p_job_id")

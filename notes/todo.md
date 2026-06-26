@@ -18,7 +18,6 @@
 		- Sales Invoices
 		- Job Invoices
 		- All divisons
-		
 								- Inspect the document no strategy for divisions. At present if proper doc prefix is missing from a division, it results in a cryptic error
 								- When a division is changed for a job from gst to non-gst, and already some part is registered with gst, theninvoice figures become wrong. Device a strategy for that. Suggestion is thatgst application on parts be applied only during finalizing stage and not before that. When undo final then gst parameters should reset.
 		
