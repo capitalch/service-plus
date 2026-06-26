@@ -301,10 +301,9 @@ function ArticleView({ article, onBack }: { article: HelpArticle; onBack: () => 
 
 // ─── Category article list ────────────────────────────────────────────────────
 
-function CategoryView({ category, onSelectArticle, onBack }: {
+function CategoryView({ category, onSelectArticle }: {
     category: string;
     onSelectArticle: (a: HelpArticle) => void;
-    onBack: () => void;
 }) {
     const articles = HELP_ARTICLES.filter(a => a.category === category);
     const s = catStyle(category);
@@ -638,7 +637,7 @@ export function HelpPanel({ open, onClose, initialArticleId }: HelpPanelProps) {
                 {/* ── Body ── */}
                 <div className="flex-1 overflow-hidden bg-(--cl-bg)">
                     {view.kind === "home"     && <HomeView onSelectCategory={handleSelectCategory} onSelectArticle={handleSelectArticle} />}
-                    {view.kind === "category" && <CategoryView category={view.category} onSelectArticle={handleSelectArticle} onBack={handleBack} />}
+                    {view.kind === "category" && <CategoryView category={view.category} onSelectArticle={handleSelectArticle} />}
                     {view.kind === "article"  && <ArticleView article={view.article} onBack={handleBack} />}
                     {view.kind === "search"   && <SearchResults query={view.query} results={view.results} onSelect={handleSelectArticle} />}
                 </div>

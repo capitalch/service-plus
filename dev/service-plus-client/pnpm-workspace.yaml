@@ -2,4 +2,5 @@ allowBuilds:
   core-js: true
   msw: false
 minimumReleaseAgeExclude:
-  - shadcn@4.8.1
+  - shadcn@4.8.1 || 4.11.1
+  - prettier@3.8.5

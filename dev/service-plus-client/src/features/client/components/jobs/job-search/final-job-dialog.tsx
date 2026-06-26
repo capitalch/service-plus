@@ -208,7 +208,7 @@ export function FinalJobDialog({ jobId, onClose, onFinalized }: Props) {
                 job_type_code:    "",
                 customer_name:    job.customer_name ?? "",
                 mobile:           job.mobile,
-                device_details:   job.device_details ?? null,
+                device_details:   [job.product_name, job.brand_name, job.model_name, job.serial_no].filter(Boolean).join(" ") || null,
                 serial_no:        job.serial_no,
                 batch_no:         null,
                 amount:           job.amount,

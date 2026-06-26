@@ -1149,7 +1149,6 @@ export function DeliveryModal({
             >
                 <AlertDialogContent
                     size="sm"
-                    onPointerDownOutside={e => e.preventDefault()}
                     onEscapeKeyDown={e => e.preventDefault()}
                 >
                     <AlertDialogHeader>
