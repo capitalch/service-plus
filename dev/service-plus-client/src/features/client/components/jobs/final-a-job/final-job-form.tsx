@@ -561,9 +561,9 @@ export function FinalJobForm({
                                                             />
                                                         </div>
                                                     )}
-                                                    <div className="flex items-center gap-1 rounded bg-(--cl-surface-2) px-2 py-0.5">
-                                                        <span className="text-[10px] text-(--cl-text-muted)">Amt</span>
-                                                        <span className="tabular-nums text-sm text-(--cl-text)">₹{fmtCurrency(isWarranty ? costAmt : saleAmt)}</span>
+                                                    <div className="flex items-center justify-between gap-1 rounded bg-(--cl-surface-2) px-2 py-0.5 w-36 shrink-0 overflow-hidden">
+                                                        <span className="text-[10px] text-(--cl-text-muted) shrink-0">Amt</span>
+                                                        <span className="tabular-nums text-sm text-(--cl-text) truncate text-right">₹{fmtCurrency(isWarranty ? costAmt : saleAmt)}</span>
                                                     </div>
                                                 </div>
                                             </div>
@@ -640,21 +640,21 @@ export function FinalJobForm({
                         )}
                         {chargeLines.length > 0 && (
                             <div className="overflow-x-auto">
-                                <table className="min-w-full border-collapse text-sm">
+                                <table className="min-w-full border-collapse text-sm table-fixed">
                                     <thead>
                                         <tr>
-                                            <th className={thClass}>#</th>
+                                            <th className={`${thClass} w-8`}>#</th>
                                             <th className={thClass}>Charge Name <span className="text-red-500">*</span></th>
-                                            <th className={thClass}>Ref No</th>
-                                            <th className={`${thClass} w-full min-w-[80px]`}>Description</th>
-                                            {isGst && !isWarranty && <th className={thClass}>HSN <span className="text-red-500">*</span></th>}
-                                            {isGst && !isWarranty && <th className={`${thClass} text-right`}>GST%</th>}
-                                            <th className={`${thClass} text-right`}>Qty</th>
-                                            <th className={`${thClass} text-right`}>Cost</th>
-                                            {!isWarranty && <th className={`${thClass} text-right`}>Sale <span className="text-red-500">*</span></th>}
-                                            {isGst && !isWarranty && <th className={`${thClass} text-right`}>Sale+GST</th>}
-                                            <th className={`${thClass} text-right w-32`}>Amount</th>
-                                            <th className={thClass}></th>
+                                            <th className={`${thClass} w-24`}>Ref No</th>
+                                            <th className={thClass}>Description</th>
+                                            {isGst && !isWarranty && <th className={`${thClass} w-28`}>HSN <span className="text-red-500">*</span></th>}
+                                            {isGst && !isWarranty && <th className={`${thClass} w-20 text-right`}>GST%</th>}
+                                            <th className={`${thClass} w-20 text-right`}>Qty</th>
+                                            <th className={`${thClass} w-28 text-right`}>Cost</th>
+                                            {!isWarranty && <th className={`${thClass} w-28 text-right`}>Sale <span className="text-red-500">*</span></th>}
+                                            {isGst && !isWarranty && <th className={`${thClass} w-28 text-right`}>Sale+GST</th>}
+                                            <th className={`${thClass} w-32 text-right whitespace-nowrap`}>Amount</th>
+                                            <th className={`${thClass} w-20`}></th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -765,7 +765,7 @@ export function FinalJobForm({
                                                         </div>
                                                     </td>
                                                 )}
-                                                <td className={`${tdClass} text-right tabular-nums text-sm text-(--cl-accent) w-32`}>
+                                                <td className={`${tdClass} text-right tabular-nums text-sm text-(--cl-accent) w-32 whitespace-nowrap`}>
                                                     ₹{fmtCurrency(isWarranty
                                                         ? (parseFloat(c.cost_price) || 0) * (parseFloat(c.qty) || 1)
                                                         : (parseFloat(c.sale_pr_gst) || parseFloat(c.selling_price) || 0) * (parseFloat(c.qty) || 1))}

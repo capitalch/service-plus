@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { FileText, Loader2, RefreshCw, Trash2, Truck, X } from "lucide-react";
+import { Eye, FileText, Loader2, RefreshCw, Trash2, Truck, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -42,6 +42,7 @@ import { DeliveryModalJobsTable } from "./delivery-modal-jobs-table";
 import { DeliveryModalInvoicesSection } from "./delivery-modal-invoices-section";
 import { DeliveryModalReceiptsSection } from "./delivery-modal-receipts-section";
 import { AddReceiptModal } from "./add-receipt-modal";
+import { JobDetailsModal } from "@/features/client/components/jobs/job-pipeline/job-details-modal";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -50,6 +51,8 @@ type DeliveryMannerRow = { id: number; name: string };
 type GenericQueryData<T> = { genericQuery: T[] | null };
 
 type ShowPartsInInvoiceSetting = { show: boolean; text: string; hsn: number; gst_rate: number };
+
+type FlowStep = "idle" | "receipts" | "delivering" | "alert" | "invoicing" | "done";
 
 type Props = {
     jobs:                      JobDeliveryFullDetail[];
@@ -181,7 +184,6 @@ function StepSection({
     const a = ACCENT[accent];
     return (
         <section className={`rounded-xl border border-(--cl-border) border-l-4 ${a.left} bg-(--cl-surface) shadow-sm overflow-hidden`}>
-            {/* Section header — no horizontal line, just a tinted strip */}
             <div className="flex items-center gap-3 px-4 py-3 bg-(--cl-surface-2)/50">
                 <span className={`flex h-6 w-6 items-center justify-center rounded-full text-white text-xs font-bold shrink-0 ${a.bubble}`}>
                     {step}
@@ -191,7 +193,6 @@ function StepSection({
                     <span className="text-sm text-(--cl-text-muted) font-medium">({count})</span>
                 )}
             </div>
-            {/* Section content */}
             <div className="px-4 pb-4">
                 {children}
             </div>
@@ -216,24 +217,30 @@ export function DeliveryModal({
 }: Props) {
     const noOfJobInvoicesPerPrint = useAppSelector(selectNoOfJobInvoicesPerPrint);
 
-    const [jobDetails,        setJobDetails]        = useState<JobDeliveryFullDetail[]>(initialJobs);
-    const [creatingInvoices,  setCreatingInvoices]  = useState(false);
-    const [delivering,        setDelivering]        = useState(false);
-    const [pdfUrl,                    setPdfUrl]                    = useState<string | null>(null);
-    const [showInvoiceReceipt,        setShowInvoiceReceipt]        = useState(false);
-    const [pdfTitle,          setPdfTitle]          = useState("");
-    const [pdfFilename,       setPdfFilename]       = useState("");
-    const [loadingPdfJobId,      setLoadingPdfJobId]      = useState<number | null>(null);
-    const [deletingInvoiceJobId,    setDeletingInvoiceJobId]    = useState<number | null>(null);
-    const [confirmDeleteJob,        setConfirmDeleteJob]        = useState<JobDeliveryFullDetail | null>(null);
-    const [regeneratingInvoiceJobId, setRegeneratingInvoiceJobId] = useState<number | null>(null);
-    const [confirmRegenerateJob,    setConfirmRegenerateJob]    = useState<JobDeliveryFullDetail | null>(null);
-    const [receiptJob,        setReceiptJob]        = useState<JobDeliveryFullDetail | null>(null);
-    const [showReceiptModal,  setShowReceiptModal]  = useState(false);
-    const [receiptQueue,      setReceiptQueue]      = useState<JobDeliveryFullDetail[]>([]);
-    const [deliveredOkStatusId,    setDeliveredOkStatusId]    = useState<number | null>(null);
-    const [deliveredNotOkStatusId, setDeliveredNotOkStatusId] = useState<number | null>(null);
-    const [divisionSequences, setDivisionSequences] = useState<Map<number, DocumentSequenceRow[]>>(new Map());
+    const [jobDetails,                  setJobDetails]                  = useState<JobDeliveryFullDetail[]>(initialJobs);
+    const [flowStep,                    setFlowStep]                    = useState<FlowStep>("idle");
+    const [showDeliverySuccessAlert,    setShowDeliverySuccessAlert]    = useState(false);
+    const [pdfUrl,                      setPdfUrl]                      = useState<string | null>(null);
+    const [showInvoiceReceipt,          setShowInvoiceReceipt]          = useState(false);
+    const [pdfTitle,                    setPdfTitle]                    = useState("");
+    const [pdfFilename,                 setPdfFilename]                 = useState("");
+    const [loadingPdfJobId,             setLoadingPdfJobId]             = useState<number | null>(null);
+    const [deletingInvoiceJobId,        setDeletingInvoiceJobId]        = useState<number | null>(null);
+    const [confirmDeleteJob,            setConfirmDeleteJob]            = useState<JobDeliveryFullDetail | null>(null);
+    const [regeneratingInvoiceJobId,    setRegeneratingInvoiceJobId]    = useState<number | null>(null);
+    const [confirmRegenerateJob,        setConfirmRegenerateJob]        = useState<JobDeliveryFullDetail | null>(null);
+    const [receiptJob,                  setReceiptJob]                  = useState<JobDeliveryFullDetail | null>(null);
+    const [showReceiptModal,            setShowReceiptModal]            = useState(false);
+    const [receiptQueue,                setReceiptQueue]                = useState<JobDeliveryFullDetail[]>([]);
+    const [viewJobId,                   setViewJobId]                   = useState<number | null>(null);
+    const [deliveredOkStatusId,         setDeliveredOkStatusId]         = useState<number | null>(null);
+    const [deliveredNotOkStatusId,      setDeliveredNotOkStatusId]      = useState<number | null>(null);
+    const [divisionSequences,           setDivisionSequences]           = useState<Map<number, DocumentSequenceRow[]>>(new Map());
+
+    // Continuation fired after all receipts are saved (drives delivery in combined flow)
+    const postReceiptContinuation = useRef<(() => Promise<void>) | null>(null);
+    // Tracks whether delivery succeeded so onDelivered() is called on modal close
+    const didDeliver = useRef(false);
 
     useEffect(() => {
         if (!dbName || !schema || !branchId || jobDetails.length === 0) return;
@@ -287,12 +294,26 @@ export function DeliveryModal({
     const totalPaid    = jobDetails.reduce((s, j) => s + (j.payments ?? []).reduce((ps, p) => ps + Number(p.amount), 0), 0);
     const totalDue     = Math.max(0, totalAmt - totalPaid);
 
-    const hasAnyInvoice       = jobDetails.some(j => !!j.invoice_id);
-    const hasEligiblePending  = jobDetails.some(j => isJobInvoiceable(j.job_type_code, j.job_status_code) && !j.invoice_id && Number(j.amount ?? 0) > 0);
-    const hasReceiptPending   = jobDetails.some(j => Number(j.amount ?? 0) > 0 && (j.payments ?? []).reduce((s, p) => s + Number(p.amount), 0) < Number(j.amount ?? 0));
-    const canCreateInvoices   = (hasEligiblePending || hasReceiptPending) && !creatingInvoices;
-    const canShowInvoiceReceipt = hasAnyInvoice;
-    const canDeliver          = form.formState.isValid && !delivering && totalDue === 0;
+    const mannerVal      = form.watch("delivery_manner");
+    const dateVal        = form.watch("delivery_date");
+    const flowBusy       = flowStep !== "idle" && flowStep !== "done";
+    const flowDone       = flowStep === "done";
+    const canRunFlow     = !flowBusy && !flowDone && !!mannerVal && !!dateVal;
+    const canClose       = !flowBusy;
+    const canShowInvoice = jobDetails.some(j => !!j.invoice_id);
+    const isDelivered    = jobDetails.some(j => j.job_status_code === "DELIVERED_OK" || j.job_status_code === "DELIVERED_NOT_OK");
+
+    const isSingleJob = jobDetails.length === 1;
+    const firstJob    = jobDetails[0];
+    const addressStr  = firstJob
+        ? [
+            firstJob.customer_address_line1,
+            firstJob.customer_address_line2,
+            firstJob.customer_landmark,
+            firstJob.customer_city,
+            firstJob.customer_postal_code,
+          ].filter(Boolean).join(", ")
+        : "";
 
     // ── Reload job details ────────────────────────────────────────────────────
 
@@ -314,15 +335,90 @@ export function DeliveryModal({
         return fresh;
     }
 
-    // ── Create Invoices ───────────────────────────────────────────────────────
+    // ── Combined flow: Receipts → Delivery → Alert → Invoice ─────────────────
 
-    async function handleCreateInvoices() {
+    async function handleReceiptsDeliveryInvoice() {
+        const valid = await form.trigger();
+        if (!valid) {
+            toast.error("Please fill in Delivery Manner and Delivery Date.");
+            return;
+        }
+
+        const needReceipt = jobDetails.filter(j =>
+            Number(j.amount ?? 0) > 0 &&
+            (j.payments ?? []).reduce((s, p) => s + Number(p.amount), 0) < Number(j.amount ?? 0)
+        );
+
+        if (needReceipt.length > 0) {
+            postReceiptContinuation.current = () => doDelivery();
+            setFlowStep("receipts");
+            setReceiptQueue(needReceipt.slice(1));
+            setReceiptJob(needReceipt[0]);
+            setShowReceiptModal(true);
+            return;
+        }
+
+        await doDelivery();
+    }
+
+    async function doDelivery() {
+        setFlowStep("delivering");
+        const values = form.getValues();
+        try {
+            for (const job of jobDetails) {
+                const statusId = job.job_status_code === "COMPLETED_OK"
+                    ? deliveredOkStatusId
+                    : deliveredNotOkStatusId;
+                if (!statusId) continue;
+                await apolloClient.mutate({
+                    mutation:  GRAPHQL_MAP.deliverJob,
+                    variables: {
+                        db_name: dbName, schema,
+                        value: encodeObj({
+                            job_id:               job.id,
+                            last_transaction_id:  job.last_transaction_id,
+                            performed_by_user_id: currentUser?.id ?? null,
+                            delivered_status_id:  statusId,
+                            delivery_date:        values.delivery_date,
+                            delivery_manner_name: values.delivery_manner,
+                            remarks:              values.remarks ?? "",
+                            payment: {
+                                payment_date: values.delivery_date,
+                                payment_mode: "Cash",
+                                amount:       0,
+                            },
+                        }),
+                    },
+                });
+            }
+            if (pdfUrl) URL.revokeObjectURL(pdfUrl);
+            didDeliver.current = true;
+            await reloadJobDetails();
+            setFlowStep("alert");
+            setShowDeliverySuccessAlert(true);
+        } catch {
+            toast.error("Delivery failed. Please try again.");
+            setFlowStep("idle");
+        }
+    }
+
+    async function handleDeliveryAlertClose() {
+        setShowDeliverySuccessAlert(false);
+        setFlowStep("invoicing");
+        // Reload to get DELIVERED_OK status for isJobInvoiceable; pass fresh data
+        // directly to doCreateInvoices to avoid stale-closure on jobDetails state.
+        const fresh = await reloadJobDetails();
+        await doCreateInvoices(fresh);
+        await reloadJobDetails();   // reload again to show invoice numbers in UI
+        setFlowStep("done");
+    }
+
+    async function doCreateInvoices(jobs: JobDeliveryFullDetail[]) {
         if (!dbName || !schema) return;
-        setCreatingInvoices(true);
         let created = 0;
         let skipped = 0;
         try {
-            for (const job of jobDetails) {
+            for (const job of jobs) {
                 if (!isJobInvoiceable(job.job_type_code, job.job_status_code)) { skipped++; continue; }
                 if (job.invoice_id) { skipped++; continue; }
 
@@ -343,11 +439,19 @@ export function DeliveryModal({
                     skipped++;
                     continue;
                 }
-                const aggregate   = Math.round(lines.reduce((s, l) => s + l.aggregate, 0) * 100) / 100;
+                const aggregate   = Math.round(lines.reduce((s, l) => s + l.aggregate,   0) * 100) / 100;
                 const cgst_amount = Math.round(lines.reduce((s, l) => s + l.cgst_amount, 0) * 100) / 100;
                 const sgst_amount = Math.round(lines.reduce((s, l) => s + l.sgst_amount, 0) * 100) / 100;
                 const igst_amount = Math.round(lines.reduce((s, l) => s + l.igst_amount, 0) * 100) / 100;
-                const amount      = Math.round((aggregate + cgst_amount + sgst_amount + igst_amount) * 100) / 100;
+                // Use the finalized job.amount when it is a valid positive number
+                // (set during "Final a Job", may include a user-adjusted total).
+                // Fall back to the sum of invoice lines when job.amount is null or 0
+                // (job never finalised, or finalised before parts were added).
+                const lineTotal   = Math.round((aggregate + cgst_amount + sgst_amount + igst_amount) * 100) / 100;
+                const jobAmt      = Number(job.amount ?? 0);
+                const amount      = jobAmt > 0
+                    ? Math.round(jobAmt * 100) / 100
+                    : lineTotal;
 
                 await apolloClient.mutate({
                     mutation:  GRAPHQL_MAP.createJobInvoice,
@@ -377,27 +481,14 @@ export function DeliveryModal({
                 });
                 created++;
             }
-            const fresh = await reloadJobDetails();
+            await reloadJobDetails();
             toast.success(created > 0
-                ? `${created} invoice(s) created.${skipped > 0 ? ` ${skipped} already existed or skipped.` : ""}`
+                ? `${created} invoice(s) created.${skipped > 0 ? ` ${skipped} skipped.` : ""}`
                 : "All jobs already have invoices or were skipped."
             );
-
-            // Auto-open receipt modal for all jobs with an outstanding balance
-            const needReceipt = fresh.filter(j =>
-                Number(j.amount ?? 0) > 0 &&
-                (j.payments ?? []).reduce((s, p) => s + Number(p.amount), 0) < Number(j.amount ?? 0)
-            );
-            if (needReceipt.length > 0) {
-                setReceiptQueue(needReceipt.slice(1));
-                setReceiptJob(needReceipt[0]);
-                setShowReceiptModal(true);
-            }
         } catch (err) {
             console.error("Invoice creation error:", err);
             toast.error("Failed to create invoices. Please try again.");
-        } finally {
-            setCreatingInvoices(false);
         }
     }
 
@@ -455,7 +546,7 @@ export function DeliveryModal({
             const cgst_amount = Math.round(lines.reduce((s, l) => s + l.cgst_amount, 0) * 100) / 100;
             const sgst_amount = Math.round(lines.reduce((s, l) => s + l.sgst_amount, 0) * 100) / 100;
             const igst_amount = Math.round(lines.reduce((s, l) => s + l.igst_amount, 0) * 100) / 100;
-            const amount      = Math.round((aggregate + cgst_amount + sgst_amount + igst_amount) * 100) / 100;
+            const amount      = Math.round(Number(job.amount ?? 0) * 100) / 100;
 
             await apolloClient.mutate({
                 mutation:  GRAPHQL_MAP.regenerateJobInvoice,
@@ -481,7 +572,7 @@ export function DeliveryModal({
         }
     }
 
-    // ── Invoice + Receipt ─────────────────────────────────────────────────────
+    // ── Invoice + Receipt PDF ─────────────────────────────────────────────────
 
     async function handleInvoiceReceipt() {
         if (!dbName || !schema) return;
@@ -570,7 +661,7 @@ export function DeliveryModal({
         setShowInvoiceReceipt(true);
     }
 
-    // ── Per-job Invoice PDF ────────────────────────────────────────────────────
+    // ── Per-job Invoice PDF ───────────────────────────────────────────────────
 
     async function handlePrintInvoicePdf(job: JobDeliveryFullDetail) {
         if (!dbName || !schema || !job.invoice_id) return;
@@ -591,8 +682,6 @@ export function DeliveryModal({
             if (!invoice) { toast.error("Invoice data not found."); return; }
             const division = availableDivisions.find(d => d.id === job.division_id) ?? null;
 
-            // HSN may be null on stored invoice lines (old invoices didn't save it).
-            // Try: stored value → part_code lookup → part_name lookup → charge_name lookup.
             const partHsnByCode = new Map((job.parts   ?? []).map(p => [p.part_code,    p.hsn_code ?? null]));
             const partHsnByName = new Map((job.parts   ?? []).map(p => [p.part_name,    p.hsn_code ?? null]));
             const chrgHsnByName = new Map((job.charges ?? []).map(c => [c.charge_name,  c.hsn_code ?? null]));
@@ -622,7 +711,7 @@ export function DeliveryModal({
         }
     }
 
-    // ── Per-job Receipt PDF ────────────────────────────────────────────────────
+    // ── Per-job Receipt PDF ───────────────────────────────────────────────────
 
     function handlePrintReceiptPdf(job: JobDeliveryFullDetail) {
         const division = availableDivisions.find(d => d.id === job.division_id) ?? null;
@@ -662,15 +751,23 @@ export function DeliveryModal({
             },
         });
         toast.success("Receipt added.");
-        setShowReceiptModal(false);
-        void reloadJobDetails();
-        // Advance to next job in the receipt queue
+
         if (receiptQueue.length > 0) {
+            // More receipts pending — advance to next
             setReceiptJob(receiptQueue[0]);
             setReceiptQueue(prev => prev.slice(1));
-            setShowReceiptModal(true);
+            void reloadJobDetails();
         } else {
+            // Last receipt done
+            setShowReceiptModal(false);
             setReceiptJob(null);
+            await reloadJobDetails();
+            // Fire continuation if running in combined flow
+            if (postReceiptContinuation.current) {
+                const fn = postReceiptContinuation.current;
+                postReceiptContinuation.current = null;
+                await fn();
+            }
         }
     }
 
@@ -678,57 +775,26 @@ export function DeliveryModal({
         setShowReceiptModal(false);
         setReceiptJob(null);
         setReceiptQueue([]);
-    }
-
-    // ── Deliver & Close ───────────────────────────────────────────────────────
-
-    async function handleDeliver(values: DeliveryModalFormValues) {
-        if (!dbName || !schema) return;
-        setDelivering(true);
-        try {
-            for (const job of jobDetails) {
-                const statusId = job.job_status_code === "COMPLETED_OK"
-                    ? deliveredOkStatusId
-                    : deliveredNotOkStatusId;
-                if (!statusId) continue;
-                await apolloClient.mutate({
-                    mutation:  GRAPHQL_MAP.deliverJob,
-                    variables: {
-                        db_name: dbName, schema,
-                        value: encodeObj({
-                            job_id:               job.id,
-                            last_transaction_id:  job.last_transaction_id,
-                            performed_by_user_id: currentUser?.id ?? null,
-                            delivered_status_id:  statusId,
-                            delivery_date:        values.delivery_date,
-                            delivery_manner_name: values.delivery_manner,
-                            remarks:              values.remarks ?? "",
-                            payment: {
-                                payment_date: values.delivery_date,
-                                payment_mode: "Cash",
-                                amount:       0,
-                            },
-                        }),
-                    },
-                });
-            }
-            toast.success(`${jobDetails.length} job(s) delivered and closed.`);
-            if (pdfUrl) URL.revokeObjectURL(pdfUrl);
-            onDelivered();
-        } catch {
-            toast.error("Delivery failed. Please try again.");
-        } finally {
-            setDelivering(false);
+        // User aborted receipts mid-flow — cancel and allow retry
+        if (postReceiptContinuation.current) {
+            postReceiptContinuation.current = null;
+            setFlowStep("idle");
         }
     }
 
     // ── Render ────────────────────────────────────────────────────────────────
 
-    const mannerVal = form.watch("delivery_manner");
+    // Dynamic label for the combined-flow button
+    const flowButtonLabel =
+        flowStep === "receipts"   ? "Collecting Receipts…"    :
+        flowStep === "delivering" ? "Delivering…"             :
+        flowStep === "alert"      ? "Delivering…"             :
+        flowStep === "invoicing"  ? "Invoice is being made…"  :
+        "Receipts + Delivery + Invoice";
 
     return (
         <>
-            <Dialog open modal onOpenChange={() => { /* blocked — use Cancel button */ }}>
+            <Dialog open modal onOpenChange={() => { /* blocked — use Close button */ }}>
                 <DialogContent
                     className="w-[92vw] sm:max-w-5xl max-h-[95vh] flex flex-col overflow-hidden p-0 gap-0 shadow-2xl border-2 border-emerald-800 dark:border-emerald-400"
                     showCloseButton={false}
@@ -739,49 +805,96 @@ export function DeliveryModal({
                     {/* ── Accent bar ───────────────────────────────────────── */}
                     <div className="h-1.5 w-full shrink-0 bg-emerald-600 dark:bg-emerald-500" />
 
-                    {/* Close button — absolute top-right of the dialog */}
+                    {/* Close button — absolute top-right */}
                     <Button
                         className="absolute top-1 z-50 h-7 w-7 rounded-full text-(--cl-text-muted) hover:text-(--cl-text) hover:bg-(--cl-surface-2)"
                         style={{ right: -1 }}
-                        disabled={delivering || creatingInvoices}
+                        disabled={!canClose}
                         size="icon"
                         title="Close"
                         variant="ghost"
-                        onClick={onClose}
+                        onClick={() => { if (didDeliver.current) onDelivered(); onClose(); }}
                     >
                         <X className="h-4 w-4" />
                     </Button>
 
                     {/* ── Header ───────────────────────────────────────────── */}
-                    <div className="shrink-0 bg-(--cl-surface) px-6 pt-4">
+                    <div className="shrink-0 bg-(--cl-surface) px-6 pt-4 pb-3">
 
-                        {/* Title + subtitle */}
                         <div className="flex items-start justify-between gap-4">
-                            <div className="flex items-center gap-3 flex-1">
-                                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-linear-to-br from-emerald-500 to-teal-600 text-white shadow-md">
+
+                            {/* Left: icon + identity */}
+                            <div className="flex items-start gap-3 flex-1 min-w-0">
+                                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-linear-to-br from-emerald-500 to-teal-600 text-white shadow-md mt-0.5">
                                     <Truck className="h-5 w-5" />
                                 </div>
-                                <div>
-                                    <DialogTitle className="text-xl font-bold text-(--cl-text) leading-tight flex items-center gap-2">
-                                        Deliver Job{jobDetails.length > 1 ? "s" : ""}
-                                        <span className="rounded-full bg-emerald-100 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
-                                            {jobDetails.length} {jobDetails.length === 1 ? "job" : "jobs"}
-                                        </span>
-                                    </DialogTitle>
-                                    <p className="text-sm text-(--cl-text-muted) mt-0.5">
-                                        Review · Invoice · Receipt · Deliver
+
+                                <div className="flex-1 min-w-0">
+                                    {/* Title row */}
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                        <DialogTitle className="text-xl font-bold text-(--cl-text) leading-tight">
+                                            Deliver Job{!isSingleJob ? "s" : ""}
+                                        </DialogTitle>
+
+                                        {isSingleJob ? (
+                                            /* Single-job: prominent job number + view button */
+                                            <>
+                                                <span className="font-mono text-lg font-extrabold text-emerald-700 dark:text-emerald-400 leading-tight">
+                                                    #{firstJob.job_no}
+                                                </span>
+                                                {firstJob.alternate_job_no && (
+                                                    <span className="text-sm text-(--cl-text-muted)">/ {firstJob.alternate_job_no}</span>
+                                                )}
+                                                <Button
+                                                    className="h-7 gap-1.5 px-2.5 text-xs font-semibold"
+                                                    size="sm"
+                                                    title="View full job details"
+                                                    variant="outline"
+                                                    onClick={() => setViewJobId(firstJob.id)}
+                                                >
+                                                    <Eye className="h-3.5 w-3.5" />
+                                                    View Job
+                                                </Button>
+                                            </>
+                                        ) : (
+                                            /* Multi-job: count badge */
+                                            <span className="rounded-full bg-emerald-100 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
+                                                {jobDetails.length} jobs
+                                            </span>
+                                        )}
+                                    </div>
+
+                                    {/* Identity row */}
+                                    {isSingleJob ? (
+                                        <>
+                                            <div className="mt-1 flex items-center gap-2 min-w-0">
+                                                <span className="font-semibold text-(--cl-text) text-sm truncate">{firstJob.customer_name}</span>
+                                                {firstJob.mobile && (
+                                                    <span className="text-sm text-(--cl-text-muted) shrink-0">{firstJob.mobile}</span>
+                                                )}
+                                            </div>
+                                            {addressStr && (
+                                                <p className="text-xs text-(--cl-text-muted) mt-0.5 truncate">{addressStr}</p>
+                                            )}
+                                        </>
+                                    ) : (
+                                        <p className="mt-0.5 text-sm text-(--cl-text-muted) truncate">
+                                            {jobDetails.map(j => `#${j.job_no}`).join(" · ")}
+                                        </p>
+                                    )}
+
+                                    <p className="text-xs text-(--cl-text-muted) mt-1 font-medium tracking-wide">
+                                        Review · Receipt · Deliver · Invoice
                                     </p>
                                 </div>
                             </div>
 
-                            {/* Summary stat pills */}
-                            <div className="flex flex-wrap items-center gap-2 justify-end shrink-0">
-                                {/* Division */}
+                            {/* Right: summary stat pills */}
+                            <div className="flex flex-wrap items-start gap-2 justify-end shrink-0">
                                 <div className="flex items-center gap-1.5 rounded-lg border border-(--cl-border) bg-(--cl-surface-2) px-3 py-2">
                                     <span className="text-xs font-medium text-(--cl-text-muted) uppercase tracking-wide">Div</span>
                                     <span className="text-sm font-bold text-(--cl-text)">{divLabel}</span>
                                 </div>
-                                {/* GST badge */}
                                 <div className={`rounded-lg border px-3 py-2 text-sm font-bold ${
                                     gstLabel === "GST"
                                         ? "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300"
@@ -791,7 +904,6 @@ export function DeliveryModal({
                                 }`}>
                                     {gstLabel}
                                 </div>
-                                {/* Amount divider */}
                                 <div className="flex items-center gap-0 rounded-lg border border-(--cl-border) overflow-hidden divide-x divide-(--cl-border)">
                                     <div className="flex items-center gap-1.5 bg-(--cl-surface-2) px-3 py-2">
                                         <span className="text-xs text-(--cl-text-muted) uppercase font-medium">Total</span>
@@ -822,11 +934,25 @@ export function DeliveryModal({
 
                             {/* Step 1 – Selected Jobs */}
                             <StepSection step={1} title="Selected Jobs" accent="sky" count={jobDetails.length}>
-                                <DeliveryModalJobsTable jobs={jobDetails} availableDivisions={availableDivisions} />
+                                <DeliveryModalJobsTable
+                                    jobs={jobDetails}
+                                    availableDivisions={availableDivisions}
+                                    onViewJob={!isSingleJob ? id => setViewJobId(id) : undefined}
+                                />
                             </StepSection>
 
-                            {/* Step 2 – Invoices */}
-                            <StepSection step={2} title="Service Invoice" accent="violet">
+                            {/* Step 2 – Receipts */}
+                            <StepSection step={2} title="Money Receipts" accent="emerald">
+                                <DeliveryModalReceiptsSection
+                                    jobs={jobDetails}
+                                    onAddReceipt={job => { setReceiptQueue([]); setReceiptJob(job); setShowReceiptModal(true); }}
+                                    loadingPdfJobId={loadingPdfJobId}
+                                    onPrintReceipt={handlePrintReceiptPdf}
+                                />
+                            </StepSection>
+
+                            {/* Step 3 – Invoices */}
+                            <StepSection step={3} title="Service Invoice" accent="violet">
                                 <DeliveryModalInvoicesSection
                                     jobs={jobDetails}
                                     availableDivisions={availableDivisions}
@@ -839,16 +965,6 @@ export function DeliveryModal({
                                 />
                             </StepSection>
 
-                            {/* Step 3 – Receipts */}
-                            <StepSection step={3} title="Money Receipts" accent="emerald">
-                                <DeliveryModalReceiptsSection
-                                    jobs={jobDetails}
-                                    onAddReceipt={job => { setReceiptQueue([]); setReceiptJob(job); setShowReceiptModal(true); }}
-                                    loadingPdfJobId={loadingPdfJobId}
-                                    onPrintReceipt={handlePrintReceiptPdf}
-                                />
-                            </StepSection>
-
                         </div>
                     </div>
 
@@ -857,13 +973,11 @@ export function DeliveryModal({
 
                         {/* Step 4 label + delivery form */}
                         <div className="px-6 pt-4 pb-3">
-                            {/* Step header */}
                             <div className="flex items-center gap-2 mb-4">
                                 <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-600 text-white text-xs font-bold shrink-0">4</span>
                                 <span className="text-sm font-bold text-emerald-800 dark:text-emerald-300 uppercase tracking-wide">Delivery Details</span>
                             </div>
 
-                            {/* Form fields */}
                             <div className="flex flex-wrap items-end gap-4">
                                 {/* Delivery Manner */}
                                 <div className="flex-1 min-w-[200px] max-w-[280px]">
@@ -873,6 +987,7 @@ export function DeliveryModal({
                                     <Select
                                         value={mannerVal}
                                         onValueChange={v => form.setValue("delivery_manner", v, { shouldValidate: true })}
+                                        disabled={flowBusy || flowDone}
                                     >
                                         <SelectTrigger className="h-10 border-(--cl-border) bg-(--cl-surface) text-base shadow-sm">
                                             <SelectValue placeholder="Select manner…" />
@@ -893,6 +1008,7 @@ export function DeliveryModal({
                                     <Input
                                         type="date"
                                         className="h-10 border-(--cl-border) bg-(--cl-surface) text-base shadow-sm"
+                                        disabled={flowBusy || flowDone}
                                         {...form.register("delivery_date")}
                                     />
                                 </div>
@@ -905,6 +1021,7 @@ export function DeliveryModal({
                                     <Input
                                         placeholder="Optional remarks…"
                                         className="h-10 border-(--cl-border) bg-(--cl-surface) text-base shadow-sm"
+                                        disabled={flowBusy || flowDone}
                                         {...form.register("remarks")}
                                     />
                                 </div>
@@ -913,60 +1030,80 @@ export function DeliveryModal({
 
                         {/* Action buttons row */}
                         <div className="px-6 pb-5 flex items-center justify-between gap-3">
-                            {/* Left — document actions */}
-                            <div className="flex gap-2">
+                            <div className="flex items-center gap-3">
+                                {/* Primary action */}
                                 <Button
                                     className="h-10 gap-2 px-5 text-base bg-sky-600 hover:bg-sky-700 text-white shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
-                                    disabled={!canCreateInvoices}
-                                    onClick={() => void handleCreateInvoices()}
+                                    disabled={!canRunFlow}
+                                    onClick={() => void handleReceiptsDeliveryInvoice()}
                                 >
-                                    {creatingInvoices
+                                    {flowBusy
                                         ? <Loader2 className="h-4 w-4 animate-spin" />
-                                        : <FileText className="h-4 w-4" />
+                                        : <Truck className="h-4 w-4" />
                                     }
-                                    Create Invoice &amp; Receipts
+                                    {flowButtonLabel}
                                 </Button>
-                                <Button
-                                    className="h-10 gap-2 px-5 text-base disabled:opacity-40 disabled:cursor-not-allowed"
-                                    disabled={!canShowInvoiceReceipt}
-                                    variant="outline"
-                                    onClick={() => void handleInvoiceReceipt()}
-                                >
-                                    <FileText className="h-4 w-4" />
-                                    Invoice + Receipt
-                                </Button>
-                                <Button
-                                    className="h-10 gap-2 px-5 text-base"
-                                    variant="outline"
-                                    onClick={handleDeliveryNote}
-                                >
-                                    <Truck className="h-4 w-4" />
-                                    Delivery Note
-                                </Button>
+
+                                {/* Divider */}
+                                <div className="h-7 w-px bg-(--cl-border)" />
+
+                                {/* PDF buttons — individual light outline style */}
+                                <div className="flex items-center gap-1.5 overflow-visible">
+                                    {/* Invoice + Receipt */}
+                                    <div className="relative group/inv">
+                                        <Button
+                                            className="h-9 gap-1.5 px-3 text-sm disabled:opacity-40 disabled:cursor-not-allowed"
+                                            disabled={!canShowInvoice}
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => void handleInvoiceReceipt()}
+                                        >
+                                            <FileText className="h-3.5 w-3.5 shrink-0" />
+                                            Invoice + Receipt
+                                        </Button>
+                                        {!canShowInvoice && (
+                                            <div className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50 opacity-0 group-hover/inv:opacity-100 transition-opacity">
+                                                <div className="rounded-md bg-neutral-800 dark:bg-neutral-700 shadow-lg px-3 py-1.5 text-xs text-white whitespace-nowrap">
+                                                    Invoice not yet created
+                                                    <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-neutral-800 dark:border-t-neutral-700" />
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Delivery Note */}
+                                    <div className="relative group/note">
+                                        <Button
+                                            className="h-9 gap-1.5 px-3 text-sm disabled:opacity-40 disabled:cursor-not-allowed"
+                                            disabled={!isDelivered}
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={handleDeliveryNote}
+                                        >
+                                            <FileText className="h-3.5 w-3.5 shrink-0" />
+                                            Delivery Note
+                                        </Button>
+                                        {!isDelivered && (
+                                            <div className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50 opacity-0 group-hover/note:opacity-100 transition-opacity">
+                                                <div className="rounded-md bg-neutral-800 dark:bg-neutral-700 shadow-lg px-3 py-1.5 text-xs text-white whitespace-nowrap">
+                                                    Job not yet delivered
+                                                    <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-neutral-800 dark:border-t-neutral-700" />
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
                             </div>
 
-                            {/* Right — cancel / deliver */}
-                            <div className="flex items-center gap-3">
-                                <Button
-                                    className="h-10 px-6 text-base"
-                                    disabled={delivering || creatingInvoices || !!deletingInvoiceJobId || !!regeneratingInvoiceJobId}
-                                    variant="outline"
-                                    onClick={onClose}
-                                >
-                                    Cancel
-                                </Button>
-                                <Button
-                                    className="h-10 gap-2 px-7 text-base font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg tracking-wide disabled:opacity-30 disabled:bg-slate-300 disabled:text-slate-500 disabled:shadow-none disabled:cursor-not-allowed transition-all"
-                                    disabled={!canDeliver}
-                                    onClick={() => void form.handleSubmit(handleDeliver)()}
-                                >
-                                    {delivering
-                                        ? <Loader2 className="h-5 w-5 animate-spin" />
-                                        : <Truck className="h-5 w-5" />
-                                    }
-                                    {jobDetails.length > 1 ? "Deliver Selected" : "Deliver & Close"}
-                                </Button>
-                            </div>
+                            {/* Right — close */}
+                            <Button
+                                className="h-10 px-6 text-base font-semibold"
+                                disabled={!canClose}
+                                variant="outline"
+                                onClick={() => { if (didDeliver.current) onDelivered(); onClose(); }}
+                            >
+                                Close
+                            </Button>
                         </div>
                     </div>
 
@@ -997,7 +1134,48 @@ export function DeliveryModal({
                 filename={pdfFilename}
             />
 
-            {/* Regenerate invoice confirmation / blocked */}
+            {/* Job details viewer */}
+            {viewJobId !== null && (
+                <JobDetailsModal
+                    jobId={viewJobId}
+                    onClose={() => setViewJobId(null)}
+                />
+            )}
+
+            {/* Delivery success alert — forced close, fires invoice creation */}
+            <AlertDialog
+                open={showDeliverySuccessAlert}
+                onOpenChange={() => { /* blocked — user must click Continue */ }}
+            >
+                <AlertDialogContent
+                    size="sm"
+                    onPointerDownOutside={e => e.preventDefault()}
+                    onEscapeKeyDown={e => e.preventDefault()}
+                >
+                    <AlertDialogHeader>
+                        <AlertDialogMedia className="bg-emerald-100 dark:bg-emerald-950/40 text-emerald-600">
+                            <Truck />
+                        </AlertDialogMedia>
+                        <AlertDialogTitle>
+                            {jobDetails.length > 1 ? "Jobs Delivered Successfully!" : "Job Delivered Successfully!"}
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                            {jobDetails.map(j => `#${j.job_no}`).join(", ")} delivered on{" "}
+                            {form.getValues("delivery_date")}. Click below to generate the invoice.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogAction
+                            className="col-span-2 bg-emerald-600 hover:bg-emerald-700 text-white w-full"
+                            onClick={() => void handleDeliveryAlertClose()}
+                        >
+                            Continue → Generate Invoice
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            {/* Regenerate invoice confirmation */}
             <AlertDialog
                 open={!!confirmRegenerateJob}
                 onOpenChange={open => { if (!open) setConfirmRegenerateJob(null); }}
@@ -1046,7 +1224,7 @@ export function DeliveryModal({
                 </AlertDialogContent>
             </AlertDialog>
 
-            {/* Delete invoice confirmation / blocked */}
+            {/* Delete invoice confirmation */}
             <AlertDialog
                 open={!!confirmDeleteJob}
                 onOpenChange={open => { if (!open) setConfirmDeleteJob(null); }}

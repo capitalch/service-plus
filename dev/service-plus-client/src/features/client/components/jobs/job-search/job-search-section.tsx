@@ -1,27 +1,40 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-    ArrowLeft,
+    ArrowLeft, ArrowRightLeft, CheckSquare,
     ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon,
-    ClipboardList, Eye, FileDown, Paperclip, RefreshCw, Search, X,
+    ClipboardList, Eye, FileDown, Lock, Package, Paperclip, RefreshCw, Search, Truck, Undo2, X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+    DropdownMenu, DropdownMenuContent, DropdownMenuItem,
+    DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { MESSAGES } from "@/constants/messages";
 import { SQL_MAP } from "@/constants/sql-map";
 import { apolloClient } from "@/lib/apollo-client";
-import { graphQlUtils } from "@/lib/graphql-utils";
+import { encodeObj, graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
-import { selectDbName } from "@/features/auth/store/auth-slice";
+import { selectCurrentUser, selectDbName } from "@/features/auth/store/auth-slice";
 import { selectCurrentBranch, selectSchema, selectAvailableDivisions } from "@/store/context-slice";
-import type { JobLookupRow, JobSearchRow } from "@/features/client/types/job";
-import { STATUS_COLORS } from "../job-pipeline/status-transitions";
+import type { JobLookupRow, JobSearchRow, TechnicianRow } from "@/features/client/types/job";
+import { getTransitions, STATUS_COLORS, STATUS_FLAGS } from "../job-pipeline/status-transitions";
+import type { Transition } from "../job-pipeline/status-transitions";
+import { StatusTransitionModal } from "../job-pipeline/status-transition-modal";
+import type { TransitionPayload } from "../job-pipeline/status-transition-modal";
+import { UndoTransactionDialog } from "../job-pipeline/undo-transaction-dialog";
+import { JobChargesModal } from "../job-pipeline/job-charges-modal";
+import type { ChargesJobSummary } from "../job-pipeline/job-charges-modal";
 import { JobAttachDialog } from "../single-job/job-attach-dialog";
 import { JobDetailsModal } from "../job-pipeline/job-details-modal";
 import { JobPdfModal } from "./job-pdf-modal";
+import { FinalJobDialog } from "./final-job-dialog";
+import { DeliveryModal } from "../deliver-job/delivery-modal";
+import type { JobDeliveryFullDetail } from "../deliver-job/deliver-job-schema";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -30,11 +43,23 @@ type ClosedFilter = null | boolean;
 type JobFilter =
     | { group: "closed"; value: ClosedFilter }
     | { group: "status"; id: number | null };
+type DeliveryMannerRow = { id: number; name: string };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const PAGE_SIZE   = 50;
 const DEBOUNCE_MS = 1600;
+
+const NO_ACTION_CODES     = new Set(["COMPLETED_OK", "RETURN", "DELIVERED_OK", "DELIVERED_NOT_OK"]);
+const NO_UNDO_CODES       = new Set(["DELIVERED_OK", "DELIVERED_NOT_OK"]);
+const ADD_CHARGES_CODES   = new Set(["RECEIVED", "ASSIGNED", "ESTIMATE_APPROVED", "IN_PROGRESS"]);
+const NO_CHARGES_JOB_TYPES = new Set(["DEMO", "INSPECTION", "UNDER_WARRANTY"]);
+
+function canUndo(row: JobSearchRow): boolean {
+    if (NO_UNDO_CODES.has(row.job_status_code)) return false;
+    if (row.transaction_count < 1) return false;
+    return true;
+}
 
 const thClass = "sticky top-0 z-20 text-xs font-semibold uppercase tracking-wide text-(--cl-text-muted) p-3 text-left border-b border-(--cl-border) bg-(--cl-surface-2)";
 const tdClass = "p-3 text-sm text-(--cl-text) border-b border-(--cl-border)";
@@ -46,16 +71,23 @@ export const JobSearchSection = () => {
     const schema       = useAppSelector(selectSchema);
     const globalBranch = useAppSelector(selectCurrentBranch);
     const divisions    = useAppSelector(selectAvailableDivisions);
+    const currentUser  = useAppSelector(selectCurrentUser);
     const branchId     = globalBranch?.id ?? null;
 
     const [search,      setSearch]      = useState("");
     const [searchQ,     setSearchQ]     = useState("");
-    const [filter,      setFilter]      = useState<JobFilter>({ group: "closed", value: null });
+    const [filter,      setFilter]      = useState<JobFilter>({ group: "closed", value: false });
     const [jobStatuses, setJobStatuses] = useState<JobLookupRow[]>([]);
     const [page,           setPage]           = useState(1);
     const [rows,           setRows]           = useState<JobSearchRow[]>([]);
     const [total,          setTotal]          = useState(0);
     const [loading,        setLoading]        = useState(false);
+
+    const [technicians,    setTechnicians]    = useState<TechnicianRow[]>([]);
+    const [pendingTran,    setPendingTran]    = useState<{ job: JobSearchRow; transition: Transition } | null>(null);
+    const [submitting,     setSubmitting]     = useState(false);
+    const [undoPendingJob, setUndoPendingJob] = useState<JobSearchRow | null>(null);
+    const [chargesJob,     setChargesJob]     = useState<ChargesJobSummary | null>(null);
 
     const [attachJobId, setAttachJobId] = useState<number | null>(null);
     const [attachJobNo, setAttachJobNo] = useState<string>("");
@@ -63,8 +95,17 @@ export const JobSearchSection = () => {
     const [viewJobId, setViewJobId] = useState<number | null>(null);
     const [pdfJobId,  setPdfJobId]  = useState<number | null>(null);
 
+    const [finalJobId, setFinalJobId] = useState<number | null>(null);
+
+    const [deliveryManners,           setDeliveryManners]           = useState<DeliveryMannerRow[]>([]);
+    const [showPartsInInvoiceSetting, setShowPartsInInvoiceSetting] = useState<{ show: boolean; text: string; hsn: number; gst_rate: number } | null>(null);
+    const [deliveryJobDetails,        setDeliveryJobDetails]        = useState<JobDeliveryFullDetail[]>([]);
+    const [showDeliveryModal,         setShowDeliveryModal]         = useState(false);
+    const [loadingDelivery,           setLoadingDelivery]           = useState<number | null>(null);
+
     const debounceRef      = useRef<ReturnType<typeof setTimeout> | null>(null);
     const scrollWrapperRef = useRef<HTMLDivElement>(null);
+    const pendingScrollRef = useRef<number | null>(null);
     const [maxHeight, setMaxHeight] = useState(0);
 
     const recalc = useCallback(() => {
@@ -80,6 +121,16 @@ export const JobSearchSection = () => {
         window.addEventListener("resize", recalc);
         return () => { clearTimeout(timer); window.removeEventListener("resize", recalc); };
     }, [recalc, rows.length]);
+
+    // Restore scroll position after a post-mutation refresh.
+    useEffect(() => {
+        if (pendingScrollRef.current === null) return;
+        const target = pendingScrollRef.current;
+        pendingScrollRef.current = null;
+        requestAnimationFrame(() => {
+            if (scrollWrapperRef.current) scrollWrapperRef.current.scrollTop = target;
+        });
+    }, [rows]);
 
     const loadData = useCallback(async (
         bId: number, q: string, pg: number, f: JobFilter,
@@ -123,17 +174,29 @@ export const JobSearchSection = () => {
         }
     }, [dbName, schema]);
 
+    const refreshGrid = useCallback(() => {
+        if (!branchId) return;
+        pendingScrollRef.current = scrollWrapperRef.current?.scrollTop ?? null;
+        void loadData(Number(branchId), searchQ, page, filter);
+    }, [branchId, loadData, searchQ, page, filter]);
+
     useEffect(() => {
-        if (!dbName || !schema) return;
-        void apolloClient.query<GenericQueryData<JobLookupRow>>({
-            fetchPolicy: "network-only",
-            query: GRAPHQL_MAP.genericQuery,
-            variables: {
-                db_name: dbName, schema,
-                value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_JOB_STATUSES }),
-            },
-        }).then(res => setJobStatuses(res.data?.genericQuery ?? []));
-    }, [dbName, schema]); // eslint-disable-line react-hooks/exhaustive-deps
+        if (!dbName || !schema || !branchId) return;
+        const gq = <T,>(sqlId: string, sqlArgs?: Record<string, unknown>) =>
+            apolloClient.query<GenericQueryData<T>>({
+                fetchPolicy: "network-only",
+                query: GRAPHQL_MAP.genericQuery,
+                variables: { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId, sqlArgs }) },
+            });
+        void gq<JobLookupRow>(SQL_MAP.GET_JOB_STATUSES).then(res => setJobStatuses(res.data?.genericQuery ?? []));
+        void gq<TechnicianRow>(SQL_MAP.GET_ALL_TECHNICIANS, { branch_id: branchId }).then(res => setTechnicians(res.data?.genericQuery ?? []));
+        void gq<DeliveryMannerRow>(SQL_MAP.GET_JOB_DELIVERY_MANNERS).then(res => setDeliveryManners(res.data?.genericQuery ?? []));
+        void gq<{ setting_value: unknown }>(SQL_MAP.GET_APP_SETTING_BY_KEY, { setting_key: "show_parts_in_job_invoice" })
+            .then(res => {
+                const sv = res.data?.genericQuery?.[0]?.setting_value;
+                if (sv != null && typeof sv === "object") setShowPartsInInvoiceSetting(sv as { show: boolean; text: string; hsn: number; gst_rate: number });
+            });
+    }, [dbName, schema, branchId]); // eslint-disable-line react-hooks/exhaustive-deps
 
     useEffect(() => {
         if (!branchId) return;
@@ -154,6 +217,98 @@ export const JobSearchSection = () => {
         setFilter({ group: "status", id }); setPage(1);
     };
 
+    async function handleSubmitTransition(job: JobSearchRow, transition: Transition, payload: TransitionPayload) {
+        if (!dbName || !schema) return;
+        setSubmitting(true);
+        try {
+            const flags = STATUS_FLAGS[transition.targetId];
+            const xData = {
+                id:             job.id,
+                job_status_id:  transition.targetId,
+                division_id:    payload.division_id,
+                technician_id:  payload.technician_id,
+                amount:         job.amount,
+                estimate_amount: transition.fields.includes("E") ? payload.estimate_amount : job.estimate_amount,
+                is_final:       flags?.is_final  ?? false,
+                is_closed:      flags?.is_closed ?? false,
+            };
+            await apolloClient.mutate({
+                mutation: GRAPHQL_MAP.updateJob,
+                variables: {
+                    db_name: dbName, schema,
+                    value: encodeObj({
+                        job_id:               job.id,
+                        last_transaction_id:  job.last_transaction_id,
+                        performed_by_user_id: currentUser?.id ?? null,
+                        remarks:              payload.remarks || "",
+                        transaction_date:     payload.transaction_date || null,
+                        xData,
+                    }),
+                },
+            });
+            toast.success(`Job ${job.job_no} → ${transition.targetName}`);
+            setPendingTran(null);
+            refreshGrid();
+        } catch {
+            toast.error(MESSAGES.ERROR_JOB_UPDATE_FAILED);
+        } finally {
+            setSubmitting(false);
+        }
+    }
+
+    async function handleUndoConfirm(job: JobSearchRow) {
+        if (!dbName || !schema) return;
+        setSubmitting(true);
+        try {
+            await apolloClient.mutate({
+                mutation: GRAPHQL_MAP.undoJobTransaction,
+                variables: {
+                    db_name: dbName, schema,
+                    value: encodeObj({
+                        job_id:               job.id,
+                        last_transaction_id:  job.last_transaction_id,
+                        performed_by_user_id: currentUser?.id ?? null,
+                    }),
+                },
+            });
+            toast.success(`Undo successful — Job #${job.job_no} restored to previous status.`);
+            setUndoPendingJob(null);
+            refreshGrid();
+        } catch (err) {
+            const msg = (err as { errors?: { message: string }[] })?.errors?.[0]?.message
+                ?? "Failed to undo transaction. Please refresh and try again.";
+            toast.error(msg);
+        } finally {
+            setSubmitting(false);
+        }
+    }
+
+    async function handleOpenDelivery(jobId: number) {
+        if (!dbName || !schema) return;
+        setLoadingDelivery(jobId);
+        try {
+            const res = await apolloClient.query<GenericQueryData<JobDeliveryFullDetail>>({
+                fetchPolicy: "network-only",
+                query: GRAPHQL_MAP.genericQuery,
+                variables: {
+                    db_name: dbName, schema,
+                    value: graphQlUtils.buildGenericQueryValue({
+                        sqlId:   SQL_MAP.GET_DELIVERABLE_JOBS_DETAIL_MULTI,
+                        sqlArgs: { job_ids: [jobId] },
+                    }),
+                },
+            });
+            const details = res.data?.genericQuery ?? [];
+            if (details.length === 0) { toast.error("Failed to load job delivery details."); return; }
+            setDeliveryJobDetails(details);
+            setShowDeliveryModal(true);
+        } catch {
+            toast.error("Failed to load job delivery details.");
+        } finally {
+            setLoadingDelivery(null);
+        }
+    }
+
     // ── List view ─────────────────────────────────────────────────────────────
 
     const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -165,10 +320,30 @@ export const JobSearchSection = () => {
     };
 
     const filterOptions: { value: ClosedFilter; label: string }[] = [
-        { value: null,  label: "All"    },
         { value: false, label: "Open"   },
+        { value: null,  label: "All"    },
         { value: true,  label: "Closed" },
     ];
+
+    if (finalJobId !== null) {
+        return (
+            <motion.div
+                animate={{ opacity: 1 }}
+                className="flex min-h-0 flex-1 flex-col overflow-hidden"
+                initial={{ opacity: 0 }}
+                transition={{ duration: 0.25 }}
+            >
+                <FinalJobDialog
+                    jobId={finalJobId}
+                    onClose={() => setFinalJobId(null)}
+                    onFinalized={() => {
+                        setFinalJobId(null);
+                        if (branchId) void loadData(Number(branchId), searchQ, page, filter);
+                    }}
+                />
+            </motion.div>
+        );
+    }
 
     return (
         <motion.div
@@ -268,7 +443,7 @@ export const JobSearchSection = () => {
                             <button
                                 key={String(opt.value)}
                                 disabled={loading}
-                                className={`px-3 h-8 text-xs font-semibold transition-colors disabled:opacity-50 cursor-pointer
+                                className={`px-3 h-8 text-sm font-semibold transition-colors disabled:opacity-50 cursor-pointer
                                     ${filter.value === opt.value
                                         ? "bg-(--cl-accent) text-white"
                                         : "bg-(--cl-surface) text-(--cl-text-muted) hover:bg-(--cl-hover) hover:text-(--cl-text)"
@@ -281,7 +456,7 @@ export const JobSearchSection = () => {
                         <div className="w-px self-stretch bg-(--cl-border)" />
                         <button
                             disabled={loading}
-                            className="flex items-center gap-1 px-3 h-8 text-xs font-semibold transition-colors disabled:opacity-50 cursor-pointer bg-(--cl-surface) text-(--cl-text-muted) hover:bg-(--cl-accent)/10 hover:text-(--cl-accent)"
+                            className="flex items-center gap-1 px-3 h-8 text-sm font-semibold transition-colors disabled:opacity-50 cursor-pointer bg-(--cl-surface) text-(--cl-text-muted) hover:bg-(--cl-accent)/10 hover:text-(--cl-accent)"
                             onClick={() => { setFilter({ group: "status", id: null }); setPage(1); }}
                         >
                             Status
@@ -429,6 +604,122 @@ export const JobSearchSection = () => {
                                                 >
                                                     <Eye className="h-4 w-4" />
                                                 </Button>
+
+                                                {/* Transaction dropdown */}
+                                                {(() => {
+                                                    const transitions    = getTransitions(job.job_status_id, job.job_type_code);
+                                                    const isNoAction     = NO_ACTION_CODES.has(job.job_status_code);
+                                                    const rowCanUndo     = canUndo(job);
+                                                    const showCharges    = ADD_CHARGES_CODES.has(job.job_status_code) && !NO_CHARGES_JOB_TYPES.has(job.job_type_code);
+                                                    const showFinalJob   = job.job_status_code === "COMPLETED_OK" && !job.is_final;
+                                                    const showDeliverJob = job.is_final && !job.is_closed;
+                                                    const hasAnyAction   = !isNoAction || rowCanUndo || showCharges || showFinalJob || showDeliverJob;
+                                                    if (!hasAnyAction) {
+                                                        return (
+                                                            <span className="flex h-8 w-8 items-center justify-center">
+                                                                <Lock className="h-3.5 w-3.5 text-(--cl-text-muted) opacity-40" />
+                                                            </span>
+                                                        );
+                                                    }
+                                                    return (
+                                                        <DropdownMenu>
+                                                            <DropdownMenuTrigger asChild>
+                                                                <Button
+                                                                    className="h-8 w-8 p-0 text-(--cl-accent) hover:text-white hover:bg-(--cl-accent) rounded-lg transition-colors"
+                                                                    disabled={submitting || loadingDelivery === job.id}
+                                                                    size="icon"
+                                                                    title="Status actions"
+                                                                    variant="ghost"
+                                                                >
+                                                                    <ArrowRightLeft className="h-4 w-4" />
+                                                                </Button>
+                                                            </DropdownMenuTrigger>
+                                                            <DropdownMenuContent align="end" className="min-w-[220px] bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 shadow-xl rounded-xl p-1 z-50">
+                                                                {!isNoAction && (
+                                                                    <>
+                                                                        <DropdownMenuLabel className="px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
+                                                                            Move job to
+                                                                        </DropdownMenuLabel>
+                                                                        <DropdownMenuSeparator className="bg-zinc-100 dark:bg-zinc-800 mx-1" />
+                                                                        {transitions.length === 0 ? (
+                                                                            <DropdownMenuItem disabled className="rounded-lg text-sm text-zinc-400 py-2.5 px-3 italic">
+                                                                                No transitions available
+                                                                            </DropdownMenuItem>
+                                                                        ) : transitions.map(t => {
+                                                                            const dotBg = STATUS_COLORS[t.targetCode]?.trim().split(/\s+/)[0] ?? "bg-slate-400";
+                                                                            return (
+                                                                                <DropdownMenuItem
+                                                                                    key={`${t.targetId}-${t.targetName}`}
+                                                                                    className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-900 focus:bg-zinc-50 dark:focus:bg-zinc-900"
+                                                                                    onClick={() => setPendingTran({ job, transition: t })}
+                                                                                >
+                                                                                    <span className={`h-3 w-3 shrink-0 rounded-full ${dotBg} shadow-sm`} />
+                                                                                    <span className="flex-1 text-zinc-700 dark:text-zinc-300">{t.targetName}</span>
+                                                                                    <span className="text-zinc-300 dark:text-zinc-600">›</span>
+                                                                                </DropdownMenuItem>
+                                                                            );
+                                                                        })}
+                                                                    </>
+                                                                )}
+                                                                {rowCanUndo && (
+                                                                    <>
+                                                                        {!isNoAction && <DropdownMenuSeparator className="bg-zinc-100 dark:bg-zinc-800 mx-1" />}
+                                                                        <DropdownMenuItem
+                                                                            className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950/30"
+                                                                            onClick={() => setUndoPendingJob(job)}
+                                                                        >
+                                                                            <Undo2 className="h-3.5 w-3.5 shrink-0" />
+                                                                            Undo Last Transaction
+                                                                        </DropdownMenuItem>
+                                                                    </>
+                                                                )}
+                                                                {showCharges && (
+                                                                    <>
+                                                                        <DropdownMenuSeparator className="bg-zinc-100 dark:bg-zinc-800 mx-1" />
+                                                                        <DropdownMenuItem
+                                                                            className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium cursor-pointer text-violet-600 focus:text-violet-700 focus:bg-violet-50 dark:focus:bg-violet-950/30"
+                                                                            onClick={() => setChargesJob({
+                                                                                id:              job.id,
+                                                                                job_no:          job.job_no,
+                                                                                customer_name:   job.customer_name ?? "",
+                                                                                job_status_name: job.job_status_name,
+                                                                                job_status_code: job.job_status_code,
+                                                                            })}
+                                                                        >
+                                                                            <Package className="h-3.5 w-3.5 shrink-0" />
+                                                                            Parts &amp; Charges
+                                                                        </DropdownMenuItem>
+                                                                    </>
+                                                                )}
+                                                                {showFinalJob && (
+                                                                    <>
+                                                                        <DropdownMenuSeparator className="bg-zinc-100 dark:bg-zinc-800 mx-1" />
+                                                                        <DropdownMenuItem
+                                                                            className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium cursor-pointer text-emerald-700 focus:text-emerald-700 focus:bg-emerald-50 dark:focus:bg-emerald-950/30"
+                                                                            onClick={() => setFinalJobId(job.id)}
+                                                                        >
+                                                                            <CheckSquare className="h-3.5 w-3.5 shrink-0" />
+                                                                            Final the Job
+                                                                        </DropdownMenuItem>
+                                                                    </>
+                                                                )}
+                                                                {showDeliverJob && (
+                                                                    <>
+                                                                        <DropdownMenuSeparator className="bg-zinc-100 dark:bg-zinc-800 mx-1" />
+                                                                        <DropdownMenuItem
+                                                                            className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium cursor-pointer text-blue-700 focus:text-blue-700 focus:bg-blue-50 dark:focus:bg-blue-950/30"
+                                                                            onClick={() => void handleOpenDelivery(job.id)}
+                                                                        >
+                                                                            <Truck className="h-3.5 w-3.5 shrink-0" />
+                                                                            Deliver Job
+                                                                        </DropdownMenuItem>
+                                                                    </>
+                                                                )}
+                                                            </DropdownMenuContent>
+                                                        </DropdownMenu>
+                                                    );
+                                                })()}
+
                                                 {/* PDF / Print */}
                                                 <Button
                                                     className="h-8 w-8 p-0 text-(--cl-text-muted) hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
@@ -478,9 +769,7 @@ export const JobSearchSection = () => {
                 jobNo={attachJobNo}
                 mode="attach"
                 onClose={() => { setAttachJobId(null); setAttachJobNo(""); }}
-                onFilesChanged={() => {
-                    if (branchId) void loadData(Number(branchId), searchQ, page, filter);
-                }}
+                onFilesChanged={() => { refreshGrid(); }}
             />
 
             {/* Job Details Modal */}
@@ -496,6 +785,79 @@ export const JobSearchSection = () => {
                 <JobPdfModal
                     jobId={pdfJobId}
                     onClose={() => setPdfJobId(null)}
+                />
+            )}
+
+            {/* Status transition modal */}
+            {pendingTran && (
+                <StatusTransitionModal
+                    divisions={divisions}
+                    job={{
+                        id:                         pendingTran.job.id,
+                        job_no:                     pendingTran.job.job_no,
+                        customer_name:              pendingTran.job.customer_name ?? "",
+                        job_status_name:            pendingTran.job.job_status_name,
+                        division_id:                pendingTran.job.division_id ?? null,
+                        technician_id:              pendingTran.job.technician_id,
+                        job_receive_manner_name:    null,
+                        device_details:             pendingTran.job.device_details,
+                        job_receive_condition_name: null,
+                    }}
+                    transition={pendingTran.transition}
+                    technicians={technicians}
+                    onClose={() => setPendingTran(null)}
+                    onSubmit={payload => handleSubmitTransition(pendingTran.job, pendingTran.transition, payload)}
+                />
+            )}
+
+            {/* Undo transaction dialog */}
+            {undoPendingJob && (
+                <UndoTransactionDialog
+                    job={{
+                        job_no:                  undoPendingJob.job_no,
+                        customer_name:           undoPendingJob.customer_name,
+                        job_receive_manner_name: null,
+                        device_details:          undoPendingJob.device_details,
+                        job_status_name:         undoPendingJob.job_status_name,
+                    }}
+                    submitting={submitting}
+                    onConfirm={() => void handleUndoConfirm(undoPendingJob)}
+                    onClose={() => setUndoPendingJob(null)}
+                />
+            )}
+
+            {/* Parts & Charges modal */}
+            {chargesJob && (
+                <JobChargesModal
+                    job={chargesJob}
+                    dbName={dbName ?? ""}
+                    schema={schema ?? ""}
+                    onClose={() => setChargesJob(null)}
+                    onSaved={() => {
+                        setChargesJob(null);
+                        refreshGrid();
+                    }}
+                />
+            )}
+
+            {/* Delivery modal */}
+            {showDeliveryModal && deliveryJobDetails.length > 0 && (
+                <DeliveryModal
+                    jobs={deliveryJobDetails}
+                    branchId={branchId}
+                    branchName={globalBranch?.name ?? null}
+                    deliveryManners={deliveryManners}
+                    availableDivisions={divisions}
+                    currentUser={currentUser}
+                    dbName={dbName}
+                    schema={schema}
+                    showPartsInInvoiceSetting={showPartsInInvoiceSetting}
+                    onClose={() => { setShowDeliveryModal(false); setDeliveryJobDetails([]); }}
+                    onDelivered={() => {
+                        setShowDeliveryModal(false);
+                        setDeliveryJobDetails([]);
+                        refreshGrid();
+                    }}
                 />
             )}
         </motion.div>

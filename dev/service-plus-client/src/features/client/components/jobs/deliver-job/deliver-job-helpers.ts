@@ -26,8 +26,10 @@ export function fmtCurrency(n: number | null | undefined): string {
 // Jobs that skip invoice generation:
 //   - UNDER_WARRANTY job type  (job_type_code)
 //   - RETURN or CANCELLED job status (job_status_code)
+//   - Any status that is not DELIVERED_OK or DELIVERED_NOT_OK (job must be delivered first)
 export function isJobInvoiceable(jobTypeCode: string, jobStatusCode: string): boolean {
     if (jobTypeCode === "UNDER_WARRANTY") return false;
     if (jobStatusCode === "RETURN" || jobStatusCode === "CANCELLED") return false;
+    if (jobStatusCode !== "DELIVERED_OK" && jobStatusCode !== "DELIVERED_NOT_OK") return false;
     return true;
 }

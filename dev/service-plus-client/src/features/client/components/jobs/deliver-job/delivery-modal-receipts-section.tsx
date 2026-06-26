@@ -80,7 +80,7 @@ export function DeliveryModalReceiptsSection({ jobs, onAddReceipt, loadingPdfJob
                                 <table className="min-w-full border-collapse text-sm">
                                     <thead>
                                         <tr className="bg-(--cl-surface-2)">
-                                            {["#", "Date", "Mode", "Amount", "Ref No", "Remarks"].map(h => (
+                                            {["Receipt No", "Date", "Mode", "Amount", "Ref No", "Remarks"].map(h => (
                                                 <th key={h} className={`px-3 py-2 text-xs font-semibold uppercase tracking-wide text-(--cl-text-muted) border-b border-(--cl-border) ${h === "Amount" ? "text-right" : "text-left"}`}>{h}</th>
                                             ))}
                                         </tr>
@@ -88,7 +88,7 @@ export function DeliveryModalReceiptsSection({ jobs, onAddReceipt, loadingPdfJob
                                     <tbody className="divide-y divide-(--cl-border) bg-(--cl-surface)">
                                         {(job.payments ?? []).map((p, i) => (
                                             <tr key={p.id} className="hover:bg-(--cl-accent)/5">
-                                                <td className="px-3 py-2 text-sm text-(--cl-text-muted)">{i + 1}</td>
+                                                <td className="px-3 py-2 text-sm font-mono font-semibold text-(--cl-accent)">{p.receipt_no ?? `#${i + 1}`}</td>
                                                 <td className="px-3 py-2 text-sm">{p.payment_date.slice(0, 10)}</td>
                                                 <td className="px-3 py-2">
                                                     <span className={`rounded px-2 py-0.5 text-xs font-semibold ${modeBadgeClass(p.payment_mode)}`}>

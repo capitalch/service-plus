@@ -959,6 +959,15 @@ async def resolve_create_job_invoice_helper(
             if existing:
                 return existing["id"]
 
+            # 1b. Enforce that the job must be delivered before an invoice can be created
+            await cur.execute(SqlStore.GET_JOB_IS_CLOSED, {"job_id": x_data.get("job_id")})
+            job_row = await cur.fetchone()
+            if not job_row or not job_row["is_closed"]:
+                raise ValidationException(
+                    message="Invoice can only be created for a delivered job",
+                    extensions={"field": "job_id"},
+                )
+
             # 2. Claim next invoice number atomically
             await cur.execute(
                 SqlStore.CLAIM_NEXT_INVOICE_NUMBER,
@@ -1175,6 +1184,12 @@ async def resolve_update_job_helper(
     job_status_id = x_data.get("job_status_id")
     technician_id = x_data.get("technician_id")
     amount = x_data.get("amount")
+
+    # Enforce is_closed from the canonical _STATUS_FLAGS so the DB stays
+    # consistent regardless of what the client sends.  is_final is intentionally
+    # left to the client because it is set in a separate "Final the Job" step.
+    if job_status_id is not None and job_status_id in _STATUS_FLAGS:
+        x_data["is_closed"] = _STATUS_FLAGS[job_status_id]["is_closed"]
 
     db_name_arg: str = db_name or ""
     schema_name = schema or "public"

@@ -1,3 +1,5 @@
+import { Eye } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import type { DivisionContextType } from "@/features/client/types/division";
 import type { JobDeliveryFullDetail } from "./deliver-job-schema";
 import { fmtCurrency } from "./deliver-job-helpers";
@@ -5,9 +7,10 @@ import { fmtCurrency } from "./deliver-job-helpers";
 type Props = {
     jobs:               JobDeliveryFullDetail[];
     availableDivisions: DivisionContextType[];
+    onViewJob?:         (id: number) => void;
 };
 
-export function DeliveryModalJobsTable({ jobs }: Props) {
+export function DeliveryModalJobsTable({ jobs, onViewJob }: Props) {
     const totalAmt  = jobs.reduce((s, j) => s + Number(j.amount ?? 0), 0);
     const totalPaid = jobs.reduce((s, j) => s + (j.payments ?? []).reduce((ps, p) => ps + Number(p.amount), 0), 0);
     const totalDue  = Math.max(0, totalAmt - totalPaid);
@@ -19,7 +22,7 @@ export function DeliveryModalJobsTable({ jobs }: Props) {
                 const due  = Math.max(0, Number(job.amount ?? 0) - paid);
                 return (
                     <div key={job.id} className="rounded-lg border border-(--cl-border) bg-(--cl-surface) px-4 py-3 flex flex-col gap-1.5">
-                        {/* Row 1: job # · customer · mobile | job-type badge · date */}
+                        {/* Row 1: job # · customer · mobile | job-type badge · date · view */}
                         <div className="flex items-center gap-2 min-w-0">
                             <span className="font-mono font-bold text-(--cl-accent) text-base shrink-0">#{job.job_no}</span>
                             {job.alternate_job_no && (
@@ -35,6 +38,18 @@ export function DeliveryModalJobsTable({ jobs }: Props) {
                                 {job.job_type_name}
                             </span>
                             <span className="text-sm text-(--cl-text-muted) shrink-0">{job.job_date}</span>
+                            {onViewJob && (
+                                <Button
+                                    className="h-7 gap-1.5 px-2.5 text-xs font-semibold shrink-0"
+                                    size="sm"
+                                    title="View job details"
+                                    variant="outline"
+                                    onClick={() => onViewJob(job.id)}
+                                >
+                                    <Eye className="h-3.5 w-3.5" />
+                                    View
+                                </Button>
+                            )}
                         </div>
 
                         {/* Row 2: recv · condition · technician — dot-separated */}

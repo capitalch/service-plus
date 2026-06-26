@@ -1,24 +1,28 @@
 export type JobSearchRow = {
-    id:                number;
-    job_no:            string;
-    alternate_job_no?: string | null;
-    job_date:          string;
-    customer_name:     string | null;
-    file_count:        number;
-    transaction_count: number;
-    mobile:            string;
-    job_type_name:     string;
-    job_status_id?:    number;
-    job_status_code?:  string;
-    job_status_name:   string;
+    id:                    number;
+    job_no:                string;
+    alternate_job_no?:     string | null;
+    job_date:              string;
+    customer_name:         string | null;
+    file_count:            number;
+    transaction_count:     number;
+    mobile:                string;
+    job_type_name:         string;
+    job_type_code:         string;
+    job_status_id:         number;
+    job_status_code:       string;
+    job_status_name:       string;
     receive_condition_name: string | null;
-    technician_name:   string | null;
-    amount:            number | null;
-    is_closed:         boolean;
-    is_final:          boolean;
-    device_details:    string | null;
-    batch_no?:         number | null;
-    division_id?:      number | null;
+    technician_name:       string | null;
+    technician_id:         number | null;
+    amount:                number | null;
+    estimate_amount:       number | null;
+    last_transaction_id:   number | null;
+    is_closed:             boolean;
+    is_final:              boolean;
+    device_details:        string | null;
+    batch_no?:             number | null;
+    division_id?:          number | null;
 };
 
 export type JobDetailType = {

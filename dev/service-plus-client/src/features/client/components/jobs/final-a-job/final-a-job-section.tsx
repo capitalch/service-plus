@@ -539,6 +539,8 @@ export const FinalAJobSection = () => {
 
         setPartLines(newPartLines);
         setChargeLines(newChargeLines);
+        resyncTarget(newPartLines, newChargeLines);
+        setForceIgst(false);
 
         // When GST status changes, immediately persist the recalculated rates to the DB
         // so that reopening the job before finalization shows correct values.

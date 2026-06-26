@@ -7,7 +7,7 @@
   - changed cost to 1300: OK
   - Added additional charges: Ok
 - refreshed: cost 1100
-- final: changed div to no gst without saving: with only parts ok
+- final: changed div to no gst without saving: with only parts ok, With additional charges also div change ok
 # website creation: I want to create a website for end user which does following
 	- User can get detailed job information after selecting the client, business unit and giving job no
 	- If job is final, user can request delivery after payment of repair cost and delivery cost
