@@ -1029,11 +1029,11 @@ class SqlBu:
             (2, 'show_parts_in_job_invoice',              '{"gst_rate":18,"hsn": 11236,"show": true,"text": "Overall repair cost"}',  'When showing parts in invoice, use a single combined line with this label and HSN code', true),
             (3, 'markup_percent_over_cost',                  '20',    'Default markup percent over cost price to get selling price',                                    true),
             (4, 'default_division_id',                       '1',     'Default division selected when creating a new job',                                              true),
-            (6, 'default_hsn_for_spare_part',               '92099400',  'Default HSN code for Spare Part',                                                                true),
-            (7, 'default_hsn_for_service_charge',           '998726',    'Default HSN code for labour charges, service charges etc.',                                      true),
-            (8, 'no_of_job_sheets_per_print',               '2',         'The no of job sheets to be printed when print pdf',                                        true),
-            (9, 'no_of_job_invoices_per_print',             '2',       'The no of job invoices to be printed when print pdf',                                          true),
-            (10, 'post_data_to_accounts',             'true',       'Post purchase ,receipts, sale to Trace+ accounts',                                          true),
-            (11, 'fiscal_year_start_month_num',             '4,       'Financial year start month number. e,g 4 for April,5 for May,1 for January',              true)
+            (5, 'default_hsn_for_spare_part',               '92099400',  'Default HSN code for Spare Part',                                                                true),
+            (6, 'default_hsn_for_service_charge',           '998726',    'Default HSN code for labour charges, service charges etc.',                                      true),
+            (7, 'no_of_job_sheets_per_print',               '2',         'The no of job sheets to be printed when print pdf',                                        true),
+            (8, 'no_of_job_invoices_per_print',             '2',       'The no of job invoices to be printed when print pdf',                                          true),
+            (9, 'post_data_to_accounts',             'true',       'Post purchase ,receipts, sale to Trace+ accounts',                                          true),
+            (10, 'fiscal_year_start_month_num',             '4,       'Financial year start month number. e,g 4 for April,5 for May,1 for January',              true)
         ON CONFLICT (id) DO NOTHING;
     """

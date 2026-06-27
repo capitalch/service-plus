@@ -1,3 +1,21 @@
+# Design change for Job Search
+- Job search landing page will now have transaction capacity for job status changes as the Job Pipeline Page (clicked at a status and status change page comes) has.
+- Add an icon in actions similar to pipeline page transaction icon(two horizontal arrows)
+- This click icon will do the same work as job pipeline status clicked, transaction icon clicked does. Based on current status of job, it will generate a dropdown with option available to the job status.
+- Provide end to end complete functionality of Job Pipeline status change without going to any other page
+- Finally refresh the page to reflect current status
+- This way, user can do all transactions with minimum efforts.
+
+# Design change for Deliver Job modal
+  - Give "Invoice + Receipt" and "Delivery Note" light hovered button look.
+  - Money receipt numbers are not there
+  - Service invoice if pending should show pending. invoice no should reflect when invoice is created by clicking "Receipts + Delivery + Invoice" or if invoice is already there.
+  - Money receipts should appear before service invoice
+# Redesign Deliver Job dialog
+  - At present it is possible that invoice is already made but delivary is pending
+  - We want to make sure that invoice is created only after the receipt + delivery is done. For that purpose certain changes are required.
+  - Rename the "Create Invoice & Receipts" as "Receipts + Delivery + Invoice". This button will at first create the receipts for due money if any as at present, then it will do delivery. After successful delivery, Invoice is made. After delivery a beautiful alert modal dialog is shown to user, which user is forced to close, after that only invoice is made with visual feedback to user as "Invoice is being made". Thereafter the Invoice + Receipt button is enabled and "Receipts + Delivery + Invoice" is disabled.
+  - The "Deliver & Close button" will be renamed as "Close" and it will just close the window.
 # Testing plan for charges
   - Job 120 (id 125), Parts & Charge, Add part 11006549 (cost 1100, mrp 1700) and save, check db value saved
 - repeat and edit cp to 1200 and save, check db: OK, sp=1440

@@ -82,6 +82,8 @@ const DEFAULT_INVOICE = {
     productId: 0, defaultProductHsn: 0, defaultGstRate: 18,
 };
 
+const DEFAULT_SALE_INVOICE = { ...DEFAULT_INVOICE, contactsId: 0 };
+
 function buildAccountSetting(division: DivisionType) {
     const as = division.account_setting;
     if (!as) return null;
@@ -94,8 +96,8 @@ function buildAccountSetting(division: DivisionType) {
             creditAccountId: as.receipt?.creditAccountId ?? 0,
         },
         purchaseInvoice: as.purchaseInvoice ? { ...as.purchaseInvoice } : { ...DEFAULT_INVOICE },
-        salesInvoice:    as.salesInvoice    ? { ...as.salesInvoice }    : { ...DEFAULT_INVOICE },
-        jobInvoice:      as.jobInvoice      ? { ...as.jobInvoice }      : { ...DEFAULT_INVOICE },
+        salesInvoice:    as.salesInvoice    ? { ...as.salesInvoice }    : { ...DEFAULT_SALE_INVOICE },
+        jobInvoice:      as.jobInvoice      ? { ...as.jobInvoice }      : { ...DEFAULT_SALE_INVOICE },
     };
 }
 
@@ -733,6 +735,20 @@ export const EditDivisionDialog = ({
                                                 />
                                             </div>
                                         </div>
+                                        <div className="mt-3 grid grid-cols-3 gap-3">
+                                            <div className="flex flex-col gap-1.5">
+                                                <Label htmlFor="edv_si_contacts" className="text-xs">Contacts ID</Label>
+                                                <Input
+                                                    autoComplete="off"
+                                                    className="h-8 text-sm font-mono"
+                                                    id="edv_si_contacts"
+                                                    placeholder="Contacts ID"
+                                                    type="number"
+                                                    onFocus={(e) => e.target.select()}
+                                                    {...form.register("account_setting.salesInvoice.contactsId")}
+                                                />
+                                            </div>
+                                        </div>
                                     </div>
 
                                     {/* ── Job Invoice ── */}
@@ -799,6 +815,20 @@ export const EditDivisionDialog = ({
                                                     type="number"
                                                     onFocus={(e) => e.target.select()}
                                                     {...form.register("account_setting.jobInvoice.defaultGstRate")}
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="mt-3 grid grid-cols-3 gap-3">
+                                            <div className="flex flex-col gap-1.5">
+                                                <Label htmlFor="edv_ji_contacts" className="text-xs">Contacts ID</Label>
+                                                <Input
+                                                    autoComplete="off"
+                                                    className="h-8 text-sm font-mono"
+                                                    id="edv_ji_contacts"
+                                                    placeholder="Contacts ID"
+                                                    type="number"
+                                                    onFocus={(e) => e.target.select()}
+                                                    {...form.register("account_setting.jobInvoice.contactsId")}
                                                 />
                                             </div>
                                         </div>

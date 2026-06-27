@@ -575,7 +575,7 @@ export const JobSearchSection = () => {
                                                     <span className="text-[10px] text-(--cl-text-muted)">Alt: {job.alternate_job_no}</span>
                                                 )}
                                                 {job.batch_no != null && (
-                                                    <span className={`text-[9px] font-bold w-fit rounded px-1 py-0.5 ${batchColor?.badge}`}>Batch #{job.batch_no}</span>
+                                                    <span className={`text-[11px] font-bold w-fit rounded px-1 py-0.5 ${batchColor?.badge}`}>Batch #{job.batch_no}</span>
                                                 )}
                                                 {job.file_count > 0 && (
                                                     <button

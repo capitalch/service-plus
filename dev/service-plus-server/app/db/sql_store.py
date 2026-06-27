@@ -4495,6 +4495,70 @@ class SqlStore:
         UPDATE purchase_invoice SET is_posted = true WHERE id = %(id)s
     """
 
+    GET_UNPOSTED_JOB_INVOICES = """
+        WITH
+            "p_division_code" AS (VALUES(%(division_code)s::text)),
+            "p_division_id" AS (
+                SELECT id FROM division
+                WHERE LOWER(code) = LOWER((TABLE "p_division_code"))
+                LIMIT 1
+            )
+        SELECT
+            ji.id,
+            ji.job_id,
+            j.job_no,
+            j.is_igst,
+            cc.full_name      AS customer_name,
+            cc.mobile,
+            cc.gstin          AS customer_gstin,
+            cc.postal_code    AS customer_pin,
+            CONCAT_WS(', ',
+                NULLIF(cc.address_line1, ''),
+                NULLIF(cc.address_line2, ''),
+                NULLIF(cc.city, '')
+            )                 AS customer_address,
+            ji.invoice_no,
+            ji.invoice_date,
+            ji.supply_state_code,
+            ji.aggregate,
+            ji.cgst_amount,
+            ji.sgst_amount,
+            ji.igst_amount,
+            ji.amount,
+            COALESCE(
+                json_agg(
+                    json_build_object(
+                        'description', jil.description,
+                        'part_code',   jil.part_code,
+                        'hsn_code',    jil.hsn_code,
+                        'qty',         jil.qty,
+                        'price',       jil.price,
+                        'aggregate',   jil.aggregate,
+                        'gst_rate',    jil.gst_rate,
+                        'cgst_amount', jil.cgst_amount,
+                        'sgst_amount', jil.sgst_amount,
+                        'igst_amount', jil.igst_amount,
+                        'amount',      jil.amount
+                    ) ORDER BY jil.id
+                ) FILTER (WHERE jil.id IS NOT NULL),
+                '[]'::json
+            ) AS lines
+        FROM job_invoice ji
+        JOIN job j ON j.id = ji.job_id
+        LEFT JOIN customer_contact cc ON cc.id = j.customer_contact_id
+        LEFT JOIN job_invoice_line jil ON jil.job_invoice_id = ji.id
+        WHERE j.division_id = (TABLE "p_division_id")
+          AND ji.is_posted = false
+        GROUP BY ji.id, j.job_no, j.is_igst,
+                 cc.full_name, cc.mobile, cc.gstin, cc.postal_code,
+                 cc.address_line1, cc.address_line2, cc.city
+        ORDER BY ji.invoice_date ASC, ji.id ASC
+    """
+
+    MARK_JOB_INVOICE_POSTED = """
+        UPDATE job_invoice SET is_posted = true WHERE id = %(id)s
+    """
+
     # Per-division unposted counts for all four document types, for a branch.
     GET_UNPOSTED_COUNTS_BY_DIVISION = """
         with "p_branch_id" as (values(%(branch_id)s::bigint))

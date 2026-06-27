@@ -8,6 +8,10 @@ const invoiceSubSchema = z.object({
     defaultGstRate:    z.coerce.number().min(0),
 });
 
+const saleInvoiceSubSchema = invoiceSubSchema.extend({
+    contactsId: z.coerce.number().int().min(0),
+});
+
 export const accountSettingSchema = z.object({
     clientCode: z.string().min(1, "Client code is required"),
     buCode:     z.string().min(1, "BU code is required"),
@@ -17,8 +21,8 @@ export const accountSettingSchema = z.object({
         creditAccountId: z.coerce.number().int().min(0),
     }),
     purchaseInvoice: invoiceSubSchema.optional(),
-    salesInvoice:    invoiceSubSchema.optional(),
-    jobInvoice:      invoiceSubSchema.optional(),
+    salesInvoice:    saleInvoiceSubSchema.optional(),
+    jobInvoice:      saleInvoiceSubSchema.optional(),
 });
 
 export const divisionSchema = z.object({

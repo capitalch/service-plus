@@ -31,7 +31,7 @@ const TYPE_COLUMNS: { key: keyof DivisionRow; label: string; icon: typeof FileTe
     { key: "money_receipts",    label: "Money Receipts",    icon: Banknote,     tint: "text-emerald-600", posted: true  },
     { key: "purchase_invoices", label: "Purchase Invoices", icon: ShoppingCart, tint: "text-sky-600",     posted: true  },
     { key: "sales_invoices",    label: "Sales Invoices",    icon: FileText,     tint: "text-violet-600",  posted: false },
-    { key: "job_invoices",      label: "Job Invoices",      icon: Wrench,       tint: "text-amber-600",   posted: false },
+    { key: "job_invoices",      label: "Job Invoices",      icon: Wrench,       tint: "text-amber-600",   posted: true  },
 ];
 
 type PostProgress = { total: number; posted: number; failed: number; currentRef?: string | null; currentDivision?: string | null };
@@ -77,7 +77,7 @@ export function AccountsPostingSection() {
     }, [branchId, loadCounts]);
 
     // Only money receipts + purchase invoices are posted to Trace Plus.
-    const postableTotal = divisions.reduce((s, d) => s + num(d.money_receipts) + num(d.purchase_invoices), 0);
+    const postableTotal = divisions.reduce((s, d) => s + num(d.money_receipts) + num(d.purchase_invoices) + num(d.job_invoices), 0);
     const grandTotal    = divisions.reduce(
         (s, d) => s + num(d.money_receipts) + num(d.purchase_invoices) + num(d.sales_invoices) + num(d.job_invoices),
         0,
@@ -226,7 +226,7 @@ export function AccountsPostingSection() {
                         </div>
 
                         <p className="text-center text-xs text-(--cl-text-muted)">
-                            Highlighted columns (Money Receipts, Purchase Invoices) are posted to Trace Plus.
+                            Highlighted columns (Money Receipts, Purchase Invoices, Job Invoices) are posted to Trace Plus.
                         </p>
 
                         {/* Action area */}
