@@ -17,8 +17,8 @@
 		- Upload trace-plus and check account posting online at serviceplus.cloudjiffy.net
 	- Bug fix
 		- When a batch job is received, two times received is shown in job view: Transaction
-		- Add contactsId to posting of sales
-		- Warranty job transactions: allow adding spare parts
+								- Add contactsId to posting of sales
+								- Warranty job transactions: allow adding spare parts
 - Login
 	- Forgot password
 	- Remember me
