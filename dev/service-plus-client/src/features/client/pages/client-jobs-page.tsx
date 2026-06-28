@@ -2,7 +2,7 @@ import { useState, useCallback } from "react";
 import { ClientLayout, useClientSelection } from "../components/client-layout";
 import { BatchJobSection } from "../components/jobs/batch-job/batch-job-section";
 import { DeliverJobSection } from "../components/jobs/deliver-job/deliver-job-section";
-import { JobSearchSection } from "../components/jobs/job-search/job-search-section";
+import { JobControlSection } from "../components/jobs/job-control/job-control-section";
 import { OpeningJobSection } from "../components/jobs/opening-job/opening-job-section";
 import { PartUsedSection } from "../components/jobs/part-used/part-used-section";
 import { FinalAJobSection } from "../components/jobs/final-a-job/final-a-job-section";
@@ -62,8 +62,8 @@ function JobsContent() {
             return <DeliverJobSection />;
         case "Accounts Posting":
             return <AccountsPostingSection />;
-        case "Job Search":
-            return <JobSearchSection />;
+        case "Job Control":
+            return <JobControlSection />;
         default:
             return <ComingSoon label={selected || "Jobs"} />;
     }

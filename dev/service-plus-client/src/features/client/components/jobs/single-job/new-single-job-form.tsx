@@ -21,7 +21,7 @@ import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectDefaultDivisionId, selectSchema } from "@/store/context-slice";
 import type { DivisionContextType } from "@/features/client/types/division";
 import type { CustomerSearchRow } from "@/features/client/types/sales";
-import type { JobDetailType, JobSearchRow, JobLookupRow, ModelRow, TechnicianRow } from "@/features/client/types/job";
+import type { JobDetailType, JobControlRow, JobLookupRow, ModelRow, TechnicianRow } from "@/features/client/types/job";
 import { CustomerInput } from "@/features/client/components/shared/customer-select";
 import { normalizeGstin } from "@/lib/gstin";
 
@@ -50,9 +50,9 @@ type Props = {
     masterStates: StateOption[];
     editJob?: JobDetailType | null;
     onRefreshModels: () => void;
-    onViewJob?: (job: JobSearchRow) => void;
-    onEditJob?: (job: JobSearchRow) => void;
-    onPrintPdf?: (job: JobSearchRow) => void;
+    onViewJob?: (job: JobControlRow) => void;
+    onEditJob?: (job: JobControlRow) => void;
+    onPrintPdf?: (job: JobControlRow) => void;
     onAttachFiles?: (jobNo: string, jobId: number) => void;
     refreshTrigger?: number;
 };

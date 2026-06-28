@@ -195,10 +195,10 @@ export const SQL_MAP = {
     // Job Entry
     GET_JOBS_COUNT:                       "GET_JOBS_COUNT",
     GET_JOBS_PAGED:                       "GET_JOBS_PAGED",
-    // Job Search
-    GET_JOB_SEARCH_COUNT:                   "GET_JOB_SEARCH_COUNT",
+    // Job Control
+    GET_JOB_CONTROL_COUNT:                  "GET_JOB_SEARCH_COUNT",
 
-    GET_JOB_SEARCH_PAGED:                   "GET_JOB_SEARCH_PAGED",
+    GET_JOB_CONTROL_PAGED:                  "GET_JOB_SEARCH_PAGED",
     GET_JOB_DETAIL:                       "GET_JOB_DETAIL",
     GET_JOB_IMAGE_DOCS:                   "GET_JOB_IMAGE_DOCS",
     GET_LATEST_JOB:                       "GET_LATEST_JOB",
@@ -210,7 +210,7 @@ export const SQL_MAP = {
     GET_JOB_BATCH_QUICK_INFO_COUNT:      "GET_JOB_BATCH_QUICK_INFO_COUNT",
     GET_JOB_BATCHES_WITH_JOBS_PAGED:     "GET_JOB_BATCHES_WITH_JOBS_PAGED",
     GET_JOB_BATCHES_WITH_JOBS_COUNT:     "GET_JOB_BATCHES_WITH_JOBS_COUNT",
-    // Job Search — Transactions
+    // Job Control — Transactions
     GET_JOB_TRANSACTIONS_BY_JOB:         "GET_JOB_TRANSACTIONS_BY_JOB",
     GET_JOB_TRANSACTION_DETAIL:          "GET_JOB_TRANSACTION_DETAIL",
     // Job Receipts (Payments)

@@ -31,7 +31,7 @@ import { saveCustomerGstin } from "@/lib/gstin";
 import { useAppSelector } from "@/store/hooks";
 import { selectCurrentUser, selectDbName } from "@/features/auth/store/auth-slice";
 import { selectAvailableDivisions, selectCurrentBranch, selectCurrentDivision, selectDefaultDivisionId, selectNoOfJobSheetsPerPrint, selectSchema } from "@/store/context-slice";
-import type { JobDetailType, JobSearchRow, JobLookupRow, ModelRow, TechnicianRow } from "@/features/client/types/job";
+import type { JobDetailType, JobControlRow, JobLookupRow, ModelRow, TechnicianRow } from "@/features/client/types/job";
 import type { DivisionContextType } from "@/features/client/types/division";
 import type { CustomerTypeOption, StateOption } from "@/features/client/types/customer";
 import type { BrandOption, ProductOption } from "@/features/client/types/model";
@@ -86,7 +86,7 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
     const [products, setProducts] = useState<ProductOption[]>([]);
     const [customerTypes, setCustomerTypes] = useState<CustomerTypeOption[]>([]);
     const [masterStates, setMasterStates] = useState<StateOption[]>([]);
-    const [jobs, setJobs] = useState<JobSearchRow[]>([]);
+    const [jobs, setJobs] = useState<JobControlRow[]>([]);
     const [total, setTotal] = useState(0);
     const [page, setPage] = useState(1);
     const [loading, setLoading] = useState(false);
@@ -367,7 +367,7 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
         try {
             const commonArgs = { branch_id: bId, search: q, from_date: "2000-01-01", to_date: "3000-12-31" };
             const [dataRes, countRes] = await Promise.all([
-                apolloClient.query<GenericQueryData<JobSearchRow>>({
+                apolloClient.query<GenericQueryData<JobControlRow>>({
                     fetchPolicy: "network-only",
                     query: GRAPHQL_MAP.genericQuery,
                     variables: {
@@ -441,7 +441,7 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
         }
     };
 
-    const handleEditJob = (job: JobSearchRow) => {
+    const handleEditJob = (job: JobControlRow) => {
         if (job.batch_no && onNavigateToBatchEdit) {
             onNavigateToBatchEdit(job.batch_no);
             return;
@@ -451,7 +451,7 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
         setMode("new");
     };
 
-    const handlePrintPdf = async (job: JobSearchRow) => {
+    const handlePrintPdf = async (job: JobControlRow) => {
         const copies = noOfJobSheetsPerPrint;
         if (!dbName || !schema) return;
         const loadingToast = toast.loading(MESSAGES.INFO_JOB_DETAIL_LOADING);
@@ -569,9 +569,9 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
                         masterStates={masterStates}
                         editJob={editJob}
                         onRefreshModels={refreshModels}
-                        onViewJob={(j: JobSearchRow) => setViewJobId(j.id)}
-                        onEditJob={(j: JobSearchRow) => handleEditJob(j)}
-                        onPrintPdf={(j: JobSearchRow) => void handlePrintPdf(j)}
+                        onViewJob={(j: JobControlRow) => setViewJobId(j.id)}
+                        onEditJob={(j: JobControlRow) => handleEditJob(j)}
+                        onPrintPdf={(j: JobControlRow) => void handlePrintPdf(j)}
                         onAttachFiles={(jobNo: string, jobId: number) => { setAttachJobId(jobId); setAttachJobNo(jobNo); setAttachMode("attach"); }}
                         refreshTrigger={quickInfoKey}
                         />

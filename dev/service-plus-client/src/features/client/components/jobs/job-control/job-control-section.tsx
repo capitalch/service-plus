@@ -21,7 +21,7 @@ import { encodeObj, graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectCurrentUser, selectDbName } from "@/features/auth/store/auth-slice";
 import { selectCurrentBranch, selectSchema, selectAvailableDivisions } from "@/store/context-slice";
-import type { JobLookupRow, JobSearchRow, TechnicianRow } from "@/features/client/types/job";
+import type { JobLookupRow, JobControlRow, TechnicianRow } from "@/features/client/types/job";
 import { isGstDivision } from "@/features/client/types/division";
 import { getTransitions, STATUS_COLORS, STATUS_FLAGS } from "../job-pipeline/status-transitions";
 import type { Transition } from "../job-pipeline/status-transitions";
@@ -57,7 +57,7 @@ const NO_UNDO_CODES       = new Set(["DELIVERED_OK", "DELIVERED_NOT_OK"]);
 const ADD_CHARGES_CODES   = new Set(["RECEIVED", "ASSIGNED", "ESTIMATE_APPROVED", "IN_PROGRESS"]);
 const NO_CHARGES_JOB_TYPES = new Set(["DEMO", "INSPECTION"]);
 
-function canUndo(row: JobSearchRow): boolean {
+function canUndo(row: JobControlRow): boolean {
     if (NO_UNDO_CODES.has(row.job_status_code)) return false;
     if (row.transaction_count < 1) return false;
     return true;
@@ -79,7 +79,7 @@ const tdClass = "p-3 text-sm text-(--cl-text) border-b border-(--cl-border)";
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export const JobSearchSection = () => {
+export const JobControlSection = () => {
     const dbName       = useAppSelector(selectDbName);
     const schema       = useAppSelector(selectSchema);
     const globalBranch = useAppSelector(selectCurrentBranch);
@@ -92,14 +92,14 @@ export const JobSearchSection = () => {
     const [filter,      setFilter]      = useState<JobFilter>({ group: "closed", value: false });
     const [jobStatuses, setJobStatuses] = useState<JobLookupRow[]>([]);
     const [page,           setPage]           = useState(1);
-    const [rows,           setRows]           = useState<JobSearchRow[]>([]);
+    const [rows,           setRows]           = useState<JobControlRow[]>([]);
     const [total,          setTotal]          = useState(0);
     const [loading,        setLoading]        = useState(false);
 
     const [technicians,    setTechnicians]    = useState<TechnicianRow[]>([]);
-    const [pendingTran,    setPendingTran]    = useState<{ job: JobSearchRow; transition: Transition } | null>(null);
+    const [pendingTran,    setPendingTran]    = useState<{ job: JobControlRow; transition: Transition } | null>(null);
     const [submitting,     setSubmitting]     = useState(false);
-    const [undoPendingJob, setUndoPendingJob] = useState<JobSearchRow | null>(null);
+    const [undoPendingJob, setUndoPendingJob] = useState<JobControlRow | null>(null);
     const [chargesJob,     setChargesJob]     = useState<ChargesJobSummary | null>(null);
 
     const [attachJobId, setAttachJobId] = useState<number | null>(null);
@@ -155,13 +155,13 @@ export const JobSearchSection = () => {
             const status_id   = f.group === "status"  ? f.id   : null;
             const commonArgs  = { branch_id: bId, search: q, show_closed, status_id };
             const [dataRes, countRes] = await Promise.all([
-                apolloClient.query<GenericQueryData<JobSearchRow>>({
+                apolloClient.query<GenericQueryData<JobControlRow>>({
                     fetchPolicy: "network-only",
                     query: GRAPHQL_MAP.genericQuery,
                     variables: {
                         db_name: dbName, schema,
                         value: graphQlUtils.buildGenericQueryValue({
-                            sqlId: SQL_MAP.GET_JOB_SEARCH_PAGED,
+                            sqlId: SQL_MAP.GET_JOB_CONTROL_PAGED,
                             sqlArgs: { ...commonArgs, limit: PAGE_SIZE, offset: (pg - 1) * PAGE_SIZE },
                         }),
                     },
@@ -172,7 +172,7 @@ export const JobSearchSection = () => {
                     variables: {
                         db_name: dbName, schema,
                         value: graphQlUtils.buildGenericQueryValue({
-                            sqlId: SQL_MAP.GET_JOB_SEARCH_COUNT,
+                            sqlId: SQL_MAP.GET_JOB_CONTROL_COUNT,
                             sqlArgs: commonArgs,
                         }),
                     },
@@ -230,7 +230,7 @@ export const JobSearchSection = () => {
         setFilter({ group: "status", id }); setPage(1);
     };
 
-    async function handleSubmitTransition(job: JobSearchRow, transition: Transition, payload: TransitionPayload) {
+    async function handleSubmitTransition(job: JobControlRow, transition: Transition, payload: TransitionPayload) {
         if (!dbName || !schema) return;
         setSubmitting(true);
         try {
@@ -269,7 +269,7 @@ export const JobSearchSection = () => {
         }
     }
 
-    async function handleUndoConfirm(job: JobSearchRow) {
+    async function handleUndoConfirm(job: JobControlRow) {
         if (!dbName || !schema) return;
         setSubmitting(true);
         try {
@@ -430,7 +430,7 @@ export const JobSearchSection = () => {
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-(--cl-border) bg-(--cl-surface) px-3 py-1.5">
                     <div className="flex shrink-0 items-center gap-1.5">
                         <ClipboardList className="h-4 w-4 shrink-0 text-(--cl-accent)" />
-                        <span className="text-sm font-bold text-(--cl-text)">Job Search</span>
+                        <span className="text-sm font-bold text-(--cl-text)">Job Control</span>
                         <span className="text-xs text-(--cl-text-muted)">{loading ? "…" : `(${total})`}</span>
                     </div>
                     <div className="relative w-48 shrink-0 md:w-64">

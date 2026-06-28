@@ -48,7 +48,7 @@ export function getInitialPartUsedLine(): NewPartUsedLineFormValues {
     };
 }
 
-export type JobSearchRow = {
+export type JobControlRow = {
     id:              number;
     job_no:          string;
     job_date:        string;

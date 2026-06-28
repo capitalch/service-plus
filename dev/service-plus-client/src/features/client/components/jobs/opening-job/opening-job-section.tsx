@@ -25,7 +25,7 @@ import { currentFinancialYearRange } from "@/lib/utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectCurrentUser, selectDbName } from "@/features/auth/store/auth-slice";
 import { selectCurrentBranch, selectSchema } from "@/store/context-slice";
-import type { JobDetailType, JobSearchRow, JobLookupRow, ModelRow, TechnicianRow } from "@/features/client/types/job";
+import type { JobDetailType, JobControlRow, JobLookupRow, ModelRow, TechnicianRow } from "@/features/client/types/job";
 import type { CustomerTypeOption, StateOption } from "@/features/client/types/customer";
 import type { BrandOption, ProductOption } from "@/features/client/types/model";
 import type { DocumentSequenceRow } from "@/features/client/types/sales";
@@ -79,7 +79,7 @@ export const OpeningJobSection = () => {
     const [masterStates,      setMasterStates]      = useState<StateOption[]>([]);
 
     // Data
-    const [jobs,    setJobs]    = useState<JobSearchRow[]>([]);
+    const [jobs,    setJobs]    = useState<JobControlRow[]>([]);
     const [total,   setTotal]   = useState(0);
     const [page,    setPage]    = useState(1);
     const [loading, setLoading] = useState(false);
@@ -222,7 +222,7 @@ export const OpeningJobSection = () => {
         try {
             const commonArgs = { branch_id: bId, from_date: from, to_date: to, search: q };
             const [dataRes, countRes] = await Promise.all([
-                apolloClient.query<GenericQueryData<JobSearchRow>>({
+                apolloClient.query<GenericQueryData<JobControlRow>>({
                     fetchPolicy: "network-only",
                     query: GRAPHQL_MAP.genericQuery,
                     variables: {

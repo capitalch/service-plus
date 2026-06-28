@@ -1,4 +1,4 @@
-export type JobSearchRow = {
+export type JobControlRow = {
     id:                    number;
     job_no:                string;
     alternate_job_no?:     string | null;
@@ -153,7 +153,7 @@ export type JobBatchListRow = {
     job_count:     number;
 };
 
-export type JobInBatchRow = JobSearchRow & {
+export type JobInBatchRow = JobControlRow & {
     batch_no: number;
 };
 

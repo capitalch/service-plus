@@ -128,7 +128,7 @@ function JobsExplorer() {
                     <TreeItem icon={PlusCircle} label="Single Job" />
                     <TreeItem icon={PlusCircle} label="Batch Jobs" />
                 </CollapsibleGroup>
-                <TreeItem icon={ClipboardList} label="Job Search" />
+                <TreeItem icon={ClipboardList} label="Job Control" />
                 <TreeItem icon={BarChart3}     label="Job Pipeline" />
                 <TreeItem icon={FileText}      label="Final a Job" />
                 <TreeItem icon={Truck}         label="Deliver Job" />
