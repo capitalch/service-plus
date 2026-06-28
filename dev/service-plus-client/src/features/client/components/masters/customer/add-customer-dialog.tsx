@@ -26,6 +26,7 @@ import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { MESSAGES } from "@/constants/messages";
 import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
+import { GSTIN_REGEX } from "@/lib/gstin";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectHomeStateId, selectSchema } from "@/store/context-slice";
@@ -46,7 +47,6 @@ type AddCustomerFormType = z.infer<typeof addCustomerSchema>;
 // ─── Schema ───────────────────────────────────────────────────────────────────
 
 const MOBILE_REGEX      = /^[6-9]\d{9}$/;
-const GSTIN_REGEX       = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
 const POSTAL_CODE_REGEX = /^[1-9][0-9]{5}$/;
 
 const addCustomerSchema = z.object({

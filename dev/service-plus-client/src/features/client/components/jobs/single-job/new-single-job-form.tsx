@@ -23,6 +23,7 @@ import type { DivisionContextType } from "@/features/client/types/division";
 import type { CustomerSearchRow } from "@/features/client/types/sales";
 import type { JobDetailType, JobSearchRow, JobLookupRow, ModelRow, TechnicianRow } from "@/features/client/types/job";
 import { CustomerInput } from "@/features/client/components/shared/customer-select";
+import { normalizeGstin } from "@/lib/gstin";
 
 import { AddModelDialog, ModelCombobox } from "@/features/client/components/shared/model";
 import { Button } from "@/components/ui/button";
@@ -120,6 +121,7 @@ export function NewSingleJobForm({
                 warranty_card_no: d.warranty_card_no ?? "",
                 remarks: d.remarks ?? "",
                 division_id: d.division_id ?? defaultDivisionId,
+                gstin: d.customer_gstin ?? "",
             });
             setCustomerMobile(d.mobile ?? "");
             setCustomerAddress(d.customer_address_line1 ?? "");
@@ -233,12 +235,13 @@ export function NewSingleJobForm({
                                         states={masterStates}
                                         onChange={name => {
                                             setValue("customer_name", name, { shouldValidate: false });
-                                            if (!name.trim()) { setValue("customer_id", undefined as unknown as number, { shouldValidate: true }); setCustomerMobile(""); setCustomerAddress(""); }
+                                            if (!name.trim()) { setValue("customer_id", undefined as unknown as number, { shouldValidate: true }); setValue("gstin", "", { shouldValidate: true }); setCustomerMobile(""); setCustomerAddress(""); }
                                         }}
                                         onClear={() => {
                                             setValue("customer_id", undefined as unknown as number, { shouldValidate: true });
                                             setValue("customer_name", "", { shouldValidate: false });
                                             setValue("address_snapshot", "", { shouldValidate: false });
+                                            setValue("gstin", "", { shouldValidate: true });
                                             setCustomerMobile("");
                                             setCustomerAddress("");
                                         }}
@@ -247,11 +250,23 @@ export function NewSingleJobForm({
                                             setValue("customer_name", c.full_name ?? c.mobile, { shouldValidate: false });
                                             const parts = [c.address_line1, c.address_line2, c.city, c.state_name, c.postal_code].filter(Boolean);
                                             setValue("address_snapshot", parts.join(", "), { shouldValidate: false });
+                                            setValue("gstin", normalizeGstin(c.gstin), { shouldValidate: true });
                                             setCustomerMobile(c.mobile ?? "");
                                             setCustomerAddress(c.address_line1 ?? "");
                                         }}
                                     />
                                     {errors.customer_id && <p className="mt-1 text-xs text-red-500">{errors.customer_id.message}</p>}
+                                </div>
+
+                                <div className="space-y-1.5 md:col-span-6 lg:col-span-6 xl:col-span-3">
+                                    <Label className={labelCls}>GSTIN</Label>
+                                    <Input
+                                        className={`bg-(--cl-surface-2) font-mono uppercase ${errors.gstin ? "border-red-400" : ""}`}
+                                        placeholder="15-character GSTIN (optional)"
+                                        maxLength={15}
+                                        {...form.register("gstin", { setValueAs: (v) => normalizeGstin(v) })}
+                                    />
+                                    {errors.gstin && <p className="mt-1 text-xs text-red-500">{errors.gstin.message}</p>}
                                 </div>
 
                                 <div className="space-y-1.5 md:col-span-6 lg:col-span-6 xl:col-span-3">
@@ -354,7 +369,7 @@ export function NewSingleJobForm({
                                     />
                                 </div>
 
-                                <div className="space-y-1.5 md:col-span-6 lg:col-span-6 xl:col-span-3">
+                                <div className="space-y-1.5 md:col-span-2 md:col-start-1 lg:col-span-2 lg:col-start-1">
                                     <Label className={labelCls}>Warranty Card No</Label>
                                     <Input
                                         disabled={!isWarranty}
@@ -365,7 +380,7 @@ export function NewSingleJobForm({
                                 </div>
 
                                 {/* Problem Reported */}
-                                <div className="space-y-1.5 md:col-span-6 lg:col-span-6">
+                                <div className="space-y-1.5 md:col-span-2 lg:col-span-5">
                                     <Label className={labelCls}>Problem Reported</Label>
                                     <Textarea
                                         rows={3}
@@ -376,7 +391,7 @@ export function NewSingleJobForm({
                                 </div>
 
                                 {/* Remarks */}
-                                <div className="space-y-1.5 md:col-span-6 lg:col-span-6">
+                                <div className="space-y-1.5 md:col-span-2 lg:col-span-5">
                                     <Label className={labelCls}>Remarks</Label>
                                     <Textarea
                                         rows={3}

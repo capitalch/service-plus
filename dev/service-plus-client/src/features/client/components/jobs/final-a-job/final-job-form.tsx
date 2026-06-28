@@ -21,6 +21,7 @@ import {
 } from "./final-a-job-schema";
 import { fmtCurrency, thClass, tdClass, calculateLinePricing } from "./final-a-job-helpers";
 import { ChargeNameCombobox } from "./charge-name-combobox";
+import { isValidGstin, normalizeGstin } from "@/lib/gstin";
 
 // ─── Back-calculate helpers (only used in this view) ─────────────────────────
 
@@ -163,11 +164,13 @@ export type FinalJobFormProps = {
     forceIgst: boolean;
     backCalcTarget: string;
     showPartsInInvoice: boolean;
+    gstin: string;
     defaultHsnForSparePart: string;
     defaultHsnForServiceCharge: string;
     viewJobId: number | null;
 
     setForceIgst: (v: boolean) => void;
+    setGstin: (v: string) => void;
     setBackCalcTarget: (v: string) => void;
     setShowPartsInInvoice: (v: boolean) => void;
     setChargeLines: Dispatch<SetStateAction<EditableChargeLine[]>>;
@@ -195,9 +198,9 @@ export type FinalJobFormProps = {
 export function FinalJobForm({
     selectedJob, selectedRow, submitting, loadingDetail,
     selectedDivisionId, isGst, availableDivisions, brands, additionalChargeOptions,
-    partLines, chargeLines, deletedPartIds, forceIgst, backCalcTarget, showPartsInInvoice,
+    partLines, chargeLines, deletedPartIds, forceIgst, backCalcTarget, showPartsInInvoice, gstin,
     defaultHsnForServiceCharge, viewJobId,
-    setForceIgst, setBackCalcTarget, setShowPartsInInvoice, setChargeLines, setPartLines, setViewJobId,
+    setForceIgst, setGstin, setBackCalcTarget, setShowPartsInInvoice, setChargeLines, setPartLines, setViewJobId,
     onBack, onSave, onRefresh, onReset, onAddPart, onRemovePart, onUpdatePart, onCostChange, onPartSelect,
     onAddCharge, onRemoveCharge, onUpdateCharge, onPatchCharge, onDivisionChange,
 }: FinalJobFormProps) {
@@ -342,8 +345,7 @@ export function FinalJobForm({
                             {([
                                 ["Job No", selectedJob.alternate_job_no ? `${selectedJob.job_no} · Alt: ${selectedJob.alternate_job_no}` : selectedJob.job_no],
                                 ["Job Date", selectedJob.job_date],
-                                ["Customer", selectedJob.customer_name ?? "—"],
-                                ["Mobile", selectedJob.mobile],
+                                ["Customer", `${selectedJob.customer_name ?? "—"}${selectedJob.mobile ? ` · ${selectedJob.mobile}` : ""}`],
                                 ["Technician", selectedJob.technician_name ?? "—"],
                                 ["Job Type", selectedJob.job_type_name],
                                 ["Status", selectedJob.job_status_name],
@@ -354,6 +356,19 @@ export function FinalJobForm({
                                     <p className="text-sm font-medium text-(--cl-text)">{val}</p>
                                 </div>
                             ))}
+                            <div>
+                                <p className="text-[10px] uppercase tracking-wider text-(--cl-text-muted)">GSTIN</p>
+                                <Input
+                                    className={`mt-0.5 h-7 bg-white text-xs font-mono uppercase ${gstin && !isValidGstin(gstin) ? "border-red-400" : "border-(--cl-border)"}`}
+                                    placeholder="15-character GSTIN (optional)"
+                                    maxLength={15}
+                                    value={gstin}
+                                    onChange={e => setGstin(normalizeGstin(e.target.value))}
+                                />
+                                {gstin && !isValidGstin(gstin) && (
+                                    <p className="mt-0.5 text-[10px] text-red-500">Enter a valid 15-character GSTIN</p>
+                                )}
+                            </div>
                         </div>
                     </div>
 

@@ -18,6 +18,7 @@ import { MESSAGES } from "@/constants/messages";
 import { SQL_MAP } from "@/constants/sql-map";
 import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
+import { saveCustomerGstin } from "@/lib/gstin";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName, selectCurrentUser } from "@/features/auth/store/auth-slice";
 import { selectAvailableDivisions, selectCurrentBranch, selectCurrentDivision, selectDefaultDivisionId, selectNoOfJobSheetsPerPrint, selectSchema } from "@/store/context-slice";
@@ -202,6 +203,7 @@ export const BatchJobSection = ({ initialEditBatchNo, onEditBatchNoApplied, onRe
                     mutation:  GRAPHQL_MAP.updateJobBatch,
                     variables: { db_name: dbName, schema, value: payload },
                 });
+                await saveCustomerGstin({ customerId: values.customer_id, gstin: values.gstin, dbName, schema });
                 toast.success(`Batch #${editBatchNo} updated`);
                 setRefreshTrigger(t => t + 1);
                 handleReset();
@@ -244,6 +246,7 @@ export const BatchJobSection = ({ initialEditBatchNo, onEditBatchNoApplied, onRe
                 const jobIds  = data?.createJobBatch?.job_ids  ?? [];
                 const jobNos  = data?.createJobBatch?.job_nos  ?? [];
 
+                await saveCustomerGstin({ customerId: values.customer_id, gstin: values.gstin, dbName, schema });
                 toast.success(`Batch #${batchNo} created with ${formRows.length} job${formRows.length !== 1 ? "s" : ""}`);
                 setRefreshTrigger(t => t + 1);
                 form.reset(getBatchJobDefaultValues(defaultDivisionId));

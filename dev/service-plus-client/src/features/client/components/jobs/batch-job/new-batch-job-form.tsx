@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { SearchableCombobox } from "@/components/ui/searchable-combobox";
 import { AddModelDialog } from "@/features/client/components/shared/model";
 import { CustomerInput } from "@/features/client/components/shared/customer-select";
+import { normalizeGstin } from "@/lib/gstin";
 
 import type { CustomerSearchRow } from "@/features/client/types/sales";
 import type { JobBatchDetailRow, JobLookupRow, ModelRow } from "@/features/client/types/job";
@@ -69,6 +70,7 @@ export function NewBatchJobForm({
                 batch_date:        first.job_date,
                 customer_id:       first.customer_contact_id,
                 customer_name:     first.customer_name ?? first.mobile,
+                gstin:             first.customer_gstin ?? "",
                 division_id:       first.division_id ?? undefined,
                 receive_manner_id: first.job_receive_manner_id,
                 rows: editRows.map(r => ({
@@ -173,9 +175,19 @@ export function NewBatchJobForm({
                             customerAddress={customerAddress}
                             customerTypes={customerTypes}
                             states={masterStates}
-                            onChange={name => { setValue("customer_name", name, { shouldValidate: false }); if (!name.trim()) { setValue("customer_id", undefined as unknown as number, { shouldValidate: true }); setCustomerMobile(""); setCustomerAddress(""); } }}
-                            onClear={() => { setValue("customer_id", undefined as unknown as number, { shouldValidate: true }); setValue("customer_name", "", { shouldValidate: false }); setCustomerMobile(""); setCustomerAddress(""); }}
-                            onSelect={(c: CustomerSearchRow) => { setValue("customer_id", c.id, { shouldValidate: true }); setValue("customer_name", c.full_name ?? c.mobile, { shouldValidate: false }); setCustomerMobile(c.mobile ?? ""); setCustomerAddress(c.address_line1 ?? ""); }}
+                            onChange={name => { setValue("customer_name", name, { shouldValidate: false }); if (!name.trim()) { setValue("customer_id", undefined as unknown as number, { shouldValidate: true }); setValue("gstin", "", { shouldValidate: true }); setCustomerMobile(""); setCustomerAddress(""); } }}
+                            onClear={() => { setValue("customer_id", undefined as unknown as number, { shouldValidate: true }); setValue("customer_name", "", { shouldValidate: false }); setValue("gstin", "", { shouldValidate: true }); setCustomerMobile(""); setCustomerAddress(""); }}
+                            onSelect={(c: CustomerSearchRow) => { setValue("customer_id", c.id, { shouldValidate: true }); setValue("customer_name", c.full_name ?? c.mobile, { shouldValidate: false }); setValue("gstin", normalizeGstin(c.gstin), { shouldValidate: true }); setCustomerMobile(c.mobile ?? ""); setCustomerAddress(c.address_line1 ?? ""); }}
+                        />
+                    </div>
+
+                    <div className="space-y-0.5 shrink-0 w-44">
+                        <Label className={labelCls}>GSTIN</Label>
+                        <Input
+                            className={`h-8 bg-(--cl-surface-2) text-xs font-mono uppercase ${errors.gstin ? "border-red-400" : ""}`}
+                            placeholder="15-char GSTIN"
+                            maxLength={15}
+                            {...register("gstin", { setValueAs: (v) => normalizeGstin(v) })}
                         />
                     </div>
 

@@ -34,6 +34,7 @@ import {
     type AddReceiptFormValues, type JobInvoiceFullRow,
 } from "./deliver-job-schema";
 import { fmtCurrency, isJobInvoiceable } from "./deliver-job-helpers";
+import { isValidGstin, normalizeGstin, saveCustomerGstin } from "@/lib/gstin";
 import { MESSAGES } from "@/constants/messages";
 import { buildInvoicePdf, buildPackedInvoicePdf, buildReceiptPdf, buildDeliveryNotePdf } from "./deliver-job-pdf";
 import { useAppSelector } from "@/store/hooks";
@@ -218,6 +219,11 @@ export function DeliveryModal({
     const noOfJobInvoicesPerPrint = useAppSelector(selectNoOfJobInvoicesPerPrint);
 
     const [jobDetails,                  setJobDetails]                  = useState<JobDeliveryFullDetail[]>(initialJobs);
+    // GSTIN is per-customer; in a multi-job delivery each row is editable and
+    // keyed by job id, seeded from the customer's stored GSTIN.
+    const [gstinByJob,                  setGstinByJob]                  = useState<Map<number, string>>(
+        () => new Map(initialJobs.map(j => [j.id, normalizeGstin(j.customer_gstin)])),
+    );
     const [flowStep,                    setFlowStep]                    = useState<FlowStep>("idle");
     const [showDeliverySuccessAlert,    setShowDeliverySuccessAlert]    = useState(false);
     const [pdfUrl,                      setPdfUrl]                      = useState<string | null>(null);
@@ -344,6 +350,12 @@ export function DeliveryModal({
             return;
         }
 
+        const badGstin = jobDetails.find(j => !isValidGstin(gstinByJob.get(j.id)));
+        if (badGstin) {
+            toast.error(`Enter a valid 15-character GSTIN for Job #${badGstin.job_no}, or clear it, before delivering.`);
+            return;
+        }
+
         const needReceipt = jobDetails.filter(j =>
             Number(j.amount ?? 0) > 0 &&
             (j.payments ?? []).reduce((s, p) => s + Number(p.amount), 0) < Number(j.amount ?? 0)
@@ -389,6 +401,14 @@ export function DeliveryModal({
                             },
                         }),
                     },
+                });
+                // GSTIN lives on the customer (single source of truth); persist any
+                // fresh/edited value entered for this job's customer on delivery.
+                await saveCustomerGstin({
+                    customerId:   job.customer_contact_id,
+                    gstin:        gstinByJob.get(job.id),
+                    currentGstin: job.customer_gstin,
+                    dbName, schema,
                 });
             }
             if (pdfUrl) URL.revokeObjectURL(pdfUrl);
@@ -937,6 +957,8 @@ export function DeliveryModal({
                                 <DeliveryModalJobsTable
                                     jobs={jobDetails}
                                     availableDivisions={availableDivisions}
+                                    gstinByJob={gstinByJob}
+                                    onGstinChange={(jobId, value) => setGstinByJob(prev => { const next = new Map(prev); next.set(jobId, value); return next; })}
                                     onViewJob={!isSingleJob ? id => setViewJobId(id) : undefined}
                                 />
                             </StepSection>

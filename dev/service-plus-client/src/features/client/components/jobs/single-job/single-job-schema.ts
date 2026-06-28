@@ -1,9 +1,11 @@
 import { z } from "zod";
 import { MESSAGES } from "@/constants/messages";
+import { isValidGstin } from "@/lib/gstin";
 
 export const singleJobFormSchema = z.object({
     customer_id:          z.number({ error: MESSAGES.ERROR_JOB_CUSTOMER_REQUIRED }).int().positive(MESSAGES.ERROR_JOB_CUSTOMER_REQUIRED),
     customer_name:        z.string().optional().default(""),
+    gstin:                z.string().optional().default("").refine(isValidGstin, "Enter a valid 15-character GSTIN"),
     address_snapshot:     z.string().optional().default(""),
     job_date:             z.string().min(1),
     job_type_id:          z.number({ error: MESSAGES.ERROR_JOB_TYPE_REQUIRED }).int().positive(MESSAGES.ERROR_JOB_TYPE_REQUIRED),
@@ -26,6 +28,7 @@ export function getSingleJobDefaultValues(defaultDivisionId = 1): SingleJobFormV
     return {
         customer_id:          undefined as unknown as number,
         customer_name:        "",
+        gstin:                "",
         address_snapshot:     "",
         job_date:             new Date().toISOString().slice(0, 10),
         job_type_id:          undefined as unknown as number,

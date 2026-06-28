@@ -1,8 +1,9 @@
-# Design change for Job Search
-- Job search landing page will now have transaction capacity for job status changes as the Job Pipeline Page (clicked at a status and status change page comes) has.
-- Add an icon in actions similar to pipeline page transaction icon(two horizontal arrows)
-- This click icon will do the same work as job pipeline status clicked, transaction icon clicked does. Based on current status of job, it will generate a dropdown with option available to the job status.
-- Provide end to end complete functionality of Job Pipeline status change without going to any other page
-- Finally refresh the page to reflect current status
-- This way, user can do all transactions with minimum efforts.
-- Reuse code from job pipeline and only change as per requirement.
+# New way to handle gstin in service-plus and treatment during posting to trace-plus
+- In Job table I added a new nullable column gstin.
+- At the time of job creation we can provide the gstin of the customer if he is a registered customer. If customer exists then fetch and show gstin. If customer is new then provide empty field. If user make new entry in gstin field then save in customer table also.
+- So customer gstin can be added at the time of job creation if the customer is a registered customer. At that time, we save the gstin in job table and also in customer table. If during update or creation we don't have gstin then it will not be saved.
+- Also when creating"Finalize" in job we have a dialog "Finalize Job" in this dialog provide a validated field for gstin. This field will be autopopulated if customer has gstin or corresponding job has gstin. If not then provide an empty field for gstin. User can provide fresh gstin at the time of finalization.
+- During validation of job finalization if the entered gstin is invalid then show an error message and do not allow to finalize the job. Validated gstin will be saved at both customer and job table.
+- Also, During delivery of the job, show the gstin along with validation. This will come from job table or customer table. User can put fresh gstin here. After successful validation and delivery of the job update the gstin in job table.
+- When job needs to be posted to trace-plus then we will use the gstin from the job table.
+- In trace-plus, the gstin needs to be updated in ExtGstTranD table in gstin column, when account posting is done for job invoice.

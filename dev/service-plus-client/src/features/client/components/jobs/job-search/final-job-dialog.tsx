@@ -7,6 +7,7 @@ import { MESSAGES }    from "@/constants/messages";
 import { SQL_MAP }     from "@/constants/sql-map";
 import { apolloClient } from "@/lib/apollo-client";
 import { encodeObj, graphQlUtils } from "@/lib/graphql-utils";
+import { isValidGstin, normalizeGstin, saveCustomerGstin } from "@/lib/gstin";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectAvailableDivisions, selectCurrentBranch, selectDefaultGstRate, selectDefaultHsnForSparePart, selectDefaultHsnForServiceCharge, selectSchema } from "@/store/context-slice";
 import { useAppSelector } from "@/store/hooks";
@@ -137,6 +138,7 @@ export function FinalJobDialog({ jobId, onClose, onFinalized }: Props) {
     const [forceIgst,           setForceIgst]           = useState(false);
     const [backCalcTarget,      setBackCalcTarget]      = useState("");
     const [showPartsInInvoice,  setShowPartsInInvoice]  = useState(true);
+    const [gstin,               setGstin]               = useState("");
     const [viewJobId,           setViewJobId]           = useState<number | null>(null);
 
     const division = availableDivisions.find(d => d.id === selectedDivisionId) ?? null;
@@ -220,6 +222,7 @@ export function FinalJobDialog({ jobId, onClose, onFinalized }: Props) {
             });
             setForceIgst(job.is_igst ?? false);
             setShowPartsInInvoice(job.to_show_parts_in_job_invoice ?? true);
+            setGstin(normalizeGstin(job.customer_gstin));
             setSelectedDivisionId(job.division_id);
             setPartLines(parts.length > 0
                 ? parts.map(p => {
@@ -475,6 +478,11 @@ export function FinalJobDialog({ jobId, onClose, onFinalized }: Props) {
             return;
         }
 
+        if (!isValidGstin(gstin)) {
+            toast.error("Enter a valid 15-character GSTIN, or clear the field, before finalizing.");
+            return;
+        }
+
         const isWarrantyJob = selectedRow?.job_type_code === "UNDER_WARRANTY";
         setSubmitting(true);
         try {
@@ -570,6 +578,15 @@ export function FinalJobDialog({ jobId, onClose, onFinalized }: Props) {
                     }),
                 },
             });
+
+            await saveCustomerGstin({
+                customerId: selectedJob.customer_contact_id,
+                gstin,
+                currentGstin: selectedJob.customer_gstin,
+                dbName,
+                schema,
+            });
+
             toast.success("Job marked as final.");
             onFinalized();
         } catch {
@@ -611,12 +628,14 @@ export function FinalJobDialog({ jobId, onClose, onFinalized }: Props) {
                 forceIgst={forceIgst}
                 backCalcTarget={backCalcTarget}
                 showPartsInInvoice={showPartsInInvoice}
+                gstin={gstin}
                 defaultHsnForSparePart={defaultHsnForSparePart}
                 defaultHsnForServiceCharge={defaultHsnForServiceCharge}
                 viewJobId={viewJobId}
                 setForceIgst={setForceIgst}
                 setBackCalcTarget={setBackCalcTarget}
                 setShowPartsInInvoice={setShowPartsInInvoice}
+                setGstin={setGstin}
                 setChargeLines={setChargeLines as Dispatch<SetStateAction<EditableChargeLine[]>>}
                 setPartLines={setPartLines as Dispatch<SetStateAction<EditablePartLine[]>>}
                 setViewJobId={setViewJobId}

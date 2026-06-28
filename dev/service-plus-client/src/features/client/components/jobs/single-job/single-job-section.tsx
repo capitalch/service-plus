@@ -26,6 +26,7 @@ import { MESSAGES } from "@/constants/messages";
 import { SQL_MAP } from "@/constants/sql-map";
 import { apolloClient } from "@/lib/apollo-client";
 import { encodeObj, graphQlUtils } from "@/lib/graphql-utils";
+import { saveCustomerGstin } from "@/lib/gstin";
 
 import { useAppSelector } from "@/store/hooks";
 import { selectCurrentUser, selectDbName } from "@/features/auth/store/auth-slice";
@@ -220,6 +221,9 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
                 toast.success(MESSAGES.SUCCESS_JOB_CREATED);
                 setQuickInfoKey(k => k + 1);
             }
+            // GSTIN lives on the customer (single source of truth); persist any
+            // fresh/edited value entered on the job form.
+            await saveCustomerGstin({ customerId: values.customer_id, gstin: values.gstin, dbName, schema });
             form.reset(getSingleJobDefaultValues());
             // call onSuccess manually
             if (editJob) {

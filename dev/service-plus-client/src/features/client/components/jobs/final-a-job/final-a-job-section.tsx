@@ -10,6 +10,7 @@ import { SQL_MAP } from "@/constants/sql-map";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { apolloClient } from "@/lib/apollo-client";
 import { encodeObj, graphQlUtils } from "@/lib/graphql-utils";
+import { isValidGstin, normalizeGstin, saveCustomerGstin } from "@/lib/gstin";
 import { selectAvailableDivisions, selectCurrentBranch, selectCurrentDivision, selectDefaultGstRate, selectDefaultHsnForSparePart, selectDefaultHsnForServiceCharge, selectSchema } from "@/store/context-slice";
 import { useAppSelector } from "@/store/hooks";
 import type { JobDetailType } from "@/features/client/types/job";
@@ -170,6 +171,7 @@ export const FinalAJobSection = () => {
     const [forceIgst, setForceIgst] = useState(false);
     const [backCalcTarget, setBackCalcTarget] = useState("");
     const [showPartsInInvoice, setShowPartsInInvoice] = useState(true);
+    const [gstin, setGstin] = useState("");
 
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const finalizedDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -342,6 +344,7 @@ export const FinalAJobSection = () => {
 
             setSelectedJob(job);
             setSelectedRow(row);
+            setGstin(normalizeGstin(job.customer_gstin));
             setForceIgst(job.is_igst ?? false);
             setShowPartsInInvoice(job.to_show_parts_in_job_invoice ?? true);
             setSelectedDivisionId(row.division_id);
@@ -417,6 +420,7 @@ export const FinalAJobSection = () => {
         setDeletedPartIds([]);
         setBackCalcTarget("");
         setForceIgst(false);
+        setGstin("");
     }
 
     // ── Undo Final ──────────────────────────────────────────────────────────
@@ -741,6 +745,11 @@ export const FinalAJobSection = () => {
             return;
         }
 
+        if (!isValidGstin(gstin)) {
+            toast.error("Enter a valid 15-character GSTIN, or clear the field, before finalizing.");
+            return;
+        }
+
         const isWarrantyJob = selectedRow?.job_type_code === "UNDER_WARRANTY";
         setSubmitting(true);
         try {
@@ -847,6 +856,14 @@ export const FinalAJobSection = () => {
                 },
             });
 
+            await saveCustomerGstin({
+                customerId: selectedJob.customer_contact_id,
+                gstin,
+                currentGstin: selectedJob.customer_gstin,
+                dbName,
+                schema,
+            });
+
             toast.success("Job marked as final.");
             handleBack();
             if (branchId) void loadData(branchId, searchQ, page, currentDivision?.id ?? null);
@@ -880,10 +897,12 @@ export const FinalAJobSection = () => {
                 forceIgst={forceIgst}
                 backCalcTarget={backCalcTarget}
                 showPartsInInvoice={showPartsInInvoice}
+                gstin={gstin}
                 defaultHsnForSparePart={defaultHsnForSparePart}
                 defaultHsnForServiceCharge={defaultHsnForServiceCharge}
                 viewJobId={viewJobId}
                 setForceIgst={setForceIgst}
+                setGstin={setGstin}
                 setBackCalcTarget={setBackCalcTarget}
                 setShowPartsInInvoice={setShowPartsInInvoice}
                 setChargeLines={setChargeLines}

@@ -128,6 +128,7 @@ export type JobDeliveryFullDetail = {
     qty:                    number | null;
     last_transaction_id:    number | null;
     device_details:         string | null;
+    customer_contact_id:    number;
     customer_name:          string;
     mobile:                 string;
     customer_gstin:         string | null;

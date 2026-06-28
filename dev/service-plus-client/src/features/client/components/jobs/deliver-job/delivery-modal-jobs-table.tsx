@@ -1,16 +1,20 @@
 import { Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import type { DivisionContextType } from "@/features/client/types/division";
 import type { JobDeliveryFullDetail } from "./deliver-job-schema";
 import { fmtCurrency } from "./deliver-job-helpers";
+import { isValidGstin, normalizeGstin } from "@/lib/gstin";
 
 type Props = {
     jobs:               JobDeliveryFullDetail[];
     availableDivisions: DivisionContextType[];
+    gstinByJob:         Map<number, string>;
+    onGstinChange:      (jobId: number, value: string) => void;
     onViewJob?:         (id: number) => void;
 };
 
-export function DeliveryModalJobsTable({ jobs, onViewJob }: Props) {
+export function DeliveryModalJobsTable({ jobs, gstinByJob, onGstinChange, onViewJob }: Props) {
     const totalAmt  = jobs.reduce((s, j) => s + Number(j.amount ?? 0), 0);
     const totalPaid = jobs.reduce((s, j) => s + (j.payments ?? []).reduce((ps, p) => ps + Number(p.amount), 0), 0);
     const totalDue  = Math.max(0, totalAmt - totalPaid);
@@ -20,6 +24,7 @@ export function DeliveryModalJobsTable({ jobs, onViewJob }: Props) {
             {jobs.map(job => {
                 const paid = (job.payments ?? []).reduce((s, p) => s + Number(p.amount), 0);
                 const due  = Math.max(0, Number(job.amount ?? 0) - paid);
+                const g    = gstinByJob.get(job.id) ?? "";
                 return (
                     <div key={job.id} className="rounded-lg border border-(--cl-border) bg-(--cl-surface) px-4 py-3 flex flex-col gap-1.5">
                         {/* Row 1: job # · customer · mobile | job-type badge · date · view */}
@@ -34,6 +39,16 @@ export function DeliveryModalJobsTable({ jobs, onViewJob }: Props) {
                                     <span className="text-sm text-(--cl-text-muted) shrink-0">{job.mobile}</span>
                                 )}
                             </div>
+                            {/* GSTIN — editable, saved to the customer on delivery */}
+                            <span className="shrink-0 text-[11px] font-semibold uppercase tracking-wide text-(--cl-text-muted)">GSTIN</span>
+                            <Input
+                                className={`h-7 w-44 shrink-0 bg-(--cl-surface) text-xs font-mono uppercase ${g && !isValidGstin(g) ? "border-red-400" : "border-(--cl-border)"}`}
+                                placeholder="15-char (optional)"
+                                maxLength={15}
+                                value={g}
+                                title={g && !isValidGstin(g) ? "Enter a valid 15-character GSTIN" : "Customer GSTIN"}
+                                onChange={e => onGstinChange(job.id, normalizeGstin(e.target.value))}
+                            />
                             <span className="shrink-0 rounded-full px-2.5 py-0.5 text-sm font-medium bg-(--cl-accent)/10 text-(--cl-accent)">
                                 {job.job_type_name}
                             </span>
