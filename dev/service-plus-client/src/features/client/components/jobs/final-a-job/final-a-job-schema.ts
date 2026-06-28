@@ -4,6 +4,7 @@ export type FinalizedJobRow = {
     alternate_job_no:    string | null;
     job_date:            string;
     customer_name:       string;
+    customer_gstin:      string | null;
     mobile:              string;
     job_status_name:     string;
     technician_name:     string | null;
@@ -31,6 +32,7 @@ export type FinalJobRow = {
     job_type_name:    string;
     job_type_code:    string;
     customer_name:    string;
+    customer_gstin:   string | null;
     mobile:           string;
     device_details:   string | null;
     serial_no:        string | null;

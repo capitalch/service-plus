@@ -842,7 +842,9 @@ export const FinalAJobSection = () => {
             const backCalcNum = parseFloat(backCalcTarget);
             const computedTotal = partLines.reduce((s, l) => s + (parseFloat(l.sale_pr_gst) || 0) * l.qty, 0)
                 + chargeLines.reduce((s, c) => s + (parseFloat(c.sale_pr_gst) || 0) * (parseFloat(c.qty) || 1), 0);
-            const amount = (backCalcTarget !== "" && !isNaN(backCalcNum) && backCalcNum > 0) ? backCalcNum : computedTotal;
+            const amount = isWarrantyJob
+                ? 0
+                : ((backCalcTarget !== "" && !isNaN(backCalcNum) && backCalcNum > 0) ? backCalcNum : computedTotal);
 
             await apolloClient.mutate({
                 mutation: GRAPHQL_MAP.genericUpdate,

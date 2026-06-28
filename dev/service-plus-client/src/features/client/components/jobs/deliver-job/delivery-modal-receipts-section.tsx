@@ -68,7 +68,7 @@ export function DeliveryModalReceiptsSection({ jobs, onAddReceipt, loadingPdfJob
                                 Received: <strong className="text-emerald-600">{fmtCurrency(paid)}</strong>
                             </span>
                             <span className="text-(--cl-text-muted)">
-                                Due: <strong className={due > 0 ? "text-red-600" : "text-emerald-600"}>{fmtCurrency(due)}</strong>
+                                Due: <strong className={due > 0 ? "text-amber-600" : "text-emerald-600"}>{fmtCurrency(due)}</strong>
                             </span>
                         </div>
 

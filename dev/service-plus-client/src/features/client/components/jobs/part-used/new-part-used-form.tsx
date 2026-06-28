@@ -34,26 +34,30 @@ const thClass = "sticky top-0 z-20 text-xs font-extrabold uppercase tracking-wid
 const tdClass = "p-0.5 border-b border-(--cl-border)";
 const inputCls = "h-7 border-(--cl-border) bg-white text-sm px-2";
 
-function PriceInput({ value, className, onChange }: {
+function PriceInput({ value, className, onChange, disabled }: {
     value:    number;
     onChange: (v: number) => void;
     className?: string;
+    disabled?: boolean;
 }) {
     const [editing, setEditing] = useState(false);
     const [raw,     setRaw]     = useState("");
     return (
         <Input
             className={className}
+            disabled={disabled}
             inputMode="decimal"
             type="text"
-            value={editing ? raw : value.toFixed(2)}
+            value={editing && !disabled ? raw : value.toFixed(2)}
             onChange={e => setRaw(e.target.value)}
             onFocus={e => {
+                if (disabled) return;
                 setEditing(true);
                 setRaw(value === 0 ? "" : String(value));
                 setTimeout(() => e.target.select(), 0);
             }}
             onBlur={() => {
+                if (disabled) return;
                 const n = Math.max(0, parseFloat(raw) || 0);
                 onChange(n);
                 setEditing(false);
@@ -86,6 +90,7 @@ export function NewPartUsedForm({
     });
 
     const [selectedJob,    setSelectedJob]    = useState<JobLookupForReceiptType | null>(null);
+    const isWarranty = selectedJob?.job_type_code === "UNDER_WARRANTY";
     const [jobTouched,     setJobTouched]     = useState(false);
     const [brands,         setBrands]         = useState<BrandOption[]>([]);
     const [existingLines,  setExistingLines]  = useState<ExistingLine[]>([]);
@@ -364,7 +369,7 @@ export function NewPartUsedForm({
                                                         const cost = part.cost_price ?? 0;
                                                         const effectiveGstRate = (part.gst_rate ?? 0) > 0 ? (part.gst_rate ?? 0) : (Number(defaultGstRate) || 0);
                                                         const effectiveHsnCode = (part.hsn_code ?? "").trim() || (defaultHsnForSparePart ?? "");
-                                                        const effectiveSellingPrice = markupPct > 0 ? applyMarkup(cost, markupPct) : (part.selling_price ?? 0);
+                                                        const effectiveSellingPrice = isWarranty ? 0 : (markupPct > 0 ? applyMarkup(cost, markupPct) : (part.selling_price ?? 0));
                                                         setValue(`newLines.${idx}.part_id`, part.id);
                                                         setValue(`newLines.${idx}.part_code`, part.part_code);
                                                         setValue(`newLines.${idx}.part_name`, part.part_name);
@@ -394,14 +399,16 @@ export function NewPartUsedForm({
                                                     value={line?.cost_price ?? 0}
                                                     onChange={cost => {
                                                         setValue(`newLines.${idx}.cost_price`, cost, { shouldValidate: true });
-                                                        if (markupPct > 0) setValue(`newLines.${idx}.selling_price`, applyMarkup(cost, markupPct));
+                                                        if (isWarranty) setValue(`newLines.${idx}.selling_price`, 0);
+                                                        else if (markupPct > 0) setValue(`newLines.${idx}.selling_price`, applyMarkup(cost, markupPct));
                                                     }}
                                                 />
                                             </td>
                                             <td className={tdClass}>
                                                 <PriceInput
                                                     className={`${inputCls} text-right`}
-                                                    value={line?.selling_price ?? 0}
+                                                    disabled={isWarranty}
+                                                    value={isWarranty ? 0 : (line?.selling_price ?? 0)}
                                                     onChange={v => setValue(`newLines.${idx}.selling_price`, v)}
                                                 />
                                             </td>

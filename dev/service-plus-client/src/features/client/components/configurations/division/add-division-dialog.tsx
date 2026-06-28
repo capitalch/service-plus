@@ -492,8 +492,8 @@ export const AddDivisionDialog = ({
                                 </div>
 
                                 {/* ── Contact & Legal ── */}
-                                <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3">
-                                    <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-rose-600">Contact & Legal</p>
+                                <div className="rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-3">
+                                    <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-indigo-600">Contact & Legal</p>
                                     <div className="flex flex-col gap-3">
                                         <div className="grid grid-cols-2 gap-3">
                                             <div className="flex flex-col gap-1.5">

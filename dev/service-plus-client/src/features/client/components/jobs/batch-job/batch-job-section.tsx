@@ -27,6 +27,7 @@ import type { CustomerTypeOption, StateOption } from "@/features/client/types/cu
 import type { BrandOption, ProductOption } from "@/features/client/types/model";
 import type { DivisionContextType } from "@/features/client/types/division";
 
+import { JobTypeBadge, StatusBadge } from "../job-badges";
 import { NewBatchJobForm } from "./new-batch-job-form";
 import { BatchJobQuickInfoCard } from "./batch-job-quick-info-card";
 import { BatchJobViewModal } from "./batch-job-view-modal";
@@ -966,11 +967,11 @@ function BatchGroupRow({ availableDivisions, batch, onEdit, onView, onPrint, onD
                     <td className={`${tdClass} text-xs`}>{job.customer_name ?? "—"}</td>
                     <td className={`${tdClass} font-mono text-xs`}>{job.mobile}</td>
                     <td className={`${tdClass} text-xs`}>{job.device_details ?? "—"}</td>
-                    <td className={`${tdClass} text-xs`}>{job.job_type_name}</td>
                     <td className={`${tdClass} text-xs`}>
-                        <span className="px-2 py-0.5 rounded-sm text-[10px] font-medium bg-(--cl-accent)/10 text-(--cl-accent)">
-                            {job.job_status_name}
-                        </span>
+                        <JobTypeBadge code={job.job_type_code} name={job.job_type_name} />
+                    </td>
+                    <td className={`${tdClass} text-xs`}>
+                        <StatusBadge code={job.job_status_code} name={job.job_status_name} />
                     </td>
                     <td className={`${tdClass} text-xs`}>{job.technician_name ?? "—"}</td>
                     <td className={`${tdClass} text-right text-xs`}>

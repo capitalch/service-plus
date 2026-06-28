@@ -153,6 +153,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
                 ["Alternate Job No", "External reference such as a customer's own tracking number or OEM job number."],
                 ["Problem Reported", "Customer's description of the issue."],
                 ["Warranty Card No", "Manufacturer warranty card reference if applicable."],
+                ["GSTIN",            "Customer's GSTIN for B2B tax invoices. Auto-fills from the selected customer; edits are saved back to the customer. See 'Customer GSTIN on Jobs'."],
                 ["Technician",       "Who will repair the device. Can be assigned or changed later."],
                 ["Remarks",          "Internal notes."],
             ]},
@@ -222,6 +223,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
                 "Print the batch sheet for the customer.",
             ]},
             { type: "note", text: "Finalization and delivery still happen per individual job. A batch is just a grouping — it does not change the job workflow." },
+            { type: "para", text: "The customer's GSTIN can be captured or edited on the batch form just like on a single job — it auto-fills from the selected customer and is saved back to the customer record. See 'Customer GSTIN on Jobs'." },
             { type: "heading", text: "Editing a batch job" },
             { type: "para", text: "If a job has a Batch No, it must be edited from Batch Jobs — not from Single Job. Find the batch and edit the individual job within it." },
         ],
@@ -297,6 +299,8 @@ export const HELP_ARTICLES: HelpArticle[] = [
             { type: "para", text: "If the job type is UNDER_WARRANTY, selling prices are fixed at ₹0 (grayed out). Only cost prices are recorded for internal tracking. The final amount is always ₹0." },
             { type: "heading", text: "GST Divisions" },
             { type: "para", text: "In a GST division, HSN code is mandatory on every part and charge row. Rows with a missing HSN show a red border and Save is blocked until all HSN codes are filled." },
+            { type: "heading", text: "Customer GSTIN" },
+            { type: "para", text: "The finalize form shows the customer's GSTIN, pre-filled from the customer record. You can edit it here for B2B tax invoices; the value is saved back to the customer. It is optional, but if you enter an invalid value, 'Save & Mark Final' is blocked until you correct or clear it. See 'Customer GSTIN on Jobs'." },
             { type: "warning", text: "Once you click 'Save & Mark Final', the job is locked. No further edits are possible without using the Undo function in the Finalized Jobs tab." },
         ],
         faqs: [
@@ -308,6 +312,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
             { q: "Why are selling prices greyed out?", a: "The job type is UNDER_WARRANTY. Selling prices are always ₹0 for warranty jobs." },
             { q: "I changed the division — why did prices change?", a: "Switching division recalculates prices for the new GST mode using master data. Switching back produces the same values as the original — no data is corrupted by toggling." },
             { q: "Can I add a part that isn't in the master?", a: "You can type a part name directly without selecting from the master. However, cost price and HSN will not auto-fill; you must enter them manually." },
+            { q: "Why is 'Save & Mark Final' blocked with a GSTIN error?", a: "The customer GSTIN field has an invalid value. Fix it to a valid 15-character GSTIN or clear the field (blank is allowed). GSTIN is saved to the customer record. See 'Customer GSTIN on Jobs'." },
         ],
     },
 
@@ -321,6 +326,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
             { type: "para", text: "Go to Jobs → Deliver Job. Select one or more completed jobs and proceed through 4 steps." },
             { type: "heading", text: "Step 1 — Select Jobs" },
             { type: "para", text: "Choose completed jobs (COMPLETED_OK or COMPLETED_NOT_OK). The summary panel shows Total Amount, Received Amount, and Due Amount. Due shows in red if payment is outstanding." },
+            { type: "note", text: "Each job in the list has an editable customer GSTIN field (pre-filled from that job's customer). It is optional, but an invalid value blocks 'Deliver & Close', and any edit is saved back to the customer. See 'Customer GSTIN on Jobs'." },
             { type: "heading", text: "Step 2 — Service Invoice" },
             { type: "para", text: "Click 'Create Invoices & Receipts' to auto-generate invoices for eligible jobs. A job is eligible if: it is COMPLETED, has no existing invoice, and the amount is > ₹0. Invoice numbers come from the SERVICE_INVOICE document sequence." },
             { type: "bullets", items: [
@@ -344,7 +350,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
             ]},
         ],
         faqs: [
-            { q: "'Deliver & Close' is greyed out — why?", a: "At least one of these conditions is not met: (a) Due balance is not ₹0 — add a receipt, (b) Delivery Manner is not selected, (c) Delivery Date is empty." },
+            { q: "'Deliver & Close' is greyed out — why?", a: "At least one of these conditions is not met: (a) Due balance is not ₹0 — add a receipt, (b) Delivery Manner is not selected, (c) Delivery Date is empty, (d) a customer GSTIN field holds an invalid value — correct or clear it." },
             { q: "Can I deliver multiple jobs at once?", a: "Yes. Select all completed jobs before proceeding. Invoices and receipts are created per job; all are delivered in one action." },
             { q: "Can I regenerate an invoice after it was posted to accounts?", a: "No. You must unpost it first from Admin → Post/Unpost, then regenerate from the Deliver Job screen." },
             { q: "The customer paid by cheque and it bounced — what do I do?", a: "Delete the cheque receipt entry, note the dishonour in job remarks, and add a new receipt when a replacement payment clears." },
@@ -523,7 +529,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
             { type: "table", headers: ["Field", "Notes"], rows: [
                 ["Alternate Mobile", "Same 10-digit format as Mobile"],
                 ["Email",            "Standard email format"],
-                ["GSTIN",            "15-character India GST format — for B2B customers only"],
+                ["GSTIN",            "15-character India GST format — for B2B customers only. Can also be added or edited from the job screens; all stages share this same customer field."],
                 ["Address Line 2",   "Any text"],
                 ["City, Landmark",   "Any text"],
                 ["Postal Code",      "6 digits, must start with 1–9"],
@@ -533,6 +539,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
         faqs: [
             { q: "Mobile number not accepted — why?", a: "Indian mobile numbers must be exactly 10 digits and start with 6, 7, 8, or 9 (numbers starting with 0, 1–5 are not valid mobile numbers)." },
             { q: "When should I fill the customer's GSTIN?", a: "Only for B2B customers who need GST tax invoices addressed to their company (with their GSTIN on the invoice). Leave blank for individual/retail customers." },
+            { q: "Can I add a customer's GSTIN without coming to Masters?", a: "Yes. The GSTIN field also appears when creating, finalizing, and delivering a job. Editing it there updates this same customer record. See 'Customer GSTIN on Jobs'." },
             { q: "Can I delete a customer?", a: "Only if no jobs, invoices, or receipts reference that customer. The system will block deletion and show an error if the customer is in use." },
             { q: "Is customer data shared across branches?", a: "Yes. Customer records are global — the same customer can be used by any branch." },
         ],
@@ -917,6 +924,43 @@ export const HELP_ARTICLES: HelpArticle[] = [
     },
 
     {
+        id: "customer-gstin",
+        category: "GST & Invoicing",
+        title: "Customer GSTIN on Jobs",
+        summary: "Capture, validate, and edit a customer's GSTIN at job creation, finalization, and delivery.",
+        tags: ["gstin", "customer gstin", "B2B", "tax invoice", "validation", "GST", "trace plus", "auto-fill"],
+        content: [
+            { type: "para", text: "A customer's GSTIN can be entered or updated directly from the job screens — you no longer have to open Masters → Customer first. The GSTIN is stored once on the customer record and reused everywhere, so it is a single source of truth." },
+            { type: "note", text: "This is the CUSTOMER's GSTIN (the B2B buyer's registration that appears on the tax invoice). It is different from the DIVISION GSTIN, which is your own business's registration. See 'Divisions Setup' and 'GST vs Non-GST' for the division side." },
+            { type: "heading", text: "Where you can enter it" },
+            { type: "table", headers: ["Stage", "Where", "Validation"], rows: [
+                ["Job creation",   "New Single Job / Batch Jobs form", "Optional — saved with the job's customer"],
+                ["Finalization",   "Final a Job → Finalize form",      "Optional, but an invalid value blocks 'Save & Mark Final'"],
+                ["Delivery",       "Deliver Job → per-job field",      "Optional, but an invalid value blocks 'Deliver & Close'"],
+            ]},
+            { type: "heading", text: "How it behaves" },
+            { type: "bullets", items: [
+                "Auto-fills — selecting a customer fills the GSTIN field from that customer's stored value; clearing the customer clears the field.",
+                "Optional everywhere — a blank GSTIN is always valid, so retail/individual customers need nothing here.",
+                "Validated when filled — a non-empty value must be a valid 15-character GSTIN (example: 27AAPFU0939F1ZV).",
+                "Auto-formatted — input is trimmed and converted to uppercase as you type.",
+                "Saved back to the customer — editing it at any stage updates the customer master, so the next job for that customer is pre-filled.",
+                "Per job on delivery — when delivering several jobs at once, each job's GSTIN is editable independently against its own customer.",
+            ]},
+            { type: "warning", text: "At finalization and delivery the GSTIN is hard-validated: if the field contains an invalid value, the action is blocked until you either correct it to a valid 15-character GSTIN or clear the field." },
+            { type: "heading", text: "Where it is used" },
+            { type: "para", text: "When a job invoice is posted to Trace Plus, the customer's stored GSTIN is sent automatically — there is no separate step. Whatever GSTIN is on the customer at that point (from creation, finalize, or delivery) flows through to the posted invoice." },
+        ],
+        faqs: [
+            { q: "Do I have to enter a GSTIN?", a: "No. GSTIN is optional everywhere. Leave it blank for retail or individual customers. Fill it only for B2B customers who need their GSTIN on the tax invoice." },
+            { q: "I edited the GSTIN while delivering — did it change the customer?", a: "Yes. The GSTIN is stored on the customer record, not the job. Editing it at creation, finalize, or delivery updates the customer master, so future jobs for that customer pick up the new value." },
+            { q: "Finalize or Deliver is blocked with a GSTIN error — why?", a: "The GSTIN field has a value that is not a valid 15-character GSTIN. Either fix it to the correct format or clear the field (blank is allowed), then try again." },
+            { q: "What's the difference between this and the Division GSTIN?", a: "The Division GSTIN is your own business's registration and drives whether the invoice is GST or non-GST. The Customer GSTIN is the buyer's registration printed on the invoice for B2B sales. They are separate fields." },
+            { q: "The save toast said updating the customer's GSTIN failed — was my job lost?", a: "No. Saving the GSTIN to the customer is best-effort. If it fails you'll see a toast, but the job action (create / finalize / deliver) still completes. Re-enter the GSTIN later from the customer or the next job screen." },
+        ],
+    },
+
+    {
         id: "invoice-troubleshooting",
         category: "GST & Invoicing",
         title: "Invoice Troubleshooting",
@@ -932,6 +976,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
                 ["'Deliver & Close' greyed out",        "Outstanding balance is not ₹0",                 "Deliver Job Step 3 → add receipt for remaining balance"],
                 ["Division locked on job",              "Service invoice already exists",                 "Delete invoice first, then change division, then regenerate"],
                 ["Invoice amount ≠ finalization total", "Back-Calculate target was used",                 "This is correct — invoice uses the target total, not the line sum"],
+                ["Finalize/Deliver blocked by GSTIN",   "Customer GSTIN field has an invalid value",      "Enter a valid 15-character GSTIN or clear the field (blank is allowed)"],
             ]},
         ],
         faqs: [
@@ -1022,6 +1067,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
                 ["'HSN is required for all parts'",           "Missing HSN on one or more finalization rows",       "Final a Job → fill HSN on every row with a red border"],
                 ["'GST rate must be greater than 0'",         "Zero GST rate line in a GST invoice",                "Set GST rate on each line or set a default in App Settings"],
                 ["'Total due is not zero'",                   "Outstanding balance before delivery",                "Deliver Job → Step 3 → add receipt for remaining balance"],
+                ["'Invalid GSTIN' on finalize/deliver",       "Customer GSTIN field has a malformed value",         "Enter a valid 15-character GSTIN or clear the field"],
                 ["'Batch No is set — edit from batch'",       "Job belongs to a batch",                             "Jobs → Batch Jobs → open the batch → edit the job there"],
                 ["Model dropdown is empty",                   "No models exist for selected brand + product",       "Masters → Model → add the missing model first"],
                 ["Jobs not in Final a Job pending list",      "Job status is not COMPLETED",                        "Update status to COMPLETED in Job Pipeline first"],

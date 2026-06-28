@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { type DivisionContextType, isGstDivision } from "@/features/client/types/division";
 import { PAGE_SIZE, thClass, tdClass } from "./final-a-job-helpers";
+import { JobTypeBadge } from "../job-badges";
 import type { FinalJobRow } from "./final-a-job-schema";
 
 type Props = {
@@ -187,7 +188,14 @@ export function PendingJobsGrid({
                                         </div>
                                     </td>
 
-                                    <td className={tdClass}>{row.customer_name}</td>
+                                    <td className={tdClass}>
+                                        <div className="flex flex-col gap-0.5">
+                                            <span>{row.customer_name}</span>
+                                            {row.customer_gstin && (
+                                                <span className="font-mono text-[10px] text-(--cl-text-muted)">GSTIN: {row.customer_gstin}</span>
+                                            )}
+                                        </div>
+                                    </td>
                                     <td className={`${tdClass} font-mono text-xs`}>{row.mobile}</td>
 
                                     {/* Device details */}
@@ -203,7 +211,7 @@ export function PendingJobsGrid({
                                     </td>
 
                                     <td className={tdClass}>
-                                        <span className="text-xs text-(--cl-text-muted)">{row.job_type_name}</span>
+                                        <JobTypeBadge code={row.job_type_code} name={row.job_type_name} />
                                     </td>
 
                                     <td className={`${tdClass} text-right tabular-nums`}>

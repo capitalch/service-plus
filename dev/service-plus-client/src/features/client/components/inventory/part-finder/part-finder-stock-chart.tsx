@@ -11,7 +11,7 @@ type Props = {
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function barColor(qty: number): string {
-    if (qty <= 0) return "#f43f5e";  // rose-500
+    if (qty <= 0) return "#f97316";  // orange-500
     if (qty <= 5) return "#f59e0b";  // amber-500
     return "#10b981";                // emerald-500
 }

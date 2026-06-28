@@ -278,7 +278,7 @@ export const ProductSection = () => {
                                                             : "border-red-200 bg-red-100 text-red-500 hover:bg-red-100"}
                                                         variant="outline"
                                                     >
-                                                        <span className={`mr-1 h-1.5 w-1.5 rounded-full ${product.is_active ? "bg-emerald-500" : "bg-red-400"}`} />
+                                                        <span className={`mr-1 h-1.5 w-1.5 rounded-full ${product.is_active ? "bg-emerald-500" : "bg-slate-400"}`} />
                                                         {product.is_active ? "Active" : "Inactive"}
                                                     </Badge>
                                                 </TableCell>

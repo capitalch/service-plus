@@ -27,6 +27,7 @@ import { currentFinancialYearRange } from "@/lib/utils";
 import { selectAvailableDivisions, selectCurrentBranch, selectPostDataToAccounts, selectSchema } from "@/store/context-slice";
 import { useAppSelector } from "@/store/hooks";
 import type { JobReceiptDetailType, JobReceiptListRowType } from "@/features/client/types/receipt";
+import { StatusBadge } from "../job-badges";
 import { NewReceiptForm } from "./new-receipt-form";
 import { FormProvider, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -460,7 +461,7 @@ export const ReceiptsSection = () => {
                                         <td className={tdClass}>
                                             <div className="font-mono font-semibold text-(--cl-accent)">{row.job_no}</div>
                                             <div className="text-xs text-(--cl-text-muted)">{row.job_date}</div>
-                                            <div className="text-xs text-(--cl-text-muted)">{row.job_status_name}</div>
+                                            <StatusBadge code={row.job_status_code} name={row.job_status_name} />
                                         </td>
                                         <td className={tdClass}>
                                             <div className="font-medium">{row.customer_name}</div>

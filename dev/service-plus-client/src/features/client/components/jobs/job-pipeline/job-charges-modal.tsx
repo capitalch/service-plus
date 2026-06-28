@@ -29,6 +29,7 @@ export type ChargesJobSummary = {
     customer_name:   string;
     job_status_name: string;
     job_status_code: string;
+    job_type_code:   string;
 };
 
 type Props = {
@@ -95,6 +96,7 @@ function applyMarkup(costPrice: number | null, markupPct: number): number | null
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export const JobChargesModal = ({ job, dbName, schema, onClose, onSaved }: Props) => {
+    const isWarranty = job.job_type_code === "UNDER_WARRANTY";
     const defaultGstRate           = useAppSelector(selectDefaultGstRate);
     const defaultHsnForSparePart   = useAppSelector(selectDefaultHsnForSparePart);
     const defaultHsnForServiceCharge = useAppSelector(selectDefaultHsnForServiceCharge);
@@ -182,7 +184,7 @@ export const JobChargesModal = ({ job, dbName, schema, onClose, onSaved }: Props
     function handlePartSelect(index: number, part: PartRow) {
         const cost = part.cost_price ?? null;
         const masterSelling = (part.selling_price != null && part.selling_price > 0) ? part.selling_price : null;
-        const selling = masterSelling ?? applyMarkup(cost, markupPct);
+        const selling = isWarranty ? 0 : (masterSelling ?? applyMarkup(cost, markupPct));
         const gstRate = (part.gst_rate ?? 0) > 0 ? (part.gst_rate ?? 0) : defaultGstRate;
         const hsnCode = part.hsn_code?.trim() || defaultHsnForSparePart || null;
         setValue(`parts.${index}.part_id`,       part.id);
@@ -208,7 +210,7 @@ export const JobChargesModal = ({ job, dbName, schema, onClose, onSaved }: Props
 
     function handleCostPriceChange(index: number, cost: number | null) {
         setValue(`parts.${index}.cost_price`,    cost);
-        setValue(`parts.${index}.selling_price`, applyMarkup(cost, markupPct));
+        setValue(`parts.${index}.selling_price`, isWarranty ? 0 : applyMarkup(cost, markupPct));
     }
 
     // ── Charge handlers ──────────────────────────────────────────────────────
@@ -252,7 +254,7 @@ export const JobChargesModal = ({ job, dbName, schema, onClose, onSaved }: Props
             return;
         }
 
-        const zeroSellingPrice = charges.find(c => c.charge_name.trim() && c.selling_price <= 0);
+        const zeroSellingPrice = !isWarranty && charges.find(c => c.charge_name.trim() && c.selling_price <= 0);
         if (zeroSellingPrice) {
             toast.error("Selling price must be greater than zero for all charges.");
             return;
@@ -285,7 +287,7 @@ export const JobChargesModal = ({ job, dbName, schema, onClose, onSaved }: Props
                         id:            p.id!,
                         qty:           p.qty,
                         cost_price:    p.cost_price,
-                        selling_price: p.selling_price,
+                        selling_price: isWarranty ? 0 : p.selling_price,
                         remarks:       p.remarks || null,
                     })),
                     ...validNewParts.map(p => ({
@@ -293,7 +295,7 @@ export const JobChargesModal = ({ job, dbName, schema, onClose, onSaved }: Props
                         part_id:       p.part_id,
                         qty:           p.qty,
                         cost_price:    p.cost_price,
-                        selling_price: p.selling_price,
+                        selling_price: isWarranty ? 0 : p.selling_price,
                         remarks:       p.remarks || null,
                         gst_rate:      p.gst_rate ?? defaultGstRate,
                         hsn_code:      p.hsn_code || defaultHsnForSparePart || null,
@@ -320,7 +322,7 @@ export const JobChargesModal = ({ job, dbName, schema, onClose, onSaved }: Props
                         ref_no:        c.ref_no || null,
                         description:   c.description || null,
                         cost_price:    c.cost_price,
-                        selling_price: c.selling_price,
+                        selling_price: isWarranty ? 0 : c.selling_price,
                     })),
                     ...validNewCharges.map(c => ({
                         job_id:        job.id,
@@ -328,7 +330,7 @@ export const JobChargesModal = ({ job, dbName, schema, onClose, onSaved }: Props
                         ref_no:        c.ref_no || null,
                         description:   c.description || null,
                         cost_price:    c.cost_price,
-                        selling_price: c.selling_price,
+                        selling_price: isWarranty ? 0 : c.selling_price,
                         gst_rate:      c.gst_rate || defaultGstRate,
                         hsn_code:      c.hsn_code || defaultHsnForServiceCharge || null,
                     })),
@@ -381,7 +383,12 @@ export const JobChargesModal = ({ job, dbName, schema, onClose, onSaved }: Props
                         <span className={`inline-flex items-center rounded-sm px-2 py-0.5 text-[11px] font-semibold text-white ${statusBg}`}>
                             {job.job_status_name}
                         </span>
-                        {markupPct > 0 && (
+                        {isWarranty && (
+                            <span className="inline-flex items-center rounded-sm bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
+                                Warranty — cost only, selling ₹0
+                            </span>
+                        )}
+                        {markupPct > 0 && !isWarranty && (
                             <span className="ml-auto text-[10px] text-muted-foreground">
                                 Markup: {markupPct}%
                             </span>
@@ -492,7 +499,8 @@ export const JobChargesModal = ({ job, dbName, schema, onClose, onSaved }: Props
                                                     </td>
                                                     <td className={`${tdCls} text-right`}>
                                                         <Input className="h-6 w-20 rounded-sm text-xs text-right px-1" min={0} step="0.01" type="number"
-                                                            value={row?.selling_price ?? ""}
+                                                            disabled={isWarranty}
+                                                            value={isWarranty ? 0 : (row?.selling_price ?? "")}
                                                             placeholder="0.00"
                                                             onFocus={e => e.target.select()}
                                                             onChange={e => setValue(`parts.${index}.selling_price`, e.target.value === "" ? null : e.target.valueAsNumber)} />
@@ -600,9 +608,10 @@ export const JobChargesModal = ({ job, dbName, schema, onClose, onSaved }: Props
                                                     </td>
                                                     <td className={`${tdCls} text-right`}>
                                                         <Input
-                                                            className={`h-6 w-24 rounded-sm text-xs text-right px-1 ${(row?.charge_name ?? "").trim() && (row?.selling_price ?? 0) <= 0 ? "border-red-400 focus:border-red-500" : ""}`}
+                                                            className={`h-6 w-24 rounded-sm text-xs text-right px-1 ${!isWarranty && (row?.charge_name ?? "").trim() && (row?.selling_price ?? 0) <= 0 ? "border-red-400 focus:border-red-500" : ""}`}
                                                             type="number" min={0.01} step="0.01" placeholder="0.00"
-                                                            value={(row?.selling_price ?? 0) === 0 ? "" : (row?.selling_price ?? "")}
+                                                            disabled={isWarranty}
+                                                            value={isWarranty ? 0 : ((row?.selling_price ?? 0) === 0 ? "" : (row?.selling_price ?? ""))}
                                                             onFocus={e => e.target.select()}
                                                             onChange={e => setValue(`charges.${index}.selling_price`, e.target.value === "" ? 0 : e.target.valueAsNumber)} />
                                                     </td>

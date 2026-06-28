@@ -30,6 +30,7 @@ import type { CustomerTypeOption, StateOption } from "@/features/client/types/cu
 import type { BrandOption, ProductOption } from "@/features/client/types/model";
 import type { DocumentSequenceRow } from "@/features/client/types/sales";
 
+import { JobTypeBadge, StatusBadge } from "../job-badges";
 import { OpeningJobForm } from "./opening-job-form";
 import { openingJobFormSchema, type OpeningJobFormValues, getOpeningJobDefaultValues, normalizeJobNo } from "./opening-job-schema";
 
@@ -579,11 +580,11 @@ export const OpeningJobSection = () => {
                                                 </td>
                                                 <td className={tdClass}>{job.customer_name ?? "—"}</td>
                                                 <td className={`${tdClass} font-mono text-xs`}>{job.mobile}</td>
-                                                <td className={tdClass}>{job.job_type_name}</td>
                                                 <td className={tdClass}>
-                                                    <span className="px-2 py-0.5 rounded-sm text-xs font-medium bg-(--cl-accent)/10 text-(--cl-accent)">
-                                                        {job.job_status_name}
-                                                    </span>
+                                                    <JobTypeBadge code={job.job_type_code} name={job.job_type_name} />
+                                                </td>
+                                                <td className={tdClass}>
+                                                    <StatusBadge code={job.job_status_code} name={job.job_status_name} />
                                                 </td>
                                                 <td className={tdClass}>{job.technician_name ?? "—"}</td>
                                                 <td className={`${tdClass} text-right`}>

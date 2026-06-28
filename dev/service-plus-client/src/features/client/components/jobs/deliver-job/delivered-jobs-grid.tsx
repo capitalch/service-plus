@@ -13,21 +13,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { type DivisionContextType, isGstDivision } from "@/features/client/types/division";
 import { PAGE_SIZE, DEBOUNCE_MS, thClass, tdClass, fmtCurrency } from "./deliver-job-helpers";
-
-// ── Constants ─────────────────────────────────────────────────────────────────
-
-const JOB_TYPE_COLORS: Record<string, string> = {
-    MAKE_READY:     "text-lime-700   dark:text-lime-400",
-    ESTIMATE:       "text-blue-700   dark:text-blue-400",
-    UNDER_WARRANTY: "text-red-700    dark:text-red-400",
-    INSTALLATION:   "text-yellow-700 dark:text-yellow-400",
-    DEMO:           "text-yellow-700 dark:text-yellow-400",
-    MAINTENANCE:    "text-slate-600  dark:text-slate-400",
-    INSPECTION:     "text-slate-600  dark:text-slate-400",
-    AMC_SERVICE:    "text-slate-600  dark:text-slate-400",
-    UPGRADE:        "text-slate-600  dark:text-slate-400",
-    REFURBISH:      "text-slate-600  dark:text-slate-400",
-};
+import { JobTypeBadge, StatusBadge } from "../job-badges";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -43,8 +29,10 @@ export type DeliveredJobRow = {
     amount:           number | null;
     last_transaction_id: number | null;
     customer_name:    string;
+    customer_gstin:   string | null;
     mobile:           string;
     job_status_name:  string;
+    job_status_code:  string;
     job_type_name:    string;
     job_type_code:    string;
     receive_manner_name: string;
@@ -182,8 +170,8 @@ export function DeliveredJobsGrid({
                                     <th className={thClass}>Customer</th>
                                     <th className={thClass}>Mobile</th>
                                     <th className={`${thClass} w-40`}>Device Details</th>
-                                    <th className={thClass}>Status</th>
                                     <th className={thClass}>Technician</th>
+                                    <th className={thClass}>Status</th>
                                     <th className={`${thClass} text-right`}>Invoice Total</th>
                                     <th className={`${thClass} sticky right-0 z-20 !bg-(--cl-surface-2)`}>Actions</th>
                                 </tr>
@@ -247,7 +235,17 @@ export function DeliveredJobsGrid({
                                             </div>
                                         </td>
 
-                                        <td className={tdClass}>{row.customer_name}</td>
+                                        <td className={tdClass}>
+                                            <div className="flex flex-col gap-0.5">
+                                                <span>{row.customer_name}</span>
+                                                {row.customer_gstin && (
+                                                    <span className="font-mono text-[10px] text-(--cl-text-muted)">GSTIN: {row.customer_gstin}</span>
+                                                )}
+                                                {row.receive_manner_name && (
+                                                    <span className="text-[10px] text-(--cl-text-muted)">{row.receive_manner_name}</span>
+                                                )}
+                                            </div>
+                                        </td>
                                         <td className={`${tdClass} font-mono text-xs`}>{row.mobile}</td>
 
                                         {/* Device details */}
@@ -262,29 +260,20 @@ export function DeliveredJobsGrid({
                                             </div>
                                         </td>
 
+                                        <td className={tdClass}>{row.technician_name ?? "—"}</td>
                                         <td className={tdClass}>
-                                            <div className="flex flex-col gap-0.5">
-                                                <span className="rounded-sm px-2 py-0.5 text-xs font-medium bg-(--cl-accent)/10 text-(--cl-accent)">
-                                                    {row.job_status_name}
-                                                </span>
-                                                {row.receive_manner_name && (
-                                                    <span className="text-[10px] text-(--cl-text-muted) px-2">
-                                                        {row.receive_manner_name}
-                                                    </span>
-                                                )}
+                                            <div className="flex flex-col items-start gap-0.5">
+                                                <StatusBadge code={row.job_status_code} name={row.job_status_name} />
                                                 {row.job_type_name && (
-                                                    <span className={`text-[10px] font-medium px-2 ${JOB_TYPE_COLORS[row.job_type_code] ?? "text-(--cl-text-muted)"}`}>
-                                                        {row.job_type_name}
-                                                    </span>
+                                                    <JobTypeBadge code={row.job_type_code} name={row.job_type_name} />
                                                 )}
-                                                {postDataToAccounts && (
-                                                    <span className={`text-[10px] font-semibold px-2 ${row.invoice_no && row.invoice_is_posted ? "text-emerald-600 dark:text-emerald-400" : "text-rose-800 dark:text-rose-400"}`}>
-                                                        {row.invoice_no && row.invoice_is_posted ? "Invoice: Posted" : "Invoice: Not Posted"}
+                                                {postDataToAccounts && row.invoice_no && Number(row.invoice_total) > 0 && (
+                                                    <span className={`text-[10px] font-semibold px-2 ${row.invoice_is_posted ? "text-emerald-600 dark:text-emerald-400" : "text-amber-700 dark:text-amber-400"}`}>
+                                                        {row.invoice_is_posted ? "Invoice: Posted" : "Invoice: Not Posted"}
                                                     </span>
                                                 )}
                                             </div>
                                         </td>
-                                        <td className={tdClass}>{row.technician_name ?? "—"}</td>
                                         <td className={`${tdClass} text-right tabular-nums`}>{fmtCurrency(row.invoice_total)}</td>
 
                                         {/* Actions */}
@@ -314,7 +303,7 @@ export function DeliveredJobsGrid({
                                                     )}
                                                     <DropdownMenuSeparator />
                                                     <DropdownMenuItem
-                                                        className="gap-2 text-xs text-red-600 dark:text-red-400 cursor-pointer disabled:opacity-40 disabled:pointer-events-none"
+                                                        className="gap-2 text-xs text-amber-700 dark:text-amber-400 cursor-pointer disabled:opacity-40 disabled:pointer-events-none"
                                                         disabled={!!row.invoice_is_posted}
                                                         onClick={() => onUndoDelivery(row)}
                                                         title={row.invoice_is_posted ? "Cannot undo: invoice is already posted" : undefined}

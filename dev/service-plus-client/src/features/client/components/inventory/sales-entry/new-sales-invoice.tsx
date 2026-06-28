@@ -276,9 +276,9 @@ export function NewSalesInvoice({
                 <>
                     <p className="text-[10px] font-black uppercase tracking-[0.15em] text-(--cl-text-muted) px-1 mb-1 flex items-center gap-2">
                         Invoice Details
-                        {isReturn && <span className="px-1.5 py-0.5 rounded bg-red-500/10 text-red-600 border border-red-500/20">Return</span>}
+                        {isReturn && <span className="px-1.5 py-0.5 rounded bg-orange-500/10 text-orange-600 border border-orange-500/20">Return</span>}
                     </p>
-                    <Card className={`border-(--cl-border) shadow-md !overflow-visible bg-(--cl-surface) ${isReturn ? "border-l-4 border-l-red-500" : ""}`}>
+                    <Card className={`border-(--cl-border) shadow-md !overflow-visible bg-(--cl-surface) ${isReturn ? "border-l-4 border-l-orange-500" : ""}`}>
                         <CardContent className="pt-4 grid grid-cols-1 md:grid-cols-6 lg:grid-cols-12 gap-x-2 gap-y-2 !overflow-visible">
                             {/* Customer search */}
                             <div className="space-y-2 md:col-span-2 lg:col-span-3">
@@ -425,7 +425,7 @@ export function NewSalesInvoice({
                     <p className="text-[10px] font-black uppercase tracking-[0.15em] text-(--cl-text-muted) px-1 my-2">
                         Line Items
                     </p>
-                    <Card className={`border-(--cl-border) shadow-sm relative bg-(--cl-surface) flex min-h-0 md:flex-1 flex-col ${isReturn ? "border-l-4 border-l-red-500" : ""}`}>
+                    <Card className={`border-(--cl-border) shadow-sm relative bg-(--cl-surface) flex min-h-0 md:flex-1 flex-col ${isReturn ? "border-l-4 border-l-orange-500" : ""}`}>
                         <div
                             ref={scrollWrapperRef}
                             className="w-full overflow-x-auto overflow-y-auto pb-4"
@@ -614,7 +614,7 @@ export function NewSalesInvoice({
                     </Card>
 
                     {/* Summary bar */}
-                    <div ref={summaryRef} className={`rounded-lg border px-4 py-2.5 flex flex-wrap items-center gap-x-6 gap-y-1 justify-end ${isReturn ? "border-red-500/30 bg-red-500/5" : "border-(--cl-border) bg-(--cl-surface-2)/40"}`}>
+                    <div ref={summaryRef} className={`rounded-lg border px-4 py-2.5 flex flex-wrap items-center gap-x-6 gap-y-1 justify-end ${isReturn ? "border-orange-500/30 bg-orange-500/5" : "border-(--cl-border) bg-(--cl-surface-2)/40"}`}>
                         <div className="flex items-center gap-1.5">
                             <span className="text-[10px] font-black uppercase tracking-[0.1em] text-(--cl-text-muted)">Lines</span>
                             <span className="font-bold tabular-nums text-sm text-(--cl-text)">{fields.length}</span>

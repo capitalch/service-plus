@@ -3,6 +3,7 @@ import { Briefcase, Loader2, Paperclip, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import type { JobDetailType } from "../../../types/job";
+import { JobTypeBadge, StatusBadge } from "../job-badges";
 import { JobAttachDialog } from "../single-job/job-attach-dialog";
 import { useAppSelector } from "@/store/hooks";
 import { selectAvailableDivisions } from "@/store/context-slice";
@@ -91,16 +92,23 @@ export const BatchJobViewModal = ({ isOpen, batchNo, jobs, loading, onClose, onP
                                                         <span className="ml-1.5 text-[9px] font-bold text-emerald-600 bg-emerald-100 dark:bg-emerald-950/40 rounded px-1 py-0.5">CLOSED</span>
                                                     )}
                                                 </td>
-                                                <td className={`${tdClass} text-xs`}>{job.customer_name ?? "—"}</td>
+                                                <td className={`${tdClass} text-xs`}>
+                                                    <div className="flex flex-col gap-0.5">
+                                                        <span>{job.customer_name ?? "—"}</span>
+                                                        {job.customer_gstin && (
+                                                            <span className="font-mono text-[10px] text-(--cl-text-muted)">GSTIN: {job.customer_gstin}</span>
+                                                        )}
+                                                    </div>
+                                                </td>
                                                 <td className={`${tdClass} font-mono text-xs`}>{job.mobile}</td>
                                                 <td className={`${tdClass} text-xs`}>
                                                     {[job.brand_name, job.product_name, job.model_name, job.serial_no].filter(Boolean).join(" — ") || "—"}
                                                 </td>
-                                                <td className={`${tdClass} text-xs`}>{job.job_type_name}</td>
                                                 <td className={`${tdClass} text-xs`}>
-                                                    <span className="px-2 py-0.5 rounded-sm text-[10px] font-medium bg-(--cl-accent)/10 text-(--cl-accent)">
-                                                        {job.job_status_name}
-                                                    </span>
+                                                    <JobTypeBadge code={job.job_type_code} name={job.job_type_name} />
+                                                </td>
+                                                <td className={`${tdClass} text-xs`}>
+                                                    <StatusBadge code={job.job_status_code} name={job.job_status_name} />
                                                 </td>
                                                 <td className={`${tdClass} text-xs`}>{job.technician_name ?? "—"}</td>
                                                 <td className={`${tdClass} text-right text-xs`}>

@@ -37,6 +37,7 @@ import type { CustomerTypeOption, StateOption } from "@/features/client/types/cu
 import type { BrandOption, ProductOption } from "@/features/client/types/model";
 import type { DocumentSequenceRow } from "@/features/client/types/sales";
 
+import { JobTypeBadge, StatusBadge } from "../job-badges";
 import { NewSingleJobForm } from "./new-single-job-form";
 import { JobAttachDialog } from "./job-attach-dialog";
 import { getJobSheetBlobUrl } from "../job-sheet-pdf";
@@ -701,14 +702,21 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
                                                         )}
                                                     </div>
                                                 </td>
-                                                <td className={tdClass}>{job.customer_name ?? "—"}</td>
+                                                <td className={tdClass}>
+                                                    <div className="flex flex-col gap-0.5">
+                                                        <span>{job.customer_name ?? "—"}</span>
+                                                        {job.customer_gstin && (
+                                                            <span className="font-mono text-[10px] text-(--cl-text-muted)">GSTIN: {job.customer_gstin}</span>
+                                                        )}
+                                                    </div>
+                                                </td>
                                                 <td className={`${tdClass} font-mono text-xs`}>{job.mobile}</td>
                                                 <td className={`${tdClass} text-xs`}>{job.device_details || "—"}</td>
-                                                <td className={tdClass}>{job.job_type_name}</td>
                                                 <td className={tdClass}>
-                                                    <span className="px-2 py-0.5 rounded-sm text-xs font-medium bg-(--cl-accent)/10 text-(--cl-accent)">
-                                                        {job.job_status_name}
-                                                    </span>
+                                                    <JobTypeBadge code={job.job_type_code} name={job.job_type_name} />
+                                                </td>
+                                                <td className={tdClass}>
+                                                    <StatusBadge code={job.job_status_code} name={job.job_status_name} />
                                                 </td>
                                                 <td className={tdClass}>{job.technician_name ?? "—"}</td>
                                                 <td className={`${tdClass} text-right`}>

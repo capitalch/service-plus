@@ -25,6 +25,7 @@ import type { JobLookupRow, JobSearchRow, TechnicianRow } from "@/features/clien
 import { isGstDivision } from "@/features/client/types/division";
 import { getTransitions, STATUS_COLORS, STATUS_FLAGS } from "../job-pipeline/status-transitions";
 import type { Transition } from "../job-pipeline/status-transitions";
+import { JobTypeBadge, StatusBadge } from "../job-badges";
 import { StatusTransitionModal } from "../job-pipeline/status-transition-modal";
 import type { TransitionPayload } from "../job-pipeline/status-transition-modal";
 import { UndoTransactionDialog } from "../job-pipeline/undo-transaction-dialog";
@@ -54,7 +55,7 @@ const DEBOUNCE_MS = 1600;
 const NO_ACTION_CODES     = new Set(["COMPLETED_OK", "RETURN", "DELIVERED_OK", "DELIVERED_NOT_OK"]);
 const NO_UNDO_CODES       = new Set(["DELIVERED_OK", "DELIVERED_NOT_OK"]);
 const ADD_CHARGES_CODES   = new Set(["RECEIVED", "ASSIGNED", "ESTIMATE_APPROVED", "IN_PROGRESS"]);
-const NO_CHARGES_JOB_TYPES = new Set(["DEMO", "INSPECTION", "UNDER_WARRANTY"]);
+const NO_CHARGES_JOB_TYPES = new Set(["DEMO", "INSPECTION"]);
 
 function canUndo(row: JobSearchRow): boolean {
     if (NO_UNDO_CODES.has(row.job_status_code)) return false;
@@ -68,7 +69,7 @@ const BATCH_COLORS = [
     { border: "border-l-violet-400 dark:border-l-violet-500",   badge: "text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-950/40" },
     { border: "border-l-amber-400 dark:border-l-amber-500",     badge: "text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40" },
     { border: "border-l-sky-400 dark:border-l-sky-500",         badge: "text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-950/40" },
-    { border: "border-l-rose-400 dark:border-l-rose-500",       badge: "text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40" },
+    { border: "border-l-teal-400 dark:border-l-teal-500",       badge: "text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/40" },
     { border: "border-l-emerald-400 dark:border-l-emerald-500", badge: "text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40" },
     { border: "border-l-fuchsia-400 dark:border-l-fuchsia-500", badge: "text-fuchsia-600 dark:text-fuchsia-400 bg-fuchsia-50 dark:bg-fuchsia-950/40" },
 ];
@@ -589,21 +590,22 @@ export const JobSearchSection = () => {
                                                 )}
                                             </div>
                                         </td>
-                                        <td className={tdClass}>{job.customer_name ?? "—"}</td>
+                                        <td className={tdClass}>
+                                            <div className="flex flex-col gap-0.5">
+                                                <span>{job.customer_name ?? "—"}</span>
+                                                {job.customer_gstin && (
+                                                    <span className="font-mono text-[10px] text-(--cl-text-muted)">GSTIN: {job.customer_gstin}</span>
+                                                )}
+                                            </div>
+                                        </td>
                                         <td className={`${tdClass} font-mono text-xs`}>{job.mobile}</td>
                                         <td className={`${tdClass} text-xs`}>{job.device_details || "—"}</td>
-                                        <td className={tdClass}>{job.job_type_name}</td>
+                                        <td className={tdClass}>
+                                            <JobTypeBadge code={job.job_type_code} name={job.job_type_name} />
+                                        </td>
                                         <td className={tdClass}>
                                             <div className="flex flex-col items-start gap-1">
-                                                {(() => {
-                                                    const cp = (STATUS_COLORS[job.job_status_code ?? ""] ?? "bg-slate-400 text-white").trim().split(/\s+/).filter(Boolean);
-                                                    const cls = cp.filter(c => !c.startsWith("hover:")).join(" ");
-                                                    return (
-                                                        <span className={`px-2 py-0.5 rounded-sm text-xs font-medium ${cls}`}>
-                                                            {job.job_status_name}
-                                                        </span>
-                                                    );
-                                                })()}
+                                                <StatusBadge code={job.job_status_code} name={job.job_status_name} />
                                                 <div className="flex flex-wrap gap-1">
                                                     {job.is_final && !job.is_closed && (
                                                         <span className="text-[11px] font-bold rounded px-1 py-0.5 text-indigo-600 dark:text-indigo-300 bg-indigo-100 dark:bg-indigo-950/40">FINAL</span>
@@ -726,6 +728,7 @@ export const JobSearchSection = () => {
                                                                                 customer_name:   job.customer_name ?? "",
                                                                                 job_status_name: job.job_status_name,
                                                                                 job_status_code: job.job_status_code,
+                                                                                job_type_code:   job.job_type_code,
                                                                             })}
                                                                         >
                                                                             <Package className="h-3.5 w-3.5 shrink-0" />

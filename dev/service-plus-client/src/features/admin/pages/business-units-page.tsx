@@ -213,7 +213,7 @@ export const BusinessUnitsPage = () => {
                                                     ? idx % 2 === 0
                                                         ? "bg-white hover:bg-emerald-50/30"
                                                         : "bg-slate-50/30 hover:bg-emerald-50/30"
-                                                    : "border-l-2 border-l-red-300 bg-red-50/40 hover:bg-red-50/60"
+                                                    : "border-l-2 border-l-slate-300 bg-slate-50/40 hover:bg-slate-50/60"
                                             }`}
                                             custom={idx}
                                             initial="hidden"
@@ -242,7 +242,7 @@ export const BusinessUnitsPage = () => {
                                                 >
                                                     <span
                                                         className={`mr-1 h-1.5 w-1.5 rounded-full ${
-                                                            bu.is_active ? "bg-emerald-500" : "bg-red-400"
+                                                            bu.is_active ? "bg-emerald-500" : "bg-slate-400"
                                                         }`}
                                                     />
                                                     {bu.is_active ? "Active" : "Inactive"}

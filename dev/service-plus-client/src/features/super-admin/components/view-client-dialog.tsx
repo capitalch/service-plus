@@ -94,7 +94,7 @@ export const ViewClientDialog = ({ client, onOpenChange, open }: ViewClientDialo
 							<span className="text-sm">
 								<span className="font-semibold text-teal-600">{client.activeAdminCount}</span>
 								<span className="mx-1 text-slate-300">/</span>
-								<span className={`font-semibold ${client.inactiveAdminCount > 0 ? "text-red-500" : "text-slate-400"}`}>
+								<span className={`font-semibold ${client.inactiveAdminCount > 0 ? "text-slate-500" : "text-slate-400"}`}>
 									{client.inactiveAdminCount}
 								</span>
 							</span>

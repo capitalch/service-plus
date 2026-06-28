@@ -308,7 +308,7 @@ export const StockOverviewSection = () => {
                                             </span>
                                         </td>
                                         <td className={`${tdClass} text-right font-medium`} style={{ width: "12%" }}>
-                                            <span className={row.current_stock < 0 ? "text-red-500" : row.current_stock === 0 ? "text-amber-500" : "text-emerald-600 dark:text-emerald-400"}>
+                                            <span className={row.current_stock < 0 ? "text-orange-600" : row.current_stock === 0 ? "text-amber-500" : "text-emerald-600 dark:text-emerald-400"}>
                                                 {row.current_stock.toFixed(2)}
                                             </span>
                                         </td>

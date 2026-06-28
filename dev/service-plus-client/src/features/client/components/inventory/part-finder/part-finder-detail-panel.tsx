@@ -197,7 +197,7 @@ export const PartFinderDetailPanel = ({ locations, onClose, onRefresh, part }: P
                                     <div className="flex items-center gap-2">
                                         <Badge className={
                                             part.qty <= 0
-                                                ? "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-800 dark:bg-rose-950/30 dark:text-rose-300"
+                                                ? "border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-800 dark:bg-orange-950/30 dark:text-orange-300"
                                                 : part.qty <= 5
                                                     ? "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300"
                                                     : "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300"
@@ -205,7 +205,7 @@ export const PartFinderDetailPanel = ({ locations, onClose, onRefresh, part }: P
                                             {part.qty <= 0 ? "Out of Stock" : part.qty <= 5 ? "Low Stock" : "In Stock"}
                                         </Badge>
                                         <span className={`text-2xl font-bold tabular-nums ${
-                                            part.qty <= 0 ? "text-rose-600" : part.qty <= 5 ? "text-amber-600" : "text-emerald-600"
+                                            part.qty <= 0 ? "text-orange-600" : part.qty <= 5 ? "text-amber-600" : "text-emerald-600"
                                         }`}>
                                             {part.qty}
                                         </span>
@@ -265,7 +265,7 @@ export const PartFinderDetailPanel = ({ locations, onClose, onRefresh, part }: P
                                         <div>
                                             <p className="text-xs text-(--cl-text-muted)">Current Stock</p>
                                             <p className={`text-2xl font-bold tabular-nums ${
-                                                part.qty <= 0 ? "text-rose-600" : part.qty <= 5 ? "text-amber-600" : "text-emerald-600"
+                                                part.qty <= 0 ? "text-orange-600" : part.qty <= 5 ? "text-amber-600" : "text-emerald-600"
                                             }`}>
                                                 {part.qty}{" "}
                                                 <span className="text-sm font-normal text-(--cl-text-muted)">{part.uom ?? ""}</span>
@@ -312,7 +312,7 @@ export const PartFinderDetailPanel = ({ locations, onClose, onRefresh, part }: P
                                                             {stockSummary.purchase_out_since > 0 && (
                                                                 <div className="flex justify-between">
                                                                     <span className="text-(--cl-text-muted)">Purchase Return</span>
-                                                                    <span className="tabular-nums text-rose-600">-{stockSummary.purchase_out_since.toFixed(3)}</span>
+                                                                    <span className="tabular-nums text-orange-600">-{stockSummary.purchase_out_since.toFixed(3)}</span>
                                                                 </div>
                                                             )}
                                                             {stockSummary.sales_in_since > 0 && (
@@ -324,7 +324,7 @@ export const PartFinderDetailPanel = ({ locations, onClose, onRefresh, part }: P
                                                             {stockSummary.sales_out_since > 0 && (
                                                                 <div className="flex justify-between">
                                                                     <span className="text-(--cl-text-muted)">Sales Out</span>
-                                                                    <span className="tabular-nums text-rose-600">-{stockSummary.sales_out_since.toFixed(3)}</span>
+                                                                    <span className="tabular-nums text-orange-600">-{stockSummary.sales_out_since.toFixed(3)}</span>
                                                                 </div>
                                                             )}
                                                             {stockSummary.adjust_in_since > 0 && (
@@ -336,12 +336,12 @@ export const PartFinderDetailPanel = ({ locations, onClose, onRefresh, part }: P
                                                             {stockSummary.adjust_out_since > 0 && (
                                                                 <div className="flex justify-between">
                                                                     <span className="text-(--cl-text-muted)">Adjustment Out</span>
-                                                                    <span className="tabular-nums text-rose-600">-{stockSummary.adjust_out_since.toFixed(3)}</span>
+                                                                    <span className="tabular-nums text-orange-600">-{stockSummary.adjust_out_since.toFixed(3)}</span>
                                                                 </div>
                                                             )}
                                                             <div className="flex justify-between border-t border-(--cl-border) pt-1 font-semibold">
                                                                 <span className="text-(--cl-text-muted)">Net</span>
-                                                                <span className={`tabular-nums ${stockSummary.net_since_snapshot >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
+                                                                <span className={`tabular-nums ${stockSummary.net_since_snapshot >= 0 ? "text-emerald-600" : "text-orange-600"}`}>
                                                                     {stockSummary.net_since_snapshot >= 0 ? "+" : ""}{stockSummary.net_since_snapshot.toFixed(3)}
                                                                 </span>
                                                             </div>
@@ -378,7 +378,7 @@ export const PartFinderDetailPanel = ({ locations, onClose, onRefresh, part }: P
                                                                         </span>
                                                                     </td>
                                                                     <td className={`px-3 py-2 text-right font-bold tabular-nums ${
-                                                                        loc.qty <= 0 ? "text-rose-600" : loc.qty <= 5 ? "text-amber-600" : "text-emerald-600"
+                                                                        loc.qty <= 0 ? "text-orange-600" : loc.qty <= 5 ? "text-amber-600" : "text-emerald-600"
                                                                     }`}>
                                                                         {loc.qty}
                                                                     </td>

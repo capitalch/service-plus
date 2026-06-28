@@ -128,9 +128,8 @@ export function MoneyReceiptsPostUnpostGrid({ pendingChanges, onChangeToggle, on
                                     <th className={thClass}>Date</th>
                                     <th className={thClass}>Customer</th>
                                     <th className={thClass}>Mode</th>
-                                    <th className={`${thClass} text-right`}>Amount</th>
                                     <th className={thClass}>Division</th>
-                                    <th className={thClass}>GST Type</th>
+                                    <th className={`${thClass} text-right`}>Amount</th>
                                     <th className={thClass}>Posted</th>
                                 </tr>
                             </thead>
@@ -145,11 +144,8 @@ export function MoneyReceiptsPostUnpostGrid({ pendingChanges, onChangeToggle, on
                                             <td className={tdClass}>{row.payment_date}</td>
                                             <td className={tdClass}>{row.customer_name ?? "—"}</td>
                                             <td className={tdClass}>{row.payment_mode}</td>
-                                            <td className={`${tdClass} text-right`}>{fmtAmt(row.amount)}</td>
                                             <td className={tdClass}>{row.division_name}</td>
-                                            <td className={tdClass}>
-                                                <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${row.gst_type === 'GST' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300'}`}>{row.gst_type}</span>
-                                            </td>
+                                            <td className={`${tdClass} text-right`}>{fmtAmt(row.amount)}</td>
                                             <td className={tdClass}>
                                                 <input type="checkbox" className="cursor-pointer accent-(--cl-accent)" checked={displayed} onChange={() => onChangeToggle(row.id, row.is_posted)} />
                                             </td>

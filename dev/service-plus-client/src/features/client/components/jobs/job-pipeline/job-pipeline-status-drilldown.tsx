@@ -25,6 +25,7 @@ import type { JobBoardStatusCount, OpenJobRow, TechnicianRow } from "@/features/
 import { JobAttachDialog } from "../single-job/job-attach-dialog";
 import { getTransitions, STATUS_COLORS, STATUS_FLAGS } from "./status-transitions";
 import type { Transition } from "./status-transitions";
+import { JobTypeBadge, StatusBadge } from "../job-badges";
 import { StatusTransitionModal } from "./status-transition-modal";
 import type { TransitionPayload } from "./status-transition-modal";
 import { JobDetailsModal } from "./job-details-modal";
@@ -44,7 +45,7 @@ const PAGE_SIZE = 50;
 const NO_ACTION_CODES = new Set(["COMPLETED_OK", "RETURN", "DELIVERED_OK", "DELIVERED_NOT_OK"]);
 const NO_UNDO_CODES = new Set(["DELIVERED_OK", "DELIVERED_NOT_OK"]);
 const ADD_CHARGES_CODES = new Set(["RECEIVED", "ASSIGNED", "ESTIMATE_APPROVED", "IN_PROGRESS"]);
-const NO_CHARGES_JOB_TYPES = new Set(["DEMO", "INSPECTION", "UNDER_WARRANTY"]);
+const NO_CHARGES_JOB_TYPES = new Set(["DEMO", "INSPECTION"]);
 
 function canUndo(row: OpenJobRow): boolean {
     if (NO_UNDO_CODES.has(row.job_status_code)) return false;
@@ -55,7 +56,7 @@ function canUndo(row: OpenJobRow): boolean {
 const JOB_TYPE_ROW_COLORS: Record<string, string> = {
     MAKE_READY: "bg-lime-50   dark:bg-lime-950/20",
     ESTIMATE: "bg-blue-50   dark:bg-blue-950/20",
-    UNDER_WARRANTY: "bg-red-50    dark:bg-red-950/20",
+    UNDER_WARRANTY: "bg-orange-50 dark:bg-orange-950/20",
     INSTALLATION: "bg-yellow-50 dark:bg-yellow-950/20",
     DEMO: "bg-yellow-50 dark:bg-yellow-950/20",
     MAINTENANCE: "bg-gray-50   dark:bg-gray-800/20",
@@ -306,10 +307,10 @@ export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Prop
                                     <th className={thClass}>#</th>
                                     <th className={thClass}>Date</th>
                                     <th className={thClass}>Job No</th>
-                                    <th className={thClass}>Type</th>
                                     <th className={thClass}>Customer</th>
                                     <th className={thClass}>Mobile</th>
                                     <th className={thClass}>Device</th>
+                                    <th className={thClass}>Job type</th>
                                     <th className={`${thClass} text-right`}>Amount</th>
                                     <th className={`${thClass} sticky right-0 z-20 !bg-(--cl-surface-2)`}>Actions</th>
                                 </tr>
@@ -359,9 +360,7 @@ export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Prop
                                                     {(status.status_id === 0 || row.file_count > 0) && (
                                                         <div className="flex flex-wrap items-center gap-1">
                                                             {status.status_id === 0 && (
-                                                                <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold text-white ${STATUS_COLORS[row.job_status_code]?.trim().split(/\s+/)[0] ?? "bg-slate-400"}`}>
-                                                                    {row.job_status_name}
-                                                                </span>
+                                                                <StatusBadge code={row.job_status_code} name={row.job_status_name} />
                                                             )}
                                                             {row.file_count > 0 && (
                                                                 <button
@@ -375,10 +374,19 @@ export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Prop
                                                     )}
                                                 </div>
                                             </td>
-                                            <td className={`${tdClass} text-xs`}>{row.job_type_name}</td>
-                                            <td className={tdClass}>{row.customer_name}</td>
+                                            <td className={tdClass}>
+                                                <div className="flex flex-col gap-0.5">
+                                                    <span>{row.customer_name}</span>
+                                                    {row.customer_gstin && (
+                                                        <span className="font-mono text-[10px] text-(--cl-text-muted)">GSTIN: {row.customer_gstin}</span>
+                                                    )}
+                                                </div>
+                                            </td>
                                             <td className={`${tdClass} font-mono text-xs`}>{row.mobile}</td>
                                             <td className={`${tdClass} max-w-[180px] truncate text-xs`}>{row.device_details ?? "—"}</td>
+                                            <td className={`${tdClass} text-xs`}>
+                                                <JobTypeBadge code={row.job_type_code} name={row.job_type_name} />
+                                            </td>
                                             <td className={`${tdClass} text-right tabular-nums`}>
                                                 {row.amount != null ? `₹${Number(row.amount).toFixed(2)}` : "—"}
                                             </td>
@@ -463,6 +471,7 @@ export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Prop
                                                                                 customer_name: row.customer_name,
                                                                                 job_status_name: row.job_status_name,
                                                                                 job_status_code: row.job_status_code,
+                                                                                job_type_code: row.job_type_code,
                                                                             })}
                                                                         >
                                                                             <Package className="h-3.5 w-3.5 shrink-0" />

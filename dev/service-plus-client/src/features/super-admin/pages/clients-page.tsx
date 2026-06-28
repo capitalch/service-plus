@@ -473,9 +473,9 @@ export const ClientsPage = () => {
 									key={client.id}
 									transition={{ delay: idx * 0.04, duration: 0.25, ease: "easeOut" }}
 								>
-									<Card className={`overflow-hidden bg-white shadow-sm transition-shadow hover:shadow-md ${client.is_active ? "border border-slate-200" : "border border-l-4 border-slate-200 border-l-red-400"}`}>
+									<Card className={`overflow-hidden bg-white shadow-sm transition-shadow hover:shadow-md ${client.is_active ? "border border-slate-200" : "border border-l-4 border-slate-200 border-l-slate-400"}`}>
 										{/* Card header */}
-										<div className={`flex items-center gap-3 px-4 py-3.5 ${!client.is_active ? "bg-red-50/20" : ""}`}>
+										<div className={`flex items-center gap-3 px-4 py-3.5 ${!client.is_active ? "bg-slate-50/40" : ""}`}>
 											{/* Index */}
 											<span className="w-5 flex-shrink-0 text-center text-[11px] font-medium text-slate-300">{idx + 1}</span>
 
@@ -483,7 +483,7 @@ export const ClientsPage = () => {
 											<div className={`relative flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl text-base font-bold shadow-sm ${client.is_active ? "bg-gradient-to-br from-emerald-400 to-teal-500 text-white" : "bg-gradient-to-br from-slate-300 to-slate-400 text-white"}`}>
 												{client.name.charAt(0).toUpperCase()}
 												{!client.is_active && (
-													<BanIcon className="absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full bg-white text-red-400" />
+													<BanIcon className="absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full bg-white text-slate-400" />
 												)}
 											</div>
 
@@ -505,11 +505,11 @@ export const ClientsPage = () => {
 														className={
 															client.is_active
 																? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-50"
-																: "border-red-200 bg-red-50 text-red-500 hover:bg-red-50"
+																: "border-slate-200 bg-slate-50 text-slate-500 hover:bg-slate-50"
 														}
 														variant="outline"
 													>
-														<span className={`mr-1 h-1.5 w-1.5 rounded-full ${client.is_active ? "bg-emerald-500" : "bg-red-400"}`} />
+														<span className={`mr-1 h-1.5 w-1.5 rounded-full ${client.is_active ? "bg-emerald-500" : "bg-slate-400"}`} />
 														{client.is_active ? "Active" : "Inactive"}
 													</Badge>
 													{client.db_name && (
@@ -527,7 +527,7 @@ export const ClientsPage = () => {
 														{client.inactiveAdminCount > 0 && (
 															<>
 																<span className="text-teal-300">·</span>
-																<span className="text-red-500">{client.inactiveAdminCount} inactive</span>
+																<span className="text-slate-500">{client.inactiveAdminCount} inactive</span>
 															</>
 														)}
 														<span className="font-normal text-teal-500">admins</span>
@@ -539,7 +539,7 @@ export const ClientsPage = () => {
 														{client.inactiveBuCount > 0 && (
 															<>
 																<span className="text-indigo-300">·</span>
-																<span className="text-red-500">{client.inactiveBuCount} inactive</span>
+																<span className="text-slate-500">{client.inactiveBuCount} inactive</span>
 															</>
 														)}
 														<span className="font-normal text-indigo-500">BUs</span>
@@ -696,7 +696,7 @@ export const ClientsPage = () => {
 															<TableBody>
 																{client.admins.map((admin, aIdx) => (
 																	<TableRow
-																		className={`transition-colors ${admin.is_active ? `hover:bg-emerald-50/40 ${aIdx % 2 === 0 ? "bg-white" : "bg-slate-50/30"}` : "border-l-2 border-l-red-300 bg-red-50/40 hover:bg-red-50/60"}`}
+																		className={`transition-colors ${admin.is_active ? `hover:bg-emerald-50/40 ${aIdx % 2 === 0 ? "bg-white" : "bg-slate-50/30"}` : "border-l-2 border-l-slate-300 bg-slate-50/40 hover:bg-slate-50/60"}`}
 																		key={admin.id}
 																	>
 																		<TableCell className="text-center text-xs text-slate-400">{aIdx + 1}</TableCell>

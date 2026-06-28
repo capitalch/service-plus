@@ -1,6 +1,6 @@
 # To Do
 - Enhancements
-	- Job Search to Jaob Panel / Control /Manage
+	- Job Search to Job Panel / Control /Manage
 	- Access management
 	- Account posting: Service account instead of super admin
 	- Validate creation of new client / Bu / Branch / Division end to end
@@ -11,9 +11,10 @@
 		- Do final
 		- Deliver
 	- Accounts Posting
-		- Check customer GSTIN No transfer: Not transferring
+								- Check customer GSTIN No transfer: Not transferring
 		- Check IGST transfer
 		- Proper HSN for parts and service
+		- Upload trace-plus and check account posting online at serviceplus.cloudjiffy.net
 	- Bug fix
 		- When a batch job is received, two times received is shown in job view: Transaction
 		- Add contactsId to posting of sales

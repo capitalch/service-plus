@@ -209,6 +209,7 @@ export function FinalJobDialog({ jobId, onClose, onFinalized }: Props) {
                 job_type_name:    "",
                 job_type_code:    "",
                 customer_name:    job.customer_name ?? "",
+                customer_gstin:   job.customer_gstin ?? null,
                 mobile:           job.mobile,
                 device_details:   [job.product_name, job.brand_name, job.model_name, job.serial_no].filter(Boolean).join(" ") || null,
                 serial_no:        job.serial_no,
@@ -566,7 +567,9 @@ export function FinalJobDialog({ jobId, onClose, onFinalized }: Props) {
             const computedTotal  =
                 partLines.reduce((s, l) => s + (parseFloat(l.sale_pr_gst) || 0) * l.qty, 0) +
                 chargeLines.reduce((s, c) => s + (parseFloat(c.sale_pr_gst) || 0) * (parseFloat(c.qty) || 1), 0);
-            const amount = (backCalcTarget !== "" && !isNaN(backCalcNum) && backCalcNum > 0) ? backCalcNum : computedTotal;
+            const amount = isWarrantyJob
+                ? 0
+                : ((backCalcTarget !== "" && !isNaN(backCalcNum) && backCalcNum > 0) ? backCalcNum : computedTotal);
 
             await apolloClient.mutate({
                 mutation: GRAPHQL_MAP.genericUpdate,

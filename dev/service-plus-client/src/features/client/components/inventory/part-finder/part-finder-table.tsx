@@ -40,7 +40,7 @@ const rowVariants = {
 function StockBadge({ qty }: { qty: number }) {
     const status = getStockStatus(qty);
     if (status === "out_of_stock") return (
-        <Badge className="border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-800 dark:bg-rose-950/30 dark:text-rose-300" variant="outline">
+        <Badge className="border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-800 dark:bg-orange-950/30 dark:text-orange-300" variant="outline">
             Out of Stock
         </Badge>
     );
@@ -227,7 +227,7 @@ export const PartFinderTable = ({ loading, onSelectPart, parts, selectedId }: Pr
                                     </TableCell>
                                     <TableCell className="text-right tabular-nums">
                                         <span className={`text-sm font-bold ${
-                                            part.qty <= 0 ? "text-rose-600" : part.qty <= 5 ? "text-amber-600" : "text-emerald-600"
+                                            part.qty <= 0 ? "text-orange-600" : part.qty <= 5 ? "text-amber-600" : "text-emerald-600"
                                         }`}>
                                             {part.qty}
                                         </span>

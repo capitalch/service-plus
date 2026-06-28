@@ -32,19 +32,19 @@ function formatBytes(bytes: number): string {
 
 const statusDot: Record<HealthStatusType, string> = {
     Degraded: "bg-amber-400",
-    Down:     "bg-rose-500",
+    Down:     "bg-red-500",
     Healthy:  "bg-emerald-400",
 };
 
 const statusBadge: Record<HealthStatusType, string> = {
     Degraded: "border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-50",
-    Down:     "border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-50",
+    Down:     "border-red-200 bg-red-50 text-red-700 hover:bg-red-50",
     Healthy:  "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-50",
 };
 
 const overallBadge: Record<HealthStatusType, string> = {
     Degraded: "border-amber-200 bg-amber-50 text-amber-700",
-    Down:     "border-rose-200 bg-rose-50 text-rose-700",
+    Down:     "border-red-200 bg-red-50 text-red-700",
     Healthy:  "border-emerald-200 bg-emerald-100 text-emerald-700",
 };
 

@@ -6,6 +6,7 @@ import { ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon,
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { partUsedFormSchema, type PartUsedFormValues, type ConsumptionRow, getPartUsedDefaultValues } from "./part-used-schema";
+import { JobTypeBadge, StatusBadge } from "../job-badges";
 import type { JobLookupForReceiptType } from "@/features/client/types/receipt";
 
 import { Button } from "@/components/ui/button";
@@ -200,6 +201,8 @@ export const PartUsedSection = () => {
             return;
         }
 
+        const isWarrantyJob = selectedJob.job_type_code === "UNDER_WARRANTY";
+
         const newLines = values.newLines ?? [];
         const deletedIds = values.deletedIds ?? [];
         const validNewLines = newLines.filter(l => l.part_id && l.qty > 0);
@@ -209,7 +212,7 @@ export const PartUsedSection = () => {
             part_id:       line.part_id,
             qty:           line.qty,
             cost_price:    line.cost_price ?? 0,
-            selling_price: line.selling_price ?? 0,
+            selling_price: isWarrantyJob ? 0 : (line.selling_price ?? 0),
             gst_rate:      line.gst_rate ?? 0,
             hsn_code:      line.hsn_code?.trim() || null,
             remarks:       line.remarks?.trim() || null,
@@ -405,9 +408,9 @@ export const PartUsedSection = () => {
                                                         {row.isFirstInGroup ? (
                                                             <div className="flex flex-col gap-0.5">
                                                                 <span className="font-mono font-bold text-(--cl-accent)">{row.job_no}</span>
-                                                                <span className="text-xs font-medium text-(--cl-text)">{row.job_type_name}</span>
+                                                                <JobTypeBadge code={row.job_type_code} name={row.job_type_name} className="w-fit" />
                                                                 <div className="flex items-center gap-1 flex-wrap">
-                                                                    <span className="text-xs text-emerald-600 dark:text-emerald-400">{row.job_status_name}</span>
+                                                                    <StatusBadge code={row.job_status_code} name={row.job_status_name} />
                                                                     {row.is_final && <span className="text-[10px] font-semibold px-1.5 py-px rounded bg-violet-100 text-violet-700 dark:bg-violet-950/60 dark:text-violet-300">Final</span>}
                                                                     {row.is_closed && <span className="text-[10px] font-semibold px-1.5 py-px rounded bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300">Closed</span>}
                                                                 </div>

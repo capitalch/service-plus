@@ -696,13 +696,13 @@ export const SalesEntrySection = () => {
                         </h1>
                         {mode === "new" && (
                             <div className={`flex items-center gap-1 px-1.5 py-1 rounded-sm border shadow-sm animate-in fade-in zoom-in duration-500 delay-150 ml-4 ${
-                                isGstMode ? "bg-emerald-500/10 border-emerald-500/20" : "bg-red-500/10 border-red-500/20"
+                                isGstMode ? "bg-emerald-500/10 border-emerald-500/20" : "bg-amber-500/10 border-amber-500/20"
                             }`}>
                                 {isGstMode
                                     ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-                                    : <XCircle className="h-3.5 w-3.5 text-red-600" />
+                                    : <XCircle className="h-3.5 w-3.5 text-amber-600" />
                                 }
-                                <span className={`text-[10.5px] font-bold uppercase tracking-tighter ${isGstMode ? "text-emerald-700" : "text-red-700"}`}>
+                                <span className={`text-[10.5px] font-bold uppercase tracking-tighter ${isGstMode ? "text-emerald-700" : "text-amber-700"}`}>
                                     {isGstMode ? "GST" : "Non-GST"}
                                 </span>
                             </div>
@@ -763,7 +763,7 @@ export const SalesEntrySection = () => {
                         mode !== "new"
                             ? "hidden md:flex md:invisible pointer-events-none"
                             : isReturn
-                            ? "bg-red-500 text-white border-red-700 shadow-red-500/20"
+                            ? "bg-orange-500 text-white border-orange-700 shadow-orange-500/20"
                             : "bg-(--cl-surface-2) border-(--cl-border) text-(--cl-text-muted)"
                     }`}
                 >
@@ -959,7 +959,7 @@ export const SalesEntrySection = () => {
                                                 <td className={`${tdClass} font-mono font-medium`} style={{ width: "14%" }}>
                                                     {inv.invoice_no}
                                                     {inv.is_return && (
-                                                        <span className="ml-1.5 text-[10px] font-bold text-red-600 bg-red-100 dark:bg-red-950/40 rounded px-1 py-0.5">RTN</span>
+                                                        <span className="ml-1.5 text-[10px] font-bold text-orange-600 bg-orange-100 dark:bg-orange-950/40 rounded px-1 py-0.5">RTN</span>
                                                     )}
                                                 </td>
                                                 <td className={tdClass} style={{ width: "26%" }}>{inv.customer_name}</td>

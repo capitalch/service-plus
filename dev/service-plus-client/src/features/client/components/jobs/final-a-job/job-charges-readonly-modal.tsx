@@ -112,7 +112,7 @@ export function JobChargesReadonlyModal({
                         </h2>
                         <span className="font-mono text-sm font-bold text-(--cl-accent)">#{jobNo}</span>
                         {isWarranty && (
-                            <span className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-red-700 dark:bg-red-950/40 dark:text-red-400">
+                            <span className="rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-orange-700 dark:bg-orange-950/40 dark:text-orange-400">
                                 Warranty
                             </span>
                         )}
@@ -199,7 +199,7 @@ export function JobChargesReadonlyModal({
                                                         {!isWarranty && (
                                                             <div className="flex items-center gap-1.5">
                                                                 <span className="text-[10px] font-semibold uppercase tracking-wide text-(--cl-text-muted)">Profit</span>
-                                                                <span className={`tabular-nums text-sm font-semibold ${profitPartsTotal < 0 ? "text-red-600" : "text-emerald-600"}`}>
+                                                                <span className={`tabular-nums text-sm font-semibold ${profitPartsTotal < 0 ? "text-amber-600" : "text-emerald-600"}`}>
                                                                     {profitPartsTotal < 0 ? "-" : ""}₹{fmtCurrency(Math.abs(profitPartsTotal))}
                                                                 </span>
                                                             </div>
@@ -311,7 +311,7 @@ export function JobChargesReadonlyModal({
                                                         {!isWarranty && (
                                                             <div className="flex items-center gap-1.5">
                                                                 <span className="text-[10px] font-semibold uppercase tracking-wide text-(--cl-text-muted)">Profit</span>
-                                                                <span className={`tabular-nums text-sm font-semibold ${profitChargesTotal < 0 ? "text-red-600" : "text-emerald-600"}`}>
+                                                                <span className={`tabular-nums text-sm font-semibold ${profitChargesTotal < 0 ? "text-amber-600" : "text-emerald-600"}`}>
                                                                     {profitChargesTotal < 0 ? "-" : ""}₹{fmtCurrency(Math.abs(profitChargesTotal))}
                                                                 </span>
                                                             </div>
@@ -364,7 +364,7 @@ export function JobChargesReadonlyModal({
                                 {!isWarranty && (
                                     <div className="flex items-center gap-1.5">
                                         <span className="text-[10px] font-medium uppercase tracking-wide text-(--cl-text-muted)">Profit</span>
-                                        <span className={`tabular-nums text-sm font-semibold ${grandProfitTotal < 0 ? "text-red-600" : "text-emerald-600"}`}>
+                                        <span className={`tabular-nums text-sm font-semibold ${grandProfitTotal < 0 ? "text-amber-600" : "text-emerald-600"}`}>
                                             {grandProfitTotal < 0 ? "-" : ""}₹{fmtCurrency(Math.abs(grandProfitTotal))}
                                         </span>
                                     </div>

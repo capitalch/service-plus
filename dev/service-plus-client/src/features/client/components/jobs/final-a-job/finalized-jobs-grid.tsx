@@ -10,19 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { type DivisionContextType, isGstDivision } from "@/features/client/types/division";
 import { PAGE_SIZE, thClass, tdClass } from "./final-a-job-helpers";
-
-const JOB_TYPE_COLORS: Record<string, string> = {
-    MAKE_READY:     "text-lime-700   dark:text-lime-400",
-    ESTIMATE:       "text-blue-700   dark:text-blue-400",
-    UNDER_WARRANTY: "text-red-700    dark:text-red-400",
-    INSTALLATION:   "text-yellow-700 dark:text-yellow-400",
-    DEMO:           "text-yellow-700 dark:text-yellow-400",
-    MAINTENANCE:    "text-slate-600  dark:text-slate-400",
-    INSPECTION:     "text-slate-600  dark:text-slate-400",
-    AMC_SERVICE:    "text-slate-600  dark:text-slate-400",
-    UPGRADE:        "text-slate-600  dark:text-slate-400",
-    REFURBISH:      "text-slate-600  dark:text-slate-400",
-};
+import { JobTypeBadge } from "../job-badges";
 import type { FinalizedJobRow } from "./final-a-job-schema";
 
 type Props = {
@@ -206,10 +194,11 @@ export function FinalizedJobsGrid({
                                     <td className={tdClass}>
                                         <div className="flex flex-col gap-0.5">
                                             <span>{row.customer_name}</span>
+                                            {row.customer_gstin && (
+                                                <span className="font-mono text-[10px] text-(--cl-text-muted)">GSTIN: {row.customer_gstin}</span>
+                                            )}
                                             {row.job_type_name && (
-                                                <span className={`text-[10px] font-medium ${JOB_TYPE_COLORS[row.job_type_code] ?? "text-(--cl-text-muted)"}`}>
-                                                    {row.job_type_name}
-                                                </span>
+                                                <JobTypeBadge code={row.job_type_code} name={row.job_type_name} className="w-fit" />
                                             )}
                                         </div>
                                     </td>
@@ -253,7 +242,7 @@ export function FinalizedJobsGrid({
                                                 Charges
                                             </Button>
                                             <Button
-                                                className="h-7 gap-1 px-2 text-xs font-semibold text-rose-700 border border-rose-300 hover:bg-rose-50 dark:text-rose-400 dark:border-rose-700 dark:hover:bg-rose-950/30"
+                                                className="h-7 gap-1 px-2 text-xs font-semibold text-amber-700 border border-amber-300 hover:bg-amber-50 dark:text-amber-400 dark:border-amber-700 dark:hover:bg-amber-950/30"
                                                 disabled={undoingJobId === row.id || row.is_posted}
                                                 size="sm"
                                                 title={row.is_posted ? "Cannot undo a posted job" : "Undo final — move back to pending"}

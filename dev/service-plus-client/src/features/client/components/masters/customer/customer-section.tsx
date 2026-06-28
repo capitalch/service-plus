@@ -285,6 +285,7 @@ export const CustomerSection = () => {
                                         <TableHead className={thSortClass} onClick={() => handleSort("full_name")}>Name<SortIcon col="full_name" /></TableHead>
                                         <TableHead className={thSortClass} onClick={() => handleSort("mobile")}>Mobile<SortIcon col="mobile" /></TableHead>
                                         <TableHead className={thSortClass} onClick={() => handleSort("customer_type_name")}>Type<SortIcon col="customer_type_name" /></TableHead>
+                                        <TableHead className={thClass}>GSTIN</TableHead>
                                         <TableHead className={thSortClass} onClick={() => handleSort("state_name")}>State<SortIcon col="state_name" /></TableHead>
                                         <TableHead className={thSortClass} onClick={() => handleSort("city")}>City<SortIcon col="city" /></TableHead>
                                         <TableHead className={thClass}>Status</TableHead>
@@ -314,6 +315,7 @@ export const CustomerSection = () => {
                                                 </TableCell>
                                                 <TableCell className="font-mono text-sm text-(--cl-text)">{customer.mobile}</TableCell>
                                                 <TableCell className="text-sm text-(--cl-text-muted)">{customer.customer_type_name ?? "—"}</TableCell>
+                                                <TableCell className="font-mono text-sm text-(--cl-text-muted)">{customer.gstin || "—"}</TableCell>
                                                 <TableCell className="text-sm text-(--cl-text-muted)">{customer.state_name ?? "—"}</TableCell>
                                                 <TableCell className="text-sm text-(--cl-text-muted)">{customer.city ?? "—"}</TableCell>
                                                 <TableCell>
@@ -323,7 +325,7 @@ export const CustomerSection = () => {
                                                             : "border-red-200 bg-red-100 text-red-500 hover:bg-red-100"}
                                                         variant="outline"
                                                     >
-                                                        <span className={`mr-1 h-1.5 w-1.5 rounded-full ${customer.is_active ? "bg-emerald-500" : "bg-red-400"}`} />
+                                                        <span className={`mr-1 h-1.5 w-1.5 rounded-full ${customer.is_active ? "bg-emerald-500" : "bg-slate-400"}`} />
                                                         {customer.is_active ? "Active" : "Inactive"}
                                                     </Badge>
                                                 </TableCell>

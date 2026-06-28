@@ -218,7 +218,7 @@ export const BusinessUsersPage = () => {
                                     <Card className={`relative overflow-hidden border transition-shadow hover:shadow-md ${
                                         user.is_active
                                             ? "border-slate-200 bg-white"
-                                            : "border-l-4 border-l-red-300 bg-red-50/30"
+                                            : "border-l-4 border-l-slate-300 bg-slate-50/30"
                                     }`}>
                                         <CardContent className="p-4">
 
@@ -362,7 +362,7 @@ export const BusinessUsersPage = () => {
                                                     variant="outline"
                                                 >
                                                     <span className={`mr-1 h-1.5 w-1.5 rounded-full ${
-                                                        user.is_active ? "bg-emerald-500" : "bg-red-400"
+                                                        user.is_active ? "bg-emerald-500" : "bg-slate-400"
                                                     }`} />
                                                     {user.is_active ? "Active" : "Inactive"}
                                                 </Badge>

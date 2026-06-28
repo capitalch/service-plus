@@ -79,12 +79,12 @@ const CAT_STYLE: Record<string, CategoryStyle> = {
     },
     "GST & Invoicing": {
         emoji:    "🧾",
-        gradient: "from-rose-500 to-pink-600",
-        pill:     "bg-rose-100 dark:bg-rose-900/40",
-        pillText: "text-rose-700 dark:text-rose-300",
-        stepBg:   "bg-rose-500",
+        gradient: "from-teal-500 to-cyan-600",
+        pill:     "bg-teal-100 dark:bg-teal-900/40",
+        pillText: "text-teal-700 dark:text-teal-300",
+        stepBg:   "bg-teal-500",
         stepText: "text-white",
-        border:   "border-rose-300 dark:border-rose-700",
+        border:   "border-teal-300 dark:border-teal-700",
     },
     "Admin & Users": {
         emoji:    "👤",
@@ -97,12 +97,12 @@ const CAT_STYLE: Record<string, CategoryStyle> = {
     },
     "Troubleshooting": {
         emoji:    "🆘",
-        gradient: "from-red-500 to-rose-600",
-        pill:     "bg-red-100 dark:bg-red-900/40",
-        pillText: "text-red-700 dark:text-red-300",
-        stepBg:   "bg-red-500",
+        gradient: "from-fuchsia-500 to-purple-600",
+        pill:     "bg-fuchsia-100 dark:bg-fuchsia-900/40",
+        pillText: "text-fuchsia-700 dark:text-fuchsia-300",
+        stepBg:   "bg-fuchsia-500",
         stepText: "text-white",
-        border:   "border-red-300 dark:border-red-700",
+        border:   "border-fuchsia-300 dark:border-fuchsia-700",
     },
 };
 
@@ -345,7 +345,7 @@ function CategoryView({ category, onSelectArticle }: {
 
 // ─── Search results view ──────────────────────────────────────────────────────
 
-const POPULAR_IDS = ["gs-overview", "jobs-finalize", "jobs-deliver", "config-docseq", "gst-troubleshoot"];
+const POPULAR_IDS = ["first-time-setup", "create-job", "finalize-job", "deliver-job", "customer-gstin", "gst-invoicing"];
 
 function SearchResults({ query, results, onSelect }: {
     query:    string;

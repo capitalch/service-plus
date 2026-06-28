@@ -26,6 +26,7 @@ export type PurchaseInvoicePostUnpostRow = {
     invoice_no:    string;
     invoice_date:  string;
     supplier_name: string;
+    supplier_gstin: string | null;
     total_amount:  number;
     division_name: string;
     gst_type:      'GST' | 'NON-GST';
@@ -38,6 +39,7 @@ export type SalesInvoicePostUnpostRow = {
     invoice_no:    string;
     invoice_date:  string;
     customer_name: string;
+    customer_gstin: string | null;
     total_amount:  number;
     is_return:     boolean;
     division_name: string;
@@ -51,6 +53,7 @@ export type JobInvoicePostUnpostRow = {
     job_no:        string;
     job_date:      string;
     customer_name: string | null;
+    customer_gstin: string | null;
     mobile:        string | null;
     invoice_no:    string;
     invoice_date:  string;

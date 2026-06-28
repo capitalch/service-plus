@@ -284,8 +284,8 @@ export function NewLoanEntry({
                                                 onClick={() => setValue(`lines.${idx}.dr_cr`, "C")}
                                                 className={`flex-1 rounded px-2 py-1 text-xs font-bold transition-all cursor-pointer ${
                                                     line?.dr_cr === "C"
-                                                        ? "bg-red-500 text-white shadow"
-                                                        : "bg-(--cl-surface-2) text-(--cl-text-muted) hover:bg-red-500/20"
+                                                        ? "bg-orange-500 text-white shadow"
+                                                        : "bg-(--cl-surface-2) text-(--cl-text-muted) hover:bg-orange-500/20"
                                                 }`}
                                             >
                                                 OUT
@@ -347,7 +347,7 @@ export function NewLoanEntry({
                             </span>
                         </div>
                         <div className="flex items-center gap-1.5">
-                            <span className="text-[10px] font-black uppercase tracking-widest text-red-500">OUT</span>
+                            <span className="text-[10px] font-black uppercase tracking-widest text-orange-500">OUT</span>
                             <span className="font-mono font-semibold text-sm text-(--cl-text)">
                                 {formLines.filter(l => l.dr_cr === "C").reduce((s, l) => s + (l.qty ?? 0), 0)}
                             </span>

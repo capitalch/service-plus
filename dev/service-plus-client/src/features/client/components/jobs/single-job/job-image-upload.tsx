@@ -385,7 +385,7 @@ export const JobImageUpload = ({ jobId, jobNo = "", onPendingChange, onFileCount
                                     
                                     <div className="w-14 h-14 shrink-0 rounded-lg overflow-hidden bg-(--cl-surface-2) flex items-center justify-center border border-(--cl-border) shadow-inner">
                                         {pf.file.type.includes("pdf") ? (
-                                            <FileText className="w-6 h-6 text-rose-500/80" />
+                                            <FileText className="w-6 h-6 text-orange-500/80" />
                                         ) : (
                                             <img src={pf.preview} alt="preview" className="w-full h-full object-cover" />
                                         )}
@@ -408,7 +408,7 @@ export const JobImageUpload = ({ jobId, jobNo = "", onPendingChange, onFileCount
                                         <div className="relative mt-auto">
                                             <Input
                                                 size={1}
-                                                className={`h-7 text-xs pr-7 bg-(--cl-surface-2) border-dashed transition-all ${!pf.about.trim() ? "border-rose-400/50 hover:border-rose-400 focus-visible:border-rose-500 focus-visible:ring-rose-500/20" : "border-(--cl-border) focus-visible:border-(--cl-accent)"}`}
+                                                className={`h-7 text-xs pr-7 bg-(--cl-surface-2) border-dashed transition-all ${!pf.about.trim() ? "border-red-400/50 hover:border-red-400 focus-visible:border-red-500 focus-visible:ring-red-500/20" : "border-(--cl-border) focus-visible:border-(--cl-accent)"}`}
                                                 placeholder="What is this file? *"
                                                 value={pf.about}
                                                 onChange={(e) => updatePendingAbout(pf.id, e.target.value)}
@@ -467,7 +467,7 @@ export const JobImageUpload = ({ jobId, jobNo = "", onPendingChange, onFileCount
                                         >
                                             {isPdf ? (
                                                 <div className="flex flex-col items-center gap-2 group-hover:scale-110 transition-transform duration-500 ease-out">
-                                                    <FileText className="w-10 h-10 text-rose-500 drop-shadow-sm" />
+                                                    <FileText className="w-10 h-10 text-orange-500 drop-shadow-sm" />
                                                     <span className="text-[9px] font-bold uppercase tracking-widest text-(--cl-text-muted)">PDF</span>
                                                 </div>
                                             ) : (
@@ -495,7 +495,7 @@ export const JobImageUpload = ({ jobId, jobNo = "", onPendingChange, onFileCount
                                                     e.preventDefault();
                                                     setDeleteTarget({ id: file.id, about: file.about });
                                                 }}
-                                                className="absolute top-2 right-2 p-1.5 rounded-full bg-black/40 text-white backdrop-blur-md opacity-0 group-hover:opacity-100 -translate-y-2 group-hover:translate-y-0 transition-all duration-300 hover:bg-rose-500 hover:scale-110 shadow-sm cursor-pointer"
+                                                className="absolute top-2 right-2 p-1.5 rounded-full bg-black/40 text-white backdrop-blur-md opacity-0 group-hover:opacity-100 -translate-y-2 group-hover:translate-y-0 transition-all duration-300 hover:bg-red-500 hover:scale-110 shadow-sm cursor-pointer"
                                                 title="Delete file"
                                             >
                                                 <Trash2 className="w-3.5 h-3.5" />

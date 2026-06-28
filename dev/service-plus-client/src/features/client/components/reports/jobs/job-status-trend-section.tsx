@@ -31,7 +31,7 @@ type RowType = {
 
 const MONTH_OPTIONS = [3, 6, 12, 24];
 
-const PALETTE = ["#10b981", "#3b82f6", "#8b5cf6", "#ec4899", "#f59e0b", "#06b6d4", "#84cc16", "#a855f7", "#ef4444", "#14b8a6", "#fb923c", "#0ea5e9", "#22c55e", "#d946ef", "#facc15"];
+const PALETTE = ["#10b981", "#3b82f6", "#8b5cf6", "#ec4899", "#f59e0b", "#06b6d4", "#84cc16", "#a855f7", "#6366f1", "#14b8a6", "#fb923c", "#0ea5e9", "#22c55e", "#d946ef", "#facc15"];
 
 function formatMonthLabel(yyyyMm: string): string {
     const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];

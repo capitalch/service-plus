@@ -4,6 +4,7 @@ export type JobSearchRow = {
     alternate_job_no?:     string | null;
     job_date:              string;
     customer_name:         string | null;
+    customer_gstin?:       string | null;
     file_count:            number;
     transaction_count:     number;
     mobile:                string;
@@ -65,7 +66,9 @@ export type JobDetailType = {
     customer_postal_code:        string | null;
     customer_state:              string | null;
     job_type_name:               string;
+    job_type_code?:              string;
     job_status_name:             string;
+    job_status_code?:            string;
     job_receive_manner_name:     string;
     job_receive_condition_name:  string | null;
     technician_name:             string | null;
@@ -175,6 +178,7 @@ export type OpenJobRow = {
     last_transaction_id: number | null;
     batch_no:            number | null;
     customer_name:       string;
+    customer_gstin:      string | null;
     mobile:              string;
     job_type_name:       string;
     job_type_code:       string;

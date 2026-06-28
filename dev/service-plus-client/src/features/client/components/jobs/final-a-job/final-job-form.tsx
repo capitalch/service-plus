@@ -296,12 +296,12 @@ export function FinalJobForm({
                             Reset
                         </Button>
                     </div>
-                    <div className={`flex items-center gap-1 px-1.5 py-1 rounded-sm border shadow-sm ${isGst ? "bg-emerald-500/10 border-emerald-500/20" : "bg-red-500/10 border-red-500/20"}`}>
+                    <div className={`flex items-center gap-1 px-1.5 py-1 rounded-sm border shadow-sm ${isGst ? "bg-emerald-500/10 border-emerald-500/20" : "bg-amber-500/10 border-amber-500/20"}`}>
                         {isGst
                             ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-                            : <XCircle className="h-3.5 w-3.5 text-red-600" />
+                            : <XCircle className="h-3.5 w-3.5 text-amber-600" />
                         }
-                        <span className={`text-[10.5px] font-bold uppercase tracking-tighter ${isGst ? "text-emerald-700" : "text-red-700"}`}>
+                        <span className={`text-[10.5px] font-bold uppercase tracking-tighter ${isGst ? "text-emerald-700" : "text-amber-700"}`}>
                             {isGst ? "GST" : "Non-GST"}
                         </span>
                     </div>
@@ -510,7 +510,7 @@ export function FinalJobForm({
                                                 {!isWarranty && (
                                                     <div className="flex items-center gap-1">
                                                         <span className="text-[10px] text-(--cl-text-muted)">Profit</span>
-                                                        <span className={`tabular-nums text-sm font-semibold ${profit < 0 ? "text-red-600" : "text-emerald-600"}`}>
+                                                        <span className={`tabular-nums text-sm font-semibold ${profit < 0 ? "text-amber-600" : "text-emerald-600"}`}>
                                                             {profit < 0 ? "-" : ""}₹{fmtCurrency(Math.abs(profit))}
                                                         </span>
                                                     </div>
@@ -598,7 +598,7 @@ export function FinalJobForm({
                                     {!isWarranty && (
                                         <div className="flex items-center gap-1.5">
                                             <span className="text-[10px] font-semibold uppercase tracking-wide text-(--cl-text-muted)">Profit</span>
-                                            <span className={`tabular-nums text-sm font-semibold ${profitTotal < 0 ? "text-red-600" : "text-emerald-600"}`}>
+                                            <span className={`tabular-nums text-sm font-semibold ${profitTotal < 0 ? "text-amber-600" : "text-emerald-600"}`}>
                                                 {profitTotal < 0 ? "-" : ""}₹{fmtCurrency(Math.abs(profitTotal))}
                                             </span>
                                         </div>
@@ -817,7 +817,7 @@ export function FinalJobForm({
                                                         {!isWarranty && (
                                                             <div className="flex items-center gap-1.5">
                                                                 <span className="text-[10px] font-semibold uppercase tracking-wide text-(--cl-text-muted)">Profit</span>
-                                                                <span className={`tabular-nums text-sm font-semibold ${chargesProfitTotal < 0 ? "text-red-600" : "text-emerald-600"}`}>
+                                                                <span className={`tabular-nums text-sm font-semibold ${chargesProfitTotal < 0 ? "text-amber-600" : "text-emerald-600"}`}>
                                                                     {chargesProfitTotal < 0 ? "-" : ""}₹{fmtCurrency(Math.abs(chargesProfitTotal))}
                                                                 </span>
                                                             </div>
@@ -867,7 +867,7 @@ export function FinalJobForm({
                                 {!isWarranty && (
                                     <div className="flex items-center gap-1.5">
                                         <span className="text-[10px] font-medium uppercase tracking-wide text-(--cl-text-muted)">Profit</span>
-                                        <span className={`tabular-nums text-sm font-semibold ${grandProfitTotal < 0 ? "text-red-600" : "text-emerald-600"}`}>
+                                        <span className={`tabular-nums text-sm font-semibold ${grandProfitTotal < 0 ? "text-amber-600" : "text-emerald-600"}`}>
                                             {grandProfitTotal < 0 ? "-" : ""}₹{fmtCurrency(Math.abs(grandProfitTotal))}
                                         </span>
                                     </div>

@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import type { DivisionContextType } from "@/features/client/types/division";
 import type { JobDeliveryFullDetail } from "./deliver-job-schema";
 import { fmtCurrency } from "./deliver-job-helpers";
+import { JobTypeBadge } from "../job-badges";
 import { isValidGstin, normalizeGstin } from "@/lib/gstin";
 
 type Props = {
@@ -49,9 +50,7 @@ export function DeliveryModalJobsTable({ jobs, gstinByJob, onGstinChange, onView
                                 title={g && !isValidGstin(g) ? "Enter a valid 15-character GSTIN" : "Customer GSTIN"}
                                 onChange={e => onGstinChange(job.id, normalizeGstin(e.target.value))}
                             />
-                            <span className="shrink-0 rounded-full px-2.5 py-0.5 text-sm font-medium bg-(--cl-accent)/10 text-(--cl-accent)">
-                                {job.job_type_name}
-                            </span>
+                            <JobTypeBadge code={job.job_type_code} name={job.job_type_name} className="shrink-0" />
                             <span className="text-sm text-(--cl-text-muted) shrink-0">{job.job_date}</span>
                             {onViewJob && (
                                 <Button
@@ -87,7 +86,7 @@ export function DeliveryModalJobsTable({ jobs, gstinByJob, onGstinChange, onView
                         <div className="flex items-center justify-end gap-4 pt-1.5 border-t border-(--cl-border)/50 text-sm tabular-nums">
                             <span className="text-(--cl-text-muted)">Est <span className="text-(--cl-text)">{fmtCurrency(job.estimate_amount)}</span></span>
                             <span className="text-(--cl-text-muted)">Amt <span className="font-semibold text-(--cl-text)">{fmtCurrency(job.amount)}</span></span>
-                            <span className={`font-bold ${due > 0 ? "text-red-500" : "text-emerald-500"}`}>
+                            <span className={`font-bold ${due > 0 ? "text-amber-600" : "text-emerald-500"}`}>
                                 Due {fmtCurrency(due)}
                             </span>
                         </div>
@@ -101,7 +100,7 @@ export function DeliveryModalJobsTable({ jobs, gstinByJob, onGstinChange, onView
                     <span className="text-(--cl-text-muted)">{jobs.length} jobs total</span>
                     <div className="flex items-center gap-4">
                         <span className="text-(--cl-text-muted)">Amt <span className="font-bold text-(--cl-text)">{fmtCurrency(totalAmt)}</span></span>
-                        <span className={`font-bold ${totalDue > 0 ? "text-red-500" : "text-emerald-500"}`}>Due {fmtCurrency(totalDue)}</span>
+                        <span className={`font-bold ${totalDue > 0 ? "text-amber-600" : "text-emerald-500"}`}>Due {fmtCurrency(totalDue)}</span>
                     </div>
                 </div>
             )}

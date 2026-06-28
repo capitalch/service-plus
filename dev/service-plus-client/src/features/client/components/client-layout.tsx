@@ -220,13 +220,13 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
                         {currentDivision && (
                             <div className="flex items-center gap-2 rounded-md bg-indigo-50 px-2.5 py-1.5 leading-none dark:bg-indigo-950/40">
                                 <div className={`flex items-center gap-1 rounded-sm border px-1 py-0.5 ${
-                                    isGstMode ? "bg-emerald-500/10 border-emerald-500/20" : "bg-red-500/10 border-red-500/20"
+                                    isGstMode ? "bg-emerald-500/10 border-emerald-500/20" : "bg-amber-500/10 border-amber-500/20"
                                 }`}>
                                     {isGstMode
                                         ? <CheckCircle2 className="h-3 w-3 text-emerald-600" />
-                                        : <XCircle      className="h-3 w-3 text-red-600" />
+                                        : <XCircle      className="h-3 w-3 text-amber-600" />
                                     }
-                                    <span className={`text-[10px] font-bold uppercase tracking-tighter ${isGstMode ? "text-emerald-700" : "text-red-700"}`}>
+                                    <span className={`text-[10px] font-bold uppercase tracking-tighter ${isGstMode ? "text-emerald-700" : "text-amber-700"}`}>
                                         {isGstMode ? "GST" : "Non-GST"}
                                     </span>
                                 </div>

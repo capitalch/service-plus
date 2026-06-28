@@ -34,6 +34,8 @@ type PartUsedRow = {
     part_name: string;
     uom:       string;
     qty:  number;
+    cost_price:    number;
+    selling_price: number;
     remarks:   string | null;
 };
 
@@ -73,7 +75,7 @@ const SECTION_COLORS: Record<string, { border: string; label: string; bar: strin
     violet: { border: "border-violet-300", label: "text-violet-700", bar: "bg-violet-300" },
     amber: { border: "border-amber-300", label: "text-amber-700", bar: "bg-amber-300" },
     teal: { border: "border-teal-300", label: "text-teal-700", bar: "bg-teal-300" },
-    rose: { border: "border-rose-300", label: "text-rose-700", bar: "bg-rose-300" },
+    orange: { border: "border-orange-300", label: "text-orange-700", bar: "bg-orange-300" },
     emerald: { border: "border-emerald-300", label: "text-emerald-700", bar: "bg-emerald-300" },
     slate: { border: "border-slate-300", label: "text-slate-700", bar: "bg-slate-300" },
 };
@@ -406,7 +408,7 @@ export const JobDetailsModal = ({ jobId, onClose, onJobChanged }: Props) => {
                                 <Button
                                     size="sm"
                                     variant="outline"
-                                    className="h-7 px-2.5 text-[11px] gap-1.5 border-rose-200 text-rose-700 hover:bg-rose-50"
+                                    className="h-7 px-2.5 text-[11px] gap-1.5 border-orange-200 text-orange-700 hover:bg-orange-50"
                                     onClick={handlePrintInfo}
                                     title="Print complete job information report"
                                 >
@@ -517,9 +519,9 @@ export const JobDetailsModal = ({ jobId, onClose, onJobChanged }: Props) => {
 
                             {/* ── Narrative fields ── */}
                             <div className="rounded-lg bg-white shadow-sm overflow-hidden">
-                                <div className="h-1 bg-rose-300" />
+                                <div className="h-1 bg-orange-300" />
                                 <div className="px-4 py-3">
-                                    <span className="text-xs font-bold uppercase tracking-wider text-rose-700">Problem Reported</span>
+                                    <span className="text-xs font-bold uppercase tracking-wider text-orange-700">Problem Reported</span>
                                     <p className="mt-1.5 whitespace-pre-wrap text-sm text-slate-900 leading-relaxed min-h-[1.5rem]">
                                         {job.problem_reported?.trim() || "—"}
                                     </p>
@@ -609,7 +611,7 @@ export const JobDetailsModal = ({ jobId, onClose, onJobChanged }: Props) => {
                                         <table className="min-w-full border-collapse">
                                             <thead>
                                                 <tr>
-                                                    {["#", "Part Code", "Part Name", "UOM", "Qty", "Remarks"].map(h => (
+                                                    {["#", "Part", "Qty", "Remarks", "Cost", "Selling"].map(h => (
                                                         <th key={h} className="sticky top-0 z-10 text-[11px] font-bold uppercase tracking-wider text-slate-500 px-3 py-2.5 text-left border-b border-slate-200 bg-slate-50/80">
                                                             {h}
                                                         </th>
@@ -620,11 +622,16 @@ export const JobDetailsModal = ({ jobId, onClose, onJobChanged }: Props) => {
                                                 {parts.map((p, idx) => (
                                                     <tr key={p.id} className="odd:bg-white even:bg-slate-50/60 hover:bg-violet-50/40">
                                                         <td className="px-3 py-2 text-xs text-slate-500 border-b border-slate-100 font-mono">{idx + 1}</td>
-                                                        <td className="px-3 py-2 text-xs font-mono font-semibold text-slate-800 border-b border-slate-100">{p.part_code}</td>
-                                                        <td className="px-3 py-2 text-sm text-slate-700 border-b border-slate-100">{p.part_name}</td>
-                                                        <td className="px-3 py-2 text-xs text-slate-500 border-b border-slate-100">{p.uom}</td>
+                                                        <td className="px-3 py-2 border-b border-slate-100">
+                                                            <div className="flex flex-col gap-0.5">
+                                                                <span className="text-xs font-mono font-semibold text-slate-800">{p.part_code}</span>
+                                                                <span className="text-sm text-slate-700">{p.part_name}</span>
+                                                            </div>
+                                                        </td>
                                                         <td className="px-3 py-2 text-sm tabular-nums font-semibold text-slate-800 border-b border-slate-100">{Number(p.qty).toFixed(2)}</td>
                                                         <td className="px-3 py-2 text-xs text-slate-500 border-b border-slate-100 italic">{p.remarks || "—"}</td>
+                                                        <td className="px-3 py-2 text-sm tabular-nums text-slate-700 border-b border-slate-100">{fmtAmount(p.cost_price)}</td>
+                                                        <td className="px-3 py-2 text-sm tabular-nums font-semibold text-emerald-700 border-b border-slate-100">{fmtAmount(p.selling_price)}</td>
                                                     </tr>
                                                 ))}
                                             </tbody>

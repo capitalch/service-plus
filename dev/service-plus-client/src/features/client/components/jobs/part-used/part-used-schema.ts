@@ -70,7 +70,9 @@ export type ConsumptionRow = {
     is_closed:            boolean;
     is_final:             boolean;
     job_status_name:      string;
+    job_status_code:      string;
     job_type_name:        string;
+    job_type_code:        string;
     part_id:              number;
     brand_id:             number;
     part_code:            string;
