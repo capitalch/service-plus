@@ -1,22 +1,20 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AlertTriangle, Loader2, Truck } from "lucide-react";
+import { ArrowLeft, Loader2, Truck } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { MESSAGES }    from "@/constants/messages";
 import { SQL_MAP }     from "@/constants/sql-map";
 import { selectCurrentUser, selectDbName } from "@/features/auth/store/auth-slice";
 import { apolloClient }   from "@/lib/apollo-client";
-import { encodeObj, graphQlUtils } from "@/lib/graphql-utils";
-import { selectAvailableDivisions, selectCurrentBranch, selectNoOfJobInvoicesPerPrint, selectPostDataToAccounts, selectSchema } from "@/store/context-slice";
+import { graphQlUtils } from "@/lib/graphql-utils";
+import { selectAvailableDivisions, selectCurrentBranch, selectPostDataToAccounts, selectSchema } from "@/store/context-slice";
 import { useAppSelector } from "@/store/hooks";
-import { PdfPreviewModal } from "@/components/shared/pdf-preview-modal";
 import { JobAttachDialog } from "../single-job/job-attach-dialog";
 import { JobDetailsModal } from "../job-pipeline/job-details-modal";
-import { buildInvoicePdf, buildDeliveryNotePdf } from "./deliver-job-pdf";
+import { useDeliveredJobActions } from "./use-delivered-job-actions";
 
 import { PAGE_SIZE, DEBOUNCE_MS } from "./deliver-job-helpers";
 import { DeliverableJobsGrid, type DeliverableJobRow } from "./deliverable-jobs-grid";
@@ -34,18 +32,24 @@ type DeliveryMannerRow = { id: number; name: string };
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export const DeliverJobSection = () => {
+interface DeliverJobSectionProps {
+    onBack?: () => void;
+    initialTab?: "deliverable" | "delivered";
+}
+
+export const DeliverJobSection = ({ onBack, initialTab }: DeliverJobSectionProps = {}) => {
     const dbName             = useAppSelector(selectDbName);
     const schema             = useAppSelector(selectSchema);
     const currentBranch      = useAppSelector(selectCurrentBranch);
     const currentUser        = useAppSelector(selectCurrentUser);
     const availableDivisions = useAppSelector(selectAvailableDivisions);
-    const noOfInvoices       = useAppSelector(selectNoOfJobInvoicesPerPrint);
     const postDataToAccounts = useAppSelector(selectPostDataToAccounts);
     const branchId           = currentBranch?.id ?? null;
 
+    const deliveredActions = useDeliveredJobActions();
+
     // ── List state ────────────────────────────────────────────────────────────
-    const [activeTab,  setActiveTab]  = useState<ActiveTab>("deliverable");
+    const [activeTab,  setActiveTab]  = useState<ActiveTab>(initialTab ?? "deliverable");
     const [search,     setSearch]     = useState("");
     const [searchQ,    setSearchQ]    = useState("");
     const [page,       setPage]       = useState(1);
@@ -71,22 +75,6 @@ export const DeliverJobSection = () => {
     const [showDeliveryModal, setShowDeliveryModal] = useState(false);
     const [modalJobDetails,   setModalJobDetails]   = useState<JobDeliveryFullDetail[]>([]);
     const [loadingModal,      setLoadingModal]      = useState<number | null>(null);
-
-    // ── Undo delivery state ───────────────────────────────────────────────────
-    const [undoPendingRow,  setUndoPendingRow]  = useState<DeliveredJobRow | null>(null);
-    const [undoSubmitting,  setUndoSubmitting]  = useState(false);
-
-    // ── PDF preview state ─────────────────────────────────────────────────────
-    const [pdfUrl,           setPdfUrl]           = useState<string | null>(null);
-    const [pdfOpen,          setPdfOpen]          = useState(false);
-    const [pdfType,          setPdfType]          = useState<"invoice" | "other">("other");
-    const [invoiceCopies,    setInvoiceCopies]    = useState(1);
-    const pendingInvoiceRef  = useRef<{
-        row:      DeliveredJobRow;
-        invoice:  import("./deliver-job-schema").JobInvoiceFullRow;
-        payments: { id: number; receipt_no: string | null; payment_date: string; payment_mode: string; amount: number; reference_no: string | null; remarks: string | null }[];
-        division: import("@/features/client/types/division").DivisionContextType | null;
-    } | null>(null);
 
     // ── Misc ──────────────────────────────────────────────────────────────────
     const [attachJobId,  setAttachJobId]  = useState<number | null>(null);
@@ -283,140 +271,6 @@ export const DeliverJobSection = () => {
         void loadDeliveredData();
     }
 
-    // ── Undo delivery ─────────────────────────────────────────────────────────
-    async function handleUndoDeliveryConfirm() {
-        if (!undoPendingRow || !dbName || !schema) return;
-        setUndoSubmitting(true);
-        try {
-            // Undeliver: removes the delivery transaction(s) and restores the job's
-            // pre-delivery status, flags (incl. is_closed) and last_transaction_id.
-            await apolloClient.mutate({
-                mutation: GRAPHQL_MAP.undeliverJob,
-                variables: {
-                    db_name: dbName, schema,
-                    value: encodeObj({ job_id: undoPendingRow.id }),
-                },
-            });
-            toast.success(`Delivery undone — Job #${undoPendingRow.job_no} restored to its previous status.`);
-            setUndoPendingRow(null);
-            if (branchId) void loadData(branchId, searchQ, page);
-            void loadDeliveredData();
-        } catch (err) {
-            const msg = (err as { graphQLErrors?: { message: string }[] })?.graphQLErrors?.[0]?.message
-                ?? "Failed to undo delivery. Please try again.";
-            toast.error(msg);
-        } finally {
-            setUndoSubmitting(false);
-        }
-    }
-
-    // ── Invoice + Receipts print ──────────────────────────────────────────────
-    function buildAndShowInvoicePdf(
-        row:      DeliveredJobRow,
-        invoice:  import("./deliver-job-schema").JobInvoiceFullRow,
-        payments: { id: number; receipt_no: string | null; payment_date: string; payment_mode: string; amount: number; reference_no: string | null; remarks: string | null }[],
-        division: import("@/features/client/types/division").DivisionContextType | null,
-        copies:   number,
-    ) {
-        const doc = buildInvoicePdf(
-            { ...row, customer_name: row.customer_name ?? "", payments },
-            invoice,
-            division,
-            currentBranch?.name ?? currentBranch?.code ?? null,
-            undefined,
-            copies,
-        );
-        setPdfUrl(prev => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(doc.output("blob")); });
-    }
-
-    async function handlePrintInvoiceReceipts(row: DeliveredJobRow) {
-        if (!dbName || !schema) return;
-        const gq = <T,>(sqlId: string, sqlArgs?: Record<string, unknown>) =>
-            apolloClient.query<GenericQueryData<T>>({
-                fetchPolicy: "network-only",
-                query: GRAPHQL_MAP.genericQuery,
-                variables: { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId, sqlArgs }) },
-            });
-        try {
-            const [invoiceRes, paymentsRes] = await Promise.all([
-                gq<import("./deliver-job-schema").JobInvoiceFullRow>(SQL_MAP.GET_JOB_INVOICE_BY_JOB, { job_id: row.id }),
-                gq<{ id: number; receipt_no: string | null; payment_date: string; payment_mode: string; amount: number; reference_no: string | null; remarks: string | null }>(SQL_MAP.GET_JOB_PAYMENTS_BY_JOB, { job_id: row.id }),
-            ]);
-            const invoice  = invoiceRes.data?.genericQuery?.[0] ?? null;
-            const payments = paymentsRes.data?.genericQuery ?? [];
-            if (!invoice) { toast.error("Invoice not found."); return; }
-            const division = row.division_id ? (availableDivisions.find(d => d.id === row.division_id) ?? null) : null;
-            const copies   = noOfInvoices ?? 1;
-            pendingInvoiceRef.current = { row, invoice, payments, division };
-            setInvoiceCopies(copies);
-            setPdfType("invoice");
-            buildAndShowInvoicePdf(row, invoice, payments, division, copies);
-            setPdfOpen(true);
-        } catch {
-            toast.error("Failed to load invoice. Please try again.");
-        }
-    }
-
-    function handleInvoiceCopiesChange(n: number) {
-        setInvoiceCopies(n);
-        const ctx = pendingInvoiceRef.current;
-        if (!ctx) return;
-        buildAndShowInvoicePdf(ctx.row, ctx.invoice, ctx.payments, ctx.division, n);
-    }
-
-    // ── Delivery Note print ───────────────────────────────────────────────────
-    async function handleDeliveryNote(row: DeliveredJobRow) {
-        if (!dbName || !schema) return;
-        const gq = <T,>(sqlId: string, sqlArgs?: Record<string, unknown>) =>
-            apolloClient.query<GenericQueryData<T>>({
-                fetchPolicy: "network-only",
-                query: GRAPHQL_MAP.genericQuery,
-                variables: { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId, sqlArgs }) },
-            });
-        try {
-            const [detailRes, paymentsRes] = await Promise.all([
-                gq<{
-                    customer_address_line1: string | null; customer_address_line2: string | null;
-                    customer_landmark: string | null; customer_city: string | null;
-                    customer_postal_code: string | null; customer_state: string | null;
-                    remarks: string | null;
-                }>(SQL_MAP.GET_JOB_DETAIL, { id: row.id }),
-                gq<{ receipt_no: string | null }>(SQL_MAP.GET_JOB_PAYMENTS_BY_JOB, { job_id: row.id }),
-            ]);
-            const detail   = detailRes.data?.genericQuery?.[0];
-            const payments = paymentsRes.data?.genericQuery ?? [];
-            const division = row.division_id ? (availableDivisions.find(d => d.id === row.division_id) ?? null) : null;
-            const isOk     = !row.job_status_name?.toLowerCase().includes("not ok");
-            const doc = buildDeliveryNotePdf([{
-                job_no:                 row.job_no,
-                alternate_job_no:       row.alternate_job_no,
-                job_date:               row.job_date,
-                customer_name:          row.customer_name,
-                mobile:                 row.mobile,
-                customer_address_line1: detail?.customer_address_line1 ?? null,
-                customer_address_line2: detail?.customer_address_line2 ?? null,
-                customer_landmark:      detail?.customer_landmark      ?? null,
-                customer_city:          detail?.customer_city          ?? null,
-                customer_postal_code:   detail?.customer_postal_code   ?? null,
-                customer_state:         detail?.customer_state         ?? null,
-                device_details:         row.device_details,
-                technician_name:        row.technician_name,
-                amount:                 row.amount,
-                invoice_no:             row.invoice_no ?? null,
-                receipt_nos:            payments.map(p => p.receipt_no).filter((r): r is string => !!r),
-                delivery_ok:            isOk,
-                delivery_date:          row.delivery_date ?? "",
-                remarks:                detail?.remarks ?? null,
-            }], division, currentBranch?.name ?? currentBranch?.code ?? null);
-            if (pdfUrl) URL.revokeObjectURL(pdfUrl);
-            setPdfUrl(URL.createObjectURL(doc.output("blob")));
-            setPdfType("other");
-            setPdfOpen(true);
-        } catch {
-            toast.error("Failed to generate delivery note.");
-        }
-    }
-
     // ── Render ────────────────────────────────────────────────────────────────
     return (
         <motion.div
@@ -427,6 +281,17 @@ export const DeliverJobSection = () => {
         >
             {/* Header */}
             <div className="flex flex-wrap items-center gap-x-4 gap-y-3 border-b border-(--cl-border) bg-(--cl-surface) px-4 py-1">
+                {onBack && (
+                    <Button
+                        className="h-8 gap-1.5 px-3 font-semibold text-(--cl-accent) border border-(--cl-accent) hover:bg-(--cl-accent) hover:text-white transition-colors shrink-0"
+                        size="sm"
+                        variant="outline"
+                        onClick={onBack}
+                    >
+                        <ArrowLeft className="h-4 w-4" />
+                        Back
+                    </Button>
+                )}
                 <div className="flex items-center gap-3">
                     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-(--cl-accent)/10 text-(--cl-accent)">
                         <Truck className="h-4 w-4" />
@@ -509,14 +374,14 @@ export const DeliverJobSection = () => {
                     onRefresh={() => void loadDeliveredData()}
                     onViewJob={id => setViewJobId(id)}
                     onOpenAttach={(id, jobNo) => { setAttachJobId(id); setAttachJobNo(jobNo); }}
-                    onPrintInvoiceReceipts={row => void handlePrintInvoiceReceipts(row)}
-                    onDeliveryNote={row => void handleDeliveryNote(row)}
+                    onPrintInvoiceReceipts={row => void deliveredActions.handleInvoiceReceipts(row)}
+                    onDeliveryNote={row => void deliveredActions.handleDeliveryNote(row)}
                     onUndoDelivery={row => {
                         if (row.invoice_is_posted) {
                             toast.error(`Cannot undo delivery — invoice ${row.invoice_no ? `#${row.invoice_no}` : ""} is already posted to accounts.`);
                             return;
                         }
-                        setUndoPendingRow(row);
+                        deliveredActions.handleUndoDelivery(row);
                     }}
                 />
             )}
@@ -539,63 +404,10 @@ export const DeliverJobSection = () => {
                 />
             )}
 
-            {undoPendingRow && (
-                <Dialog open onOpenChange={open => { if (!open) setUndoPendingRow(null); }}>
-                    <DialogContent className="max-w-sm bg-white dark:bg-zinc-950 border-(--cl-border)">
-                        <DialogHeader>
-                            <DialogTitle className="flex items-center gap-2 text-red-600">
-                                <AlertTriangle className="h-4 w-4" />
-                                Undo Delivery
-                            </DialogTitle>
-                        </DialogHeader>
-                        <div className="space-y-3 text-sm text-(--cl-text)">
-                            <div className="rounded-lg border border-(--cl-border) bg-(--cl-surface-2) px-3 py-2.5 space-y-1.5 text-xs">
-                                <div className="flex items-start gap-2">
-                                    <span className="w-24 shrink-0 text-(--cl-text-muted)">Job No</span>
-                                    <span className="font-mono font-semibold text-(--cl-accent)">#{undoPendingRow.job_no}</span>
-                                </div>
-                                <div className="flex items-start gap-2">
-                                    <span className="w-24 shrink-0 text-(--cl-text-muted)">Customer</span>
-                                    <span className="font-medium">{undoPendingRow.customer_name}</span>
-                                </div>
-                                {undoPendingRow.delivery_date && (
-                                    <div className="flex items-start gap-2">
-                                        <span className="w-24 shrink-0 text-(--cl-text-muted)">Delivered on</span>
-                                        <span>{undoPendingRow.delivery_date}</span>
-                                    </div>
-                                )}
-                            </div>
-                            <p className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-400">
-                                This will mark the job as <span className="font-bold">not delivered</span>. The job will return to the deliverable list.
-                            </p>
-                        </div>
-                        <div className="flex justify-end gap-2 pt-2 border-t border-(--cl-border)">
-                            <Button className="h-8 px-4 text-xs" variant="ghost" disabled={undoSubmitting} onClick={() => setUndoPendingRow(null)}>
-                                Cancel
-                            </Button>
-                            <Button
-                                className="h-8 px-4 text-xs bg-red-600 hover:bg-red-700 text-white font-semibold"
-                                disabled={undoSubmitting}
-                                onClick={() => void handleUndoDeliveryConfirm()}
-                            >
-                                {undoSubmitting && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
-                                Yes, Undo
-                            </Button>
-                        </div>
-                    </DialogContent>
-                </Dialog>
-            )}
-
-            {pdfOpen && pdfUrl && (
-                <PdfPreviewModal
-                    isOpen={pdfOpen}
-                    pdfUrl={pdfUrl}
-                    title={pdfType === "invoice" ? "Invoice + Receipts" : "Delivery Note"}
-                    printCopies={pdfType === "invoice" ? invoiceCopies : undefined}
-                    onPrintCopiesChange={pdfType === "invoice" ? handleInvoiceCopiesChange : undefined}
-                    onClose={() => { setPdfOpen(false); if (pdfUrl) URL.revokeObjectURL(pdfUrl); setPdfUrl(null); pendingInvoiceRef.current = null; }}
-                />
-            )}
+            {deliveredActions.renderModals(() => {
+                void loadDeliveredData();
+                if (branchId) void loadData(branchId, searchQ, page);
+            })}
 
             {showDeliveryModal && modalJobDetails.length > 0 && (
                 <DeliveryModal

@@ -1,9 +1,14 @@
 # To Do
 - Enhancements
-	- Job Search to Job Panel / Control /Manage
+								- Rename Job Search to Job Panel / Control /Manage
+							- Job Control
+								- undo final for final jobs
+								- undo delivery / undo last transactions for closed jobs
+								- Also make drill down buttons for undo final and undo delivery
 	- Access management
 	- Account posting: Service account instead of super admin
 	- Validate creation of new client / Bu / Branch / Division end to end
+	- Security of config file
 - QA
 	- Massive transactions testing end to end
 		- Create single job and batch jobs. Check why two times transactions shown in job view.
@@ -11,10 +16,11 @@
 		- Do final
 		- Deliver
 	- Accounts Posting
+		- sales invoice
 								- Check customer GSTIN No transfer: Not transferring
-		- Check IGST transfer
-		- Proper HSN for parts and service
-		- Upload trace-plus and check account posting online at serviceplus.cloudjiffy.net
+								- Check IGST transfer
+								- Proper HSN for parts and service
+								- Upload trace-plus and check account posting online at serviceplus.cloudjiffy.net
 	- Bug fix
 		- When a batch job is received, two times received is shown in job view: Transaction
 								- Add contactsId to posting of sales

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
     ArrowLeft, ArrowRightLeft, CheckSquare,
     ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon,
-    ClipboardList, Eye, FileDown, Lock, Package, Paperclip, RefreshCw, Search, Truck, Undo2, X,
+    ClipboardList, Eye, FileDown, Lock, MoreVertical, Package, Paperclip, Printer, RefreshCw, Search, Truck, Undo2, X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
@@ -13,6 +13,11 @@ import {
     DropdownMenu, DropdownMenuContent, DropdownMenuItem,
     DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+    AlertDialog, AlertDialogAction, AlertDialogCancel,
+    AlertDialogContent, AlertDialogDescription,
+    AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { MESSAGES } from "@/constants/messages";
 import { SQL_MAP } from "@/constants/sql-map";
@@ -35,7 +40,10 @@ import { JobAttachDialog } from "../single-job/job-attach-dialog";
 import { JobDetailsModal } from "../job-pipeline/job-details-modal";
 import { JobPdfModal } from "./job-pdf-modal";
 import { FinalJobDialog } from "./final-job-dialog";
+import { FinalAJobSection } from "../final-a-job/final-a-job-section";
+import { DeliverJobSection } from "../deliver-job/deliver-job-section";
 import { DeliveryModal } from "../deliver-job/delivery-modal";
+import { useDeliveredJobActions } from "../deliver-job/use-delivered-job-actions";
 import type { JobDeliveryFullDetail } from "../deliver-job/deliver-job-schema";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -87,6 +95,7 @@ export const JobControlSection = () => {
     const currentUser  = useAppSelector(selectCurrentUser);
     const branchId     = globalBranch?.id ?? null;
 
+    const [subView,     setSubView]     = useState<"list" | "undoFinal" | "undoDelivery">("list");
     const [search,      setSearch]      = useState("");
     const [searchQ,     setSearchQ]     = useState("");
     const [filter,      setFilter]      = useState<JobFilter>({ group: "closed", value: false });
@@ -102,6 +111,9 @@ export const JobControlSection = () => {
     const [undoPendingJob, setUndoPendingJob] = useState<JobControlRow | null>(null);
     const [chargesJob,     setChargesJob]     = useState<ChargesJobSummary | null>(null);
 
+    const [undoFinalPendingJob, setUndoFinalPendingJob] = useState<JobControlRow | null>(null);
+    const [undoFinalSubmitting, setUndoFinalSubmitting] = useState(false);
+
     const [attachJobId, setAttachJobId] = useState<number | null>(null);
     const [attachJobNo, setAttachJobNo] = useState<string>("");
 
@@ -115,6 +127,8 @@ export const JobControlSection = () => {
     const [deliveryJobDetails,        setDeliveryJobDetails]        = useState<JobDeliveryFullDetail[]>([]);
     const [showDeliveryModal,         setShowDeliveryModal]         = useState(false);
     const [loadingDelivery,           setLoadingDelivery]           = useState<number | null>(null);
+
+    const deliveredActions = useDeliveredJobActions();
 
     const debounceRef      = useRef<ReturnType<typeof setTimeout> | null>(null);
     const scrollWrapperRef = useRef<HTMLDivElement>(null);
@@ -296,6 +310,28 @@ export const JobControlSection = () => {
         }
     }
 
+    async function handleUndoFinalConfirm(job: JobControlRow) {
+        if (!dbName || !schema) return;
+        setUndoFinalSubmitting(true);
+        try {
+            await apolloClient.mutate({
+                mutation: GRAPHQL_MAP.genericUpdate,
+                variables: {
+                    db_name: dbName,
+                    schema,
+                    value: encodeObj({ tableName: "job", xData: { id: job.id, is_final: false } }),
+                },
+            });
+            toast.success(`Job #${job.job_no} moved back to pending.`);
+            refreshGrid();
+        } catch {
+            toast.error("Failed to undo final. Please try again.");
+        } finally {
+            setUndoFinalSubmitting(false);
+            setUndoFinalPendingJob(null);
+        }
+    }
+
     async function handleOpenDelivery(jobId: number) {
         if (!dbName || !schema) return;
         setLoadingDelivery(jobId);
@@ -329,14 +365,22 @@ export const JobControlSection = () => {
     const closedFilterLabel: Record<string, string> = {
         "null":  "All",
         "false": "Open",
-        "true":  "Closed",
+        "true":  "Delivered",
     };
 
     const filterOptions: { value: ClosedFilter; label: string }[] = [
-        { value: false, label: "Open"   },
-        { value: null,  label: "All"    },
-        { value: true,  label: "Closed" },
+        { value: false, label: "Open"      },
+        { value: true,  label: "Delivered" },
+        { value: null,  label: "All"       },
     ];
+
+    if (subView === "undoFinal") {
+        return <FinalAJobSection onBack={() => setSubView("list")} initialTab="finalized" />;
+    }
+
+    if (subView === "undoDelivery") {
+        return <DeliverJobSection onBack={() => setSubView("list")} initialTab="delivered" />;
+    }
 
     if (finalJobId !== null) {
         return (
@@ -477,7 +521,25 @@ export const JobControlSection = () => {
                         </button>
                     </div>
                     <Button
-                        className="ml-auto h-8 px-2.5 text-xs shrink-0"
+                        className="ml-auto h-8 gap-1.5 px-3 text-xs font-semibold text-amber-600 dark:text-amber-400 border border-amber-400 dark:border-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950/40 shrink-0"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setSubView("undoFinal")}
+                    >
+                        <Undo2 className="h-3.5 w-3.5" />
+                        Undo Final
+                    </Button>
+                    <Button
+                        className="h-8 gap-1.5 px-3 text-xs font-semibold text-sky-600 dark:text-sky-400 border border-sky-400 dark:border-sky-500 hover:bg-sky-50 dark:hover:bg-sky-950/40 shrink-0"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setSubView("undoDelivery")}
+                    >
+                        <Truck className="h-3.5 w-3.5" />
+                        Undo Delivery
+                    </Button>
+                    <Button
+                        className="h-8 px-2.5 text-xs shrink-0"
                         disabled={loading || !branchId}
                         size="sm"
                         variant="outline"
@@ -637,7 +699,65 @@ export const JobControlSection = () => {
                                             className={`${tdClass} sticky right-0 z-10 bg-(--cl-surface) group-hover:bg-(--cl-surface-2) hidden md:table-cell`}
                                             onClick={e => e.stopPropagation()}
                                         >
-                                            <div className="flex items-center justify-center gap-1">
+                                            {(() => {
+                                                const isDelivered = job.job_status_code === "DELIVERED_OK" || job.job_status_code === "DELIVERED_NOT_OK";
+                                                if (isDelivered) {
+                                                    return (
+                                                        <div className="flex items-center justify-center">
+                                                            <DropdownMenu>
+                                                                <DropdownMenuTrigger asChild>
+                                                                    <Button
+                                                                        className="h-8 w-8 p-0 text-(--cl-text-muted) hover:text-(--cl-accent) hover:bg-(--cl-accent)/10"
+                                                                        size="icon"
+                                                                        title="Actions"
+                                                                        variant="ghost"
+                                                                    >
+                                                                        <MoreVertical className="h-4 w-4" />
+                                                                    </Button>
+                                                                </DropdownMenuTrigger>
+                                                                <DropdownMenuContent align="end" className="min-w-[200px] bg-white dark:bg-zinc-950 border-(--cl-border) shadow-lg rounded-lg p-1">
+                                                                    <DropdownMenuItem
+                                                                        className="flex items-center gap-2 px-2 py-1.5 text-xs rounded cursor-pointer text-sky-700 dark:text-sky-400 hover:bg-sky-50 dark:hover:bg-sky-950/40"
+                                                                        onClick={() => setViewJobId(job.id)}
+                                                                    >
+                                                                        <Eye className="h-3.5 w-3.5 shrink-0" /> View
+                                                                    </DropdownMenuItem>
+                                                                    <DropdownMenuItem
+                                                                        className="flex items-center gap-2 px-2 py-1.5 text-xs rounded cursor-pointer text-teal-700 dark:text-teal-400 hover:bg-teal-50 dark:hover:bg-teal-950/40"
+                                                                        onClick={() => void deliveredActions.handleDeliveryNote(job)}
+                                                                    >
+                                                                        <Truck className="h-3.5 w-3.5 shrink-0" /> Delivery Note
+                                                                    </DropdownMenuItem>
+                                                                    {job.invoice_is_posted !== null && (
+                                                                        <DropdownMenuItem
+                                                                            className="flex items-center gap-2 px-2 py-1.5 text-xs rounded cursor-pointer text-indigo-700 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40"
+                                                                            onClick={() => void deliveredActions.handleInvoiceReceipts(job)}
+                                                                        >
+                                                                            <Printer className="h-3.5 w-3.5 shrink-0" /> Invoice + Receipts
+                                                                        </DropdownMenuItem>
+                                                                    )}
+                                                                    <DropdownMenuItem
+                                                                        className="flex items-center gap-2 px-2 py-1.5 text-xs rounded cursor-pointer text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
+                                                                        onClick={() => setPdfJobId(job.id)}
+                                                                    >
+                                                                        <FileDown className="h-3.5 w-3.5 shrink-0" /> Print / Save as PDF
+                                                                    </DropdownMenuItem>
+                                                                    <DropdownMenuSeparator className="bg-zinc-100 dark:bg-zinc-800 mx-1" />
+                                                                    <DropdownMenuItem
+                                                                        className="flex items-center gap-2 px-2 py-1.5 text-xs rounded cursor-pointer text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                                        disabled={job.invoice_is_posted === true}
+                                                                        title={job.invoice_is_posted === true ? "Cannot undo: invoice is already posted" : undefined}
+                                                                        onClick={() => deliveredActions.handleUndoDelivery(job)}
+                                                                    >
+                                                                        <Undo2 className="h-3.5 w-3.5 shrink-0" /> Undo Delivery
+                                                                    </DropdownMenuItem>
+                                                                </DropdownMenuContent>
+                                                            </DropdownMenu>
+                                                        </div>
+                                                    );
+                                                }
+                                                return (
+                                                <div className="flex items-center justify-center gap-1">
                                                 {/* View details */}
                                                 <Button
                                                     className="h-8 w-8 p-0 text-(--cl-text-muted) hover:text-(--cl-accent) hover:bg-(--cl-accent)/10"
@@ -656,8 +776,9 @@ export const JobControlSection = () => {
                                                     const rowCanUndo     = canUndo(job);
                                                     const showCharges    = ADD_CHARGES_CODES.has(job.job_status_code) && !NO_CHARGES_JOB_TYPES.has(job.job_type_code);
                                                     const showFinalJob   = job.job_status_code === "COMPLETED_OK" && !job.is_final;
+                                                    const showUndoFinal  = job.job_status_code === "COMPLETED_OK" && job.is_final;
                                                     const showDeliverJob = job.is_final && !job.is_closed;
-                                                    const hasAnyAction   = !isNoAction || rowCanUndo || showCharges || showFinalJob || showDeliverJob;
+                                                    const hasAnyAction   = !isNoAction || rowCanUndo || showCharges || showFinalJob || showUndoFinal || showDeliverJob;
                                                     if (!hasAnyAction) {
                                                         return (
                                                             <span className="flex h-8 w-8 items-center justify-center">
@@ -748,6 +869,20 @@ export const JobControlSection = () => {
                                                                         </DropdownMenuItem>
                                                                     </>
                                                                 )}
+                                                                {showUndoFinal && (
+                                                                    <>
+                                                                        <DropdownMenuSeparator className="bg-zinc-100 dark:bg-zinc-800 mx-1" />
+                                                                        <DropdownMenuItem
+                                                                            className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium cursor-pointer text-amber-600 focus:text-amber-700 focus:bg-amber-50 dark:focus:bg-amber-950/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                                            disabled={job.invoice_is_posted === true}
+                                                                            title={job.invoice_is_posted === true ? "Cannot undo a posted job" : undefined}
+                                                                            onClick={() => setUndoFinalPendingJob(job)}
+                                                                        >
+                                                                            <Undo2 className="h-3.5 w-3.5 shrink-0" />
+                                                                            Undo Final
+                                                                        </DropdownMenuItem>
+                                                                    </>
+                                                                )}
                                                                 {showDeliverJob && (
                                                                     <>
                                                                         <DropdownMenuSeparator className="bg-zinc-100 dark:bg-zinc-800 mx-1" />
@@ -776,6 +911,8 @@ export const JobControlSection = () => {
                                                     <FileDown className="h-4 w-4" />
                                                 </Button>
                                             </div>
+                                                );
+                                            })()}
                                         </td>
                                     </tr>
                                     );
@@ -886,6 +1023,27 @@ export const JobControlSection = () => {
                 />
             )}
 
+            {/* Undo Final confirmation */}
+            <AlertDialog open={!!undoFinalPendingJob} onOpenChange={open => { if (!open) setUndoFinalPendingJob(null); }}>
+                <AlertDialogContent className="max-w-sm">
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Undo Final?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Job #{undoFinalPendingJob?.job_no} will be moved back to pending. Are you sure?
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            disabled={undoFinalSubmitting}
+                            onClick={() => { if (undoFinalPendingJob) void handleUndoFinalConfirm(undoFinalPendingJob); }}
+                        >
+                            Undo Final
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
             {/* Delivery modal */}
             {showDeliveryModal && deliveryJobDetails.length > 0 && (
                 <DeliveryModal
@@ -906,6 +1064,8 @@ export const JobControlSection = () => {
                     }}
                 />
             )}
+
+            {deliveredActions.renderModals(() => refreshGrid())}
         </motion.div>
     );
 };

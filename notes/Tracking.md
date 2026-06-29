@@ -40,6 +40,9 @@
 		- Aug 2026
 
 # Tracking
+- 29-06-2026
+	- Completed Jobs + Help System
+	- Working on QA + Enhancements
 - 12-06-2026
 	- Completed Jobs menu item
 	- Working on feature enhancement + Bug fixing + QA for Jobs

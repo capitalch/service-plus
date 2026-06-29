@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { CheckCircle2 } from "lucide-react";
+import { ArrowLeft, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 
@@ -114,7 +114,12 @@ function computePartPricesOnSelect(
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export const FinalAJobSection = () => {
+interface FinalAJobSectionProps {
+    onBack?: () => void;
+    initialTab?: "pending" | "finalized";
+}
+
+export const FinalAJobSection = ({ onBack, initialTab }: FinalAJobSectionProps = {}) => {
     const dbName = useAppSelector(selectDbName);
     const schema = useAppSelector(selectSchema);
     const currentBranch = useAppSelector(selectCurrentBranch);
@@ -127,7 +132,7 @@ export const FinalAJobSection = () => {
 
     // ── List state ──────────────────────────────────────────────────────────
     const [subView, setSubView] = useState<SubView>("list");
-    const [activeTab, setActiveTab] = useState<"pending" | "finalized">("pending");
+    const [activeTab, setActiveTab] = useState<"pending" | "finalized">(initialTab ?? "pending");
     const [search, setSearch] = useState("");
     const [searchQ, setSearchQ] = useState("");
     const [page, setPage] = useState(1);
@@ -939,6 +944,17 @@ export const FinalAJobSection = () => {
             >
                 {/* Header */}
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-3 border-b border-(--cl-border) bg-(--cl-surface) px-4 py-1">
+                    {onBack && (
+                        <Button
+                            className="h-8 gap-1.5 px-3 font-semibold text-(--cl-accent) border border-(--cl-accent) hover:bg-(--cl-accent) hover:text-white transition-colors shrink-0"
+                            size="sm"
+                            variant="outline"
+                            onClick={onBack}
+                        >
+                            <ArrowLeft className="h-4 w-4" />
+                            Back
+                        </Button>
+                    )}
                     <div className="flex items-center gap-3">
                         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-(--cl-accent)/10 text-(--cl-accent)">
                             <CheckCircle2 className="h-4 w-4" />
