@@ -8,7 +8,7 @@
 	- Access management
 	- Account posting: Service account instead of super admin
 	- Validate creation of new client / Bu / Branch / Division end to end
-	- Security of config file
+	- Security of server config file
 - QA
 	- Massive transactions testing end to end
 		- Create single job and batch jobs. Check why two times transactions shown in job view.
