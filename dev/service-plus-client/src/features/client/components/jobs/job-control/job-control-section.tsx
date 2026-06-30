@@ -656,7 +656,7 @@ export const JobControlSection = () => {
                                             <div className="flex flex-col gap-0.5">
                                                 <span>{job.customer_name ?? "—"}</span>
                                                 {job.customer_gstin && (
-                                                    <span className="font-mono text-[10px] text-(--cl-text-muted)">GSTIN: {job.customer_gstin}</span>
+                                                    <span className="font-mono text-[10px] text-(--cl-text-muted)">Gstin: {job.customer_gstin}</span>
                                                 )}
                                             </div>
                                         </td>

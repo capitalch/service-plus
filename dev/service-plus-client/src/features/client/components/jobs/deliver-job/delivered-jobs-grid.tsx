@@ -239,7 +239,7 @@ export function DeliveredJobsGrid({
                                             <div className="flex flex-col gap-0.5">
                                                 <span>{row.customer_name}</span>
                                                 {row.customer_gstin && (
-                                                    <span className="font-mono text-[10px] text-(--cl-text-muted)">GSTIN: {row.customer_gstin}</span>
+                                                    <span className="font-mono text-[10px] text-(--cl-text-muted)">Gstin: {row.customer_gstin}</span>
                                                 )}
                                                 {row.receive_manner_name && (
                                                     <span className="text-[10px] text-(--cl-text-muted)">{row.receive_manner_name}</span>
