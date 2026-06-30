@@ -1,11 +1,12 @@
 import { z } from "zod";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useFormContext, useFieldArray } from "react-hook-form";
+import { useFormContext, useFieldArray, useWatch } from "react-hook-form";
 import { Loader2, Plus } from "lucide-react";
 import { LineAddDeleteActions } from "../line-add-delete-actions";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,7 +19,7 @@ import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
-import { selectAvailableDivisions, selectDefaultDivisionId, selectDefaultGstRate, selectEffectiveGstStateCode, selectIsGstMode, selectSchema } from "@/store/context-slice";
+import { selectAvailableDivisions, selectDefaultDivisionId, selectDefaultGstRate, selectEffectiveGstStateCode, selectSchema } from "@/store/context-slice";
 import type { SalesInvoiceType, DocumentSequenceRow, CustomerSearchRow } from "@/features/client/types/sales";
 import type { CustomerTypeOption, StateOption } from "@/features/client/types/customer";
 import { type SalesInvoiceFormValues, getInitialSalesLine } from "./sales-invoice-schema";
@@ -32,9 +33,12 @@ import { CustomerInput } from "@/features/client/components/shared/customer-sele
 type GenericQueryData<T> = { genericQuery: T[] | null };
 
 type Props = {
+    backCalcTarget:       string;
     branchId:             number | null;
     docSequence:          DocumentSequenceRow | null;
+    isGstMode:            boolean;
     isIgst:               boolean;
+    setBackCalcTarget:    (v: string) => void;
     setIsIgst:            (v: boolean) => void;
     isReturn:             boolean;
     onIsReturnChange:     (v: boolean) => void;
@@ -55,17 +59,67 @@ type Props = {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+function buildInvoiceNo(seq: DocumentSequenceRow): string {
+    return `${seq.prefix}${seq.separator}${String(seq.next_number).padStart(seq.padding, "0")}`;
+}
+
+function calcGstPrice(unitPrice: number, gstRate: number): number {
+    return unitPrice * (1 + gstRate / 100);
+}
+
 function calcLine(l: z.infer<typeof import("./sales-invoice-schema").salesLineSchema>, isIgst: boolean) {
     const aggregate = l.qty * l.unit_price;
     const gst       = l.gst_rate;
-    const cgstAmt   = isIgst ? 0 : aggregate * (gst / 2) / 100;
-    const sgstAmt   = isIgst ? 0 : aggregate * (gst / 2) / 100;
-    const igstAmt   = isIgst ? aggregate * gst / 100 : 0;
-    return { aggregate, cgstAmt, sgstAmt, igstAmt, total: aggregate + cgstAmt + sgstAmt + igstAmt };
+    const total     = l.qty * calcGstPrice(l.unit_price, gst);   // qty × gstPrice
+    const taxTotal  = total - aggregate;
+    const cgstAmt   = isIgst ? 0 : taxTotal / 2;
+    const sgstAmt   = isIgst ? 0 : taxTotal / 2;
+    const igstAmt   = isIgst ? taxTotal : 0;
+    return { aggregate, cgstAmt, sgstAmt, igstAmt, total };
 }
 
-function buildInvoiceNo(seq: DocumentSequenceRow): string {
-    return `${seq.prefix}${seq.separator}${String(seq.next_number).padStart(seq.padding, "0")}`;
+function computeBackCalcLines(
+    currentLines: SalesLineFormItem[],
+    targetTotal: number,
+    isIgst: boolean,
+): SalesLineFormItem[] {
+    const currentTotal = currentLines.reduce((s, l) => s + calcLine(l, isIgst).total, 0);
+    if (currentTotal <= 0 || Math.abs(targetTotal - currentTotal) < 0.005) return currentLines;
+    const scaleFactor = targetTotal / currentTotal;
+    const scaled = currentLines.map(l => {
+        const newUnitPrice = Math.round(l.unit_price * scaleFactor * 100) / 100;
+        const c = calcLine({ ...l, unit_price: newUnitPrice }, isIgst);
+        return {
+            ...l,
+            aggregate_amount: c.aggregate,
+            cgst_amount:      c.cgstAmt,
+            igst_amount:      c.igstAmt,
+            sgst_amount:      c.sgstAmt,
+            total_amount:     c.total,
+            unit_price:       newUnitPrice,
+        };
+    });
+
+    // Absorb rounding residual into the last line
+    const scaledTotal = scaled.reduce((s, l) => s + calcLine(l, isIgst).total, 0);
+    const diff = Math.round((targetTotal - scaledTotal) * 100) / 100;
+    if (Math.abs(diff) >= 0.005 && Math.abs(diff) <= 0.10) {
+        const last = scaled[scaled.length - 1];
+        const gstFactor = 1 + last.gst_rate / 100;
+        const newUnitPrice = Math.round((last.unit_price + diff / last.qty / gstFactor) * 100) / 100;
+        const c = calcLine({ ...last, unit_price: newUnitPrice }, isIgst);
+        scaled[scaled.length - 1] = {
+            ...last,
+            aggregate_amount: c.aggregate,
+            cgst_amount:      c.cgstAmt,
+            igst_amount:      c.igstAmt,
+            sgst_amount:      c.sgstAmt,
+            total_amount:     c.total,
+            unit_price:       newUnitPrice,
+        };
+    }
+
+    return scaled;
 }
 
 function formatNumber(num: number): string {
@@ -73,6 +127,59 @@ function formatNumber(num: number): string {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
     }).format(num);
+}
+
+// ─── GstPriceCell ─────────────────────────────────────────────────────────────
+// Two rules:
+//   • Price changes → gst price updates (derived, no back-calc)
+//   • GST Price typed → back-calculates unit_price; gst price stays as typed
+//
+// skipSync: set true before committing so the effect triggered by the
+// resulting unit_price change skips the sync once, preserving what the
+// user typed. All other external unit_price changes (Price input,
+// back-calculate button) sync normally because skipSync is false.
+
+function GstPriceCell({
+    unitPrice, gstRate, inputCls, tdClass, onCommit,
+}: {
+    unitPrice: number;
+    gstRate:   number;
+    inputCls:  string;
+    tdClass:   string;
+    onCommit:  (newUnitPrice: number) => void;
+}) {
+    const displayVal        = unitPrice * (1 + gstRate / 100);
+    const [local, setLocal] = useState(displayVal.toFixed(2));
+    const skipSync          = useRef(false);
+
+    useEffect(() => {
+        if (skipSync.current) { skipSync.current = false; return; }
+        setLocal(displayVal.toFixed(2));
+    }, [displayVal]);
+
+    return (
+        <td className={tdClass}>
+            <Input
+                className={`${inputCls} bg-transparent border-transparent hover:border-(--cl-border) focus:bg-white text-right font-medium text-(--cl-accent)`}
+                min={0}
+                step="0.01"
+                type="number"
+                value={local}
+                onChange={e => setLocal(e.target.value)}
+                onFocus={e => e.target.select()}
+                onBlur={() => {
+                    const gstPriceVal = Number(local);
+                    if (!isNaN(gstPriceVal) && gstPriceVal > 0) {
+                        const divisor = 1 + gstRate / 100;
+                        skipSync.current = true;
+                        onCommit(Math.round((divisor > 0 ? gstPriceVal / divisor : gstPriceVal) * 100) / 100);
+                    } else {
+                        setLocal(displayVal.toFixed(2)); // revert invalid input
+                    }
+                }}
+            />
+        </td>
+    );
 }
 
 // ─── CSS ──────────────────────────────────────────────────────────────────────
@@ -84,7 +191,9 @@ const inputCls = "h-7 border-(--cl-border) bg-white text-sm px-2";
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function NewSalesInvoice({
+    backCalcTarget, setBackCalcTarget,
     branchId, docSequence,
+    isGstMode,
     isIgst, setIsIgst, isReturn, onIsReturnChange,
     selectedBrandId, brandName, editInvoice,
     customerTypes, masterStates,
@@ -95,7 +204,6 @@ export function NewSalesInvoice({
 }: Props) {
     const dbName                    = useAppSelector(selectDbName);
     const schema                    = useAppSelector(selectSchema);
-    const isGstMode                 = useAppSelector(selectIsGstMode);
     const defaultGstRate            = useAppSelector(selectDefaultGstRate);
     const effectiveGstStateCode     = useAppSelector(selectEffectiveGstStateCode);
     const availableDivisions        = useAppSelector(selectAvailableDivisions);
@@ -109,16 +217,16 @@ export function NewSalesInvoice({
         name: "lines",
     });
 
-    const lines = form.watch("lines") ?? [];
+    const lines = useWatch({ control: form.control, name: "lines" }) ?? [];
 
     const partInputRefs    = useRef<(HTMLInputElement | null)[]>([]);
     const hsnInputRefs     = useRef<(HTMLInputElement | null)[]>([]);
     const scrollWrapperRef = useRef<HTMLDivElement>(null);
     const summaryRef       = useRef<HTMLDivElement>(null);
 
-    const [maxTableHeight, setMaxTableHeight] = useState<number | undefined>(undefined);
-    const [customerMobile, setCustomerMobile]   = useState<string>("");
-    const [customerAddress, setCustomerAddress] = useState<string>("");
+    const [customerAddress, setCustomerAddress]  = useState<string>("");
+    const [customerMobile, setCustomerMobile]    = useState<string>("");
+    const [maxTableHeight, setMaxTableHeight]    = useState<number | undefined>(undefined);
 
     useEffect(() => {
         function recalc() {
@@ -185,6 +293,7 @@ export function NewSalesInvoice({
                 lines:        loadedLines,
                 originalLineIds: originalIds,
             });
+            setBackCalcTarget(String(detail.total_amount ?? ""));
         }).catch(() => toast.error(MESSAGES.ERROR_SALES_LOAD_FAILED));
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [editInvoice, dbName, schema]);
@@ -435,22 +544,25 @@ export function NewSalesInvoice({
                                 <thead>
                                     <tr className="bg-(--cl-surface-2)/50">
                                         <th className={thClass} style={{ width: "2%" }}>#</th>
-                                        <th className={thClass} style={{ width: "18%" }}>Part <span className="text-red-500 ml-0.5">*</span></th>
-                                        <th className={thClass} style={{ width: "8%" }}>HSN</th>
-                                        <th className={`${thClass} text-right`} style={{ width: "6%" }}>Qty <span className="text-red-500 ml-0.5">*</span></th>
-                                        <th className={`${thClass} text-right`} style={{ width: "8%" }}>Price</th>
-                                        <th className={`${thClass} text-right border-l border-(--cl-border)`} style={{ width: "10%" }}>Subtotal</th>
-                                        <th className={`${thClass} text-right`} style={{ width: "7%" }}>GST %</th>
+                                        <th className={thClass} style={{ width: "16%" }}>Part <span className="text-red-500 ml-0.5">*</span></th>
+                                        <th className={thClass} style={{ width: "7%" }}>HSN</th>
+                                        <th className={`${thClass} text-right`} style={{ width: "5%" }}>Qty <span className="text-red-500 ml-0.5">*</span></th>
+                                        <th className={`${thClass} text-right`} style={{ width: "7%" }}>Price</th>
+                                        <th className={`${thClass} text-right border-l border-(--cl-border)`} style={{ width: "8%" }}>Aggregate</th>
+                                        <th className={`${thClass} text-right`} style={{ width: "6%" }}>GST %</th>
                                         {!isIgst ? (
                                             <>
-                                                <th className={`${thClass} text-right`} style={{ width: "7%" }}>CGST</th>
-                                                <th className={`${thClass} text-right`} style={{ width: "7%" }}>SGST</th>
+                                                <th className={`${thClass} text-right`} style={{ width: "6%" }}>CGST</th>
+                                                <th className={`${thClass} text-right`} style={{ width: "6%" }}>SGST</th>
                                             </>
                                         ) : (
-                                            <th className={`${thClass} text-right`} style={{ width: "14%" }}>IGST</th>
+                                            <th className={`${thClass} text-right`} style={{ width: "12%" }}>IGST</th>
+                                        )}
+                                        {isGstMode && (
+                                            <th className={`${thClass} text-right`} style={{ width: "8%" }}>GST Price</th>
                                         )}
                                         <th className={`${thClass} text-right`} style={{ width: "8%" }}>Total</th>
-                                        <th className={thClass} style={{ width: "12%" }}>Remarks</th>
+                                        <th className={thClass} style={{ width: "11%" }}>Remarks</th>
                                         <th className={`${thClass} text-left`}  style={{ width: "5%" }}></th>
                                     </tr>
                                 </thead>
@@ -542,7 +654,7 @@ export function NewSalesInvoice({
                                                     />
                                                 </td>
 
-                                                {/* Subtotal (read-only) */}
+                                                {/* Aggregate (read-only) */}
                                                 <td className={`${tdClass} px-2 text-right pt-1 font-mono tabular-nums text-(--cl-text-muted) border-l border-(--cl-border) bg-(--cl-surface-2)/40`}>
                                                     {formatNumber(c.aggregate)}
                                                 </td>
@@ -573,6 +685,16 @@ export function NewSalesInvoice({
                                                     <td className={`${tdClass} px-2 text-right pt-1 font-mono tabular-nums text-(--cl-text-muted) bg-(--cl-surface-2)/40`} title="IGST Amount">
                                                         {formatNumber(c.igstAmt)}
                                                     </td>
+                                                )}
+
+                                                {isGstMode && (
+                                                    <GstPriceCell
+                                                        gstRate={line.gst_rate}
+                                                        inputCls={inputCls}
+                                                        tdClass={tdClass}
+                                                        unitPrice={line.unit_price}
+                                                        onCommit={newUnitPrice => updateLine(idx, { unit_price: newUnitPrice })}
+                                                    />
                                                 )}
 
                                                 {/* Total */}
@@ -614,33 +736,107 @@ export function NewSalesInvoice({
                     </Card>
 
                     {/* Summary bar */}
-                    <div ref={summaryRef} className={`rounded-lg border px-4 py-2.5 flex flex-wrap items-center gap-x-6 gap-y-1 justify-end ${isReturn ? "border-orange-500/30 bg-orange-500/5" : "border-(--cl-border) bg-(--cl-surface-2)/40"}`}>
-                        <div className="flex items-center gap-1.5">
-                            <span className="text-[10px] font-black uppercase tracking-[0.1em] text-(--cl-text-muted)">Lines</span>
-                            <span className="font-bold tabular-nums text-sm text-(--cl-text)">{fields.length}</span>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                            <span className="text-[10px] font-black uppercase tracking-[0.1em] text-(--cl-text-muted)">Qty</span>
-                            <span className="font-bold tabular-nums text-sm text-(--cl-text)">{formatNumber(totals.qty)}</span>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                            <span className="text-[10px] font-black uppercase tracking-[0.1em] text-(--cl-text-muted)">Subtotal</span>
-                            <span className="font-bold tabular-nums text-sm text-(--cl-text)">₹{formatNumber(totals.aggregate)}</span>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                            <span className="text-[10px] font-black uppercase tracking-[0.1em] text-(--cl-text-muted)">Tax</span>
-                            <span className="font-bold tabular-nums text-sm text-(--cl-text)">₹{formatNumber(totals.total_tax)}</span>
-                        </div>
-                        <div className="flex items-center gap-1.5 pl-4 border-l border-(--cl-border)">
-                            <span className="text-[10px] font-black uppercase tracking-[0.1em] text-(--cl-text-muted)">Total</span>
-                            <span className="font-black tabular-nums text-base text-(--cl-accent)">₹{formatNumber(totals.total)}</span>
-                        </div>
-                        {editInvoice && (
-                            <div className="flex items-center gap-1.5 pl-4 border-l border-amber-500/30">
-                                <span className="text-[10px] font-black uppercase tracking-[0.1em] text-amber-600">Saved Total</span>
-                                <span className="font-bold tabular-nums text-sm text-amber-700">₹{formatNumber(editInvoice.total_amount)}</span>
+                    <div ref={summaryRef} className={`rounded-lg border px-4 py-2.5 flex flex-wrap items-center gap-x-4 gap-y-2 ${isReturn ? "border-orange-500/30 bg-orange-500/5" : "border-(--cl-border) bg-(--cl-surface-2)/40"}`}>
+                        {/* Target Amount + Back Calculate — left side */}
+                        {(() => {
+                            const backCalcNum = parseFloat(backCalcTarget);
+                            const hasTarget = backCalcTarget !== "" && !isNaN(backCalcNum) && backCalcNum > 0;
+                            return (
+                                <div className="flex items-center gap-2 mr-auto">
+                                    <Input
+                                        className="h-7 w-36 text-right text-sm font-bold border-(--cl-border) bg-white"
+                                        min="0"
+                                        step="0.01"
+                                        type="number"
+                                        placeholder="Target amount…"
+                                        value={backCalcTarget}
+                                        onChange={e => setBackCalcTarget(e.target.value)}
+                                        onFocus={e => e.target.select()}
+                                    />
+                                    <Button
+                                        className="h-7 cursor-pointer text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white"
+                                        disabled={!hasTarget}
+                                        size="sm"
+                                        type="button"
+                                        onClick={() => {
+                                            const scaledLines = computeBackCalcLines(
+                                                form.getValues("lines") ?? [],
+                                                backCalcNum,
+                                                isIgst,
+                                            );
+                                            form.setValue("lines", scaledLines);
+                                        }}
+                                    >
+                                        Back Calculate
+                                    </Button>
+                                    {backCalcTarget && (
+                                        <Button
+                                            className="h-7 text-xs"
+                                            size="sm"
+                                            type="button"
+                                            variant="outline"
+                                            onClick={() => setBackCalcTarget("")}
+                                        >
+                                            Clear
+                                        </Button>
+                                    )}
+                                </div>
+                            );
+                        })()}
+
+                        {/* Totals — right side */}
+                        <div className="flex items-center gap-x-6 gap-y-1 flex-wrap justify-end">
+                            <div className="flex items-center gap-1.5">
+                                <span className="text-[10px] font-black uppercase tracking-[0.1em] text-(--cl-text-muted)">Lines</span>
+                                <span className="font-bold tabular-nums text-sm text-(--cl-text)">{fields.length}</span>
                             </div>
-                        )}
+                            <div className="flex items-center gap-1.5">
+                                <span className="text-[10px] font-black uppercase tracking-[0.1em] text-(--cl-text-muted)">Qty</span>
+                                <span className="font-bold tabular-nums text-sm text-(--cl-text)">{formatNumber(totals.qty)}</span>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                                <span className="text-[10px] font-black uppercase tracking-[0.1em] text-(--cl-text-muted)">Aggregate</span>
+                                <span className="font-bold tabular-nums text-sm text-(--cl-text)">₹{formatNumber(totals.aggregate)}</span>
+                            </div>
+                            {!isIgst ? (
+                                <>
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="text-[10px] font-black uppercase tracking-[0.1em] text-(--cl-text-muted)">CGST</span>
+                                        <span className="font-bold tabular-nums text-sm text-(--cl-text)">₹{formatNumber(totals.cgst)}</span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="text-[10px] font-black uppercase tracking-[0.1em] text-(--cl-text-muted)">SGST</span>
+                                        <span className="font-bold tabular-nums text-sm text-(--cl-text)">₹{formatNumber(totals.sgst)}</span>
+                                    </div>
+                                </>
+                            ) : (
+                                <div className="flex items-center gap-1.5">
+                                    <span className="text-[10px] font-black uppercase tracking-[0.1em] text-(--cl-text-muted)">IGST</span>
+                                    <span className="font-bold tabular-nums text-sm text-(--cl-text)">₹{formatNumber(totals.igst)}</span>
+                                </div>
+                            )}
+                            {(() => {
+                                const backCalcNum  = parseFloat(backCalcTarget);
+                                const hasTarget    = backCalcTarget !== "" && !isNaN(backCalcNum) && backCalcNum > 0;
+                                const displayTotal = hasTarget ? backCalcNum : totals.total;
+                                const diff         = hasTarget ? Math.round((backCalcNum - totals.total) * 100) / 100 : 0;
+                                const hasDiff      = hasTarget && Math.abs(diff) >= 0.005;
+                                return (
+                                    <>
+                                        <div className="flex items-center gap-1.5 pl-4 border-l border-(--cl-border)">
+                                            <span className="text-[10px] font-black uppercase tracking-[0.1em] text-(--cl-text-muted)">Total</span>
+                                            <span className="font-black tabular-nums text-base text-(--cl-accent)">₹{formatNumber(displayTotal)}</span>
+                                        </div>
+                                        {hasDiff && (
+                                            <div className="flex items-center gap-1.5 pl-4 border-l border-amber-500/30">
+                                                <span className="text-[10px] font-black uppercase tracking-[0.1em] text-amber-600">Diff</span>
+                                                <span className="font-bold tabular-nums text-sm text-amber-700">{diff > 0 ? "+" : ""}{formatNumber(diff)}</span>
+                                            </div>
+                                        )}
+                                    </>
+                                );
+                            })()}
+                        </div>
                     </div>
 
                     {isSubmitting && (

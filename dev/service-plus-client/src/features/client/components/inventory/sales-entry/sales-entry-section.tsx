@@ -123,6 +123,7 @@ export const SalesEntrySection = () => {
     const [isReturn,    setIsReturn]    = useState(false);
 
     // Lifted form state
+    const [backCalcTarget,    setBackCalcTarget]    = useState("");
     const [customerId,        setCustomerId]        = useState<number | null>(null);
     const [customerName,      setCustomerName]      = useState("");
     const [customerGstin,     setCustomerGstin]     = useState("");
@@ -177,7 +178,7 @@ export const SalesEntrySection = () => {
 
     // Derive active docSequence for SINV
     const sinvSequence = docSequences.find(
-        ds => ds.document_type_code === "SINV" && ds.id != null
+        ds => ds.document_type_code === "SALES_INVOICE" && ds.id != null
     ) ?? null;
 
     // Load meta on mount
@@ -341,6 +342,7 @@ export const SalesEntrySection = () => {
             ...getSalesInvoiceDefaultValues(defaultDivisionId),
             lines: [getInitialSalesLine(selectedBrandId)],
         });
+        setBackCalcTarget("");
         setCustomerId(null);
         setCustomerName("");
         setCustomerGstin("");
@@ -384,24 +386,27 @@ export const SalesEntrySection = () => {
             sgstTotal += c.sgstAmt;
             igstTotal += c.igstAmt;
         }
-        const totalTax   = cgstTotal + sgstTotal + igstTotal;
-        const grandTotal = aggTotal + totalTax;
+        const totalTax      = cgstTotal + sgstTotal + igstTotal;
+        const calcTotal     = aggTotal + totalTax;
+        const backCalcNum   = parseFloat(backCalcTarget);
+        const grandTotal    = backCalcTarget !== "" && !isNaN(backCalcNum) && backCalcNum > 0
+            ? backCalcNum
+            : calcTotal;
 
         const linePayload = formLines.map(line => {
             const c = calcLine(line, isIgst);
             return {
-                part_id:          line.part_id,
-                item_description: line.part_name,
-                hsn_code:         line.hsn_code,
-                qty:              line.qty,
-                unit_price:       line.unit_price,
-                aggregate_amount: c.aggregate,
-                gst_rate:         line.gst_rate,
                 cgst_amount:      c.cgstAmt,
-                sgst_amount:      c.sgstAmt,
+                gst_rate:         line.gst_rate,
+                hsn_code:         line.hsn_code,
                 igst_amount:      c.igstAmt,
-                total_amount:     c.total,
+                item_description: line.part_name,
+                amount:           c.total,
+                part_id:          line.part_id,
+                price:            line.unit_price,
+                qty:              line.qty,
                 remarks:          line.remarks.trim() || null,
+                sgst_amount:      c.sgstAmt,
                 xDetails: [
                     {
                         tableName: "stock_transaction",
@@ -421,21 +426,19 @@ export const SalesEntrySection = () => {
         });
 
         const headerFields = {
-            division_id:         values.division_id,
-            customer_contact_id: customerId ?? null,
-            customer_name:       customerName.trim(),
-            customer_gstin:      customerGstin.trim() || null,
-            customer_state_code: customerStateCode,
-            invoice_date:        values.invoice_date,
-            aggregate_amount:    aggTotal,
+            aggregate:           aggTotal,
+            amount:              grandTotal,
             cgst_amount:         cgstTotal,
-            sgst_amount:         sgstTotal,
+            customer_contact_id: customerId ?? null,
+            customer_gstin:      customerGstin.trim() || null,
+            customer_name:       customerName.trim(),
+            customer_state_code: customerStateCode,
+            division_id:         values.division_id,
             igst_amount:         igstTotal,
-            total_tax:           totalTax,
-            total_amount:        grandTotal,
-            brand_id:            selectedBrandId,
-            remarks:             values.remarks?.trim() || null,
+            invoice_date:        values.invoice_date,
             is_return:           isReturn,
+            remarks:             values.remarks?.trim() || null,
+            sgst_amount:         sgstTotal,
         };
 
         try {
@@ -796,8 +799,11 @@ export const SalesEntrySection = () => {
             {mode === "new" ? (
                 <FormProvider {...form}>
                     <NewSalesInvoice
+                        backCalcTarget={backCalcTarget}
+                        setBackCalcTarget={setBackCalcTarget}
                         branchId={branchId}
                         docSequence={editInvoice ? null : sinvSequence}
+                        isGstMode={isGstMode}
                         isIgst={isIgst}
                         setIsIgst={setIsIgst}
                         isReturn={isReturn}

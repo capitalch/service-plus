@@ -2359,7 +2359,7 @@ class SqlStore:
             "p_offset" as (values(%(offset)s::int))
         SELECT
             cc.id, cc.full_name, cc.mobile, cc.gstin,
-            cc.state_id, s.code AS state_code, s.name AS state_name,
+            cc.state_id, COALESCE(s.gst_state_code, s.code) AS state_code, s.name AS state_name,
             cc.address_line1, cc.address_line2, cc.city, cc.postal_code,
             ct.name AS customer_type_name
         FROM customer_contact cc
@@ -2415,19 +2415,19 @@ class SqlStore:
         SELECT
             si.id,
             si.division_id,
-            d.name AS division_name,
+            d.name                                                   AS division_name,
             si.customer_contact_id,
             si.customer_name,
             si.customer_gstin,
             si.customer_state_code,
             si.invoice_no,
             si.invoice_date,
-            si.aggregate_amount,
+            si.aggregate                                             AS aggregate_amount,
             si.cgst_amount,
             si.sgst_amount,
             si.igst_amount,
-            si.total_tax,
-            si.total_amount,
+            (si.cgst_amount + si.sgst_amount + si.igst_amount)      AS total_tax,
+            si.amount                                                AS total_amount,
             si.remarks,
             si.is_return
         FROM sales_invoice si
@@ -2497,8 +2497,11 @@ class SqlStore:
             si.id, si.division_id, si.customer_contact_id, si.customer_name,
             si.customer_gstin, si.customer_state_code,
             si.invoice_no, si.invoice_date,
-            si.aggregate_amount, si.cgst_amount, si.sgst_amount, si.igst_amount,
-            si.total_tax, si.total_amount, si.remarks, si.is_return,
+            si.aggregate                                        AS aggregate_amount,
+            si.cgst_amount, si.sgst_amount, si.igst_amount,
+            (si.cgst_amount + si.sgst_amount + si.igst_amount) AS total_tax,
+            si.amount                                           AS total_amount,
+            si.remarks, si.is_return,
             json_agg(
                 json_build_object(
                     'id',               sil.id,
@@ -2507,14 +2510,14 @@ class SqlStore:
                     'part_name',        sp.part_name,
                     'item_description', sil.item_description,
                     'hsn_code',         sil.hsn_code,
-                    'qty',         sil.qty,
-                    'unit_price',       sil.unit_price,
-                    'aggregate_amount', sil.aggregate_amount,
+                    'qty',              sil.qty,
+                    'unit_price',       sil.price,
+                    'aggregate_amount', ROUND(sil.qty * sil.price, 2),
                     'gst_rate',         sil.gst_rate,
                     'cgst_amount',      sil.cgst_amount,
                     'sgst_amount',      sil.sgst_amount,
                     'igst_amount',      sil.igst_amount,
-                    'total_amount',     sil.total_amount,
+                    'total_amount',     sil.amount,
                     'remarks',          sil.remarks
                 ) ORDER BY sil.id
             ) AS lines

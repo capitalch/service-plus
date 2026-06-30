@@ -1,5 +1,6 @@
 # To Do
 - Enhancements
+	- modify Sales Invoice functionality
 								- Rename Job Search to Job Panel / Control /Manage
 							- Job Control
 								- undo final for final jobs

@@ -1,9 +1,10 @@
-# New way to handle gstin in service-plus and treatment during posting to trace-plus
-- In Job table I added a new nullable column gstin.
-- At the time of job creation we can provide the gstin of the customer if he is a registered customer. If customer exists then fetch and show gstin. If customer is new then provide empty field. If user make new entry in gstin field then save in customer table also.
-- So customer gstin can be added at the time of job creation if the customer is a registered customer. At that time, we save the gstin in job table and also in customer table. If during update or creation we don't have gstin then it will not be saved.
-- Also when creating"Finalize" in job we have a dialog "Finalize Job" in this dialog provide a validated field for gstin. This field will be autopopulated if customer has gstin or corresponding job has gstin. If not then provide an empty field for gstin. User can provide fresh gstin at the time of finalization.
-- During validation of job finalization if the entered gstin is invalid then show an error message and do not allow to finalize the job. Validated gstin will be saved at both customer and job table.
-- Also, During delivery of the job, show the gstin along with validation. This will come from job table or customer table. User can put fresh gstin here. After successful validation and delivery of the job update the gstin in job table.
-- When job needs to be posted to trace-plus then we will use the gstin from the job table.
-- In trace-plus, the gstin needs to be updated in ExtGstTranD table in gstin column, when account posting is done for job invoice.
+# Modifications in Inventory > Sales Entry
+- When different state consider IGST automatically and in case of same state conside CGST + SGST. User can change the same if required.
+- When customer selected, automatically populate the state and other details from the customer master.
+- Display GSTIN if available. User can provide GSTIN manually.
+- When the division is gst then create GST invoice and when not then create normal invoice. 
+- When gst invoice, allow entry for gst price. User can change gstPrice, then price will be backcalculated
+- Do proper totalling of line items (Amount, Gst Amount, Total Amount) in the footer
+- Provide an input box for Target Amount at footer and also provide button for back calculation of the prices. This will behave similar to "Final a Job" drill down "Target Amount" and back calculate
+- The screen should work for both new and editing the invoice. If editing then it should fetch the data from the server and display the data in the screen.
+- give you plan to plans/plan.md
