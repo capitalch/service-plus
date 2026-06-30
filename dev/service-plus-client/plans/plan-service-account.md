@@ -134,3 +134,4 @@ for the deployment topology.
   vs. one per client before Phase 1.
 - **Token lifetime:** a long posting run could outlive the token; add refresh‑on‑401 if runs are large.
 - **Back‑compat:** keep superAdmin functional throughout; only remove service‑plus's *use* of it at the end.
+
