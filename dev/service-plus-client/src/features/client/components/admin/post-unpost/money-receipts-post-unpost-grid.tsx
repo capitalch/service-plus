@@ -4,7 +4,13 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+    AlertDialog, AlertDialogAction, AlertDialogCancel,
+    AlertDialogContent, AlertDialogDescription,
+    AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
+import { getPostUnpostSelectAllConfirm } from "@/constants/messages";
 import { SQL_MAP } from "@/constants/sql-map";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { apolloClient } from "@/lib/apollo-client";
@@ -47,6 +53,7 @@ export function MoneyReceiptsPostUnpostGrid({ pendingChanges, onChangeToggle, on
     const [rows,    setRows]    = useState<MoneyReceiptPostUnpostRow[]>([]);
 
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const [confirmAllOpen, setConfirmAllOpen] = useState(false);
 
     const handleSearchChange = (value: string) => {
         setSearch(value);
@@ -96,6 +103,18 @@ export function MoneyReceiptsPostUnpostGrid({ pendingChanges, onChangeToggle, on
 
     const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
+    const allChecked    = rows.length > 0 && rows.every(r => (pendingChanges.has(r.id) ? pendingChanges.get(r.id)! : r.is_posted));
+    const toggleTarget  = !allChecked;
+    const affectedCount = rows.filter(r => (pendingChanges.has(r.id) ? pendingChanges.get(r.id)! : r.is_posted) !== toggleTarget).length;
+    const applyToggleAll = () => {
+        rows.forEach(r => {
+            const displayed = pendingChanges.has(r.id) ? pendingChanges.get(r.id)! : r.is_posted;
+            if (displayed !== toggleTarget) onChangeToggle(r.id, r.is_posted);
+        });
+        setConfirmAllOpen(false);
+    };
+    const selectAllConfirm = getPostUnpostSelectAllConfirm(affectedCount, toggleTarget);
+
     return (
         <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
             <div className="flex flex-wrap items-center gap-2 py-2">
@@ -130,7 +149,12 @@ export function MoneyReceiptsPostUnpostGrid({ pendingChanges, onChangeToggle, on
                                     <th className={thClass}>Mode</th>
                                     <th className={thClass}>Division</th>
                                     <th className={`${thClass} text-right`}>Amount</th>
-                                    <th className={thClass}>Posted</th>
+                                    <th className={thClass}>
+                                        <span className="flex items-center gap-1.5">
+                                            <input type="checkbox" className="cursor-pointer accent-(--cl-accent)" checked={allChecked} onChange={() => setConfirmAllOpen(true)} />
+                                            Posted
+                                        </span>
+                                    </th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -167,6 +191,19 @@ export function MoneyReceiptsPostUnpostGrid({ pendingChanges, onChangeToggle, on
                     <Button size="sm" variant="outline" disabled={page >= totalPages || loading} onClick={() => setPage(totalPages)}>»</Button>
                 </div>
             </div>
+
+            <AlertDialog open={confirmAllOpen} onOpenChange={setConfirmAllOpen}>
+                <AlertDialogContent className="max-w-sm">
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>{selectAllConfirm.title}</AlertDialogTitle>
+                        <AlertDialogDescription>{selectAllConfirm.description}</AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={applyToggleAll}>Continue</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 }

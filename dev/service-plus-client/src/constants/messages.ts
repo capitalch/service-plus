@@ -496,6 +496,11 @@ export const MESSAGES = {
   ERROR_WARRANTY_REPORT_LOAD_FAILED:        'Failed to load warranty report. Please try again.',
   ERROR_WARRANTY_DETAIL_LOAD_FAILED:        'Failed to load warranty job parts. Please try again.',
   INFO_WARRANTY_NO_JOBS_IN_RANGE:           'No in-warranty jobs found for this range.',
+
+  // Post / Unpost (Admin) — Select All confirmation
+  CONFIRM_POST_UNPOST_SELECT_ALL_TITLE_POSTED:   'Mark all as Posted?',
+  CONFIRM_POST_UNPOST_SELECT_ALL_TITLE_UNPOSTED: 'Mark all as Unposted?',
+  CONFIRM_POST_UNPOST_SELECT_ALL_BODY:           'This will set {count} record{plural} on this page to {state}. The change is staged and applied only when you click Continue.',
 } as const;
 
 // Type for message keys
@@ -504,6 +509,19 @@ export type MessageKey = keyof typeof MESSAGES;
 // Helper function to get message by key
 export function getMessage(key: MessageKey): string {
   return MESSAGES[key];
+}
+
+// Builds the Post/Unpost "Select All" confirmation title + description from central templates.
+export function getPostUnpostSelectAllConfirm(count: number, posted: boolean): { title: string; description: string } {
+  return {
+    title: posted
+      ? MESSAGES.CONFIRM_POST_UNPOST_SELECT_ALL_TITLE_POSTED
+      : MESSAGES.CONFIRM_POST_UNPOST_SELECT_ALL_TITLE_UNPOSTED,
+    description: MESSAGES.CONFIRM_POST_UNPOST_SELECT_ALL_BODY
+      .replace('{count}', String(count))
+      .replace('{plural}', count !== 1 ? 's' : '')
+      .replace('{state}', posted ? 'Posted' : 'Unposted'),
+  };
 }
 
 export const VALIDATION_MESSAGES = {

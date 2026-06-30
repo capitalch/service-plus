@@ -1,117 +1,136 @@
-# Plan — GSTIN capture across the Job lifecycle (customer-only model)
+# Plan: Replace Trace‑Plus super‑admin with a dedicated service account for Accounts Posting
 
-Source spec: `plans/tran.md`
+## Goal
+Accounts Posting currently authenticates service‑to‑service against trace‑plus‑server using the
+**superAdmin** credentials. Replace that with a **dedicated, least‑privilege service account** so the
+super‑admin identity is not embedded in service‑plus for routine posting.
 
-## Context
-The spec asks for a customer GSTIN to be captured, edited, and validated at job
-**creation**, **finalize**, and **delivery**, and used when the job invoice is posted to
-Trace Plus (`ExtGstTranD.gstin`).
+## Current state (as‑is)
 
-The spec originally proposed storing GSTIN in **both** the `job` table and the
-`customer_contact` table. On review, that duplication isn't justified for this app — the
-only thing a `job.gstin` column buys is a per-job snapshot/override, and GSTIN belongs to
-the customer. **Decision: store GSTIN solely on `customer_contact.gstin`.** Every stage
-reads/writes that one column; posting reads it live (the server already does). This
-intentionally overrides the "save at both" wording in `tran.md` bullets 3/6.
+**service‑plus‑server** — `app/graphql/resolvers/mutation_helper.py`
+- `_get_trace_plus_token()` (≈ line 2018) POSTs to `{trace_plus_url}/api/login` with
+  `settings.trace_plus_super_admin_uid` / `settings.trace_plus_super_admin_password`, returns `accessToken`.
+- Token is reused for the whole run; each voucher is posted via `_post_tran_h_to_trace_plus()` (≈ line 2267)
+  to `{trace_plus_url}/graphql/` as `mutation AccountsPosting($value)`, with `clientCode` + `buCode` in the payload.
 
-Net effect: a single source of truth, no snapshot, last-write-wins. The work is mostly
-**client-side UI + validation + a customer-update call**; the server posting path is
-already correct.
+**service‑plus‑server** — `app/config.py` (≈ lines 106‑118)
+- `trace_plus_url` (default `http://localhost:8001`)
+- `trace_plus_super_admin_uid` (default `superAdmin`)
+- `trace_plus_super_admin_password` (default `superadmin@123`)
+- Settings load from `.env` (`SettingsConfigDict(env_file=".env", case_sensitive=False)`).
 
-## Key findings (verified)
-- Posting query `GET_UNPOSTED_JOB_INVOICES` already selects `cc.gstin AS customer_gstin`
-  and `mutation_helper.py:2209-2210` copies it into `ExtGstTranD.gstin`. **No server
-  posting change required.**
-- The deliverable-jobs query already returns `cc.gstin AS customer_gstin`
-  (`sql_store.py:4969`); `deliver-job-schema.ts:133` already has `customer_gstin`.
-- `GET_JOB_DETAIL` (`sql_store.py:3657`) returns `j.*` + customer fields but does **not**
-  alias `cc.gstin`; finalize/edit prefill needs `cc.gstin AS customer_gstin` added.
-- Customer picker rows (`CustomerSearchRow`) already carry `gstin`
-  (`customer-select.tsx`, `customer-search-modal.tsx`).
-- GSTIN regex is duplicated inline in `add-customer-dialog.tsx:49`.
-- `job.gstin` has **already been removed** from the client types
-  (`db-schema-service.ts`) and server DDL (`service_plus_service.sql`). Only verify the
-  seed `db/service_plus_demo.sql` no longer adds it.
+**trace‑plus‑server** — `/home/sushant/projects/trace-plus/dev/trace-server`
+- `/api/login` (`app/security/security_router.py`): `login_helper(clientId, username, password)`.
+  - `get_super_admin_bundle()` matches superAdmin **from config, no clientId required**.
+  - else `get_other_user_bundle(clientId, …)` — a **DB user** that needs `clientId` and carries
+    `role`, `userSecuredControls`, `userBusinessUnits`, `isUserActive`.
+- `accounts_posting_helper()` (`app/graphql/graphql_helper.py` ≈ line 492): reads `clientCode`/`buCode`
+  **from the request payload**, resolves the client DB from `ClientM`, and posts. **It does not check the
+  caller's role / secured controls / business‑unit membership** — it only needs a valid authenticated token.
 
----
+### Key implication
+Because `accounts_posting_helper` trusts the payload's `clientCode`/`buCode` and does **not** enforce
+per‑user authorization, *any* valid trace‑plus token can post to *any* client. So a low‑privilege service
+account works functionally today — but the privilege reduction is only real if we **also** add an authz
+check on the mutation (see Option B / Hardening). Without that, "service account" mainly buys us identity
+separation, credential rotation, and auditability — not true least privilege.
 
-## Step 0 — Shared GSTIN validator (reuse, remove duplication)
-New `src/lib/gstin.ts`:
-- `GSTIN_REGEX` = `/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/`
-- `isValidGstin(v)` — empty/null ⇒ valid (optional); else must match.
-- `normalizeGstin(v)` — `trim().toUpperCase()`.
-Refactor `add-customer-dialog.tsx` (and any other inline copy) to import from here.
-
-## Step 1 — `job.gstin` removal (already done)
-The `job.gstin` column has already been removed from the client types
-(`src/types/db-schema-service.ts`) and the server DDL
-(`app/db/service_plus_service.sql`). Remaining check: ensure the seed
-`db/service_plus_demo.sql` no longer adds `job.gstin`, and grep for any stray `job`
-`gstin` reads/writes in client/server code.
-
-## Step 2 — Shared "save GSTIN to customer" helper
-A small client helper reused by Steps 3–5 — `saveCustomerGstin(customerId, raw)`:
-- normalize; if empty or unchanged vs current ⇒ no-op (never overwrite with blank);
-- `genericUpdate` on `customer_contact` (`xData: { id, gstin }`) via `GRAPHQL_MAP.genericUpdate`;
-- surface failures via toast without aborting the primary job action.
-Hard-block validation is done by the caller before invoking; the helper assumes a valid
-value.
-
-## Step 3 — Job creation: GSTIN field bound to the customer
-Files: `jobs/single-job/new-single-job-form.tsx` + `single-job-schema.ts` +
-`single-job-section.tsx`; mirror in `jobs/batch-job/*` (confirm how batch associates
-customers — single vs per-row — and apply per customer).
-- Add `gstin` to the form schema (optional, `isValidGstin`-validated), uppercase-normalized.
-- Prefill from the selected customer's `gstin` on `onSelect` (`new-single-job-form.tsx:245`);
-  blank on clear. New customers use the existing add-customer dialog (already has GSTIN).
-- Edit-mode prefill via `GET_JOB_DETAIL` — add `cc.gstin AS customer_gstin` to the SQL and
-  read it in the edit-load `form.reset` (`new-single-job-form.tsx:106`).
-- Inline error on malformed; reject save when non-empty & invalid.
-- On submit (`single-job-section.tsx onSubmit`, create ~line 195 and edit ~line 166):
-  **no `job` xData change**; call `saveCustomerGstin(values.customer_id, values.gstin)`.
-
-## Step 4 — Finalize: validated GSTIN field
-Files: `jobs/final-a-job/final-job-form.tsx`, `final-a-job-schema.ts`,
-`final-a-job-section.tsx`.
-- Prefill from the customer's GSTIN (via the `GET_JOB_DETAIL` `customer_gstin` alias from
-  Step 3); falls back to empty.
-- Add a validated, uppercase-normalized GSTIN input to the finalize header/summary.
-- Hard block: if non-empty & `!isValidGstin`, `toast.error` and abort finalize.
-- On successful finalize, call `saveCustomerGstin(...)`. No `job`/`job_invoice` gstin write.
-
-## Step 5 — Delivery: validated GSTIN field
-Files: `jobs/deliver-job/delivery-modal.tsx`, `deliver-job-helpers.ts`.
-- `customer_gstin` is already loaded (`cc.gstin`). Render an editable, validated,
-  uppercase-normalized field prefilled from it.
-- Hard block on malformed non-empty GSTIN.
-- On successful delivery, call `saveCustomerGstin(...)`.
-
-## Step 6 — Posting to Trace Plus
-No change. `GET_UNPOSTED_JOB_INVOICES` already reads `cc.gstin` live and
-`mutation_helper.py` already writes it to `ExtGstTranD.gstin`. Whatever was last saved to
-the customer at creation/finalize/delivery flows through automatically. Verify only.
+## Open question to verify FIRST (blocking)
+Confirm the trace‑plus `/graphql/` route requires authentication and that a **non‑super‑admin** token is
+accepted by `accountsPosting`. Inspect the GraphQL router/ASGI wiring (`app/graphql/graphql_router.py`,
+`app/main.py`) for the auth dependency. If the route is currently super‑admin‑gated anywhere, the plan must
+include relaxing that to "authenticated + authorized service account".
 
 ---
 
-## Verification
-1. **Creation** — existing customer with GSTIN ⇒ field prefills; editing it updates
-   `customer_contact.gstin`. Malformed ⇒ inline error, save blocked. New customer via add
-   dialog ⇒ GSTIN saved.
-2. **Finalize** — field prefills from customer GSTIN; invalid blocks finalize; valid
-   updates the customer.
-3. **Delivery** — field prefills; invalid blocks delivery; valid updates the customer.
-4. **Posting** — post a finalized job invoice ⇒ Trace Plus `ExtGstTranD.gstin` equals the
-   customer's current GSTIN.
-5. `npm run lint` + `tsc` clean (client); server unchanged functionally. No inline GSTIN
-   regex copies remain (all import `src/lib/gstin.ts`). `job.gstin` absent from
-   types/DDL/seed (already removed; just confirm the seed).
+## Options
 
-## File touch list
-Client: `src/lib/gstin.ts` (new);
-`jobs/single-job/{new-single-job-form,single-job-schema,single-job-section}.tsx`;
-`jobs/batch-job/*` (mirror);
-`jobs/final-a-job/{final-job-form,final-a-job-schema,final-a-job-section}.tsx`;
-`jobs/deliver-job/{delivery-modal,deliver-job-helpers}.tsx`;
-`masters/customer/add-customer-dialog.tsx`.
-Server: `app/db/sql_store.py` (add `cc.gstin AS customer_gstin` to `GET_JOB_DETAIL`).
-(`job.gstin` already removed from types/DDL; just confirm `db/service_plus_demo.sql`.)
+### Option A — Config‑based service identity (mirror superAdmin)
+Add a second config‑level identity in trace‑plus (e.g. `SERVICE_ACCOUNT_UID` + bcrypt hash) and a
+`get_service_account_bundle()` parallel to `get_super_admin_bundle()`. service‑plus logs in with it
+(no clientId needed).
+- **Pros:** smallest change; no clientId plumbing; no DB user lifecycle; direct drop‑in for current flow.
+- **Cons:** still a global, cross‑client credential like superAdmin — not least privilege unless the
+  mutation is also scoped; bypasses normal RBAC/audit of DB users.
+
+### Option B — Real DB user with a posting‑only role (recommended)
+Create a dedicated trace‑plus **DB user** (in `UserM`) under the designated trace‑plus client, with a
+minimal role + only the secured control(s) needed for `accountsPosting`, and the required business units.
+- **Pros:** proper RBAC, per‑client revocation, auditable, least privilege once the mutation enforces authz.
+- **Cons:** login must pass `clientId`; if multiple service‑plus clients map to multiple trace clients you
+  need either one cross‑client service user or one per client; requires the Hardening step to be meaningful.
+
+**Recommendation: Option B**, paired with the Hardening step (authorization check in
+`accounts_posting_helper`). Fall back to Option A only if DB‑user login with clientId proves impractical
+for the deployment topology.
+
+---
+
+## Implementation process (Option B)
+
+### Phase 1 — Trace‑plus: create the service account
+1. Decide the **clientId/clientCode** the service user belongs to and which **business units** it must post
+   to (the `buCode`s passed from service‑plus).
+2. Create a **role** (e.g. `Service Posting`) granting only the secured control(s) backing `accountsPosting`.
+   Verify the exact control id via `import_secured_controls` / `sql_security.py` mapping.
+3. Create an **active** `UserM` user (e.g. `svc-service-plus`) with that role, a strong generated password,
+   and membership in the required business units. Confirm `isUserActive = true`.
+4. Record the credentials in the secret store (see Phase 4). Do **not** commit them.
+
+### Phase 2 — Trace‑plus: harden the mutation (authorization)
+5. In `accounts_posting_helper`, after auth, **verify the caller is permitted** for the requested
+   `clientCode`/`buCode` (check the token user's client + business‑unit membership + secured control).
+   Reject with a 403 otherwise. This is what turns "a low‑priv user" into actual least privilege.
+6. Keep superAdmin working (back‑compat) so existing flows / Option‑A fallback don't break.
+
+### Phase 3 — Service‑plus‑server: switch credentials & login
+7. `app/config.py`: add new settings
+   - `trace_plus_service_account_uid`
+   - `trace_plus_service_account_password`
+   - `trace_plus_service_account_client_id` (the trace‑plus clientId for DB‑user login)
+   Keep the old `trace_plus_super_admin_*` fields temporarily for rollback.
+8. `_get_trace_plus_token()`: log in with the service account, **including `clientId`** in the POST form
+   (the `/api/login` `OAuth2PasswordRequestForm` reads `clientId` from the form via `form.get("clientId")`).
+   Confirm the field name matches `security_router.do_login`.
+9. Add resilience: clear error if login fails (so posting reports "auth failed" distinctly from
+   "posting failed"); optional one‑time token refresh if a 401 occurs mid‑run.
+
+### Phase 4 — Configuration & secrets
+10. Set the new values via `.env` / deployment secrets for each environment (local, demo, prod). Never use
+    the committed defaults for real credentials.
+11. Plan **rotation**: document how to rotate the service password without redeploying code (env update +
+    restart). Remove the password defaults from `config.py` (leave non‑secret defaults only).
+
+### Phase 5 — Testing
+12. Unit: `_get_trace_plus_token()` posts username/password/clientId and parses `accessToken`.
+13. Integration (against a trace‑plus dev instance):
+    - Service account can log in and obtain a token.
+    - `accountsPosting` succeeds for the **permitted** client/BU.
+    - After Hardening, `accountsPosting` is **rejected (403)** for a non‑permitted client/BU.
+    - superAdmin path still works (back‑compat).
+14. End‑to‑end via the Accounts Posting UI (`accounts-posting-section.tsx`): post money receipts /
+    purchase invoices / job invoices for a branch; verify progress events, success toast, and that rows are
+    marked posted (`MARK_MONEY_RECEIPT_POSTED`, etc.).
+15. Negative: inactive service user, wrong password, expired token → clear, non‑silent failures.
+
+### Phase 6 — Rollout & cleanup
+16. Deploy trace‑plus changes (Phases 1‑2) first, then service‑plus (Phase 3), env per‑environment.
+17. Soak using the service account; monitor logs/audit.
+18. Once stable, remove `trace_plus_super_admin_uid/password` usage from `_get_trace_plus_token()` and the
+    now‑unused config fields. Keep superAdmin login in trace‑plus for human admin use.
+
+## Files to change
+- `service-plus-server/app/config.py` — new `trace_plus_service_account_*` settings; drop secret defaults.
+- `service-plus-server/app/graphql/resolvers/mutation_helper.py` — `_get_trace_plus_token()` (creds + clientId, error handling).
+- `trace-server/app/graphql/graphql_helper.py` — `accounts_posting_helper()` authorization check (Hardening).
+- `trace-server` user/role/secured‑control setup (data, via admin UI or seed) — service user + posting role.
+- `.env` / deployment secret config for all environments.
+- (If Option A instead) `trace-server/app/config.py` + `app/security/security_helper.py` — service identity + `get_service_account_bundle()`.
+
+## Risks & notes
+- **Authz gap:** until Phase 2 lands, the service account can post cross‑client (same as superAdmin). Treat
+  Phase 2 as part of the definition of done, not optional.
+- **Topology:** if service‑plus posts for multiple trace‑plus clients, decide one cross‑client service user
+  vs. one per client before Phase 1.
+- **Token lifetime:** a long posting run could outlive the token; add refresh‑on‑401 if runs are large.
+- **Back‑compat:** keep superAdmin functional throughout; only remove service‑plus's *use* of it at the end.
