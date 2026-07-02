@@ -1,9 +1,4 @@
 import type { SalesLineFormItem } from "./sales-invoice-schema";
-import type { DocumentSequenceRow } from "@/features/client/types/sales";
-
-export function buildInvoiceNo(seq: DocumentSequenceRow): string {
-    return `${seq.prefix}${seq.separator}${String(seq.next_number).padStart(seq.padding, "0")}`;
-}
 
 export function calcLine(l: SalesLineFormItem, isIgst: boolean) {
     const aggregate = l.qty * l.unit_price;

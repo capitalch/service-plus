@@ -1063,6 +1063,7 @@ export interface SalesInvoice {
   is_return: boolean;
   division_id: number;
   is_posted: boolean;
+  brand_id: number;
 }
 export interface SalesInvoiceInput {
   id: number;
@@ -1083,15 +1084,17 @@ export interface SalesInvoiceInput {
   is_return?: boolean;
   division_id: number;
   is_posted?: boolean;
+  brand_id: number;
 }
 const sales_invoice = {
   tableName: 'sales_invoice',
-  columns: ['id', 'invoice_no', 'invoice_date', 'customer_contact_id', 'customer_name', 'customer_gstin', 'customer_state_code', 'aggregate', 'cgst_amount', 'sgst_amount', 'igst_amount', 'amount', 'remarks', 'created_at', 'updated_at', 'is_return', 'division_id', 'is_posted'],
-  requiredForInsert: ['id', 'invoice_no', 'invoice_date', 'customer_contact_id', 'customer_name', 'customer_state_code', 'aggregate', 'amount', 'division_id'],
+  columns: ['id', 'invoice_no', 'invoice_date', 'customer_contact_id', 'customer_name', 'customer_gstin', 'customer_state_code', 'aggregate', 'cgst_amount', 'sgst_amount', 'igst_amount', 'amount', 'remarks', 'created_at', 'updated_at', 'is_return', 'division_id', 'is_posted', 'brand_id'],
+  requiredForInsert: ['id', 'invoice_no', 'invoice_date', 'customer_contact_id', 'customer_name', 'customer_state_code', 'aggregate', 'amount', 'division_id', 'brand_id'],
   primaryKey: 'id',
   foreignKeys: {
     customer_contact_id: { table: 'customer_contact', column: 'id', $type: null as unknown as CustomerContact },
     division_id: { table: 'division', column: 'id', $type: null as unknown as Division },
+    brand_id: { table: 'brand', column: 'id', $type: null as unknown as Brand },
   },
   $type: null as unknown as SalesInvoice,
   $input: null as unknown as SalesInvoiceInput

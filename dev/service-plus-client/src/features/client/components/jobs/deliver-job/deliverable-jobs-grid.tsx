@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import {
     ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon,
     Eye, Loader2, Paperclip, RefreshCw, Search, Truck, X,
@@ -10,6 +10,7 @@ import { Input }  from "@/components/ui/input";
 import { type DivisionContextType, isGstDivision } from "@/features/client/types/division";
 import { PAGE_SIZE, DEBOUNCE_MS, thClass, tdClass, fmtCurrency } from "./deliver-job-helpers";
 import { JobTypeBadge, StatusBadge } from "../job-badges";
+import { useGridRowRetention, type GridRetentionHandle } from "../use-grid-row-retention";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -65,22 +66,23 @@ type Props = {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function DeliverableJobsGrid({
+export const DeliverableJobsGrid = forwardRef<GridRetentionHandle, Props>(function DeliverableJobsGrid({
     rows, loading, total, page, search,
     branchId, availableDivisions, loadingDetail, selectedIds, setPage,
     onSearch, onRefresh, onViewJob, onDeliver, onOpenAttach,
     onSelectionChange, onSelectAll, onDeliverSelected,
-}: Props) {
-    const scrollRef  = useRef<HTMLDivElement>(null);
+}, ref) {
+    const { scrollWrapperRef, selectedRowId, setSelectedRowId, armRestore } = useGridRowRetention(loading);
+    useImperativeHandle(ref, () => ({ armRestore }), [armRestore]);
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [maxHeight, setMaxHeight] = useState(0);
 
     const recalc = useCallback(() => {
-        if (scrollRef.current) {
-            const rect = scrollRef.current.getBoundingClientRect();
+        if (scrollWrapperRef.current) {
+            const rect = scrollWrapperRef.current.getBoundingClientRect();
             setMaxHeight(Math.max(200, window.innerHeight - rect.top - 80));
         }
-    }, []);
+    }, [scrollWrapperRef]);
 
     useEffect(() => {
         const timer = setTimeout(recalc, 100);
@@ -149,7 +151,7 @@ export function DeliverableJobsGrid({
             {/* Grid */}
             <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-(--cl-border) bg-(--cl-surface) shadow-sm">
                 <div
-                    ref={scrollRef}
+                    ref={scrollWrapperRef}
                     className="flex-1 overflow-x-auto overflow-y-auto"
                     style={{ maxHeight: maxHeight || undefined }}
                 >
@@ -208,9 +210,17 @@ export function DeliverableJobsGrid({
                                     <motion.tr
                                         key={row.id}
                                         animate={{ opacity: 1 }}
-                                        className={`group transition-colors hover:bg-(--cl-accent)/5 ${selectedIds.has(row.id) ? "bg-emerald-50 dark:bg-emerald-950/20" : ""}`}
+                                        className={`group cursor-pointer transition-colors hover:bg-(--cl-accent)/5 ${
+                                            selectedIds.has(row.id)
+                                                ? "bg-emerald-50 dark:bg-emerald-950/20"
+                                                : selectedRowId === row.id
+                                                    ? "bg-(--cl-accent)/15"
+                                                    : ""
+                                        }`}
+                                        data-job-id={row.id}
                                         initial={{ opacity: 0 }}
                                         transition={{ delay: idx * 0.015, duration: 0.15 }}
+                                        onClick={() => setSelectedRowId(row.id)}
                                     >
                                         <td className={tdClass}>
                                             <input
@@ -301,7 +311,14 @@ export function DeliverableJobsGrid({
                                             </div>
                                         </td>
                                         <td className={`${tdClass} text-right tabular-nums`}>{fmtCurrency(row.amount)}</td>
-                                        <td className={`${tdClass} sticky right-0 z-10 bg-(--cl-surface) group-hover:bg-(--cl-surface-2)`}>
+                                        <td
+                                            className={`${tdClass} sticky right-0 z-10 ${
+                                                selectedRowId === row.id
+                                                    ? "bg-(--cl-accent)/15 group-hover:bg-(--cl-accent)/20"
+                                                    : "bg-(--cl-surface) group-hover:bg-(--cl-surface-2)"
+                                            }`}
+                                            onPointerDownCapture={() => setSelectedRowId(row.id)}
+                                        >
                                             <div className="flex items-center gap-1">
                                                 <Button
                                                     className="h-7 w-7 p-0 text-(--cl-text-muted) hover:text-(--cl-accent)"
@@ -352,4 +369,4 @@ export function DeliverableJobsGrid({
             </div>
         </>
     );
-}
+});

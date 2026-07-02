@@ -248,7 +248,7 @@ export const generateSalesInvoicePdf = (
         { label: "SGST",             value: Number(invoice.sgst_amount) },
         { label: "IGST",             value: Number(invoice.igst_amount) },
         { label: "Total Tax",        value: Number(invoice.total_tax) },
-        { accent: true, bold: true, label: "Invoice Total", value: totalLineAmt },
+        { accent: true, bold: true, label: "Invoice Total", value: Number(invoice.total_amount) },
     ];
 
     const boxStartY = currY - 4;

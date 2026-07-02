@@ -846,6 +846,15 @@ class SqlStore:
         RETURNING prefix, (next_number - 1) AS assigned_number, padding, separator;
     """
 
+    CLAIM_NEXT_SALES_INVOICE_NUMBER = """
+        UPDATE document_sequence
+        SET next_number = next_number + 1
+        WHERE document_type_id = (SELECT id FROM document_type WHERE code = 'SALES_INVOICE')
+          AND branch_id = %(branch_id)s
+          AND division_id = %(division_id)s
+        RETURNING prefix, (next_number - 1) AS assigned_number, padding, separator;
+    """
+
     CLAIM_NEXT_RECEIPT_NUMBER = """
         UPDATE document_sequence
         SET next_number = next_number + 1
@@ -2460,6 +2469,7 @@ class SqlStore:
             si.id,
             si.division_id,
             d.name                                                   AS division_name,
+            si.brand_id,
             si.customer_contact_id,
             si.customer_name,
             si.customer_gstin,
@@ -2539,7 +2549,7 @@ class SqlStore:
     GET_SALES_INVOICE_DETAIL = """
         with "p_id" as (values(%(id)s::bigint))
         SELECT
-            si.id, si.division_id, si.customer_contact_id, si.customer_name,
+            si.id, si.division_id, si.brand_id, si.customer_contact_id, si.customer_name,
             si.customer_gstin, si.customer_state_code,
             si.invoice_no, si.invoice_date,
             si.aggregate                                        AS aggregate_amount,

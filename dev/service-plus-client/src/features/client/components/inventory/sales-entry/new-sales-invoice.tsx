@@ -20,11 +20,11 @@ import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectAvailableDivisions, selectDefaultDivisionId, selectDefaultGstRate, selectEffectiveGstStateCode, selectSchema } from "@/store/context-slice";
 import { isGstDivision } from "@/features/client/types/division";
-import type { SalesInvoiceType, DocumentSequenceRow, CustomerSearchRow } from "@/features/client/types/sales";
+import type { SalesInvoiceType, CustomerSearchRow } from "@/features/client/types/sales";
 import type { CustomerTypeOption, StateOption } from "@/features/client/types/customer";
 import { type SalesInvoiceFormValues, getInitialSalesLine } from "./sales-invoice-schema";
 import type { SalesLineFormItem } from "./sales-invoice-schema";
-import { buildInvoiceNo, calcLine, computeBackCalcLines } from "./sales-invoice-utils";
+import { calcLine, computeBackCalcLines } from "./sales-invoice-utils";
 
 import { PartCodeInput } from "../part-code-input";
 import { CustomerInput } from "@/features/client/components/shared/customer-select";
@@ -34,12 +34,12 @@ import { CustomerInput } from "@/features/client/components/shared/customer-sele
 type Props = {
     backCalcTarget:       string;
     branchId:             number | null;
-    docSequence:          DocumentSequenceRow | null;
     isIgst:               boolean;
     setBackCalcTarget:    (v: string) => void;
     setIsIgst:            (v: boolean) => void;
     isReturn:             boolean;
     onIsReturnChange:     (v: boolean) => void;
+    onLinesValidChange:   (v: boolean) => void;
     selectedBrandId:      number | null;
     brandName?:           string;
     editInvoice?:         SalesInvoiceType | null;
@@ -127,8 +127,9 @@ const inputCls = "h-7 border-(--cl-border) bg-white text-sm px-2";
 
 export function NewSalesInvoice({
     backCalcTarget, setBackCalcTarget,
-    branchId, docSequence,
+    branchId,
     isIgst, setIsIgst, isReturn, onIsReturnChange,
+    onLinesValidChange,
     selectedBrandId, brandName, editInvoice,
     customerTypes, masterStates,
     customerId, setCustomerId,
@@ -158,6 +159,19 @@ export function NewSalesInvoice({
 
     const lines = useWatch({ control: form.control, name: "lines" }) ?? [];
 
+    // Report line validity to the parent (which gates the Save button). Computed here
+    // from the reliably-watched `lines`, since the parent's own form.watch("lines")
+    // does not pick up per-line setValue updates across the useFieldArray boundary.
+    const linesValid = useMemo(() => {
+        if (lines.length === 0) return false;
+        return lines.every(l => {
+            if (!l.part_id || l.qty <= 0) return false;
+            if ((l.unit_price > 0 || l.gst_rate > 0) && !l.hsn_code.trim()) return false;
+            return true;
+        });
+    }, [lines]);
+
+    useEffect(() => { onLinesValidChange(linesValid); }, [linesValid, onLinesValidChange]);
 
     const partInputRefs    = useRef<(HTMLInputElement | null)[]>([]);
     const hsnInputRefs     = useRef<(HTMLInputElement | null)[]>([]);
@@ -170,6 +184,12 @@ export function NewSalesInvoice({
 
     useEffect(() => {
         function recalc() {
+            // Only cap the table height on md+ (desktop), where the form fills a
+            // fixed-height area and only the table scrolls internally. Below md the
+            // whole form scrolls (see the outer container's overflow-y-auto), so the
+            // table must render at its natural height — no maxHeight.
+            const isDesktop = window.matchMedia("(min-width: 768px)").matches;
+            if (!isDesktop) { setMaxTableHeight(undefined); return; }
             const el = scrollWrapperRef.current;
             if (!el) return;
             const top           = el.getBoundingClientRect().top;
@@ -324,7 +344,7 @@ export function NewSalesInvoice({
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="flex min-h-fit md:min-h-0 md:flex-1 flex-col gap-2 pb-0 md:overflow-hidden"
+            className="flex min-h-0 flex-1 flex-col gap-2 pb-0 overflow-y-auto md:overflow-hidden"
         >
             {!branchId ? (
                 <div className="flex flex-col items-center justify-center py-20 bg-(--cl-surface-2)/30 rounded-xl border-2 border-dashed border-(--cl-border) text-center">
@@ -436,7 +456,7 @@ export function NewSalesInvoice({
                                 <Input
                                     readOnly
                                     className="bg-(--cl-surface-2) font-mono text-(--cl-accent) font-bold cursor-not-allowed opacity-80"
-                                    value={docSequence ? buildInvoiceNo(docSequence) : (editInvoice?.invoice_no ?? "—")}
+                                    value={editInvoice ? editInvoice.invoice_no : "Auto-generated on save"}
                                 />
                             </div>
 

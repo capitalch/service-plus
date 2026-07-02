@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict EWobN41VJ5VRsdxISIFcWgfnBsbeFoOpVRDN0z7ymneXLaho8YOTezUkJc7iFHP
+\restrict eeIxsbtffI9nDD7lthUWXG3HraLimv6pGa0ECnc4VOhMrue3yXVIUHViubBVUsx
 
 -- Dumped from database version 14.6
 -- Dumped by pg_dump version 18.4 (Ubuntu 18.4-0ubuntu0.26.04.1)
@@ -953,7 +953,8 @@ CREATE TABLE demo1.sales_invoice (
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     is_return boolean DEFAULT false NOT NULL,
     division_id bigint NOT NULL,
-    is_posted boolean DEFAULT false NOT NULL
+    is_posted boolean DEFAULT false NOT NULL,
+    brand_id bigint NOT NULL
 );
 
 
@@ -3230,6 +3231,14 @@ ALTER TABLE ONLY demo1.purchase_invoice
 
 
 --
+-- Name: sales_invoice sales_invoice_brand_id_fkey; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.sales_invoice
+    ADD CONSTRAINT sales_invoice_brand_id_fkey FOREIGN KEY (brand_id) REFERENCES demo1.brand(id) NOT VALID;
+
+
+--
 -- Name: sales_invoice sales_invoice_customer_fk; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
 --
 
@@ -3585,5 +3594,5 @@ ALTER TABLE ONLY security.user_bu_role
 -- PostgreSQL database dump complete
 --
 
-\unrestrict EWobN41VJ5VRsdxISIFcWgfnBsbeFoOpVRDN0z7ymneXLaho8YOTezUkJc7iFHP
+\unrestrict eeIxsbtffI9nDD7lthUWXG3HraLimv6pGa0ECnc4VOhMrue3yXVIUHViubBVUsx
 

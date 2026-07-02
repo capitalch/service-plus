@@ -21,6 +21,7 @@ export type SalesInvoiceType = {
     id:                   number;
     division_id:          number | null;
     division_name?:       string | null;
+    brand_id:             number | null;
     customer_contact_id:  number | null;
     customer_name:        string;
     customer_gstin:       string | null;

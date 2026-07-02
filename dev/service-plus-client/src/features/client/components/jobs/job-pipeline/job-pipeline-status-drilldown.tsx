@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
     ArrowLeft, ArrowRightLeft,
     ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon,
@@ -31,6 +31,7 @@ import type { TransitionPayload } from "./status-transition-modal";
 import { JobDetailsModal } from "./job-details-modal";
 import { JobChargesModal, type ChargesJobSummary } from "./job-charges-modal";
 import { UndoTransactionDialog } from "./undo-transaction-dialog";
+import { useGridRowRetention } from "../use-grid-row-retention";
 
 type Props = {
     status: JobBoardStatusCount;
@@ -95,15 +96,15 @@ export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Prop
     const [viewJobId, setViewJobId] = useState<number | null>(null);
     const [chargesJob, setChargesJob] = useState<ChargesJobSummary | null>(null);
 
-    const scrollRef = useRef<HTMLDivElement>(null);
+    const { scrollWrapperRef, selectedRowId, setSelectedRowId, armRestore, disarmRestore } = useGridRowRetention(loading);
     const [maxHeight, setMaxHeight] = useState(0);
 
     const recalc = useCallback(() => {
-        if (scrollRef.current) {
-            const rect = scrollRef.current.getBoundingClientRect();
+        if (scrollWrapperRef.current) {
+            const rect = scrollWrapperRef.current.getBoundingClientRect();
             setMaxHeight(Math.max(200, window.innerHeight - rect.top - 80));
         }
-    }, []);
+    }, [scrollWrapperRef]);
 
     useEffect(() => {
         const timer = setTimeout(recalc, 100);
@@ -159,7 +160,10 @@ export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Prop
         }
     }, [dbName, schema, branchId, status.status_id, searchQ, page]);
 
-    useEffect(() => { void loadData(); }, [loadData]);
+    // Mutation reloads arm the row/scroll restore; navigation reloads disarm it.
+    const refreshGrid = useCallback(() => { armRestore(); void loadData(); }, [armRestore, loadData]);
+
+    useEffect(() => { disarmRestore(); void loadData(); }, [loadData, disarmRestore]);
 
     async function handleSubmitTransition(job: OpenJobRow, transition: Transition, payload: TransitionPayload) {
         if (!dbName || !schema) return;
@@ -194,7 +198,7 @@ export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Prop
 
             toast.success(`Job ${job.job_no} → ${transition.targetName}`);
             setPendingTran(null);
-            void loadData();
+            refreshGrid();
         } catch {
             toast.error(MESSAGES.ERROR_JOB_UPDATE_FAILED);
         } finally {
@@ -219,7 +223,7 @@ export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Prop
             });
             toast.success(`Undo successful — Job #${job.job_no} restored to previous status.`);
             setUndoPendingJob(null);
-            void loadData();
+            refreshGrid();
         } catch (err) {
             const msg = (err as { errors?: { message: string }[] })?.errors?.[0]?.message
                 ?? "Failed to undo transaction. Please refresh and try again.";
@@ -291,7 +295,7 @@ export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Prop
 
             {/* Table */}
             <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-(--cl-border) bg-(--cl-surface) shadow-sm my-3">
-                <div ref={scrollRef} className="flex-1 overflow-x-auto overflow-y-auto" style={{ maxHeight: maxHeight || undefined }}>
+                <div ref={scrollWrapperRef} className="flex-1 overflow-x-auto overflow-y-auto" style={{ maxHeight: maxHeight || undefined }}>
                     {loading ? (
                         <div className="flex h-32 items-center justify-center gap-2 text-sm text-(--cl-text-muted)">
                             <Loader2 className="h-4 w-4 animate-spin" /> Loading…
@@ -325,9 +329,15 @@ export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Prop
                                         <motion.tr
                                             key={row.id}
                                             animate={{ opacity: 1 }}
-                                            className={`group transition-colors hover:bg-(--cl-accent)/10 ${rowBg}`}
+                                            className={`group cursor-pointer transition-colors ${
+                                                selectedRowId === row.id
+                                                    ? "bg-(--cl-accent)/40 hover:bg-(--cl-accent)/45"
+                                                    : `hover:bg-(--cl-accent)/10 ${rowBg}`
+                                            }`}
+                                            data-job-id={row.id}
                                             initial={{ opacity: 0 }}
                                             transition={{ delay: idx * 0.015, duration: 0.15 }}
+                                            onClick={() => setSelectedRowId(row.id)}
                                         >
                                             <td className={`${tdClass} text-(--cl-text-muted)`}>{(page - 1) * PAGE_SIZE + idx + 1}</td>
                                             <td className={`${tdClass} whitespace-nowrap`}>
@@ -390,7 +400,15 @@ export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Prop
                                             <td className={`${tdClass} text-right tabular-nums`}>
                                                 {row.amount != null ? `₹${Number(row.amount).toFixed(2)}` : "—"}
                                             </td>
-                                            <td className={`${tdClass} sticky right-0 z-10 ${rowBg || "bg-(--cl-surface)"} group-hover:bg-(--cl-accent)/10`} onClick={e => e.stopPropagation()}>
+                                            <td
+                                                className={`${tdClass} sticky right-0 z-10 ${
+                                                    selectedRowId === row.id
+                                                        ? "bg-(--cl-accent)/40 group-hover:bg-(--cl-accent)/45"
+                                                        : `${rowBg || "bg-(--cl-surface)"} group-hover:bg-(--cl-accent)/10`
+                                                }`}
+                                                onClick={e => e.stopPropagation()}
+                                                onPointerDownCapture={() => setSelectedRowId(row.id)}
+                                            >
                                                 <div className="flex items-center gap-1">
                                                     <Button
                                                         className="h-8 w-8 p-0 text-(--cl-text-muted) hover:text-(--cl-accent) hover:bg-(--cl-accent)/10"
@@ -530,7 +548,7 @@ export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Prop
                 <JobDetailsModal
                     jobId={viewJobId}
                     onClose={() => setViewJobId(null)}
-                    onJobChanged={() => void loadData()}
+                    onJobChanged={() => refreshGrid()}
                 />
             )}
 
@@ -549,7 +567,7 @@ export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Prop
                     dbName={dbName ?? ""}
                     schema={schema ?? ""}
                     onClose={() => setChargesJob(null)}
-                    onSaved={() => { setChargesJob(null); void loadData(); }}
+                    onSaved={() => { setChargesJob(null); refreshGrid(); }}
                 />
             )}
         </motion.div>

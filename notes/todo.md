@@ -1,6 +1,21 @@
 # To Do
+- Bug fix
+	- Purchase Entry
+		- in small screen auto scrollbar not appearing
+		- In small screens no height provided for line items
+	- Sales Entry
+		- In small screens no height provided for line items
+		- When division changes, corresponding GST info is not changed. Amount for spare should be same in gst / non-gst
+								- in small screen auto scrollbar not appearing
+								- When a batch job is received, two times received is shown in job view: Transaction
+								- Add contactsId to posting of sales
+								- Warranty job transactions: allow adding spare parts
 - Enhancements
-	- In all drill down grids of Job Pipeline, final a job and Deliver Job including all tabs: for action dropdown and corresponding actions, follow the same pattern of row selection and page and row and scroll position retention.
+	- Access management
+	- Account posting: Service account instead of super admin
+	- Validate creation of new client / Bu / Branch / Division end to end
+	- Security of server config file
+							- In all drill down grids of Job Pipeline, final a job and Deliver Job including all tabs: for action dropdown and corresponding actions, follow the same pattern of row selection and page and row and scroll position retention.
 							- Draft Invoice info for finalised jobs
 							- modify Sales Invoice functionality
 								- Rename Job Search to Job Panel / Control /Manage
@@ -8,11 +23,8 @@
 								- undo final for final jobs
 								- undo delivery / undo last transactions for closed jobs
 								- Also make drill down buttons for undo final and undo delivery
-	- Access management
-	- Account posting: Service account instead of super admin
-	- Validate creation of new client / Bu / Branch / Division end to end
-	- Security of server config file
 - QA
+	
 								- Error when final a Job. Final amount possible without providing details
 	- Massive transactions testing end to end
 		- Create single job and batch jobs. Check why two times transactions shown in job view.
@@ -21,15 +33,12 @@
 		- Deliver
 	- Accounts Posting
 		- sales invoice
+								- In remarks write: "Sale Invoice"
 								- Check customer GSTIN No transfer: Not transferring
 								- Check IGST transfer
 								- Proper HSN for parts and service
 								- Upload trace-plus and check account posting online at serviceplus.cloudjiffy.net
-	- Bug fix
-		- Sales Entry: When division changes, corresponding GST info is not changed. Amount for spare should be same in gst / non-gst
-								- When a batch job is received, two times received is shown in job view: Transaction
-								- Add contactsId to posting of sales
-								- Warranty job transactions: allow adding spare parts
+	
 - Login
 	- Forgot password
 	- Remember me

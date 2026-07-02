@@ -34,6 +34,7 @@ import { PAGE_SIZE, DEBOUNCE_MS } from "./final-a-job-helpers";
 import { FinalJobForm } from "./final-job-form";
 import { PendingJobsGrid } from "./pending-jobs-grid";
 import { FinalizedJobsGrid } from "./finalized-jobs-grid";
+import type { GridRetentionHandle } from "../use-grid-row-retention";
 import { JobChargesReadonlyModal, type ChargesViewPartLine, type ChargesViewChargeLine } from "./job-charges-readonly-modal";
 import { DeliveryModal } from "../deliver-job/delivery-modal";
 import { JobPdfModal } from "../job-control/job-pdf-modal";
@@ -187,6 +188,8 @@ export const FinalAJobSection = ({ onBack, initialTab }: FinalAJobSectionProps =
 
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const finalizedDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const pendingGridRef = useRef<GridRetentionHandle>(null);
+    const finalizedGridRef = useRef<GridRetentionHandle>(null);
     // Derived: effective division and GST flag for the currently-open job
     const division = availableDivisions.find(d => d.id === selectedDivisionId) ?? null;
     const isGst = isGstDivision(division);
@@ -528,6 +531,7 @@ export const FinalAJobSection = ({ onBack, initialTab }: FinalAJobSectionProps =
                 },
             });
             toast.success(`Job #${row.job_no} moved back to pending.`);
+            finalizedGridRef.current?.armRestore();
             void loadFinalizedData();
             if (branchId) void loadData(branchId, searchQ, page, currentDivision?.id ?? null);
         } catch {
@@ -1082,6 +1086,7 @@ export const FinalAJobSection = ({ onBack, initialTab }: FinalAJobSectionProps =
 
                 {activeTab === "pending" && (
                     <PendingJobsGrid
+                        ref={pendingGridRef}
                         rows={rows}
                         loading={loading}
                         total={total}
@@ -1101,6 +1106,7 @@ export const FinalAJobSection = ({ onBack, initialTab }: FinalAJobSectionProps =
 
                 {activeTab === "finalized" && (
                     <FinalizedJobsGrid
+                        ref={finalizedGridRef}
                         rows={finalizedRows}
                         loading={finalizedLoading}
                         total={finalizedTotal}
@@ -1132,8 +1138,10 @@ export const FinalAJobSection = ({ onBack, initialTab }: FinalAJobSectionProps =
                     onClose={() => {
                         setViewJobId(null);
                         if (activeTab === "finalized") {
+                            finalizedGridRef.current?.armRestore();
                             void loadFinalizedData();
                         } else if (branchId) {
+                            pendingGridRef.current?.armRestore();
                             void loadData(branchId, searchQ, page, currentDivision?.id ?? null);
                         }
                     }}
@@ -1191,6 +1199,7 @@ export const FinalAJobSection = ({ onBack, initialTab }: FinalAJobSectionProps =
                     onDelivered={() => {
                         setShowDeliveryModal(false);
                         setDeliveryJobDetails([]);
+                        finalizedGridRef.current?.armRestore();
                         void loadFinalizedData();
                     }}
                 />

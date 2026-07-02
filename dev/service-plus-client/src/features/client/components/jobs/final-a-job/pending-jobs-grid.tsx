@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useState } from "react";
 import {
     CheckCheck,
     ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon,
@@ -12,6 +12,7 @@ import { type DivisionContextType, isGstDivision } from "@/features/client/types
 import { PAGE_SIZE, thClass, tdClass } from "./final-a-job-helpers";
 import { JobTypeBadge } from "../job-badges";
 import type { FinalJobRow } from "./final-a-job-schema";
+import { useGridRowRetention, type GridRetentionHandle } from "../use-grid-row-retention";
 
 type Props = {
     rows:               FinalJobRow[];
@@ -30,20 +31,21 @@ type Props = {
     onOpenAttach:       (id: number, jobNo: string) => void;
 };
 
-export function PendingJobsGrid({
+export const PendingJobsGrid = forwardRef<GridRetentionHandle, Props>(function PendingJobsGrid({
     rows, loading, total, page, setPage,
     search, branchId, availableDivisions, loadingDetail,
     onSearchChange, onRefresh, onViewJob, onOpenFinal, onOpenAttach,
-}: Props) {
-    const scrollRef = useRef<HTMLDivElement>(null);
+}, ref) {
+    const { scrollWrapperRef, selectedRowId, setSelectedRowId, armRestore } = useGridRowRetention(loading);
+    useImperativeHandle(ref, () => ({ armRestore }), [armRestore]);
     const [maxHeight, setMaxHeight] = useState(0);
 
     const recalc = useCallback(() => {
-        if (scrollRef.current) {
-            const rect = scrollRef.current.getBoundingClientRect();
+        if (scrollWrapperRef.current) {
+            const rect = scrollWrapperRef.current.getBoundingClientRect();
             setMaxHeight(Math.max(200, window.innerHeight - rect.top - 80));
         }
-    }, []);
+    }, [scrollWrapperRef]);
 
     useEffect(() => {
         const timer = setTimeout(recalc, 100);
@@ -88,7 +90,7 @@ export function PendingJobsGrid({
 
         {/* Grid */}
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-(--cl-border) bg-(--cl-surface) shadow-sm">
-            <div ref={scrollRef} className="flex-1 overflow-x-auto overflow-y-auto" style={{ maxHeight: maxHeight || undefined }}>
+            <div ref={scrollWrapperRef} className="flex-1 overflow-x-auto overflow-y-auto" style={{ maxHeight: maxHeight || undefined }}>
                 {loading ? (
                     <table className="min-w-full border-collapse">
                         <thead>
@@ -132,9 +134,15 @@ export function PendingJobsGrid({
                                 <motion.tr
                                     key={row.id}
                                     animate={{ opacity: 1 }}
-                                    className="group transition-colors hover:bg-(--cl-accent)/5"
+                                    className={`group cursor-pointer transition-colors ${
+                                        selectedRowId === row.id
+                                            ? "bg-(--cl-accent)/40 hover:bg-(--cl-accent)/45"
+                                            : "hover:bg-(--cl-accent)/5"
+                                    }`}
+                                    data-job-id={row.id}
                                     initial={{ opacity: 0 }}
                                     transition={{ delay: idx * 0.015, duration: 0.15 }}
+                                    onClick={() => setSelectedRowId(row.id)}
                                 >
                                     <td className={`${tdClass} text-(--cl-text-muted)`}>{(page - 1) * PAGE_SIZE + idx + 1}</td>
 
@@ -219,7 +227,14 @@ export function PendingJobsGrid({
                                     </td>
 
                                     {/* Actions */}
-                                    <td className={`${tdClass} sticky right-0 z-10 bg-(--cl-surface) group-hover:bg-(--cl-surface-2)`}>
+                                    <td
+                                        className={`${tdClass} sticky right-0 z-10 ${
+                                            selectedRowId === row.id
+                                                ? "bg-(--cl-accent)/40 group-hover:bg-(--cl-accent)/45"
+                                                : "bg-(--cl-surface) group-hover:bg-(--cl-surface-2)"
+                                        }`}
+                                        onPointerDownCapture={() => setSelectedRowId(row.id)}
+                                    >
                                         <div className="flex items-center gap-1">
                                             <Button
                                                 className="h-7 w-7 p-0 text-(--cl-text-muted) hover:text-(--cl-accent)"
@@ -268,4 +283,4 @@ export function PendingJobsGrid({
         </div>
         </>
     );
-}
+});

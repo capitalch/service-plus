@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { FormProvider, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {CheckCircle2, Eye, FileDown, FileSpreadsheet, FileText, Loader2,
@@ -43,7 +43,7 @@ import type { StockTransactionTypeRow } from "@/features/client/types/purchase";
 import type { CustomerTypeOption, StateOption } from "@/features/client/types/customer";
 import { salesInvoiceSchema, getSalesInvoiceDefaultValues, getInitialSalesLine } from "./sales-invoice-schema";
 import type { SalesInvoiceFormValues } from "./sales-invoice-schema";
-import { calcLine, buildInvoiceNo } from "./sales-invoice-utils";
+import { calcLine } from "./sales-invoice-utils";
 
 import { NewSalesInvoice } from "./new-sales-invoice";
 import { ViewSalesInvoiceDialog } from "./view-sales-invoice-dialog";
@@ -125,20 +125,14 @@ export const SalesEntrySection = () => {
         resolver:      zodResolver(salesInvoiceSchema) as any,
     });
 
-    const lines = form.watch("lines") ?? [];
-
     const selectedDivisionId = form.watch("division_id");
     const isGstMode = isGstDivision(availableDivisions.find(d => d.id === selectedDivisionId) ?? null);
 
-    const canSave = useMemo(() => {
-        if (!customerName.trim() || !customerStateCode || !selectedBrand) return false;
-        if (lines.length === 0) return false;
-        return lines.every(l => {
-            if (!l.part_id || l.qty <= 0) return false;
-            if ((l.unit_price > 0 || l.gst_rate > 0) && !l.hsn_code.trim()) return false;
-            return true;
-        });
-    }, [lines, customerName, customerStateCode, selectedBrand]);
+    // Line validity is reported up from NewSalesInvoice, which watches the field array
+    // reliably (the parent's own form.watch("lines") misses nested per-line updates).
+    const [linesValid, setLinesValid] = useState(false);
+
+    const canSave = !!customerName.trim() && !!customerStateCode && !!selectedBrand && linesValid;
 
     const debounceRef     = useRef<ReturnType<typeof setTimeout> | null>(null);
     const scrollWrapperRef = useRef<HTMLDivElement>(null);
@@ -347,6 +341,7 @@ export const SalesEntrySection = () => {
         setCustomerStateCode("");
         setIsReturn(false);
         setEditInvoice(null);
+        setLinesValid(false);
     };
 
     const executeSave = async (values: SalesInvoiceFormValues) => {
@@ -433,6 +428,7 @@ export const SalesEntrySection = () => {
         const headerFields = {
             aggregate:           aggTotal,
             amount:              grandTotal,
+            brand_id:            selectedBrandId,
             cgst_amount:         cgstTotal,
             customer_contact_id: customerId ?? null,
             customer_gstin:      customerGstin.trim() || null,
@@ -474,14 +470,11 @@ export const SalesEntrySection = () => {
                     toast.error(MESSAGES.ERROR_DOC_SEQ_SINV_NOT_CONFIGURED);
                     return;
                 }
-                const docSequence = sinvSequence;
-                const invoiceNo   = buildInvoiceNo(docSequence);
-                const sqlObject   = {
-                    tableName:         "sales_invoice",
-                    doc_sequence_id:   docSequence?.id ?? null,
-                    doc_sequence_next: docSequence ? (docSequence.next_number + 1) : null,
+                const sqlObject = {
+                    tableName:   "sales_invoice",
+                    branch_id:   branchId,
+                    division_id: values.division_id,
                     xData: {
-                        invoice_no: invoiceNo,
                         ...headerFields,
                         xDetails: {
                             tableName: "sales_invoice_line",
@@ -799,11 +792,11 @@ export const SalesEntrySection = () => {
                         backCalcTarget={backCalcTarget}
                         setBackCalcTarget={setBackCalcTarget}
                         branchId={branchId}
-                        docSequence={editInvoice ? null : sinvSequence}
                         isIgst={isIgst}
                         setIsIgst={setIsIgst}
                         isReturn={isReturn}
                         onIsReturnChange={setIsReturn}
+                        onLinesValidChange={setLinesValid}
                         selectedBrandId={selectedBrandId}
                         brandName={brands.find(b => String(b.id) === selectedBrand)?.name}
                         editInvoice={editInvoice}
@@ -1013,7 +1006,7 @@ export const SalesEntrySection = () => {
                                                                     onClick={() => setPdfPreviewInvoice(inv)}
                                                                 >
                                                                     <FileDown className="h-4 w-4" />
-                                                                    <span>Show PDF</span>
+                                                                    <span>Invoice PDF</span>
                                                                 </DropdownMenuItem>
                                                                 <DropdownMenuItem
                                                                     className="flex items-center gap-2 cursor-pointer focus:bg-emerald-500/20 focus:text-emerald-500"
@@ -1028,7 +1021,7 @@ export const SalesEntrySection = () => {
                                                                 </DropdownMenuItem>
                                                                 <DropdownMenuItem
                                                                     className="flex items-center gap-2 cursor-pointer text-amber-500 focus:bg-amber-500/10 focus:text-amber-600"
-                                                                    onClick={() => { setEditInvoice(inv); setMode("new"); }}
+                                                                    onClick={() => { setSelectedBrand(String(inv.brand_id ?? "")); setEditInvoice(inv); setMode("new"); }}
                                                                 >
                                                                     <Pencil className="h-4 w-4" />
                                                                     <span>Edit Invoice</span>

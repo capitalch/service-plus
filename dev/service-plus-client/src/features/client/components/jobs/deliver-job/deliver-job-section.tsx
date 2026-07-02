@@ -21,6 +21,7 @@ import { DeliverableJobsGrid, type DeliverableJobRow } from "./deliverable-jobs-
 import { DeliveredJobsGrid, type DeliveredJobRow } from "./delivered-jobs-grid";
 import { DeliveryModal } from "./delivery-modal";
 import type { JobDeliveryFullDetail } from "./deliver-job-schema";
+import type { GridRetentionHandle } from "../use-grid-row-retention";
 
 // ── Local types ───────────────────────────────────────────────────────────────
 
@@ -83,6 +84,8 @@ export const DeliverJobSection = ({ onBack, initialTab }: DeliverJobSectionProps
 
     const debounceRef          = useRef<ReturnType<typeof setTimeout> | null>(null);
     const deliveredDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const deliverableGridRef   = useRef<GridRetentionHandle>(null);
+    const deliveredGridRef     = useRef<GridRetentionHandle>(null);
 
     // ── Load meta once ────────────────────────────────────────────────────────
     useEffect(() => {
@@ -143,7 +146,6 @@ export const DeliverJobSection = ({ onBack, initialTab }: DeliverJobSectionProps
         if (!branchId || activeTab !== "deliverable") return;
         // eslint-disable-next-line react-hooks/set-state-in-effect
         loadData(branchId, searchQ, page).catch(() => {});
-        console.log("rows", rows);
     }, [branchId, searchQ, page, loadData, activeTab]);
 
     // ── Load delivered jobs ───────────────────────────────────────────────────
@@ -267,6 +269,7 @@ export const DeliverJobSection = ({ onBack, initialTab }: DeliverJobSectionProps
         setShowDeliveryModal(false);
         setModalJobDetails([]);
         setSelectedIds(new Set());
+        deliverableGridRef.current?.armRestore();
         if (branchId) void loadData(branchId, searchQ, page);
         void loadDeliveredData();
     }
@@ -337,6 +340,7 @@ export const DeliverJobSection = ({ onBack, initialTab }: DeliverJobSectionProps
             {/* Deliverable tab */}
             {activeTab === "deliverable" && (
                 <DeliverableJobsGrid
+                    ref={deliverableGridRef}
                     rows={rows}
                     loading={loading}
                     total={total}
@@ -361,6 +365,7 @@ export const DeliverJobSection = ({ onBack, initialTab }: DeliverJobSectionProps
             {/* Delivered Jobs tab */}
             {activeTab === "delivered" && (
                 <DeliveredJobsGrid
+                    ref={deliveredGridRef}
                     rows={deliveredRows}
                     loading={deliveredLoading}
                     total={deliveredTotal}
@@ -405,6 +410,7 @@ export const DeliverJobSection = ({ onBack, initialTab }: DeliverJobSectionProps
             )}
 
             {deliveredActions.renderModals(() => {
+                deliveredGridRef.current?.armRestore();
                 void loadDeliveredData();
                 if (branchId) void loadData(branchId, searchQ, page);
             })}
