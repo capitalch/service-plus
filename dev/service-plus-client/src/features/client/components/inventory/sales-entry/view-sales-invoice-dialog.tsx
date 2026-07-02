@@ -13,12 +13,13 @@ import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { MESSAGES } from "@/constants/messages";
 import { SQL_MAP } from "@/constants/sql-map";
 import { apolloClient } from "@/lib/apollo-client";
-import { graphQlUtils } from "@/lib/graphql-utils";
+import { graphQlUtils, type GenericQueryData } from "@/lib/graphql-utils";
 import { formatCurrency } from "@/lib/utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectSchema } from "@/store/context-slice";
 import type { SalesInvoiceType, SalesLineType } from "@/features/client/types/sales";
+import { Field } from "@/features/client/components/inventory/invoice-field";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -29,7 +30,6 @@ type Props = {
     onShowPdf?:   (invoice: SalesInvoiceType) => void;
 };
 
-type GenericQueryData<T> = { genericQuery: T[] | null };
 type DetailRow = SalesInvoiceType & { lines: SalesLineType[] };
 
 // ─── CSS ──────────────────────────────────────────────────────────────────────
@@ -166,35 +166,42 @@ export const ViewSalesInvoiceDialog = ({ invoice, open, onOpenChange, onShowPdf 
                         </div>
 
                         {/* Summary Footer */}
-                        <div className="flex flex-col sm:flex-row justify-end items-start sm:items-center gap-6 rounded-xl border border-zinc-200 bg-zinc-50/30 p-5 shadow-sm">
-                            <Field
-                                className="text-right"
-                                label="computed Amount"
-                                value={formatCurrency(computedTotal)}
-                            />
-                            <div className="hidden h-8 w-px bg-zinc-200 sm:block" />
-                            <Field
-                                className="text-right"
-                                label="Tax Amount"
-                                value={formatCurrency(totalTax)}
-                            />
-                            {Math.abs(diffAmount) > 0.01 && (
-                                <>
-                                    <div className="hidden h-8 w-px bg-zinc-200 sm:block" />
-                                    <div className="text-right">
-                                        <p className="mb-0.5 text-[10px] font-extrabold uppercase tracking-widest text-zinc-400">Difference</p>
-                                        <p className="font-semibold text-amber-600">
-                                            {diffAmount > 0 ? "+" : ""}{formatCurrency(diffAmount)}
-                                        </p>
+                        <div className="flex justify-end">
+                            <div className="w-72 rounded-lg border border-zinc-200 bg-zinc-50 overflow-hidden text-sm">
+                                {/* Breakdown rows */}
+                                {[
+                                    { label: "Aggregate",  value: totalAggregate, muted: true },
+                                    { label: "CGST",       value: totalCgst,      muted: true },
+                                    { label: "SGST",       value: totalSgst,      muted: true },
+                                    ...(totalIgst > 0 ? [{ label: "IGST", value: totalIgst, muted: true }] : []),
+                                    { label: "Total Tax",  value: totalTax,       muted: false },
+                                ].map(row => (
+                                    <div key={row.label} className="flex items-center justify-between px-4 py-1.5 border-b border-zinc-100 last:border-b-0">
+                                        <span className={`text-xs font-semibold uppercase tracking-wide ${row.muted ? "text-zinc-400" : "text-zinc-500"}`}>{row.label}</span>
+                                        <span className={`font-mono tabular-nums ${row.muted ? "text-zinc-600" : "text-zinc-700 font-semibold"}`}>{formatCurrency(row.value)}</span>
                                     </div>
-                                </>
-                            )}
-                            <div className="hidden h-8 w-px bg-zinc-200 sm:block" />
-                            <Field
-                                className="text-right"
-                                label="Invoice amount"
-                                value={formatCurrency(physicalTotal)}
-                            />
+                                ))}
+
+                                {/* Computed total */}
+                                <div className="flex items-center justify-between px-4 py-2 bg-zinc-100 border-t border-zinc-200">
+                                    <span className="text-xs font-bold uppercase tracking-wide text-zinc-500">Computed Total</span>
+                                    <span className="font-mono tabular-nums font-bold text-zinc-700">{formatCurrency(computedTotal)}</span>
+                                </div>
+
+                                {/* Diff row — always visible */}
+                                <div className={`flex items-center justify-between px-4 py-1.5 border-t border-zinc-100 ${Math.abs(diffAmount) > 0.01 ? "bg-amber-50" : ""}`}>
+                                    <span className={`text-xs font-semibold uppercase tracking-wide ${Math.abs(diffAmount) > 0.01 ? "text-amber-500" : "text-zinc-400"}`}>Difference</span>
+                                    <span className={`font-mono tabular-nums font-semibold ${Math.abs(diffAmount) > 0.01 ? "text-amber-600" : "text-emerald-600"}`}>
+                                        {diffAmount > 0 ? "+" : ""}{formatCurrency(diffAmount)}
+                                    </span>
+                                </div>
+
+                                {/* Invoice amount — prominent */}
+                                <div className="flex items-center justify-between px-4 py-2.5 bg-white border-t-2 border-zinc-300">
+                                    <span className="text-xs font-extrabold uppercase tracking-widest text-zinc-600">Invoice Amount</span>
+                                    <span className="font-mono tabular-nums text-base font-extrabold text-(--cl-accent)">{formatCurrency(physicalTotal)}</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 ) : null}
@@ -202,12 +209,3 @@ export const ViewSalesInvoiceDialog = ({ invoice, open, onOpenChange, onShowPdf 
         </Dialog>
     );
 };
-
-function Field({ label, value, className }: { label: string; value: string | number; className?: string }) {
-    return (
-        <div className={className}>
-            <p className="text-[10px] font-extrabold text-zinc-400 uppercase tracking-widest mb-0.5">{label}</p>
-            <p className="font-semibold text-zinc-800">{value}</p>
-        </div>
-    );
-}

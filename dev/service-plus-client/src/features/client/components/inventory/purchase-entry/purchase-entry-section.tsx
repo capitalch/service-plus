@@ -18,6 +18,7 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { LocaleDateInput } from "@/components/ui/locale-date-input";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -91,8 +92,9 @@ export const PurchaseEntrySection = () => {
     const [brands,         setBrands]         = useState<BrandOption[]>([]);
 
     // Data state
-    const [invoices, setInvoices] = useState<PurchaseInvoiceType[]>([]);
-    const [total,    setTotal]    = useState(0);
+    const [invoices,    setInvoices]    = useState<PurchaseInvoiceType[]>([]);
+    const [total,       setTotal]       = useState(0);
+    const [grandTotals, setGrandTotals] = useState({ aggregate: 0, cgst: 0, sgst: 0, igst: 0, total: 0 });
     const [page,     setPage]     = useState(1);
     const [loading,  setLoading]  = useState(false);
 
@@ -229,7 +231,7 @@ export const PurchaseEntrySection = () => {
         setLoading(true);
         try {
             const commonArgs = { branch_id: bId, from_date: from, to_date: to, search: q };
-            const [dataRes, countRes] = await Promise.all([
+            const [dataRes, countRes, totalsRes] = await Promise.all([
                 apolloClient.query<GenericQueryData<PurchaseInvoiceType>>({
                     fetchPolicy: "network-only",
                     query: GRAPHQL_MAP.genericQuery,
@@ -254,9 +256,29 @@ export const PurchaseEntrySection = () => {
                         }),
                     },
                 }),
+                apolloClient.query<GenericQueryData<{ aggregate_amount: number; cgst_amount: number; sgst_amount: number; igst_amount: number; total_amount: number }>>({
+                    fetchPolicy: "network-only",
+                    query: GRAPHQL_MAP.genericQuery,
+                    variables: {
+                        db_name: dbName,
+                        schema,
+                        value: graphQlUtils.buildGenericQueryValue({
+                            sqlId:   SQL_MAP.GET_PURCHASE_INVOICES_TOTALS,
+                            sqlArgs: commonArgs,
+                        }),
+                    },
+                }),
             ]);
             setInvoices(dataRes.data?.genericQuery ?? []);
             setTotal(countRes.data?.genericQuery?.[0]?.total ?? 0);
+            const gt = totalsRes.data?.genericQuery?.[0];
+            setGrandTotals({
+                aggregate: Number(gt?.aggregate_amount ?? 0),
+                cgst:      Number(gt?.cgst_amount      ?? 0),
+                sgst:      Number(gt?.sgst_amount      ?? 0),
+                igst:      Number(gt?.igst_amount      ?? 0),
+                total:     Number(gt?.total_amount     ?? 0),
+            });
         } catch {
             toast.error(MESSAGES.ERROR_PURCHASE_LOAD_FAILED);
         } finally {
@@ -465,14 +487,7 @@ export const PurchaseEntrySection = () => {
         setIsIgst(editInvoice ? Number(editInvoice.igst_amount) > 0 : false);
     }, [editInvoice]);
 
-    const gridTotals = invoices.reduce((acc, inv) => {
-        acc.aggregate += Number(inv.aggregate_amount) || 0;
-        acc.cgst += Number(inv.cgst_amount) || 0;
-        acc.sgst += Number(inv.sgst_amount) || 0;
-        acc.igst += Number(inv.igst_amount) || 0;
-        acc.total += Number(inv.total_amount) || 0;
-        return acc;
-    }, { aggregate: 0, cgst: 0, sgst: 0, igst: 0, total: 0 });
+
 
     // ── Render ─────────────────────────────────────────────────────────────────
 
@@ -636,20 +651,18 @@ export const PurchaseEntrySection = () => {
                     {/* Toolbar - Compacted */}
                     <div className="flex flex-wrap items-center gap-2 px-4 py-2 bg-(--cl-surface-2)/30">
                         <div className="flex items-center gap-1">
-                            <Input
-                                className="h-8 w-32 border-(--cl-border) bg-(--cl-surface) text-xs"
+                            <LocaleDateInput
+                                className="w-36"
                                 disabled={loading}
-                                type="date"
                                 value={fromDate}
-                                onChange={e => handleFilterChange(setFromDate)(e.target.value)}
+                                onChange={handleFilterChange(setFromDate)}
                             />
                             <span className="text-(--cl-text-muted) text-xs">—</span>
-                            <Input
-                                className="h-8 w-32 border-(--cl-border) bg-(--cl-surface) text-xs"
+                            <LocaleDateInput
+                                className="w-36"
                                 disabled={loading}
-                                type="date"
                                 value={toDate}
-                                onChange={e => handleFilterChange(setToDate)(e.target.value)}
+                                onChange={handleFilterChange(setToDate)}
                             />
                         </div>
                         <div className="relative flex-1 sm:max-w-xs">
@@ -866,24 +879,24 @@ export const PurchaseEntrySection = () => {
                                         <tr>
                                             <td className={tdClass} colSpan={4}>
                                                 <div className="flex items-center justify-between">
-                                                    <span className="text-xs text-(--cl-text-muted)">{invoices.length} lines</span>
+                                                    <span className="text-xs text-(--cl-text-muted)">{total} invoices</span>
                                                     <span className="font-bold text-(--cl-text)">Total:</span>
                                                 </div>
                                             </td>
                                             <td className={`${tdClass} text-right font-bold text-(--cl-text)`}>
-                                                {formatCurrency(gridTotals.aggregate)}
+                                                {formatCurrency(grandTotals.aggregate)}
                                             </td>
                                             <td className={`${tdClass} text-right font-bold text-(--cl-text)`}>
-                                                {formatCurrency(gridTotals.cgst)}
+                                                {formatCurrency(grandTotals.cgst)}
                                             </td>
                                             <td className={`${tdClass} text-right font-bold text-(--cl-text)`}>
-                                                {formatCurrency(gridTotals.sgst)}
+                                                {formatCurrency(grandTotals.sgst)}
                                             </td>
                                             <td className={`${tdClass} text-right font-bold text-(--cl-text)`}>
-                                                {formatCurrency(gridTotals.igst)}
+                                                {formatCurrency(grandTotals.igst)}
                                             </td>
                                             <td className={`${tdClass} text-right font-bold text-(--cl-accent) text-[13px]`}>
-                                                {formatCurrency(gridTotals.total)}
+                                                {formatCurrency(grandTotals.total)}
                                             </td>
                                             <td className={`${tdClass} !bg-(--cl-surface-2)`}></td>
                                         </tr>

@@ -1,7 +1,7 @@
 import type { Dispatch, SetStateAction } from "react";
 import {
     AlertTriangle, ArrowLeft, CheckCheck, CheckCircle2,
-    Eye, Loader2, Plus, RefreshCw, RotateCcw, Trash2, XCircle,
+    Eye, Loader2, Plus, Radius, RefreshCw, RotateCcw, Trash2, XCircle,
 } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -919,7 +919,14 @@ export function FinalJobForm({
                                 </div>
                             ) : (() => {
                                 const backCalcNum = parseFloat(backCalcTarget);
-                                const isTallied = backCalcTarget !== "" && !isNaN(backCalcNum) && Math.abs(grandTotal - backCalcNum) < 0.005;
+                                const effectiveTotal = (backCalcTarget !== "" && !isNaN(backCalcNum) && backCalcNum > 0)
+                                    ? backCalcNum
+                                    : (selectedJob.amount != null && Number(selectedJob.amount) > 0)
+                                        ? Number(selectedJob.amount)
+                                        : grandTotal;
+                                const diff = Math.round((effectiveTotal - grandTotal) * 100) / 100;
+                                const hasDiff = Math.abs(diff) >= 0.005;
+                                const isTallied = !hasDiff;
                                 return (
                                     <div className="flex shrink-0 flex-col justify-center gap-2 px-4 py-3">
                                         <div className="flex items-center justify-between gap-4">
@@ -935,17 +942,28 @@ export function FinalJobForm({
                                                     <span className="tabular-nums text-sm font-semibold text-(--cl-text)">₹{fmtCurrency(grandTotal)}</span>
                                                 </div>
                                                 <div className="flex items-center gap-1.5">
-                                                    <span className="text-xs font-bold uppercase tracking-wide text-(--cl-accent)">Total</span>
-                                                    <span className="tabular-nums text-md font-bold">
-                                                        {(() => {
-                                                            const effectiveTotal = (backCalcTarget !== "" && !isNaN(backCalcNum) && backCalcNum > 0)
-                                                                ? backCalcNum
-                                                                : (selectedJob.amount != null && Number(selectedJob.amount) > 0)
-                                                                    ? Number(selectedJob.amount)
-                                                                    : grandTotal;
-                                                            return `₹${fmtCurrency(effectiveTotal)}`;
-                                                        })()}
+                                                    <span className="text-xs font-bold uppercase tracking-wide text-amber-600">Diff</span>
+                                                    <span className={`tabular-nums text-sm font-semibold ${hasDiff ? "text-amber-700" : "text-emerald-600"}`}>
+                                                        {diff > 0 ? "+" : ""}{fmtCurrency(diff)}
                                                     </span>
+                                                </div>
+                                                <div className="flex items-center gap-1.5">
+                                                    <span className="text-xs font-bold uppercase tracking-wide text-(--cl-accent)">Total</span>
+                                                    <span className="tabular-nums text-md font-bold">₹{fmtCurrency(effectiveTotal)}</span>
+                                                    <button
+                                                        className="ml-1 inline-flex items-center justify-center h-5 w-5 rounded-full bg-(--cl-surface-2) border border-(--cl-border) text-(--cl-text-muted) hover:bg-(--cl-accent) hover:text-white hover:border-(--cl-accent) cursor-pointer transition-all shadow-sm"
+                                                        title="Round off to nearest rupee"
+                                                        type="button"
+                                                        onClick={() => {
+                                                            const rounded = Math.round(effectiveTotal);
+                                                            setBackCalcTarget(String(rounded));
+                                                            const result = computeBackCalc(rounded, partLines, chargeLines, isGst);
+                                                            if (result.newPartLines) setPartLines(result.newPartLines);
+                                                            if (result.newChargeLines) setChargeLines(result.newChargeLines);
+                                                        }}
+                                                    >
+                                                        <Radius className="h-3 w-3" />
+                                                    </button>
                                                 </div>
                                             </div>
                                         </div>

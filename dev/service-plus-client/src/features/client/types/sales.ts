@@ -35,26 +35,8 @@ export type SalesInvoiceType = {
     total_amount:         number;
     remarks:              string | null;
     is_return:            boolean;
+    is_posted:            boolean;
     lines?:               SalesLineType[];
-};
-
-export type SalesLineFormItem = {
-    _key:             string;
-    part_id:          number | null;
-    brand_id:         number | null;
-    part_code:        string;
-    part_name:        string;
-    uom:              string;
-    hsn_code:         string;
-    qty:         number;
-    unit_price:       number;
-    gst_rate:         number;
-    aggregate_amount: number;
-    cgst_amount:      number;
-    sgst_amount:      number;
-    igst_amount:      number;
-    total_amount:     number;
-    remarks:          string;
 };
 
 export type DocumentSequenceRow = {

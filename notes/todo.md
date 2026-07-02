@@ -1,6 +1,7 @@
 # To Do
 - Enhancements
-	- modify Sales Invoice functionality
+							- Draft Invoice info for finalised jobs
+							- modify Sales Invoice functionality
 								- Rename Job Search to Job Panel / Control /Manage
 							- Job Control
 								- undo final for final jobs
@@ -11,6 +12,7 @@
 	- Validate creation of new client / Bu / Branch / Division end to end
 	- Security of server config file
 - QA
+								- Error when final a Job. Final amount possible without providing details
 	- Massive transactions testing end to end
 		- Create single job and batch jobs. Check why two times transactions shown in job view.
 		- do at least 5 transactions
@@ -23,7 +25,8 @@
 								- Proper HSN for parts and service
 								- Upload trace-plus and check account posting online at serviceplus.cloudjiffy.net
 	- Bug fix
-		- When a batch job is received, two times received is shown in job view: Transaction
+		- Sales Entry: When division changes, corresponding GST info is not changed. Amount for spare should be same in gst / non-gst
+								- When a batch job is received, two times received is shown in job view: Transaction
 								- Add contactsId to posting of sales
 								- Warranty job transactions: allow adding spare parts
 - Login

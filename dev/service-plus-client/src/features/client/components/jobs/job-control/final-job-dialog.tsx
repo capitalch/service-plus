@@ -2,6 +2,9 @@ import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { MESSAGES }    from "@/constants/messages";
 import { SQL_MAP }     from "@/constants/sql-map";
@@ -140,6 +143,7 @@ export function FinalJobDialog({ jobId, onClose, onFinalized }: Props) {
     const [showPartsInInvoice,  setShowPartsInInvoice]  = useState(true);
     const [gstin,               setGstin]               = useState("");
     const [viewJobId,           setViewJobId]           = useState<number | null>(null);
+    const [diffAlertMsg,        setDiffAlertMsg]        = useState<string | null>(null);
 
     const division = availableDivisions.find(d => d.id === selectedDivisionId) ?? null;
     const isGst    = isGstDivision(division);
@@ -571,6 +575,17 @@ export function FinalJobDialog({ jobId, onClose, onFinalized }: Props) {
                 ? 0
                 : ((backCalcTarget !== "" && !isNaN(backCalcNum) && backCalcNum > 0) ? backCalcNum : computedTotal);
 
+            if (!isWarrantyJob) {
+                const diff = Math.abs(amount - computedTotal);
+                if (diff > 0.5) {
+                    setDiffAlertMsg(
+                        `Job total (₹${amount.toFixed(2)}) differs from the calculated line total (₹${computedTotal.toFixed(2)}) by ₹${diff.toFixed(2)}. Maximum allowed difference is ₹0.50. Please adjust line amounts or use Back Calculate.`
+                    );
+                    setSubmitting(false);
+                    return;
+                }
+            }
+
             await apolloClient.mutate({
                 mutation: GRAPHQL_MAP.genericUpdate,
                 variables: {
@@ -614,6 +629,17 @@ export function FinalJobDialog({ jobId, onClose, onFinalized }: Props) {
 
     return (
         <>
+            <Dialog open={diffAlertMsg !== null} onOpenChange={open => { if (!open) setDiffAlertMsg(null); }}>
+                <DialogContent aria-describedby={undefined} className="sm:max-w-md !bg-white text-(--cl-text)">
+                    <DialogHeader>
+                        <DialogTitle className="text-amber-600">Amount Difference Too Large</DialogTitle>
+                    </DialogHeader>
+                    <p className="text-sm text-(--cl-text) leading-relaxed">{diffAlertMsg}</p>
+                    <DialogFooter>
+                        <Button className="cursor-pointer" onClick={() => setDiffAlertMsg(null)}>OK</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
             <FinalJobForm
                 selectedJob={selectedJob}
                 selectedRow={selectedRow}

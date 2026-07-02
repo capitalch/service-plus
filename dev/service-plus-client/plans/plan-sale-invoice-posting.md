@@ -29,11 +29,22 @@ invoice → `ExtGstTranD.isInput = False`, `tranTypeId = 4` (or `9` for a return
 columns match the purchase-invoice shape (`unit_price` / `total_amount` per line; header
 `total_amount`).
 
-> Schema note: the column names come from the authoritative client insert code
-> (`sales-entry-section.tsx`) and `GET_SALES_INVOICE_DETAIL` — header `total_amount`,
-> `aggregate_amount`, `total_tax`; line `unit_price`, `aggregate_amount`, `total_amount`.
-> The stale `service_plus_service.sql` dump and the `*_FOR_POSTING_*` queries that use
-> `si.aggregate`/`si.amount`/`sil.price` are NOT authoritative — do not copy those names.
+> Schema note (verified via `GET_SALES_INVOICE_DETAIL` and `GET_SALES_INVOICES_TOTALS`):
+> The actual `sales_invoice` DB columns are **`aggregate`** (not `aggregate_amount`) and
+> **`amount`** (not `total_amount`). The actual `sales_invoice_line` DB columns are
+> **`price`** (not `unit_price`) and **`amount`** (not `total_amount`). All existing queries
+> alias these to the client-facing names: `si.aggregate AS aggregate_amount`,
+> `si.amount AS total_amount`, `sil.price AS unit_price`, `sil.amount AS total_amount`.
+> **Always alias in `GET_UNPOSTED_SALES_INVOICES`** — do not use bare `si.total_amount` or
+> `sil.unit_price` (those columns don't exist and will cause a DB error).
+
+## Already done (this session)
+
+- **`is_posted` display in Sales Entry view list** (`sales-entry-section.tsx`): the invoice_no
+  cell now shows `Posted` (emerald) / `Not Posted` (amber) below the number when
+  `postDataToAccounts` is enabled — identical to the purchase entry list.
+- **`GET_SALES_INVOICES_TOTALS`** added to `sql_store.py` (line ~2427) for the grand totals
+  feature. This query is unrelated to posting but confirms the real column names above.
 
 ## Server changes
 
@@ -45,13 +56,14 @@ a `lines` json array. Differences:
 - Source tables: `sales_invoice si` + `sales_invoice_line sil` (`sil.sales_invoice_id = si.id`),
   `spare_part_master sp ON sp.id = sil.part_id` for `part_code`, and
   `customer_contact cc ON cc.id = si.customer_contact_id` for remarks (mobile, address, postal_code).
-- Header SELECT: `si.id, si.invoice_no, si.invoice_date, si.total_amount, si.is_return,
+- Header SELECT: `si.id, si.invoice_no, si.invoice_date,
+  si.amount AS total_amount, si.aggregate AS aggregate_amount, si.is_return,
   si.cgst_amount, si.sgst_amount, si.igst_amount, si.customer_name, si.customer_gstin,
   cc.mobile, cc.postal_code AS customer_pin`, plus a `customer_address` built with
   `CONCAT_WS` like the job-invoice query (cc.address_line1/2/city). `is_return` is selected so
   the builder can pick the right `tranTypeId`.
 - Line json keys (match `_build_sales_invoice_tran_h` reads): `hsn_code` (sil.hsn_code),
-  `qty`, `unit_price` (sil.unit_price), `total_amount` (sil.total_amount), `gst_rate`,
+  `qty` (sil.qty), `unit_price` (sil.price), `total_amount` (sil.amount), `gst_rate`,
   `cgst_amount`, `sgst_amount`, `igst_amount`, `part_code` (sp.part_code).
 - WHERE: `si.division_id = (TABLE "p_division_id") AND si.is_posted = false` (include
   returns — do NOT filter on `is_return`).
@@ -69,9 +81,10 @@ subquery already counts all unposted sales (returns included), which now matches
 (mutation_helper.py:2170). Signature mirrors it:
 `(si_row, si_debit_acc_id, si_credit_acc_id, si_product_id, si_default_hsn, si_default_gst,
 branch_id, contacts_id=None)`. Body identical to the job-invoice builder except:
-- Read line amounts with the **purchase-style keys**: `line["unit_price"]` (not `price`) and
-  `line["total_amount"]` (not `amount`); `priceGst = total_amount / qty`.
-- Header amount: `si_row["total_amount"]` (not `amount`).
+- Read line amounts with the aliased keys from `GET_UNPOSTED_SALES_INVOICES`:
+  `line["unit_price"]` (aliased from `sil.price`) and `line["total_amount"]` (aliased from
+  `sil.amount`); `priceGst = total_amount / qty`.
+- Header amount: `si_row["total_amount"]` (aliased from `si.amount`).
 - `tranTypeId = 9 if si_row.get("is_return") else 4`; `ExtGstTranD.isInput = False`
   (output GST), customer gstin from `si_row["customer_gstin"]`. (Leg structure stays the
   same as a normal sale for both types — only the `tranTypeId` differs.)

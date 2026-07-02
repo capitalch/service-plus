@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
     ArrowLeft, ArrowRightLeft, CheckSquare,
     ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon,
-    ClipboardList, Eye, FileDown, Lock, MoreVertical, Package, Paperclip, Printer, RefreshCw, Search, Truck, Undo2, X,
+    ClipboardList, Eye, FileDown, Loader2, Lock, MoreVertical, Package, Paperclip, Pencil, Printer, Receipt, ReceiptText, RefreshCw, Search, Truck, Undo2, X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
@@ -39,12 +39,14 @@ import type { ChargesJobSummary } from "../job-pipeline/job-charges-modal";
 import { JobAttachDialog } from "../single-job/job-attach-dialog";
 import { JobDetailsModal } from "../job-pipeline/job-details-modal";
 import { JobPdfModal } from "./job-pdf-modal";
+import { JobProformaInvoiceModal } from "./job-proforma-invoice-modal";
 import { FinalJobDialog } from "./final-job-dialog";
 import { FinalAJobSection } from "../final-a-job/final-a-job-section";
 import { DeliverJobSection } from "../deliver-job/deliver-job-section";
 import { DeliveryModal } from "../deliver-job/delivery-modal";
 import { useDeliveredJobActions } from "../deliver-job/use-delivered-job-actions";
 import type { JobDeliveryFullDetail } from "../deliver-job/deliver-job-schema";
+import { JobChargesReadonlyModal, type ChargesViewPartLine, type ChargesViewChargeLine } from "../final-a-job/job-charges-readonly-modal";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -117,10 +119,22 @@ export const JobControlSection = () => {
     const [attachJobId, setAttachJobId] = useState<number | null>(null);
     const [attachJobNo, setAttachJobNo] = useState<string>("");
 
-    const [viewJobId, setViewJobId] = useState<number | null>(null);
-    const [pdfJobId,  setPdfJobId]  = useState<number | null>(null);
+    const [viewJobId,      setViewJobId]      = useState<number | null>(null);
+    const [pdfJobId,       setPdfJobId]       = useState<number | null>(null);
+    const [proformaJobId,  setProformaJobId]  = useState<number | null>(null);
+    const [selectedRowId,  setSelectedRowId]  = useState<number | null>(null);
 
     const [finalJobId, setFinalJobId] = useState<number | null>(null);
+
+    const [chargesReadonlyOpen,       setChargesReadonlyOpen]       = useState(false);
+    const [chargesReadonlyJobNo,      setChargesReadonlyJobNo]      = useState("");
+    const [chargesReadonlyIsGst,      setChargesReadonlyIsGst]      = useState(false);
+    const [chargesReadonlyIsWarranty, setChargesReadonlyIsWarranty] = useState(false);
+    const [chargesReadonlyForceIgst,  setChargesReadonlyForceIgst]  = useState(false);
+    const [chargesReadonlyAmount,     setChargesReadonlyAmount]     = useState<number | null>(null);
+    const [chargesReadonlyParts,      setChargesReadonlyParts]      = useState<ChargesViewPartLine[]>([]);
+    const [chargesReadonlyCharges,    setChargesReadonlyCharges]    = useState<ChargesViewChargeLine[]>([]);
+    const [chargesReadonlyLoading,    setChargesReadonlyLoading]    = useState<number | null>(null);
 
     const [deliveryManners,           setDeliveryManners]           = useState<DeliveryMannerRow[]>([]);
     const [showPartsInInvoiceSetting, setShowPartsInInvoiceSetting] = useState<{ show: boolean; text: string; hsn: number; gst_rate: number } | null>(null);
@@ -132,8 +146,11 @@ export const JobControlSection = () => {
 
     const debounceRef      = useRef<ReturnType<typeof setTimeout> | null>(null);
     const scrollWrapperRef = useRef<HTMLDivElement>(null);
-    const pendingScrollRef = useRef<number | null>(null);
+    const pendingRestoreRef = useRef<boolean>(false);
+    const selectedRowIdRef  = useRef<number | null>(null);
     const [maxHeight, setMaxHeight] = useState(0);
+
+    useEffect(() => { selectedRowIdRef.current = selectedRowId; }, [selectedRowId]);
 
     const recalc = useCallback(() => {
         if (scrollWrapperRef.current) {
@@ -149,15 +166,50 @@ export const JobControlSection = () => {
         return () => { clearTimeout(timer); window.removeEventListener("resize", recalc); };
     }, [recalc, rows.length]);
 
-    // Restore scroll position after a post-mutation refresh.
-    useEffect(() => {
-        if (pendingScrollRef.current === null) return;
-        const target = pendingScrollRef.current;
-        pendingScrollRef.current = null;
-        requestAnimationFrame(() => {
-            if (scrollWrapperRef.current) scrollWrapperRef.current.scrollTop = target;
+    // Restore the previously-selected row into view after a mutation-triggered
+    // reload (refreshGrid) or after returning from the Final-the-Job / Revise
+    // Final full-screen flow (which unmounts+remounts the grid's DOM subtree).
+    // DOM-anchored via data-job-id + scrollIntoView — NOT pixel scrollTop, since
+    // row heights/order can differ between "before" and "after" a mutation, and
+    // gating strictly on `loading === false` guarantees we only ever touch the
+    // REAL <table>, never the loading-skeleton's differently-shaped placeholder.
+    useLayoutEffect(() => {
+        if (!pendingRestoreRef.current) return;
+        if (loading) return;                        // skeleton mounted — wait for next fire
+        if (!scrollWrapperRef.current) return;       // grid unmounted (FinalJobDialog open) — wait
+
+        let rafId: number | null = null;
+        let t1: ReturnType<typeof setTimeout> | null = null;
+        let t2: ReturnType<typeof setTimeout> | null = null;
+
+        const attempt = (): boolean => {
+            const id = selectedRowIdRef.current;
+            if (id === null) { pendingRestoreRef.current = false; return true; }
+            const el = scrollWrapperRef.current?.querySelector<HTMLElement>(`[data-job-id="${id}"]`);
+            if (el) {
+                el.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "auto" });
+                pendingRestoreRef.current = false;
+                return true;
+            }
+            return false;
+        };
+
+        rafId = requestAnimationFrame(() => {
+            if (attempt()) return;
+            t1 = setTimeout(() => {
+                if (attempt()) return;
+                t2 = setTimeout(() => {
+                    if (!attempt()) pendingRestoreRef.current = false; // give up gracefully, not an error
+                }, 150);
+            }, 150);
         });
-    }, [rows]);
+
+        return () => {
+            if (rafId !== null) cancelAnimationFrame(rafId);
+            if (t1) clearTimeout(t1);
+            if (t2) clearTimeout(t2);
+        };
+    }, [loading, finalJobId]);
 
     const loadData = useCallback(async (
         bId: number, q: string, pg: number, f: JobFilter,
@@ -203,7 +255,7 @@ export const JobControlSection = () => {
 
     const refreshGrid = useCallback(() => {
         if (!branchId) return;
-        pendingScrollRef.current = scrollWrapperRef.current?.scrollTop ?? null;
+        pendingRestoreRef.current = true;
         void loadData(Number(branchId), searchQ, page, filter);
     }, [branchId, loadData, searchQ, page, filter]);
 
@@ -226,6 +278,7 @@ export const JobControlSection = () => {
     }, [dbName, schema, branchId]); // eslint-disable-line react-hooks/exhaustive-deps
 
     useEffect(() => {
+        pendingRestoreRef.current = false;
         if (!branchId) return;
         void loadData(Number(branchId), searchQ, page, filter);
     }, [branchId, searchQ, page, filter, loadData]);
@@ -355,6 +408,46 @@ export const JobControlSection = () => {
             toast.error("Failed to load job delivery details.");
         } finally {
             setLoadingDelivery(null);
+        }
+    }
+
+    async function handleOpenChargesReadonly(job: JobControlRow) {
+        if (!dbName || !schema) return;
+        setChargesReadonlyLoading(job.id);
+        try {
+            type LoadedPartRow = { id: number; part_code: string; part_name: string; uom: string; qty: number; cost_price: number | null; selling_price: number | null; gst_rate: number | null; hsn_code: string | null; remarks: string | null };
+            type AdditionalChargeRow = { id: number; charge_name: string; ref_no: string | null; description: string | null; hsn_code: string | null; gst_rate: number; qty: number; cost_price: number; selling_price: number };
+            const [partsRes, chargesRes, jobRes] = await Promise.all([
+                apolloClient.query<GenericQueryData<LoadedPartRow>>({
+                    fetchPolicy: "network-only",
+                    query: GRAPHQL_MAP.genericQuery,
+                    variables: { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_JOB_PART_USED_BY_JOB, sqlArgs: { job_id: job.id } }) },
+                }),
+                apolloClient.query<GenericQueryData<AdditionalChargeRow>>({
+                    fetchPolicy: "network-only",
+                    query: GRAPHQL_MAP.genericQuery,
+                    variables: { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_JOB_ADDITIONAL_CHARGES_BY_JOB, sqlArgs: { job_id: job.id } }) },
+                }),
+                apolloClient.query<GenericQueryData<{ is_igst: boolean }>>({
+                    fetchPolicy: "network-only",
+                    query: GRAPHQL_MAP.genericQuery,
+                    variables: { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_JOB_DETAIL, sqlArgs: { id: job.id } }) },
+                }),
+            ]);
+            const jobDetail = jobRes.data?.genericQuery?.[0] ?? null;
+            const division  = divisions.find(d => d.id === job.division_id) ?? null;
+            setChargesReadonlyJobNo(job.job_no);
+            setChargesReadonlyIsGst(isGstDivision(division));
+            setChargesReadonlyIsWarranty(job.job_type_code === "UNDER_WARRANTY");
+            setChargesReadonlyForceIgst(jobDetail?.is_igst ?? false);
+            setChargesReadonlyAmount(job.amount);
+            setChargesReadonlyParts(partsRes.data?.genericQuery ?? []);
+            setChargesReadonlyCharges(chargesRes.data?.genericQuery ?? []);
+            setChargesReadonlyOpen(true);
+        } catch {
+            toast.error("Failed to load charges. Please try again.");
+        } finally {
+            setChargesReadonlyLoading(null);
         }
     }
 
@@ -607,8 +700,11 @@ export const JobControlSection = () => {
                                     return (
                                     <tr
                                         key={job.id}
-                                        className={`group cursor-pointer transition-colors hover:bg-(--cl-accent)/5 ${batchClasses}`}
-                                        onClick={() => setViewJobId(job.id)}
+                                        data-job-id={job.id}
+                                        className={`group cursor-pointer transition-colors ${
+                                            selectedRowId === job.id ? "bg-(--cl-accent)/40 hover:bg-(--cl-accent)/45" : "hover:bg-(--cl-accent)/5"
+                                        } ${batchClasses}`}
+                                        onClick={() => setSelectedRowId(job.id)}
                                     >
                                         <td className={`${tdClass} text-(--cl-text-muted)`}>
                                             {(page - 1) * PAGE_SIZE + idx + 1}
@@ -644,7 +740,7 @@ export const JobControlSection = () => {
                                                     <button
                                                         type="button"
                                                         className="flex items-center gap-1 text-[10px] text-blue-600 dark:text-blue-400 font-medium hover:text-blue-700 dark:hover:text-blue-300 cursor-pointer bg-blue-50 dark:bg-blue-950/40 rounded px-1.5 py-0.5 w-fit border-0 transition-colors"
-                                                        onClick={e => { e.stopPropagation(); setAttachJobId(job.id); setAttachJobNo(job.job_no); }}
+                                                        onClick={e => { e.stopPropagation(); setSelectedRowId(job.id); setAttachJobId(job.id); setAttachJobNo(job.job_no); }}
                                                     >
                                                         <Paperclip className="h-2.5 w-2.5" />
                                                         <span>{job.file_count} File{job.file_count !== 1 ? "s" : ""}</span>
@@ -698,6 +794,7 @@ export const JobControlSection = () => {
                                         <td
                                             className={`${tdClass} sticky right-0 z-10 bg-(--cl-surface) group-hover:bg-(--cl-surface-2) hidden md:table-cell`}
                                             onClick={e => e.stopPropagation()}
+                                            onPointerDownCapture={() => setSelectedRowId(job.id)}
                                         >
                                             {(() => {
                                                 const isDelivered = job.job_status_code === "DELIVERED_OK" || job.job_status_code === "DELIVERED_NOT_OK";
@@ -862,7 +959,10 @@ export const JobControlSection = () => {
                                                                         <DropdownMenuSeparator className="bg-zinc-100 dark:bg-zinc-800 mx-1" />
                                                                         <DropdownMenuItem
                                                                             className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium cursor-pointer text-emerald-700 focus:text-emerald-700 focus:bg-emerald-50 dark:focus:bg-emerald-950/30"
-                                                                            onClick={() => setFinalJobId(job.id)}
+                                                                            onClick={() => {
+                                                                                pendingRestoreRef.current = true;
+                                                                                setFinalJobId(job.id);
+                                                                            }}
                                                                         >
                                                                             <CheckSquare className="h-3.5 w-3.5 shrink-0" />
                                                                             Final the Job
@@ -872,6 +972,18 @@ export const JobControlSection = () => {
                                                                 {showUndoFinal && (
                                                                     <>
                                                                         <DropdownMenuSeparator className="bg-zinc-100 dark:bg-zinc-800 mx-1" />
+                                                                        <DropdownMenuItem
+                                                                            className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium cursor-pointer text-orange-600 focus:text-orange-700 focus:bg-orange-50 dark:focus:bg-orange-950/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                                            disabled={job.invoice_is_posted === true}
+                                                                            title={job.invoice_is_posted === true ? "Cannot revise a posted job" : undefined}
+                                                                            onClick={() => {
+                                                                                pendingRestoreRef.current = true;
+                                                                                setFinalJobId(job.id);
+                                                                            }}
+                                                                        >
+                                                                            <Pencil className="h-3.5 w-3.5 shrink-0" />
+                                                                            Revise Final
+                                                                        </DropdownMenuItem>
                                                                         <DropdownMenuItem
                                                                             className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium cursor-pointer text-amber-600 focus:text-amber-700 focus:bg-amber-50 dark:focus:bg-amber-950/30 disabled:opacity-50 disabled:cursor-not-allowed"
                                                                             disabled={job.invoice_is_posted === true}
@@ -892,6 +1004,26 @@ export const JobControlSection = () => {
                                                                         >
                                                                             <Truck className="h-3.5 w-3.5 shrink-0" />
                                                                             Deliver Job
+                                                                        </DropdownMenuItem>
+                                                                        {Number(job.amount) > 0 && (
+                                                                        <DropdownMenuItem
+                                                                            className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium cursor-pointer text-purple-700 focus:text-purple-700 focus:bg-purple-50 dark:focus:bg-purple-950/30"
+                                                                            onClick={() => setProformaJobId(job.id)}
+                                                                        >
+                                                                            <Receipt className="h-3.5 w-3.5 shrink-0" />
+                                                                            Proforma Invoice
+                                                                        </DropdownMenuItem>
+                                                                        )}
+                                                                        <DropdownMenuItem
+                                                                            className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium cursor-pointer text-teal-700 focus:text-teal-700 focus:bg-teal-50 dark:focus:bg-teal-950/30"
+                                                                            disabled={chargesReadonlyLoading === job.id}
+                                                                            onClick={() => void handleOpenChargesReadonly(job)}
+                                                                        >
+                                                                            {chargesReadonlyLoading === job.id
+                                                                                ? <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" />
+                                                                                : <ReceiptText className="h-3.5 w-3.5 shrink-0" />
+                                                                            }
+                                                                            Charges
                                                                         </DropdownMenuItem>
                                                                     </>
                                                                 )}
@@ -971,6 +1103,14 @@ export const JobControlSection = () => {
                 />
             )}
 
+            {/* Proforma Invoice Modal */}
+            {proformaJobId !== null && (
+                <JobProformaInvoiceModal
+                    jobId={proformaJobId}
+                    onClose={() => setProformaJobId(null)}
+                />
+            )}
+
             {/* Status transition modal */}
             {pendingTran && (
                 <StatusTransitionModal
@@ -1022,6 +1162,18 @@ export const JobControlSection = () => {
                     }}
                 />
             )}
+
+            <JobChargesReadonlyModal
+                open={chargesReadonlyOpen}
+                onClose={() => setChargesReadonlyOpen(false)}
+                jobNo={chargesReadonlyJobNo}
+                isGst={chargesReadonlyIsGst}
+                isWarranty={chargesReadonlyIsWarranty}
+                forceIgst={chargesReadonlyForceIgst}
+                amount={chargesReadonlyAmount}
+                parts={chargesReadonlyParts}
+                charges={chargesReadonlyCharges}
+            />
 
             {/* Undo Final confirmation */}
             <AlertDialog open={!!undoFinalPendingJob} onOpenChange={open => { if (!open) setUndoFinalPendingJob(null); }}>

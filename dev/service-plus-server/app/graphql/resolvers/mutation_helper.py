@@ -2264,6 +2264,104 @@ def _build_job_invoice_tran_h(
     return ji_x_data
 
 
+def _build_sales_invoice_tran_h(
+    si_row: dict,
+    si_debit_acc_id: Any,
+    si_credit_acc_id: Any,
+    si_product_id: Any,
+    si_default_hsn: Any,
+    si_default_gst: Any,
+    branch_id: Any,
+    contacts_id: Any = None,
+) -> dict:
+    """Build a single sales-invoice TranH voucher (tranTypeId=4/9, output GST)."""
+    si_lines = si_row.get("lines") or []
+
+    sale_lines = []
+    for line in si_lines:
+        spd: dict = {
+            "productId": int(si_product_id),
+            "qty":       float(line["qty"]),
+            "price":     float(line["unit_price"]),
+            "priceGst":  (float(line["total_amount"]) / float(line["qty"])
+                          if line.get("qty") else 0),
+            "amount":    float(line["total_amount"]),
+            "hsn":       (line.get("hsn_code")
+                          or (str(si_default_hsn) if si_default_hsn else "")),
+            "gstRate":   (float(line["gst_rate"]) if line.get("gst_rate")
+                          else (float(si_default_gst) if si_default_gst else 0)),
+        }
+        if line.get("part_code"):
+            spd["jData"] = json.dumps({"remarks": f"Part Code:{line['part_code']}"})
+        for out_key, db_key in [
+            ("cgst", "cgst_amount"),
+            ("sgst", "sgst_amount"),
+            ("igst", "igst_amount"),
+        ]:
+            if line.get(db_key) is not None:
+                spd[out_key] = float(line[db_key])
+        sale_lines.append(spd)
+
+    ext_gst: dict = {"isInput": False}
+    if si_row.get("customer_gstin"):
+        ext_gst["gstin"] = si_row["customer_gstin"]
+    for out_key, db_key in [
+        ("cgst", "cgst_amount"),
+        ("sgst", "sgst_amount"),
+        ("igst", "igst_amount"),
+    ]:
+        if si_row.get(db_key) is not None:
+            ext_gst[out_key] = float(si_row[db_key])
+
+    debit_si: dict = {
+        "accId":  int(si_debit_acc_id),
+        "dc":     "D",
+        "amount": float(si_row["total_amount"]),
+        "xDetails": [
+            {"tableName": "ExtGstTranD",
+             "fkeyName":  "tranDetailsId",
+             "xData":     ext_gst},
+            {"tableName": "SalePurchaseDetails",
+             "fkeyName":  "tranDetailsId",
+             "xData":     sale_lines},
+        ],
+    }
+    credit_si: dict = {
+        "accId":  int(si_credit_acc_id),
+        "dc":     "C",
+        "amount": float(si_row["total_amount"]),
+    }
+
+    tran_type_id = 9 if si_row.get("is_return") else 4
+    si_fin_year = int(str(si_row.get("invoice_date", str(date.today())))[:4])
+    si_x_data: dict = {
+        "tranDate":   si_row["invoice_date"],
+        "tranTypeId": tran_type_id,
+        "finYearId":  si_fin_year,
+        "branchId":   branch_id,
+        "posId":      1,
+        "xDetails": [{
+            "tableName": "TranD",
+            "fkeyName":  "tranHeaderId",
+            "xData":     [debit_si, credit_si],
+        }],
+    }
+    if si_row.get("invoice_no"):
+        si_x_data["userRefNo"] = si_row["invoice_no"]
+    if contacts_id:
+        si_x_data["contactsId"] = int(contacts_id)
+    remarks_parts = [p for p in [
+        si_row.get("customer_name"),
+        f"Mobile:{si_row['mobile']}" if si_row.get("mobile") else None,
+        si_row.get("customer_address") or None,
+        f"PIN:{si_row['customer_pin']}" if si_row.get("customer_pin") else None,
+        f"GSTIN:{si_row['customer_gstin']}" if si_row.get("customer_gstin") else None,
+    ] if p]
+    if remarks_parts:
+        si_x_data["remarks"] = ", ".join(remarks_parts)
+    return si_x_data
+
+
 async def _post_tran_h_to_trace_plus(
     http_client: httpx.AsyncClient,
     token: str,
@@ -2311,7 +2409,7 @@ async def _post_tran_h_to_trace_plus(
 async def resolve_accounts_posting_helper(
     db_name: str, schema: str = "public", value: str = ""
 ) -> dict:
-    """Post unposted money receipts and purchase invoices for every division in a branch.
+    """Post unposted money receipts, purchase invoices, job invoices, and sales invoices for every division in a branch.
 
     The server determines the divisions to post from the branch: each division with a
     valid account_setting and unposted data is posted separately, using its own account
@@ -2369,11 +2467,17 @@ async def resolve_accounts_posting_helper(
             sql=SqlStore.GET_UNPOSTED_JOB_INVOICES,
             sql_args={"division_code": division_code},
         )
-        if not receipts and not pi_rows and not ji_rows:
+        si_rows = await exec_sql(
+            db_name=db_name, schema=schema,
+            sql=SqlStore.GET_UNPOSTED_SALES_INVOICES,
+            sql_args={"division_code": division_code},
+        )
+        if not receipts and not pi_rows and not ji_rows and not si_rows:
             continue
 
         pi_settings = account_setting.get("purchaseInvoice", {})
         ji_settings = account_setting.get("jobInvoice", {})
+        si_settings = account_setting.get("salesInvoice", {})
         work.append({
             "division_code":     division_code,
             "division_name":     div.get("name") or division_code,
@@ -2393,11 +2497,18 @@ async def resolve_accounts_posting_helper(
             "ji_default_hsn":    ji_settings.get("defaultProductHsn"),
             "ji_default_gst":    ji_settings.get("defaultGstRate"),
             "ji_contacts_id":    ji_settings.get("contactsId"),
+            "si_debit_acc_id":   si_settings.get("debitAccountId"),
+            "si_credit_acc_id":  si_settings.get("creditAccountId"),
+            "si_product_id":     si_settings.get("productId"),
+            "si_default_hsn":    si_settings.get("defaultProductHsn"),
+            "si_default_gst":    si_settings.get("defaultGstRate"),
+            "si_contacts_id":    si_settings.get("contactsId"),
             "receipts":          receipts,
             "pi_rows":           pi_rows,
             "ji_rows":           ji_rows,
+            "si_rows":           si_rows,
         })
-        total += len(receipts) + len(pi_rows) + len(ji_rows)
+        total += len(receipts) + len(pi_rows) + len(ji_rows) + len(si_rows)
 
     if not work:
         return {"message": "No unposted records found."}
@@ -2405,6 +2516,7 @@ async def resolve_accounts_posting_helper(
     posted_money_receipts = 0
     posted_purchase_invoices = 0
     posted_job_invoices = 0
+    posted_sales_invoices = 0
     failed: list[dict] = []
 
     async def publish_progress(
@@ -2416,7 +2528,7 @@ async def resolve_accounts_posting_helper(
             await pubsub.publish("accounts_posting_progress", {
                 "branchId":        str(branch_id_arg),
                 "total":           total,
-                "posted":          posted_money_receipts + posted_purchase_invoices + posted_job_invoices,
+                "posted":          posted_money_receipts + posted_purchase_invoices + posted_job_invoices + posted_sales_invoices,
                 "failed":          len(failed),
                 "currentRef":      current_ref,
                 "currentDivision": current_division,
@@ -2546,10 +2658,55 @@ async def resolve_accounts_posting_helper(
                     current_ref=ji_row.get("invoice_no"), current_division=division_name
                 )
 
+            # 7. Post each sales invoice (only if salesInvoice account settings are present)
+            si_settings_ok = bool(
+                w["si_debit_acc_id"] and w["si_credit_acc_id"] and w["si_product_id"]
+            )
+            for raw in w["si_rows"]:
+                si_row = _serialize_row(raw)
+                if not si_settings_ok:
+                    failed.append({
+                        "type":  "salesInvoice",
+                        "id":    si_row.get("id"),
+                        "ref":   si_row.get("invoice_no"),
+                        "error": "Skipped: salesInvoice account settings missing",
+                    })
+                    await publish_progress(
+                        current_ref=si_row.get("invoice_no"), current_division=division_name
+                    )
+                    continue
+                try:
+                    si_tran_h = _build_sales_invoice_tran_h(
+                        si_row, w["si_debit_acc_id"], w["si_credit_acc_id"], w["si_product_id"],
+                        w["si_default_hsn"], w["si_default_gst"], w["branch_id"],
+                        contacts_id=w["si_contacts_id"],
+                    )
+                    await _post_tran_h_to_trace_plus(
+                        http_client, token, w["client_code"], w["bu_code"], si_tran_h
+                    )
+                    await exec_sql(
+                        db_name=db_name, schema=schema,
+                        sql=SqlStore.MARK_SALES_INVOICE_POSTED,
+                        sql_args={"id": si_row["id"]},
+                    )
+                    posted_sales_invoices += 1
+                except Exception as e:  # pylint: disable=broad-except
+                    logger.error("Failed to post sales invoice %s: %s", si_row.get("id"), e)
+                    failed.append({
+                        "type":  "salesInvoice",
+                        "id":    si_row.get("id"),
+                        "ref":   si_row.get("invoice_no"),
+                        "error": str(e),
+                    })
+                await publish_progress(
+                    current_ref=si_row.get("invoice_no"), current_division=division_name
+                )
+
     message = (
         f"Posted {posted_money_receipts} money receipt(s), "
-        f"{posted_purchase_invoices} purchase invoice(s), and "
-        f"{posted_job_invoices} job invoice(s) "
+        f"{posted_purchase_invoices} purchase invoice(s), "
+        f"{posted_job_invoices} job invoice(s), and "
+        f"{posted_sales_invoices} sales invoice(s) "
         f"across {len(work)} division(s)."
     )
     if failed:
@@ -2559,6 +2716,7 @@ async def resolve_accounts_posting_helper(
         "postedMoneyReceipts":    posted_money_receipts,
         "postedPurchaseInvoices": posted_purchase_invoices,
         "postedJobInvoices":      posted_job_invoices,
+        "postedSalesInvoices":    posted_sales_invoices,
         "divisionsPosted":        len(work),
         "failed":                 failed,
         "message":                message,

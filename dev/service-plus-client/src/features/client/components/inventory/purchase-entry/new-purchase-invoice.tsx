@@ -116,7 +116,9 @@ export const NewPurchaseInvoice = forwardRef<PurchaseInvoiceHandle, Props>(
         const vendorId    = form.watch("vendor_id");
         const divisionId  = form.watch("division_id");
 
-        const isGstRegistered = !!availableDivisions.find(d => d.id === divisionId)?.gstin;
+        const selectedDivision     = availableDivisions.find(d => d.id === divisionId);
+        const isGstRegistered      = !!selectedDivision?.gstin;
+        const divisionGstStateCode = selectedDivision?.gst_state_code ?? effectiveGstStateCode;
         const invoiceNo   = form.watch("invoice_no");
         const invoiceDate = form.watch("invoice_date");
 
@@ -164,17 +166,17 @@ export const NewPurchaseInvoice = forwardRef<PurchaseInvoiceHandle, Props>(
             return () => window.removeEventListener("resize", recalc);
         }, []);
 
-        // Auto-detect IGST on vendor change
+        // Auto-detect IGST on vendor or division change
         useEffect(() => {
             if (!vendorId || editInvoice) return;
             const vendor = vendors.find(v => v.id === vendorId);
             const vendorStateCode = vendor?.gst_state_code
                 ?? (vendor?.gstin && vendor.gstin.length >= 2 ? vendor.gstin.substring(0, 2) : null);
-            if (vendorStateCode && effectiveGstStateCode) {
-                onIsIgstChange(vendorStateCode !== effectiveGstStateCode);
+            if (vendorStateCode && divisionGstStateCode) {
+                onIsIgstChange(vendorStateCode !== divisionGstStateCode);
             }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        }, [vendorId, vendors, effectiveGstStateCode, editInvoice]);
+        }, [vendorId, vendors, divisionGstStateCode, editInvoice]);
 
         // Populate form when editInvoice changes
         useEffect(() => {

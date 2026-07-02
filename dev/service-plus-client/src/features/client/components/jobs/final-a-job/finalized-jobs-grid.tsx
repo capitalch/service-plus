@@ -2,12 +2,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
     CheckCircle2,
     ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon,
-    Eye, Loader2, Paperclip, ReceiptText, RefreshCw, Search, Undo2, X,
+    Eye, FileDown, Loader2, MoreVertical, Paperclip, Pencil, Receipt, ReceiptText, RefreshCw, Search, Truck, Undo2, X,
 } from "lucide-react";
 import { motion } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { type DivisionContextType, isGstDivision } from "@/features/client/types/division";
 import { PAGE_SIZE, thClass, tdClass } from "./final-a-job-helpers";
 import { JobTypeBadge } from "../job-badges";
@@ -24,18 +25,24 @@ type Props = {
     availableDivisions: DivisionContextType[];
     undoingJobId:         number | null;
     chargesLoadingJobId:  number | null;
+    deliveryLoadingJobId: number | null;
     onSearchChange:       (v: string) => void;
     onRefresh:            () => void;
     onViewJob:            (id: number) => void;
     onUndo:               (row: FinalizedJobRow) => void;
     onOpenAttach:         (id: number, jobNo: string) => void;
     onViewCharges:        (row: FinalizedJobRow) => void;
+    onDeliver:            (id: number) => void;
+    onProforma:           (id: number) => void;
+    onPdf:                (id: number) => void;
+    onReviseFinal:        (row: FinalizedJobRow) => void;
 };
 
 export function FinalizedJobsGrid({
     rows, loading, total, page, setPage,
-    search, branchId, availableDivisions, undoingJobId, chargesLoadingJobId,
+    search, branchId, availableDivisions, undoingJobId, chargesLoadingJobId, deliveryLoadingJobId,
     onSearchChange, onRefresh, onViewJob, onUndo, onOpenAttach, onViewCharges,
+    onDeliver, onProforma, onPdf, onReviseFinal,
 }: Props) {
     const scrollRef = useRef<HTMLDivElement>(null);
     const [maxHeight, setMaxHeight] = useState(0);
@@ -217,44 +224,87 @@ export function FinalizedJobsGrid({
                                     {/* Actions */}
                                     <td className={`${tdClass} sticky right-0 z-10 bg-(--cl-surface) group-hover:bg-(--cl-surface-2)`}>
                                         <div className="flex items-center gap-1">
-                                            <Button
-                                                className="h-7 gap-1 px-2 text-xs font-semibold text-sky-700 border border-sky-300 hover:bg-sky-50 dark:text-sky-400 dark:border-sky-700 dark:hover:bg-sky-950/30"
-                                                size="sm"
-                                                title="View job details"
-                                                variant="outline"
-                                                onClick={() => onViewJob(row.id)}
-                                            >
-                                                <Eye className="h-3 w-3" />
-                                                View
-                                            </Button>
-                                            <Button
-                                                className="h-7 gap-1 px-2 text-xs font-semibold text-teal-700 border border-teal-300 hover:bg-teal-50 dark:text-teal-400 dark:border-teal-700 dark:hover:bg-teal-950/30"
-                                                disabled={chargesLoadingJobId === row.id}
-                                                size="sm"
-                                                title="View parts and charges breakdown"
-                                                variant="outline"
-                                                onClick={() => onViewCharges(row)}
-                                            >
-                                                {chargesLoadingJobId === row.id
-                                                    ? <Loader2 className="h-3 w-3 animate-spin" />
-                                                    : <ReceiptText className="h-3 w-3" />
-                                                }
-                                                Charges
-                                            </Button>
-                                            <Button
-                                                className="h-7 gap-1 px-2 text-xs font-semibold text-amber-700 border border-amber-300 hover:bg-amber-50 dark:text-amber-400 dark:border-amber-700 dark:hover:bg-amber-950/30"
-                                                disabled={undoingJobId === row.id || row.is_posted}
-                                                size="sm"
-                                                title={row.is_posted ? "Cannot undo a posted job" : "Undo final — move back to pending"}
-                                                variant="outline"
-                                                onClick={() => onUndo(row)}
-                                            >
-                                                {undoingJobId === row.id
-                                                    ? <Loader2 className="h-3 w-3 animate-spin" />
-                                                    : <Undo2 className="h-3 w-3" />
-                                                }
-                                                Undo
-                                            </Button>
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button
+                                                        className="h-7 w-7 p-0"
+                                                        size="icon"
+                                                        title="Actions"
+                                                        variant="outline"
+                                                    >
+                                                        <MoreVertical className="h-3.5 w-3.5" />
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end" className="min-w-44">
+                                                    <DropdownMenuItem
+                                                        className="gap-2 text-xs text-sky-700 dark:text-sky-400 focus:text-sky-700 dark:focus:text-sky-400"
+                                                        onSelect={() => onViewJob(row.id)}
+                                                    >
+                                                        <Eye className="h-3.5 w-3.5" />
+                                                        View
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuSeparator />
+                                                    <DropdownMenuItem
+                                                        className="gap-2 text-xs text-blue-700 dark:text-blue-400 focus:text-blue-700 dark:focus:text-blue-400"
+                                                        onSelect={() => onDeliver(row.id)}
+                                                    >
+                                                        {deliveryLoadingJobId === row.id
+                                                            ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                                            : <Truck className="h-3.5 w-3.5" />
+                                                        }
+                                                        Deliver Job
+                                                    </DropdownMenuItem>
+                                                    {Number(row.amount) > 0 && (
+                                                        <DropdownMenuItem
+                                                            className="gap-2 text-xs text-purple-700 dark:text-purple-400 focus:text-purple-700 dark:focus:text-purple-400"
+                                                            onSelect={() => onProforma(row.id)}
+                                                        >
+                                                            <Receipt className="h-3.5 w-3.5" />
+                                                            Proforma Invoice
+                                                        </DropdownMenuItem>
+                                                    )}
+                                                    <DropdownMenuItem
+                                                        className="gap-2 text-xs text-teal-700 dark:text-teal-400 focus:text-teal-700 dark:focus:text-teal-400"
+                                                        disabled={chargesLoadingJobId === row.id}
+                                                        onSelect={() => onViewCharges(row)}
+                                                    >
+                                                        {chargesLoadingJobId === row.id
+                                                            ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                                            : <ReceiptText className="h-3.5 w-3.5" />
+                                                        }
+                                                        Charges
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem
+                                                        className="gap-2 text-xs text-emerald-700 dark:text-emerald-400 focus:text-emerald-700 dark:focus:text-emerald-400"
+                                                        onSelect={() => onPdf(row.id)}
+                                                    >
+                                                        <FileDown className="h-3.5 w-3.5" />
+                                                        Print / Save as PDF
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuSeparator />
+                                                    <DropdownMenuItem
+                                                        className="gap-2 text-xs text-orange-700 dark:text-orange-400 focus:text-orange-700 dark:focus:text-orange-400"
+                                                        disabled={row.is_posted}
+                                                        title={row.is_posted ? "Cannot revise a posted job" : undefined}
+                                                        onSelect={() => onReviseFinal(row)}
+                                                    >
+                                                        <Pencil className="h-3.5 w-3.5" />
+                                                        Revise Final
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem
+                                                        className="gap-2 text-xs text-amber-700 dark:text-amber-400 focus:text-amber-700 dark:focus:text-amber-400"
+                                                        disabled={undoingJobId === row.id || row.is_posted}
+                                                        title={row.is_posted ? "Cannot undo a posted job" : undefined}
+                                                        onSelect={() => onUndo(row)}
+                                                    >
+                                                        {undoingJobId === row.id
+                                                            ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                                            : <Undo2 className="h-3.5 w-3.5" />
+                                                        }
+                                                        Undo Final
+                                                    </DropdownMenuItem>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
                                         </div>
                                     </td>
                                 </motion.tr>

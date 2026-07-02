@@ -1,7 +1,6 @@
-import { z } from "zod";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useFormContext, useFieldArray, useWatch } from "react-hook-form";
-import { Loader2, Plus } from "lucide-react";
+import { Loader2, Plus, Radius } from "lucide-react";
 import { LineAddDeleteActions } from "../line-add-delete-actions";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
@@ -16,27 +15,26 @@ import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { MESSAGES } from "@/constants/messages";
 import { SQL_MAP } from "@/constants/sql-map";
 import { apolloClient } from "@/lib/apollo-client";
-import { graphQlUtils } from "@/lib/graphql-utils";
+import { graphQlUtils, type GenericQueryData } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectAvailableDivisions, selectDefaultDivisionId, selectDefaultGstRate, selectEffectiveGstStateCode, selectSchema } from "@/store/context-slice";
+import { isGstDivision } from "@/features/client/types/division";
 import type { SalesInvoiceType, DocumentSequenceRow, CustomerSearchRow } from "@/features/client/types/sales";
 import type { CustomerTypeOption, StateOption } from "@/features/client/types/customer";
 import { type SalesInvoiceFormValues, getInitialSalesLine } from "./sales-invoice-schema";
 import type { SalesLineFormItem } from "./sales-invoice-schema";
+import { buildInvoiceNo, calcLine, computeBackCalcLines } from "./sales-invoice-utils";
 
 import { PartCodeInput } from "../part-code-input";
 import { CustomerInput } from "@/features/client/components/shared/customer-select";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type GenericQueryData<T> = { genericQuery: T[] | null };
-
 type Props = {
     backCalcTarget:       string;
     branchId:             number | null;
     docSequence:          DocumentSequenceRow | null;
-    isGstMode:            boolean;
     isIgst:               boolean;
     setBackCalcTarget:    (v: string) => void;
     setIsIgst:            (v: boolean) => void;
@@ -58,69 +56,6 @@ type Props = {
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function buildInvoiceNo(seq: DocumentSequenceRow): string {
-    return `${seq.prefix}${seq.separator}${String(seq.next_number).padStart(seq.padding, "0")}`;
-}
-
-function calcGstPrice(unitPrice: number, gstRate: number): number {
-    return unitPrice * (1 + gstRate / 100);
-}
-
-function calcLine(l: z.infer<typeof import("./sales-invoice-schema").salesLineSchema>, isIgst: boolean) {
-    const aggregate = l.qty * l.unit_price;
-    const gst       = l.gst_rate;
-    const total     = l.qty * calcGstPrice(l.unit_price, gst);   // qty × gstPrice
-    const taxTotal  = total - aggregate;
-    const cgstAmt   = isIgst ? 0 : taxTotal / 2;
-    const sgstAmt   = isIgst ? 0 : taxTotal / 2;
-    const igstAmt   = isIgst ? taxTotal : 0;
-    return { aggregate, cgstAmt, sgstAmt, igstAmt, total };
-}
-
-function computeBackCalcLines(
-    currentLines: SalesLineFormItem[],
-    targetTotal: number,
-    isIgst: boolean,
-): SalesLineFormItem[] {
-    const currentTotal = currentLines.reduce((s, l) => s + calcLine(l, isIgst).total, 0);
-    if (currentTotal <= 0 || Math.abs(targetTotal - currentTotal) < 0.005) return currentLines;
-    const scaleFactor = targetTotal / currentTotal;
-    const scaled = currentLines.map(l => {
-        const newUnitPrice = Math.round(l.unit_price * scaleFactor * 100) / 100;
-        const c = calcLine({ ...l, unit_price: newUnitPrice }, isIgst);
-        return {
-            ...l,
-            aggregate_amount: c.aggregate,
-            cgst_amount:      c.cgstAmt,
-            igst_amount:      c.igstAmt,
-            sgst_amount:      c.sgstAmt,
-            total_amount:     c.total,
-            unit_price:       newUnitPrice,
-        };
-    });
-
-    // Absorb rounding residual into the last line
-    const scaledTotal = scaled.reduce((s, l) => s + calcLine(l, isIgst).total, 0);
-    const diff = Math.round((targetTotal - scaledTotal) * 100) / 100;
-    if (Math.abs(diff) >= 0.005 && Math.abs(diff) <= 0.10) {
-        const last = scaled[scaled.length - 1];
-        const gstFactor = 1 + last.gst_rate / 100;
-        const newUnitPrice = Math.round((last.unit_price + diff / last.qty / gstFactor) * 100) / 100;
-        const c = calcLine({ ...last, unit_price: newUnitPrice }, isIgst);
-        scaled[scaled.length - 1] = {
-            ...last,
-            aggregate_amount: c.aggregate,
-            cgst_amount:      c.cgstAmt,
-            igst_amount:      c.igstAmt,
-            sgst_amount:      c.sgstAmt,
-            total_amount:     c.total,
-            unit_price:       newUnitPrice,
-        };
-    }
-
-    return scaled;
-}
 
 function formatNumber(num: number): string {
     return new Intl.NumberFormat("en-IN", {
@@ -193,7 +128,6 @@ const inputCls = "h-7 border-(--cl-border) bg-white text-sm px-2";
 export function NewSalesInvoice({
     backCalcTarget, setBackCalcTarget,
     branchId, docSequence,
-    isGstMode,
     isIgst, setIsIgst, isReturn, onIsReturnChange,
     selectedBrandId, brandName, editInvoice,
     customerTypes, masterStates,
@@ -212,12 +146,18 @@ export function NewSalesInvoice({
     const form = useFormContext<SalesInvoiceFormValues>();
     const { register, setValue, formState: { isSubmitting } } = form;
 
+    const divisionId       = form.watch("division_id");
+    const selectedDivision = availableDivisions.find(d => d.id === divisionId) ?? null;
+    const isGstMode        = isGstDivision(selectedDivision);
+    const divisionGstStateCode = selectedDivision?.gst_state_code ?? effectiveGstStateCode;
+
     const { fields, remove, insert } = useFieldArray({
         control: form.control,
         name: "lines",
     });
 
     const lines = useWatch({ control: form.control, name: "lines" }) ?? [];
+
 
     const partInputRefs    = useRef<(HTMLInputElement | null)[]>([]);
     const hsnInputRefs     = useRef<(HTMLInputElement | null)[]>([]);
@@ -264,8 +204,11 @@ export function NewSalesInvoice({
             setCustomerGstin(detail.customer_gstin ?? "");
             setCustomerStateCode(detail.customer_state_code ?? "");
             onIsReturnChange(Boolean(detail.is_return));
-            const newIsIgst = !!detail.customer_state_code && !!effectiveGstStateCode
-                && detail.customer_state_code !== effectiveGstStateCode;
+            const editDivisionId = (detail as any).division_id ?? defaultDivisionId;
+            const editDivisionGstStateCode = availableDivisions.find(d => d.id === editDivisionId)?.gst_state_code
+                ?? effectiveGstStateCode;
+            const newIsIgst = !!detail.customer_state_code && !!editDivisionGstStateCode
+                && detail.customer_state_code !== editDivisionGstStateCode;
             setIsIgst(newIsIgst);
             const loadedLines = ((detail as any).lines ?? []).map((l: any) => ({
                 _key:             crypto.randomUUID(),
@@ -298,11 +241,11 @@ export function NewSalesInvoice({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [editInvoice, dbName, schema]);
 
-    // Sync isIgst when customerStateCode changes
+    // Sync isIgst when customerStateCode or division changes
     useEffect(() => {
-        if (!effectiveGstStateCode || !customerStateCode) return;
-        setIsIgst(customerStateCode !== effectiveGstStateCode);
-    }, [customerStateCode, effectiveGstStateCode, setIsIgst]);
+        if (!divisionGstStateCode || !customerStateCode) return;
+        setIsIgst(customerStateCode !== divisionGstStateCode);
+    }, [customerStateCode, divisionGstStateCode, setIsIgst]);
 
     // Recalc amounts when isIgst changes
     useEffect(() => {
@@ -358,11 +301,23 @@ export function NewSalesInvoice({
             sgst      += c.sgstAmt;
             igst      += c.igstAmt;
         }
-        return { qty, aggregate, cgst, sgst, igst, total_tax: cgst + sgst + igst, total: aggregate + cgst + sgst + igst };
+        return { qty, aggregate, cgst, sgst, igst, total: aggregate + cgst + sgst + igst };
     }, [lines, isIgst]);
 
+    // Always keep target in sync with calculated total when lines change
+    useEffect(() => {
+        setBackCalcTarget(totals.total > 0 ? String(Math.round(totals.total * 100) / 100) : "");
+    }, [totals.total, setBackCalcTarget]);
+
     const invoiceDate = form.watch("invoice_date");
-    const divisionId  = form.watch("division_id");
+
+    const backCalcNum = parseFloat(backCalcTarget);
+    const hasTarget   = backCalcTarget !== "" && !isNaN(backCalcNum) && backCalcNum > 0;
+
+    const applyBackCalcTarget = (target: number) => {
+        const scaledLines = computeBackCalcLines(form.getValues("lines") ?? [], target, isIgst);
+        form.setValue("lines", scaledLines);
+    };
 
     return (
         <motion.div
@@ -726,6 +681,41 @@ export function NewSalesInvoice({
                                         );
                                     })}
                                 </tbody>
+                                <tfoot>
+                                    <tr className="bg-(--cl-surface-2)/60">
+                                        <td className="p-0.5 border-t border-(--cl-border)" />
+                                        <td className="p-0.5 border-t border-(--cl-border)" />
+                                        <td className="p-0.5 border-t border-(--cl-border)" />
+                                        <td className="p-0.5 border-t border-(--cl-border) text-right px-2 font-mono tabular-nums text-xs font-semibold text-(--cl-text)">
+                                            {formatNumber(totals.qty)}
+                                        </td>
+                                        <td className="p-0.5 border-t border-(--cl-border)" />
+                                        <td className="p-0.5 border-t border-(--cl-border) text-right px-2 font-mono tabular-nums text-xs font-semibold text-(--cl-text)">
+                                            ₹{formatNumber(totals.aggregate)}
+                                        </td>
+                                        <td className="p-0.5 border-t border-(--cl-border)" />
+                                        {!isIgst ? (
+                                            <>
+                                                <td className="p-0.5 border-t border-(--cl-border) text-right px-2 font-mono tabular-nums text-xs font-semibold text-(--cl-text)">
+                                                    ₹{formatNumber(totals.cgst)}
+                                                </td>
+                                                <td className="p-0.5 border-t border-(--cl-border) text-right px-2 font-mono tabular-nums text-xs font-semibold text-(--cl-text)">
+                                                    ₹{formatNumber(totals.sgst)}
+                                                </td>
+                                            </>
+                                        ) : (
+                                            <td className="p-0.5 border-t border-(--cl-border) text-right px-2 font-mono tabular-nums text-xs font-semibold text-(--cl-text)">
+                                                ₹{formatNumber(totals.igst)}
+                                            </td>
+                                        )}
+                                        {isGstMode && <td className="p-0.5 border-t border-(--cl-border)" />}
+                                        <td className="p-0.5 border-t border-(--cl-border) text-right px-2 font-mono tabular-nums text-xs font-bold text-(--cl-accent)">
+                                            ₹{formatNumber(totals.total)}
+                                        </td>
+                                        <td className="p-0.5 border-t border-(--cl-border)" />
+                                        <td className="p-0.5 border-t border-(--cl-border)" />
+                                    </tr>
+                                </tfoot>
                             </table>
                         </div>
                         {fields.length === 0 && (
@@ -736,103 +726,77 @@ export function NewSalesInvoice({
                     </Card>
 
                     {/* Summary bar */}
-                    <div ref={summaryRef} className={`rounded-lg border px-4 py-2.5 flex flex-wrap items-center gap-x-4 gap-y-2 ${isReturn ? "border-orange-500/30 bg-orange-500/5" : "border-(--cl-border) bg-(--cl-surface-2)/40"}`}>
+                    <div ref={summaryRef} style={{ alignSelf: "flex-end", width: "fit-content" }} className={`rounded-lg border px-4 py-2.5 flex items-center gap-x-4 ${isReturn ? "border-orange-500/30 bg-orange-500/5" : "border-(--cl-border) bg-(--cl-surface-2)/40"}`}>
                         {/* Target Amount + Back Calculate — left side */}
-                        {(() => {
-                            const backCalcNum = parseFloat(backCalcTarget);
-                            const hasTarget = backCalcTarget !== "" && !isNaN(backCalcNum) && backCalcNum > 0;
-                            return (
-                                <div className="flex items-center gap-2 mr-auto">
-                                    <Input
-                                        className="h-7 w-36 text-right text-sm font-bold border-(--cl-border) bg-white"
-                                        min="0"
-                                        step="0.01"
-                                        type="number"
-                                        placeholder="Target amount…"
-                                        value={backCalcTarget}
-                                        onChange={e => setBackCalcTarget(e.target.value)}
-                                        onFocus={e => e.target.select()}
-                                    />
-                                    <Button
-                                        className="h-7 cursor-pointer text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white"
-                                        disabled={!hasTarget}
-                                        size="sm"
-                                        type="button"
-                                        onClick={() => {
-                                            const scaledLines = computeBackCalcLines(
-                                                form.getValues("lines") ?? [],
-                                                backCalcNum,
-                                                isIgst,
-                                            );
-                                            form.setValue("lines", scaledLines);
-                                        }}
-                                    >
-                                        Back Calculate
-                                    </Button>
-                                    {backCalcTarget && (
-                                        <Button
-                                            className="h-7 text-xs"
-                                            size="sm"
-                                            type="button"
-                                            variant="outline"
-                                            onClick={() => setBackCalcTarget("")}
-                                        >
-                                            Clear
-                                        </Button>
-                                    )}
-                                </div>
-                            );
-                        })()}
+                        <div className="flex items-center gap-2">
+                            <Input
+                                className="h-7 w-36 text-right text-sm font-bold border-(--cl-border) bg-white"
+                                min="0"
+                                step="0.01"
+                                type="number"
+                                placeholder="Target Amount…"
+                                value={backCalcTarget}
+                                onChange={e => setBackCalcTarget(e.target.value)}
+                                onFocus={e => e.target.select()}
+                            />
+                            <Button
+                                className="h-7 cursor-pointer text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white"
+                                disabled={!hasTarget}
+                                size="sm"
+                                type="button"
+                                onClick={() => applyBackCalcTarget(backCalcNum)}
+                            >
+                                Back Calculate
+                            </Button>
+                            {backCalcTarget && (
+                                <Button
+                                    className="h-7 text-xs"
+                                    size="sm"
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => setBackCalcTarget("")}
+                                >
+                                    Clear
+                                </Button>
+                            )}
+                        </div>
 
                         {/* Totals — right side */}
-                        <div className="flex items-center gap-x-6 gap-y-1 flex-wrap justify-end">
-                            <div className="flex items-center gap-1.5">
-                                <span className="text-[10px] font-black uppercase tracking-[0.1em] text-(--cl-text-muted)">Lines</span>
-                                <span className="font-bold tabular-nums text-sm text-(--cl-text)">{fields.length}</span>
-                            </div>
-                            <div className="flex items-center gap-1.5">
-                                <span className="text-[10px] font-black uppercase tracking-[0.1em] text-(--cl-text-muted)">Qty</span>
-                                <span className="font-bold tabular-nums text-sm text-(--cl-text)">{formatNumber(totals.qty)}</span>
-                            </div>
-                            <div className="flex items-center gap-1.5">
-                                <span className="text-[10px] font-black uppercase tracking-[0.1em] text-(--cl-text-muted)">Aggregate</span>
-                                <span className="font-bold tabular-nums text-sm text-(--cl-text)">₹{formatNumber(totals.aggregate)}</span>
-                            </div>
-                            {!isIgst ? (
-                                <>
-                                    <div className="flex items-center gap-1.5">
-                                        <span className="text-[10px] font-black uppercase tracking-[0.1em] text-(--cl-text-muted)">CGST</span>
-                                        <span className="font-bold tabular-nums text-sm text-(--cl-text)">₹{formatNumber(totals.cgst)}</span>
-                                    </div>
-                                    <div className="flex items-center gap-1.5">
-                                        <span className="text-[10px] font-black uppercase tracking-[0.1em] text-(--cl-text-muted)">SGST</span>
-                                        <span className="font-bold tabular-nums text-sm text-(--cl-text)">₹{formatNumber(totals.sgst)}</span>
-                                    </div>
-                                </>
-                            ) : (
-                                <div className="flex items-center gap-1.5">
-                                    <span className="text-[10px] font-black uppercase tracking-[0.1em] text-(--cl-text-muted)">IGST</span>
-                                    <span className="font-bold tabular-nums text-sm text-(--cl-text)">₹{formatNumber(totals.igst)}</span>
-                                </div>
-                            )}
+                        <div className="flex items-center gap-x-3 gap-y-1 flex-wrap justify-end">
                             {(() => {
-                                const backCalcNum  = parseFloat(backCalcTarget);
-                                const hasTarget    = backCalcTarget !== "" && !isNaN(backCalcNum) && backCalcNum > 0;
                                 const displayTotal = hasTarget ? backCalcNum : totals.total;
                                 const diff         = hasTarget ? Math.round((backCalcNum - totals.total) * 100) / 100 : 0;
-                                const hasDiff      = hasTarget && Math.abs(diff) >= 0.005;
+                                const hasDiff      = Math.abs(diff) >= 0.005;
                                 return (
                                     <>
+                                        {hasTarget && (
+                                            <div className="flex items-center gap-1.5">
+                                                <span className="text-[10px] font-black uppercase tracking-[0.1em] text-(--cl-text-muted)">Calculated</span>
+                                                <span className="font-bold tabular-nums text-sm text-(--cl-text)">₹{formatNumber(totals.total)}</span>
+                                            </div>
+                                        )}
+                                        <div className="flex items-center gap-1.5">
+                                            <span className="text-[10px] font-black uppercase tracking-[0.1em] text-amber-600">Diff</span>
+                                            <span className={`font-bold tabular-nums text-sm ${hasDiff ? "text-amber-700" : "text-emerald-600"}`}>
+                                                {diff > 0 ? "+" : ""}{formatNumber(diff)}
+                                            </span>
+                                        </div>
                                         <div className="flex items-center gap-1.5 pl-4 border-l border-(--cl-border)">
                                             <span className="text-[10px] font-black uppercase tracking-[0.1em] text-(--cl-text-muted)">Total</span>
                                             <span className="font-black tabular-nums text-base text-(--cl-accent)">₹{formatNumber(displayTotal)}</span>
+                                            <button
+                                                className="ml-1 inline-flex items-center justify-center h-5 w-5 rounded-full bg-(--cl-surface-2) border border-(--cl-border) text-(--cl-text-muted) hover:bg-(--cl-accent) hover:text-white hover:border-(--cl-accent) cursor-pointer transition-all shadow-sm"
+                                                title="Round off to nearest rupee"
+                                                type="button"
+                                                onClick={() => {
+                                                    const rounded = Math.round(displayTotal);
+                                                    setBackCalcTarget(String(rounded));
+                                                    applyBackCalcTarget(rounded);
+                                                }}
+                                            >
+                                                <Radius className="h-3 w-3" />
+                                            </button>
                                         </div>
-                                        {hasDiff && (
-                                            <div className="flex items-center gap-1.5 pl-4 border-l border-amber-500/30">
-                                                <span className="text-[10px] font-black uppercase tracking-[0.1em] text-amber-600">Diff</span>
-                                                <span className="font-bold tabular-nums text-sm text-amber-700">{diff > 0 ? "+" : ""}{formatNumber(diff)}</span>
-                                            </div>
-                                        )}
                                     </>
                                 );
                             })()}

@@ -1,4 +1,3 @@
-import { z } from "zod";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FormProvider, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -20,6 +19,7 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { LocaleDateInput } from "@/components/ui/locale-date-input";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -30,27 +30,24 @@ import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { MESSAGES } from "@/constants/messages";
 import { SQL_MAP } from "@/constants/sql-map";
 import { apolloClient } from "@/lib/apollo-client";
-import { encodeObj, graphQlUtils } from "@/lib/graphql-utils";
+import { encodeObj, graphQlUtils, type GenericQueryData } from "@/lib/graphql-utils";
 import { formatCurrency, currentFinancialYearRange } from "@/lib/utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
-import { selectCurrentBranch, selectSchema, selectCurrentDivision, selectIsGstMode, selectDefaultDivisionId, selectAvailableDivisions } from "@/store/context-slice";
+import { selectCurrentBranch, selectSchema, selectCurrentDivision, selectDefaultDivisionId, selectAvailableDivisions, selectPostDataToAccounts } from "@/store/context-slice";
+import { isGstDivision } from "@/features/client/types/division";
 import type { BrandOption } from "@/features/client/types/model";
 import { BrandSelect } from "@/features/client/components/inventory/brand-select";
 import type { SalesInvoiceType, SalesLineType, DocumentSequenceRow } from "@/features/client/types/sales";
 import type { StockTransactionTypeRow } from "@/features/client/types/purchase";
 import type { CustomerTypeOption, StateOption } from "@/features/client/types/customer";
-import type { BranchType } from "@/features/client/components/masters/branch/branch";
-import { salesInvoiceSchema, salesLineSchema, getSalesInvoiceDefaultValues, getInitialSalesLine } from "./sales-invoice-schema";
+import { salesInvoiceSchema, getSalesInvoiceDefaultValues, getInitialSalesLine } from "./sales-invoice-schema";
 import type { SalesInvoiceFormValues } from "./sales-invoice-schema";
+import { calcLine, buildInvoiceNo } from "./sales-invoice-utils";
 
 import { NewSalesInvoice } from "./new-sales-invoice";
 import { ViewSalesInvoiceDialog } from "./view-sales-invoice-dialog";
 import { SalesInvoicePdfPreviewDialog } from "./sales-invoice-pdf-preview-dialog";
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-type GenericQueryData<T> = { genericQuery: T[] | null };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -60,19 +57,6 @@ const DEBOUNCE_MS = 1600;
 const thClass = "sticky top-0 z-20 text-xs font-semibold uppercase tracking-wide text-(--cl-text-muted) p-3 text-left border-b border-(--cl-border) bg-(--cl-surface-2)";
 const tdClass = "p-3 text-sm text-(--cl-text) border-b border-(--cl-border)";
 
-function calcLine(l: z.infer<typeof salesLineSchema>, isIgst: boolean) {
-    const aggregate = l.qty * l.unit_price;
-    const gst       = l.gst_rate;
-    const cgstAmt   = isIgst ? 0 : aggregate * (gst / 2) / 100;
-    const sgstAmt   = isIgst ? 0 : aggregate * (gst / 2) / 100;
-    const igstAmt   = isIgst ? aggregate * gst / 100 : 0;
-    return { aggregate, cgstAmt, sgstAmt, igstAmt, total: aggregate + cgstAmt + sgstAmt + igstAmt };
-}
-
-function buildInvoiceNo(seq: DocumentSequenceRow): string {
-    return `${seq.prefix}${seq.separator}${String(seq.next_number).padStart(seq.padding, "0")}`;
-}
-
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export const SalesEntrySection = () => {
@@ -81,15 +65,14 @@ export const SalesEntrySection = () => {
     const globalBranch     = useAppSelector(selectCurrentBranch);
     const branchId         = globalBranch?.id ?? null;
     const currentDivision  = useAppSelector(selectCurrentDivision);
+    const postDataToAccounts = useAppSelector(selectPostDataToAccounts);
     const availableDivisions = useAppSelector(selectAvailableDivisions);
     const defaultDivisionId  = useAppSelector(selectDefaultDivisionId);
-    const isGstMode        = useAppSelector(selectIsGstMode);
     const companyName      = currentDivision?.name || globalBranch?.name || "Service Plus";
 
     const { from: defaultFrom, to: defaultTo } = currentFinancialYearRange();
 
     // Filter state
-    const [_branches,     setBranches]      = useState<BranchType[]>([]);
     const [txnTypes,      setTxnTypes]      = useState<StockTransactionTypeRow[]>([]);
     const [fromDate,      setFromDate]      = useState(defaultFrom);
     const [toDate,        setToDate]        = useState(defaultTo);
@@ -105,12 +88,14 @@ export const SalesEntrySection = () => {
     const [docSequences,  setDocSequences]  = useState<DocumentSequenceRow[]>([]);
 
     // Data
-    const [invoices, setInvoices] = useState<SalesInvoiceType[]>([]);
-    const [total,    setTotal]    = useState(0);
+    const [invoices,     setInvoices]     = useState<SalesInvoiceType[]>([]);
+    const [total,        setTotal]        = useState(0);
+    const [grandTotals,  setGrandTotals]  = useState({ aggregate: 0, cgst: 0, sgst: 0, igst: 0, total: 0 });
     const [page,     setPage]     = useState(1);
     const [loading,  setLoading]  = useState(false);
 
     // Dialog
+    const [diffAlertMsg,      setDiffAlertMsg]      = useState<string | null>(null);
     const [viewInvoice,       setViewInvoice]       = useState<SalesInvoiceType | null>(null);
     const [pdfPreviewInvoice, setPdfPreviewInvoice] = useState<SalesInvoiceType | null>(null);
     const [deleteId,          setDeleteId]          = useState<number | null>(null);
@@ -141,6 +126,9 @@ export const SalesEntrySection = () => {
     });
 
     const lines = form.watch("lines") ?? [];
+
+    const selectedDivisionId = form.watch("division_id");
+    const isGstMode = isGstDivision(availableDivisions.find(d => d.id === selectedDivisionId) ?? null);
 
     const canSave = useMemo(() => {
         if (!customerName.trim() || !customerStateCode || !selectedBrand) return false;
@@ -186,15 +174,7 @@ export const SalesEntrySection = () => {
         if (!dbName || !schema) return;
         const fetchMeta = async () => {
             try {
-                const [branchRes, txnRes, brandRes, custTypeRes, masterStateRes] = await Promise.all([
-                    apolloClient.query<GenericQueryData<BranchType>>({
-                        fetchPolicy: "network-only",
-                        query: GRAPHQL_MAP.genericQuery,
-                        variables: {
-                            db_name: dbName, schema,
-                            value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_ALL_BRANCHES }),
-                        },
-                    }),
+                const [txnRes, brandRes, custTypeRes, masterStateRes] = await Promise.all([
                     apolloClient.query<GenericQueryData<StockTransactionTypeRow>>({
                         fetchPolicy: "network-only",
                         query: GRAPHQL_MAP.genericQuery,
@@ -228,7 +208,6 @@ export const SalesEntrySection = () => {
                         },
                     }),
                 ]);
-                setBranches(branchRes.data?.genericQuery ?? []);
                 setTxnTypes(txnRes.data?.genericQuery ?? []);
                 const brandList = brandRes.data?.genericQuery ?? [];
                 setBrands(brandList);
@@ -285,7 +264,7 @@ export const SalesEntrySection = () => {
         setLoading(true);
         try {
             const commonArgs = { branch_id: bId, division_id: divisionId, from_date: from, to_date: to, search: q };
-            const [dataRes, countRes] = await Promise.all([
+            const [dataRes, countRes, totalsRes] = await Promise.all([
                 apolloClient.query<GenericQueryData<SalesInvoiceType>>({
                     fetchPolicy: "network-only",
                     query: GRAPHQL_MAP.genericQuery,
@@ -308,9 +287,28 @@ export const SalesEntrySection = () => {
                         }),
                     },
                 }),
+                apolloClient.query<GenericQueryData<{ aggregate_amount: number; cgst_amount: number; sgst_amount: number; igst_amount: number; total_amount: number }>>({
+                    fetchPolicy: "network-only",
+                    query: GRAPHQL_MAP.genericQuery,
+                    variables: {
+                        db_name: dbName, schema,
+                        value: graphQlUtils.buildGenericQueryValue({
+                            sqlId:   SQL_MAP.GET_SALES_INVOICES_TOTALS,
+                            sqlArgs: commonArgs,
+                        }),
+                    },
+                }),
             ]);
             setInvoices(dataRes.data?.genericQuery ?? []);
             setTotal(countRes.data?.genericQuery?.[0]?.total ?? 0);
+            const gt = totalsRes.data?.genericQuery?.[0];
+            setGrandTotals({
+                aggregate: Number(gt?.aggregate_amount ?? 0),
+                cgst:      Number(gt?.cgst_amount      ?? 0),
+                sgst:      Number(gt?.sgst_amount      ?? 0),
+                igst:      Number(gt?.igst_amount      ?? 0),
+                total:     Number(gt?.total_amount     ?? 0),
+            });
         } catch {
             toast.error(MESSAGES.ERROR_SALES_LOAD_FAILED);
         } finally {
@@ -386,12 +384,19 @@ export const SalesEntrySection = () => {
             sgstTotal += c.sgstAmt;
             igstTotal += c.igstAmt;
         }
-        const totalTax      = cgstTotal + sgstTotal + igstTotal;
-        const calcTotal     = aggTotal + totalTax;
-        const backCalcNum   = parseFloat(backCalcTarget);
-        const grandTotal    = backCalcTarget !== "" && !isNaN(backCalcNum) && backCalcNum > 0
-            ? backCalcNum
-            : calcTotal;
+        const totalTax    = cgstTotal + sgstTotal + igstTotal;
+        const calcTotal   = aggTotal + totalTax;
+        const backCalcNum = parseFloat(backCalcTarget);
+        const hasTarget   = backCalcTarget !== "" && !isNaN(backCalcNum) && backCalcNum > 0;
+        const grandTotal  = hasTarget ? backCalcNum : calcTotal;
+
+        const diff = Math.abs(grandTotal - calcTotal);
+        if (diff > 0.5) {
+            setDiffAlertMsg(
+                `Invoice total (₹${grandTotal.toFixed(2)}) differs from the calculated line total (₹${calcTotal.toFixed(2)}) by ₹${diff.toFixed(2)}. Maximum allowed difference is ₹0.50. Please adjust the target amount or use Back Calculate.`
+            );
+            return;
+        }
 
         const linePayload = formLines.map(line => {
             const c = calcLine(line, isIgst);
@@ -667,14 +672,6 @@ export const SalesEntrySection = () => {
 
     const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
-    const gridTotals = invoices.reduce((acc, inv) => {
-        acc.aggregate += Number(inv.aggregate_amount) || 0;
-        acc.cgst      += Number(inv.cgst_amount) || 0;
-        acc.sgst      += Number(inv.sgst_amount) || 0;
-        acc.igst      += Number(inv.igst_amount) || 0;
-        acc.total     += Number(inv.total_amount) || 0;
-        return acc;
-    }, { aggregate: 0, cgst: 0, sgst: 0, igst: 0, total: 0 });
 
     return (
         <motion.div
@@ -803,7 +800,6 @@ export const SalesEntrySection = () => {
                         setBackCalcTarget={setBackCalcTarget}
                         branchId={branchId}
                         docSequence={editInvoice ? null : sinvSequence}
-                        isGstMode={isGstMode}
                         isIgst={isIgst}
                         setIsIgst={setIsIgst}
                         isReturn={isReturn}
@@ -828,20 +824,18 @@ export const SalesEntrySection = () => {
                     {/* Toolbar */}
                     <div className="flex flex-wrap items-center gap-2 px-4 py-2 bg-(--cl-surface-2)/30">
                         <div className="flex items-center gap-1">
-                            <Input
-                                className="h-8 w-32 border-(--cl-border) bg-(--cl-surface) text-xs"
+                            <LocaleDateInput
+                                className="w-36"
                                 disabled={loading}
-                                type="date"
                                 value={fromDate}
-                                onChange={e => handleFilterChange(setFromDate)(e.target.value)}
+                                onChange={handleFilterChange(setFromDate)}
                             />
                             <span className="text-(--cl-text-muted) text-xs">—</span>
-                            <Input
-                                className="h-8 w-32 border-(--cl-border) bg-(--cl-surface) text-xs"
+                            <LocaleDateInput
+                                className="w-36"
                                 disabled={loading}
-                                type="date"
                                 value={toDate}
-                                onChange={e => handleFilterChange(setToDate)(e.target.value)}
+                                onChange={handleFilterChange(setToDate)}
                             />
                         </div>
                         <div className="relative flex-1 sm:max-w-xs">
@@ -967,6 +961,11 @@ export const SalesEntrySection = () => {
                                                     {inv.is_return && (
                                                         <span className="ml-1.5 text-[10px] font-bold text-orange-600 bg-orange-100 dark:bg-orange-950/40 rounded px-1 py-0.5">RTN</span>
                                                     )}
+                                                    {postDataToAccounts && (
+                                                        <div className={`mt-0.5 text-[10px] font-semibold ${inv.is_posted ? "text-emerald-600" : "text-amber-600"}`}>
+                                                            {inv.is_posted ? "Posted" : "Not Posted"}
+                                                        </div>
+                                                    )}
                                                 </td>
                                                 <td className={tdClass} style={{ width: "26%" }}>{inv.customer_name}</td>
                                                 {!currentDivision && (
@@ -1035,8 +1034,14 @@ export const SalesEntrySection = () => {
                                                                     <span>Edit Invoice</span>
                                                                 </DropdownMenuItem>
                                                                 <DropdownMenuItem
-                                                                    className="flex items-center gap-2 cursor-pointer text-red-500 focus:bg-red-500/10 focus:text-red-600 font-semibold"
-                                                                    onClick={() => setDeleteId(inv.id)}
+                                                                    className={`flex items-center gap-2 cursor-pointer font-semibold ${inv.is_posted ? "text-(--cl-text-muted) opacity-50 cursor-not-allowed" : "text-red-500 focus:bg-red-500/10 focus:text-red-600"}`}
+                                                                    onClick={() => {
+                                                                        if (inv.is_posted) {
+                                                                            toast.error("Posted invoices cannot be deleted.");
+                                                                            return;
+                                                                        }
+                                                                        setDeleteId(inv.id);
+                                                                    }}
                                                                 >
                                                                     <Trash2 className="h-4 w-4" />
                                                                     <span>Delete Invoice</span>
@@ -1048,34 +1053,35 @@ export const SalesEntrySection = () => {
                                             </tr>
                                         ))}
                                     </tbody>
-                                </table>
-                            )}
-                        </div>
-
-                        {/* Summary footer — always pinned at bottom */}
-                        {invoices.length > 0 && (
-                            <div className="border-t border-(--cl-border) bg-(--cl-surface-2)">
-                                <table className="min-w-full border-collapse">
-                                    <tbody>
+                                    <tfoot className="sticky bottom-0 z-10 bg-(--cl-surface-2) shadow-[0_-1px_0_var(--cl-border)] border-t border-t-(--cl-border)">
                                         <tr>
-                                            <td className={tdClass} style={{ width: "5%" }}></td>
-                                            <td className={tdClass} colSpan={currentDivision ? 3 : 4}>
+                                            <td className={tdClass} colSpan={currentDivision ? 4 : 5}>
                                                 <div className="flex items-center justify-between">
-                                                    <span className="text-xs text-(--cl-text-muted)">{invoices.length} lines</span>
+                                                    <span className="text-xs text-(--cl-text-muted)">{total} invoices</span>
                                                     <span className="font-bold text-(--cl-text)">Total:</span>
                                                 </div>
                                             </td>
-                                            <td className={`${tdClass} text-right font-bold text-(--cl-text)`} style={{ width: "10%" }}>{formatCurrency(gridTotals.aggregate)}</td>
-                                            <td className={`${tdClass} text-right font-bold text-(--cl-text)`} style={{ width: "8%" }}>{formatCurrency(gridTotals.cgst)}</td>
-                                            <td className={`${tdClass} text-right font-bold text-(--cl-text)`} style={{ width: "8%" }}>{formatCurrency(gridTotals.sgst)}</td>
-                                            <td className={`${tdClass} text-right font-bold text-(--cl-text)`} style={{ width: "8%" }}>{formatCurrency(gridTotals.igst)}</td>
-                                            <td className={`${tdClass} text-right font-bold text-(--cl-accent) text-[13px]`} style={{ width: "12%" }}>{formatCurrency(gridTotals.total)}</td>
-                                            <td className={tdClass} style={{ width: "11%" }}></td>
+                                            <td className={`${tdClass} text-right font-bold text-(--cl-text)`}>
+                                                {formatCurrency(grandTotals.aggregate)}
+                                            </td>
+                                            <td className={`${tdClass} text-right font-bold text-(--cl-text)`}>
+                                                {formatCurrency(grandTotals.cgst)}
+                                            </td>
+                                            <td className={`${tdClass} text-right font-bold text-(--cl-text)`}>
+                                                {formatCurrency(grandTotals.sgst)}
+                                            </td>
+                                            <td className={`${tdClass} text-right font-bold text-(--cl-text)`}>
+                                                {formatCurrency(grandTotals.igst)}
+                                            </td>
+                                            <td className={`${tdClass} text-right font-bold text-(--cl-accent) text-[13px]`}>
+                                                {formatCurrency(grandTotals.total)}
+                                            </td>
+                                            <td className={`${tdClass} !bg-(--cl-surface-2)`}></td>
                                         </tr>
-                                    </tbody>
+                                    </tfoot>
                                 </table>
-                            </div>
-                        )}
+                            )}
+                        </div>
 
                         {/* Pagination */}
                         <div className="flex items-center justify-between border-t border-(--cl-border) px-4 py-2">
@@ -1148,7 +1154,7 @@ export const SalesEntrySection = () => {
                         open={deleteId !== null}
                         onOpenChange={open => { if (!open && !deleting) setDeleteId(null); }}
                     >
-                        <DialogContent aria-describedby={undefined} className="sm:max-w-sm !bg-(--cl-surface) text-(--cl-text)">
+                        <DialogContent aria-describedby={undefined} className="sm:max-w-sm !bg-white text-(--cl-text)">
                             <DialogHeader>
                                 <DialogTitle>Delete Sales Invoice</DialogTitle>
                             </DialogHeader>
@@ -1167,6 +1173,18 @@ export const SalesEntrySection = () => {
                     </Dialog>
                 </>
             )}
+            {/* Diff Alert Dialog — outside mode ternary so it works in new/edit mode */}
+            <Dialog open={diffAlertMsg !== null} onOpenChange={open => { if (!open) setDiffAlertMsg(null); }}>
+                <DialogContent aria-describedby={undefined} className="sm:max-w-md !bg-white text-(--cl-text)">
+                    <DialogHeader>
+                        <DialogTitle className="text-amber-600">Amount Difference Too Large</DialogTitle>
+                    </DialogHeader>
+                    <p className="text-sm text-(--cl-text) leading-relaxed">{diffAlertMsg}</p>
+                    <DialogFooter>
+                        <Button className="cursor-pointer" onClick={() => setDiffAlertMsg(null)}>OK</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </motion.div>
     );
 };

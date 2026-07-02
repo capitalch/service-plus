@@ -13,12 +13,13 @@ import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { MESSAGES } from "@/constants/messages";
 import { SQL_MAP } from "@/constants/sql-map";
 import { apolloClient } from "@/lib/apollo-client";
-import { graphQlUtils } from "@/lib/graphql-utils";
+import { graphQlUtils, type GenericQueryData } from "@/lib/graphql-utils";
 import { formatCurrency } from "@/lib/utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectSchema } from "@/store/context-slice";
 import type { PurchaseInvoiceType, PurchaseLineType } from "@/features/client/types/purchase";
+import { Field } from "@/features/client/components/inventory/invoice-field";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -28,8 +29,6 @@ type Props = {
     onOpenChange: (open: boolean) => void;
     onShowPdf?:   (invoice: PurchaseInvoiceType) => void;
 };
-
-type GenericQueryData<T> = { genericQuery: T[] | null };
 
 type DetailRow = PurchaseInvoiceType & { lines: PurchaseLineType[] };
 
@@ -199,12 +198,3 @@ export const ViewPurchaseInvoiceDialog = ({ invoice, open, onOpenChange, onShowP
         </Dialog>
     );
 };
-
-function Field({ label, value, className }: { label: string; value: string | number; className?: string }) {
-    return (
-        <div className={className}>
-            <p className="text-[10px] font-extrabold text-zinc-400 uppercase tracking-widest mb-0.5">{label}</p>
-            <p className="font-semibold text-zinc-800">{value}</p>
-        </div>
-    );
-}

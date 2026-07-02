@@ -4,10 +4,11 @@ import { toast } from "sonner";
 import { motion } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { MESSAGES } from "@/constants/messages";
 import { SQL_MAP } from "@/constants/sql-map";
-import { selectDbName } from "@/features/auth/store/auth-slice";
+import { selectDbName, selectCurrentUser } from "@/features/auth/store/auth-slice";
 import { apolloClient } from "@/lib/apollo-client";
 import { encodeObj, graphQlUtils } from "@/lib/graphql-utils";
 import { isValidGstin, normalizeGstin, saveCustomerGstin } from "@/lib/gstin";
@@ -34,6 +35,10 @@ import { FinalJobForm } from "./final-job-form";
 import { PendingJobsGrid } from "./pending-jobs-grid";
 import { FinalizedJobsGrid } from "./finalized-jobs-grid";
 import { JobChargesReadonlyModal, type ChargesViewPartLine, type ChargesViewChargeLine } from "./job-charges-readonly-modal";
+import { DeliveryModal } from "../deliver-job/delivery-modal";
+import { JobPdfModal } from "../job-control/job-pdf-modal";
+import { JobProformaInvoiceModal } from "../job-control/job-proforma-invoice-modal";
+import type { JobDeliveryFullDetail } from "../deliver-job/deliver-job-schema";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -129,6 +134,7 @@ export const FinalAJobSection = ({ onBack, initialTab }: FinalAJobSectionProps =
     const defaultHsnForSparePart = useAppSelector(selectDefaultHsnForSparePart);
     const defaultHsnForServiceCharge = useAppSelector(selectDefaultHsnForServiceCharge);
     const branchId = currentBranch?.id ?? null;
+    const currentUser = useAppSelector(selectCurrentUser);
 
     // ── List state ──────────────────────────────────────────────────────────
     const [subView, setSubView] = useState<SubView>("list");
@@ -177,6 +183,7 @@ export const FinalAJobSection = ({ onBack, initialTab }: FinalAJobSectionProps =
     const [backCalcTarget, setBackCalcTarget] = useState("");
     const [showPartsInInvoice, setShowPartsInInvoice] = useState(true);
     const [gstin, setGstin] = useState("");
+    const [diffAlertMsg, setDiffAlertMsg] = useState<string | null>(null);
 
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const finalizedDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -228,9 +235,16 @@ export const FinalAJobSection = ({ onBack, initialTab }: FinalAJobSectionProps =
                     ? (rawShowParts as { show?: boolean })
                     : null;
                 setShowPartsInInvoice(showPartsObj?.show !== false);
+                if (rawShowParts != null && typeof rawShowParts === "object")
+                    setDeliveryPartsInvoiceSetting(rawShowParts as { show: boolean; text: string; hsn: number; gst_rate: number });
             } catch { /* silent */ }
         };
         void fetchMeta();
+        apolloClient.query<GenericQueryData<DeliveryMannerRow>>({
+            fetchPolicy: "network-only",
+            query: GRAPHQL_MAP.genericQuery,
+            variables: { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_JOB_DELIVERY_MANNERS }) },
+        }).then(res => setDeliveryManners(res.data?.genericQuery ?? [])).catch(() => {});
     }, [dbName, schema]);
 
     // ── Load list ───────────────────────────────────────────────────────────
@@ -432,6 +446,17 @@ export const FinalAJobSection = ({ onBack, initialTab }: FinalAJobSectionProps =
     const [undoingJobId, setUndoingJobId] = useState<number | null>(null);
     const [undoConfirmRow, setUndoConfirmRow] = useState<FinalizedJobRow | null>(null);
 
+    // ── PDF / Proforma / Delivery modals ─────────────────────────────────────
+    type DeliveryMannerRow = { id: number; name: string };
+    const [pdfJobId,                    setPdfJobId]                    = useState<number | null>(null);
+    const [proformaJobId,               setProformaJobId]               = useState<number | null>(null);
+    const [deliveryLoadingJobId,        setDeliveryLoadingJobId]        = useState<number | null>(null);
+    const [deliveryJobDetails,          setDeliveryJobDetails]          = useState<JobDeliveryFullDetail[]>([]);
+    const [showDeliveryModal,           setShowDeliveryModal]           = useState(false);
+    const [deliveryManners,             setDeliveryManners]             = useState<DeliveryMannerRow[]>([]);
+    const [deliveryPartsInvoiceSetting, setDeliveryPartsInvoiceSetting] =
+        useState<{ show: boolean; text: string; hsn: number; gst_rate: number } | null>(null);
+
     // ── Charges view ─────────────────────────────────────────────────────────
     const [chargesViewOpen, setChargesViewOpen] = useState(false);
     const [chargesLoadingJobId, setChargesLoadingJobId] = useState<number | null>(null);
@@ -481,6 +506,15 @@ export const FinalAJobSection = ({ onBack, initialTab }: FinalAJobSectionProps =
         }
     }
 
+    async function handleReviseFinal(row: FinalizedJobRow) {
+        const adapted: FinalJobRow = {
+            ...row,
+            is_closed: false,
+            is_final:  true,
+        };
+        await handleOpenFinal(adapted);
+    }
+
     async function handleUndoFinal(row: FinalizedJobRow) {
         if (!dbName || !schema) return;
         setUndoingJobId(row.id);
@@ -500,6 +534,32 @@ export const FinalAJobSection = ({ onBack, initialTab }: FinalAJobSectionProps =
             toast.error("Failed to undo final. Please try again.");
         } finally {
             setUndoingJobId(null);
+        }
+    }
+
+    async function handleOpenDelivery(jobId: number) {
+        if (!dbName || !schema) return;
+        setDeliveryLoadingJobId(jobId);
+        try {
+            const res = await apolloClient.query<GenericQueryData<JobDeliveryFullDetail>>({
+                fetchPolicy: "network-only",
+                query: GRAPHQL_MAP.genericQuery,
+                variables: {
+                    db_name: dbName, schema,
+                    value: graphQlUtils.buildGenericQueryValue({
+                        sqlId:   SQL_MAP.GET_DELIVERABLE_JOBS_DETAIL_MULTI,
+                        sqlArgs: { job_ids: [jobId] },
+                    }),
+                },
+            });
+            const details = res.data?.genericQuery ?? [];
+            if (details.length === 0) { toast.error("Failed to load job delivery details."); return; }
+            setDeliveryJobDetails(details);
+            setShowDeliveryModal(true);
+        } catch {
+            toast.error("Failed to load job delivery details.");
+        } finally {
+            setDeliveryLoadingJobId(null);
         }
     }
 
@@ -851,6 +911,17 @@ export const FinalAJobSection = ({ onBack, initialTab }: FinalAJobSectionProps =
                 ? 0
                 : ((backCalcTarget !== "" && !isNaN(backCalcNum) && backCalcNum > 0) ? backCalcNum : computedTotal);
 
+            if (!isWarrantyJob) {
+                const diff = Math.abs(amount - computedTotal);
+                if (diff > 0.5) {
+                    setDiffAlertMsg(
+                        `Job total (₹${amount.toFixed(2)}) differs from the calculated line total (₹${computedTotal.toFixed(2)}) by ₹${diff.toFixed(2)}. Maximum allowed difference is ₹0.50. Please adjust line amounts or use Back Calculate.`
+                    );
+                    setSubmitting(false);
+                    return;
+                }
+            }
+
             await apolloClient.mutate({
                 mutation: GRAPHQL_MAP.genericUpdate,
                 variables: {
@@ -874,6 +945,7 @@ export const FinalAJobSection = ({ onBack, initialTab }: FinalAJobSectionProps =
             toast.success("Job marked as final.");
             handleBack();
             if (branchId) void loadData(branchId, searchQ, page, currentDivision?.id ?? null);
+            void loadFinalizedData();
         } catch {
             toast.error("Failed to save. Please try again.");
         } finally {
@@ -887,6 +959,7 @@ export const FinalAJobSection = ({ onBack, initialTab }: FinalAJobSectionProps =
 
     if (subView === "final" && selectedJob && selectedRow) {
         return (
+            <>
             <FinalJobForm
                 selectedJob={selectedJob}
                 selectedRow={selectedRow}
@@ -930,6 +1003,18 @@ export const FinalAJobSection = ({ onBack, initialTab }: FinalAJobSectionProps =
                 onPatchCharge={patchChargeLine}
                 onDivisionChange={handleDivisionChange}
             />
+            <Dialog open={diffAlertMsg !== null} onOpenChange={open => { if (!open) setDiffAlertMsg(null); }}>
+                <DialogContent aria-describedby={undefined} className="sm:max-w-md !bg-white text-(--cl-text)">
+                    <DialogHeader>
+                        <DialogTitle className="text-amber-600">Amount Difference Too Large</DialogTitle>
+                    </DialogHeader>
+                    <p className="text-sm text-(--cl-text) leading-relaxed">{diffAlertMsg}</p>
+                    <DialogFooter>
+                        <Button className="cursor-pointer" onClick={() => setDiffAlertMsg(null)}>OK</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+            </>
         );
     }
     // ─── List view ────────────────────────────────────────────────────────────
@@ -1026,12 +1111,17 @@ export const FinalAJobSection = ({ onBack, initialTab }: FinalAJobSectionProps =
                         availableDivisions={availableDivisions}
                         undoingJobId={undoingJobId}
                         chargesLoadingJobId={chargesLoadingJobId}
+                        deliveryLoadingJobId={deliveryLoadingJobId}
                         onSearchChange={handleFinalizedSearchChange}
                         onRefresh={() => void loadFinalizedData()}
                         onViewJob={id => setViewJobId(id)}
                         onUndo={row => setUndoConfirmRow(row)}
                         onOpenAttach={(id, jobNo) => { setAttachSource("finalized"); setAttachJobId(id); setAttachJobNo(jobNo); }}
                         onViewCharges={row => void handleOpenChargesView(row)}
+                        onDeliver={id => void handleOpenDelivery(id)}
+                        onProforma={setProformaJobId}
+                        onPdf={setPdfJobId}
+                        onReviseFinal={row => void handleReviseFinal(row)}
                     />
                 )}
             </motion.div>
@@ -1077,6 +1167,34 @@ export const FinalAJobSection = ({ onBack, initialTab }: FinalAJobSectionProps =
                 parts={chargesViewParts}
                 charges={chargesViewCharges}
             />
+
+            {pdfJobId !== null && (
+                <JobPdfModal jobId={pdfJobId} onClose={() => setPdfJobId(null)} />
+            )}
+
+            {proformaJobId !== null && (
+                <JobProformaInvoiceModal jobId={proformaJobId} onClose={() => setProformaJobId(null)} />
+            )}
+
+            {showDeliveryModal && deliveryJobDetails.length > 0 && (
+                <DeliveryModal
+                    jobs={deliveryJobDetails}
+                    branchId={currentBranch?.id ?? null}
+                    branchName={currentBranch?.name ?? null}
+                    deliveryManners={deliveryManners}
+                    availableDivisions={availableDivisions}
+                    currentUser={currentUser}
+                    dbName={dbName}
+                    schema={schema}
+                    showPartsInInvoiceSetting={deliveryPartsInvoiceSetting}
+                    onClose={() => { setShowDeliveryModal(false); setDeliveryJobDetails([]); }}
+                    onDelivered={() => {
+                        setShowDeliveryModal(false);
+                        setDeliveryJobDetails([]);
+                        void loadFinalizedData();
+                    }}
+                />
+            )}
 
             <AlertDialog open={!!undoConfirmRow} onOpenChange={open => { if (!open) setUndoConfirmRow(null); }}>
                 <AlertDialogContent className="max-w-sm">

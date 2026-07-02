@@ -34,6 +34,8 @@ export type GenericBatchItemType = {
 
 export type GenericBatchQueryDataType = { genericBatchQuery: unknown[][] | null };
 
+export type GenericQueryData<T> = { genericQuery: T[] | null };
+
 export type GenericQueryValueType = {
     sqlArgs?: Record<string, unknown>;
     sqlId: string;

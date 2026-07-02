@@ -30,17 +30,16 @@ function fmt(val: string | number | null | undefined, fallback = "—"): string 
 
 function fmtAmount(val: number | null | undefined): string {
     if (val == null) return "—";
-    return `₹${Number(val).toFixed(2)}`;
+    return `Rs.${Number(val).toFixed(2)}`;
 }
 
 function fmtDateTime(iso: string): string {
     if (!iso) return "—";
     const d = new Date(iso);
     if (isNaN(d.getTime())) return iso;
-    return d.toLocaleString("en-IN", {
-        day: "2-digit", month: "short", year: "numeric",
-        hour: "2-digit", minute: "2-digit", hour12: true,
-    });
+    const date = d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "2-digit" });
+    const time = d.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true });
+    return `${date}\n${time}`;
 }
 
 function buildJobDetailDoc(
@@ -104,10 +103,10 @@ function buildJobDetailDoc(
             ["Condition:",     fmt(job.job_receive_condition_name), "Amount:",   fmtAmount(job.amount)],
             ["Delivery Date:", fmt(job.delivery_date),        "Closed:",         job.is_closed ? "Yes" : "No"],
         ],
-        columnStyles: { 0: { cellWidth: 34, fontStyle: "bold" }, 2: { cellWidth: 34, fontStyle: "bold" } },
+        columnStyles: { 0: { cellWidth: 36, fontStyle: "bold" }, 2: { cellWidth: 36, fontStyle: "bold" } },
         margin:  { left: 14, right: 14 },
         startY:  y,
-        styles:  { cellPadding: 2, fontSize: 8.5, lineColor: [200, 200, 200], lineWidth: 0.3 },
+        styles:  { cellPadding: 2.5, fontSize: 9, lineColor: [200, 200, 200], lineWidth: 0.3, overflow: "linebreak" },
         theme:   "grid",
     });
 
@@ -122,16 +121,16 @@ function buildJobDetailDoc(
     ].filter(n => n.value && n.value.trim());
 
     if (narratives.length > 0) {
-        doc.setFontSize(9);
+        doc.setFontSize(10);
         for (const n of narratives) {
             if (y > pageHeight - 30) { doc.addPage(); y = 14; }
             doc.setFont("helvetica", "bold");
             doc.text(`${n.label}:`, 14, y);
-            y += 4;
+            y += 5;
             doc.setFont("helvetica", "normal");
             const lines = doc.splitTextToSize(n.value!, pageWidth - 28);
             doc.text(lines, 14, y);
-            y += lines.length * 4 + 3;
+            y += lines.length * 5 + 3;
         }
         y += 2;
     }
@@ -143,10 +142,10 @@ function buildJobDetailDoc(
 
     if (parts.length > 0) {
         if (y > pageHeight - 40) { doc.addPage(); y = 14; }
-        doc.setFontSize(10);
+        doc.setFontSize(11);
         doc.setFont("helvetica", "bold");
         doc.text("Parts Used", 14, y);
-        y += 5;
+        y += 6;
         autoTable(doc, {
             head: [["#", "Code", "Part Name", "UOM", "Qty", "Unit Price", "Total"]],
             body: parts.map((p, i) => [
@@ -160,9 +159,16 @@ function buildJobDetailDoc(
             ]),
             margin:     { left: 14, right: 14 },
             startY:     y,
-            styles:     { cellPadding: 1.8, fontSize: 7.5, lineColor: [200, 200, 200], lineWidth: 0.2, overflow: "linebreak" },
-            headStyles: { fontSize: 7, fontStyle: "bold", fillColor: [240, 240, 240], textColor: [50, 50, 50] },
-            columnStyles: { 0: { cellWidth: 8 }, 4: { halign: "right" }, 5: { halign: "right" }, 6: { halign: "right" } },
+            styles:     { cellPadding: 2.5, fontSize: 9, lineColor: [200, 200, 200], lineWidth: 0.2, overflow: "linebreak" },
+            headStyles: { fontSize: 8.5, fontStyle: "bold", fillColor: [240, 240, 240], textColor: [50, 50, 50] },
+            columnStyles: {
+                0: { cellWidth: 7 },
+                1: { cellWidth: 22 },
+                3: { cellWidth: 13 },
+                4: { cellWidth: 15, halign: "right" },
+                5: { cellWidth: 30, halign: "right" },
+                6: { cellWidth: 30, halign: "right" },
+            },
             theme: "grid",
         });
         y = (doc as any).lastAutoTable.finalY + 5;
@@ -171,10 +177,10 @@ function buildJobDetailDoc(
     // ── Additional Charges ────────────────────────────────────────────────────
     if (charges.length > 0) {
         if (y > pageHeight - 40) { doc.addPage(); y = 14; }
-        doc.setFontSize(10);
+        doc.setFontSize(11);
         doc.setFont("helvetica", "bold");
         doc.text("Additional Charges", 14, y);
-        y += 5;
+        y += 6;
         autoTable(doc, {
             head: [["#", "Charge Name", "Ref No", "Description", "Amount"]],
             body: charges.map((c, i) => [
@@ -186,9 +192,15 @@ function buildJobDetailDoc(
             ]),
             margin:     { left: 14, right: 14 },
             startY:     y,
-            styles:     { cellPadding: 1.8, fontSize: 7.5, lineColor: [200, 200, 200], lineWidth: 0.2, overflow: "linebreak" },
-            headStyles: { fontSize: 7, fontStyle: "bold", fillColor: [240, 240, 240], textColor: [50, 50, 50] },
-            columnStyles: { 0: { cellWidth: 8 }, 4: { halign: "right" } },
+            styles:     { cellPadding: 2.5, fontSize: 9, lineColor: [200, 200, 200], lineWidth: 0.2, overflow: "linebreak" },
+            headStyles: { fontSize: 8.5, fontStyle: "bold", fillColor: [240, 240, 240], textColor: [50, 50, 50] },
+            columnStyles: {
+                0: { cellWidth: 7 },
+                1: { cellWidth: 48 },
+                2: { cellWidth: 28 },
+                3: { cellWidth: 67 },
+                4: { cellWidth: 32, halign: "right" },
+            },
             theme: "grid",
         });
         y = (doc as any).lastAutoTable.finalY + 5;
@@ -205,8 +217,8 @@ function buildJobDetailDoc(
             ],
             margin:       { left: pageWidth - 84, right: 14 },
             startY:       y,
-            styles:       { cellPadding: 1.8, fontSize: 8.5, lineColor: [200, 200, 200], lineWidth: 0.2 },
-            columnStyles: { 0: { fontStyle: "bold", cellWidth: 34 }, 1: { halign: "right" } },
+            styles:       { cellPadding: 2.5, fontSize: 9.5, lineColor: [200, 200, 200], lineWidth: 0.2 },
+            columnStyles: { 0: { fontStyle: "bold", cellWidth: 36 }, 1: { cellWidth: 34, halign: "right" } },
             theme: "grid",
         });
         y = (doc as any).lastAutoTable.finalY + 5;
@@ -215,13 +227,13 @@ function buildJobDetailDoc(
     // ── Transactions ──────────────────────────────────────────────────────────
     if (y > pageHeight - 50) { doc.addPage(); y = 14; }
 
-    doc.setFontSize(10);
+    doc.setFontSize(11);
     doc.setFont("helvetica", "bold");
     doc.text("Transaction History", 14, y);
-    y += 5;
+    y += 6;
 
     if (transactions.length === 0) {
-        doc.setFontSize(8.5);
+        doc.setFontSize(9);
         doc.setFont("helvetica", "italic");
         doc.text("No transactions recorded.", 14, y);
     } else {
@@ -241,15 +253,14 @@ function buildJobDetailDoc(
             body,
             margin:     { left: 14, right: 14 },
             startY:     y,
-            styles:     { cellPadding: 1.8, fontSize: 7.5, lineColor: [200, 200, 200], lineWidth: 0.2, overflow: "linebreak" },
-            headStyles: { fontSize: 7, fontStyle: "bold", fillColor: [240, 240, 240], textColor: [50, 50, 50] },
+            styles:     { cellPadding: 2.5, fontSize: 9, lineColor: [200, 200, 200], lineWidth: 0.2, overflow: "linebreak" },
+            headStyles: { fontSize: 8.5, fontStyle: "bold", fillColor: [240, 240, 240], textColor: [50, 50, 50] },
             columnStyles: {
-                0: { cellWidth: 8 },
-                1: { cellWidth: 32 },
+                0: { cellWidth: 7 },
+                1: { cellWidth: 28 },
                 2: { cellWidth: 26 },
                 3: { cellWidth: 26 },
-                4: { cellWidth: 18, halign: "right" },
-                5: { cellWidth: 40, overflow: "linebreak" },
+                4: { cellWidth: 30, halign: "right" },
                 6: { cellWidth: 26 },
             },
             theme: "grid",

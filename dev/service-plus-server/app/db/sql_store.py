@@ -2175,6 +2175,27 @@ class SqlStore:
            OR LOWER(s.name)         LIKE '%%' || LOWER((table "p_search")) || '%%')
     """
 
+    GET_PURCHASE_INVOICES_TOTALS = """
+        with
+            "p_branch_id" as (values(%(branch_id)s::bigint)),
+            "p_from_date" as (values(%(from_date)s::date)),
+            "p_to_date"   as (values(%(to_date)s::date)),
+            "p_search"    as (values(%(search)s::text))
+        SELECT
+            COALESCE(SUM(pi.aggregate_amount), 0) AS aggregate_amount,
+            COALESCE(SUM(pi.cgst_amount),      0) AS cgst_amount,
+            COALESCE(SUM(pi.sgst_amount),      0) AS sgst_amount,
+            COALESCE(SUM(pi.igst_amount),      0) AS igst_amount,
+            COALESCE(SUM(pi.total_amount),     0) AS total_amount
+        FROM purchase_invoice pi
+        JOIN supplier s ON s.id = pi.supplier_id
+        WHERE pi.branch_id = (table "p_branch_id")
+          AND pi.invoice_date BETWEEN (table "p_from_date") AND (table "p_to_date")
+          AND ((table "p_search") = ''
+           OR LOWER(pi.invoice_no)  LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(s.name)         LIKE '%%' || LOWER((table "p_search")) || '%%')
+    """
+
     GET_PURCHASE_INVOICES_PAGED = """
         with
             "p_branch_id" as (values(%(branch_id)s::bigint)),
@@ -2403,6 +2424,29 @@ class SqlStore:
            OR LOWER(si.customer_name) LIKE '%%' || LOWER((table "p_search")) || '%%')
     """
 
+    GET_SALES_INVOICES_TOTALS = """
+        with
+            "p_branch_id"   as (values(%(branch_id)s::bigint)),
+            "p_division_id" as (values(%(division_id)s::bigint)),
+            "p_from_date"   as (values(%(from_date)s::date)),
+            "p_to_date"     as (values(%(to_date)s::date)),
+            "p_search"      as (values(%(search)s::text))
+        SELECT
+            COALESCE(SUM(si.aggregate),    0) AS aggregate_amount,
+            COALESCE(SUM(si.cgst_amount),  0) AS cgst_amount,
+            COALESCE(SUM(si.sgst_amount),  0) AS sgst_amount,
+            COALESCE(SUM(si.igst_amount),  0) AS igst_amount,
+            COALESCE(SUM(si.amount),       0) AS total_amount
+        FROM sales_invoice si
+        JOIN division d ON d.id = si.division_id
+        WHERE d.branch_id = (table "p_branch_id")
+          AND ((table "p_division_id") IS NULL OR si.division_id = (table "p_division_id"))
+          AND si.invoice_date BETWEEN (table "p_from_date") AND (table "p_to_date")
+          AND ((table "p_search") = ''
+           OR LOWER(si.invoice_no)    LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(si.customer_name) LIKE '%%' || LOWER((table "p_search")) || '%%')
+    """
+
     GET_SALES_INVOICES_PAGED = """
         with
             "p_branch_id"   as (values(%(branch_id)s::bigint)),
@@ -2429,7 +2473,8 @@ class SqlStore:
             (si.cgst_amount + si.sgst_amount + si.igst_amount)      AS total_tax,
             si.amount                                                AS total_amount,
             si.remarks,
-            si.is_return
+            si.is_return,
+            si.is_posted
         FROM sales_invoice si
         JOIN division d ON d.id = si.division_id
         WHERE d.branch_id = (table "p_branch_id")
@@ -4382,6 +4427,10 @@ class SqlStore:
         FROM job j
         JOIN job_status js ON js.id = 1
         WHERE j.id = (table "p_job_id")
+          AND NOT EXISTS (
+              SELECT 1 FROM job_transaction jt2
+              WHERE jt2.job_id = j.id AND jt2.status_id = 1
+          )
 
         ORDER BY performed_at ASC, id ASC
     """
@@ -4516,6 +4565,61 @@ class SqlStore:
 
     MARK_PURCHASE_INVOICE_POSTED = """
         UPDATE purchase_invoice SET is_posted = true WHERE id = %(id)s
+    """
+
+    GET_UNPOSTED_SALES_INVOICES = """
+        WITH
+            "p_division_code" AS (VALUES(%(division_code)s::text)),
+            "p_division_id" AS (
+                SELECT id FROM division
+                WHERE LOWER(code) = LOWER((TABLE "p_division_code"))
+                LIMIT 1
+            )
+        SELECT
+            si.id,
+            si.invoice_no,
+            si.invoice_date,
+            si.aggregate        AS aggregate_amount,
+            si.cgst_amount,
+            si.sgst_amount,
+            si.igst_amount,
+            si.amount           AS total_amount,
+            si.is_return,
+            si.customer_name,
+            si.customer_gstin,
+            cc.mobile,
+            cc.postal_code      AS customer_pin,
+            CONCAT_WS(', ',
+                NULLIF(cc.address_line1, ''),
+                NULLIF(cc.address_line2, ''),
+                NULLIF(cc.city, '')
+            )                   AS customer_address,
+            json_agg(
+                json_build_object(
+                    'hsn_code',     sil.hsn_code,
+                    'qty',          sil.qty,
+                    'unit_price',   sil.price,
+                    'total_amount', sil.amount,
+                    'gst_rate',     sil.gst_rate,
+                    'cgst_amount',  sil.cgst_amount,
+                    'sgst_amount',  sil.sgst_amount,
+                    'igst_amount',  sil.igst_amount,
+                    'part_code',    sp.part_code
+                ) ORDER BY sil.id
+            ) AS lines
+        FROM sales_invoice si
+        LEFT JOIN customer_contact cc  ON cc.id = si.customer_contact_id
+        JOIN sales_invoice_line    sil ON sil.sales_invoice_id = si.id
+        LEFT JOIN spare_part_master sp ON sp.id = sil.part_id
+        WHERE si.division_id = (TABLE "p_division_id")
+          AND si.is_posted = false
+        GROUP BY si.id, cc.mobile, cc.postal_code,
+                 cc.address_line1, cc.address_line2, cc.city
+        ORDER BY si.invoice_date ASC, si.id ASC
+    """
+
+    MARK_SALES_INVOICE_POSTED = """
+        UPDATE sales_invoice SET is_posted = true WHERE id = %(id)s
     """
 
     GET_UNPOSTED_JOB_INVOICES = """
