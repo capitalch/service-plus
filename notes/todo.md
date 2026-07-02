@@ -1,5 +1,6 @@
 # To Do
 - Enhancements
+	- In all drill down grids of Job Pipeline, final a job and Deliver Job including all tabs: for action dropdown and corresponding actions, follow the same pattern of row selection and page and row and scroll position retention.
 							- Draft Invoice info for finalised jobs
 							- modify Sales Invoice functionality
 								- Rename Job Search to Job Panel / Control /Manage
