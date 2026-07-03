@@ -862,49 +862,60 @@ async def resolve_create_sales_invoice_helper(
     db_name: str, schema: str = "public", value: str = ""
 ) -> Any:
     """
-    Create a sales invoice and atomically increment the document sequence.
+    Create a sales invoice and atomically generate the invoice number in a single transaction.
 
-    The `value` JSON must contain:
-      - The sql_object for the sales_invoice insert (with nested xDetails for lines and
-        stock_transactions), PLUS:
-      - doc_sequence_id   (int): ID of the document_sequence row to increment.
-      - doc_sequence_next (int): The new next_number value (current + 1).
-
-    Both doc_sequence_* keys are stripped before passing the sql_object to exec_sql_object.
+    The client sends the sql_object for the sales_invoice insert (with nested xDetails for
+    lines and stock_transactions), plus top-level `branch_id` and `division_id` used to claim
+    the next SALES_INVOICE sequence number server-side. The claim (UPDATE ... RETURNING) and
+    the insert share one transaction, so a failed insert rolls back the claimed number and
+    concurrent creates never collide.
     """
-    if not value:
-        raise ValidationException(
-            message=AppMessages.INVALID_INPUT,
-            extensions={"detail": AppMessages.INVALID_JSON_OBJECT},
-        )
-    value_string = unquote(value)
-    try:
-        payload: dict = json.loads(value_string)
-    except json.JSONDecodeError as e:
-        logger.error("Invalid JSON in createSalesInvoice value: %s", e)
-        raise ValidationException(
-            message=AppMessages.INVALID_INPUT,
-            extensions={"detail": AppMessages.INVALID_JSON_OBJECT},
-        ) from e
+    payload = _decode_value(value, "createSalesInvoice")
+    x_data = payload.get("xData", {})
 
-    doc_sequence_id = payload.pop("doc_sequence_id", None)
-    doc_sequence_next = payload.pop("doc_sequence_next", None)
+    branch_id = payload.pop("branch_id", None)
+    division_id = payload.pop("division_id", None)
+
+    if not branch_id or not division_id:
+        raise ValidationException(
+            message=AppMessages.REQUIRED_FIELD_MISSING,
+            extensions={"field": "branch_id/division_id"},
+        )
 
     db_name_arg: str = db_name or ""
     schema_name = schema or "public"
 
-    record_id = await exec_sql_object(db_name_arg, schema_name, payload)
-    logger.info("Sales invoice created with id=%s", record_id)
+    async with get_service_db_connection(db_name_arg) as conn:
+        async with conn.cursor(row_factory=dict_row) as cur:
+            await cur.execute(
+                pgsql.SQL("SET search_path TO {}").format(pgsql.Identifier(schema_name))
+            )
 
-    if doc_sequence_id is not None and doc_sequence_next is not None:
-        seq_object = {
-            "tableName": "document_sequence",
-            "xData": {"id": doc_sequence_id, "next_number": doc_sequence_next},
-        }
-        await exec_sql_object(db_name_arg, schema_name, seq_object)
-        logger.debug(
-            "Document sequence %s incremented to %s", doc_sequence_id, doc_sequence_next
-        )
+            # 1. Claim next invoice number atomically
+            await cur.execute(
+                SqlStore.CLAIM_NEXT_SALES_INVOICE_NUMBER,
+                {"branch_id": branch_id, "division_id": division_id},
+            )
+            seq = await cur.fetchone()
+            if not seq:
+                raise ValidationException(
+                    message=AppMessages.RESOURCE_NOT_FOUND,
+                    extensions={
+                        "detail": "SALES_INVOICE sequence not configured for this division"
+                    },
+                )
+
+            # 2. Format invoice number
+            invoice_no = (
+                f"{seq['prefix'] or ''}"
+                f"{seq['separator'] or ''}"
+                f"{str(seq['assigned_number']).zfill(seq['padding'] or 0)}"
+            )
+            x_data["invoice_no"] = invoice_no
+
+            # 3. Insert sales_invoice + lines + stock_transactions in the same transaction
+            record_id = await process_data(x_data, cur, "sales_invoice", None, None)
+            logger.info("Sales invoice created id=%s invoice_no=%s", record_id, invoice_no)
 
     return record_id
 
@@ -2031,6 +2042,20 @@ async def _get_trace_plus_token() -> str:
         return body.get("accessToken", "")
 
 
+def _build_line_jdata_remarks(line: dict) -> str | None:
+    """Build the jData remarks for a posted invoice line.
+
+    With a part code: "Part Code:<code>, <part name>" (name omitted if absent).
+    Without a part code: fall back to the line description (job-invoice lines).
+    """
+    part_code = line.get("part_code")
+    if part_code:
+        part_name = line.get("part_name")
+        return f"Part Code:{part_code}, {part_name}" if part_name else f"Part Code:{part_code}"
+    description = line.get("description")
+    return description or None
+
+
 def _build_money_receipt_tran_h(
     row: dict, debit_account_id: Any, credit_account_id: Any, branch_id: Any
 ) -> dict:
@@ -2099,8 +2124,9 @@ def _build_purchase_invoice_tran_h(
             "gstRate":   (float(line["gst_rate"]) if line.get("gst_rate")
                           else (float(pi_default_gst) if pi_default_gst else 0)),
         }
-        if line.get("part_code"):
-            spd["jData"] = json.dumps({"remarks": f"Part Code:{line['part_code']}"})
+        line_remarks = _build_line_jdata_remarks(line)
+        if line_remarks:
+            spd["jData"] = json.dumps({"remarks": line_remarks})
         for out_key, db_key in [
             ("cgst", "cgst_amount"),
             ("sgst", "sgst_amount"),
@@ -2194,8 +2220,9 @@ def _build_job_invoice_tran_h(
             "gstRate":   (float(line["gst_rate"]) if line.get("gst_rate")
                           else (float(ji_default_gst) if ji_default_gst else 0)),
         }
-        if line.get("part_code"):
-            spd["jData"] = json.dumps({"remarks": f"Part Code:{line['part_code']}"})
+        line_remarks = _build_line_jdata_remarks(line)
+        if line_remarks:
+            spd["jData"] = json.dumps({"remarks": line_remarks})
         for out_key, db_key in [
             ("cgst", "cgst_amount"),
             ("sgst", "sgst_amount"),
@@ -2291,8 +2318,9 @@ def _build_sales_invoice_tran_h(
             "gstRate":   (float(line["gst_rate"]) if line.get("gst_rate")
                           else (float(si_default_gst) if si_default_gst else 0)),
         }
-        if line.get("part_code"):
-            spd["jData"] = json.dumps({"remarks": f"Part Code:{line['part_code']}"})
+        line_remarks = _build_line_jdata_remarks(line)
+        if line_remarks:
+            spd["jData"] = json.dumps({"remarks": line_remarks})
         for out_key, db_key in [
             ("cgst", "cgst_amount"),
             ("sgst", "sgst_amount"),
@@ -2351,6 +2379,7 @@ def _build_sales_invoice_tran_h(
     if contacts_id:
         si_x_data["contactsId"] = int(contacts_id)
     remarks_parts = [p for p in [
+        "Sale Return" if si_row.get("is_return") else "Sale Invoice",
         si_row.get("customer_name"),
         f"Mobile:{si_row['mobile']}" if si_row.get("mobile") else None,
         si_row.get("customer_address") or None,

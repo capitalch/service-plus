@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 import {
-    Banknote, BookCheck, CheckCircle2, FileText, Loader2,
+    AlertTriangle, Banknote, BookCheck, CheckCircle2, FileText, Loader2,
     RefreshCw, ShoppingCart, UploadCloud, Wrench,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { SQL_MAP } from "@/constants/sql-map";
 import { selectDbName } from "@/features/auth/store/auth-slice";
@@ -36,6 +37,25 @@ const TYPE_COLUMNS: { key: keyof DivisionRow; label: string; icon: typeof FileTe
 
 type PostProgress = { total: number; posted: number; failed: number; currentRef?: string | null; currentDivision?: string | null };
 
+type FailedRecord = { type?: string; id?: number | string; ref?: string | null; error?: string };
+
+// Shape returned by the accountsPosting mutation (a Generic JSON scalar).
+// Per-record failures are collected in `failed`; `error` is only set on a hard,
+// whole-call failure. The client must inspect both to report the outcome correctly.
+type AccountsPostingResult = {
+    postedMoneyReceipts?: number;
+    postedPurchaseInvoices?: number;
+    postedJobInvoices?: number;
+    postedSalesInvoices?: number;
+    divisionsPosted?: number;
+    failed?: FailedRecord[];
+    message?: string;
+    error?: string;
+};
+
+// Persistent alert shown after a post attempt that did not fully succeed.
+type PostAlert = { variant: "destructive" | "warning"; message: string; details: string[] };
+
 const num = (v: unknown) => Number(v ?? 0);
 
 export function AccountsPostingSection() {
@@ -48,6 +68,7 @@ export function AccountsPostingSection() {
     const [loadingCounts, setLoadingCounts] = useState(false);
     const [isPosting, setIsPosting]         = useState(false);
     const [progress, setProgress]           = useState<PostProgress | null>(null);
+    const [postAlert, setPostAlert]         = useState<PostAlert | null>(null);
 
     const loadCounts = useCallback(async (bId: number) => {
         if (!dbName || !schema) return;
@@ -87,6 +108,7 @@ export function AccountsPostingSection() {
         if (!branchId) { toast.error("No branch selected."); return; }
         if (!dbName || !schema) return;
         setIsPosting(true);
+        setPostAlert(null);
         // Seed the bar from the counts we already display, so it renders correctly
         // even before the first progress event arrives over the websocket.
         setProgress({ total: postableTotal, posted: 0, failed: 0 });
@@ -109,7 +131,7 @@ export function AccountsPostingSection() {
             });
 
         try {
-            const result = await apolloClient.mutate<{ accountsPosting: { error?: string } | null }>({
+            const result = await apolloClient.mutate<{ accountsPosting: AccountsPostingResult | null }>({
                 mutation: GRAPHQL_MAP.accountsPosting,
                 variables: {
                     db_name: dbName,
@@ -118,14 +140,31 @@ export function AccountsPostingSection() {
                 },
             });
             const data = result.data?.accountsPosting;
+            const failed = data?.failed ?? [];
+            const postedCount = num(data?.postedMoneyReceipts) + num(data?.postedPurchaseInvoices)
+                + num(data?.postedJobInvoices) + num(data?.postedSalesInvoices);
+            // One human-readable line per failed record for the alert box.
+            const details = failed.map(f => `${f.ref ?? f.id ?? "record"}: ${f.error ?? "posting failed"}`);
+
             if (data?.error) {
+                // Hard failure: the whole call errored out (e.g. trace-plus auth).
                 toast.error(data.error);
+                setPostAlert({ variant: "destructive", message: data.error, details });
+            } else if (failed.length > 0) {
+                // Some records did not post. Refresh counts because others may have.
+                const message = data?.message ?? `${failed.length} record(s) failed to post.`;
+                if (postedCount > 0) toast.warning(message);
+                else toast.error(message);
+                setPostAlert({ variant: postedCount > 0 ? "warning" : "destructive", message, details });
+                void loadCounts(branchId);
             } else {
-                toast.success("Data posted to Trace Plus successfully.");
+                toast.success(data?.message ?? "Data posted to Trace Plus successfully.");
                 void loadCounts(branchId);
             }
         } catch {
-            toast.error("Failed to post data to Trace Plus.");
+            const message = "Failed to post data to Trace Plus.";
+            toast.error(message);
+            setPostAlert({ variant: "destructive", message, details: [] });
         } finally {
             sub.unsubscribe();
             setIsPosting(false);
@@ -227,6 +266,23 @@ export function AccountsPostingSection() {
                         <p className="text-center text-xs text-(--cl-text-muted)">
                             Highlighted columns (Money Receipts, Purchase Invoices, Job Invoices, Sales Invoices) are posted to Trace Plus.
                         </p>
+
+                        {/* Persistent failure alert — stays visible after the toast disappears */}
+                        {postAlert && (
+                            <Alert variant={postAlert.variant}>
+                                <AlertTriangle className="h-4 w-4" />
+                                <AlertTitle>{postAlert.message}</AlertTitle>
+                                {postAlert.details.length > 0 && (
+                                    <AlertDescription>
+                                        <ul className="mt-1 list-disc space-y-0.5 pl-4">
+                                            {postAlert.details.map((d, i) => (
+                                                <li key={i}>{d}</li>
+                                            ))}
+                                        </ul>
+                                    </AlertDescription>
+                                )}
+                            </Alert>
+                        )}
 
                         {/* Action area */}
                         <div className="flex flex-col items-center gap-3 pt-2">

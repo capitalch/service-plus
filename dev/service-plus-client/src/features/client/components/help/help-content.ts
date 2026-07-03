@@ -192,7 +192,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
                 "ON_HOLD → work paused: awaiting parts, customer approval, or decision",
                 "CANCELLED → job abandoned",
             ]},
-            { type: "para", text: "To change a status: go to Job Pipeline, click the job card, and use Update Status. Delivered status is set automatically when you complete the Deliver Job workflow." },
+            { type: "para", text: "To change a status: go to Jobs → Job Control, open the status actions (⇄) on the job row, and pick the next status. Delivered status is set automatically when you complete the Deliver Job workflow. Job Pipeline is a read-only overview board — use it to see how many jobs sit in each status and to drill into a status, not to change one." },
             { type: "heading", text: "What determines if a job can be finalized?" },
             { type: "para", text: "Any job with status COMPLETED_OK or COMPLETED_NOT_OK appears in the Final a Job → Pending tab. You can finalize it there to add parts, charges, and set the invoice amount." },
             { type: "heading", text: "What determines if a job can be delivered?" },
@@ -204,6 +204,55 @@ export const HELP_ARTICLES: HelpArticle[] = [
             { q: "Where do I see all overdue jobs?", a: "Dashboard → Overdue Jobs panel shows jobs open more than 7 days. For detailed aging, use Reports → Job Pipeline / Aging." },
             { q: "Can two technicians work on the same job?", a: "Only one technician is assigned at a time. Re-assign as needed by editing the job. The most recently assigned technician is shown." },
             { q: "What happens to a job with COMPLETED_NOT_OK after delivery?", a: "It becomes DELIVERED_NOT_OK. An invoice can still be raised for diagnostic or inspection charges." },
+        ],
+    },
+
+    {
+        id: "job-control",
+        category: "Jobs",
+        title: "Job Control (Operations Hub)",
+        summary: "The central screen to move jobs through statuses, add parts & charges, finalize, deliver, and undo.",
+        tags: ["job control", "status", "transition", "undo", "parts", "charges", "final", "deliver", "proforma", "operations"],
+        content: [
+            { type: "para", text: "Jobs → Job Control is the day-to-day operations hub. Every job created through Single Job, Batch Jobs, or Opening Jobs appears here, and this is where you drive it through its whole life — from Received to Delivered — without leaving the screen." },
+            { type: "heading", text: "Finding a job" },
+            { type: "bullets", items: [
+                "Filter tabs: Open (not yet delivered), Delivered, or All.",
+                "Status filter: click Status to switch to a per-status chip bar and click a status to see only those jobs.",
+                "Search by job no, customer, mobile, product, brand, model, or serial number.",
+                "Click a row to select it — the selection is kept in view after any action that reloads the list.",
+            ]},
+            { type: "heading", text: "Status badges on each row" },
+            { type: "bullets", items: [
+                "FINAL — the job has been finalized (locked for invoicing).",
+                "GST / Non-GST — whether the job's division charges tax.",
+                "Invoice: Posted / Unposted — whether the job invoice has been posted to accounts.",
+                "CLOSED — the job has been delivered and closed.",
+            ]},
+            { type: "heading", text: "Actions on an open job (⇄ menu)" },
+            { type: "table", headers: ["Action", "When it appears", "What it does"], rows: [
+                ["Move job to …",       "Job has valid next statuses",                         "Opens the transition dialog to set division, technician, estimate (if needed), remarks, and date"],
+                ["Undo Last Transaction","Job has at least one recorded transaction",           "Reverts the job to its previous status"],
+                ["Parts & Charges",     "Status is Received / Assigned / Estimate Approved / In Progress (non-demo/inspection)", "Add or edit spare parts and additional charges"],
+                ["Final the Job",       "Status is Completed OK and not yet final",            "Opens the full finalization form (parts, charges, amount)"],
+                ["Revise / Undo Final", "Job is already final",                                "Re-open or roll back finalization — blocked once the invoice is posted"],
+                ["Deliver Job",         "Job is final and not closed",                         "Opens the delivery flow (invoice + receipts + delivery details)"],
+                ["Proforma Invoice",    "Job is final, not closed, amount > ₹0",              "Generates a proforma (pre-delivery) invoice PDF"],
+            ]},
+            { type: "heading", text: "Actions on a delivered job (⋮ menu)" },
+            { type: "bullets", items: [
+                "View job details, print the Delivery Note, or print Invoice + Receipts.",
+                "Print / Save as PDF for the full job document.",
+                "Undo Delivery — re-opens a delivered job. Blocked when its invoice is already posted to accounts.",
+            ]},
+            { type: "note", text: "The top bar also has Undo Final and Undo Delivery shortcuts that open the Finalized / Delivered lists directly with a Back button to return." },
+        ],
+        faqs: [
+            { q: "What is the difference between Job Control and Job Pipeline?", a: "Job Control is where you act on jobs — change status, add charges, finalize, deliver, undo. Job Pipeline is a read-only overview showing how many jobs are in each status; click a bar to drill into that group." },
+            { q: "The action menu shows a lock icon — why?", a: "The job is in a status with no available action (for example a returned or already-delivered job). No transitions, undo, or charges apply to it." },
+            { q: "Why can't I Undo Final or Undo Delivery on a job?", a: "Its invoice has been posted to accounts. Posted jobs are locked — the Undo options are disabled with a tooltip explaining why." },
+            { q: "I moved a job to the wrong status — can I fix it?", a: "Yes. Use 'Undo Last Transaction' from the ⇄ menu to step it back to the previous status, as long as it has not been delivered." },
+            { q: "Where do I add an estimate amount?", a: "When you move a job to a status that requires an estimate, the transition dialog shows an Estimate Amount field. Enter it there before confirming." },
         ],
     },
 
@@ -317,6 +366,33 @@ export const HELP_ARTICLES: HelpArticle[] = [
     },
 
     {
+        id: "part-used",
+        category: "Jobs",
+        title: "Part Used (Job)",
+        summary: "Record spare parts consumed on a job and reduce stock — outside the finalization form.",
+        tags: ["part used", "parts", "consumption", "stock", "spare parts", "warranty", "job parts"],
+        content: [
+            { type: "para", text: "Jobs → Part Used (Job) is a quick way to book the spare parts a technician consumed on a job without opening the full finalization screen. Each part booked here reduces branch stock through a Consumption stock transaction." },
+            { type: "heading", text: "Booking parts" },
+            { type: "steps", items: [
+                "Go to Jobs → Part Used (Job) → New.",
+                "Select the job — its type, status, and date load for reference.",
+                "Add one line per part: pick the part, set the quantity. Cost price fills from the part master and selling price applies the configured markup.",
+                "Click Save. Stock is decremented and a Consumption transaction is recorded on the job's date.",
+            ]},
+            { type: "note", text: "For UNDER_WARRANTY jobs the selling price of every part is forced to ₹0 — only cost is tracked internally." },
+            { type: "heading", text: "Reviewing and editing" },
+            { type: "para", text: "Switch to View to see consumption grouped by job. Search by job no, part code, or part name. Edit or delete a line from the row actions — both are disabled once the job is Closed or Final, since its parts are locked." },
+        ],
+        faqs: [
+            { q: "What is the difference between Part Used and the parts on the Finalize screen?", a: "They write to the same job parts list. Part Used (Job) is a fast entry point for consumption during the repair; Finalize is where you also set charges and the final invoice amount. Parts booked in either place appear in both." },
+            { q: "Can I edit a part after the job is finalized?", a: "No. Once the job is Closed or Final its parts are locked. Undo Final first (Final a Job → Finalized Jobs), then edit." },
+            { q: "Does booking a part here affect stock immediately?", a: "Yes. Saving creates a Consumption stock transaction and reduces the part's quantity at the current branch right away." },
+            { q: "Why is the selling price ₹0 and greyed out?", a: "The job type is UNDER_WARRANTY. Warranty jobs never charge the customer, so selling prices are fixed at ₹0." },
+        ],
+    },
+
+    {
         id: "deliver-job",
         category: "Jobs",
         title: "Delivering a Job",
@@ -360,6 +436,39 @@ export const HELP_ARTICLES: HelpArticle[] = [
     },
 
     {
+        id: "receipts",
+        category: "Jobs",
+        title: "Receipts (Job Payments)",
+        summary: "Record, edit, print, and delete customer payments against jobs independently of delivery.",
+        tags: ["receipts", "payment", "money receipt", "cash", "card", "upi", "cheque", "advance", "refund"],
+        content: [
+            { type: "para", text: "Jobs → Receipts is a standalone ledger of customer payments against jobs. Use it to take an advance before delivery, record part-payments over time, or manage receipts without going through the Deliver Job flow. Receipt numbers come from the MONEY_RECEIPT document sequence." },
+            { type: "heading", text: "Recording a receipt" },
+            { type: "steps", items: [
+                "Click '+ New Receipt'.",
+                "Select the job the payment is for.",
+                "Enter the payment date, amount, and payment mode (Cash, Card, UPI, Bank Transfer, or Cheque).",
+                "Add a reference number (e.g., cheque or UPI ref) and remarks if needed.",
+                "Save. The receipt appears in the list and counts toward the job's received amount.",
+            ]},
+            { type: "heading", text: "The list" },
+            { type: "bullets", items: [
+                "Search by job no, receipt no, customer, mode, or reference number.",
+                "The footer shows the total of the receipts on the current page.",
+                "When accounts integration is on, each row shows a Posted / Not Posted indicator.",
+                "Row actions: View Job, Print Receipt (PDF), Edit, Delete.",
+            ]},
+            { type: "warning", text: "Editing and deleting are restricted. A receipt cannot be edited or deleted when its job is in a restricted status (Closed, Final, or On Hold), and a receipt that has been posted to accounts cannot be deleted." },
+        ],
+        faqs: [
+            { q: "What is the difference between adding a receipt here and in Deliver Job?", a: "They create the same job payment records. Deliver Job collects payment as part of closing the job; the Receipts screen lets you record or manage payments any time — including advances taken before the job is completed." },
+            { q: "Can I take an advance payment before a job is finished?", a: "Yes. Create a receipt against the job at any point. It is stored as a payment and reduces the balance due at delivery." },
+            { q: "Why can't I delete a receipt?", a: "Either the job is in a restricted status (Closed, Final, or On Hold) or the receipt has already been posted to accounts. The screen shows a dialog explaining which condition applies." },
+            { q: "A cheque bounced — how do I handle it?", a: "Delete the original cheque receipt if it is not yet posted, note the dishonour in remarks, and record a fresh receipt when the replacement payment clears." },
+        ],
+    },
+
+    {
         id: "printing-documents",
         category: "Jobs",
         title: "Printing & Documents",
@@ -382,6 +491,34 @@ export const HELP_ARTICLES: HelpArticle[] = [
             { q: "Can I print a job sheet after the job is delivered?", a: "Yes — open the job from Single Job or Job Pipeline (View Details) and click Print." },
             { q: "Can I reprint a receipt?", a: "Yes — go to Deliver Job, select the delivered job, open the receipts step, and print any existing receipt." },
             { q: "How do I change the number of invoice copies?", a: "Go to Configurations → App Settings and update 'no_of_invoice_copies_per_print'." },
+        ],
+    },
+
+    {
+        id: "accounts-posting",
+        category: "Jobs",
+        title: "Accounts Posting (Trace Plus)",
+        summary: "Push money receipts and invoices to the Trace Plus accounting system.",
+        tags: ["accounts posting", "trace plus", "post", "money receipts", "invoices", "accounting", "integration"],
+        content: [
+            { type: "para", text: "Jobs → Accounts Posting sends your unposted financial documents to the Trace Plus accounting system. It appears only when accounts integration is enabled (the 'post data to accounts' app setting)." },
+            { type: "heading", text: "What it shows" },
+            { type: "para", text: "A table of unposted record counts for the current branch, broken down by division and document type: Money Receipts, Purchase Invoices, Sales Invoices, and Job Invoices, with a totals row." },
+            { type: "heading", text: "Posting" },
+            { type: "steps", items: [
+                "Select the branch whose records you want to post.",
+                "Review the counts. Click Refresh to reload them.",
+                "Click 'Post data to Trace Plus'.",
+                "Watch the live progress bar — it shows records processed, the current division, the percentage complete, and any failures.",
+                "On success the counts reload and should drop to zero.",
+            ]},
+            { type: "note", text: "When there is nothing left to send, the screen shows 'Everything is posted' and the post button is disabled." },
+        ],
+        faqs: [
+            { q: "Why don't I see Accounts Posting in the Jobs menu?", a: "It is only visible when accounts integration is turned on. Enable 'post data to accounts' in Configurations → App Settings (or ask your administrator)." },
+            { q: "What gets posted?", a: "Money Receipts, Purchase Invoices, Sales Invoices, and Job Invoices that have not yet been sent to Trace Plus for the selected branch." },
+            { q: "Some records failed to post — what now?", a: "The progress bar shows a failed count. Fix the underlying data issue (for example a missing GSTIN or master mapping) and run the posting again; only the still-unposted records are retried." },
+            { q: "Can I post from more than one branch at once?", a: "No. Posting is per branch. Switch the branch in the top nav and post each one separately." },
         ],
     },
 
@@ -1070,7 +1207,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
                 ["'Invalid GSTIN' on finalize/deliver",       "Customer GSTIN field has a malformed value",         "Enter a valid 15-character GSTIN or clear the field"],
                 ["'Batch No is set — edit from batch'",       "Job belongs to a batch",                             "Jobs → Batch Jobs → open the batch → edit the job there"],
                 ["Model dropdown is empty",                   "No models exist for selected brand + product",       "Masters → Model → add the missing model first"],
-                ["Jobs not in Final a Job pending list",      "Job status is not COMPLETED",                        "Update status to COMPLETED in Job Pipeline first"],
+                ["Jobs not in Final a Job pending list",      "Job status is not COMPLETED",                        "Move the job to COMPLETED_OK in Job Control first"],
                 ["PDF not opening after clicking Print",      "Browser is blocking pop-ups",                        "Allow pop-ups for this site in browser settings"],
                 ["'Stock transaction type not loaded'",       "CONSUMPTION type not seeded in reference data",      "Contact system administrator to reseed transaction types"],
             ]},

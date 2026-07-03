@@ -345,7 +345,7 @@ function CategoryView({ category, onSelectArticle }: {
 
 // ─── Search results view ──────────────────────────────────────────────────────
 
-const POPULAR_IDS = ["first-time-setup", "create-job", "finalize-job", "deliver-job", "customer-gstin", "gst-invoicing"];
+const POPULAR_IDS = ["first-time-setup", "create-job", "job-control", "finalize-job", "deliver-job", "customer-gstin"];
 
 function SearchResults({ query, results, onSelect }: {
     query:    string;
