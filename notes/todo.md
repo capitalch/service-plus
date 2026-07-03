@@ -1,20 +1,26 @@
 # To Do
+- Testing
+	- Create a systematic manual testing numbered steps for All items in Jobs menu item. Give your plan in plans/plan.md
+	- Test plan script
 - Bug fix
-	- Purchase Entry
-		- in small screen auto scrollbar not appearing
-		- In small screens no height provided for line items
-	- Sales Entry
-		- In small screens no height provided for line items
-		- When division changes, corresponding GST info is not changed. Amount for spare should be same in gst / non-gst
+	- When division changes, corresponding GST info is not changed in sales and purchases. Amount for spare should be same in gst / non-gst
+								- Extra "}" in details line items of sales
+							- Purchase Entry
+								- in small screen auto scrollbar not appearing
+								- In small screens no height provided for line items
+							- Sales Entry
+								- In small screens no height provided for line items
 								- in small screen auto scrollbar not appearing
 								- When a batch job is received, two times received is shown in job view: Transaction
 								- Add contactsId to posting of sales
 								- Warranty job transactions: allow adding spare parts
+							- Error when final a Job. Final amount possible without providing details
 - Enhancements
+	- When there is no part code, then include description in remarks
 	- Access management
-	- Account posting: Service account instead of super admin
 	- Validate creation of new client / Bu / Branch / Division end to end
 	- Security of server config file
+							- Account posting: Service account instead of super admin
 							- In all drill down grids of Job Pipeline, final a job and Deliver Job including all tabs: for action dropdown and corresponding actions, follow the same pattern of row selection and page and row and scroll position retention.
 							- Draft Invoice info for finalised jobs
 							- modify Sales Invoice functionality
@@ -23,16 +29,9 @@
 								- undo final for final jobs
 								- undo delivery / undo last transactions for closed jobs
 								- Also make drill down buttons for undo final and undo delivery
-- QA
-	
-								- Error when final a Job. Final amount possible without providing details
-	- Massive transactions testing end to end
-		- Create single job and batch jobs. Check why two times transactions shown in job view.
-		- do at least 5 transactions
-		- Do final
-		- Deliver
-	- Accounts Posting
-		- sales invoice
+					- QA
+						- Accounts Posting
+							- sales invoice
 								- In remarks write: "Sale Invoice"
 								- Check customer GSTIN No transfer: Not transferring
 								- Check IGST transfer

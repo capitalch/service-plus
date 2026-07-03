@@ -489,7 +489,7 @@ export function NewSalesInvoice({
                                         Division <span className="text-red-500 ml-0.5">*</span>
                                     </Label>
                                     <select
-                                        className={`w-full rounded-md border px-3 py-2 text-sm bg-(--cl-surface-2) text-(--cl-text) focus:outline-none focus:ring-2 focus:ring-(--cl-accent)/30 ${
+                                        className={`w-full cursor-pointer rounded-md border px-3 py-2 text-sm bg-(--cl-surface-2) text-(--cl-text) focus:outline-none focus:ring-2 focus:ring-(--cl-accent)/30 ${
                                             !divisionId ? "border-red-500" : "border-(--cl-border)"
                                         }`}
                                         value={divisionId || ""}
@@ -509,10 +509,10 @@ export function NewSalesInvoice({
                     <p className="text-[10px] font-black uppercase tracking-[0.15em] text-(--cl-text-muted) px-1 my-2">
                         Line Items
                     </p>
-                    <Card className={`border-(--cl-border) shadow-sm relative bg-(--cl-surface) flex min-h-0 md:flex-1 flex-col ${isReturn ? "border-l-4 border-l-orange-500" : ""}`}>
+                    <Card className={`border-(--cl-border) shadow-sm relative bg-(--cl-surface) flex min-h-[45vh] md:min-h-0 md:flex-1 flex-col ${isReturn ? "border-l-4 border-l-orange-500" : ""}`}>
                         <div
                             ref={scrollWrapperRef}
-                            className="w-full overflow-x-auto overflow-y-auto pb-4"
+                            className="w-full overflow-x-auto overflow-y-auto pb-4 min-h-[43vh] md:min-h-0"
                             style={maxTableHeight !== undefined ? { maxHeight: maxTableHeight } : undefined}
                         >
                             <table className="min-w-[920px] w-full border-collapse text-sm sticky-header">

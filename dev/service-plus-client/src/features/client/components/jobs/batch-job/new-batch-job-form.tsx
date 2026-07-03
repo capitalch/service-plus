@@ -144,7 +144,7 @@ export function NewBatchJobForm({
                         <div className="space-y-0.5 shrink-0 w-44">
                             <Label className={labelCls}>Division <span className="text-red-500">*</span></Label>
                             <select
-                                className={`w-full h-8 rounded-md border text-xs px-2 bg-(--cl-surface-2) text-(--cl-text) ${!watch("division_id") ? "border-red-400" : "border-(--cl-border)"}`}
+                                className={`w-full h-8 cursor-pointer rounded-md border text-xs px-2 bg-(--cl-surface-2) text-(--cl-text) ${!watch("division_id") ? "border-red-400" : "border-(--cl-border)"}`}
                                 value={watch("division_id") ?? ""}
                                 onChange={e => setValue("division_id", e.target.value ? Number(e.target.value) : (undefined as unknown as number), { shouldValidate: true })}
                             >

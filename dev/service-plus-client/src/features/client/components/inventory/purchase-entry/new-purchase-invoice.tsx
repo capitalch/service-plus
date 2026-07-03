@@ -154,6 +154,8 @@ export const NewPurchaseInvoice = forwardRef<PurchaseInvoiceHandle, Props>(
 
         useEffect(() => {
             function recalc() {
+                const isDesktop = window.matchMedia("(min-width: 768px)").matches;
+                if (!isDesktop) { setMaxTableHeight(undefined); return; }
                 const el = scrollWrapperRef.current;
                 if (!el) return;
                 const top           = el.getBoundingClientRect().top;
@@ -520,7 +522,7 @@ export const NewPurchaseInvoice = forwardRef<PurchaseInvoiceHandle, Props>(
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
-                className="flex min-h-fit md:min-h-0 md:flex-1 flex-col gap-2 pb-0 md:overflow-hidden"
+                className="flex min-h-0 flex-1 flex-col gap-2 pb-0 overflow-y-auto md:overflow-hidden"
             >
                 {!branchId ? (
                     <div className="flex flex-col items-center justify-center py-20 bg-(--cl-surface-2)/30 rounded-xl border-2 border-dashed border-(--cl-border) text-center">
@@ -610,7 +612,7 @@ export const NewPurchaseInvoice = forwardRef<PurchaseInvoiceHandle, Props>(
                                                 Division <span className="text-red-500 ml-0.5">*</span>
                                             </Label>
                                             <select
-                                                className={`w-full rounded-md border px-3 py-2 text-sm bg-(--cl-surface-2) text-(--cl-text) focus:outline-none focus:ring-2 focus:ring-(--cl-accent)/30 ${
+                                                className={`w-full cursor-pointer rounded-md border px-3 py-2 text-sm bg-(--cl-surface-2) text-(--cl-text) focus:outline-none focus:ring-2 focus:ring-(--cl-accent)/30 ${
                                                     !divisionId ? "border-red-500" : "border-(--cl-border)"
                                                 }`}
                                                 value={divisionId || ""}
@@ -629,10 +631,10 @@ export const NewPurchaseInvoice = forwardRef<PurchaseInvoiceHandle, Props>(
 
                         {/* Line Items Table */}
                         <p className="text-[10px] font-black uppercase tracking-[0.15em] text-(--cl-text-muted) my-2">Line Items</p>
-                        <Card className={`border-(--cl-border) shadow-sm flex min-h-0 md:flex-1 flex-col relative bg-(--cl-surface) ${isReturn ? "border-l-4 border-l-orange-500" : ""}`}>
+                        <Card className={`border-(--cl-border) shadow-sm flex min-h-[45vh] md:min-h-0 md:flex-1 flex-col relative bg-(--cl-surface) ${isReturn ? "border-l-4 border-l-orange-500" : ""}`}>
                             <div
                                 ref={scrollWrapperRef}
-                                className="w-full overflow-x-auto overflow-y-auto pb-4"
+                                className="w-full overflow-x-auto overflow-y-auto pb-4 min-h-[43vh] md:min-h-0"
                                 style={maxTableHeight !== undefined ? { maxHeight: maxTableHeight } : undefined}
                             >
                                 <table className="min-w-[860px] w-full border-collapse text-sm sticky-header">

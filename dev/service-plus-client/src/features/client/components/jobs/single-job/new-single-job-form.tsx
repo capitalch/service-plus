@@ -181,7 +181,7 @@ export function NewSingleJobForm({
                                     <div className="space-y-1.5 md:col-span-6 lg:col-span-6 xl:col-span-3">
                                         <Label className={labelCls}>Division <span className="text-red-500 ml-0.5">*</span></Label>
                                         <select
-                                            className={`w-full h-9 rounded-md border text-sm px-2 bg-(--cl-surface-2) text-(--cl-text) ${!watch("division_id") ? "border-red-400" : "border-(--cl-border)"}`}
+                                            className={`w-full h-9 cursor-pointer rounded-md border text-sm px-2 bg-(--cl-surface-2) text-(--cl-text) ${!watch("division_id") ? "border-red-400" : "border-(--cl-border)"}`}
                                             value={watch("division_id") ?? ""}
                                             onChange={e => setValue("division_id", e.target.value ? Number(e.target.value) : (undefined as unknown as number), { shouldValidate: true })}
                                             disabled={!!editJob?.is_final}
