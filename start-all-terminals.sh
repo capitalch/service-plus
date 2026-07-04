@@ -48,6 +48,9 @@ konsole --workdir "/home/sushant/projects/trace-plus/dev/trace-client" &
 # Window 10.1: Trace deployment
 konsole --workdir "/home/sushant/projects/trace-plus/deployment/final" &
 
+# Window 10.2: Trace deployment
+konsole --workdir "/home/sushant/mydrive" &
+
 # Final initialization pause before starting any background IDE tasks
 sleep 1
 
