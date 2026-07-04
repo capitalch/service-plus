@@ -18,7 +18,7 @@ import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils, type GenericQueryData } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
-import { selectAvailableDivisions, selectDefaultDivisionId, selectDefaultGstRate, selectEffectiveGstStateCode, selectSchema } from "@/store/context-slice";
+import { selectAvailableDivisions, selectDefaultDivisionId, selectDefaultGstRate, selectEffectiveGstStateCode, selectMarkupPercentOverCost, selectSchema } from "@/store/context-slice";
 import { isGstDivision } from "@/features/client/types/division";
 import type { SalesInvoiceType, CustomerSearchRow } from "@/features/client/types/sales";
 import type { CustomerTypeOption, StateOption } from "@/features/client/types/customer";
@@ -140,6 +140,7 @@ export function NewSalesInvoice({
     const dbName                    = useAppSelector(selectDbName);
     const schema                    = useAppSelector(selectSchema);
     const defaultGstRate            = useAppSelector(selectDefaultGstRate);
+    const markupPct                 = useAppSelector(selectMarkupPercentOverCost);
     const effectiveGstStateCode     = useAppSelector(selectEffectiveGstStateCode);
     const availableDivisions        = useAppSelector(selectAvailableDivisions);
     const defaultDivisionId         = useAppSelector(selectDefaultDivisionId);
@@ -567,16 +568,29 @@ export function NewSalesInvoice({
                                                         }}
                                                         onClear={() => updateLine(idx, { part_code: "", part_id: null, part_name: "" })}
                                                         onSelect={part => {
-                                                            const masterGstRate   = Number(part.gst_rate ?? 0);
+                                                            const masterGstRate    = Number(part.gst_rate ?? 0);
                                                             const effectiveGstRate = isGstMode
                                                                 ? (masterGstRate === 0 ? defaultGstRate : masterGstRate)
                                                                 : 0;
-                                                            const costPrice  = Number(part.cost_price ?? 0);
-                                                            // non-GST sales absorb the supplier GST (part's own rate) into the unit price
-                                                            const nonGstRate = masterGstRate > 0 ? masterGstRate : (Number(defaultGstRate) || 0);
-                                                            const unitPrice  = isGstMode
-                                                                ? Number(part.mrp ?? costPrice)
-                                                                : Math.round(costPrice * (1 + nonGstRate / 100) * 100) / 100;
+                                                            const baseCostPrice  = Number(part.cost_price ?? 0);
+                                                            const gstRateForCalc = masterGstRate > 0 ? masterGstRate : (Number(defaultGstRate) || 0);
+
+                                                            let computedCostPrice: number;
+                                                            let unitPrice: number;
+
+                                                            if (isGstMode) {
+                                                                computedCostPrice = baseCostPrice;
+                                                                const markupPrice = Math.round(baseCostPrice * (1 + markupPct / 100) * 100) / 100;
+                                                                unitPrice = Number(part.mrp) || Number(part.selling_price) || markupPrice;
+                                                            } else {
+                                                                computedCostPrice = Math.round(baseCostPrice * (1 + gstRateForCalc / 100) * 100) / 100;
+                                                                const sellingWithGst = Number(part.selling_price) > 0
+                                                                    ? Math.round(Number(part.selling_price) * (1 + gstRateForCalc / 100) * 100) / 100
+                                                                    : 0;
+                                                                const markupPrice = Math.round(computedCostPrice * (1 + markupPct / 100) * 100) / 100;
+                                                                unitPrice = Number(part.mrp) || sellingWithGst || markupPrice;
+                                                            }
+
                                                             updateLine(idx, {
                                                                 part_id:    part.id,
                                                                 brand_id:   part.brand_id,
@@ -585,6 +599,7 @@ export function NewSalesInvoice({
                                                                 uom:        part.uom,
                                                                 hsn_code:   part.hsn_code ?? "",
                                                                 unit_price: unitPrice,
+                                                                cost_price: computedCostPrice,
                                                                 gst_rate:   effectiveGstRate,
                                                             });
                                                         }}

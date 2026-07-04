@@ -34,6 +34,7 @@ type ContextStateType = {
     currentDivision:          DivisionContextType | null;
     defaultDivisionId:        number;
     defaultGstRate:           number;
+    markupPercentOverCost:    number;
     noOfJobInvoicesPerPrint:  number;
     noOfJobSheetsPerPrint:    number;
     defaultHsnForSparePart:      string;
@@ -56,6 +57,7 @@ const initialState: ContextStateType = {
     currentDivision:          null,
     defaultDivisionId:        1,
     defaultGstRate:           0,
+    markupPercentOverCost:    20,
     noOfJobInvoicesPerPrint:  1,
     noOfJobSheetsPerPrint:    1,
     defaultHsnForSparePart:     "",
@@ -102,6 +104,10 @@ export const contextSlice = createSlice({
 
         setDefaultGstRate: (state, action: PayloadAction<number>) => {
             state.defaultGstRate = action.payload;
+        },
+
+        setMarkupPercentOverCost: (state, action: PayloadAction<number>) => {
+            state.markupPercentOverCost = action.payload;
         },
 
         setNoOfJobInvoicesPerPrint: (state, action: PayloadAction<number>) => {
@@ -157,6 +163,7 @@ export const {
     setCurrentDivision,
     setDefaultDivisionId,
     setDefaultGstRate,
+    setMarkupPercentOverCost,
     setDefaultHsnForSparePart,
     setNoOfJobInvoicesPerPrint,
     setNoOfJobSheetsPerPrint,
@@ -180,6 +187,7 @@ export const selectCurrentBu             = (state: ContextRootState) => state.co
 export const selectCurrentDivision       = (state: ContextRootState) => state.context.currentDivision;
 export const selectDefaultDivisionId     = (state: ContextRootState) => state.context.defaultDivisionId;
 export const selectDefaultGstRate           = (state: ContextRootState) => state.context.defaultGstRate;
+export const selectMarkupPercentOverCost    = (state: ContextRootState) => state.context.markupPercentOverCost;
 export const selectNoOfJobInvoicesPerPrint  = (state: ContextRootState) => state.context.noOfJobInvoicesPerPrint;
 export const selectNoOfJobSheetsPerPrint    = (state: ContextRootState) => state.context.noOfJobSheetsPerPrint;
 export const selectDefaultHsnForSparePart      = (state: ContextRootState) => state.context.defaultHsnForSparePart;

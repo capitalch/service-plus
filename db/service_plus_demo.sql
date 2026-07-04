@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict eeIxsbtffI9nDD7lthUWXG3HraLimv6pGa0ECnc4VOhMrue3yXVIUHViubBVUsx
+\restrict vDRvlKXlfdm2gI1q2A3lhvsNl34OPPM1Ptg2Xwc4rmipAx49PP5I2TLgZt7igc4
 
 -- Dumped from database version 14.6
 -- Dumped by pg_dump version 18.4 (Ubuntu 18.4-0ubuntu0.26.04.1)
@@ -994,6 +994,7 @@ CREATE TABLE demo1.sales_invoice_line (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     remarks text,
+    cost_price numeric(12,2) DEFAULT 0 NOT NULL,
     CONSTRAINT sales_invoice_line_quantity_check CHECK ((qty > (0)::numeric)),
     CONSTRAINT sales_invoice_line_unit_price_check CHECK ((price >= (0)::numeric))
 );
@@ -3594,5 +3595,5 @@ ALTER TABLE ONLY security.user_bu_role
 -- PostgreSQL database dump complete
 --
 
-\unrestrict eeIxsbtffI9nDD7lthUWXG3HraLimv6pGa0ECnc4VOhMrue3yXVIUHViubBVUsx
+\unrestrict vDRvlKXlfdm2gI1q2A3lhvsNl34OPPM1Ptg2Xwc4rmipAx49PP5I2TLgZt7igc4
 

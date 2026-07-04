@@ -16,7 +16,8 @@
 								- Warranty job transactions: allow adding spare parts
 							- Error when final a Job. Final amount possible without providing details
 - Enhancements
-	- When there is no part code, then include description in remarks
+	- in sales_invoice_line add a column cost_price which works as snapshot price. Populate them at the time of saving
+							- When there is no part code, then include description in remarks
 	- Access management
 	- Validate creation of new client / Bu / Branch / Division end to end
 	- Security of server config file

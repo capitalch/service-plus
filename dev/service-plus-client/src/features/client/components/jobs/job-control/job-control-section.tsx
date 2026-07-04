@@ -519,7 +519,7 @@ export const JobControlSection = () => {
                         <div className="relative w-56 shrink-0">
                             <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-(--cl-text-muted)" />
                             <Input
-                                className="h-8 border-(--cl-border) bg-(--cl-surface) pl-7 pr-7 text-xs"
+                                className="h-8 border-(--cl-border) bg-(--cl-surface) pl-7 pr-7 text-[11px]"
                                 placeholder="Search…"
                                 value={search}
                                 onChange={e => handleSearchChange(e.target.value)}
@@ -536,7 +536,7 @@ export const JobControlSection = () => {
                         </div>
                         <button
                             disabled={loading}
-                            className={`shrink-0 px-3 h-7 rounded-full text-xs font-semibold transition-colors disabled:opacity-50 cursor-pointer border
+                            className={`shrink-0 px-3 h-7 rounded-full text-[11px] font-semibold transition-colors disabled:opacity-50 cursor-pointer border
                                 ${filter.id === null
                                     ? "bg-(--cl-accent) text-white border-(--cl-accent)"
                                     : "bg-(--cl-surface) text-(--cl-text-muted) border-(--cl-border) hover:bg-(--cl-hover) hover:text-(--cl-text)"
@@ -553,7 +553,7 @@ export const JobControlSection = () => {
                                 <button
                                     key={s.id}
                                     disabled={loading}
-                                    className={`shrink-0 px-3 h-7 rounded-full text-xs font-semibold transition-all disabled:opacity-30 cursor-pointer ${colorCls} ${isActive ? "opacity-100 ring-2 ring-offset-1 ring-white/70 shadow-md" : "opacity-50 hover:opacity-80"}`}
+                                    className={`shrink-0 px-3 h-7 rounded-full text-[11px] font-semibold transition-all disabled:opacity-30 cursor-pointer ${colorCls} ${isActive ? "opacity-100 ring-2 ring-offset-1 ring-white/70 shadow-md" : "opacity-50 hover:opacity-80"}`}
                                     onClick={() => handleStatusFilterChange(s.id)}
                                 >
                                     {s.name}
@@ -573,7 +573,7 @@ export const JobControlSection = () => {
                     <div className="relative w-48 shrink-0 md:w-64">
                         <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-(--cl-text-muted)" />
                         <Input
-                            className="h-8 border-(--cl-border) bg-(--cl-surface) pl-8 text-xs"
+                            className="h-8 border-(--cl-border) bg-(--cl-surface) pl-8 text-[11px]"
                             placeholder="Job no, customer, mobile, product, brand, model or serial…"
                             value={search}
                             onChange={e => handleSearchChange(e.target.value)}
@@ -593,7 +593,7 @@ export const JobControlSection = () => {
                             <button
                                 key={String(opt.value)}
                                 disabled={loading}
-                                className={`px-3 h-8 text-sm font-semibold transition-colors disabled:opacity-50 cursor-pointer
+                                className={`px-3 h-8 text-xs font-semibold transition-colors disabled:opacity-50 cursor-pointer
                                     ${filter.value === opt.value
                                         ? "bg-(--cl-accent) text-white"
                                         : "bg-(--cl-surface) text-(--cl-text-muted) hover:bg-(--cl-hover) hover:text-(--cl-text)"
@@ -606,7 +606,7 @@ export const JobControlSection = () => {
                         <div className="w-px self-stretch bg-(--cl-border)" />
                         <button
                             disabled={loading}
-                            className="flex items-center gap-1 px-3 h-8 text-sm font-semibold transition-colors disabled:opacity-50 cursor-pointer bg-(--cl-surface) text-(--cl-text-muted) hover:bg-(--cl-accent)/10 hover:text-(--cl-accent)"
+                            className="flex items-center gap-1 px-3 h-8 text-xs font-semibold transition-colors disabled:opacity-50 cursor-pointer bg-(--cl-surface) text-(--cl-text-muted) hover:bg-(--cl-accent)/10 hover:text-(--cl-accent)"
                             onClick={() => { setFilter({ group: "status", id: null }); setPage(1); }}
                         >
                             Status
@@ -614,7 +614,7 @@ export const JobControlSection = () => {
                         </button>
                     </div>
                     <Button
-                        className="ml-auto h-8 gap-1.5 px-3 text-xs font-semibold text-amber-600 dark:text-amber-400 border border-amber-400 dark:border-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950/40 shrink-0"
+                        className="ml-auto h-8 gap-1.5 px-3 text-[11px] font-semibold text-amber-600 dark:text-amber-400 border border-amber-400 dark:border-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950/40 shrink-0"
                         size="sm"
                         variant="outline"
                         onClick={() => setSubView("undoFinal")}
@@ -623,7 +623,7 @@ export const JobControlSection = () => {
                         Undo Final
                     </Button>
                     <Button
-                        className="h-8 gap-1.5 px-3 text-xs font-semibold text-sky-600 dark:text-sky-400 border border-sky-400 dark:border-sky-500 hover:bg-sky-50 dark:hover:bg-sky-950/40 shrink-0"
+                        className="h-8 gap-1.5 px-3 text-[11px] font-semibold text-sky-600 dark:text-sky-400 border border-sky-400 dark:border-sky-500 hover:bg-sky-50 dark:hover:bg-sky-950/40 shrink-0"
                         size="sm"
                         variant="outline"
                         onClick={() => setSubView("undoDelivery")}
@@ -632,7 +632,7 @@ export const JobControlSection = () => {
                         Undo Delivery
                     </Button>
                     <Button
-                        className="h-8 px-2.5 text-xs shrink-0"
+                        className="h-8 px-2.5 text-[11px] shrink-0"
                         disabled={loading || !branchId}
                         size="sm"
                         variant="outline"
@@ -671,7 +671,7 @@ export const JobControlSection = () => {
                             </tbody>
                         </table>
                     ) : rows.length === 0 ? (
-                        <div className="flex h-32 items-center justify-center text-sm text-(--cl-text-muted)">
+                        <div className="flex h-32 items-center justify-center text-xs text-(--cl-text-muted)">
                             No jobs found for the selected filters.
                         </div>
                     ) : (
@@ -715,7 +715,7 @@ export const JobControlSection = () => {
                                                 {job.division_id && (() => {
                                                     const dv = divisions.find(d => d.id === job.division_id);
                                                     return dv ? (
-                                                        <span className="font-mono text-[10px] font-semibold text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-950/40 rounded px-1 py-0.5 w-fit">
+                                                        <span className="font-mono text-[9px] font-semibold text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-950/40 rounded px-1 py-0.5 w-fit">
                                                             {dv.code}
                                                         </span>
                                                     ) : null;
@@ -727,19 +727,19 @@ export const JobControlSection = () => {
                                                 <div className="font-mono font-medium text-(--cl-accent)">
                                                     {job.job_no}
                                                     {job.is_closed && (
-                                                        <span className="ml-1.5 text-[10px] font-bold text-emerald-600 bg-emerald-100 dark:bg-emerald-950/40 rounded px-1 py-0.5">CLOSED</span>
+                                                        <span className="ml-1.5 text-[9px] font-bold text-emerald-600 bg-emerald-100 dark:bg-emerald-950/40 rounded px-1 py-0.5">CLOSED</span>
                                                     )}
                                                 </div>
                                                 {job.alternate_job_no && (
-                                                    <span className="text-[10px] text-(--cl-text-muted)">Alt: {job.alternate_job_no}</span>
+                                                    <span className="text-[9px] text-(--cl-text-muted)">Alt: {job.alternate_job_no}</span>
                                                 )}
                                                 {job.batch_no != null && (
-                                                    <span className={`text-[11px] font-bold w-fit rounded px-1 py-0.5 ${batchColor?.badge}`}>Batch #{job.batch_no}</span>
+                                                    <span className={`text-[10px] font-bold w-fit rounded px-1 py-0.5 ${batchColor?.badge}`}>Batch #{job.batch_no}</span>
                                                 )}
                                                 {job.file_count > 0 && (
                                                     <button
                                                         type="button"
-                                                        className="flex items-center gap-1 text-[10px] text-blue-600 dark:text-blue-400 font-medium hover:text-blue-700 dark:hover:text-blue-300 cursor-pointer bg-blue-50 dark:bg-blue-950/40 rounded px-1.5 py-0.5 w-fit border-0 transition-colors"
+                                                        className="flex items-center gap-1 text-[9px] text-blue-600 dark:text-blue-400 font-medium hover:text-blue-700 dark:hover:text-blue-300 cursor-pointer bg-blue-50 dark:bg-blue-950/40 rounded px-1.5 py-0.5 w-fit border-0 transition-colors"
                                                         onClick={e => { e.stopPropagation(); setSelectedRowId(job.id); setAttachJobId(job.id); setAttachJobNo(job.job_no); }}
                                                     >
                                                         <Paperclip className="h-2.5 w-2.5" />
@@ -752,7 +752,7 @@ export const JobControlSection = () => {
                                             <div className="flex flex-col gap-0.5">
                                                 <span>{job.customer_name ?? "—"}</span>
                                                 {job.customer_gstin && (
-                                                    <span className="font-mono text-[10px] text-(--cl-text-muted)">Gstin: {job.customer_gstin}</span>
+                                                    <span className="font-mono text-[9px] text-(--cl-text-muted)">Gstin: {job.customer_gstin}</span>
                                                 )}
                                             </div>
                                         </td>
@@ -766,12 +766,12 @@ export const JobControlSection = () => {
                                                 <StatusBadge code={job.job_status_code} name={job.job_status_name} />
                                                 <div className="flex flex-wrap gap-1">
                                                     {job.is_final && !job.is_closed && (
-                                                        <span className="text-[11px] font-bold rounded px-1 py-0.5 text-indigo-600 dark:text-indigo-300 bg-indigo-100 dark:bg-indigo-950/40">FINAL</span>
+                                                        <span className="text-[10px] font-bold rounded px-1 py-0.5 text-indigo-600 dark:text-indigo-300 bg-indigo-100 dark:bg-indigo-950/40">FINAL</span>
                                                     )}
                                                     {(() => {
                                                         const gst = isGstDivision(divisions.find(d => d.id === job.division_id) ?? null);
                                                         return (
-                                                            <span className={`text-[11px] font-bold rounded px-1 py-0.5 ${gst
+                                                            <span className={`text-[10px] font-bold rounded px-1 py-0.5 ${gst
                                                                 ? "text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40"
                                                                 : "text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40"}`}>
                                                                 {gst ? "GST" : "Non-GST"}
@@ -779,7 +779,7 @@ export const JobControlSection = () => {
                                                         );
                                                     })()}
                                                     {job.invoice_is_posted != null && (
-                                                        <span className={`text-[11px] font-bold rounded px-1 py-0.5 ${job.invoice_is_posted
+                                                        <span className={`text-[10px] font-bold rounded px-1 py-0.5 ${job.invoice_is_posted
                                                             ? "text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40"
                                                             : "text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40"}`}>
                                                             {job.invoice_is_posted ? "Invoice: Posted" : "Invoice: Unposted"}
@@ -814,34 +814,34 @@ export const JobControlSection = () => {
                                                                 </DropdownMenuTrigger>
                                                                 <DropdownMenuContent align="end" className="min-w-[200px] bg-white dark:bg-zinc-950 border-(--cl-border) shadow-lg rounded-lg p-1">
                                                                     <DropdownMenuItem
-                                                                        className="flex items-center gap-2 px-2 py-1.5 text-xs rounded cursor-pointer text-sky-700 dark:text-sky-400 hover:bg-sky-50 dark:hover:bg-sky-950/40"
+                                                                        className="flex items-center gap-2 px-2 py-1.5 text-[11px] rounded cursor-pointer text-sky-700 dark:text-sky-400 hover:bg-sky-50 dark:hover:bg-sky-950/40"
                                                                         onClick={() => setViewJobId(job.id)}
                                                                     >
                                                                         <Eye className="h-3.5 w-3.5 shrink-0" /> View
                                                                     </DropdownMenuItem>
                                                                     <DropdownMenuItem
-                                                                        className="flex items-center gap-2 px-2 py-1.5 text-xs rounded cursor-pointer text-teal-700 dark:text-teal-400 hover:bg-teal-50 dark:hover:bg-teal-950/40"
+                                                                        className="flex items-center gap-2 px-2 py-1.5 text-[11px] rounded cursor-pointer text-teal-700 dark:text-teal-400 hover:bg-teal-50 dark:hover:bg-teal-950/40"
                                                                         onClick={() => void deliveredActions.handleDeliveryNote(job)}
                                                                     >
                                                                         <Truck className="h-3.5 w-3.5 shrink-0" /> Delivery Note
                                                                     </DropdownMenuItem>
                                                                     {job.invoice_is_posted !== null && (
                                                                         <DropdownMenuItem
-                                                                            className="flex items-center gap-2 px-2 py-1.5 text-xs rounded cursor-pointer text-indigo-700 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40"
+                                                                            className="flex items-center gap-2 px-2 py-1.5 text-[11px] rounded cursor-pointer text-indigo-700 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40"
                                                                             onClick={() => void deliveredActions.handleInvoiceReceipts(job)}
                                                                         >
                                                                             <Printer className="h-3.5 w-3.5 shrink-0" /> Invoice + Receipts
                                                                         </DropdownMenuItem>
                                                                     )}
                                                                     <DropdownMenuItem
-                                                                        className="flex items-center gap-2 px-2 py-1.5 text-xs rounded cursor-pointer text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
+                                                                        className="flex items-center gap-2 px-2 py-1.5 text-[11px] rounded cursor-pointer text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
                                                                         onClick={() => setPdfJobId(job.id)}
                                                                     >
                                                                         <FileDown className="h-3.5 w-3.5 shrink-0" /> Print / Save as PDF
                                                                     </DropdownMenuItem>
                                                                     <DropdownMenuSeparator className="bg-zinc-100 dark:bg-zinc-800 mx-1" />
                                                                     <DropdownMenuItem
-                                                                        className="flex items-center gap-2 px-2 py-1.5 text-xs rounded cursor-pointer text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                                        className="flex items-center gap-2 px-2 py-1.5 text-[11px] rounded cursor-pointer text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40 disabled:opacity-50 disabled:cursor-not-allowed"
                                                                         disabled={job.invoice_is_posted === true}
                                                                         title={job.invoice_is_posted === true ? "Cannot undo: invoice is already posted" : undefined}
                                                                         onClick={() => deliveredActions.handleUndoDelivery(job)}
@@ -899,12 +899,12 @@ export const JobControlSection = () => {
                                                             <DropdownMenuContent align="end" className="min-w-[220px] bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 shadow-xl rounded-xl p-1 z-50">
                                                                 {!isNoAction && (
                                                                     <>
-                                                                        <DropdownMenuLabel className="px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
+                                                                        <DropdownMenuLabel className="px-3 py-2 text-[9px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
                                                                             Move job to
                                                                         </DropdownMenuLabel>
                                                                         <DropdownMenuSeparator className="bg-zinc-100 dark:bg-zinc-800 mx-1" />
                                                                         {transitions.length === 0 ? (
-                                                                            <DropdownMenuItem disabled className="rounded-lg text-sm text-zinc-400 py-2.5 px-3 italic">
+                                                                            <DropdownMenuItem disabled className="rounded-lg text-xs text-zinc-400 py-2.5 px-3 italic">
                                                                                 No transitions available
                                                                             </DropdownMenuItem>
                                                                         ) : transitions.map(t => {
@@ -912,7 +912,7 @@ export const JobControlSection = () => {
                                                                             return (
                                                                                 <DropdownMenuItem
                                                                                     key={`${t.targetId}-${t.targetName}`}
-                                                                                    className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-900 focus:bg-zinc-50 dark:focus:bg-zinc-900"
+                                                                                    className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-xs font-medium cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-900 focus:bg-zinc-50 dark:focus:bg-zinc-900"
                                                                                     onClick={() => setPendingTran({ job, transition: t })}
                                                                                 >
                                                                                     <span className={`h-3 w-3 shrink-0 rounded-full ${dotBg} shadow-sm`} />
@@ -927,7 +927,7 @@ export const JobControlSection = () => {
                                                                     <>
                                                                         {!isNoAction && <DropdownMenuSeparator className="bg-zinc-100 dark:bg-zinc-800 mx-1" />}
                                                                         <DropdownMenuItem
-                                                                            className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950/30"
+                                                                            className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-xs font-medium cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950/30"
                                                                             onClick={() => setUndoPendingJob(job)}
                                                                         >
                                                                             <Undo2 className="h-3.5 w-3.5 shrink-0" />
@@ -939,7 +939,7 @@ export const JobControlSection = () => {
                                                                     <>
                                                                         <DropdownMenuSeparator className="bg-zinc-100 dark:bg-zinc-800 mx-1" />
                                                                         <DropdownMenuItem
-                                                                            className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium cursor-pointer text-violet-600 focus:text-violet-700 focus:bg-violet-50 dark:focus:bg-violet-950/30"
+                                                                            className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-xs font-medium cursor-pointer text-violet-600 focus:text-violet-700 focus:bg-violet-50 dark:focus:bg-violet-950/30"
                                                                             onClick={() => setChargesJob({
                                                                                 id:              job.id,
                                                                                 job_no:          job.job_no,
@@ -958,7 +958,7 @@ export const JobControlSection = () => {
                                                                     <>
                                                                         <DropdownMenuSeparator className="bg-zinc-100 dark:bg-zinc-800 mx-1" />
                                                                         <DropdownMenuItem
-                                                                            className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium cursor-pointer text-emerald-700 focus:text-emerald-700 focus:bg-emerald-50 dark:focus:bg-emerald-950/30"
+                                                                            className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-xs font-medium cursor-pointer text-emerald-700 focus:text-emerald-700 focus:bg-emerald-50 dark:focus:bg-emerald-950/30"
                                                                             onClick={() => {
                                                                                 pendingRestoreRef.current = true;
                                                                                 setFinalJobId(job.id);
@@ -973,7 +973,7 @@ export const JobControlSection = () => {
                                                                     <>
                                                                         <DropdownMenuSeparator className="bg-zinc-100 dark:bg-zinc-800 mx-1" />
                                                                         <DropdownMenuItem
-                                                                            className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium cursor-pointer text-orange-600 focus:text-orange-700 focus:bg-orange-50 dark:focus:bg-orange-950/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                                            className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-xs font-medium cursor-pointer text-orange-600 focus:text-orange-700 focus:bg-orange-50 dark:focus:bg-orange-950/30 disabled:opacity-50 disabled:cursor-not-allowed"
                                                                             disabled={job.invoice_is_posted === true}
                                                                             title={job.invoice_is_posted === true ? "Cannot revise a posted job" : undefined}
                                                                             onClick={() => {
@@ -985,7 +985,7 @@ export const JobControlSection = () => {
                                                                             Revise Final
                                                                         </DropdownMenuItem>
                                                                         <DropdownMenuItem
-                                                                            className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium cursor-pointer text-amber-600 focus:text-amber-700 focus:bg-amber-50 dark:focus:bg-amber-950/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                                            className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-xs font-medium cursor-pointer text-amber-600 focus:text-amber-700 focus:bg-amber-50 dark:focus:bg-amber-950/30 disabled:opacity-50 disabled:cursor-not-allowed"
                                                                             disabled={job.invoice_is_posted === true}
                                                                             title={job.invoice_is_posted === true ? "Cannot undo a posted job" : undefined}
                                                                             onClick={() => setUndoFinalPendingJob(job)}
@@ -999,7 +999,7 @@ export const JobControlSection = () => {
                                                                     <>
                                                                         <DropdownMenuSeparator className="bg-zinc-100 dark:bg-zinc-800 mx-1" />
                                                                         <DropdownMenuItem
-                                                                            className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium cursor-pointer text-blue-700 focus:text-blue-700 focus:bg-blue-50 dark:focus:bg-blue-950/30"
+                                                                            className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-xs font-medium cursor-pointer text-blue-700 focus:text-blue-700 focus:bg-blue-50 dark:focus:bg-blue-950/30"
                                                                             onClick={() => void handleOpenDelivery(job.id)}
                                                                         >
                                                                             <Truck className="h-3.5 w-3.5 shrink-0" />
@@ -1007,7 +1007,7 @@ export const JobControlSection = () => {
                                                                         </DropdownMenuItem>
                                                                         {Number(job.amount) > 0 && (
                                                                         <DropdownMenuItem
-                                                                            className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium cursor-pointer text-purple-700 focus:text-purple-700 focus:bg-purple-50 dark:focus:bg-purple-950/30"
+                                                                            className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-xs font-medium cursor-pointer text-purple-700 focus:text-purple-700 focus:bg-purple-50 dark:focus:bg-purple-950/30"
                                                                             onClick={() => setProformaJobId(job.id)}
                                                                         >
                                                                             <Receipt className="h-3.5 w-3.5 shrink-0" />
@@ -1015,7 +1015,7 @@ export const JobControlSection = () => {
                                                                         </DropdownMenuItem>
                                                                         )}
                                                                         <DropdownMenuItem
-                                                                            className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium cursor-pointer text-teal-700 focus:text-teal-700 focus:bg-teal-50 dark:focus:bg-teal-950/30"
+                                                                            className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-xs font-medium cursor-pointer text-teal-700 focus:text-teal-700 focus:bg-teal-50 dark:focus:bg-teal-950/30"
                                                                             disabled={chargesReadonlyLoading === job.id}
                                                                             onClick={() => void handleOpenChargesReadonly(job)}
                                                                         >
@@ -1056,7 +1056,7 @@ export const JobControlSection = () => {
 
                 {/* Pagination */}
                 <div className="flex items-center justify-between border-t border-(--cl-border) px-4 py-2">
-                    <span className="text-xs text-(--cl-text-muted)">
+                    <span className="text-[11px] text-(--cl-text-muted)">
                         {total === 0 ? "No jobs" : `Showing ${(page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, total)} of ${total} jobs (Page ${page} of ${totalPages})`}
                         {filter.group === "closed" && filter.value !== null && (
                             <span className="ml-2 font-semibold text-(--cl-accent)">

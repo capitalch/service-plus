@@ -2026,34 +2026,6 @@ async def resolve_set_user_bu_role_helper(
     return {"user_id": user_id}
 
 
-async def _get_trace_plus_token() -> str:
-    """Authenticate with trace-plus-server and return a Bearer access token."""
-    async with httpx.AsyncClient() as client:
-        resp = await client.post(
-            f"{settings.trace_plus_url}/api/login",
-            data={
-                "username": settings.trace_plus_super_admin_uid,
-                "password": settings.trace_plus_super_admin_password,
-            },
-            timeout=10.0,
-        )
-        resp.raise_for_status()
-        body = resp.json()
-        return body.get("accessToken", "")
-
-
-def _build_line_jdata_remarks(line: dict) -> str | None:
-    """Build the jData remarks for a posted invoice line.
-
-    With a part code: "Part Code:<code>, <part name>" (name omitted if absent).
-    Without a part code: fall back to the line description (job-invoice lines).
-    """
-    part_code = line.get("part_code")
-    if part_code:
-        part_name = line.get("part_name")
-        return f"Part Code:{part_code}, {part_name}" if part_name else f"Part Code:{part_code}"
-    description = line.get("description")
-    return description or None
 
 
 def _build_money_receipt_tran_h(
@@ -2124,9 +2096,8 @@ def _build_purchase_invoice_tran_h(
             "gstRate":   (float(line["gst_rate"]) if line.get("gst_rate")
                           else (float(pi_default_gst) if pi_default_gst else 0)),
         }
-        line_remarks = _build_line_jdata_remarks(line)
-        if line_remarks:
-            spd["jData"] = json.dumps({"remarks": line_remarks})
+        if line.get("part_code"):
+            spd["jData"] = json.dumps({"remarks": f"Part Code: {line['part_code']}"})
         for out_key, db_key in [
             ("cgst", "cgst_amount"),
             ("sgst", "sgst_amount"),
@@ -2220,9 +2191,10 @@ def _build_job_invoice_tran_h(
             "gstRate":   (float(line["gst_rate"]) if line.get("gst_rate")
                           else (float(ji_default_gst) if ji_default_gst else 0)),
         }
-        line_remarks = _build_line_jdata_remarks(line)
-        if line_remarks:
-            spd["jData"] = json.dumps({"remarks": line_remarks})
+        if line.get("part_code"):
+            spd["jData"] = json.dumps({"remarks": f"Part Code: {line['part_code']}, {line.get('description', '')}"})
+        elif line.get("description"):
+            spd["jData"] = json.dumps({"remarks": line["description"]})
         for out_key, db_key in [
             ("cgst", "cgst_amount"),
             ("sgst", "sgst_amount"),
@@ -2318,9 +2290,10 @@ def _build_sales_invoice_tran_h(
             "gstRate":   (float(line["gst_rate"]) if line.get("gst_rate")
                           else (float(si_default_gst) if si_default_gst else 0)),
         }
-        line_remarks = _build_line_jdata_remarks(line)
-        if line_remarks:
-            spd["jData"] = json.dumps({"remarks": line_remarks})
+        if line.get("part_code"):
+            spd["jData"] = json.dumps({"remarks": f"Part Code: {line['part_code']}, {line.get('part_name', '')}"})
+        elif line.get("item_description"):
+            spd["jData"] = json.dumps({"remarks": line["item_description"]})
         for out_key, db_key in [
             ("cgst", "cgst_amount"),
             ("sgst", "sgst_amount"),
@@ -2393,12 +2366,11 @@ def _build_sales_invoice_tran_h(
 
 async def _post_tran_h_to_trace_plus(
     http_client: httpx.AsyncClient,
-    token: str,
     client_code: str,
     bu_code: str,
     tran_h: dict,
 ) -> dict:
-    """Post a single TranH voucher to trace-plus and return its result (raises on failure)."""
+    """Post a single TranH voucher to trace-plus internal endpoint and return its result."""
     tran_h_payload = {
         "tableName": "TranH",
         "dbParams":  {"conn": ""},
@@ -2410,29 +2382,14 @@ async def _post_tran_h_to_trace_plus(
         "buCode":     bu_code,
         "data":       tran_h_payload,
     }))
-    gql_body = {
-        "query": "mutation AccountsPosting($value: Generic) { accountsPosting(value: $value) }",
-        "variables": {"value": trace_value},
-    }
     resp = await http_client.post(
-        f"{settings.trace_plus_url}/graphql/",
-        json=gql_body,
-        headers={"Authorization": f"Bearer {token}"},
+        f"{settings.trace_plus_url}/internal/accounts-posting",
+        json={"value": trace_value},
+        headers={"X-Service-Key": settings.trace_plus_service_key},
         timeout=30.0,
     )
     resp.raise_for_status()
-    result = resp.json()
-
-    if result.get("errors"):
-        raise RuntimeError(str(result["errors"]))
-
-    posting_result = result.get("data", {}).get("accountsPosting", {})
-    if isinstance(posting_result, dict) and posting_result.get("error"):
-        detail = posting_result["error"].get("content", {}).get(
-            "detail", "Trace-plus posting failed"
-        )
-        raise RuntimeError(detail)
-    return posting_result
+    return resp.json()
 
 
 async def resolve_accounts_posting_helper(
@@ -2567,8 +2524,7 @@ async def resolve_accounts_posting_helper(
         except Exception as e:  # pylint: disable=broad-except
             logger.error("Failed to publish accounts posting progress: %s", e)
 
-    # 3. Authenticate once and reuse a single HTTP client for the whole run
-    token = await _get_trace_plus_token()
+    # 3. Reuse a single HTTP client for the whole run
     async with httpx.AsyncClient() as http_client:
         for w in work:
             division_name = w["division_name"]
@@ -2580,7 +2536,7 @@ async def resolve_accounts_posting_helper(
                         row, w["debit_account_id"], w["credit_account_id"], w["branch_id"]
                     )
                     await _post_tran_h_to_trace_plus(
-                        http_client, token, w["client_code"], w["bu_code"], tran_h
+                        http_client, w["client_code"], w["bu_code"], tran_h
                     )
                     await exec_sql(
                         db_name=db_name, schema=schema,
@@ -2623,7 +2579,7 @@ async def resolve_accounts_posting_helper(
                         w["pi_default_hsn"], w["pi_default_gst"], w["branch_id"],
                     )
                     await _post_tran_h_to_trace_plus(
-                        http_client, token, w["client_code"], w["bu_code"], pi_tran_h
+                        http_client, w["client_code"], w["bu_code"], pi_tran_h
                     )
                     await exec_sql(
                         db_name=db_name, schema=schema,
@@ -2667,7 +2623,7 @@ async def resolve_accounts_posting_helper(
                         contacts_id=w["ji_contacts_id"],
                     )
                     await _post_tran_h_to_trace_plus(
-                        http_client, token, w["client_code"], w["bu_code"], ji_tran_h
+                        http_client, w["client_code"], w["bu_code"], ji_tran_h
                     )
                     await exec_sql(
                         db_name=db_name, schema=schema,
@@ -2711,7 +2667,7 @@ async def resolve_accounts_posting_helper(
                         contacts_id=w["si_contacts_id"],
                     )
                     await _post_tran_h_to_trace_plus(
-                        http_client, token, w["client_code"], w["bu_code"], si_tran_h
+                        http_client, w["client_code"], w["bu_code"], si_tran_h
                     )
                     await exec_sql(
                         db_name=db_name, schema=schema,

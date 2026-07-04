@@ -2097,7 +2097,7 @@ def _build_purchase_invoice_tran_h(
                           else (float(pi_default_gst) if pi_default_gst else 0)),
         }
         if line.get("part_code"):
-            spd["jData"] = json.dumps({"remarks": f"Part Code:{line['part_code']}"})
+            spd["jData"] = json.dumps({"remarks": f"Part Code: {line['part_code']}"})
         for out_key, db_key in [
             ("cgst", "cgst_amount"),
             ("sgst", "sgst_amount"),
@@ -2192,7 +2192,9 @@ def _build_job_invoice_tran_h(
                           else (float(ji_default_gst) if ji_default_gst else 0)),
         }
         if line.get("part_code"):
-            spd["jData"] = json.dumps({"remarks": f"Part Code:{line['part_code']}"})
+            spd["jData"] = json.dumps({"remarks": f"Part Code: {line['part_code']}, {line.get('description', '')}"})
+        elif line.get("description"):
+            spd["jData"] = json.dumps({"remarks": line["description"]})
         for out_key, db_key in [
             ("cgst", "cgst_amount"),
             ("sgst", "sgst_amount"),
@@ -2289,7 +2291,9 @@ def _build_sales_invoice_tran_h(
                           else (float(si_default_gst) if si_default_gst else 0)),
         }
         if line.get("part_code"):
-            spd["jData"] = json.dumps({"remarks": f"Part Code:{line['part_code']}"})
+            spd["jData"] = json.dumps({"remarks": f"Part Code: {line['part_code']}, {line.get('part_name', '')}"})
+        elif line.get("item_description"):
+            spd["jData"] = json.dumps({"remarks": line["item_description"]})
         for out_key, db_key in [
             ("cgst", "cgst_amount"),
             ("sgst", "sgst_amount"),

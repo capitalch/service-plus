@@ -14,6 +14,7 @@ import {
     selectIsGstMode,
     selectSchema,
     setDefaultGstRate,
+    setMarkupPercentOverCost,
     setDefaultHsnForSparePart,
     setDefaultHsnForServiceCharge,
     setNoOfJobInvoicesPerPrint,
@@ -144,6 +145,11 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
             let parsedGst: unknown = rawGst;
             if (typeof rawGst === 'string') { try { parsedGst = JSON.parse(rawGst); } catch { /* keep raw */ } }
             dispatch(setDefaultGstRate(Number(parsedGst ?? 0)));
+
+            const rawMarkup = settings.find(s => s.setting_key === 'markup_percent_over_cost')?.setting_value;
+            let parsedMarkup: unknown = rawMarkup;
+            if (typeof rawMarkup === 'string') { try { parsedMarkup = JSON.parse(rawMarkup); } catch { /* keep raw */ } }
+            dispatch(setMarkupPercentOverCost(Number(parsedMarkup ?? 20)));
 
             const rawHsn = settings.find(s => s.setting_key === 'default_hsn_for_spare_part')?.setting_value;
             let parsedHsn: unknown = rawHsn;

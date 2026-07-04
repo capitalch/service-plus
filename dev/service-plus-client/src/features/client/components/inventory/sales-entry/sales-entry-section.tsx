@@ -397,6 +397,7 @@ export const SalesEntrySection = () => {
             const c = calcLine(line, isIgst);
             return {
                 cgst_amount:      c.cgstAmt,
+                cost_price:       line.cost_price,
                 gst_rate:         line.gst_rate,
                 hsn_code:         line.hsn_code,
                 igst_amount:      c.igstAmt,

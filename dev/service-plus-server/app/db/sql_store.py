@@ -2573,7 +2573,8 @@ class SqlStore:
                     'sgst_amount',      sil.sgst_amount,
                     'igst_amount',      sil.igst_amount,
                     'total_amount',     sil.amount,
-                    'remarks',          sil.remarks
+                    'remarks',          sil.remarks,
+                    'cost_price',       sil.cost_price
                 ) ORDER BY sil.id
             ) AS lines
         FROM sales_invoice si
@@ -4606,15 +4607,17 @@ class SqlStore:
             )                   AS customer_address,
             json_agg(
                 json_build_object(
-                    'hsn_code',     sil.hsn_code,
-                    'qty',          sil.qty,
-                    'unit_price',   sil.price,
-                    'total_amount', sil.amount,
-                    'gst_rate',     sil.gst_rate,
-                    'cgst_amount',  sil.cgst_amount,
-                    'sgst_amount',  sil.sgst_amount,
-                    'igst_amount',  sil.igst_amount,
-                    'part_code',    sp.part_code
+                    'hsn_code',         sil.hsn_code,
+                    'qty',              sil.qty,
+                    'unit_price',       sil.price,
+                    'total_amount',     sil.amount,
+                    'gst_rate',         sil.gst_rate,
+                    'cgst_amount',      sil.cgst_amount,
+                    'sgst_amount',      sil.sgst_amount,
+                    'igst_amount',      sil.igst_amount,
+                    'part_code',        sp.part_code,
+                    'part_name',        sp.part_name,
+                    'item_description', sil.item_description
                 ) ORDER BY sil.id
             ) AS lines
         FROM sales_invoice si
