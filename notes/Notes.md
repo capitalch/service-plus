@@ -3,18 +3,29 @@
 - When finalize a job let this column cost_price be populated during save and mark final
 - There is already a field in UI which captures cost, let this be populated in cost_price
 
+# Modify purchase Entry
+- For GST division invoice no changes required
+- For Non-GST division invoice only following to be maintained:
+  (or of two items mean the first non zero, not null item)
+  gst_rate = spare_part_master.gst_rate or app_setting.gst_rate
+    price = spare_part_master.cost_price*(1 + gst_rate/100)
+    The price will appear in the price field of UI.
+    There will be no comparison and validation of price with database as happens with GST invoice
+    At the time of saving the invoice, spare_part_master.cost_price is not updated for non-gst divisions and no warning appears for mismatch as in case of gst divisions
+    
 # modify sales entry
 - In sales_invoice_line added a new column cost_price to capture snapshot of cost of spare part
 - When sales invoice is being saved, cost_price of the part also also needs to be saved
 - isGst depends on selection of division. Gstin value for division makes isGst true
 - (or of two items mean the first non zero, not null item)
 - Calculation of cost_price
+  gst_rate = spare_part_master.gst_rate or app_setting.gst_rate
   - if isgst
-      cost_price = spare_part_master.price
-      selling_price = mrp or spare_part_master.selling_price or (markup + cost_price). This selling price will appear at UI of sales_entry at price field when part is selected
+      cost_price = spare_part_master.price      
+      selling_price = spare_part_master.mrp/(1+gst_rate/100) or spare_part_master.selling_price or (markup + cost_price). This selling price will appear at UI of sales_entry at price field when part is selected
   - if not isgst
-      cost_price = spare_part_master.price * (1 + (spare_part_master.gst_rate or default gst rate from spp_setting)/100)
-      selling_price = mrp or (selling_price * (1 + (spare_part_master.gst_rate or default gst rate from spp_setting)/100)) or (markup + calculated cost_price). This selling price will appear at UI of sales_entry at price field when part is selected
+      cost_price = spare_part_master.price * (1 + (gst_rate)/100)
+      selling_price = spare_part_master.mrp or spare_part_master.selling_price * (1 + gst_rate/100) or (markup + calculated cost_price). This selling price will appear at UI of sales_entry at price field when part is selected
 # Design change for Job Search
 - Job search landing page will now have transaction capacity for job status changes as the Job Pipeline Page (clicked at a status and status change page comes) has.
 - Add an icon in actions similar to pipeline page transaction icon(two horizontal arrows)

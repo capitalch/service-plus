@@ -86,7 +86,9 @@ export const PurchaseEntrySection = () => {
     const [search,         setSearch]         = useState("");
     const [searchQ,        setSearchQ]        = useState("");
     const [selectedBrand,  setSelectedBrand]  = useState("");
- 
+    // View-mode division filter. null = All Divisions (the default).
+    const [viewDivisionId, setViewDivisionId] = useState<number | null>(null);
+
     // New states for mode-based UI
     const [mode,           setMode]           = useState<ViewMode>("new");
     const [brands,         setBrands]         = useState<BrandOption[]>([]);
@@ -130,6 +132,11 @@ export const PurchaseEntrySection = () => {
 
     const selectedDivisionId = form.watch("division_id");
     const isGstRegistered    = !!availableDivisions.find(d => d.id === selectedDivisionId)?.gstin;
+
+    // When viewing All Divisions, tag each invoice with its division code.
+    const showDivisionCode = viewDivisionId == null && availableDivisions.length > 0;
+    const divisionCodeById = (id: number | null) =>
+        availableDivisions.find(d => d.id === id)?.code ?? null;
 
     const canSave = form.formState.isValid && !!selectedBrand && !invoiceExists && !checkingDuplicate && linesValid;
 
@@ -225,12 +232,12 @@ export const PurchaseEntrySection = () => {
 
     // 2. Load invoices (paged)
     const loadData = useCallback(async (
-        bId: number, from: string, to: string, q: string, pg: number,
+        bId: number, from: string, to: string, q: string, pg: number, divisionId: number | null = null,
     ) => {
         if (!dbName || !schema) return;
         setLoading(true);
         try {
-            const commonArgs = { branch_id: bId, from_date: from, to_date: to, search: q };
+            const commonArgs = { branch_id: bId, division_id: divisionId, from_date: from, to_date: to, search: q };
             const [dataRes, countRes, totalsRes] = await Promise.all([
                 apolloClient.query<GenericQueryData<PurchaseInvoiceType>>({
                     fetchPolicy: "network-only",
@@ -289,8 +296,8 @@ export const PurchaseEntrySection = () => {
     // Re-fetch when filters or global branch change
     useEffect(() => {
         if (!branchId) return;
-        void loadData(Number(branchId), fromDate, toDate, searchQ, page);
-    }, [branchId, fromDate, toDate, searchQ, page, loadData]);
+        void loadData(Number(branchId), fromDate, toDate, searchQ, page, viewDivisionId);
+    }, [branchId, fromDate, toDate, searchQ, page, loadData, viewDivisionId]);
 
     // Debounce search input
     const handleSearchChange = (value: string) => {
@@ -322,7 +329,7 @@ export const PurchaseEntrySection = () => {
             });
             toast.success(MESSAGES.SUCCESS_PURCHASE_DELETED);
             setDeleteId(null);
-            void loadData(Number(branchId), fromDate, toDate, searchQ, page);
+            void loadData(Number(branchId), fromDate, toDate, searchQ, page, viewDivisionId);
         } catch {
             toast.error(MESSAGES.ERROR_PURCHASE_DELETE_FAILED);
         } finally {
@@ -547,7 +554,7 @@ export const PurchaseEntrySection = () => {
                     isEditing={!!editInvoice}
                     disableNew={!!editInvoice}
                     onNewClick={() => { handleReset(); setMode("new"); }}
-                    onViewClick={() => { handleReset(); setMode("view"); if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, page); }}
+                    onViewClick={() => { handleReset(); setMode("view"); if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, page, viewDivisionId); }}
                 />
 
                 {/* Brand */}
@@ -561,18 +568,21 @@ export const PurchaseEntrySection = () => {
                     />
                 </div>
 
-                {/* IGST — invisible in view mode */}
-                <label className={`flex items-center gap-1.5 cursor-pointer select-none px-3 py-1.5 rounded-lg border-2 font-black text-[12px] uppercase tracking-[0.1em] transition-all shadow-sm ${
+                {/* IGST — invisible in view mode, disabled for non-GST divisions */}
+                <label className={`flex items-center gap-1.5 select-none px-3 py-1.5 rounded-lg border-2 font-black text-[12px] uppercase tracking-[0.1em] transition-all shadow-sm ${
                     mode !== 'new'
                         ? 'hidden md:flex md:invisible pointer-events-none'
+                        : !isGstRegistered
+                        ? 'bg-(--cl-surface-2) border-(--cl-border) text-(--cl-text-muted) opacity-40 cursor-not-allowed pointer-events-none'
                         : isIgst
-                        ? 'bg-blue-400 text-white border-blue-600 shadow-blue-500/20'
-                        : 'bg-(--cl-surface-2) border-(--cl-border) text-(--cl-text-muted)'
+                        ? 'bg-blue-400 text-white border-blue-600 shadow-blue-500/20 cursor-pointer'
+                        : 'bg-(--cl-surface-2) border-(--cl-border) text-(--cl-text-muted) cursor-pointer'
                 }`}>
                     <input
                         type="checkbox"
                         className="h-3.5 w-3.5 accent-white cursor-pointer"
                         checked={isIgst}
+                        disabled={!isGstRegistered}
                         onChange={e => setIsIgst(e.target.checked)}
                     />
                     IGST
@@ -641,7 +651,7 @@ export const PurchaseEntrySection = () => {
                                 if (editInvoice) {
                                     setEditInvoice(null);
                                     setMode("view");
-                                    if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, 1);
+                                    if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, 1, viewDivisionId);
                                 }
                             }}
                         />
@@ -665,6 +675,19 @@ export const PurchaseEntrySection = () => {
                                 onChange={handleFilterChange(setToDate)}
                             />
                         </div>
+                        {availableDivisions.length > 0 && (
+                            <select
+                                className="h-8 cursor-pointer rounded-md border border-(--cl-border) bg-(--cl-surface) px-2 text-xs text-(--cl-text) focus:outline-none focus:ring-2 focus:ring-(--cl-accent)/30"
+                                disabled={loading}
+                                value={viewDivisionId ?? ""}
+                                onChange={e => { setViewDivisionId(e.target.value ? Number(e.target.value) : null); setPage(1); }}
+                            >
+                                <option value="">All Divisions</option>
+                                {availableDivisions.map(d => (
+                                    <option key={d.id} value={d.id}>{d.name}</option>
+                                ))}
+                            </select>
+                        )}
                         <div className="relative flex-1 sm:max-w-xs">
                             <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-(--cl-text-muted)" />
                             <Input
@@ -707,7 +730,7 @@ export const PurchaseEntrySection = () => {
                                 disabled={loading || !branchId}
                                 size="sm"
                                 variant="outline"
-                                onClick={() => { if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, page); }}
+                                onClick={() => { if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, page, viewDivisionId); }}
                             >
                                 <RefreshCw className="mr-1.5 h-3 w-3" />
                                 Refresh
@@ -791,9 +814,21 @@ export const PurchaseEntrySection = () => {
                                                             RTN
                                                         </span>
                                                     )}
-                                                    {postDataToAccounts && (
-                                                        <div className={`mt-0.5 text-[10px] font-semibold ${inv.is_posted ? "text-emerald-600" : "text-amber-600"}`}>
-                                                            {inv.is_posted ? "Posted" : "Not Posted"}
+                                                    {(postDataToAccounts || (showDivisionCode && divisionCodeById(inv.division_id))) && (
+                                                        <div className="mt-0.5 flex items-center gap-1.5">
+                                                            {postDataToAccounts && (
+                                                                <span className={`text-[10px] font-semibold ${inv.is_posted ? "text-emerald-600" : "text-amber-600"}`}>
+                                                                    {inv.is_posted ? "Posted" : "Not Posted"}
+                                                                </span>
+                                                            )}
+                                                            {showDivisionCode && divisionCodeById(inv.division_id) && (
+                                                                <span
+                                                                    className="rounded bg-(--cl-accent)/10 px-1 py-0.5 text-[10px] font-bold text-(--cl-accent)"
+                                                                    title={inv.division_name ?? undefined}
+                                                                >
+                                                                    {divisionCodeById(inv.division_id)}
+                                                                </span>
+                                                            )}
                                                         </div>
                                                     )}
                                                 </td>
@@ -840,7 +875,7 @@ export const PurchaseEntrySection = () => {
                                                                     onClick={() => setPdfPreviewInvoice(inv)}
                                                                 >
                                                                     <FileDown className="h-4 w-4" />
-                                                                    <span>Show PDF</span>
+                                                                    <span>Invoice PDF</span>
                                                                 </DropdownMenuItem>
                                                                 <DropdownMenuItem
                                                                     className="flex items-center gap-2 cursor-pointer focus:bg-emerald-500/20 focus:text-emerald-500 dark:focus:bg-emerald-400/20 dark:focus:text-emerald-300"
@@ -855,15 +890,27 @@ export const PurchaseEntrySection = () => {
                                                                 </DropdownMenuItem>
 
                                                                 <DropdownMenuItem
-                                                                    className="flex items-center gap-2 cursor-pointer text-amber-500 focus:bg-amber-500/10 focus:text-amber-600"
-                                                                    onClick={() => { setSelectedBrand(String(inv.brand_id)); setEditInvoice(inv); setMode('new'); }}
+                                                                    className={`flex items-center gap-2 cursor-pointer ${inv.is_posted ? "text-(--cl-text-muted) opacity-50 cursor-not-allowed" : "text-amber-500 focus:bg-amber-500/10 focus:text-amber-600"}`}
+                                                                    onClick={() => {
+                                                                        if (inv.is_posted) {
+                                                                            toast.error("Posted invoices cannot be edited.");
+                                                                            return;
+                                                                        }
+                                                                        setSelectedBrand(String(inv.brand_id)); setEditInvoice(inv); setMode('new');
+                                                                    }}
                                                                 >
                                                                     <Pencil className="h-4 w-4" />
                                                                     <span>Edit Invoice</span>
                                                                 </DropdownMenuItem>
                                                                 <DropdownMenuItem
-                                                                    className="flex items-center gap-2 cursor-pointer text-red-500 focus:bg-red-500/10 focus:text-red-600 font-semibold"
-                                                                    onClick={() => setDeleteId(inv.id)}
+                                                                    className={`flex items-center gap-2 cursor-pointer font-semibold ${inv.is_posted ? "text-(--cl-text-muted) opacity-50 cursor-not-allowed" : "text-red-500 focus:bg-red-500/10 focus:text-red-600"}`}
+                                                                    onClick={() => {
+                                                                        if (inv.is_posted) {
+                                                                            toast.error("Posted invoices cannot be deleted.");
+                                                                            return;
+                                                                        }
+                                                                        setDeleteId(inv.id);
+                                                                    }}
                                                                 >
                                                                     <Trash2 className="h-4 w-4" />
                                                                     <span>Delete Invoice</span>
@@ -966,6 +1013,7 @@ export const PurchaseEntrySection = () => {
                     {/* PDF Preview Dialog */}
                     <PurchaseInvoicePdfPreviewDialog
                         branch={pdfPreviewInvoice ? (branches.find(b => b.id === pdfPreviewInvoice.branch_id) ?? null) : null}
+                        division={pdfPreviewInvoice ? (availableDivisions.find(d => d.id === pdfPreviewInvoice.division_id) ?? null) : null}
                         invoice={pdfPreviewInvoice}
                         open={pdfPreviewInvoice !== null}
                         onOpenChange={open => { if (!open) setPdfPreviewInvoice(null); }}

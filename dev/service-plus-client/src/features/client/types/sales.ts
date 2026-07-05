@@ -4,6 +4,7 @@ export type SalesLineType = {
     part_id:          number;
     part_code:        string;
     part_name:        string;
+    part_description: string | null;
     item_description: string;
     hsn_code:         string;
     qty:              number;

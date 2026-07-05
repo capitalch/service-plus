@@ -3,12 +3,16 @@
 	- Create a systematic manual testing numbered steps for All items in Jobs menu item. Give your plan in plans/plan.md
 	- Test plan script
 - Bug fix
-	- When division changes, corresponding GST info is not changed in sales and purchases. Amount for spare should be same in gst / non-gst
+								- When division changes, corresponding GST info is not changed in sales. Amount for spare should be same in gst / non-gst. Robust testing for sales invoie is done w.r.o mrp, selling price and no price
 								- Extra "}" in details line items of sales
-							- Purchase Entry
+	- Purchase Entry
+								- Show pdf shows Service Plus as Buyer. Buyer info should have details of applicable division
+								- Disable delete from posted entries
 								- in small screen auto scrollbar not appearing
 								- In small screens no height provided for line items
 							- Sales Entry
+								- Part selector should show description also
+								- Invoice PDF should show spare_part_master.part_name + spare_part_master.description concatenated in Part Name column which should be renamed as details
 								- In small screens no height provided for line items
 								- in small screen auto scrollbar not appearing
 								- When a batch job is received, two times received is shown in job view: Transaction
@@ -16,8 +20,8 @@
 								- Warranty job transactions: allow adding spare parts
 							- Error when final a Job. Final amount possible without providing details
 - Enhancements
-	- in sales_invoice_line add a column cost_price which works as snapshot price. Populate them at the time of saving
-							- When there is no part code, then include description in remarks
+								- in sales_invoice_line add a column cost_price which works as snapshot price. Populate them at the time of saving
+								- When there is no part code, then include description in remarks
 	- Access management
 	- Validate creation of new client / Bu / Branch / Division end to end
 	- Security of server config file
@@ -30,8 +34,9 @@
 								- undo final for final jobs
 								- undo delivery / undo last transactions for closed jobs
 								- Also make drill down buttons for undo final and undo delivery
-					- QA
-						- Accounts Posting
+- QA
+	- Accounts Posting
+		- concatenate part name and description along with part code
 							- sales invoice
 								- In remarks write: "Sale Invoice"
 								- Check customer GSTIN No transfer: Not transferring

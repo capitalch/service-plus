@@ -79,6 +79,8 @@ export const SalesEntrySection = () => {
     const [search,        setSearch]        = useState("");
     const [searchQ,       setSearchQ]       = useState("");
     const [selectedBrand, setSelectedBrand] = useState("");
+    // View-mode division filter. null = All Divisions (the default).
+    const [viewDivisionId, setViewDivisionId] = useState<number | null>(null);
 
     // Mode
     const [mode,          setMode]          = useState<ViewMode>("new");
@@ -127,6 +129,11 @@ export const SalesEntrySection = () => {
 
     const selectedDivisionId = form.watch("division_id");
     const isGstMode = isGstDivision(availableDivisions.find(d => d.id === selectedDivisionId) ?? null);
+
+    // When viewing All Divisions, the invoice number is tagged with its division code.
+    const showDivisionCode = viewDivisionId == null && availableDivisions.length > 0;
+    const divisionCodeById = (id: number | null) =>
+        availableDivisions.find(d => d.id === id)?.code ?? null;
 
     // Line validity is reported up from NewSalesInvoice, which watches the field array
     // reliably (the parent's own form.watch("lines") misses nested per-line updates).
@@ -312,8 +319,8 @@ export const SalesEntrySection = () => {
 
     useEffect(() => {
         if (!branchId || mode !== "view") return;
-        void loadData(Number(branchId), fromDate, toDate, searchQ, page, currentDivision?.id ?? null);
-    }, [branchId, fromDate, toDate, searchQ, page, loadData, mode, currentDivision]);
+        void loadData(Number(branchId), fromDate, toDate, searchQ, page, viewDivisionId);
+    }, [branchId, fromDate, toDate, searchQ, page, loadData, mode, viewDivisionId]);
 
     const handleSearchChange = (value: string) => {
         setSearch(value);
@@ -339,8 +346,26 @@ export const SalesEntrySection = () => {
         setCustomerName("");
         setCustomerGstin("");
         setCustomerStateCode("");
+        setIsIgst(false);
         setIsReturn(false);
         setEditInvoice(null);
+        setLinesValid(false);
+    };
+
+    // Changing the division wipes the whole entry (customer, lines, tax mode,
+    // back-calc target) and starts fresh under the newly selected division.
+    const handleDivisionChange = (newDivisionId: number) => {
+        form.reset({
+            ...getSalesInvoiceDefaultValues(newDivisionId),
+            lines: [getInitialSalesLine(selectedBrandId)],
+        });
+        setBackCalcTarget("");
+        setCustomerId(null);
+        setCustomerName("");
+        setCustomerGstin("");
+        setCustomerStateCode("");
+        setIsIgst(false);
+        setIsReturn(false);
         setLinesValid(false);
     };
 
@@ -465,7 +490,7 @@ export const SalesEntrySection = () => {
                 toast.success(MESSAGES.SUCCESS_SALES_UPDATED);
                 handleReset();
                 setMode("view");
-                if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, 1, currentDivision?.id ?? null);
+                if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, 1, viewDivisionId);
             } else {
                 if (!sinvSequence || !sinvSequence.prefix.trim()) {
                     toast.error(MESSAGES.ERROR_DOC_SEQ_SINV_NOT_CONFIGURED);
@@ -536,7 +561,7 @@ export const SalesEntrySection = () => {
             });
             toast.success(MESSAGES.SUCCESS_SALES_DELETED);
             setDeleteId(null);
-            if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, page, currentDivision?.id ?? null);
+            if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, page, viewDivisionId);
         } catch {
             toast.error(MESSAGES.ERROR_SALES_DELETE_FAILED);
         } finally {
@@ -717,7 +742,7 @@ export const SalesEntrySection = () => {
                     mode={mode}
                     isEditing={!!editInvoice}
                     onNewClick={() => { handleReset(); setMode("new"); }}
-                    onViewClick={() => { handleReset(); setMode("view"); if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, page, currentDivision?.id ?? null); }}
+                    onViewClick={() => { handleReset(); setMode("view"); if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, page, viewDivisionId); }}
                 />
 
                 {/* Brand */}
@@ -798,6 +823,7 @@ export const SalesEntrySection = () => {
                         isReturn={isReturn}
                         onIsReturnChange={setIsReturn}
                         onLinesValidChange={setLinesValid}
+                        onDivisionChange={handleDivisionChange}
                         selectedBrandId={selectedBrandId}
                         brandName={brands.find(b => String(b.id) === selectedBrand)?.name}
                         editInvoice={editInvoice}
@@ -832,6 +858,19 @@ export const SalesEntrySection = () => {
                                 onChange={handleFilterChange(setToDate)}
                             />
                         </div>
+                        {availableDivisions.length > 0 && (
+                            <select
+                                className="h-8 cursor-pointer rounded-md border border-(--cl-border) bg-(--cl-surface) px-2 text-xs text-(--cl-text) focus:outline-none focus:ring-2 focus:ring-(--cl-accent)/30"
+                                disabled={loading}
+                                value={viewDivisionId ?? ""}
+                                onChange={e => { setViewDivisionId(e.target.value ? Number(e.target.value) : null); setPage(1); }}
+                            >
+                                <option value="">All Divisions</option>
+                                {availableDivisions.map(d => (
+                                    <option key={d.id} value={d.id}>{d.name}</option>
+                                ))}
+                            </select>
+                        )}
                         <div className="relative flex-1 sm:max-w-xs">
                             <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-(--cl-text-muted)" />
                             <Input
@@ -874,7 +913,7 @@ export const SalesEntrySection = () => {
                                 disabled={loading || !branchId}
                                 size="sm"
                                 variant="outline"
-                                onClick={() => { if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, page, currentDivision?.id ?? null); }}
+                                onClick={() => { if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, page, viewDivisionId); }}
                             >
                                 <RefreshCw className="mr-1.5 h-3 w-3" />
                                 Refresh
@@ -934,7 +973,6 @@ export const SalesEntrySection = () => {
                                             <th className={thClass}>Date</th>
                                             <th className={thClass}>Invoice No</th>
                                             <th className={thClass}>Customer</th>
-                                            {!currentDivision && <th className={thClass}>Division</th>}
                                             <th className={`${thClass} text-right`}>Aggregate</th>
                                             <th className={`${thClass} text-right`}>CGST</th>
                                             <th className={`${thClass} text-right`}>SGST</th>
@@ -955,18 +993,25 @@ export const SalesEntrySection = () => {
                                                     {inv.is_return && (
                                                         <span className="ml-1.5 text-[10px] font-bold text-orange-600 bg-orange-100 dark:bg-orange-950/40 rounded px-1 py-0.5">RTN</span>
                                                     )}
-                                                    {postDataToAccounts && (
-                                                        <div className={`mt-0.5 text-[10px] font-semibold ${inv.is_posted ? "text-emerald-600" : "text-amber-600"}`}>
-                                                            {inv.is_posted ? "Posted" : "Not Posted"}
+                                                    {(postDataToAccounts || (showDivisionCode && divisionCodeById(inv.division_id))) && (
+                                                        <div className="mt-0.5 flex items-center gap-1.5">
+                                                            {postDataToAccounts && (
+                                                                <span className={`text-[10px] font-semibold ${inv.is_posted ? "text-emerald-600" : "text-amber-600"}`}>
+                                                                    {inv.is_posted ? "Posted" : "Not Posted"}
+                                                                </span>
+                                                            )}
+                                                            {showDivisionCode && divisionCodeById(inv.division_id) && (
+                                                                <span
+                                                                    className="rounded bg-(--cl-accent)/10 px-1 py-0.5 text-[10px] font-bold text-(--cl-accent)"
+                                                                    title={inv.division_name ?? undefined}
+                                                                >
+                                                                    {divisionCodeById(inv.division_id)}
+                                                                </span>
+                                                            )}
                                                         </div>
                                                     )}
                                                 </td>
                                                 <td className={tdClass} style={{ width: "26%" }}>{inv.customer_name}</td>
-                                                {!currentDivision && (
-                                                    <td className={tdClass}>
-                                                        <span className="text-xs text-(--cl-text-muted)">{inv.division_name ?? "—"}</span>
-                                                    </td>
-                                                )}
                                                 <td className={`${tdClass} text-right`} style={{ width: "10%" }}>
                                                     {formatCurrency(inv.aggregate_amount)}
                                                 </td>
@@ -1021,8 +1066,14 @@ export const SalesEntrySection = () => {
                                                                     <span>Download Excel</span>
                                                                 </DropdownMenuItem>
                                                                 <DropdownMenuItem
-                                                                    className="flex items-center gap-2 cursor-pointer text-amber-500 focus:bg-amber-500/10 focus:text-amber-600"
-                                                                    onClick={() => { setSelectedBrand(String(inv.brand_id ?? "")); setEditInvoice(inv); setMode("new"); }}
+                                                                    className={`flex items-center gap-2 cursor-pointer ${inv.is_posted ? "text-(--cl-text-muted) opacity-50 cursor-not-allowed" : "text-amber-500 focus:bg-amber-500/10 focus:text-amber-600"}`}
+                                                                    onClick={() => {
+                                                                        if (inv.is_posted) {
+                                                                            toast.error("Posted invoices cannot be edited.");
+                                                                            return;
+                                                                        }
+                                                                        setSelectedBrand(String(inv.brand_id ?? "")); setEditInvoice(inv); setMode("new");
+                                                                    }}
                                                                 >
                                                                     <Pencil className="h-4 w-4" />
                                                                     <span>Edit Invoice</span>
@@ -1049,7 +1100,7 @@ export const SalesEntrySection = () => {
                                     </tbody>
                                     <tfoot className="sticky bottom-0 z-10 bg-(--cl-surface-2) shadow-[0_-1px_0_var(--cl-border)] border-t border-t-(--cl-border)">
                                         <tr>
-                                            <td className={tdClass} colSpan={currentDivision ? 4 : 5}>
+                                            <td className={tdClass} colSpan={4}>
                                                 <div className="flex items-center justify-between">
                                                     <span className="text-xs text-(--cl-text-muted)">{total} invoices</span>
                                                     <span className="font-bold text-(--cl-text)">Total:</span>

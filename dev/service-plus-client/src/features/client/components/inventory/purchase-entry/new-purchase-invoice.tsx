@@ -1,6 +1,6 @@
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { useFormContext, useFieldArray } from "react-hook-form";
-import { Loader2, Plus, ShieldCheck, ShieldOff } from "lucide-react";
+import { AlertTriangle, Loader2, Plus, ShieldCheck, ShieldOff } from "lucide-react";
 import { LineAddDeleteActions } from "../line-add-delete-actions";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
@@ -171,6 +171,7 @@ export const NewPurchaseInvoice = forwardRef<PurchaseInvoiceHandle, Props>(
         // Auto-detect IGST on vendor or division change
         useEffect(() => {
             if (!vendorId || editInvoice) return;
+            if (!isGstRegistered) { onIsIgstChange(false); return; }
             const vendor = vendors.find(v => v.id === vendorId);
             const vendorStateCode = vendor?.gst_state_code
                 ?? (vendor?.gstin && vendor.gstin.length >= 2 ? vendor.gstin.substring(0, 2) : null);
@@ -178,7 +179,7 @@ export const NewPurchaseInvoice = forwardRef<PurchaseInvoiceHandle, Props>(
                 onIsIgstChange(vendorStateCode !== divisionGstStateCode);
             }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        }, [vendorId, vendors, divisionGstStateCode, editInvoice]);
+        }, [vendorId, vendors, divisionGstStateCode, editInvoice, isGstRegistered]);
 
         // Populate form when editInvoice changes
         useEffect(() => {
@@ -284,10 +285,10 @@ export const NewPurchaseInvoice = forwardRef<PurchaseInvoiceHandle, Props>(
             return fields.every(l => {
                 if (!l.part_id || l.qty <= 0) return false;
                 const isGstApplicable = l.unit_price > 0 || l.gst_rate > 0;
-                if (isGstApplicable && !l.hsn_code.trim()) return false;
+                if (isGstRegistered && isGstApplicable && !l.hsn_code.trim()) return false;
                 return true;
             });
-        }, [fields]);
+        }, [fields, isGstRegistered]);
 
         useEffect(() => {
             onLinesValidChange(linesValid);
@@ -332,6 +333,21 @@ export const NewPurchaseInvoice = forwardRef<PurchaseInvoiceHandle, Props>(
 
         const removeLine = (idx: number) => {
             if (fields.length > 1) remove(idx);
+        };
+
+        // Changing the division wipes the whole entry (supplier, lines, tax mode,
+        // return flag) and starts fresh under the newly selected division.
+        const handleDivisionChange = (newDivisionId: number) => {
+            form.reset({
+                ...getPurchaseInvoiceDefaultValues(newDivisionId),
+                lines: [emptyLine(selectedBrandId)],
+            });
+            onIsIgstChange(false);
+            onIsReturnChange(false);
+            setOriginalLineIds([]);
+            setInvoiceExists(false);
+            setMasterDiffLines([]);
+            setShowPhysicalCheckModal(false);
         };
 
         // Totals
@@ -393,7 +409,7 @@ export const NewPurchaseInvoice = forwardRef<PurchaseInvoiceHandle, Props>(
                                 stock_transaction_type_id: txnTypeId,
                             }],
                         },
-                        ...(!isReturn && !line.under_warranty ? [{
+                        ...(!isReturn && !line.under_warranty && isGstRegistered ? [{
                             tableName: "spare_part_master",
                             xData: [{
                                 id: line.part_id!,
@@ -479,13 +495,15 @@ export const NewPurchaseInvoice = forwardRef<PurchaseInvoiceHandle, Props>(
         const handleConfirmedSubmit = async (physical: PhysicalValues) => {
             physicalValuesRef.current = physical;
             const lines = form.getValues("lines");
-            const diffLines = lines.filter(line => {
+            // Non-GST divisions never compare against or update the part master,
+            // so no diff confirmation is raised.
+            const diffLines = isGstRegistered ? lines.filter(line => {
                 if (!line.part_id) return false;
                 const hsnConflict   = line._orig_hsn_code   != null && line.hsn_code.trim() !== "" && line.hsn_code.trim() !== line._orig_hsn_code;
                 const priceConflict = line._orig_cost_price != null && line.unit_price > 0           && line.unit_price     !== line._orig_cost_price;
                 const gstConflict   = line._orig_gst_rate   != null && line.gst_rate  > 0            && line.gst_rate       !== line._orig_gst_rate;
                 return hsnConflict || priceConflict || gstConflict;
-            });
+            }) : [];
             if (diffLines.length > 0) {
                 setShowPhysicalCheckModal(false);
                 setMasterDiffLines(diffLines);
@@ -505,7 +523,7 @@ export const NewPurchaseInvoice = forwardRef<PurchaseInvoiceHandle, Props>(
             if (lines.length === 0 || lines.some(l => {
                 if (!l.part_id || l.qty <= 0) return true;
                 const isGstApplicable = l.unit_price > 0 || l.gst_rate > 0;
-                if (isGstApplicable && !l.hsn_code.trim()) return true;
+                if (isGstRegistered && isGstApplicable && !l.hsn_code.trim()) return true;
                 return false;
             })) {
                 toast.error(MESSAGES.ERROR_PURCHASE_LINE_FIELDS_REQUIRED);
@@ -612,11 +630,12 @@ export const NewPurchaseInvoice = forwardRef<PurchaseInvoiceHandle, Props>(
                                                 Division <span className="text-red-500 ml-0.5">*</span>
                                             </Label>
                                             <select
-                                                className={`w-full cursor-pointer rounded-md border px-3 py-2 text-sm bg-(--cl-surface-2) text-(--cl-text) focus:outline-none focus:ring-2 focus:ring-(--cl-accent)/30 ${
-                                                    !divisionId ? "border-red-500" : "border-(--cl-border)"
-                                                }`}
+                                                disabled={!!editInvoice}
+                                                className={`w-full rounded-md border px-3 py-2 text-sm bg-(--cl-surface-2) text-(--cl-text) focus:outline-none focus:ring-2 focus:ring-(--cl-accent)/30 ${
+                                                    editInvoice ? "cursor-not-allowed opacity-60" : "cursor-pointer"
+                                                } ${!divisionId ? "border-red-500" : "border-(--cl-border)"}`}
                                                 value={divisionId || ""}
-                                                onChange={e => form.setValue("division_id", e.target.value ? Number(e.target.value) : 0, { shouldValidate: true })}
+                                                onChange={e => handleDivisionChange(e.target.value ? Number(e.target.value) : 0)}
                                             >
                                                 <option value="">Select division…</option>
                                                 {availableDivisions.map(d => (
@@ -687,23 +706,44 @@ export const NewPurchaseInvoice = forwardRef<PurchaseInvoiceHandle, Props>(
                                                             }}
                                                             onClear={() => updateLine(idx, { part_code: "", part_id: null, part_name: "", hsn_code: "", unit_price: 0, gst_rate: 0, cgst_rate: 0, sgst_rate: 0, igst_rate: 0 })}
                                                             onSelect={part => {
-                                                                const masterGstRate    = Number(part.gst_rate ?? 0);
-                                                                const effectiveGstRate = (isGstRegistered && masterGstRate === 0)
-                                                                    ? defaultGstRate
-                                                                    : masterGstRate;
-                                                                updateLine(idx, {
-                                                                    part_id:          part.id,
-                                                                    brand_id:         part.brand_id,
-                                                                    part_code:        part.part_code,
-                                                                    part_name:        part.part_name,
-                                                                    uom:              part.uom,
-                                                                    hsn_code:         part.hsn_code ?? "",
-                                                                    unit_price:       Number(part.cost_price ?? 0),
-                                                                    gst_rate:         effectiveGstRate,
-                                                                    _orig_hsn_code:   part.hsn_code ?? null,
-                                                                    _orig_cost_price: part.cost_price ?? null,
-                                                                    _orig_gst_rate:   part.gst_rate ?? null,
-                                                                });
+                                                                const masterGstRate  = Number(part.gst_rate ?? 0);
+                                                                const baseCost       = Number(part.cost_price ?? 0);
+                                                                const common = {
+                                                                    part_id:   part.id,
+                                                                    brand_id:  part.brand_id,
+                                                                    part_code: part.part_code,
+                                                                    part_name: part.part_name,
+                                                                    uom:       part.uom,
+                                                                    hsn_code:  part.hsn_code ?? "",
+                                                                };
+                                                                if (isGstRegistered) {
+                                                                    // GST division: price is the master cost as-is; keep the
+                                                                    // originals so price/hsn/gst are compared and the master is
+                                                                    // updated on save.
+                                                                    const effectiveGstRate = masterGstRate === 0 ? defaultGstRate : masterGstRate;
+                                                                    updateLine(idx, {
+                                                                        ...common,
+                                                                        unit_price:       baseCost,
+                                                                        gst_rate:         effectiveGstRate,
+                                                                        _orig_hsn_code:   part.hsn_code ?? null,
+                                                                        _orig_cost_price: part.cost_price ?? null,
+                                                                        _orig_gst_rate:   part.gst_rate ?? null,
+                                                                    });
+                                                                } else {
+                                                                    // Non-GST division: gross the master cost up by the
+                                                                    // applicable GST rate (part master rate, else app default).
+                                                                    // No line HSN/GST, and no master comparison/update on save.
+                                                                    const gstRateForCalc = masterGstRate > 0 ? masterGstRate : (Number(defaultGstRate) || 0);
+                                                                    const grossedPrice   = Math.round(baseCost * (1 + gstRateForCalc / 100) * 100) / 100;
+                                                                    updateLine(idx, {
+                                                                        ...common,
+                                                                        unit_price:       grossedPrice,
+                                                                        gst_rate:         0,
+                                                                        _orig_hsn_code:   null,
+                                                                        _orig_cost_price: null,
+                                                                        _orig_gst_rate:   null,
+                                                                    });
+                                                                }
                                                             }}
                                                             onTabToNext={() => hsnInputRefs.current[idx]?.focus()}
                                                         />
@@ -734,7 +774,8 @@ export const NewPurchaseInvoice = forwardRef<PurchaseInvoiceHandle, Props>(
                                                     <td className={tdClass}>
                                                         <Input
                                                             ref={el => { hsnInputRefs.current[idx] = el; }}
-                                                            className={`${inputCls} bg-transparent border-transparent hover:border-(--cl-border) focus:bg-white ${(line.unit_price > 0 || line.gst_rate > 0) && !line.hsn_code.trim() ? "border-red-500 focus:border-red-500 ring-red-500/10 shadow-[0_0_0_1px_rgba(239,68,68,0.2)]" : ""}`}
+                                                            disabled={!isGstRegistered}
+                                                            className={`${inputCls} bg-transparent border-transparent hover:border-(--cl-border) focus:bg-white ${!isGstRegistered ? "opacity-50 cursor-not-allowed" : ""} ${isGstRegistered && (line.unit_price > 0 || line.gst_rate > 0) && !line.hsn_code.trim() ? "border-red-500 focus:border-red-500 ring-red-500/10 shadow-[0_0_0_1px_rgba(239,68,68,0.2)]" : ""}`}
                                                             placeholder="HSN"
                                                             value={line.hsn_code}
                                                             onChange={e => updateLine(idx, { hsn_code: e.target.value })}
@@ -756,16 +797,36 @@ export const NewPurchaseInvoice = forwardRef<PurchaseInvoiceHandle, Props>(
 
                                                     {/* Price */}
                                                     <td className={tdClass}>
-                                                        <Input
-                                                            className={`${inputCls} bg-transparent border-transparent hover:border-(--cl-border) focus:bg-white text-right font-medium ${line.under_warranty ? "opacity-50 cursor-not-allowed" : ""}`}
-                                                            min={0}
-                                                            step="0.01"
-                                                            type="number"
-                                                            value={line.unit_price}
-                                                            disabled={line.under_warranty}
-                                                            onChange={e => updateLine(idx, { unit_price: Number(e.target.value) })}
-                                                            onFocus={e => e.target.select()}
-                                                        />
+                                                        {(() => {
+                                                            const origCost = line._orig_cost_price;
+                                                            const priceChanged = isGstRegistered && !line.under_warranty && origCost != null
+                                                                && line.unit_price > 0 && Math.abs(line.unit_price - origCost) > 0.001;
+                                                            return (
+                                                                <div className="flex flex-col items-stretch">
+                                                                    <Input
+                                                                        className={`${inputCls} bg-transparent border-transparent hover:border-(--cl-border) focus:bg-white text-right font-medium ${line.under_warranty ? "opacity-50 cursor-not-allowed" : ""} ${priceChanged ? "!border-amber-400/60 ring-1 ring-amber-400/30 bg-amber-50/50 dark:bg-amber-500/10" : ""}`}
+                                                                        min={0}
+                                                                        step="0.01"
+                                                                        type="number"
+                                                                        value={line.unit_price}
+                                                                        disabled={line.under_warranty}
+                                                                        onChange={e => updateLine(idx, { unit_price: Number(e.target.value) })}
+                                                                        onFocus={e => e.target.select()}
+                                                                    />
+                                                                    {priceChanged && (
+                                                                        <div
+                                                                            className="mt-0.5 flex items-center justify-end gap-1 pr-1 leading-none animate-in fade-in slide-in-from-top-1 duration-200"
+                                                                            title={`Price changed from ₹${formatNumber(origCost!)} (part's master cost). Saving will update the part master.`}
+                                                                        >
+                                                                            <AlertTriangle className="h-2.5 w-2.5 shrink-0 text-red-500" />
+                                                                            <span className="text-[9px] font-bold uppercase tracking-tight text-red-500 tabular-nums">
+                                                                                was ₹{formatNumber(origCost!)}
+                                                                            </span>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            );
+                                                        })()}
                                                     </td>
 
                                                     {/* Subtotal (read-only) */}
@@ -776,11 +837,12 @@ export const NewPurchaseInvoice = forwardRef<PurchaseInvoiceHandle, Props>(
                                                     {/* GST % */}
                                                     <td className={tdClass}>
                                                         <Input
-                                                            className={`${inputCls} bg-transparent border-transparent hover:border-(--cl-border) focus:bg-white text-right font-semibold text-(--cl-accent)`}
+                                                            className={`${inputCls} bg-transparent border-transparent hover:border-(--cl-border) focus:bg-white text-right font-semibold text-(--cl-accent) ${!isGstRegistered ? "opacity-50 cursor-not-allowed" : ""}`}
+                                                            disabled={!isGstRegistered}
                                                             min={0}
                                                             step="0.01"
                                                             type="number"
-                                                            value={line.gst_rate}
+                                                            value={isGstRegistered ? line.gst_rate : 0}
                                                             onChange={e => updateLine(idx, { gst_rate: Number(e.target.value) })}
                                                             onFocus={e => e.target.select()}
                                                         />

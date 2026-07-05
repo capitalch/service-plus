@@ -92,11 +92,15 @@ export const ViewPurchaseInvoiceDialog = ({ invoice, open, onOpenChange, onShowP
                             size="sm"
                             className="h-8 gap-2 border-zinc-200 text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 font-bold uppercase tracking-widest text-[10px]"
                             onClick={() => {
-                                if (detail && onShowPdf) onShowPdf(detail);
+                                // Pass the original list row (carries division_id / branch_id /
+                                // supplier_id) so the preview resolves the same division, buyer
+                                // and vendor as the Actions → Invoice PDF path. The preview
+                                // dialog re-fetches the line detail itself.
+                                if (invoice && onShowPdf) onShowPdf(invoice);
                             }}
                         >
                             <FileDown className="h-3.5 w-3.5" />
-                            Show PDF
+                            Invoice PDF
                         </Button>
 
                     </div>

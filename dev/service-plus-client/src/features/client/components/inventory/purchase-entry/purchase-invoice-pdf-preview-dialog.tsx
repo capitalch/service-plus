@@ -19,10 +19,12 @@ import { selectCompanyName, selectCurrentBranch, selectSchema } from "@/store/co
 import type { BranchType } from "@/features/client/components/masters/branch/branch";
 import type { PurchaseInvoiceType, PurchaseLineType } from "@/features/client/types/purchase";
 import type { VendorType } from "@/features/client/types/vendor";
+import type { DivisionContextType } from "@/features/client/types/division";
 import { generatePurchaseInvoicePdf } from "./purchase-invoice-pdf-gen";
 
 export type Props = {
     branch:       BranchType | null;
+    division:     DivisionContextType | null;
     invoice:      PurchaseInvoiceType | null;
     open:         boolean;
     onOpenChange: (open: boolean) => void;
@@ -32,7 +34,7 @@ export type Props = {
 type GenericQueryData<T> = { genericQuery: T[] | null };
 type DetailRow = PurchaseInvoiceType & { lines: PurchaseLineType[] };
 
-export const PurchaseInvoicePdfPreviewDialog = ({ branch, invoice: propInvoice, onOpenChange, open, vendor }: Props) => {
+export const PurchaseInvoicePdfPreviewDialog = ({ branch, division, invoice: propInvoice, onOpenChange, open, vendor }: Props) => {
     const dbName        = useAppSelector(selectDbName);
     const schema        = useAppSelector(selectSchema);
     const companyName   = useAppSelector(selectCompanyName) || "Service Plus";
@@ -86,7 +88,7 @@ export const PurchaseInvoicePdfPreviewDialog = ({ branch, invoice: propInvoice, 
                 // 2. Generate PDF (tiny delay for modal entry)
                 await new Promise(r => setTimeout(r, 150));
                 
-                const doc     = generatePurchaseInvoicePdf(currentDetail, currentDetail.lines || [], companyName, branchName, vendor, branch);
+                const doc     = generatePurchaseInvoicePdf(currentDetail, currentDetail.lines || [], companyName, branchName, vendor, branch, division);
                 const pdfBlob = doc.output("blob");
                 const blobUrl = URL.createObjectURL(pdfBlob);
                 
@@ -104,14 +106,14 @@ export const PurchaseInvoicePdfPreviewDialog = ({ branch, invoice: propInvoice, 
         return () => {
             if (pdfUrl) URL.revokeObjectURL(pdfUrl);
         };
-    }, [open, propInvoice, dbName, schema, companyName, branchName, vendor, branch]);
+    }, [open, propInvoice, dbName, schema, companyName, branchName, vendor, branch, division]);
 
     const handleDownload = () => {
         const target = detail || propInvoice;
         if (!target) return;
         const lines = (target as any).lines || [];
         const filename = `purchase_invoice_${target.invoice_no || 'doc'}.pdf`;
-        generatePurchaseInvoicePdf(target as DetailRow, lines, companyName, branchName, vendor, branch, filename);
+        generatePurchaseInvoicePdf(target as DetailRow, lines, companyName, branchName, vendor, branch, division, filename);
     };
 
     return (

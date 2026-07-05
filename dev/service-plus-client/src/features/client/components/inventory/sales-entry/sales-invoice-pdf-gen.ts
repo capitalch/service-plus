@@ -75,7 +75,7 @@ export const generateSalesInvoicePdf = (
     const fromLines = buildAddressLines([
         division?.address_line1 ?? null,
         division?.address_line2 ?? null,
-        cityStatePinLine(division?.city, null, division?.pincode),
+        cityStatePinLine(division?.city, division?.state_name, division?.pincode),
         division?.phone ? `Ph: ${division.phone}`   : null,
         division?.gstin ? `GSTIN: ${division.gstin}` : null,
     ]);
@@ -157,7 +157,7 @@ export const generateSalesInvoicePdf = (
     const tableBody = lines.map((l, idx) => [
         idx + 1,
         l.part_code,
-        l.part_name,
+        [l.part_name, l.part_description].filter(Boolean).join(" "),
         l.hsn_code,
         Number(l.qty).toFixed(2),
         formatCurrency(l.unit_price).replace("₹", ""),
@@ -192,7 +192,7 @@ export const generateSalesInvoicePdf = (
     autoTable(doc, {
         body:    tableBody,
         foot:    tableFooter,
-        head:    [["#", "Part Code", "Part Name", "HSN", "Qty", "Price", "Aggregate", "CGST", "SGST", "IGST", "Total"]],
+        head:    [["#", "Part Code", "Details", "HSN", "Qty", "Price", "Aggregate", "CGST", "SGST", "IGST", "Total"]],
         margin:  { left: margin, right: margin },
         startY:  currY,
         theme:   "grid",

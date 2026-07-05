@@ -40,6 +40,7 @@ type Props = {
     isReturn:             boolean;
     onIsReturnChange:     (v: boolean) => void;
     onLinesValidChange:   (v: boolean) => void;
+    onDivisionChange:     (divisionId: number) => void;
     selectedBrandId:      number | null;
     brandName?:           string;
     editInvoice?:         SalesInvoiceType | null;
@@ -129,7 +130,7 @@ export function NewSalesInvoice({
     backCalcTarget, setBackCalcTarget,
     branchId,
     isIgst, setIsIgst, isReturn, onIsReturnChange,
-    onLinesValidChange,
+    onLinesValidChange, onDivisionChange,
     selectedBrandId, brandName, editInvoice,
     customerTypes, masterStates,
     customerId, setCustomerId,
@@ -167,10 +168,10 @@ export function NewSalesInvoice({
         if (lines.length === 0) return false;
         return lines.every(l => {
             if (!l.part_id || l.qty <= 0) return false;
-            if ((l.unit_price > 0 || l.gst_rate > 0) && !l.hsn_code.trim()) return false;
+            if (isGstMode && (l.unit_price > 0 || l.gst_rate > 0) && !l.hsn_code.trim()) return false;
             return true;
         });
-    }, [lines]);
+    }, [lines, isGstMode]);
 
     useEffect(() => { onLinesValidChange(linesValid); }, [linesValid, onLinesValidChange]);
 
@@ -241,6 +242,7 @@ export function NewSalesInvoice({
                 hsn_code:         l.hsn_code ?? "",
                 qty:         Number(l.qty),
                 unit_price:       Number(l.unit_price),
+                cost_price:       Number(l.cost_price ?? 0),
                 gst_rate:         Number(l.gst_rate ?? 0),
                 aggregate_amount: Number(l.aggregate_amount ?? l.taxable_amount ?? 0),
                 cgst_amount:      Number(l.cgst_amount ?? 0),
@@ -313,7 +315,7 @@ export function NewSalesInvoice({
 
     // Totals
     const totals = useMemo(() => {
-        let qty = 0, aggregate = 0, cgst = 0, sgst = 0, igst = 0;
+        let qty = 0, aggregate = 0, cgst = 0, sgst = 0, igst = 0, profit = 0;
         for (const l of lines) {
             const c    = calcLine(l, isIgst);
             qty  += l.qty;
@@ -321,8 +323,9 @@ export function NewSalesInvoice({
             cgst      += c.cgstAmt;
             sgst      += c.sgstAmt;
             igst      += c.igstAmt;
+            profit    += (l.unit_price - (l.cost_price ?? 0)) * l.qty;
         }
-        return { qty, aggregate, cgst, sgst, igst, total: aggregate + cgst + sgst + igst };
+        return { qty, aggregate, cgst, sgst, igst, profit, total: aggregate + cgst + sgst + igst };
     }, [lines, isIgst]);
 
     // Always keep target in sync with calculated total when lines change
@@ -490,11 +493,12 @@ export function NewSalesInvoice({
                                         Division <span className="text-red-500 ml-0.5">*</span>
                                     </Label>
                                     <select
-                                        className={`w-full cursor-pointer rounded-md border px-3 py-2 text-sm bg-(--cl-surface-2) text-(--cl-text) focus:outline-none focus:ring-2 focus:ring-(--cl-accent)/30 ${
-                                            !divisionId ? "border-red-500" : "border-(--cl-border)"
-                                        }`}
+                                        disabled={!!editInvoice}
+                                        className={`w-full rounded-md border px-3 py-2 text-sm bg-(--cl-surface-2) text-(--cl-text) focus:outline-none focus:ring-2 focus:ring-(--cl-accent)/30 ${
+                                            editInvoice ? "cursor-not-allowed opacity-60" : "cursor-pointer"
+                                        } ${!divisionId ? "border-red-500" : "border-(--cl-border)"}`}
                                         value={divisionId || ""}
-                                        onChange={e => form.setValue("division_id", e.target.value ? Number(e.target.value) : 0, { shouldValidate: true })}
+                                        onChange={e => onDivisionChange(e.target.value ? Number(e.target.value) : 0)}
                                     >
                                         <option value="">Select division…</option>
                                         {availableDivisions.map(d => (
@@ -580,8 +584,13 @@ export function NewSalesInvoice({
 
                                                             if (isGstMode) {
                                                                 computedCostPrice = baseCostPrice;
+                                                                // MRP is GST-inclusive; the Price field holds the pre-GST
+                                                                // (taxable) price, so back the tax out of MRP to derive it.
+                                                                const mrpExGst = Number(part.mrp) > 0
+                                                                    ? Math.round((Number(part.mrp) / (1 + gstRateForCalc / 100)) * 100) / 100
+                                                                    : 0;
                                                                 const markupPrice = Math.round(baseCostPrice * (1 + markupPct / 100) * 100) / 100;
-                                                                unitPrice = Number(part.mrp) || Number(part.selling_price) || markupPrice;
+                                                                unitPrice = mrpExGst || Number(part.selling_price) || markupPrice;
                                                             } else {
                                                                 computedCostPrice = Math.round(baseCostPrice * (1 + gstRateForCalc / 100) * 100) / 100;
                                                                 const sellingWithGst = Number(part.selling_price) > 0
@@ -611,7 +620,8 @@ export function NewSalesInvoice({
                                                 <td className={tdClass}>
                                                     <Input
                                                         ref={el => { hsnInputRefs.current[idx] = el; }}
-                                                        className={`${inputCls} bg-transparent border-transparent hover:border-(--cl-border) focus:bg-white ${(line.unit_price > 0 || line.gst_rate > 0) && !line.hsn_code.trim() ? "border-red-500 focus:border-red-500 ring-red-500/10 shadow-[0_0_0_1px_rgba(239,68,68,0.2)]" : ""}`}
+                                                        disabled={!isGstMode}
+                                                        className={`${inputCls} bg-transparent border-transparent hover:border-(--cl-border) focus:bg-white ${!isGstMode ? "opacity-50 cursor-not-allowed" : ""} ${isGstMode && (line.unit_price > 0 || line.gst_rate > 0) && !line.hsn_code.trim() ? "border-red-500 focus:border-red-500 ring-red-500/10 shadow-[0_0_0_1px_rgba(239,68,68,0.2)]" : ""}`}
                                                         placeholder="HSN"
                                                         value={line.hsn_code}
                                                         onChange={e => updateLine(idx, { hsn_code: e.target.value })}
@@ -652,11 +662,12 @@ export function NewSalesInvoice({
                                                 {/* GST % */}
                                                 <td className={tdClass}>
                                                     <Input
-                                                        className={`${inputCls} bg-transparent border-transparent hover:border-(--cl-border) focus:bg-white text-right font-semibold text-(--cl-accent)`}
+                                                        className={`${inputCls} bg-transparent border-transparent hover:border-(--cl-border) focus:bg-white text-right font-semibold text-(--cl-accent) ${!isGstMode ? "opacity-50 cursor-not-allowed" : ""}`}
+                                                        disabled={!isGstMode}
                                                         min={0}
                                                         step="0.01"
                                                         type="number"
-                                                        value={line.gst_rate}
+                                                        value={isGstMode ? line.gst_rate : 0}
                                                         onChange={e => updateLine(idx, { gst_rate: Number(e.target.value) })}
                                                         onFocus={e => e.target.select()}
                                                     />
@@ -693,13 +704,27 @@ export function NewSalesInvoice({
                                                 </td>
 
                                                 {/* Remarks */}
-                                                <td className={tdClass}>
+                                                <td className={`${tdClass} relative`}>
                                                     <Input
                                                         className={`${inputCls} bg-transparent border-transparent hover:border-(--cl-border) focus:bg-white`}
                                                         placeholder="Remarks"
                                                         value={line.remarks}
                                                         onChange={e => updateLine(idx, { remarks: e.target.value })}
                                                     />
+                                                    {(() => {
+                                                        const profit = (line.unit_price - (line.cost_price ?? 0)) * line.qty;
+                                                        return (
+                                                            <span
+                                                                title="Line profit"
+                                                                className={`pointer-events-none absolute bottom-0.5 right-1 flex items-center gap-0.5 rounded px-1 text-[9px] font-bold leading-none tabular-nums ${
+                                                                    profit < 0 ? "bg-red-500/10 text-red-600" : "bg-emerald-500/10 text-emerald-600"
+                                                                }`}
+                                                            >
+                                                                <span className="opacity-60">P</span>
+                                                                {formatNumber(profit)}
+                                                            </span>
+                                                        );
+                                                    })()}
                                                 </td>
 
                                                 {/* Actions */}
@@ -747,7 +772,14 @@ export function NewSalesInvoice({
                                         <td className="p-0.5 border-t border-(--cl-border) text-right px-2 font-mono tabular-nums text-xs font-bold text-(--cl-accent)">
                                             ₹{formatNumber(totals.total)}
                                         </td>
-                                        <td className="p-0.5 border-t border-(--cl-border)" />
+                                        <td className="p-0.5 border-t border-(--cl-border) text-right px-1" title="Total profit">
+                                            <span className={`inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[10px] font-bold leading-none tabular-nums ${
+                                                totals.profit < 0 ? "bg-red-500/10 text-red-600" : "bg-emerald-500/10 text-emerald-600"
+                                            }`}>
+                                                <span className="opacity-60">P</span>
+                                                ₹{formatNumber(totals.profit)}
+                                            </span>
+                                        </td>
                                         <td className="p-0.5 border-t border-(--cl-border)" />
                                     </tr>
                                 </tfoot>

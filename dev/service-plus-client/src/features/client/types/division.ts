@@ -28,6 +28,7 @@ export type DivisionType = {
     address_line2:    string | null;
     city:             string | null;
     state_id:         number;
+    state_name:       string | null;
     country:          string | null;
     pincode:          string | null;
     phone:            string | null;
@@ -41,7 +42,7 @@ export type DivisionType = {
 
 export type DivisionContextType = Pick<DivisionType,
     'id' | 'code' | 'name' | 'address_line1' | 'address_line2' |
-    'city' | 'state_id' | 'country' | 'pincode' | 'phone' | 'email' |
+    'city' | 'state_id' | 'state_name' | 'country' | 'pincode' | 'phone' | 'email' |
     'gstin' | 'gst_state_code' | 'web_site'
 >;
 

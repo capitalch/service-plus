@@ -4,6 +4,7 @@ import { formatCurrency } from "@/lib/utils";
 import type { PurchaseInvoiceType, PurchaseLineType } from "@/features/client/types/purchase";
 import type { BranchType } from "@/features/client/components/masters/branch/branch";
 import type { VendorType } from "@/features/client/types/vendor";
+import type { DivisionContextType } from "@/features/client/types/division";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -29,6 +30,7 @@ export const generatePurchaseInvoicePdf = (
     branchName:  string,
     vendor:      VendorType | null,
     branch:      BranchType | null,
+    division:    DivisionContextType | null,
     saveAs?:     string
 ): jsPDF => {
     const doc = new jsPDF({ format: "a4", orientation: "p", unit: "mm" });
@@ -58,6 +60,7 @@ export const generatePurchaseInvoicePdf = (
     const rightX = midX + (colGap / 2);
 
     // Header Row 1: BILLED FROM (Left) | INVOICE DETAILS (Right)
+    const partyHeaderY = currY;
     doc.setFontSize(7.5);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(100, 100, 100);
@@ -70,7 +73,10 @@ export const generatePurchaseInvoicePdf = (
     doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(20, 20, 20);
-    doc.text(fromName, leftX, currY, { maxWidth: colW });
+    // Wrap the supplier name within the left column and advance past every
+    // wrapped line so the address block below never overlaps it.
+    const fromNameLines = doc.splitTextToSize(fromName, colW) as string[];
+    fromNameLines.forEach((l, idx) => doc.text(l, leftX, currY + (idx * 4.5)));
 
     doc.setFontSize(7);
     doc.setTextColor(110, 110, 110);
@@ -78,7 +84,7 @@ export const generatePurchaseInvoicePdf = (
     doc.setFontSize(9);
     doc.setTextColor(30, 30, 30);
     doc.text(invoice.invoice_no, rightX + 22, currY);
-    currY += 4.5;
+    currY += (fromNameLines.length * 4.5) + 1;
 
     // Row 1 Cont: Supplier Address (Left) | Invoice Date (Right)
     const fromLines = buildAddressLines([
@@ -87,6 +93,7 @@ export const generatePurchaseInvoicePdf = (
         cityStatePinLine(vendor?.city, vendor?.state_name, vendor?.pincode),
         vendor?.phone  ? `Ph: ${vendor.phone}`    : null,
         vendor?.gstin  ? `GSTIN: ${vendor.gstin}` : null,
+        vendor?.gst_state_code ? `State Code: ${vendor.gst_state_code}` : null,
     ]);
 
     doc.setFont("helvetica", "normal");
@@ -94,10 +101,15 @@ export const generatePurchaseInvoicePdf = (
     doc.setTextColor(60, 60, 60);
 
     const partyRow1ContentStartY = currY; // Start of addresses/meta
-    
-    // Draw supplier lines
-    fromLines.forEach((l, idx) => {
-        doc.text(l, leftX, partyRow1ContentStartY + (idx * 4.2), { maxWidth: colW });
+
+    // Draw supplier lines. Each entry is wrapped within the column and the
+    // running Y advances per wrapped line, so long lines never overlap the next.
+    let fromLinesY = partyRow1ContentStartY;
+    fromLines.forEach(l => {
+        (doc.splitTextToSize(l, colW) as string[]).forEach(w => {
+            doc.text(w, leftX, fromLinesY);
+            fromLinesY += 4.2;
+        });
     });
 
     // Draw Right Meta Side (Date & State Code)
@@ -111,7 +123,7 @@ export const generatePurchaseInvoicePdf = (
     doc.text(invoice.invoice_date, rightX + 22, currentMetaY);
 
     // Row 1 End
-    const row1MaxY = Math.max(partyRow1ContentStartY + (fromLines.length * 4.2), currentMetaY + 4.2);
+    const row1MaxY = Math.max(fromLinesY, currentMetaY + 4.2);
     currY = row1MaxY + 6;
 
     // Thick Divider between Row 1 and Row 2
@@ -127,35 +139,53 @@ export const generatePurchaseInvoicePdf = (
     doc.text("BILLED TO (Buyer)", leftX, currY);
     currY += 4.5;
 
-    const toName   = companyName;
-    const toBranch = branch?.name ?? branchName;
-    const toLines = buildAddressLines([
-        `Branch: ${toBranch}`,
-        branch?.address_line1 ?? null,
-        branch?.address_line2 ?? null,
-        cityStatePinLine(branch?.city, branch?.state_name, branch?.pincode),
-        branch?.phone ? `Ph: ${branch.phone}`   : null,
-        branch?.gstin ? `GSTIN: ${branch.gstin}` : null,
-    ]);
+    // Buyer is the applicable division (its name + full address). Fall back to
+    // the company/branch details only when no division is available.
+    const toWidth = pageWidth - (margin * 2);
+    const toName  = division?.name ?? companyName;
+    const toLines = buildAddressLines(
+        division
+            ? [
+                division.address_line1 ?? null,
+                division.address_line2 ?? null,
+                cityStatePinLine(division.city, division.state_name, division.pincode),
+                division.phone ? `Ph: ${division.phone}`   : null,
+                division.gstin ? `GSTIN: ${division.gstin}` : null,
+                division.gst_state_code ? `State Code: ${division.gst_state_code}` : null,
+            ]
+            : [
+                `Branch: ${branch?.name ?? branchName}`,
+                branch?.address_line1 ?? null,
+                branch?.address_line2 ?? null,
+                cityStatePinLine(branch?.city, branch?.state_name, branch?.pincode),
+                branch?.phone ? `Ph: ${branch.phone}`   : null,
+                branch?.gstin ? `GSTIN: ${branch.gstin}` : null,
+            ]
+    );
 
     doc.setFontSize(10);
     doc.setTextColor(20, 20, 20);
-    doc.text(toName, leftX, currY, { maxWidth: pageWidth - (margin * 2) });
-    currY += 4.5;
+    const toNameLines = doc.splitTextToSize(toName, toWidth) as string[];
+    toNameLines.forEach((l, idx) => doc.text(l, leftX, currY + (idx * 4.5)));
+    currY += toNameLines.length * 4.5;
 
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8.5);
     doc.setTextColor(60, 60, 60);
-    toLines.forEach((l, idx) => {
-        doc.text(l, leftX, currY + (idx * 4.2), { maxWidth: pageWidth - (margin * 2) });
+    let toLinesY = currY;
+    toLines.forEach(l => {
+        (doc.splitTextToSize(l, toWidth) as string[]).forEach(w => {
+            doc.text(w, leftX, toLinesY);
+            toLinesY += 4.2;
+        });
     });
 
-    const row2End = currY + (toLines.length * 4.2);
+    const row2End = toLinesY;
     currY = row2End + 2;
 
     // Vertical Divider (spans precisely Row 1 only)
     doc.setDrawColor(220, 220, 220);
-    doc.line(midX, partyRow1ContentStartY - 15, midX, row1MaxY + 2);
+    doc.line(midX, partyHeaderY - 3, midX, row1MaxY + 2);
 
 
     // currY += 6;
@@ -164,7 +194,7 @@ export const generatePurchaseInvoicePdf = (
     const tableBody = lines.map((l, idx) => [
         idx + 1,
         l.part_code,
-        l.part_name,
+        [l.part_name, l.part_description].filter(Boolean).join(" "),
         l.hsn_code,
         Number(l.qty).toFixed(2),
         formatCurrency(l.unit_price).replace("₹", ""),
@@ -199,7 +229,7 @@ export const generatePurchaseInvoicePdf = (
     autoTable(doc, {
         body:   tableBody,
         foot:   tableFooter,
-        head:   [["#", "Part Code", "Part Name", "HSN", "Qty", "Price", "Aggregate", "CGST", "SGST", "IGST", "Total"]],
+        head:   [["#", "Part Code", "Details", "HSN", "Qty", "Price", "Aggregate", "CGST", "SGST", "IGST", "Total"]],
         margin: { left: margin, right: margin },
         startY: currY,
         theme:  "grid",

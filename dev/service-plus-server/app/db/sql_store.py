@@ -610,7 +610,7 @@ class SqlStore:
         SELECT d.id, d.branch_id, d.code, d.name, d.address_line1, d.address_line2,
                d.city, d.state_id, d.country, d.pincode, d.phone, d.email,
                d.gstin, d.web_site,
-               s.gst_state_code, s.id AS state_id
+               s.gst_state_code, s.id AS state_id, s.name AS state_name
         FROM division d
         LEFT JOIN state s ON s.id = d.state_id
         WHERE d.branch_id = (table "p_branch_id") AND d.is_active = true
@@ -2165,19 +2165,16 @@ class SqlStore:
 
     GET_PURCHASE_INVOICES_COUNT = """
         with
-            "p_branch_id" as (values(%(branch_id)s::bigint)),
-            "p_from_date" as (values(%(from_date)s::date)),
-            "p_to_date"   as (values(%(to_date)s::date)),
-            "p_search"    as (values(%(search)s::text))
-        -- with
-        --     "p_branch_id" as (values(1::bigint)),           -- Test line
-        --     "p_from_date" as (values('2024-01-01'::date)),   -- Test line
-        --     "p_to_date"   as (values('2024-12-31'::date)),   -- Test line
-        --     "p_search"    as (values(''::text))              -- Test line
+            "p_branch_id"   as (values(%(branch_id)s::bigint)),
+            "p_division_id" as (values(%(division_id)s::bigint)),
+            "p_from_date"   as (values(%(from_date)s::date)),
+            "p_to_date"     as (values(%(to_date)s::date)),
+            "p_search"      as (values(%(search)s::text))
         SELECT COUNT(*) AS total
         FROM purchase_invoice pi
         JOIN supplier s ON s.id = pi.supplier_id
         WHERE pi.branch_id = (table "p_branch_id")
+          AND ((table "p_division_id") IS NULL OR pi.division_id = (table "p_division_id"))
           AND pi.invoice_date BETWEEN (table "p_from_date") AND (table "p_to_date")
           AND ((table "p_search") = ''
            OR LOWER(pi.invoice_no)  LIKE '%%' || LOWER((table "p_search")) || '%%'
@@ -2186,10 +2183,11 @@ class SqlStore:
 
     GET_PURCHASE_INVOICES_TOTALS = """
         with
-            "p_branch_id" as (values(%(branch_id)s::bigint)),
-            "p_from_date" as (values(%(from_date)s::date)),
-            "p_to_date"   as (values(%(to_date)s::date)),
-            "p_search"    as (values(%(search)s::text))
+            "p_branch_id"   as (values(%(branch_id)s::bigint)),
+            "p_division_id" as (values(%(division_id)s::bigint)),
+            "p_from_date"   as (values(%(from_date)s::date)),
+            "p_to_date"     as (values(%(to_date)s::date)),
+            "p_search"      as (values(%(search)s::text))
         SELECT
             COALESCE(SUM(pi.aggregate_amount), 0) AS aggregate_amount,
             COALESCE(SUM(pi.cgst_amount),      0) AS cgst_amount,
@@ -2199,6 +2197,7 @@ class SqlStore:
         FROM purchase_invoice pi
         JOIN supplier s ON s.id = pi.supplier_id
         WHERE pi.branch_id = (table "p_branch_id")
+          AND ((table "p_division_id") IS NULL OR pi.division_id = (table "p_division_id"))
           AND pi.invoice_date BETWEEN (table "p_from_date") AND (table "p_to_date")
           AND ((table "p_search") = ''
            OR LOWER(pi.invoice_no)  LIKE '%%' || LOWER((table "p_search")) || '%%'
@@ -2207,12 +2206,13 @@ class SqlStore:
 
     GET_PURCHASE_INVOICES_PAGED = """
         with
-            "p_branch_id" as (values(%(branch_id)s::bigint)),
-            "p_from_date" as (values(%(from_date)s::date)),
-            "p_to_date"   as (values(%(to_date)s::date)),
-            "p_search"    as (values(%(search)s::text)),
-            "p_limit"     as (values(%(limit)s::int)),
-            "p_offset"    as (values(%(offset)s::int))
+            "p_branch_id"   as (values(%(branch_id)s::bigint)),
+            "p_division_id" as (values(%(division_id)s::bigint)),
+            "p_from_date"   as (values(%(from_date)s::date)),
+            "p_to_date"     as (values(%(to_date)s::date)),
+            "p_search"      as (values(%(search)s::text)),
+            "p_limit"       as (values(%(limit)s::int)),
+            "p_offset"      as (values(%(offset)s::int))
         -- with
         --     "p_branch_id" as (values(1::bigint)),           -- Test line
         --     "p_from_date" as (values('2024-01-01'::date)),   -- Test line
@@ -2223,6 +2223,8 @@ class SqlStore:
         SELECT
             pi.id,
             pi.branch_id,
+            pi.division_id,
+            d.name        AS division_name,
             pi.brand_id,
             pi.supplier_id,
             s.name        AS supplier_name,
@@ -2239,7 +2241,9 @@ class SqlStore:
             pi.is_posted
         FROM purchase_invoice pi
         JOIN supplier s ON s.id = pi.supplier_id
+        JOIN division d ON d.id = pi.division_id
         WHERE pi.branch_id = (table "p_branch_id")
+          AND ((table "p_division_id") IS NULL OR pi.division_id = (table "p_division_id"))
           AND pi.invoice_date BETWEEN (table "p_from_date") AND (table "p_to_date")
           AND ((table "p_search") = ''
            OR LOWER(pi.invoice_no)  LIKE '%%' || LOWER((table "p_search")) || '%%'
@@ -2319,6 +2323,7 @@ class SqlStore:
                     'part_id',          pil.part_id,
                     'part_code',        sp.part_code,
                     'part_name',        sp.part_name,
+                    'part_description', sp.part_description,
                     'hsn_code',         pil.hsn_code,
                     'qty',         pil.qty,
                     'unit_price',       pil.unit_price,
@@ -2563,6 +2568,7 @@ class SqlStore:
                     'part_id',          sil.part_id,
                     'part_code',        sp.part_code,
                     'part_name',        sp.part_name,
+                    'part_description', sp.part_description,
                     'item_description', sil.item_description,
                     'hsn_code',         sil.hsn_code,
                     'qty',              sil.qty,

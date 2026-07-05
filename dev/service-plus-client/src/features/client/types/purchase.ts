@@ -11,6 +11,7 @@ export type PurchaseLineType = {
     part_id:             number;
     part_code:           string;
     part_name:           string;
+    part_description:    string | null;
     hsn_code:            string;
     qty:                 number;
     unit_price:          number;
@@ -27,6 +28,8 @@ export type PurchaseLineType = {
 export type PurchaseInvoiceType = {
     id:                  number;
     branch_id:           number;
+    division_id:         number | null;
+    division_name?:      string | null;
     brand_id:            number;
     supplier_id:         number;
     supplier_name:       string;
