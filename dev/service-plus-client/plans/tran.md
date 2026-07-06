@@ -7,4 +7,3 @@
 - Do proper totalling of line items (Amount, Gst Amount, Total Amount) in the footer
 - Provide an input box for Target Amount at footer and also provide button for back calculation of the prices. This will behave similar to "Final a Job" drill down "Target Amount" and back calculate
 - The screen should work for both new and editing the invoice. If editing then it should fetch the data from the server and display the data in the screen.
-- give you plan to plans/plan.md
