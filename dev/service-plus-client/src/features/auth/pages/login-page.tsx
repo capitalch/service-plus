@@ -20,6 +20,7 @@ export const LoginPage = () => {
       clientId: 'test',
       token: 'test-token',
       refreshToken: 'test-refresh-token',
+      rememberMe: false,
       user: { email: 'super.admin@serviceplus.io', userType: 'S', username: 'S' },
     }));
     navigate(ROUTES.superAdmin.root);
