@@ -1,11 +1,16 @@
 # To Do
-- Testing
+- Brief to do's before 1st release
 	- Create a systematic manual testing numbered steps for All items in Jobs menu item. Give your plan in plans/plan.md
-	- Test plan script
+	- Inventory menu item test scripts
+	- Access management
+	- Validate creation of new client / Bu / Branch / Division end to end
+	- Security of server config file
+	- Cleanup of wanrnings and extra code
+	- Account icon implement
 - Bug fix
 								- When division changes, corresponding GST info is not changed in sales. Amount for spare should be same in gst / non-gst. Robust testing for sales invoie is done w.r.o mrp, selling price and no price
 								- Extra "}" in details line items of sales
-	- Purchase Entry
+							- Purchase Entry
 								- Show pdf shows Service Plus as Buyer. Buyer info should have details of applicable division
 								- Disable delete from posted entries
 								- in small screen auto scrollbar not appearing
@@ -19,12 +24,10 @@
 								- Add contactsId to posting of sales
 								- Warranty job transactions: allow adding spare parts
 							- Error when final a Job. Final amount possible without providing details
-- Enhancements
+						- Enhancements
 								- in sales_invoice_line add a column cost_price which works as snapshot price. Populate them at the time of saving
 								- When there is no part code, then include description in remarks
-	- Access management
-	- Validate creation of new client / Bu / Branch / Division end to end
-	- Security of server config file
+	
 							- Account posting: Service account instead of super admin
 							- In all drill down grids of Job Pipeline, final a job and Deliver Job including all tabs: for action dropdown and corresponding actions, follow the same pattern of row selection and page and row and scroll position retention.
 							- Draft Invoice info for finalised jobs
@@ -34,9 +37,8 @@
 								- undo final for final jobs
 								- undo delivery / undo last transactions for closed jobs
 								- Also make drill down buttons for undo final and undo delivery
-- QA
-	- Accounts Posting
-		- concatenate part name and description along with part code
+						- QA
+							- Accounts Posting
 							- sales invoice
 								- In remarks write: "Sale Invoice"
 								- Check customer GSTIN No transfer: Not transferring
@@ -44,9 +46,9 @@
 								- Proper HSN for parts and service
 								- Upload trace-plus and check account posting online at serviceplus.cloudjiffy.net
 	
-- Login
-	- Forgot password
-	- Remember me
+							- Login
+								- Forgot password
+								- Remember me
 
 							- Enhancements
 								- Guard invoice without delivery
@@ -523,7 +525,3 @@
 									- Finalize tables
 									- database objects
 									- complete
-- Deployment
-	- cloudjiffy env
-		- Create database
-		- Setup fastapi

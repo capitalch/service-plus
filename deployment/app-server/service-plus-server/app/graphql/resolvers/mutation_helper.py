@@ -2383,7 +2383,7 @@ async def _post_tran_h_to_trace_plus(
         "data":       tran_h_payload,
     }))
     resp = await http_client.post(
-        f"{settings.trace_plus_url}/internal/accounts-posting",
+        f"{settings.trace_plus_url}/api/internal/accounts-posting",
         json={"value": trace_value},
         headers={"X-Service-Key": settings.trace_plus_service_key},
         timeout=30.0,

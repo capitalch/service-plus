@@ -8,6 +8,7 @@ import { OperationTypeNode } from 'graphql';
 import { createClient } from 'graphql-ws';
 import { getApiBaseUrl } from './utils';
 import { refreshAccessToken } from './auth-service';
+import { getAuthItem, setAuthItem } from './auth-storage';
 
 function getGqlHttpUrl(): string {
     return `${getApiBaseUrl()}/graphql/`;
@@ -18,7 +19,7 @@ function getGqlWsUrl(): string {
 }
 
 function getAuthToken() {
-    return localStorage.getItem('accessToken');
+    return getAuthItem('accessToken');
 }
 
 // Auth link: attach token to every request
@@ -39,14 +40,14 @@ const errorLink = new ErrorLink(({ error, operation, forward }) => {
         (error as ServerError)?.statusCode === 401;
 
     if (isUnauthorized) {
-        const storedRefreshToken = localStorage.getItem('refreshToken');
+        const storedRefreshToken = getAuthItem('refreshToken');
         if (!storedRefreshToken) return;
 
         return new Observable(observer => {
             refreshAccessToken(storedRefreshToken)
                 .then(data => {
-                    localStorage.setItem('accessToken', data.accessToken);
-                    localStorage.setItem('refreshToken', data.refreshToken);
+                    setAuthItem('accessToken', data.accessToken);
+                    setAuthItem('refreshToken', data.refreshToken);
                     operation.setContext({
                         headers: {
                             ...operation.getContext().headers,

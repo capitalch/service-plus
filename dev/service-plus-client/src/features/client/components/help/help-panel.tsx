@@ -95,6 +95,15 @@ const CAT_STYLE: Record<string, CategoryStyle> = {
         stepText: "text-white",
         border:   "border-indigo-300 dark:border-indigo-700",
     },
+    "Access Management": {
+        emoji:    "🔐",
+        gradient: "from-rose-500 to-pink-600",
+        pill:     "bg-rose-100 dark:bg-rose-900/40",
+        pillText: "text-rose-700 dark:text-rose-300",
+        stepBg:   "bg-rose-500",
+        stepText: "text-white",
+        border:   "border-rose-300 dark:border-rose-700",
+    },
     "Troubleshooting": {
         emoji:    "🆘",
         gradient: "from-fuchsia-500 to-purple-600",
@@ -374,7 +383,7 @@ function SearchResults({ query, results, onSelect }: {
     }
 
     return (
-        <div className="overflow-y-auto py-3">
+        <div className="h-full overflow-y-auto py-3">
             <p className="px-5 pb-2 text-[11px] font-bold uppercase tracking-wider text-(--cl-text-muted)/60">
                 {results.length} result{results.length !== 1 ? "s" : ""}
             </p>
@@ -409,7 +418,7 @@ function HomeView({ onSelectCategory, onSelectArticle }: {
     const popular = POPULAR_IDS.map(id => HELP_ARTICLES.find(a => a.id === id)).filter(Boolean) as HelpArticle[];
 
     return (
-        <div className="overflow-y-auto">
+        <div className="h-full overflow-y-auto">
             {/* Category grid */}
             <div className="px-4 pt-4 pb-3">
                 <p className="mb-3 text-[11px] font-bold uppercase tracking-wider text-(--cl-text-muted)/70">Browse by topic</p>

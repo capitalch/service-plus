@@ -1,6 +1,7 @@
 import { createSlice } from '@reduxjs/toolkit';
 import type { PayloadAction } from '@reduxjs/toolkit';
 import type { UserInstanceType } from '@/lib/auth-service';
+import { clearAuthStorage, getAuthItem, setAuthItem, setRememberFlag } from '@/lib/auth-storage';
 
 /**
  * Authentication State Interface
@@ -19,11 +20,18 @@ type AuthState = {
  * Loads token and user from localStorage if available
  */
 function loadInitialState(): AuthState {
-    const token       = localStorage.getItem('accessToken');
-    const refreshToken = localStorage.getItem('refreshToken');
-    const userStr     = localStorage.getItem('user');
+    const token       = getAuthItem('accessToken');
+    const refreshToken = getAuthItem('refreshToken');
+    const userStr     = getAuthItem('user');
     const user        = userStr ? JSON.parse(userStr) : null;
-    const sessionMode = localStorage.getItem('sessionMode') as 'admin' | 'client' | null;
+    let sessionMode   = getAuthItem('sessionMode') as 'admin' | 'client' | null;
+
+    // Self-heal stale/legacy sessions (token + user present but no valid sessionMode):
+    // App/ProtectedRoute otherwise bounce forever between '/' and '/client'.
+    if (token && user && user.userType !== 'S' && sessionMode !== 'admin' && sessionMode !== 'client') {
+        sessionMode = 'client';
+        setAuthItem('sessionMode', sessionMode);
+    }
 
     return {
         isAuthenticated:  !!token,
@@ -51,28 +59,29 @@ export const authSlice = createSlice({
          */
         setCredentials: (
             state,
-            action: PayloadAction<{ user: UserInstanceType; token: string; refreshToken: string; clientId: string }>
+            action: PayloadAction<{ user: UserInstanceType; token: string; refreshToken: string; clientId: string; rememberMe: boolean }>
         ) => {
-            const { user, token, refreshToken, clientId } = action.payload;
+            const { user, token, refreshToken, clientId, rememberMe } = action.payload;
             state.isAuthenticated  = true;
             state.selectedClientId = clientId;
             state.token            = token;
             state.refreshToken     = refreshToken;
             state.user             = user;
 
-            // Persist to localStorage
-            localStorage.setItem('accessToken', token);
-            localStorage.setItem('refreshToken', refreshToken);
-            localStorage.setItem('selectedClientId', clientId);
-            localStorage.setItem('user', JSON.stringify(user));
+            // Persist to localStorage (remembered) or sessionStorage (this browser session only)
+            setRememberFlag(rememberMe);
+            setAuthItem('accessToken', token);
+            setAuthItem('refreshToken', refreshToken);
+            setAuthItem('selectedClientId', clientId);
+            setAuthItem('user', JSON.stringify(user));
             if (user.clientCode) {
-                localStorage.setItem('clientCode', user.clientCode);
+                setAuthItem('clientCode', user.clientCode);
             }
         },
 
         setSessionMode: (state, action: PayloadAction<'admin' | 'client'>) => {
             state.sessionMode = action.payload;
-            localStorage.setItem('sessionMode', action.payload);
+            setAuthItem('sessionMode', action.payload);
         },
 
         /**
@@ -85,8 +94,8 @@ export const authSlice = createSlice({
             const { token, refreshToken } = action.payload;
             state.token = token;
             state.refreshToken = refreshToken;
-            localStorage.setItem('accessToken', token);
-            localStorage.setItem('refreshToken', refreshToken);
+            setAuthItem('accessToken', token);
+            setAuthItem('refreshToken', refreshToken);
         },
 
         /**
@@ -100,13 +109,7 @@ export const authSlice = createSlice({
             state.refreshToken     = null;
             state.user             = null;
 
-            // Clear localStorage
-            localStorage.removeItem('accessToken');
-            localStorage.removeItem('refreshToken');
-            localStorage.removeItem('selectedClientId');
-            localStorage.removeItem('sessionMode');
-            localStorage.removeItem('user');
-            localStorage.removeItem('clientCode');
+            clearAuthStorage();
         },
 
         /**
@@ -115,7 +118,7 @@ export const authSlice = createSlice({
         updateUser: (state, action: PayloadAction<Partial<UserInstanceType>>) => {
             if (state.user) {
                 state.user = { ...state.user, ...action.payload };
-                localStorage.setItem('user', JSON.stringify(state.user));
+                setAuthItem('user', JSON.stringify(state.user));
             }
         },
 
@@ -124,7 +127,7 @@ export const authSlice = createSlice({
          */
         setSelectedClient: (state, action: PayloadAction<string>) => {
             state.selectedClientId = action.payload;
-            localStorage.setItem('selectedClientId', action.payload);
+            setAuthItem('selectedClientId', action.payload);
         },
     },
 });

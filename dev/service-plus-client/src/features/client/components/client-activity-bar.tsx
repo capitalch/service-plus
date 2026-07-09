@@ -1,9 +1,18 @@
-import { BarChart3, BookOpen, Package, ShieldCheck, SlidersHorizontal, UserCircle, Wrench } from "lucide-react";
+import { BarChart3, BookOpen, LogOut, Package, ShieldCheck, SlidersHorizontal, UserCircle, Wrench } from "lucide-react";
 import type { ComponentType } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
-import { selectCurrentUser, setSessionMode } from "@/features/auth/store/auth-slice";
+import { selectCurrentBu } from "@/store/context-slice";
+import { logout, selectCurrentUser, setSessionMode } from "@/features/auth/store/auth-slice";
 import { ROUTES } from "@/router/routes";
 import type { Section } from "./client-layout";
 
@@ -20,14 +29,20 @@ const ACTIVITY_ITEMS: ActivityItem[] = [
 type Props = { activeSection: Section };
 
 export const ClientActivityBar = ({ activeSection }: Props) => {
-    const dispatch = useAppDispatch();
-    const navigate = useNavigate();
-    const user     = useAppSelector(selectCurrentUser);
-    const isAdmin  = user?.userType === 'A';
+    const dispatch  = useAppDispatch();
+    const navigate  = useNavigate();
+    const user      = useAppSelector(selectCurrentUser);
+    const currentBu = useAppSelector(selectCurrentBu);
+    const isAdmin   = user?.userType === 'A';
 
     function handleSwitchToAdmin() {
         dispatch(setSessionMode('admin'));
         navigate(ROUTES.admin.root);
+    }
+
+    function handleLogout() {
+        dispatch(logout());
+        navigate(ROUTES.login);
     }
 
     return (
@@ -63,10 +78,47 @@ export const ClientActivityBar = ({ activeSection }: Props) => {
                         <ShieldCheck className="h-5 w-5" />
                     </button>
                 )}
-                <button className="cursor-pointer text-(--cl-text-muted) transition-all hover:text-(--cl-text)" title="Account">
-                    <UserCircle className="h-5 w-5" />
-                </button>
-
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <button className="cursor-pointer text-(--cl-text-muted) transition-all hover:text-(--cl-text)" title="Account">
+                            <UserCircle className="h-5 w-5" />
+                        </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" side="right" className="w-60">
+                        <DropdownMenuLabel className="font-medium text-slate-900">
+                            {user?.fullName ?? user?.username}
+                        </DropdownMenuLabel>
+                        <DropdownMenuLabel className="-mt-2 text-xs font-normal text-slate-500">
+                            {user?.email}
+                        </DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <div className="space-y-1 px-1.5 py-1 text-xs text-slate-500">
+                            {user?.username && (
+                                <p>Username: <span className="text-slate-700">{user.username}</span></p>
+                            )}
+                            {user?.roleName && (
+                                <p>Role: <span className="text-slate-700">{user.roleName}</span></p>
+                            )}
+                            {currentBu?.name && (
+                                <p>BU: <span className="text-slate-700">{currentBu.name}</span></p>
+                            )}
+                            {user?.mobile && (
+                                <p>Mobile: <span className="text-slate-700">{user.mobile}</span></p>
+                            )}
+                            {user?.clientCode && (
+                                <p>Client: <span className="text-slate-700">{user.clientCode}</span></p>
+                            )}
+                        </div>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                            className="cursor-pointer text-red-600 focus:text-red-600"
+                            onClick={handleLogout}
+                        >
+                            <LogOut className="mr-2 h-4 w-4" />
+                            Logout
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
             </div>
         </aside>
     );

@@ -1,9 +1,10 @@
 import { getApiBaseUrl } from "./utils";
 import type { JobFileRow } from "@/features/client/types/job";
 import { refreshAccessToken } from "@/lib/auth-service";
+import { getAuthItem, setAuthItem } from "@/lib/auth-storage";
 
 async function refreshIfNeeded(): Promise<string | null> {
-    const token = localStorage.getItem("accessToken");
+    const token = getAuthItem("accessToken");
     if (!token) return null;
 
     try {
@@ -14,12 +15,12 @@ async function refreshIfNeeded(): Promise<string | null> {
 
         // Refresh if less than 5 minutes left
         if (timeLeft < 300) {
-            const refreshToken = localStorage.getItem("refreshToken");
+            const refreshToken = getAuthItem("refreshToken");
             if (!refreshToken) return null;
 
             const res = await refreshAccessToken(refreshToken);
-            localStorage.setItem("accessToken", res.accessToken);
-            localStorage.setItem("refreshToken", res.refreshToken);
+            setAuthItem("accessToken", res.accessToken);
+            setAuthItem("refreshToken", res.refreshToken);
             return res.accessToken;
         }
         return token;
@@ -29,7 +30,7 @@ async function refreshIfNeeded(): Promise<string | null> {
 }
 
 function getAuthHeaders(): Record<string, string> {
-    const token = localStorage.getItem("accessToken");
+    const token = getAuthItem("accessToken");
     return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
