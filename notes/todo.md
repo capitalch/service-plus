@@ -5,8 +5,8 @@
 	- Access management
 	- Validate creation of new client / Bu / Branch / Division end to end
 	- Security of server config file
-	- Cleanup of wanrnings and extra code
-	- Account icon implement
+	- Cleanup of wanrnings and extra code								
+								- Account icon implement
 - Bug fix
 								- When division changes, corresponding GST info is not changed in sales. Amount for spare should be same in gst / non-gst. Robust testing for sales invoie is done w.r.o mrp, selling price and no price
 								- Extra "}" in details line items of sales
