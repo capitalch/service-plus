@@ -2026,8 +2026,6 @@ async def resolve_set_user_bu_role_helper(
     return {"user_id": user_id}
 
 
-
-
 def _build_money_receipt_tran_h(
     row: dict, debit_account_id: Any, credit_account_id: Any, branch_id: Any
 ) -> dict:
