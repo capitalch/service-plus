@@ -94,6 +94,7 @@ export function OpeningJobForm({
                 customer_name:        d.customer_name ?? d.mobile ?? "",
                 mobile:               d.mobile ?? "",
                 job_date:             d.job_date,
+                purchase_date:        d.purchase_date ?? "",
                 job_type_id:          d.job_type_id ?? (undefined as unknown as number),
                 receive_manner_id:    d.job_receive_manner_id ?? (undefined as unknown as number),
                 receive_condition_id: d.job_receive_condition_id ?? null,
@@ -320,6 +321,12 @@ export function OpeningJobForm({
                             <div className="space-y-1.5 md:col-span-3 lg:col-span-3">
                                 <Label className={labelCls}>Qty</Label>
                                 <Input className="bg-(--cl-surface-2)" min={1} type="number" {...register("qty", { valueAsNumber: true })} />
+                            </div>
+
+                            {/* Purchase Date */}
+                            <div className="space-y-1.5 md:col-span-3 lg:col-span-3">
+                                <Label className={labelCls}>Purchase Date</Label>
+                                <Input className="bg-(--cl-surface-2)" type="date" {...register("purchase_date")} />
                             </div>
 
                         </CardContent>

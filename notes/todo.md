@@ -4,9 +4,6 @@
 	- Inventory menu item test scripts
 	- Access management
 	- Validate creation of new client / Bu / Branch / Division end to end
-		(2026-07-10: schema/seed-data DDL source relocation done, see dev/service-plus-client/plans/plan.md —
-		static import/typecheck verification passed, but live-DB end-to-end run still outstanding,
-		no Postgres/Docker available in that session)
 	- Security of server config file
 	- Cleanup of wanrnings and extra code								
 								- Account icon implement

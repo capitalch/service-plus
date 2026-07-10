@@ -91,6 +91,9 @@ export const BatchJobViewModal = ({ isOpen, batchNo, jobs, loading, onClose, onP
                                                     {job.is_closed && (
                                                         <span className="ml-1.5 text-[9px] font-bold text-emerald-600 bg-emerald-100 dark:bg-emerald-950/40 rounded px-1 py-0.5">CLOSED</span>
                                                     )}
+                                                    {job.purchase_date && (
+                                                        <div className="text-[11px] font-semibold text-(--cl-text-muted)">PUR: {job.purchase_date}</div>
+                                                    )}
                                                 </td>
                                                 <td className={`${tdClass} text-xs`}>
                                                     <div className="flex flex-col gap-0.5">

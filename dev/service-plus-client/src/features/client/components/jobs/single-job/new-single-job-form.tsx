@@ -115,6 +115,7 @@ export function NewSingleJobForm({
                 job_status_id: d.job_status_id ?? null,
                 model_id: d.product_brand_model_id ?? (undefined as unknown as number),
                 alternate_job_no: d.alternate_job_no ?? "",
+                purchase_date: d.purchase_date ?? "",
                 serial_no: d.serial_no ?? "",
                 qty: d.qty,
                 problem_reported: d.problem_reported ?? "",
@@ -210,6 +211,15 @@ export function NewSingleJobForm({
                                         className="bg-(--cl-surface-2)"
                                         placeholder="Optional…"
                                         {...form.register("alternate_job_no")}
+                                    />
+                                </div>
+
+                                <div className="space-y-1.5 md:col-span-6 lg:col-span-6 xl:col-span-3">
+                                    <Label className={labelCls}>Purchase Date</Label>
+                                    <Input
+                                        className="bg-(--cl-surface-2)"
+                                        type="date"
+                                        {...form.register("purchase_date")}
                                     />
                                 </div>
 

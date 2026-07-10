@@ -176,6 +176,7 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
                         job_status_id:            values.job_status_id ?? null,
                         product_brand_model_id:   values.model_id ?? null,
                         alternate_job_no:         values.alternate_job_no?.trim() || null,
+                        purchase_date:            values.purchase_date?.trim() || null,
                         serial_no:                values.serial_no?.trim() || null,
                         qty:                 values.qty,
                         problem_reported:         values.problem_reported?.trim() ?? "",
@@ -205,6 +206,7 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
                         job_status_id:            receivedStatusId,
                         product_brand_model_id:   values.model_id || null,
                         alternate_job_no:         values.alternate_job_no?.trim() || null,
+                        purchase_date:            values.purchase_date?.trim() || null,
                         serial_no:                values.serial_no?.trim() || null,
                         qty:                 values.qty,
                         problem_reported:         values.problem_reported?.trim() || null,
@@ -689,6 +691,9 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
                                                         </div>
                                                         {job.batch_no && (
                                                             <span className="text-[9px] font-bold text-violet-600 dark:text-violet-400 w-fit bg-violet-50 dark:bg-violet-950/40 rounded px-1 py-0.5">Batch #{job.batch_no}</span>
+                                                        )}
+                                                        {job.purchase_date && (
+                                                            <span className="text-[11px] font-semibold text-(--cl-text-muted) w-fit">PUR: {job.purchase_date}</span>
                                                         )}
                                                         {job.file_count > 0 && (
                                                             <button

@@ -81,11 +81,18 @@ function buildSingleJobSheetDoc(job: JobDetailType, division: DivisionContextTyp
         autoTable(doc, {
             body: [
                 ["Job No:",   job.job_no,                  "Date:",          job.job_date],
-                ["Branch:",   branchCode ?? "—",            "Customer:",      job.customer_name ?? "—"],
-                [
-                    { content: "Mobile:", styles: { fontStyle: "bold" } },
-                    { content: job.mobile, colSpan: 3 },
-                ],
+                ...(job.purchase_date
+                    ? [
+                        ["Branch:",   branchCode ?? "—",         "Purchase Date:", job.purchase_date],
+                        ["Customer:", job.customer_name ?? "—",  "Mobile:",        job.mobile],
+                    ]
+                    : [
+                        ["Branch:",   branchCode ?? "—",         "Customer:",      job.customer_name ?? "—"],
+                        [
+                            { content: "Mobile:", styles: { fontStyle: "bold" as const } },
+                            { content: job.mobile, colSpan: 3 },
+                        ],
+                    ]),
                 [
                     { content: "Address:", styles: { fontStyle: "bold" } },
                     { content: job.address_snapshot ?? "—", colSpan: 3 },
@@ -222,7 +229,11 @@ function buildBatchJobSheetDoc(jobs: JobDetailType[], division: DivisionContextT
         y = (doc as any).lastAutoTable.finalY + 3;
 
         // ── Jobs Table ─────────────────────────────────────────────────────────
-        const head = [["#", "Job No", "Date", "Product / Brand / Model", "Job Type", "Qty", "Condition", "Serial No"]];
+        const showPurchaseDate = jobs.some(j => j.purchase_date);
+        const colCount = showPurchaseDate ? 9 : 8;
+        const head = [showPurchaseDate
+            ? ["#", "Job No", "Date", "Purchase Date", "Product / Brand / Model", "Job Type", "Qty", "Condition", "Serial No"]
+            : ["#", "Job No", "Date", "Product / Brand / Model", "Job Type", "Qty", "Condition", "Serial No"]];
 
         const body: (string | number | { content: string; colSpan: number; styles: Record<string, unknown> })[][] = [];
         for (let i = 0; i < jobs.length; i++) {
@@ -231,6 +242,7 @@ function buildBatchJobSheetDoc(jobs: JobDetailType[], division: DivisionContextT
                 i + 1,
                 job.job_no,
                 job.job_date,
+                ...(showPurchaseDate ? [job.purchase_date ?? "—"] : []),
                 [job.product_name, job.brand_name, job.model_name].filter(Boolean).join(" / ") || "—",
                 job.job_type_name,
                 String(job.qty),
@@ -245,7 +257,7 @@ function buildBatchJobSheetDoc(jobs: JobDetailType[], division: DivisionContextT
 
             if (probRemText) {
                 body.push([
-                    { content: probRemText, colSpan: 8, styles: { fontSize: 6, textColor: [80, 80, 80], cellPadding: 1 } },
+                    { content: probRemText, colSpan: colCount, styles: { fontSize: 6, textColor: [80, 80, 80], cellPadding: 1 } },
                 ]);
             }
         }
@@ -257,16 +269,28 @@ function buildBatchJobSheetDoc(jobs: JobDetailType[], division: DivisionContextT
             startY:    y,
             styles:    { cellPadding: 1.5, fontSize: 7.5, lineColor: [200, 200, 200], lineWidth: 0.2, overflow: "linebreak" },
             headStyles: { fontSize: 6.5, fontStyle: "bold", fillColor: [240, 240, 240], textColor: [60, 60, 60] },
-            columnStyles: {
-                0: { cellWidth: 8 },
-                1: { cellWidth: 20 },
-                2: { cellWidth: 18 },
-                3: { cellWidth: 52 },
-                4: { cellWidth: 24 },
-                5: { cellWidth: 8 },
-                6: { cellWidth: 24 },
-                7: { cellWidth: 26 },
-            },
+            columnStyles: showPurchaseDate
+                ? {
+                    0: { cellWidth: 8 },
+                    1: { cellWidth: 20 },
+                    2: { cellWidth: 18 },
+                    3: { cellWidth: 20 },
+                    4: { cellWidth: 38 },
+                    5: { cellWidth: 22 },
+                    6: { cellWidth: 8 },
+                    7: { cellWidth: 22 },
+                    8: { cellWidth: 24 },
+                }
+                : {
+                    0: { cellWidth: 8 },
+                    1: { cellWidth: 20 },
+                    2: { cellWidth: 18 },
+                    3: { cellWidth: 52 },
+                    4: { cellWidth: 24 },
+                    5: { cellWidth: 8 },
+                    6: { cellWidth: 24 },
+                    7: { cellWidth: 26 },
+                },
             theme:     "grid",
         });
 

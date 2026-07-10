@@ -264,6 +264,8 @@ class SqlBu:
             division_id bigint NOT NULL,
             is_igst boolean DEFAULT false NOT NULL,
             to_show_parts_in_job_invoice boolean DEFAULT true NOT NULL,
+            purchase_date date,
+            is_opening_job boolean DEFAULT false NOT NULL,
             CONSTRAINT job_qty_check CHECK ((qty <> 0))
         );
 

@@ -197,6 +197,8 @@ export const SQL_MAP = {
     // Job Entry
     GET_JOBS_COUNT:                       "GET_JOBS_COUNT",
     GET_JOBS_PAGED:                       "GET_JOBS_PAGED",
+    GET_OPENING_JOBS_COUNT:               "GET_OPENING_JOBS_COUNT",
+    GET_OPENING_JOBS_PAGED:               "GET_OPENING_JOBS_PAGED",
     // Job Control
     GET_JOB_CONTROL_COUNT:                  "GET_JOB_SEARCH_COUNT",
 

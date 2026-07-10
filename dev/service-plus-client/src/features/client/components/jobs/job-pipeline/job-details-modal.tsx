@@ -499,6 +499,7 @@ export const JobDetailsModal = ({ jobId, onClose, onJobChanged }: Props) => {
                                     {[
                                         ["Job No", job.job_no],
                                         ["Alt Job No", job.alternate_job_no],
+                                        ["Purchase Date", job.purchase_date],
                                         ["Batch No", (job as JobDetailType & { batch_no?: string | null }).batch_no],
                                         ["Job Type", job.job_type_name],
                                         ["Division", division?.name],

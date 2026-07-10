@@ -209,6 +209,7 @@ export function FinalJobDialog({ jobId, onClose, onFinalized }: Props) {
                 id:               job.id,
                 job_no:           job.job_no,
                 alternate_job_no: job.alternate_job_no,
+                purchase_date:    job.purchase_date,
                 job_date:         job.job_date,
                 job_type_name:    "",
                 job_type_code:    "",

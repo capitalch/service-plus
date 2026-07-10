@@ -2,6 +2,7 @@ export type FinalizedJobRow = {
     id:                  number;
     job_no:              string;
     alternate_job_no:    string | null;
+    purchase_date:       string | null;
     job_date:            string;
     customer_name:       string;
     customer_gstin:      string | null;
@@ -28,6 +29,7 @@ export type FinalJobRow = {
     id:               number;
     job_no:           string;
     alternate_job_no: string | null;
+    purchase_date:    string | null;
     job_date:         string;
     job_type_name:    string;
     job_type_code:    string;

@@ -18,6 +18,7 @@ export type DeliverableJobRow = {
     id:                     number;
     job_no:                 string;
     alternate_job_no:       string | null;
+    purchase_date:          string | null;
     job_date:               string;
     division_id:            number | null;
     device_details:         string | null;
@@ -260,6 +261,9 @@ export const DeliverableJobsGrid = forwardRef<GridRetentionHandle, Props>(functi
                                                 </div>
                                                 {row.alternate_job_no && (
                                                     <span className="text-[10px] text-(--cl-text-muted)">Alt: {row.alternate_job_no}</span>
+                                                )}
+                                                {row.purchase_date && (
+                                                    <span className="text-[11px] font-semibold text-(--cl-text-muted)">PUR: {row.purchase_date}</span>
                                                 )}
                                                 {row.batch_no != null && (
                                                     <span className="text-[9px] font-bold text-violet-600 dark:text-violet-400 w-fit bg-violet-50 dark:bg-violet-950/40 rounded px-1 py-0.5">Batch #{row.batch_no}</span>

@@ -367,6 +367,9 @@ export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Prop
                                                             <span className="rounded px-1 py-0.5 text-[10px] font-medium bg-(--cl-accent)/10 text-(--cl-accent)">Batch #{row.batch_no}</span>
                                                         )}
                                                     </div>
+                                                    {row.purchase_date && (
+                                                        <span className="text-[11px] font-semibold text-(--cl-text-muted)">PUR: {row.purchase_date}</span>
+                                                    )}
                                                     {(status.status_id === 0 || row.file_count > 0) && (
                                                         <div className="flex flex-wrap items-center gap-1">
                                                             {status.status_id === 0 && (

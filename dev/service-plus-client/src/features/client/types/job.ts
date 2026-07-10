@@ -2,6 +2,7 @@ export type JobControlRow = {
     id:                    number;
     job_no:                string;
     alternate_job_no?:     string | null;
+    purchase_date?:        string | null;
     job_date:              string;
     customer_name:         string | null;
     customer_gstin?:       string | null;
@@ -31,6 +32,7 @@ export type JobDetailType = {
     id:                          number;
     job_no:                      string;
     alternate_job_no:            string | null;
+    purchase_date:               string | null;
     job_date:                    string;
     customer_contact_id:         number;
     branch_id:                   number;
@@ -166,6 +168,7 @@ export type OpenJobRow = {
     id:                  number;
     job_no:              string;
     alternate_job_no:    string | null;
+    purchase_date:       string | null;
     job_date:            string;
     job_status_id:       number;
     job_status_code:     string;

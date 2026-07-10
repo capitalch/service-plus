@@ -166,6 +166,7 @@ export const BatchJobSection = ({ initialEditBatchNo, onEditBatchNoApplied, onRe
                 const addedJobs     = formRows.filter(r => !r.id).map(r => ({
                     job_type_id:              r.job_type_id,
                     product_brand_model_id:   r.product_brand_model_id,
+                    purchase_date:            r.purchase_date || null,
                     alternate_job_no:         r.alternate_job_no || null,
                     serial_no:                r.serial_no || null,
                     problem_reported:         r.problem_reported || null,
@@ -178,6 +179,7 @@ export const BatchJobSection = ({ initialEditBatchNo, onEditBatchNoApplied, onRe
                     id:                       r.id!,
                     job_type_id:              r.job_type_id,
                     product_brand_model_id:   r.product_brand_model_id,
+                    purchase_date:            r.purchase_date || null,
                     alternate_job_no:         r.alternate_job_no || null,
                     serial_no:                r.serial_no || null,
                     problem_reported:         r.problem_reported || null,
@@ -228,6 +230,7 @@ export const BatchJobSection = ({ initialEditBatchNo, onEditBatchNoApplied, onRe
                     jobs: formRows.map(r => ({
                         job_type_id:              r.job_type_id,
                         product_brand_model_id:   r.product_brand_model_id,
+                        purchase_date:            r.purchase_date || null,
                         alternate_job_no:         r.alternate_job_no || null,
                         serial_no:                r.serial_no || null,
                         problem_reported:         r.problem_reported || null,
@@ -952,6 +955,9 @@ function BatchGroupRow({ availableDivisions, batch, onEdit, onView, onPrint, onD
                                     <span className="ml-1.5 text-[9px] font-bold text-emerald-600 bg-emerald-100 dark:bg-emerald-950/40 rounded px-1 py-0.5">CLOSED</span>
                                 )}
                             </div>
+                            {job.purchase_date && (
+                                <span className="text-[11px] font-semibold text-(--cl-text-muted) w-fit">PUR: {job.purchase_date}</span>
+                            )}
                             {job.file_count != null && job.file_count >= 0 ? (
                                 <button
                                     type="button"

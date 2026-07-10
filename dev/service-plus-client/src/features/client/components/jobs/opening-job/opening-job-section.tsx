@@ -21,7 +21,6 @@ import { MESSAGES } from "@/constants/messages";
 import { SQL_MAP } from "@/constants/sql-map";
 import { apolloClient } from "@/lib/apollo-client";
 import { encodeObj, graphQlUtils } from "@/lib/graphql-utils";
-import { currentFinancialYearRange } from "@/lib/utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectCurrentUser, selectDbName } from "@/features/auth/store/auth-slice";
 import { selectCurrentBranch, selectSchema } from "@/store/context-slice";
@@ -54,11 +53,7 @@ export const OpeningJobSection = () => {
     const globalBranch = useAppSelector(selectCurrentBranch);
     const branchId     = globalBranch?.id ?? null;
 
-    const { from: defaultFrom, to: defaultTo } = currentFinancialYearRange();
-
     // Filters
-    const [fromDate, setFromDate] = useState(defaultFrom);
-    const [toDate,   setToDate]   = useState(defaultTo);
     const [search,   setSearch]   = useState("");
     const [searchQ,  setSearchQ]  = useState("");
 
@@ -216,11 +211,11 @@ export const OpeningJobSection = () => {
         void fetchMeta();
     }, [dbName, schema, branchId]);
 
-    const loadData = useCallback(async (bId: number, from: string, to: string, q: string, pg: number) => {
+    const loadData = useCallback(async (bId: number, q: string, pg: number) => {
         if (!dbName || !schema) return;
         setLoading(true);
         try {
-            const commonArgs = { branch_id: bId, from_date: from, to_date: to, search: q };
+            const commonArgs = { branch_id: bId, search: q };
             const [dataRes, countRes] = await Promise.all([
                 apolloClient.query<GenericQueryData<JobControlRow>>({
                     fetchPolicy: "network-only",
@@ -228,7 +223,7 @@ export const OpeningJobSection = () => {
                     variables: {
                         db_name: dbName, schema,
                         value: graphQlUtils.buildGenericQueryValue({
-                            sqlId: SQL_MAP.GET_JOBS_PAGED,
+                            sqlId: SQL_MAP.GET_OPENING_JOBS_PAGED,
                             sqlArgs: { ...commonArgs, limit: PAGE_SIZE, offset: (pg - 1) * PAGE_SIZE },
                         }),
                     },
@@ -239,7 +234,7 @@ export const OpeningJobSection = () => {
                     variables: {
                         db_name: dbName, schema,
                         value: graphQlUtils.buildGenericQueryValue({
-                            sqlId: SQL_MAP.GET_JOBS_COUNT,
+                            sqlId: SQL_MAP.GET_OPENING_JOBS_COUNT,
                             sqlArgs: commonArgs,
                         }),
                     },
@@ -256,17 +251,13 @@ export const OpeningJobSection = () => {
 
     useEffect(() => {
         if (!branchId || mode !== "view") return;
-        void loadData(Number(branchId), fromDate, toDate, searchQ, page);
-    }, [branchId, fromDate, toDate, searchQ, page, loadData, mode]);
+        void loadData(Number(branchId), searchQ, page);
+    }, [branchId, searchQ, page, loadData, mode]);
 
     const handleSearchChange = (value: string) => {
         setSearch(value);
         if (debounceRef.current) clearTimeout(debounceRef.current);
         debounceRef.current = setTimeout(() => { setPage(1); setSearchQ(value); }, DEBOUNCE_MS);
-    };
-
-    const handleFilterChange = (setter: (v: string) => void) => (v: string) => {
-        setter(v); setPage(1);
     };
 
     const handleDelete = async () => {
@@ -280,7 +271,7 @@ export const OpeningJobSection = () => {
             });
             toast.success(MESSAGES.SUCCESS_OPENING_JOB_DELETED);
             setDeleteId(null);
-            if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, page);
+            if (branchId) void loadData(Number(branchId), searchQ, page);
         } catch {
             toast.error(MESSAGES.ERROR_OPENING_JOB_DELETE_FAILED);
         } finally {
@@ -308,7 +299,9 @@ export const OpeningJobSection = () => {
                     xData: {
                         id:                       editJob.id,
                         job_no:                   normalizedJobNo,
+                        is_opening_job:           true,
                         job_date:                 values.job_date,
+                        purchase_date:            values.purchase_date?.trim() || null,
                         customer_contact_id:      values.customer_id,
                         job_type_id:              values.job_type_id,
                         job_receive_manner_id:    values.receive_manner_id,
@@ -342,7 +335,9 @@ export const OpeningJobSection = () => {
                     xData: {
                         branch_id:                branchId,
                         job_no:                   normalizedJobNo,
+                        is_opening_job:           true,
                         job_date:                 values.job_date,
+                        purchase_date:            values.purchase_date?.trim() || null,
                         customer_contact_id:      values.customer_id,
                         job_type_id:              values.job_type_id,
                         job_receive_manner_id:    values.receive_manner_id,
@@ -376,7 +371,7 @@ export const OpeningJobSection = () => {
             if (editJob) {
                 setEditJob(null);
                 setMode("view");
-                if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, 1);
+                if (branchId) void loadData(Number(branchId), searchQ, 1);
             }
         } catch {
             toast.error(MESSAGES.ERROR_OPENING_JOB_CREATE_FAILED);
@@ -420,7 +415,7 @@ export const OpeningJobSection = () => {
                     onViewClick={() => {
                         setEditJob(null);
                         setMode("view");
-                        if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, page);
+                        if (branchId) void loadData(Number(branchId), searchQ, page);
                     }}
                 />
 
@@ -470,23 +465,6 @@ export const OpeningJobSection = () => {
                 <>
                     {/* Toolbar */}
                     <div className="flex flex-wrap items-center gap-2 px-4 py-2 bg-(--cl-surface-2)/30">
-                        <div className="flex items-center gap-1">
-                            <Input
-                                className="h-8 w-32 border-(--cl-border) bg-(--cl-surface) text-xs"
-                                disabled={loading}
-                                type="date"
-                                value={fromDate}
-                                onChange={e => handleFilterChange(setFromDate)(e.target.value)}
-                            />
-                            <span className="text-(--cl-text-muted) text-xs">—</span>
-                            <Input
-                                className="h-8 w-32 border-(--cl-border) bg-(--cl-surface) text-xs"
-                                disabled={loading}
-                                type="date"
-                                value={toDate}
-                                onChange={e => handleFilterChange(setToDate)(e.target.value)}
-                            />
-                        </div>
                         <div className="relative flex-1 sm:max-w-xs">
                             <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-(--cl-text-muted)" />
                             <Input
@@ -511,7 +489,7 @@ export const OpeningJobSection = () => {
                                 disabled={loading || !branchId}
                                 size="sm"
                                 variant="outline"
-                                onClick={() => { if (branchId) void loadData(Number(branchId), fromDate, toDate, searchQ, page); }}
+                                onClick={() => { if (branchId) void loadData(Number(branchId), searchQ, page); }}
                             >
                                 <RefreshCw className="mr-1.5 h-3 w-3" />
                                 Refresh
@@ -576,6 +554,9 @@ export const OpeningJobSection = () => {
                                                     {job.job_no}
                                                     {job.is_closed && (
                                                         <span className="ml-1.5 text-[10px] font-bold text-emerald-600 bg-emerald-100 dark:bg-emerald-950/40 rounded px-1 py-0.5">CLOSED</span>
+                                                    )}
+                                                    {job.purchase_date && (
+                                                        <div className="text-[11px] font-semibold text-(--cl-text-muted)">PUR: {job.purchase_date}</div>
                                                     )}
                                                 </td>
                                                 <td className={tdClass}>{job.customer_name ?? "—"}</td>

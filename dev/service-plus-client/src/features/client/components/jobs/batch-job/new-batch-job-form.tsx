@@ -78,6 +78,7 @@ export function NewBatchJobForm({
                     localId:                  crypto.randomUUID(),
                     job_type_id:              r.job_type_id,
                     product_brand_model_id:   r.product_brand_model_id ?? (undefined as unknown as number),
+                    purchase_date:            r.purchase_date ?? "",
                     alternate_job_no:         (r as typeof r & { alternate_job_no?: string | null }).alternate_job_no ?? "",
                     serial_no:                r.serial_no ?? "",
                     problem_reported:         r.problem_reported ?? "",
@@ -216,9 +217,10 @@ export function NewBatchJobForm({
             </div>
 
             {/* Column headers */}
-            <div className="hidden md:grid grid-cols-[32px_1fr_130px_100px_100px_60px_70px_32px_32px] gap-x-2 px-3 text-[10px] font-bold uppercase tracking-widest text-(--cl-text-muted)">
+            <div className="hidden md:grid grid-cols-[32px_1fr_130px_130px_100px_100px_60px_70px_32px_32px] gap-x-2 px-3 text-[10px] font-bold uppercase tracking-widest text-(--cl-text-muted)">
                 <span>#</span>
                 <span>Product / Model</span>
+                <span>Purchase Date</span>
                 <span>Job Type</span>
                 <span>Serial No</span>
                 <span>Condition</span>
@@ -242,7 +244,7 @@ export function NewBatchJobForm({
                             >
                                 <Card className="border-(--cl-border) bg-(--cl-surface) border-l-4 border-l-(--cl-accent) overflow-visible">
                                     {/* Compact single-line row */}
-                                    <div className="grid grid-cols-[32px_1fr] md:grid-cols-[32px_1fr_130px_100px_100px_60px_70px_32px_32px] gap-x-2 items-center px-3 py-2">
+                                    <div className="grid grid-cols-[32px_1fr] md:grid-cols-[32px_1fr_130px_130px_100px_100px_60px_70px_32px_32px] gap-x-2 items-center px-3 py-2">
                                         {/* Index badge */}
                                         <span className="flex items-center justify-center h-5 w-5 rounded-full bg-(--cl-accent)/10 text-(--cl-accent) text-[10px] font-bold shrink-0">
                                             {idx + 1}
@@ -284,6 +286,13 @@ export function NewBatchJobForm({
                                                 <Plus className="h-3 w-3" />
                                             </Button>
                                         </div>
+
+                                        {/* Purchase Date */}
+                                        <Input
+                                            className="h-8 text-xs bg-(--cl-surface-2) hidden md:block"
+                                            type="date"
+                                            {...register(`rows.${idx}.purchase_date`)}
+                                        />
 
                                         {/* Job Type */}
                                         <select
@@ -376,6 +385,10 @@ export function NewBatchJobForm({
                                             >
                                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 px-3 pb-3 pt-1 border-t border-(--cl-border)/50">
                                                     {/* Mobile-only fields (hidden in compact row on md+) */}
+                                                    <div className="space-y-1 md:hidden">
+                                                        <Label className={labelCls}>Purchase Date</Label>
+                                                        <Input className="h-8 text-xs bg-(--cl-surface-2)" type="date" {...register(`rows.${idx}.purchase_date`)} />
+                                                    </div>
                                                     <div className="space-y-1 md:hidden">
                                                         <Label className={labelCls}>Job Type <span className="text-red-500">*</span></Label>
                                                         <select

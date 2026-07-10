@@ -1,3 +1,12 @@
+# New column purchase_date in job table
+- Single Job: Add purchase date field after alt job no
+- Batch Job: Add purchase date in each row before job type. Modify save for New / Edit accordingly
+- Single Job: View Tab: Include purchase date as PUR:<date> in job column. Same for Batch Jobs view.
+- Single Job: Job sheet: Add purchase Date if available
+- Batch Job: View modal add purchase date information
+- Single Job: View modal add purchase date information
+- Job Control: landing page: Add Purchase Date in Job No Column as PUR:<date>
+We capture opening Jobs which are jobs when this software just started in the company, preexisting. Is there a way to define if a job is opening job? What are suggested ways
 # Modify final a job
 - In job_invoice_line added a new column cost_price to capture snapshot of cost of spare part
 - When finalize a job let this column cost_price be populated during save and mark final
