@@ -28,6 +28,9 @@ from app.db.psycopg_driver import (
 )
 from app.db.sql_store import SqlStore
 from app.db.sql_bu import SqlBu
+from app.db.sql_security import SqlSecurity
+from app.db.seed_bu_data import SeedBuData
+from app.db.seed_security_data import SeedSecurityData
 from app.exceptions import AppMessages, ValidationException
 from app.graphql.pubsub import pubsub
 from app.logger import logger
@@ -137,7 +140,7 @@ async def resolve_create_bu_schema_and_feed_seed_data_helper(
 ) -> dict:
     """
     Create a new BU row in security.bu, then create a new schema named after the BU code,
-    create all 35 tables (from BU_SCHEMA_DDL), and seed 9 lookup tables (BU_SEED_SQL).
+    create all tables (from BU_SCHEMA_DDL), and seed lookup tables (BU_SEED_SQL).
 
     Value payload (URL-encoded JSON): { code, name }
     """
@@ -239,7 +242,7 @@ async def resolve_create_bu_schema_and_feed_seed_data_helper(
     await exec_sql(
         db_name=db_name,
         schema=code,
-        sql=SqlBu.BU_SEED_SQL,
+        sql=SeedBuData.BU_SEED_SQL,
     )
 
     # 10. Audit log
@@ -473,12 +476,30 @@ async def resolve_create_service_db_helper(
         sql=pgsql.SQL("CREATE DATABASE {}").format(pgsql.Identifier(new_db_name)),
     )
 
-    # 4. Set up security schema inside the new database
+    # 4. Set up security schema inside the new database. SqlSecurity.SECURITY_SCHEMA_DDL
+    # is generated from service_plus_service.sql and contains only table/constraint DDL
+    # (no CREATE SCHEMA statements — those are stripped by the extractor), so the schema
+    # itself is created here explicitly, mirroring how the BU flow creates its schema
+    # as a separate step before running BU_SCHEMA_DDL.
     logger.info("Setting up security schema in: %s", new_db_name)
     await exec_sql(
         db_name=new_db_name,
         schema="security",
-        sql=SqlStore.SECURITY_SCHEMA_DDL,
+        sql="DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA IF NOT EXISTS security;",
+    )
+    await exec_sql(
+        db_name=new_db_name,
+        schema="security",
+        sql=SqlSecurity.SECURITY_SCHEMA_DDL,
+    )
+
+    # 4a. Seed baseline security data (default roles, etc.) — folds what used to be a
+    # separate client-driven wizard step into schema creation itself.
+    logger.info("Seeding security schema in: %s", new_db_name)
+    await exec_sql(
+        db_name=new_db_name,
+        schema="security",
+        sql=SeedSecurityData.SECURITY_SEED_SQL,
     )
 
     # 5. Persist new_db_name on the client record
@@ -547,7 +568,7 @@ async def resolve_feed_bu_seed_data_helper(
     await exec_sql(
         db_name=db_name,
         schema=code,
-        sql=SqlBu.BU_SEED_SQL,
+        sql=SeedBuData.BU_SEED_SQL,
     )
 
     await audit_logger.log(
@@ -557,6 +578,37 @@ async def resolve_feed_bu_seed_data_helper(
     )
     logger.info("Seed data fed into schema '%s' successfully", code)
     return {"code": code}
+
+
+async def resolve_seed_security_data_helper(
+    db_name: str, schema: str, value: str
+) -> dict:
+    """
+    Feed seed data into an already-provisioned client's security schema without
+    recreating it. All INSERTs in SECURITY_SEED_SQL use ON CONFLICT DO NOTHING —
+    fully idempotent, safe to call even if some/all rows already exist.
+
+    Value payload (URL-encoded JSON): {} — no parameters needed; db_name scopes
+    the call to a single client's security schema, which (unlike a BU schema) is
+    always named "security" and always exists once a client has been initialized.
+    """
+    # pylint: disable=unused-argument
+    _decode_value(value, "seedSecurityData")
+
+    logger.info("Seeding security schema data in db '%s'", db_name)
+    await exec_sql(
+        db_name=db_name,
+        schema="security",
+        sql=SeedSecurityData.SECURITY_SEED_SQL,
+    )
+
+    await audit_logger.log(
+        action=AuditAction.SEED_SECURITY_DATA,
+        resource_name=db_name,
+        resource_type="security_schema",
+    )
+    logger.info("Security seed data fed into db '%s' successfully", db_name)
+    return {"db_name": db_name}
 
 
 async def resolve_delete_bu_schema_helper(

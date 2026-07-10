@@ -9,7 +9,6 @@ import { MESSAGES } from "@/constants/messages";
 import { SQL_MAP } from "@/constants/sql-map";
 import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
-import { SEED_BATCHES } from "@/features/super-admin/constants/seed-data";
 import type { ClientType } from "@/features/super-admin/types/index";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -17,6 +16,14 @@ import type { ClientType } from "@/features/super-admin/types/index";
 type CheckQueryDataType = {
 	genericQuery: { exists: boolean }[] | null;
 };
+
+// Display-only preview — the actual seed SQL lives server-side in
+// app/db/seed_security_data.py (SeedSecurityData.SECURITY_SEED_SQL).
+const ROLE_PREVIEW_ITEMS = [
+	{ code: "MANAGER", name: "Manager" },
+	{ code: "TECHNICIAN", name: "Technician" },
+	{ code: "RECEPTIONIST", name: "Receptionist" },
+];
 
 type SeedRolesDialogPropsType = {
 	client: ClientType;
@@ -78,15 +85,17 @@ export const SeedRolesDialog = ({
 		if (!client.db_name) return;
 		setSeeding(true);
 		try {
-			for (const batch of SEED_BATCHES) {
-				await apolloClient.mutate({
-					mutation: GRAPHQL_MAP.genericUpdate,
-					variables: {
-						db_name: client.db_name,
-						schema: "security",
-						value: graphQlUtils.buildGenericUpdateValue(batch.sqlObject),
-					},
-				});
+			const result = await apolloClient.mutate({
+				mutation: GRAPHQL_MAP.seedSecurityData,
+				variables: {
+					db_name: client.db_name,
+					schema: "security",
+					value: encodeURIComponent(JSON.stringify({})),
+				},
+			});
+			if (result.error) {
+				toast.error(MESSAGES.ERROR_SEED_ROLES_FAILED);
+				return;
 			}
 			toast.success(MESSAGES.SUCCESS_SEED_ROLES);
 			onSuccess();
@@ -97,13 +106,6 @@ export const SeedRolesDialog = ({
 			setSeeding(false);
 		}
 	}
-
-	const rolesBatch = SEED_BATCHES.find((b) => b.label === "Roles");
-	const roleItems = rolesBatch
-		? Array.isArray(rolesBatch.sqlObject.xData)
-			? rolesBatch.sqlObject.xData
-			: [rolesBatch.sqlObject.xData]
-		: [];
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
@@ -163,7 +165,7 @@ export const SeedRolesDialog = ({
 									The following roles will be seeded into the client's database.
 								</p>
 								<div className="overflow-hidden rounded-lg border border-slate-200">
-									{roleItems.map((item, idx) => (
+									{ROLE_PREVIEW_ITEMS.map((item, idx) => (
 										<div
 											key={idx}
 											className={`flex items-center justify-between px-3 py-2 text-sm ${

@@ -16,7 +16,6 @@ import { SQL_MAP } from "@/constants/sql-map";
 import { useDebounce } from "@/hooks/use-debounce";
 import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
-import { SEED_BATCHES } from "@/features/super-admin/constants/seed-data";
 import type { ClientType } from "@/features/super-admin/types/index";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -37,8 +36,8 @@ type InitializeClientDialogPropsType = {
 	open: boolean;
 };
 
-// Steps: 1=Create Database, 2=Seed Data, 3=Create Admin User
-type StepType = 1 | 2 | 3 | "success";
+// Steps: 1=Create Database (includes security-schema seeding server-side), 2=Create Admin User
+type StepType = 1 | 2 | "success";
 
 // ─── Zod schemas ──────────────────────────────────────────────────────────────
 
@@ -49,7 +48,7 @@ const step1Schema = z.object({
 		.regex(/^service_plus_[a-z0-9_]+$/, "Invalid format: must be service_plus_<code>"),
 });
 
-const step3Schema = z.object({
+const step2Schema = z.object({
 	email: z.email({ message: MESSAGES.ERROR_EMAIL_INVALID }),
 	full_name: z.string().min(1, MESSAGES.ERROR_FULL_NAME_REQUIRED),
 	mobile: z
@@ -67,7 +66,7 @@ const step3Schema = z.object({
 });
 
 type Step1FormType = z.infer<typeof step1Schema>;
-type Step3FormType = z.infer<typeof step3Schema>;
+type Step2FormType = z.infer<typeof step2Schema>;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -98,13 +97,11 @@ export const InitializeClientDialog = ({
 	open,
 }: InitializeClientDialogPropsType) => {
 	const [checkingDb, setCheckingDb] = useState(false);
-	const [checkingSeed, setCheckingSeed] = useState(false);
 	const [checkingUsername, setCheckingUsername] = useState(false);
 	const [createdDbName, setCreatedDbName] = useState("");
 	const [creatingAdmin, setCreatingAdmin] = useState(false);
 	const [creatingDb, setCreatingDb] = useState(false);
 	const [dbNameAvailable, setDbNameAvailable] = useState<boolean | null>(null);
-	const [seedingData, setSeedingData] = useState(false);
 	const [step, setStep] = useState<StepType>(client?.db_name ? 2 : 1);
 	const [usernameTaken, setUsernameTaken] = useState<boolean | null>(null);
 
@@ -114,44 +111,16 @@ export const InitializeClientDialog = ({
 		resolver: zodResolver(step1Schema),
 	});
 
-	const step3Form = useForm<Step3FormType>({
+	const step2Form = useForm<Step2FormType>({
 		defaultValues: { email: "", full_name: "", mobile: "", username: "" },
 		mode: "onChange",
-		resolver: zodResolver(step3Schema),
+		resolver: zodResolver(step2Schema),
 	});
 
 	const dbNameValue = useWatch({ control: step1Form.control, name: "db_name" });
-	const usernameValue = useWatch({ control: step3Form.control, name: "username" });
+	const usernameValue = useWatch({ control: step2Form.control, name: "username" });
 	const debouncedDbName = useDebounce(dbNameValue, 1200);
 	const debouncedUsername = useDebounce(usernameValue, 1200);
-
-	// Check if role seed data exists in the client DB (only when db_name is already set)
-	useEffect(() => {
-		if (!open || !client.db_name) return;
-		setCheckingSeed(true);
-		apolloClient
-			.query<CheckDbQueryDataType>({
-				fetchPolicy: "network-only",
-				query: GRAPHQL_MAP.genericQuery,
-				variables: {
-					db_name: client.db_name,
-					schema: "security",
-					value: graphQlUtils.buildGenericQueryValue({
-						sqlId: SQL_MAP.CHECK_ROLE_SEED_EXISTS,
-					}),
-				},
-			})
-			.then((res) => {
-				const exists = res.data?.genericQuery?.[0]?.exists ?? false;
-				setStep(exists ? 3 : 2);
-			})
-			.catch(() => {
-				setStep(2);
-			})
-			.finally(() => {
-				setCheckingSeed(false);
-			});
-	}, [open, client.db_name]); // eslint-disable-line react-hooks/exhaustive-deps
 
 	// Debounced DB name uniqueness check
 	useEffect(() => {
@@ -198,7 +167,7 @@ export const InitializeClientDialog = ({
 			setUsernameTaken(null);
 			return;
 		}
-		const { invalid } = step3Form.getFieldState("username");
+		const { invalid } = step2Form.getFieldState("username");
 		if (invalid) {
 			setUsernameTaken(null);
 			return;
@@ -223,12 +192,12 @@ export const InitializeClientDialog = ({
 				const exists = res.data?.genericQuery?.[0]?.exists ?? false;
 				setUsernameTaken(exists);
 				if (exists) {
-					step3Form.setError("username", {
+					step2Form.setError("username", {
 						message: MESSAGES.ERROR_ADMIN_USERNAME_EXISTS,
 						type: "manual",
 					});
 				} else {
-					step3Form.clearErrors("username");
+					step2Form.clearErrors("username");
 				}
 			})
 			.finally(() => {
@@ -240,15 +209,13 @@ export const InitializeClientDialog = ({
 	useEffect(() => {
 		if (!open) {
 			setCheckingDb(false);
-			setCheckingSeed(false);
 			setCheckingUsername(false);
 			setCreatedDbName("");
 			setDbNameAvailable(null);
-			setSeedingData(false);
 			setStep(client?.db_name ? 2 : 1);
 			setUsernameTaken(null);
 			step1Form.reset({ db_name: `service_plus_${client.code.toLowerCase()}` });
-			step3Form.reset({ email: "", full_name: "", mobile: "", username: "" });
+			step2Form.reset({ email: "", full_name: "", mobile: "", username: "" });
 		}
 	}, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -278,34 +245,7 @@ export const InitializeClientDialog = ({
 		}
 	}
 
-	async function onSeedSubmit() {
-		const activeDb = createdDbName || client.db_name || "";
-		setSeedingData(true);
-		try {
-			for (const batch of SEED_BATCHES) {
-				const result = await apolloClient.mutate({
-					mutation: GRAPHQL_MAP.genericUpdate,
-					variables: {
-						db_name: activeDb,
-						schema: "security",
-						value: graphQlUtils.buildGenericUpdateValue(batch.sqlObject),
-					},
-				});
-				if (result.error) {
-					toast.error(MESSAGES.ERROR_INITIALIZE_SEED_FAILED);
-					return;
-				}
-			}
-			toast.success(MESSAGES.SUCCESS_INITIALIZE_SEED);
-			setStep(3);
-		} catch {
-			toast.error(MESSAGES.ERROR_INITIALIZE_SEED_FAILED);
-		} finally {
-			setSeedingData(false);
-		}
-	}
-
-	async function onStep3Submit(data: Step3FormType) {
+	async function onStep2Submit(data: Step2FormType) {
 		const activeDb = createdDbName || client.db_name || "";
 		setCreatingAdmin(true);
 		try {
@@ -342,22 +282,20 @@ export const InitializeClientDialog = ({
 	}
 
 	const step1Errors = step1Form.formState.errors;
-	const step3Errors = step3Form.formState.errors;
+	const step2Errors = step2Form.formState.errors;
 
 	const step1Busy = checkingDb || creatingDb;
 	const step1SubmitDisabled = step1Busy || !dbNameAvailable || !!step1Errors.db_name;
 
-	const step3Busy = creatingAdmin;
-	const step3SubmitDisabled =
-		step3Busy ||
+	const step2Busy = creatingAdmin;
+	const step2SubmitDisabled =
+		step2Busy ||
 		checkingUsername ||
 		usernameTaken === true ||
-		Object.keys(step3Errors).length > 0;
+		Object.keys(step2Errors).length > 0;
 
-	const dot1Done = step === 2 || step === 3 || step === "success";
-	const dot2Done = step === 3 || step === "success";
+	const dot1Done = step === 2 || step === "success";
 	const dot2Active = step === 2;
-	const dot3Active = step === 3;
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
@@ -398,33 +336,12 @@ export const InitializeClientDialog = ({
 							<div className="flex flex-col items-center gap-1">
 								<div
 									className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${
-										dot2Done
-											? "bg-emerald-500 text-white"
-											: dot2Active
+										dot2Active
 											? "bg-emerald-500 text-white"
 											: "bg-slate-600 text-slate-300"
 									}`}
 								>
-									{dot2Done ? <Check className="h-3.5 w-3.5" /> : "2"}
-								</div>
-								<span className="text-[10px] text-slate-400">Seed Data</span>
-							</div>
-							{/* Connector 2→3 */}
-							<div
-								className={`h-0.5 flex-1 rounded ${
-									dot2Done ? "bg-emerald-500" : "bg-slate-600"
-								}`}
-							/>
-							{/* Step 3 dot */}
-							<div className="flex flex-col items-center gap-1">
-								<div
-									className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${
-										dot3Active
-											? "bg-emerald-500 text-white"
-											: "bg-slate-600 text-slate-300"
-									}`}
-								>
-									3
+									2
 								</div>
 								<span className="text-[10px] text-slate-400">Admin User</span>
 							</div>
@@ -434,13 +351,7 @@ export const InitializeClientDialog = ({
 
 				{/* Step panels */}
 				<div className="p-5 sm:p-7">
-					{checkingSeed && (
-						<div className="flex flex-col items-center gap-3 py-8">
-							<Loader2 className="h-7 w-7 animate-spin text-emerald-500" />
-							<p className="text-sm text-slate-500">Checking seed data…</p>
-						</div>
-					)}
-					{!checkingSeed && <AnimatePresence mode="wait">
+					<AnimatePresence mode="wait">
 						{/* ── Step 1: Create Database ── */}
 						{step === 1 && (
 							<motion.div
@@ -502,81 +413,10 @@ export const InitializeClientDialog = ({
 							</motion.div>
 						)}
 
-						{/* ── Step 2: Seed Data ── */}
+						{/* ── Step 2: Create Admin User ── */}
 						{step === 2 && (
 							<motion.div
 								key="step2"
-								animate={{ opacity: 1, y: 0 }}
-								exit={{ opacity: 0, y: -8 }}
-								initial={{ opacity: 0, y: 8 }}
-								transition={{ duration: 0.2 }}
-							>
-								<p className="mb-1 text-sm font-semibold text-slate-800">
-									Seed Data
-								</p>
-								<p className="mb-4 text-xs text-slate-500">
-									The following data will be inserted into the new database.
-								</p>
-								<div className="mb-5 flex flex-col gap-4">
-									{SEED_BATCHES.map((batch) => (
-										<div key={batch.label}>
-											<p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">
-												{batch.label}
-											</p>
-											<div className="overflow-hidden rounded-lg border border-slate-200">
-												{(Array.isArray(batch.sqlObject.xData)
-													? batch.sqlObject.xData
-													: [batch.sqlObject.xData]
-												).map((item, idx) => (
-													<div
-														key={idx}
-														className={`flex items-center justify-between px-3 py-2 text-sm ${
-															idx !== 0 ? "border-t border-slate-100" : ""
-														}`}
-													>
-														<span className="font-mono text-xs font-medium text-slate-700">
-															{String(item.code)}
-														</span>
-														<span className="text-xs text-slate-500">
-															{String(item.name)}
-														</span>
-													</div>
-												))}
-											</div>
-										</div>
-									))}
-								</div>
-								<div className="flex justify-end gap-2">
-									<Button
-										type="button"
-										variant="ghost"
-										onClick={() => onOpenChange(false)}
-									>
-										Cancel
-									</Button>
-									<Button
-										className="bg-emerald-600 text-white hover:bg-emerald-700"
-										disabled={seedingData}
-										onClick={onSeedSubmit}
-										type="button"
-									>
-										{seedingData ? (
-											<>
-												<Loader2 className="mr-2 h-4 w-4 animate-spin" />
-												Applying...
-											</>
-										) : (
-											"Apply Seed Data"
-										)}
-									</Button>
-								</div>
-							</motion.div>
-						)}
-
-						{/* ── Step 3: Create Admin User ── */}
-						{step === 3 && (
-							<motion.div
-								key="step3"
 								animate={{ opacity: 1, y: 0 }}
 								exit={{ opacity: 0, y: -8 }}
 								initial={{ opacity: 0, y: 8 }}
@@ -599,7 +439,7 @@ export const InitializeClientDialog = ({
 								)}
 								<form
 									className="flex flex-col gap-4"
-									onSubmit={step3Form.handleSubmit(onStep3Submit)}
+									onSubmit={step2Form.handleSubmit(onStep2Submit)}
 								>
 									<div className="flex flex-col gap-1.5">
 										<Label htmlFor="full_name">
@@ -609,11 +449,11 @@ export const InitializeClientDialog = ({
 										<Input
 											id="full_name"
 											placeholder="e.g. John Smith"
-											{...step3Form.register("full_name")}
+											{...step2Form.register("full_name")}
 											className="w-full"
-											disabled={step3Busy}
+											disabled={step2Busy}
 										/>
-										<FieldError message={step3Errors.full_name?.message} />
+										<FieldError message={step2Errors.full_name?.message} />
 									</div>
 									<div className="flex flex-col gap-1.5">
 										<Label htmlFor="username">
@@ -624,18 +464,18 @@ export const InitializeClientDialog = ({
 											<Input
 												id="username"
 												placeholder="e.g. johnsmith"
-												{...step3Form.register("username")}
+												{...step2Form.register("username")}
 												className="w-full pr-8"
-												disabled={step3Busy}
+												disabled={step2Busy}
 											/>
 											{checkingUsername && (
 												<Loader2 className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-slate-400" />
 											)}
-											{!checkingUsername && usernameTaken === false && !step3Errors.username && (
+											{!checkingUsername && usernameTaken === false && !step2Errors.username && (
 												<Check className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-500" />
 											)}
 										</div>
-										<FieldError message={step3Errors.username?.message} />
+										<FieldError message={step2Errors.username?.message} />
 									</div>
 									<div className="flex flex-col gap-1.5">
 										<Label htmlFor="email">
@@ -646,11 +486,11 @@ export const InitializeClientDialog = ({
 											id="email"
 											placeholder="admin@example.com"
 											type="email"
-											{...step3Form.register("email")}
+											{...step2Form.register("email")}
 											className="w-full"
-											disabled={step3Busy}
+											disabled={step2Busy}
 										/>
-										<FieldError message={step3Errors.email?.message} />
+										<FieldError message={step2Errors.email?.message} />
 									</div>
 									<div className="flex flex-col gap-1.5">
 										<Label htmlFor="mobile">Mobile</Label>
@@ -658,11 +498,11 @@ export const InitializeClientDialog = ({
 											id="mobile"
 											placeholder="+91 98765 43210"
 											type="tel"
-											{...step3Form.register("mobile")}
+											{...step2Form.register("mobile")}
 											className="w-full"
-											disabled={step3Busy}
+											disabled={step2Busy}
 										/>
-										<FieldError message={step3Errors.mobile?.message} />
+										<FieldError message={step2Errors.mobile?.message} />
 									</div>
 									<div className="flex justify-end gap-2">
 										<Button
@@ -674,7 +514,7 @@ export const InitializeClientDialog = ({
 										</Button>
 										<Button
 											className="bg-emerald-600 text-white hover:bg-emerald-700"
-											disabled={step3SubmitDisabled}
+											disabled={step2SubmitDisabled}
 											type="submit"
 										>
 											{creatingAdmin ? "Creating..." : "Create Admin"}
@@ -713,7 +553,7 @@ export const InitializeClientDialog = ({
 								</Button>
 							</motion.div>
 						)}
-					</AnimatePresence>}
+					</AnimatePresence>
 				</div>
 			</DialogContent>
 		</Dialog>

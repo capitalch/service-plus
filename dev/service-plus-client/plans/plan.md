@@ -1,373 +1,387 @@
-# Access Control: Current State & Implementation Plan
+# Plan: Schema-DDL and Seed-Data Extraction for Security/BU Schemas
 
-## Context
+Source request: `plans/tran.md`. Repo for all code changes below is
+`/home/sushant/projects/service-plus/dev/service-plus-server` unless noted.
 
-The app currently has almost no real authorization: every button and menu
-item is shown to any Business User who can reach a page, distinguished only
-by the coarse `userType` (A/B/S) and `sessionMode` (admin/client). The goal
-is a genuine, role-based access-right system in **Client Mode**
-(Jobs/Masters/Configurations/Admin tabs — see Decision below for exactly
-which parts), driven by the already-existing but unused `access_right` /
-`role_access_right` DB schema, assigned to the three existing system roles
-(`MANAGER`, `TECHNICIAN`, `RECEPTIONIST`). The concrete business rules come
-from `plans/tran.md`.
+## 1. Problem statement (current state, verified in code)
 
-This document is self-contained: it folds in the original assessment (also
-kept separately at `plans/plan-access-right.md`), an initial exploration of
-the whole app's actionable buttons/menus (kept below for reference — Admin
-Mode's own CRUD screens turned out to be out of scope, see Decision), and
-replaces the earlier, broader first-cut catalog with the final design below.
+- **`security` schema DDL** lives as a single Python string constant
+  `SqlStore.SECURITY_SCHEMA_DDL` in `app/db/sql_store.py:1840-1953`. It is run once,
+  inside the new tenant database, by `resolve_create_service_db_helper`
+  (`app/graphql/resolvers/mutation_helper.py:423-499`, DDL executed at line 478-482).
+- **`security` schema seed data** does **not** live on the server at all. It lives in
+  the React app as `SEED_BATCHES` (`src/features/super-admin/constants/seed-data.ts`,
+  currently 3 hard-coded `security.role` rows) and is pushed row-by-row from the
+  browser via a loop of generic `genericUpdate` mutations, from **two separate call
+  sites**:
+  1. `initialize-client-dialog.tsx:281-306` (`onSeedSubmit`) — Step 2 of the
+     3-step "Initialize Client" wizard, run once right after schema creation.
+  2. `seed-roles-dialog.tsx:77-99` (`handleApply`) — a standalone super-admin
+     "repair" dialog (`SeedRolesDialog`) for re-seeding roles into an
+     *already-provisioned* client whose `security.role` table is empty, gated by a
+     `genericQuery` existence check (`SQL_MAP.CHECK_ROLE_SEED_EXISTS` →
+     `SqlStore.CHECK_ROLE_SEED_EXISTS`, `sql_store.py:1826-1830`, dispatched via
+     `getattr(SqlStore, sql_id)` in `query_helper.py:361`). **Correction from an
+     earlier pass of this plan**: `CHECK_ROLE_SEED_EXISTS` is not dead/unwired code —
+     it's live and load-bearing for this dialog. It must stay a `SqlStore` attribute
+     (the generic dispatch mechanism requires it there) even though conceptually it's
+     about the `security` schema.
+  This is the BU-side's `feedBuSeedData` pattern, duplicated ad hoc for
+  `security.role` on the frontend instead of as a server mutation.
+- **BU schema DDL** lives as `SqlBu.BU_SCHEMA_DDL` in `app/db/sql_bu.py:13-818`
+  (unqualified table names; schema is selected at runtime via `SET search_path`).
+  Run by `resolve_create_bu_schema_and_feed_seed_data_helper`
+  (`mutation_helper.py:135-253`, DDL executed at line 229-235).
+- **BU seed data** lives as `SqlBu.BU_SEED_SQL` in the same file, `sql_bu.py:820-1039`
+  (9 lookup tables, all `ON CONFLICT DO NOTHING` — idempotent). Run immediately after
+  the DDL in the same resolver (line 237-243), and independently re-run by
+  `resolve_feed_bu_seed_data_helper` (`mutation_helper.py:502-559`, line 547-551).
+- **Declared single source of truth**: `app/db/service_plus_service.sql` — a
+  schema-only `pg_dump` (no data, confirmed: 0 `COPY`/`INSERT` statements) of a real
+  database containing two Postgres schemas: `security` (the fixed security schema)
+  and `demo1` (a real BU, standing in as the structural template for "a BU schema").
 
-## Current state (verified against the live codebase)
+### Drift already present (found while inspecting, not yet reported anywhere)
 
-**One-line summary:** a complete RBAC **schema** exists and login already
-computes each user's access-right codes, but real enforcement today is only
-authentication + coarse `userType`/`sessionMode` gating in the client UI.
-The granular `access_rights` are computed and shipped to the client but
-never checked anywhere, and **the GraphQL API itself is unauthenticated on
-the server** — the most significant gap.
+`sql_bu.py`'s hand-maintained `BU_SCHEMA_DDL` is **stale** relative to
+`service_plus_service.sql`. The dump's `demo1` schema has 11 tables and 1 function
+that `BU_SCHEMA_DDL` does not create:
+`job_image_doc`, `stock_location_change`, `stock_location_master`, `stock_balance`,
+`stock_branch_transfer`, `stock_branch_transfer_line`, `stock_loan`, `stock_loan_line`,
+`stock_opening_balance`, `stock_opening_balance_line`, `stock_snapshot`, and
+`fn_maintain_stock_balance()`. This confirms the premise of `tran.md`: the hand-copy
+mechanism has already fallen behind the source of truth. Extracting mechanically
+instead of by hand is the fix.
 
-### Data model (tenant `security` schema)
+## 2. Target end state
 
-- **`user`** — `username`, `email`, `password_hash`, `is_active`, `is_admin`.
-- **`bu`** — business units.
-- **`role`** — `code`, `name`, `is_system`. Seeded: `MANAGER` ("Manage
-  orders, customers, reports"), `TECHNICIAN` ("Manage service orders and
-  update status"), `RECEPTIONIST` ("Create orders, view customers") —
-  `service-plus-client/src/features/super-admin/constants/seed-data.ts`.
-- **`access_right`** — `code`, `name`, `module`, `description`. **Table
-  exists, currently empty** — the seed batch for it is commented out
-  (`seed-data.ts:21`).
-- **`role_access_right`** — role ↔ access_right (M:N). **Also empty today.**
-- **`user_bu_role`** — user gets one role per business unit (`is_active`
-  flag). Assigned via `associate-bu-role-dialog.tsx`, uniformly across all
-  selected BUs (schema supports per-BU roles; the UI doesn't use that yet —
-  out of scope here, see below).
+```
+app/db/
+    service_plus_service.sql      # unchanged: single source of truth (schema-only dump)
+    sql_security.py               # NEW: SqlSecurity.SECURITY_SCHEMA_DDL (generated)
+    sql_bu.py                     # CHANGED: SqlBu.BU_SCHEMA_DDL only (generated); seed SQL removed
+    seed_security_data.py         # NEW: SeedSecurityData.SECURITY_SEED_SQL (hand-maintained)
+    seed_bu_data.py                # NEW: SeedBuData.BU_SEED_SQL (moved verbatim from sql_bu.py, hand-maintained)
+    tools/
+        extract_schema.py     # NEW: regenerates sql_security.py + sql_bu.py from the .sql dump
+```
 
-`roles-page.tsx` explicitly states "Roles are system-defined and cannot be
-added, edited, or deleted" — there is **no dynamic permissions-editor UI**
-anywhere in the app today, and this plan does not add one (see Decision
-below).
+- `sql_security.py` / `sql_bu.py` are **generated files** — regenerated by running the
+  extractor whenever `service_plus_service.sql` changes. They hold DDL only, no seed
+  data, matching tran.md point 5 ("single source of truth for security and bu named
+  schema is service_plus_service.sql... excludes seed data").
+- `seed_security_data.py` / `seed_bu_data.py` are **hand-maintained** — nothing
+  extracts these; updated manually, per tran.md point 9.
+- `security` seed data moves fully server-side. The client's `seed-data.ts` and the
+  `onSeedSubmit` loop in `initialize-client-dialog.tsx` are retired in favour of one
+  server-side mutation call.
 
-### Authentication (implemented and enforced)
+## 3. Step-by-step implementation
 
-- Login (`POST /api/auth/login` →
-  `service-plus-server/app/routers/auth_router_helper.py::login_helper`)
-  looks up the user via `SqlStore.GET_USER_BY_IDENTITY`
-  (`app/db/sql_store.py:3022`), which **already aggregates** the user's
-  granular right codes across `user_bu_role → role → role_access_right →
-  access_right` into `access_rights: string[]` — this already works
-  end-to-end once the two tables are populated, no query change needed for
-  that part.
-- Issues a JWT (`token_claims` at `auth_router_helper.py:150`) with `sub`,
-  `user_type`, `client_id`, `db_name` — no `role_code`, no `access_rights`
-  on it yet.
-- Client stores the login response (incl. `accessRights`, already typed in
-  `src/lib/auth-service.ts`) in Redux via `auth-slice.ts`, persisted through
-  `src/lib/auth-storage.ts`.
-- `src/lib/apollo-client.ts` attaches `Authorization: Bearer <token>` to
-  every GraphQL call — but nothing on the server checks it for GraphQL
-  (only `image_router` enforces auth via `Depends(get_current_user)` today).
+### Step 3.1 — Write the extractor: `app/db/tools/extract_schema.py`
 
-### Gaps
+Parses `service_plus_service.sql` and emits `sql_security.py` and `sql_bu.py`. Given
+this is a single, consistently-formatted `pg_dump --schema-only` file, use a
+marker-based scan rather than pulling in a full SQL-parser dependency:
 
-1. **GraphQL is unauthenticated server-side** — no `context_value` exists
-   anywhere in `app/graphql/schema.py::create_graphql_app`. Any caller who
-   can reach `/graphql` can run queries/mutations with no token. Client-side
-   button hiding is cosmetic until this closes.
-2. **`access_rights` are computed and shipped but never read** by any
-   client code or server resolver.
-3. **The generic table-writer mutations (`genericUpdate`,
-   `genericUpdateScript`, `genericQuery` — `app/graphql/resolvers/mutation.py`
-   / `query.py`) can write to *any* table by name** (`tableName` + `xData`,
-   no per-table check) — this is how most of Admin Mode's CRUD actually
-   works today, and it's the widest hole once auth is added elsewhere (flagged
-   as a follow-up in Step 14, not blocking this rollout).
+1. Read the file; split into blocks on the recurring pg_dump comment header
+   `-- Name: <object>; Type: <TABLE|SEQUENCE|FK CONSTRAINT|INDEX|FUNCTION|...>; Schema: <schema>; Owner: ...`.
+2. For each block, keep it only if `Schema:` matches the target schema for this pass
+   (`security`, or the BU template schema — see below); drop everything else.
+3. Within a kept block, strip:
+   - `ALTER TABLE ... OWNER TO ...;` lines
+   - Bare `--` comment lines and blank padding
+   - The `CREATE SCHEMA ...;` statements themselves (schema creation is handled at
+     runtime by the resolvers via `CREATE SCHEMA IF NOT EXISTS <name>`, not by this DDL)
+4. For the BU pass, additionally strip the schema qualifier from every identifier
+   (`demo1.branch` → `branch`, `demo1."user"` → `"user"`, sequence names, function
+   names, etc.) so the output matches the existing unqualified/`search_path`
+   convention in `sql_bu.py`. For the security pass, **keep** the `security.` prefix —
+   it's a fixed, non-parameterized schema name, matching the existing convention in
+   `sql_store.py`.
+5. Preserve source order (pg_dump already emits: `CREATE TABLE`s + identity sequences
+   first, then primary/unique constraints, then indexes, then FK constraints — this
+   order is exactly what the hand-written files already follow).
+6. Emit each result as a triple-quoted Python string constant inside a generated
+   class, with a header comment: `# AUTO-GENERATED by app/db/tools/extract_schema.py
+   from service_plus_service.sql — do not hand-edit; re-run the extractor instead.`
+7. CLI: `python -m app.db.tools.extract_schema [--source app/db/service_plus_service.sql] [--bu-schema-name demo1]`.
+   Defaulting `--bu-schema-name` to `demo1` today, but exposed as a flag since the
+   template BU's name is incidental, not semantic.
+8. Idempotent script — running it twice with an unchanged source file produces
+   byte-identical output (no timestamps embedded), so diffs in git only show up when
+   the source `.sql` actually changed.
+9. **Trigger mechanism: manual only.** Whoever regenerates `service_plus_service.sql`
+   (e.g. `pg_dump --schema-only` after a DB change) runs the CLI command by hand
+   afterward and commits the resulting diff. No git hook, no CI drift-check, no
+   startup checksum guard, no super-admin UI trigger — considered and deliberately
+   rejected in favor of keeping this a plain, explicit, two-command manual step.
 
-### Survey — every actionable button/menu item found
+Decision to confirm with user before/while implementing: is a hand-rolled marker
+parser acceptable, or should this use a real SQL-aware parser (e.g. `pglast` /
+`pg_query`, adding a dependency) for robustness against future pg_dump format
+changes? Marker-based is simpler and has zero new dependencies; a real parser is more
+robust if `service_plus_service.sql` will be regenerated by different pg_dump
+versions over time (the current file's header says version 18.4).
 
-**Admin Mode** (kept for reference only — out of scope per Decision below;
-this area is `userType === 'A'`-only and faces no role-based restrictions):
+### Step 3.2 — Generate `sql_security.py`
 
-| Page | Actions |
-|---|---|
-| `business-units-page.tsx` | Add Business Unit, Create Schema & Seed Data, Add Seed Data, Edit, Deactivate/Activate, Delete, Orphaned Schemas |
-| `business-users-page.tsx` | Add Business User, Edit, Associate BU / Role, Reset password and mail, Deactivate/Activate |
-| `roles-page.tsx` | none (already fully view-only) |
+- New class `SqlSecurity` with constant `SECURITY_SCHEMA_DDL`, produced by the
+  extractor from the `security` blocks of `service_plus_service.sql`.
+- Sanity-diff the generated DDL against the current hand-written
+  `SqlStore.SECURITY_SCHEMA_DDL` (`sql_store.py:1840-1953`) — expect them to be
+  structurally equivalent (same tables/columns/constraints); reconcile any
+  differences found (the dump is authoritative per tran.md, but flag surprises before
+  overwriting behavior).
 
-**Client Mode** (full detail in the survey below the table; grouped by area):
+### Step 3.3 — Regenerate `sql_bu.py` (DDL only)
 
-| Area | Representative actions | Existing gating found |
-|---|---|---|
-| Jobs (single/batch/opening job, parts-used, receipts, final-a-job, job-control, undo-transaction, accounts-posting) | Add/Edit/Delete job records, Finalize/Undo-Final, Deliver/Undo-Delivery, Post to TracePlus | Purely data-state (`is_final`, `invoice_is_posted`, `transaction_count`) — no permission checks |
-| Inventory (purchase/sales entry, stock adjustment, branch transfer, loan entry, opening stock, set part location, stock snapshot) | New/Save/Edit/Delete entries, Set Location, Take Snapshot | Form-validity disables only |
-| Masters (brand/product/model/parts/customer/technician/vendor/branch/state/financial-year, lookups, additional charges) | Add/Edit/Delete/Activate/Deactivate | Precondition disables (e.g. `!selectedBrand`), one stray `isAdmin` check in `lookup-section.tsx` |
-| Configurations (divisions, app settings, document/numbering sequences) | Add/Edit/Delete/Activate/Deactivate, edit setting | Data-flag disables (`is_editable`) |
-| Reports (~29 report sections via `report-toolbar.tsx`) | Export Excel, Export PDF, Print | **Completely ungated** |
-| Admin → Post/Unpost | Bulk-post pending job/purchase/sales invoices & receipts | `disabled` only on empty selection |
+- Replace the hand-written `BU_SCHEMA_DDL` with the extractor's output from the
+  `demo1` blocks (schema-qualifier stripped). This **intentionally changes behavior**:
+  new BUs will get the 11 additional tables + 1 function currently missing (Section 1
+  drift). Call this out explicitly in the PR description; get sign-off since it's a
+  material change in what a new BU schema contains, not just a refactor.
+- Remove `BU_SEED_SQL` from this file entirely (moves to `seed_bu_data.py`, Step 3.5).
+- Update the module docstring (currently describes both DDL and seed responsibilities;
+  narrow it to DDL-only).
 
-**Conclusion from the survey:** virtually everything gated today is
-data-state driven, not permission-based. No `useAuth`/`usePermission` hook
-exists anywhere in Client Mode. This is being introduced from scratch and
-layered **alongside** existing data-state disables, not replacing them.
+**Execution status (2026-07-10): Steps 3.1-3.3 done.** `app/db/tools/extract_schema.py`
+built and verified; `app/db/sql_security.py` created; `app/db/sql_bu.py`'s
+`BU_SCHEMA_DDL` regenerated (47 tables, up from 34 — confirms the Section 1 drift fix).
+`BU_SEED_SQL` was **not** removed as this step literally says — doing so before Step
+3.6 rewires `mutation_helper.py` would leave `createBuSchemaAndFeedSeedData` and
+`feedBuSeedData` referencing a missing attribute and break the running server. It's
+temporarily carried over unchanged (verbatim) into the regenerated file, marked with a
+comment noting it's pending the real move in Steps 3.4/3.5. Also found and fixed two
+issues while validating the extractor against the real source file (not caught during
+Step 3.1's own review, since that only wrote to a scratch directory):
+1. A parser bug — the last object block in the whole dump swallowed the trailing
+   `-- PostgreSQL database dump complete --` pg_dump footer, since nothing bounded it
+   from EOF. Fixed with an explicit strip before block-splitting.
+2. A second drift item beyond the BU-side one already documented: `security."user"`
+   in the dump has two columns — `last_used_bu_id`, `last_used_branch_id` — not
+   present in the current hand-written `SqlStore.SECURITY_SCHEMA_DDL`. Carried through
+   as-is (dump is authoritative per tran.md) but not yet reconciled against callers
+   that might assume the old 8-column shape — check this during Step 3.6.
+Still open from Step 3.2's own instructions: the generated `SqlSecurity.SECURITY_SCHEMA_DDL`
+has no `DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA IF NOT EXISTS security;`
+prefix (extractor strips `CREATE SCHEMA` statements by design, Step 3.1 point 3), but
+the *current* `resolve_create_service_db_helper` relies on that prefix being embedded
+in the DDL string itself, unlike the BU flow which does `CREATE SCHEMA IF NOT EXISTS
+<code>` as a separate step before running `BU_SCHEMA_DDL`. Step 3.6 needs to add that
+same separate-step pattern for security, not assume today's resolver works unmodified.
 
-## Decision
+### Step 3.4 — Create `app/db/seed_bu_data.py`
 
-Business rules below are final, as specified directly by the user
-(`plans/tran.md`) — this supersedes the earlier first-cut 11-code catalog
-and mapping that were drafted before those rules existed.
+- New class `SeedBuData` with constant `BU_SEED_SQL`, containing the **exact current
+  contents** of `SqlBu.BU_SEED_SQL` (`sql_bu.py:820-1039`), moved verbatim — no
+  content changes, pure file relocation. This is hand-maintained going forward (not
+  touched by the extractor).
 
-- Gate on the granular `access_right` model (not a binary Manager/non-Manager
-  check).
-- **Universal mechanism: disabled + tooltip, never hide/show.** Every
-  gated menu/button always renders; when the current role lacks the right,
-  it's visually disabled with an explanatory tooltip. This replaces the
-  earlier open question about hiding zero-right nav items — resolved,
-  no hiding.
-- **One explicit, pre-existing exception**: the "Switch to Admin Mode" icon
-  in `client-activity-bar.tsx` (`isAdmin = user?.userType === 'A'`) is
-  conditionally *rendered*, not disabled — this is existing, unrelated
-  behavior (gated by `userType`, not by the new role rights) and stays as-is.
-- **`userType === 'A'` (Business Admin) bypasses every restriction below,
-  everywhere — "no restrictions on Admin."** Same tier as the existing
-  super-admin (`'S'`) bypass. A Business Admin who also happens to hold a
-  Client-Mode role (Manager/Technician/Receptionist) is never limited by it.
-- **Admin Mode itself (`/admin/*` — Business Units, Business Users, Roles
-  pages) is out of scope for role-based gating.** It's reachable only via
-  the Admin icon, only by `userType === 'A'`, and per the rule above such
-  users face no restrictions there either. The `ADMIN_BU_MANAGE` /
-  `ADMIN_USER_MANAGE` rights considered in an earlier draft of this plan are
-  dropped — not needed.
-- **Inventory and Reports are not role-gated at all.** Not mentioned as
-  restricted for any role in the source rules below — every role (Manager,
-  Technician, Receptionist) gets full access. No access-right code needed
-  for either area.
-- **Rights are system-defined and seeded, like roles already are** —
-  no admin-editable permissions UI in this pass, matching the existing
-  "Roles are system-defined" philosophy in `roles-page.tsx`.
-- **Short role display names** — Man / Tech / Rec — for the
-  space-constrained role badge in `client-top-nav.tsx` (currently
-  `{user?.roleName ?? ...}` at the `text-[9px] ... tracking-widest` badge,
-  line ~109). The full name stays everywhere else, including the account
-  dropdown already built in `client-activity-bar.tsx`.
+### Step 3.5 — Create `app/db/seed_security_data.py`
 
-### Access-right catalog (6 codes — final, per `plans/tran.md`)
+- New class `SeedSecurityData` with constant `SECURITY_SEED_SQL`.
+- Port the 3 role rows currently in `src/features/super-admin/constants/seed-data.ts`
+  into SQL form, matching the `ON CONFLICT DO NOTHING` idempotent style used
+  throughout `seed_bu_data.py`, e.g.:
+  ```sql
+  INSERT INTO security.role (id, code, name, description, is_system) VALUES
+      (1, 'MANAGER',      'Manager',      'Manage orders, customers, reports',      true),
+      (2, 'TECHNICIAN',   'Technician',   'Manage service orders and update status', true),
+      (3, 'RECEPTIONIST', 'Receptionist', 'Create orders, view customers',           true)
+  ON CONFLICT (id) DO NOTHING;
+  ```
+- Leave a comment mirroring the client's `// Add more seed batches here as needed`
+  so future security-schema seed rows (e.g. `access_right`) have an obvious home.
 
-Only Jobs, Masters, Configurations, and the Client-Mode "Admin" (Post/Unpost)
-tab are gated. Reports and Inventory need no code (see above). Most of Jobs
-needs no code either — only three specific sub-items are ever restricted;
-the rest of Jobs (Single Job, Batch Jobs, Job Control, Job Pipeline, Final a
-Job, Deliver Job, Part Used (Job)) is open to all three roles unconditionally.
+### Step 3.6 — Wire the new modules into the resolvers (`mutation_helper.py`)
 
-| Code | Gates |
-|---|---|
-| `JOBS_RECEIPTS` | Jobs → "Receipts" (`client-explorer-panel.tsx:137`) |
-| `JOBS_OPENING_JOBS` | Jobs → "Opening Jobs" (`client-explorer-panel.tsx:136`) |
-| `JOBS_ACCOUNTS_POSTING` | Jobs → "Accounts Posting" (`client-explorer-panel.tsx:135`, already conditional on `postDataToAccounts` — this right is an *additional* condition, not a replacement) |
-| `MASTERS_MENU` | Whole "Masters" top-level tab (`client-top-nav.tsx` `NAV_ITEMS`) |
-| `CONFIG_MENU` | Whole "Configurations" top-level tab |
-| `ADMIN_MENU` | Whole "Admin" top-level tab — this is Client Mode's Post/Unpost area (`client-admin-page.tsx` → `AdminSection group="post-unpost"`), **not** the separate `/admin/*` Admin Mode |
+Only 2 functions touch these constants today — small, contained blast radius:
 
-### Role → rights mapping (final, per `plans/tran.md`)
+- `resolve_create_service_db_helper` (line 423-499):
+  - Replace `SqlStore.SECURITY_SCHEMA_DDL` (line 481) with `SqlSecurity.SECURITY_SCHEMA_DDL`.
+  - **New**: immediately after the DDL step, run `SeedSecurityData.SECURITY_SEED_SQL`
+    against the `security` schema of the new tenant DB, folding what is today a
+    separate client-driven "Step 2: Seed" wizard action into this same server call.
+  - Add `from app.db.sql_security import SqlSecurity` and
+    `from app.db.seed_security_data import SeedSecurityData` imports; drop the now-dead
+    `SqlStore.SECURITY_SCHEMA_DDL` reference (leave `SqlStore` itself untouched —
+    it's used extensively elsewhere).
+- `resolve_create_bu_schema_and_feed_seed_data_helper` (line 135-253):
+  - Replace `SqlBu.BU_SCHEMA_DDL` (line 234) with the new `SqlBu.BU_SCHEMA_DDL`
+    (unchanged import path — only the file's internal content changed, so this line
+    doesn't need to change, just re-verify against the regenerated file).
+  - Replace `SqlBu.BU_SEED_SQL` (line 242) with `SeedBuData.BU_SEED_SQL`; add
+    `from app.db.seed_bu_data import SeedBuData`.
+- `resolve_feed_bu_seed_data_helper` (line 502-559):
+  - Same swap: `SqlBu.BU_SEED_SQL` (line 550) → `SeedBuData.BU_SEED_SQL`.
 
-| Right | MANAGER | TECHNICIAN | RECEPTIONIST |
-|---|---|---|---|
-| `JOBS_RECEIPTS` | ✅ | ❌ | ✅ |
-| `JOBS_OPENING_JOBS` | ✅ | ❌ | ✅ |
-| `JOBS_ACCOUNTS_POSTING` | ✅ | ❌ | ✅ |
-| `MASTERS_MENU` | ✅ | ❌ | ✅ |
-| `CONFIG_MENU` | ✅ | ❌ | ❌ |
-| `ADMIN_MENU` | ✅ | ❌ | ❌ |
+### Step 3.7 — Retire the client-side security seed step (both call sites)
 
-Plus `userType === 'A'` or `'S'`: ✅ on everything, unconditionally (bypass,
-not a seeded row).
+`seed-data.ts` has **two** consumers (Section 1) — both need to move off it before it
+can be deleted, not just the wizard.
 
-In words: Manager — nothing disabled. Technician — loses Receipts, Opening
-Jobs, Accounts Posting, Masters, Configurations, and Admin; keeps the rest
-of Jobs plus all of Inventory and Reports. Receptionist — loses only
-Configurations and Admin; keeps everything else including Masters.
+- **`initialize-client-dialog.tsx`**: since `resolve_create_service_db_helper` now
+  seeds `security` data as part of Step 1 (schema creation), the wizard's separate
+  "Step 2: Seed" (`onSeedSubmit`, lines 281-306) becomes redundant. Collapse the
+  3-step wizard to 2 steps: create DB (now includes seeding) → create admin user.
+  Remove the now-dead `checkingSeed`/`setCheckingSeed` (line 101) and
+  `seedingData`/`setSeedingData` (line 107) state, the `onSeedSubmit` function, and
+  the Step 2 JSX block (roughly lines 437-521). Renumber `step3Form`/Step 3 UI to
+  Step 2. Check `constants/messages.ts` for `MESSAGES.SUCCESS_INITIALIZE_SEED` /
+  `MESSAGES.ERROR_INITIALIZE_SEED_FAILED` and remove them if this was their only use.
+- **`seed-roles-dialog.tsx`** (`SeedRolesDialog`): this is a genuinely useful
+  standalone repair tool (parallel to the BU's `CreateBuSchemaDialog` +
+  `feedBuSeedData`), not wizard scaffolding — don't just delete it. Instead, add a new
+  server mutation that mirrors `feedBuSeedData`:
+  - GraphQL: `seedSecurityData(db_name: String!, schema: String, value: String!): Generic`
+    in `schema.graphql`.
+  - Resolver: `resolve_seed_security_data_helper` in `mutation_helper.py`, modeled on
+    `resolve_feed_bu_seed_data_helper` (line 502-559) — guard on
+    `SqlStore.CHECK_ROLE_SEED_EXISTS` (unchanged, still lives on `SqlStore`), then run
+    `SeedSecurityData.SECURITY_SEED_SQL` against the `security` schema of `db_name`.
+    New `AuditAction` entry, e.g. `SEED_SECURITY_DATA`, alongside the existing
+    `FEED_BU_SEED_DATA` (`app/core/audit_log.py:24`).
+  - Frontend: replace `handleApply`'s `for (const batch of SEED_BATCHES) { genericUpdate }`
+    loop (lines 77-99) with a single `apolloClient.mutate({ mutation: GRAPHQL_MAP.seedSecurityData, ... })`
+    call; add `seedSecurityData` to `GRAPHQL_MAP`. The role-list preview UI
+    (lines 101-106, 160-182) needs its data source changed from `SEED_BATCHES` to a
+    small hard-coded display list (or a new lightweight query), since the SQL itself
+    moves server-side and is no longer introspectable as JS objects.
+- Once both call sites are migrated, delete
+  `src/features/super-admin/constants/seed-data.ts` entirely.
+- Check `graphql-utils.ts` / `graphQlUtils.buildGenericUpdateValue` and
+  `GRAPHQL_MAP.genericUpdate` for other callers before removing anything shared —
+  `genericUpdate` itself is a generic-purpose mutation used elsewhere and must stay;
+  only the two specific seed-data call sites go away.
 
-## Concrete steps
+### Step 3.8 — Fit-in / non-breaking constraints to hold throughout
 
-**Seeding (client-driven, reuses the existing seed-batch mechanism already
-used for Roles — no new backend code required for this part):**
+- GraphQL contract mostly unchanged: `createServiceDb`, `createBuSchemaAndFeedSeedData`,
+  `feedBuSeedData` keep their existing signatures and return shapes
+  (`app/graphql/schema.graphql:14-22`). Only their internal implementation swaps which
+  Python module supplies the SQL string.
+  - Exception 1: the 3-step → 2-step wizard collapse (Step 3.7) is a frontend-only UI
+    change; it does not require a new mutation, since seeding now happens as a side
+    effect of the existing `createServiceDb` call.
+  - Exception 2: `SeedRolesDialog`'s repair path *does* need one new mutation,
+    `seedSecurityData` (Step 3.7), because there is no existing server-side entry
+    point for "re-seed an already-provisioned client's security schema" — the closest
+    analogue, `feedBuSeedData`, only covers BU schemas.
+- `AuditAction` enum (`app/core/audit_log.py`): the Step 1 wizard path needs no new
+  action — security seeding folds into the existing `CREATE_SERVICE_DB` audit event
+  already logged at `mutation_helper.py:494-498`. The new `seedSecurityData` repair
+  mutation (Exception 2, Step 3.7) does need one new entry, e.g.
+  `SEED_SECURITY_DATA = "SEED_SECURITY_DATA"`, alongside `FEED_BU_SEED_DATA`
+  (`audit_log.py:24`).
+- `SqlStore` class stays as-is (still backs dozens of other queries); only its
+  `SECURITY_SCHEMA_DDL` constant becomes unused dead weight — remove it from
+  `sql_store.py` in the same change that switches the resolver over, so there's never
+  a moment with two competing copies of the same DDL.
+- Keep `SqlBu` as the class/module name for BU DDL (tran.md explicitly says
+  "sql_bu.py" for BU schema SQL) — only its content is regenerated and its seed
+  constant removed.
 
-1. In `service-plus-client/src/features/super-admin/constants/seed-data.ts`,
-   fill in the commented-out "Access Rights" batch
-   (`{ tableName: "access_right", xData: [...] }`) with the 6 rows from
-   the catalog above.
-2. Add a new "Role Access Rights" batch seeding `role_access_right` rows
-   (role id ↔ access_right id pairs) per the mapping table above. Check
-   whether `SqlObjectType`'s `xDetails`/`fkeyName` nested-insert pattern
-   (already defined in `src/lib/graphql-utils.ts`) is used elsewhere for a
-   parent→children seed of this shape, and mirror it — don't invent a new
-   insert shape if an existing one already does parent-id-linked child rows.
-3. For **already-provisioned** client databases (not just newly-created
-   ones), re-run the seed batches via the existing super-admin re-seed flow
-   (`seed-roles-dialog.tsx` / `initialize-client-dialog.tsx`, gated by
-   `CHECK_ROLE_SEED_EXISTS`-style idempotency) so existing tenants get
-   backfilled too.
+## 4. Cleanup checklist
 
-**Server — make rights available on every request:**
+Everything below is dead code or stale documentation left behind once Steps 3.1-3.7
+land. Consolidated here so nothing gets missed — most items are already called out
+inline above; a few (marked **new**) surfaced only when checking for other consumers.
 
-4. `service-plus-server/app/db/sql_store.py` (`GET_USER_BY_IDENTITY`,
-   line 3022) — add `r.code AS role_code` to the SELECT/GROUP BY (useful for
-   display/audit; `access_rights` is already aggregated here, no change
-   needed for that column).
-5. `service-plus-server/app/schemas/auth_schema.py` (`LoginResponse`) — add
-   `role_code: str`.
-6. `auth_router_helper.py` — pass `role_code=user.get("role_code") or ""` at
-   both `role_name=` call sites (super-admin synthetic path at line 77, real
-   user path at line 196).
-7. `auth_router_helper.py` `token_claims` (built at line 150, and again in
-   the refresh-token path around line 340) — add `"role_code"` **and**
-   `"access_rights": user.get("access_rights") or []` so both are available
-   on every GraphQL request without a DB round-trip, and stay current across
-   token refresh.
-8. `service-plus-server/app/graphql/schema.py::create_graphql_app` — add a
-   `context_value` callable to `GraphQL(...)` that reads the `Authorization`
-   header, calls the existing `decode_token()` (already used by
-   `app/core/dependencies.py::get_current_user`), and puts `user_id`,
-   `user_type`, `role_code`, `access_rights`, `client_id`, `db_name` into
-   resolver context. Missing/invalid token → context user stays `None`,
-   don't hard-fail every query (only resolvers that call the new guard
-   reject).
+**Execution status (2026-07-10): Section 4 fully applied.** All checklist items done,
+including the documentation updates. The one thing still genuinely outstanding is
+Section 5's live-DB validation itself (not a checklist item here, but the underlying
+work the `notes/todo.md:6` note still tracks as open) — no Postgres/Docker was
+available in this execution environment to run it.
 
-**Server — enforce per action:**
+**Backend (`service-plus-server`)**
+- [x] Remove `SqlStore.SECURITY_SCHEMA_DDL` (`sql_store.py:1840-1953`) — superseded by
+      `SqlSecurity.SECURITY_SCHEMA_DDL` (Step 3.8).
+- [x] Remove `SqlBu.BU_SEED_SQL` from `sql_bu.py` — moved to `seed_bu_data.py`
+      (Step 3.3/3.4).
+- [x] **Keep** `SqlStore.CHECK_ROLE_SEED_EXISTS` exactly where it is — do not move it
+      to `SqlSecurity` despite being conceptually about the security schema; it's
+      dispatched by name via `getattr(SqlStore, sql_id)` in `query_helper.py:361` and
+      moving it would silently break `SeedRolesDialog`'s existence check.
+- [x] After rewiring `mutation_helper.py` imports (Step 3.6), verified no now-unused
+      `SqlStore`/`SqlBu` imports were left behind (pyflakes/pylint weren't available
+      in this environment's venv — verified instead via `grep -c` usage counts per
+      symbol, plus a full `import app.main` smoke test that loads every touched
+      module and builds the GraphQL schema, which would fail loudly on any dangling
+      reference).
+- [x] Added `AuditAction.SEED_SECURITY_DATA` for the new `seedSecurityData` mutation.
 
-9. Add a shared guard (e.g. new `app/graphql/resolvers/auth_guards.py`):
-   ```python
-   def require_access_right(info, code: str) -> None:
-       if code not in (info.context.get("access_rights") or []):
-           raise AppHttpException(status_code=403, detail=f"Missing required access right: {code}")
-   ```
-10. Apply `require_access_right(info, "<CODE>")` at the top of every
-    resolver in `app/graphql/resolvers/mutation.py` per the catalog mapping:
-    `JOBS_RECEIPTS` → receipt create/edit/delete resolvers; `JOBS_OPENING_JOBS`
-    → opening-job create/edit/delete resolvers; `JOBS_ACCOUNTS_POSTING` →
-    `accountsPosting`; `MASTERS_MENU` → all master CRUD resolvers (Brand,
-    Product, Model, Parts, Customer, Technician, Vendor, Branch, State,
-    Financial Year, lookups, additional charges); `CONFIG_MENU` →
-    division/app-settings/document-sequence resolvers; `ADMIN_MENU` → the
-    post/unpost-pending-vouchers resolver. The rest of Jobs (single/batch/
-    opening-job-final/job-control/pipeline/deliver/part-used) and all of
-    Inventory and Reports need **no** guard — unrestricted for every role
-    per the Decision above; Step 8's authentication (valid token required)
-    still applies to them.
+**Frontend (`service-plus-client`)**
+- [x] **(new)** Migrated `seed-roles-dialog.tsx` off `SEED_BATCHES`/`genericUpdate`
+      onto the new `seedSecurityData` mutation (Step 3.7) — this was missed in the
+      first pass of this plan, which assumed `initialize-client-dialog.tsx` was the
+      only consumer of `seed-data.ts`. Its role-list preview UI now reads from a
+      small hard-coded `ROLE_PREVIEW_ITEMS` constant instead of `SEED_BATCHES`.
+- [x] Deleted `src/features/super-admin/constants/seed-data.ts` (confirmed zero
+      remaining references via repo-wide grep before deleting).
+- [x] Removed dead state from `initialize-client-dialog.tsx`: `checkingSeed`,
+      `setCheckingSeed`, `seedingData`, `setSeedingData`, `onSeedSubmit`, the whole
+      "check role seed exists" effect (no longer needed — seeding is now guaranteed
+      synchronous with DB creation), and the Step 2 "Seed" JSX block. Wizard is now
+      2 steps (`StepType = 1 | 2 | "success"`); the former Step 3 (admin creation)
+      was renumbered to Step 2, with `step3Form`/`step3Schema`/etc. renamed throughout
+      to `step2Form`/`step2Schema`/etc.
+- [x] Removed `MESSAGES.SUCCESS_INITIALIZE_SEED` / `MESSAGES.ERROR_INITIALIZE_SEED_FAILED`
+      from `constants/messages.ts` (confirmed no other references first).
+- [x] Added `seedSecurityData` to `GRAPHQL_MAP` (`constants/graphql-map.ts`) alongside
+      `feedBuSeedData`.
 
-**Client — read and gate:**
+Verification performed: `npx tsc --noEmit` (project has `noUnusedLocals`/
+`noUnusedParameters` enabled) passed with zero errors across the whole client after
+all frontend changes; the server's `import app.main` — which transitively imports
+every touched module and builds the Ariadne GraphQL executable schema from
+`schema.graphql` against the resolver map in `mutation.py` — succeeded cleanly both
+right after Step 3.6 and again after Step 3.8's final `sql_store.py` edit.
 
-11. `service-plus-client/src/lib/auth-service.ts` — add `roleCode?: string`
-    to `UserInstanceType` (mirrors existing `roleName`; `accessRights` is
-    already there).
-12. `login-form.tsx` — add `roleCode: result.roleCode` alongside
-    `roleName: result.roleName` in the `UserInstanceType` built in `onSubmit`.
-13. New file `service-plus-client/src/features/auth/utils/access-rights.ts`
-    (cross-cutting, not admin-only — Client Mode needs it too):
-    ```ts
-    export const ACCESS_RIGHTS = {
-        JOBS_RECEIPTS: 'JOBS_RECEIPTS',
-        JOBS_OPENING_JOBS: 'JOBS_OPENING_JOBS',
-        JOBS_ACCOUNTS_POSTING: 'JOBS_ACCOUNTS_POSTING',
-        MASTERS_MENU: 'MASTERS_MENU',
-        CONFIG_MENU: 'CONFIG_MENU',
-        ADMIN_MENU: 'ADMIN_MENU',
-    } as const;
-    export type AccessRightCode = typeof ACCESS_RIGHTS[keyof typeof ACCESS_RIGHTS];
+**Documentation**
+- [x] `notes/todo.md`: "Business Units — Three steps process" left unchanged (still
+      accurate for BUs, unaffected by this refactor). Updated the stale "Testing >
+      initialize > Database / Seed data / Create admin" 3-item checklist under
+      "Super admin login" to reflect the new 2-step flow (`notes/todo.md:465-468`).
+      Added a status note under "Validate creation of new client / Bu / Branch /
+      Division end to end" (`notes/todo.md:6`) recording what's done vs. outstanding
+      — **left unchecked**, since Section 5's live-DB validation still hasn't run
+      (no Postgres/Docker available in this execution environment). Do not check
+      that item off until Section 5 has actually been executed against a real DB.
 
-    export function hasAccessRight(
-        user: Pick<UserInstanceType, 'accessRights' | 'userType'> | null,
-        code: AccessRightCode,
-    ): boolean {
-        if (user?.userType === 'S' || user?.userType === 'A') return true; // super-admin / business-admin bypass — "no restrictions on Admin"
-        return !!user?.accessRights?.includes(code);
-    }
-    ```
-    Also add a `ROLE_SHORT_NAMES` map here (or alongside): `{ MANAGER: 'Man',
-    TECHNICIAN: 'Tech', RECEPTIONIST: 'Rec' }`, keyed by `role_code` once
-    Step 5/6 land (falls back to full `roleName` if `role_code` is missing).
-14. Wire `hasAccessRight(user, ...)` into the six gated spots — **always
-    render, disable + tooltip when the right is missing, never hide**:
-    - `client-explorer-panel.tsx` — the `TreeItem` component (line ~29) has
-      no `disabled` prop today; add one (dim styling + non-interactive +
-      `title` tooltip). Apply it to the "Receipts", "Opening Jobs", and
-      "Accounts Posting" `TreeItem`s using `JOBS_RECEIPTS`,
-      `JOBS_OPENING_JOBS`, `JOBS_ACCOUNTS_POSTING` respectively. "Accounts
-      Posting" keeps its existing `postDataToAccounts &&` guard as well —
-      this right is additive, not a replacement.
-    - `client-top-nav.tsx` — `NAV_ITEMS` renders `Masters`/`Configurations`/
-      `Admin` as plain `NavLink`s with no disabled state today. Add a
-      disabled visual treatment (muted text, no hover state) *and* prevent
-      the actual navigation (e.g. render a disabled `<span>`/`<button>`
-      instead of `NavLink` when disabled, or guard the click), each with a
-      `title` tooltip explaining why (e.g. "Requires Manager or Receptionist
-      role" for Masters).
-    - Apply `hasAccessRight(user, ...)` **alongside** any existing
-      data-state conditions elsewhere found in the earlier survey, never
-      replacing them.
-15. Update the role badge in `client-top-nav.tsx` (~line 109,
-    `{user?.roleName ?? (user?.userType === 'A' ? 'Admin' : 'User')}`) to
-    show the short name (`ROLE_SHORT_NAMES` from Step 13) instead of the
-    full `roleName` — this is the tight, `tracking-widest` badge where space
-    is constrained. The account dropdown built earlier in
-    `client-activity-bar.tsx` keeps showing the full role name; no change
-    needed there.
+## 5. Validation plan (for whoever executes this — not run as part of this planning pass)
 
-**Docs and follow-up hardening:**
+1. Run the extractor against the current `service_plus_service.sql`; review the
+   generated `sql_security.py` / `sql_bu.py` diffs by eye before committing.
+2. Spin up a scratch Postgres database; run the new `SqlSecurity.SECURITY_SCHEMA_DDL`
+   and new `SqlBu.BU_SCHEMA_DDL` in isolation; confirm no SQL errors and that
+   `information_schema.tables` matches the `security`/`demo1` schemas in
+   `service_plus_service.sql` table-for-table.
+3. Run `SeedSecurityData.SECURITY_SEED_SQL` and `SeedBuData.BU_SEED_SQL` against those
+   freshly-created schemas; confirm idempotency by running each twice with no errors.
+4. End-to-end through the actual app: super-admin "Add Client" → "Initialize Client"
+   (now 2 steps) → tenant admin "Add Business Unit" → confirm a job can be created in
+   the new BU (exercises the newly-added tables like `stock_balance` indirectly via
+   existing stock-transaction flows, if wired). This directly closes the open item in
+   `notes/todo.md:6` ("Validate creation of new client / Bu / Branch / Division end to
+   end").
+5. Re-run the extractor a second time with no source changes; `git diff` should be
+   empty, confirming determinism.
 
-16. Update `help-content.ts` for every gated area, noting which right/role
-    is required for each action.
-17. Flag as a separate follow-up (not blocking this rollout): the generic
-    `genericUpdate`/`genericUpdateScript`/`genericQuery` resolvers can write
-    to *any* table by name with no per-table check — Step 8's auth context
-    means they're now at least authenticated, but not yet right-scoped.
-    Closing this fully needs either a table allow-list or a right check
-    keyed by `tableName`, which is a bigger effort than this plan covers.
+## 6. Open questions to resolve before implementation starts
 
-## Out of scope
-
-- An admin-editable permissions matrix UI (assigning arbitrary rights to
-  roles at runtime) — rights are seeded/static in this pass, matching how
-  roles themselves are already system-defined.
-- Role-based gating inside Admin Mode (`/admin/*` — Business Units, Business
-  Users, Roles pages) — that area is reachable only by `userType === 'A'`,
-  who face no restrictions there per the Decision above.
-- Gating Inventory or Reports — explicitly unrestricted for every role.
-- Per-BU role distinction (a user having a different role on different
-  Business Units) — schema supports it, `associate-bu-role-dialog.tsx`
-  doesn't use it that way today. Not touched here.
-- Fully closing the `genericUpdate` table-writer hole (Step 17) — flagged,
-  not solved, in this plan.
-
-## Verification
-
-1. `npx tsc --noEmit` on the client; run the server's existing test suite
-   (if any) after backend changes.
-2. Seed one test Business User per role (MANAGER / TECHNICIAN /
-   RECEPTIONIST) via Associate BU / Role.
-3. Log in as each and confirm exactly:
-   - **Manager**: nothing disabled anywhere.
-   - **Technician**: Receipts, Opening Jobs, and Accounts Posting disabled
-     (tooltip) in the Jobs tree; Masters, Configurations, and Admin tabs
-     disabled (tooltip); rest of Jobs, all of Inventory, all of Reports
-     fully enabled.
-   - **Receptionist**: Configurations and Admin tabs disabled (tooltip);
-     everything else — including Masters and all of Jobs — fully enabled.
-   - In every case: nothing is ever hidden, only disabled+tooltip; existing
-     data-state disables (e.g. `is_final`, `invoice_is_posted`) still apply
-     on top where relevant.
-4. Log in as a `userType === 'A'` Business Admin holding any of the three
-   roles and confirm nothing is disabled anywhere (full bypass).
-5. With a non-privileged token, call a gated GraphQL mutation directly
-   (Apollo DevTools or raw request) and confirm the server now rejects it
-   with 403 — not just that the button was disabled.
-6. Confirm an already-provisioned (pre-existing) client database picks up
-   the new rows after the Step 3 re-seed, not only freshly-created clients.
-7. Confirm unauthenticated GraphQL requests to queries that don't call
-   `require_access_right` still behave reasonably (Step 8 is deliberately
-   non-breaking for those).
-8. Confirm super-admin (`userType === 'S'`) is unaffected by the new checks
-   everywhere (bypass in both `hasAccessRight` and, if mirrored server-side,
-   `require_access_right`).
-9. Confirm the role badge in `client-top-nav.tsx` shows the short name
-   (Man/Tech/Rec) and the account dropdown still shows the full role name.
+1. Extractor robustness: hand-rolled marker parser vs. a real SQL-parsing dependency
+   (`pglast`/`pg_query`) — see Step 3.1.
+2. The BU-schema drift fix (11 extra tables + 1 function newly created for all future
+   BUs) is a behavior change bundled into this refactor. Confirm this is wanted now,
+   versus extracting-but-temporarily-excluding those 11 tables to keep this change
+   DDL-source-relocation-only and file the drift as a separate follow-up.
+3. Should existing/already-provisioned tenant databases and BU schemas be
+   backfilled/migrated to pick up the 11 missing tables, or is this extractor only
+   meant to affect newly-created BUs going forward?
+4. Is `SeedRolesDialog` (the security-schema repair tool) worth keeping at all now
+   that `resolve_create_service_db_helper` seeds automatically on client creation?
+   Its only remaining purpose would be recovering a client whose `security.role` rows
+   were somehow deleted post-creation. If that scenario isn't realistic, retiring the
+   dialog entirely is simpler than building a new `seedSecurityData` mutation to keep
+   it alive (Step 3.7, Exception 2) — fewer moving parts, less to maintain.

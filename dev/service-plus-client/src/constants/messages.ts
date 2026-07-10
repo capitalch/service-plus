@@ -276,12 +276,10 @@ export const MESSAGES = {
   ERROR_FULL_NAME_REQUIRED: 'Full name is required.',
   ERROR_INITIALIZE_ADMIN_FAILED: 'Failed to create admin user. Please try again.',
   ERROR_INITIALIZE_DB_FAILED: 'Failed to create database. Please try again.',
-  ERROR_INITIALIZE_SEED_FAILED: 'Failed to apply seed data. Please try again.',
   SUCCESS_CLIENT_INITIALIZED: 'Client initialized successfully.',
   SUCCESS_INITIALIZE_ADMIN: 'Admin user created. A password setup link has been emailed.',
   WARN_INITIALIZE_ADMIN_EMAIL_NOT_SENT: 'Admin user account was created, but the password setup email could not be sent. Use "Mail the Reset Password Link" to resend.',
   SUCCESS_INITIALIZE_DB: 'Database created successfully.',
-  SUCCESS_INITIALIZE_SEED: 'Seed data applied successfully.',
 
   // System Settings
   ERROR_SETTINGS_LOAD_FAILED: 'Failed to load system settings. Please try again.',

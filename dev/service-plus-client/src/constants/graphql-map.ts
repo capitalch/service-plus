@@ -64,6 +64,11 @@ export const GRAPHQL_MAP = {
             feedBuSeedData(db_name: $db_name, schema: $schema, value: $value)
         }
     `,
+    seedSecurityData: gql`
+        mutation SeedSecurityData($db_name: String!, $schema: String, $value: String!) {
+            seedSecurityData(db_name: $db_name, schema: $schema, value: $value)
+        }
+    `,
     deleteBuSchema: gql`
         mutation DeleteBuSchema($db_name: String!, $schema: String, $value: String!) {
             deleteBuSchema(db_name: $db_name, schema: $schema, value: $value)

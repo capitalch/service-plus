@@ -4,6 +4,9 @@
 	- Inventory menu item test scripts
 	- Access management
 	- Validate creation of new client / Bu / Branch / Division end to end
+		(2026-07-10: schema/seed-data DDL source relocation done, see dev/service-plus-client/plans/plan.md —
+		static import/typecheck verification passed, but live-DB end-to-end run still outstanding,
+		no Postgres/Docker available in that session)
 	- Security of server config file
 	- Cleanup of wanrnings and extra code								
 								- Account icon implement
@@ -462,9 +465,9 @@
 								- Stats: Orphon databases. A button to view orphon databases
 								- Testing
 									- Add client
-									- initialize
-										- Database
-										- Seed data
+									- initialize (2 steps as of 2026-07-10 — seeding now happens
+									  server-side during database creation, not a separate step)
+										- Database (includes security seed data)
 										- Create admin
 									- Actions
 										- disable

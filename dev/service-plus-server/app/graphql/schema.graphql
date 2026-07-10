@@ -18,6 +18,7 @@ type Mutation {
     createServiceDb(db_name: String!, schema: String, value: String!): Generic
     deleteBuSchema(db_name: String!, schema: String, value: String!): Generic
     feedBuSeedData(db_name: String!, schema: String, value: String!): Generic
+    seedSecurityData(db_name: String!, schema: String, value: String!): Generic
     deleteClient(db_name: String!, schema: String, value: String!): Generic
     dropDatabase(db_name: String!, schema: String, value: String!): Generic
     genericUpdate(db_name: String!, schema: String, value: String!): Generic
