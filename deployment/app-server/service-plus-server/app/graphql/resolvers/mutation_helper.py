@@ -28,6 +28,9 @@ from app.db.psycopg_driver import (
 )
 from app.db.sql_store import SqlStore
 from app.db.sql_bu import SqlBu
+from app.db.sql_security import SqlSecurity
+from app.db.seed_bu_data import SeedBuData
+from app.db.seed_security_data import SeedSecurityData
 from app.exceptions import AppMessages, ValidationException
 from app.graphql.pubsub import pubsub
 from app.logger import logger
@@ -137,7 +140,7 @@ async def resolve_create_bu_schema_and_feed_seed_data_helper(
 ) -> dict:
     """
     Create a new BU row in security.bu, then create a new schema named after the BU code,
-    create all 35 tables (from BU_SCHEMA_DDL), and seed 9 lookup tables (BU_SEED_SQL).
+    create all tables (from BU_SCHEMA_DDL), and seed lookup tables (BU_SEED_SQL).
 
     Value payload (URL-encoded JSON): { code, name }
     """
@@ -239,7 +242,7 @@ async def resolve_create_bu_schema_and_feed_seed_data_helper(
     await exec_sql(
         db_name=db_name,
         schema=code,
-        sql=SqlBu.BU_SEED_SQL,
+        sql=SeedBuData.BU_SEED_SQL,
     )
 
     # 10. Audit log
@@ -473,12 +476,30 @@ async def resolve_create_service_db_helper(
         sql=pgsql.SQL("CREATE DATABASE {}").format(pgsql.Identifier(new_db_name)),
     )
 
-    # 4. Set up security schema inside the new database
+    # 4. Set up security schema inside the new database. SqlSecurity.SECURITY_SCHEMA_DDL
+    # is generated from service_plus_service.sql and contains only table/constraint DDL
+    # (no CREATE SCHEMA statements — those are stripped by the extractor), so the schema
+    # itself is created here explicitly, mirroring how the BU flow creates its schema
+    # as a separate step before running BU_SCHEMA_DDL.
     logger.info("Setting up security schema in: %s", new_db_name)
     await exec_sql(
         db_name=new_db_name,
         schema="security",
-        sql=SqlStore.SECURITY_SCHEMA_DDL,
+        sql="DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA IF NOT EXISTS security;",
+    )
+    await exec_sql(
+        db_name=new_db_name,
+        schema="security",
+        sql=SqlSecurity.SECURITY_SCHEMA_DDL,
+    )
+
+    # 4a. Seed baseline security data (default roles, etc.) — folds what used to be a
+    # separate client-driven wizard step into schema creation itself.
+    logger.info("Seeding security schema in: %s", new_db_name)
+    await exec_sql(
+        db_name=new_db_name,
+        schema="security",
+        sql=SeedSecurityData.SECURITY_SEED_SQL,
     )
 
     # 5. Persist new_db_name on the client record
@@ -547,7 +568,7 @@ async def resolve_feed_bu_seed_data_helper(
     await exec_sql(
         db_name=db_name,
         schema=code,
-        sql=SqlBu.BU_SEED_SQL,
+        sql=SeedBuData.BU_SEED_SQL,
     )
 
     await audit_logger.log(
@@ -557,6 +578,37 @@ async def resolve_feed_bu_seed_data_helper(
     )
     logger.info("Seed data fed into schema '%s' successfully", code)
     return {"code": code}
+
+
+async def resolve_seed_security_data_helper(
+    db_name: str, schema: str, value: str
+) -> dict:
+    """
+    Feed seed data into an already-provisioned client's security schema without
+    recreating it. All INSERTs in SECURITY_SEED_SQL use ON CONFLICT DO NOTHING —
+    fully idempotent, safe to call even if some/all rows already exist.
+
+    Value payload (URL-encoded JSON): {} — no parameters needed; db_name scopes
+    the call to a single client's security schema, which (unlike a BU schema) is
+    always named "security" and always exists once a client has been initialized.
+    """
+    # pylint: disable=unused-argument
+    _decode_value(value, "seedSecurityData")
+
+    logger.info("Seeding security schema data in db '%s'", db_name)
+    await exec_sql(
+        db_name=db_name,
+        schema="security",
+        sql=SeedSecurityData.SECURITY_SEED_SQL,
+    )
+
+    await audit_logger.log(
+        action=AuditAction.SEED_SECURITY_DATA,
+        resource_name=db_name,
+        resource_type="security_schema",
+    )
+    logger.info("Security seed data fed into db '%s' successfully", db_name)
+    return {"db_name": db_name}
 
 
 async def resolve_delete_bu_schema_helper(
@@ -1576,6 +1628,7 @@ async def resolve_create_job_batch_helper(
                     "remarks": job.get("remarks"),
                     "qty": job.get("qty", 1),
                     "alternate_job_no": job.get("alternate_job_no") or None,
+                    "purchase_date": job.get("purchase_date") or None,
                 }
                 job_id = await process_data(job_data, cur, "job", None, None)
                 logger.info("Batch job created with id=%s, job_no=%s", job_id, job_no)
@@ -1650,7 +1703,7 @@ async def resolve_update_job_batch_helper(
                     "UPDATE job SET job_type_id=%s, product_brand_model_id=%s, serial_no=%s,"
                     " problem_reported=%s, warranty_card_no=%s,"
                     " job_receive_condition_id=%s, remarks=%s, qty=%s,"
-                    " alternate_job_no=%s WHERE id=%s",
+                    " alternate_job_no=%s, purchase_date=%s WHERE id=%s",
                     (
                         job.get("job_type_id"),
                         job.get("product_brand_model_id"),
@@ -1661,6 +1714,7 @@ async def resolve_update_job_batch_helper(
                         job.get("remarks"),
                         job.get("qty", 1),
                         job.get("alternate_job_no") or None,
+                        job.get("purchase_date") or None,
                         job_id,
                     ),
                 )
@@ -1694,8 +1748,8 @@ async def resolve_update_job_batch_helper(
                         " (branch_id, division_id, batch_no, job_no, job_date, customer_contact_id,"
                         "  job_type_id, job_receive_manner_id, job_status_id,"
                         "  product_brand_model_id, serial_no, problem_reported,"
-                        "  warranty_card_no, job_receive_condition_id, remarks, qty)"
-                        " VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
+                        "  warranty_card_no, job_receive_condition_id, remarks, qty, purchase_date)"
+                        " VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
                         (
                             branch_id,
                             division_id,
@@ -1713,6 +1767,7 @@ async def resolve_update_job_batch_helper(
                             job.get("job_receive_condition_id"),
                             job.get("remarks"),
                             job.get("qty", 1),
+                            job.get("purchase_date") or None,
                         ),
                     )
                     new_job_id = (await cur.fetchone())["id"]
@@ -2024,8 +2079,6 @@ async def resolve_set_user_bu_role_helper(
         resource_type="business_user",
     )
     return {"user_id": user_id}
-
-
 
 
 def _build_money_receipt_tran_h(

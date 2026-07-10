@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict vDRvlKXlfdm2gI1q2A3lhvsNl34OPPM1Ptg2Xwc4rmipAx49PP5I2TLgZt7igc4
+\restrict LO4LASwNQzYx1XZawDxJklBCL9k8WA1hJSME161up7cPhcm1nKcgRmhZneeOKVX
 
 -- Dumped from database version 14.6
 -- Dumped by pg_dump version 18.4 (Ubuntu 18.4-0ubuntu0.26.04.1)
@@ -397,6 +397,8 @@ CREATE TABLE demo1.job (
     division_id bigint NOT NULL,
     is_igst boolean DEFAULT false NOT NULL,
     to_show_parts_in_job_invoice boolean DEFAULT true NOT NULL,
+    purchase_date date,
+    is_opening_job boolean DEFAULT false NOT NULL,
     CONSTRAINT job_qty_check CHECK ((qty <> 0))
 );
 
@@ -3595,5 +3597,5 @@ ALTER TABLE ONLY security.user_bu_role
 -- PostgreSQL database dump complete
 --
 
-\unrestrict vDRvlKXlfdm2gI1q2A3lhvsNl34OPPM1Ptg2Xwc4rmipAx49PP5I2TLgZt7igc4
+\unrestrict LO4LASwNQzYx1XZawDxJklBCL9k8WA1hJSME161up7cPhcm1nKcgRmhZneeOKVX
 

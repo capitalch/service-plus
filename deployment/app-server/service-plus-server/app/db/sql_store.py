@@ -1837,120 +1837,8 @@ class SqlStore:
         ) AS exists
     """
 
-    SECURITY_SCHEMA_DDL = """
-        DROP SCHEMA IF EXISTS public CASCADE;
-
-        CREATE SCHEMA IF NOT EXISTS security;
-
-        CREATE TABLE security.access_right (
-            id          integer NOT NULL,
-            code        text    NOT NULL,
-            name        text    NOT NULL,
-            module      text    NOT NULL,
-            description text,
-            created_at  timestamp with time zone DEFAULT now() NOT NULL,
-            updated_at  timestamp with time zone DEFAULT now() NOT NULL,
-            CONSTRAINT access_right_code_check CHECK ((code ~ '^[A-Z_]+$'::text))
-        );
-        ALTER TABLE security.access_right ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
-            SEQUENCE NAME security.access_right_id_seq
-            START WITH 1 INCREMENT BY 1 NO MINVALUE NO MAXVALUE CACHE 1
-        );
-        ALTER TABLE ONLY security.access_right ADD CONSTRAINT access_right_code_key UNIQUE (code);
-        ALTER TABLE ONLY security.access_right ADD CONSTRAINT access_right_pkey PRIMARY KEY (id);
-        CREATE INDEX access_right_module_idx ON security.access_right USING btree (module);
-
-        CREATE TABLE security.bu (
-            id         bigint  NOT NULL,
-            code       text    NOT NULL,
-            name       text    NOT NULL,
-            is_active  boolean DEFAULT true NOT NULL,
-            created_at timestamp with time zone DEFAULT now() NOT NULL,
-            updated_at timestamp with time zone DEFAULT now() NOT NULL
-        );
-        ALTER TABLE security.bu ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
-            SEQUENCE NAME security.bu_id_seq
-            START WITH 1 INCREMENT BY 1 NO MINVALUE NO MAXVALUE CACHE 1
-        );
-        ALTER TABLE ONLY security.bu ADD CONSTRAINT bu_pkey PRIMARY KEY (id);
-
-        CREATE TABLE security.role (
-            id          smallint NOT NULL,
-            code        text     NOT NULL,
-            name        text     NOT NULL,
-            description text,
-            is_system   boolean  DEFAULT false NOT NULL,
-            created_at  timestamp with time zone DEFAULT now() NOT NULL,
-            updated_at  timestamp with time zone DEFAULT now() NOT NULL,
-            CONSTRAINT role_code_check CHECK ((code ~ '^[A-Z_]+$'::text))
-        );
-        ALTER TABLE ONLY security.role ADD CONSTRAINT role_code_key UNIQUE (code);
-        ALTER TABLE ONLY security.role ADD CONSTRAINT role_pkey PRIMARY KEY (id);
-        CREATE INDEX role_is_system_idx ON security.role USING btree (is_system);
-
-        CREATE TABLE security.role_access_right (
-            role_id         smallint NOT NULL,
-            access_right_id integer  NOT NULL
-        );
-        ALTER TABLE ONLY security.role_access_right
-            ADD CONSTRAINT role_access_right_pkey PRIMARY KEY (role_id, access_right_id);
-        ALTER TABLE ONLY security.role_access_right
-            ADD CONSTRAINT role_access_right_access_right_id_fkey
-                FOREIGN KEY (access_right_id) REFERENCES security.access_right(id) ON DELETE CASCADE;
-        ALTER TABLE ONLY security.role_access_right
-            ADD CONSTRAINT role_access_right_role_id_fkey
-                FOREIGN KEY (role_id) REFERENCES security.role(id) ON DELETE CASCADE;
-        CREATE INDEX role_access_right_access_right_id_idx
-            ON security.role_access_right USING btree (access_right_id);
-
-        CREATE TABLE security."user" (
-            id            bigint  NOT NULL,
-            username      text    NOT NULL,
-            email         text    NOT NULL,
-            mobile        text,
-            password_hash text    NOT NULL,
-            is_active     boolean DEFAULT true  NOT NULL,
-            is_admin      boolean DEFAULT false NOT NULL,
-            full_name     text    NOT NULL,
-            created_at    timestamp with time zone DEFAULT now() NOT NULL,
-            updated_at    timestamp with time zone DEFAULT now() NOT NULL
-        );
-        ALTER TABLE security."user" ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
-            SEQUENCE NAME security.user_id_seq
-            START WITH 1 INCREMENT BY 1 NO MINVALUE NO MAXVALUE CACHE 1
-        );
-        ALTER TABLE ONLY security."user" ADD CONSTRAINT user_email_key    UNIQUE (email);
-        ALTER TABLE ONLY security."user" ADD CONSTRAINT user_pkey         PRIMARY KEY (id);
-        ALTER TABLE ONLY security."user" ADD CONSTRAINT user_username_key UNIQUE (username);
-        CREATE INDEX        user_full_name_idx      ON security."user" USING btree (full_name);
-        CREATE UNIQUE INDEX user_mobile_unique_idx  ON security."user" USING btree (mobile)
-            WHERE (mobile IS NOT NULL);
-
-        CREATE TABLE security.user_bu_role (
-            user_id    bigint  NOT NULL,
-            bu_id      bigint  NOT NULL,
-            role_id    bigint  NOT NULL,
-            is_active  boolean DEFAULT true NOT NULL,
-            created_at timestamp with time zone DEFAULT now() NOT NULL,
-            updated_at timestamp with time zone DEFAULT now() NOT NULL
-        );
-        ALTER TABLE ONLY security.user_bu_role
-            ADD CONSTRAINT user_bu_role_pkey PRIMARY KEY (user_id, bu_id, role_id);
-        ALTER TABLE ONLY security.user_bu_role
-            ADD CONSTRAINT user_bu_role_user_id_bu_id_key UNIQUE (user_id, bu_id);
-        ALTER TABLE ONLY security.user_bu_role
-            ADD CONSTRAINT user_bu_role_bu_id_fkey
-                FOREIGN KEY (bu_id)   REFERENCES security.bu(id)     ON DELETE CASCADE;
-        ALTER TABLE ONLY security.user_bu_role
-            ADD CONSTRAINT user_bu_role_role_id_fkey
-                FOREIGN KEY (role_id) REFERENCES security.role(id)   ON DELETE CASCADE;
-        ALTER TABLE ONLY security.user_bu_role
-            ADD CONSTRAINT user_bu_role_user_id_fkey
-                FOREIGN KEY (user_id) REFERENCES security."user"(id) ON DELETE CASCADE;
-        CREATE INDEX user_bu_role_bu_id_idx   ON security.user_bu_role USING btree (bu_id);
-        CREATE INDEX user_bu_role_role_id_idx ON security.user_bu_role USING btree (role_id);
-        CREATE INDEX user_bu_role_user_id_idx ON security.user_bu_role USING btree (user_id);
-        """
+    # NOTE: security-schema DDL now lives in app/db/sql_security.py (SqlSecurity),
+    # generated from service_plus_service.sql by app/db/tools/extract_schema.py.
 
     # ── States ────────────────────────────────────────────────────────────────
 
@@ -3341,6 +3229,7 @@ class SqlStore:
             j.job_no,
             j.alternate_job_no,
             j.job_date,
+            j.purchase_date,
             j.job_status_id,
             j.is_closed,
             j.is_final,
@@ -3432,6 +3321,7 @@ class SqlStore:
             j.job_no,
             j.alternate_job_no,
             j.job_date,
+            j.purchase_date,
             j.job_status_id,
             j.is_closed,
             j.is_final,
@@ -3594,6 +3484,7 @@ class SqlStore:
             j.job_no,
             j.alternate_job_no,
             j.job_date,
+            j.purchase_date,
             j.is_closed,
             j.is_final,
             j.amount,
@@ -3622,6 +3513,83 @@ class SqlStore:
         LEFT JOIN product          p   ON p.id   = pbm.product_id
         WHERE j.branch_id = (table "p_branch_id")
           AND j.job_date BETWEEN (table "p_from_date") AND (table "p_to_date")
+          AND ((table "p_search") = ''
+           OR LOWER(j.job_no)       LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(cc.mobile)      LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(cc.full_name)   LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(p.name)         LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(b.name)         LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(pbm.model_name) LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(j.serial_no)    LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(COALESCE(j.alternate_job_no, '')) LIKE '%%' || LOWER((table "p_search")) || '%%')
+        ORDER BY j.job_date DESC, j.id DESC
+        LIMIT  (table "p_limit")
+        OFFSET (table "p_offset")
+    """
+
+    GET_OPENING_JOBS_COUNT = """
+        with
+            "p_branch_id" as (values(%(branch_id)s::bigint)),
+            "p_search"    as (values(%(search)s::text))
+        SELECT COUNT(*) AS total
+        FROM job j
+        JOIN customer_contact cc ON cc.id = j.customer_contact_id
+        LEFT JOIN product_brand_model pbm ON pbm.id = j.product_brand_model_id
+        LEFT JOIN brand            b   ON b.id   = pbm.brand_id
+        LEFT JOIN product          p   ON p.id   = pbm.product_id
+        WHERE j.branch_id = (table "p_branch_id")
+          AND j.is_opening_job = true
+          AND ((table "p_search") = ''
+           OR LOWER(j.job_no)       LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(cc.mobile)      LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(cc.full_name)   LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(p.name)         LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(b.name)         LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(pbm.model_name) LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(j.serial_no)    LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(COALESCE(j.alternate_job_no, '')) LIKE '%%' || LOWER((table "p_search")) || '%%')
+    """
+
+    GET_OPENING_JOBS_PAGED = """
+        with
+            "p_branch_id" as (values(%(branch_id)s::bigint)),
+            "p_search"    as (values(%(search)s::text)),
+            "p_limit"     as (values(%(limit)s::int)),
+            "p_offset"    as (values(%(offset)s::int))
+        SELECT
+            j.id,
+            j.job_no,
+            j.alternate_job_no,
+            j.job_date,
+            j.purchase_date,
+            j.is_closed,
+            j.is_final,
+            j.amount,
+            cc.full_name  AS customer_name,
+            cc.gstin      AS customer_gstin,
+            cc.mobile,
+            TRIM(CONCAT_WS(' ', p.name, b.name, pbm.model_name, j.serial_no)) AS device_details,
+            jt.name       AS job_type_name,
+            jt.code       AS job_type_code,
+            js.name       AS job_status_name,
+            js.code       AS job_status_code,
+            jrc.name      AS receive_condition_name,
+            t.name        AS technician_name,
+            j.batch_no    AS batch_no,
+            j.division_id,
+            (SELECT COUNT(*) FROM job_image_doc   jid WHERE jid.job_id = j.id) AS file_count,
+            (SELECT COUNT(*) FROM job_transaction jtr WHERE jtr.job_id = j.id) AS transaction_count
+        FROM job j
+        JOIN customer_contact cc ON cc.id = j.customer_contact_id
+        JOIN job_type          jt ON jt.id = j.job_type_id
+        JOIN job_status        js ON js.id = j.job_status_id
+        LEFT JOIN technician   t  ON t.id  = j.technician_id
+        LEFT JOIN job_receive_condition jrc ON jrc.id = j.job_receive_condition_id
+        LEFT JOIN product_brand_model pbm ON pbm.id = j.product_brand_model_id
+        LEFT JOIN brand            b   ON b.id   = pbm.brand_id
+        LEFT JOIN product          p   ON p.id   = pbm.product_id
+        WHERE j.branch_id = (table "p_branch_id")
+          AND j.is_opening_job = true
           AND ((table "p_search") = ''
            OR LOWER(j.job_no)       LIKE '%%' || LOWER((table "p_search")) || '%%'
            OR LOWER(cc.mobile)      LIKE '%%' || LOWER((table "p_search")) || '%%'
@@ -3678,6 +3646,7 @@ class SqlStore:
             j.job_no,
             j.alternate_job_no,
             j.job_date,
+            j.purchase_date,
             j.is_closed,
             j.is_final,
             j.amount,
@@ -3870,6 +3839,7 @@ class SqlStore:
             j.id,
             j.job_no,
             j.job_date,
+            j.purchase_date,
             j.is_closed,
             j.amount,
             j.serial_no,
@@ -4773,6 +4743,7 @@ class SqlStore:
             j.job_no,
             j.alternate_job_no,
             j.job_date,
+            j.purchase_date,
             j.amount,
             j.batch_no,
             j.serial_no,
@@ -4943,7 +4914,7 @@ class SqlStore:
             "p_search"    as (values(%(search)s::text)),
             "p_limit"     as (values(%(limit)s::int)),
             "p_offset"    as (values(%(offset)s::int))
-        SELECT j.id, j.job_no, j.alternate_job_no, j.job_date, j.amount, j.last_transaction_id,
+        SELECT j.id, j.job_no, j.alternate_job_no, j.job_date, j.purchase_date, j.amount, j.last_transaction_id,
                j.division_id, j.batch_no, j.serial_no,
                TRIM(CONCAT_WS(' ', p.name, b.name, pbm.model_name, j.serial_no)) AS device_details,
                cc.full_name  AS customer_name, cc.gstin AS customer_gstin, cc.mobile,
@@ -5026,7 +4997,7 @@ class SqlStore:
             "p_search"    as (values(%(search)s::text)),
             "p_limit"     as (values(%(limit)s::int)),
             "p_offset"    as (values(%(offset)s::int))
-        SELECT j.id, j.job_no, j.alternate_job_no, j.job_date, j.delivery_date,
+        SELECT j.id, j.job_no, j.alternate_job_no, j.job_date, j.purchase_date, j.delivery_date,
                j.amount, j.last_transaction_id,
                j.division_id, j.batch_no, j.serial_no,
                TRIM(CONCAT_WS(' ', p.name, b.name, pbm.model_name)) AS device_details,
