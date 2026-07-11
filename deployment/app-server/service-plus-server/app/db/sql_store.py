@@ -1829,6 +1829,12 @@ class SqlStore:
         ) AS exists
     """
 
+    CHECK_ACCESS_RIGHT_SEED_EXISTS = """
+        SELECT EXISTS(
+            SELECT 1 FROM security.access_right LIMIT 1
+        ) AS exists
+    """
+
     CHECK_SCHEMA_EXISTS = """
         with "p_code" as (values(%(code)s::text))
         -- with "p_code" as (values('demo1'::text)) -- Test line
@@ -2902,9 +2908,23 @@ class SqlStore:
     GET_USER_BY_ID_FOR_RESET = """
         with "p_id" as (values(%(id)s::bigint))
         -- with "p_id" as (values(1::bigint)) -- Test line
-        SELECT id, username, full_name, is_active
-        FROM security."user"
-        WHERE id = (table "p_id")
+        SELECT
+            u.id,
+            u.username,
+            u.full_name,
+            u.is_active,
+            r.code AS role_code,
+            COALESCE(
+                ARRAY_AGG(ar.code ORDER BY ar.code) FILTER (WHERE ar.code IS NOT NULL),
+                ARRAY[]::text[]
+            ) AS access_rights
+        FROM security."user" u
+        LEFT JOIN security.user_bu_role ubr ON ubr.user_id = u.id AND ubr.is_active = true
+        LEFT JOIN security.role          r   ON r.id = ubr.role_id
+        LEFT JOIN security.role_access_right rar ON rar.role_id = r.id
+        LEFT JOIN security.access_right  ar  ON ar.id = rar.access_right_id
+        WHERE u.id = (table "p_id")
+        GROUP BY u.id, u.username, u.full_name, u.is_active, r.code
     """
 
     GET_USER_BY_IDENTITY = """
@@ -2922,6 +2942,7 @@ class SqlStore:
             u.password_hash,
             u.username,
             r.name AS role_name,
+            r.code AS role_code,
             COALESCE(
                 ARRAY_AGG(ar.code ORDER BY ar.code) FILTER (WHERE ar.code IS NOT NULL),
                 ARRAY[]::text[]
@@ -2937,7 +2958,7 @@ class SqlStore:
         )
         GROUP BY u.id, u.email, u.full_name, u.is_active, u.is_admin,
                  u.last_used_branch_id, u.last_used_bu_id,
-                 u.mobile, u.password_hash, u.username, r.name
+                 u.mobile, u.password_hash, u.username, r.name, r.code
     """
 
     SET_USER_PASSWORD = """

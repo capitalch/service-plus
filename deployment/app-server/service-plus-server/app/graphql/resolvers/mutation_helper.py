@@ -585,21 +585,31 @@ async def resolve_seed_security_data_helper(
 ) -> dict:
     """
     Feed seed data into an already-provisioned client's security schema without
-    recreating it. All INSERTs in SECURITY_SEED_SQL use ON CONFLICT DO NOTHING —
-    fully idempotent, safe to call even if some/all rows already exist.
+    recreating it. All INSERTs use ON CONFLICT DO NOTHING — fully idempotent,
+    safe to call even if some/all rows already exist.
 
-    Value payload (URL-encoded JSON): {} — no parameters needed; db_name scopes
-    the call to a single client's security schema, which (unlike a BU schema) is
-    always named "security" and always exists once a client has been initialized.
+    Value payload (URL-encoded JSON): { stage?: "roles" | "access_rights" } —
+    lets the two-step re-seed wizard (SeedRolesDialog) seed just the roles
+    table or just access_right/role_access_right independently. A missing or
+    unrecognized stage runs the full combined seed, preserving the original
+    behavior for any other caller.
     """
     # pylint: disable=unused-argument
-    _decode_value(value, "seedSecurityData")
+    payload = _decode_value(value, "seedSecurityData")
+    stage = payload.get("stage")
 
-    logger.info("Seeding security schema data in db '%s'", db_name)
+    if stage == "roles":
+        sql = SeedSecurityData.ROLE_SEED_SQL
+    elif stage == "access_rights":
+        sql = SeedSecurityData.ACCESS_RIGHT_SEED_SQL
+    else:
+        sql = SeedSecurityData.SECURITY_SEED_SQL
+
+    logger.info("Seeding security schema data (stage=%s) in db '%s'", stage or "all", db_name)
     await exec_sql(
         db_name=db_name,
         schema="security",
-        sql=SeedSecurityData.SECURITY_SEED_SQL,
+        sql=sql,
     )
 
     await audit_logger.log(

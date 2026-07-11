@@ -79,6 +79,7 @@ class LoginResponse(BaseModel):
     last_used_branch_id: int | None = Field(default=None, alias="lastUsedBranchId", description="Last used branch ID")
     last_used_bu_id: int | None = Field(default=None, alias="lastUsedBuId", description="Last used BU ID")
     mobile: str = Field(description="User's mobile number")
+    role_code: str = Field(default="", alias="roleCode", description="User's role code")
     role_name: str = Field(alias="roleName", description="User's role name")
     username: str = Field(description="User's username")
     user_type: str = Field(
