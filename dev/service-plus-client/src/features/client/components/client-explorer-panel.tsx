@@ -215,12 +215,19 @@ function JobsExplorer() {
 
 
 function MastersExplorer() {
+    const currentUser = useAppSelector(selectCurrentUser);
+    const canOrganization  = hasAccessRight(currentUser, ACCESS_RIGHTS.MASTERS_ORGANIZATION);
+    const canServiceConfig = hasAccessRight(currentUser, ACCESS_RIGHTS.MASTERS_SERVICE_CONFIG);
+
+    const orgTitle    = !canOrganization  ? "Your role does not have access to Organization" : undefined;
+    const configTitle = !canServiceConfig ? "Your role does not have access to Service Config" : undefined;
+
     return (
         <div className="space-y-3">
             <CollapsibleGroup label="Organization">
-                <TreeItem icon={Building2} label="Branch" />
-                <TreeItem icon={Hash}      label="Financial Year" />
-                <TreeItem icon={MapPin}    label="State / Province" />
+                <TreeItem icon={Building2} label="Branch"          disabled={!canOrganization} title={orgTitle} />
+                <TreeItem icon={Hash}      label="Financial Year"  disabled={!canOrganization} title={orgTitle} />
+                <TreeItem icon={MapPin}    label="State / Province" disabled={!canOrganization} title={orgTitle} />
             </CollapsibleGroup>
             <CollapsibleGroup label="Entities">
                 <TreeItem icon={User}    label="Customer" />
@@ -228,14 +235,14 @@ function MastersExplorer() {
                 <TreeItem icon={UserCog} label="Technician" />
             </CollapsibleGroup>
             <CollapsibleGroup label="Service Config" defaultOpen={false}>
-                <TreeItem icon={Users}         label="Customer Type" />
-                <TreeItem icon={FileText}      label="Document Type" />
-                <TreeItem icon={Wrench}        label="Job Type" />
-                <TreeItem icon={ClipboardList} label="Job Status" />
-                <TreeItem icon={RotateCcw}     label="Job Receive Manner" />
-                <TreeItem icon={Truck}         label="Job Delivery Manner" />
-                <TreeItem icon={Settings2}     label="Job Receive Condition" />
-                <TreeItem icon={Receipt}       label="Job Additional Charges" />
+                <TreeItem icon={Users}         label="Customer Type"          disabled={!canServiceConfig} title={configTitle} />
+                <TreeItem icon={FileText}      label="Document Type"          disabled={!canServiceConfig} title={configTitle} />
+                <TreeItem icon={Wrench}        label="Job Type"               disabled={!canServiceConfig} title={configTitle} />
+                <TreeItem icon={ClipboardList} label="Job Status"             disabled={!canServiceConfig} title={configTitle} />
+                <TreeItem icon={RotateCcw}     label="Job Receive Manner"     disabled={!canServiceConfig} title={configTitle} />
+                <TreeItem icon={Truck}         label="Job Delivery Manner"    disabled={!canServiceConfig} title={configTitle} />
+                <TreeItem icon={Settings2}     label="Job Receive Condition"  disabled={!canServiceConfig} title={configTitle} />
+                <TreeItem icon={Receipt}       label="Job Additional Charges" disabled={!canServiceConfig} title={configTitle} />
             </CollapsibleGroup>
             <CollapsibleGroup label="Product & Parts" defaultOpen={false}>
                 <TreeItem icon={Tag}      label="Brand" />

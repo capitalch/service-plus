@@ -97,7 +97,8 @@ const SECTION_DEFAULT_GROUPS: Record<Section, string> = {
 type ClientLayoutProps = { children: ReactNode };
 
 export const ClientLayout = ({ children }: ClientLayoutProps) => {
-    const { pathname }                      = useLocation();
+    const location                          = useLocation();
+    const { pathname }                      = location;
     const activeSection                     = sectionFromPath(pathname);
     const dispatch                          = useAppDispatch();
     const dbName                            = useAppSelector(selectDbName);
@@ -117,6 +118,18 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
         setSelected(SECTION_DEFAULTS[activeSection]);
         setSelectedGroup(SECTION_DEFAULT_GROUPS[activeSection]);
     }, [activeSection]);
+
+    // Deep links (e.g. the notification bell) can request a specific sub-item via
+    // navigation state. Runs after the section-default reset above so it wins on
+    // cross-section navigation; keyed on location.key so same-section links also apply.
+    useEffect(() => {
+        const navState = location.state as { subGroup?: string; subItem?: string } | null;
+        if (navState?.subItem) {
+            setSelected(navState.subItem);
+            setSelectedGroup(navState.subGroup ?? '');
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [location.key]);
 
     useEffect(() => {
         document.documentElement.classList.toggle('dark', isDark);

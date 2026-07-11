@@ -1,14 +1,18 @@
 import {
-    BellIcon,
+    DatabaseIcon,
     HelpCircleIcon,
     LogOutIcon,
     MenuIcon,
     SettingsIcon,
+    ShieldAlertIcon,
     UserIcon,
 } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQuery } from "@apollo/client/react";
 
+import { NotificationBell } from "@/components/shared/notifications/notification-bell";
+import type { NotificationItem } from "@/components/shared/notifications/notification-bell";
 import { Button } from "@/components/ui/button";
 import {
     DropdownMenu,
@@ -18,11 +22,17 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { GRAPHQL_MAP } from "@/constants/graphql-map";
+import type { AuditStatsType } from "@/features/super-admin/types";
 import { ROUTES } from "@/router/routes";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { logout, selectCurrentUser } from "@/features/auth/store/auth-slice";
 
 import { SuperAdminProfileDialog } from "./super-admin-profile-dialog";
+
+function todayIso(): string {
+    return new Date().toISOString().slice(0, 10);
+}
 
 type TopHeaderPropsType = {
     onMenuToggle: () => void;
@@ -42,8 +52,37 @@ export const TopHeader = ({ onMenuToggle, onOpenHelp }: TopHeaderPropsType) => {
     const dispatch = useAppDispatch();
     const navigate = useNavigate();
     const user = useAppSelector(selectCurrentUser);
-    const [hasNotification] = useState(true);
     const [isProfileOpen, setIsProfileOpen] = useState(false);
+
+    const [today] = useState(todayIso);
+
+    const { data: auditData } = useQuery<{ auditLogStats: AuditStatsType }>(
+        GRAPHQL_MAP.auditLogStats,
+        { variables: { from_date: today, to_date: today } },
+    );
+    const { data: clientsData } = useQuery<{ superAdminClientsData: { orphanDatabaseCount: number } }>(
+        GRAPHQL_MAP.superAdminClientsData,
+    );
+
+    const failedLogins = auditData?.auditLogStats?.outcomeCounts?.failure ?? 0;
+    const orphanDbs    = clientsData?.superAdminClientsData?.orphanDatabaseCount ?? 0;
+
+    const notificationItems: NotificationItem[] = [
+        {
+            count:    failedLogins,
+            icon:     ShieldAlertIcon,
+            id:       "failed-logins",
+            label:    "Failed logins today",
+            onSelect: () => navigate(ROUTES.superAdmin.audit),
+        },
+        {
+            count:    orphanDbs,
+            icon:     DatabaseIcon,
+            id:       "orphan-databases",
+            label:    "Orphan databases",
+            onSelect: () => navigate(ROUTES.superAdmin.clients, { state: { openOrphanDbs: true } }),
+        },
+    ];
 
     const handleLogout = () => {
         dispatch(logout());
@@ -76,13 +115,11 @@ export const TopHeader = ({ onMenuToggle, onOpenHelp }: TopHeaderPropsType) => {
 
             <div className="ml-auto flex items-center gap-2">
                 {/* Notifications */}
-                <Button className="relative" size="icon" variant="ghost">
-                    <BellIcon className="h-5 w-5 text-slate-600" />
-                    {hasNotification && (
-                        <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-emerald-500 ring-2 ring-white" />
-                    )}
-                    <span className="sr-only">Notifications</span>
-                </Button>
+                <NotificationBell
+                    className="hover:bg-slate-50"
+                    iconClassName="text-slate-600"
+                    items={notificationItems}
+                />
 
                 {/* User avatar dropdown */}
                 <DropdownMenu>

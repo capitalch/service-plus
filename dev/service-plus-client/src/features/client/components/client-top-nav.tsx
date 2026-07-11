@@ -1,6 +1,8 @@
 import { useNavigate, NavLink } from "react-router-dom";
-import { Bell, LogOut, Menu, Moon, PanelLeft, Sun } from "lucide-react";
+import { LogOut, Menu, Moon, PackageX, PanelLeft, Sun, Timer, UploadCloud } from "lucide-react";
 
+import { NotificationBell } from "@/components/shared/notifications/notification-bell";
+import type { NotificationItem } from "@/components/shared/notifications/notification-bell";
 import { BuBranchSwitcher } from "@/features/admin/components/bu-branch-switcher";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { logout, selectCurrentUser } from "@/features/auth/store/auth-slice";
@@ -8,6 +10,7 @@ import { ACCESS_RIGHTS, getRoleDisplayName, hasAccessRight, type AccessRightCode
 import { ROUTES } from "@/router/routes";
 import { useHelp, useLayout, useTheme } from "./client-layout";
 import type { Section } from "./client-layout";
+import { useNotificationsSummary } from "./use-notifications-summary";
 
 type NavItem = { label: string; requiredRight?: AccessRightCode; section: Section; to: string; end?: boolean };
 
@@ -29,11 +32,36 @@ export const ClientTopNav = ({ activeSection }: Props) => {
     const { isDark, toggleTheme }  = useTheme();
     const { toggleExplorer }       = useLayout();
     const { openHelp }             = useHelp();
+    const { jobsOverdue, lowStockParts, unpostedDocs } = useNotificationsSummary();
 
     function handleLogout() {
         dispatch(logout());
         navigate(ROUTES.login);
     }
+
+    const notificationItems: NotificationItem[] = [
+        {
+            count:    jobsOverdue,
+            icon:     Timer,
+            id:       "jobs-overdue",
+            label:    "Overdue jobs",
+            onSelect: () => navigate(ROUTES.client.reports, { state: { subItem: "Dashboard" } }),
+        },
+        {
+            count:    unpostedDocs,
+            icon:     UploadCloud,
+            id:       "unposted-docs",
+            label:    "Unposted documents",
+            onSelect: () => navigate(ROUTES.client.admin, { state: { subItem: "Post / Unpost" } }),
+        },
+        {
+            count:    lowStockParts,
+            icon:     PackageX,
+            id:       "low-stock-parts",
+            label:    "Low-stock parts",
+            onSelect: () => navigate(ROUTES.client.inventory, { state: { subItem: "Part Finder" } }),
+        },
+    ];
 
     return (
         <header className="fixed left-0 right-0 top-0 z-50 flex h-12 items-center border-b border-(--cl-border) bg-(--cl-bg) px-3 sm:px-4">
@@ -112,12 +140,11 @@ export const ClientTopNav = ({ activeSection }: Props) => {
                     {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
                 </button>
 
-                <div className="relative cursor-pointer rounded p-1.5 transition-colors hover:bg-(--cl-hover) hidden sm:flex">
-                    <Bell className="h-5 w-5 text-(--cl-text-muted)" />
-                    <span className="absolute right-1 top-1 flex h-3 w-3 items-center justify-center rounded-full bg-(--cl-accent) text-[8px] font-bold text-white">
-                        3
-                    </span>
-                </div>
+                <NotificationBell
+                    className="hidden hover:bg-(--cl-hover) sm:flex"
+                    iconClassName="text-(--cl-text-muted)"
+                    items={notificationItems}
+                />
 
                 <div className="flex items-center gap-1.5 border-l border-(--cl-border) pl-1.5 sm:gap-2 sm:pl-2">
                     <div className="hidden text-right xl:block">
@@ -125,7 +152,7 @@ export const ClientTopNav = ({ activeSection }: Props) => {
                             {user?.fullName ?? user?.username}
                         </p>
                         <p className="text-[9px] font-bold uppercase tracking-widest text-(--cl-accent)">
-                            {getRoleDisplayName(user, true) ?? (user?.userType === 'A' ? 'Admin' : 'User')}
+                            {getRoleDisplayName(user, false) ?? (user?.userType === 'A' ? 'Admin' : 'User')}
                         </p>
                     </div>
                     <button

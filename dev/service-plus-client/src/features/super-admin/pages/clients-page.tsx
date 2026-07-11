@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import {ArrowDownIcon,
 	ArrowUpDownIcon,
@@ -121,6 +122,7 @@ function formatDate(date: string): string {
 export const ClientsPage = () => {
 	const dispatch = useAppDispatch();
 	const clients = useAppSelector(selectClients);
+	const location = useLocation();
 
 	// ── Client dialog state ──────────────────────────────────────────────────
 	const [activateClient, setActivateClient] = useState<ClientType | null>(null);
@@ -164,6 +166,13 @@ export const ClientsPage = () => {
 	useEffect(() => {
 		if (error) toast.error(MESSAGES.ERROR_CLIENTS_LOAD);
 	}, [error]);
+
+	// Open the orphan-DBs dialog when navigated here from the notification bell.
+	useEffect(() => {
+		if ((location.state as { openOrphanDbs?: boolean } | null)?.openOrphanDbs) {
+			setOrphanDbsOpen(true);
+		}
+	}, [location.key]); // eslint-disable-line react-hooks/exhaustive-deps
 
 	const displayList = useMemo(() => {
 		const sorted = [...clients].sort((a, b) => {

@@ -41,6 +41,8 @@ const ACCESS_RIGHT_PREVIEW_ITEMS = [
 	{ code: "INVENTORY_BRANCH_TRANSFER", module: "Inventory", name: "Branch Transfer" },
 	{ code: "INVENTORY_OPENING_STOCK", module: "Inventory", name: "Opening Stock" },
 	{ code: "INVENTORY_SET_PART_LOCATION", module: "Inventory", name: "Set Part Location" },
+	{ code: "MASTERS_ORGANIZATION", module: "Masters", name: "Organization (Manager only)" },
+	{ code: "MASTERS_SERVICE_CONFIG", module: "Masters", name: "Service Config (Manager only)" },
 ];
 
 type SeedRolesDialogPropsType = {
@@ -62,11 +64,6 @@ export const SeedRolesDialog = ({
 	const [seeding, setSeeding] = useState(false);
 	const [seedingAccessRights, setSeedingAccessRights] = useState(false);
 	const [step, setStep] = useState<StepType>(1);
-	// Captured once from the initial check, on dialog open — used only to
-	// decide the starting step and to word the result screen, never mutated
-	// afterward (seeding this session doesn't change what "already existed
-	// before opening" means).
-	const [rolesAlreadyExisted, setRolesAlreadyExisted] = useState(false);
 	const [accessRightsAlreadyExisted, setAccessRightsAlreadyExisted] = useState(false);
 
 	// Runs the access-rights seed automatically (no user click required) —
@@ -121,7 +118,6 @@ export const SeedRolesDialog = ({
 			checkExists(SQL_MAP.CHECK_ROLE_SEED_EXISTS),
 			checkExists(SQL_MAP.CHECK_ACCESS_RIGHT_SEED_EXISTS),
 		]).then(([rolesFound, accessRightsFound]) => {
-			setRolesAlreadyExisted(rolesFound);
 			setAccessRightsAlreadyExisted(accessRightsFound);
 			setChecking(false);
 			if (!rolesFound) {
@@ -144,7 +140,6 @@ export const SeedRolesDialog = ({
 			setSeeding(false);
 			setSeedingAccessRights(false);
 			setStep(1);
-			setRolesAlreadyExisted(false);
 			setAccessRightsAlreadyExisted(false);
 		}
 	}, [open]);
@@ -297,7 +292,8 @@ export const SeedRolesDialog = ({
 								<p className="mb-1 text-sm font-semibold text-slate-800">Default Access Rights</p>
 								<p className="mb-3 text-xs text-slate-500">
 									The following access rights are being seeded, and granted to Manager and
-									Receptionist (Technician gets none by default). Existing rows are left
+									Receptionist (Technician gets none by default). The Masters Organization /
+									Service Config rights go to Manager only. Existing rows are left
 									untouched — only missing ones are added.
 								</p>
 								<div className="max-h-64 overflow-y-auto rounded-lg border border-slate-200">

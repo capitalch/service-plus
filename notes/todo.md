@@ -2,11 +2,11 @@
 - Brief to do's before 1st release
 	- Create a systematic manual testing numbered steps for All items in Jobs menu item. Give your plan in plans/plan.md
 	- Inventory menu item test scripts
-		- Access management
-		- Validate creation of new client / Bu / Branch / Division end to end
+								- Access management
+								- Validate creation of new client / Bu / Branch / Division end to end
 	- Security of server config file
 	- Cleanup of wanrnings and extra code
-	- Help system for developer in super admin mode
+								- Help system for developer in super admin mode
 								- Account icon implement
 - Bug fix
 								- When division changes, corresponding GST info is not changed in sales. Amount for spare should be same in gst / non-gst. Robust testing for sales invoie is done w.r.o mrp, selling price and no price

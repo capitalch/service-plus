@@ -100,9 +100,14 @@ export const AdminLayout = ({ children }: AdminLayoutPropsType) => {
                     </div>
                     <div className="flex flex-1" />
                     <div className="flex items-center gap-3">
-                        <span className="text-xs text-slate-400">
-                            {user?.fullName ?? user?.username}
-                        </span>
+                        <div className="text-right leading-tight">
+                            <p className="text-xs font-semibold text-slate-600">
+                                {user?.fullName ?? user?.username}
+                            </p>
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-teal-600">
+                                {user?.userType === 'S' ? 'Super Admin' : 'Admin'}
+                            </p>
+                        </div>
                         <Button
                             className="h-7 gap-1.5 border-indigo-200 px-2.5 text-xs text-indigo-700 hover:bg-indigo-50 lg:hidden"
                             onClick={handleSwitchToClient}

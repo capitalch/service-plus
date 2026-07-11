@@ -54,7 +54,7 @@ export type BuContextType = {
 export type LoginResponseType = {
     accessToken: string;
     refreshToken: string;
-    accessRights?: string[] | null | [];
+    accessRights?: string[] | null;
     availableBus?: BuContextType[];
     clientCode?: string;
     dbName?: string | null;
@@ -73,7 +73,7 @@ export type LoginResponseType = {
 export type SearchClientsResponseType = ClientType[];
 
 export type UserInstanceType = {
-    accessRights?: string[] | null | [];
+    accessRights?: string[] | null;
     availableBus?: BuContextType[];
     clientCode?: string;
     dbName?: string | null;
