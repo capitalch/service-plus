@@ -1,24 +1,10 @@
 // ─── Types ────────────────────────────────────────────────────────────────────
+// (ContentBlock/HelpFaq/HelpArticle/CategoryStyleType now live in the shared,
+// content-agnostic help engine so both this file and the Super Admin developer
+// help content can use them.)
 
-export type ContentBlock =
-    | { type: "para";    text: string }
-    | { type: "steps";   items: string[] }
-    | { type: "bullets"; items: string[] }
-    | { type: "table";   headers: string[]; rows: string[][] }
-    | { type: "note";    text: string }
-    | { type: "warning"; text: string }
-    | { type: "heading"; text: string };
-
-export type HelpFaq     = { q: string; a: string };
-export type HelpArticle = {
-    id:       string;
-    category: string;
-    title:    string;
-    summary:  string;
-    tags:     string[];
-    content:  ContentBlock[];
-    faqs:     HelpFaq[];
-};
+export type { ContentBlock, HelpFaq, HelpArticle, CategoryStyleType } from "@/components/shared/help/help-types";
+import type { CategoryStyleType, HelpArticle } from "@/components/shared/help/help-types";
 
 // ─── Articles ─────────────────────────────────────────────────────────────────
 
@@ -302,6 +288,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
                 "Click Save.",
             ]},
             { type: "note", text: "Opening jobs can be finalized and delivered through the normal workflow if they are not yet closed. If you set Is Final on creation, the job appears directly in the Finalized Jobs tab." },
+            { type: "note", text: "Requires the Opening Jobs access right. Managers and Receptionists have it by default; Technicians do not — see 'Roles' in Access Management for the full role/feature breakdown." },
         ],
         faqs: [
             { q: "Why does my job number get 'Z-' added?", a: "Opening job numbers are auto-prefixed with 'Z-' to distinguish them from live system-generated jobs. This prevents number conflicts." },
@@ -428,6 +415,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
                 ["Delivery Note PDF",        "A delivery slip listing all jobs being handed over"],
                 ["Invoice + Receipt PDF",    "Combined PDF: all invoices + all receipts for the selected jobs"],
             ]},
+            { type: "note", text: "Requires the Deliver Job access right. Managers and Receptionists have it by default; Technicians do not — see 'Roles' in Access Management for the full role/feature breakdown." },
         ],
         faqs: [
             { q: "The delivery button is greyed out — why?", a: "Delivery Manner is not selected, or Delivery Date is empty. An outstanding balance does not grey out the button — clicking it opens a receipt dialog automatically. An invalid customer GSTIN blocks delivery with a toast when you click, rather than disabling the button in advance." },
@@ -463,6 +451,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
                 "Row actions: View Job, Print Receipt (PDF), Edit, Delete.",
             ]},
             { type: "warning", text: "Editing and deleting are restricted. A receipt cannot be edited or deleted when its job is in a restricted status (Closed, Final, or On Hold), and a receipt that has been posted to accounts cannot be deleted. New receipts also cannot be recorded against an UNDER_WARRANTY job or one in ESTIMATE_REJECTED status." },
+            { type: "note", text: "Requires the Receipts access right. Managers and Receptionists have it by default; Technicians do not — see 'Roles' in Access Management for the full role/feature breakdown." },
         ],
         faqs: [
             { q: "What is the difference between adding a receipt here and in Deliver Job?", a: "They create the same job payment records. Deliver Job collects payment as part of closing the job; the Receipts screen lets you record or manage payments any time — including advances taken before the job is completed." },
@@ -517,6 +506,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
                 "On success the counts reload and should drop to zero.",
             ]},
             { type: "note", text: "When there is nothing left to send, the screen shows 'Everything is posted' and the post button is disabled." },
+            { type: "note", text: "Also requires the Accounts Posting access right, on top of the app setting above. Managers and Receptionists have it by default; Technicians do not — see 'Roles' in Access Management for the full role/feature breakdown." },
         ],
         faqs: [
             { q: "Why don't I see Accounts Posting in the Jobs menu?", a: "It is only visible when accounts integration is turned on. Enable 'post data to accounts' in Configurations → App Settings (or ask your administrator)." },
@@ -578,6 +568,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
                 "Generate PDF — prints the purchase invoice summary.",
                 "Post to Accounts — transfers the entry to the accounting system (if enabled).",
             ]},
+            { type: "note", text: "Requires the Purchase Entry access right. Managers and Receptionists have it by default; Technicians do not — see 'Roles' in Access Management for the full role/feature breakdown." },
         ],
         faqs: [
             { q: "'Invoice already exists' error — what does it mean?", a: "A purchase entry with the same supplier + invoice number already exists — the check applies system-wide, across all financial years, not just the current one. Check for a duplicate entry before saving again." },
@@ -604,6 +595,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
                 "Click Save. Stock is decremented.",
             ]},
             { type: "note", text: "Sales Entry reduces stock. If you need to record a part sale that is linked to a specific service job, use the Parts Used section in the job finalization instead." },
+            { type: "note", text: "Requires the Sales Entry access right. Managers and Receptionists have it by default; Technicians do not — see 'Roles' in Access Management for the full role/feature breakdown." },
         ],
         faqs: [
             { q: "Can I edit a sales invoice after saving?", a: "Yes, if it is not yet posted to accounts. Unpost from Admin → Post/Unpost first if needed." },
@@ -641,11 +633,13 @@ export const HELP_ARTICLES: HelpArticle[] = [
             { type: "para", text: "Enter initial inventory balances when setting up the system for the first time. Go to Inventory → Opening Stock. This uses the 'Opening Stock' stock transaction type." },
             { type: "heading", text: "Set Part Location" },
             { type: "para", text: "Assign warehouse bin or shelf codes to parts for physical organization. Go to Inventory → Set Part Location. Location codes are unique per branch." },
+            { type: "note", text: "Stock Adjustment, Branch Transfer, Opening Stock, and Set Part Location each require their own access right (Managers and Receptionists have all of them by default; Technicians do not). Loan Entry is the one exception on this page — it needs no access right and is open to every role. See 'Roles' in Access Management for the full role/feature breakdown." },
         ],
         faqs: [
             { q: "Does a branch transfer need approval from the receiving branch?", a: "No. The transfer is immediate on both sides — stock is debited from source and credited to destination in real time." },
             { q: "Can I cancel a branch transfer?", a: "Only if it has not been posted. Delete the transfer entry before posting to reverse it." },
             { q: "What is the difference between Opening Stock and Stock Adjustment?", a: "Opening Stock is for initial balances when first setting up. Stock Adjustment is for ongoing corrections to existing stock quantities." },
+            { q: "Why can I use Loan Entry but not Stock Adjustment?", a: "Loan Entry has no access-right restriction and is open to every role, including Technician. Stock Adjustment, Branch Transfer, Opening Stock, and Set Part Location each require their own access right that Technicians don't have by default." },
         ],
     },
 
@@ -1223,16 +1217,36 @@ export const HELP_ARTICLES: HelpArticle[] = [
         category: "Access Management",
         title: "Roles",
         summary: "System-defined permission sets you assign to business users — view-only, cannot be customized.",
-        tags: ["roles", "permissions", "system role", "custom role", "access management"],
+        tags: ["roles", "permissions", "system role", "custom role", "access management", "manager", "technician", "receptionist", "masters", "configurations", "admin", "receipts", "opening jobs", "accounts posting", "deliver job", "purchase entry", "sales entry", "stock adjustment", "branch transfer", "opening stock", "set part location"],
         content: [
             { type: "para", text: "Admin → Roles lists every role available for assignment to a business user. Each row shows a Code, Name, Description, and a badge: System (seeded by the platform) or Custom." },
             { type: "warning", text: "Roles are entirely view-only from this screen — there is no Add, Edit, or Delete action anywhere on the Roles page. You cannot define a new permission set or change what an existing role allows; you can only pick from what already exists when associating a role to a user." },
             { type: "para", text: "Use the Refresh button to reload the list if roles were changed at the platform level outside the UI." },
+            { type: "heading", text: "What each role can access in Client Mode" },
+            { type: "para", text: "Beyond the coarse Type A / Type B distinction, the three seeded roles below gate a specific set of Client Mode features. A user without the right sees the item or tab still there, but dimmed and non-clickable, with a tooltip explaining why — nothing is ever hidden outright." },
+            { type: "table", headers: ["Feature", "Manager", "Technician", "Receptionist"], rows: [
+                ["Jobs → Receipts",           "✅", "❌", "✅"],
+                ["Jobs → Opening Jobs",       "✅", "❌", "✅"],
+                ["Jobs → Accounts Posting",   "✅", "❌", "✅"],
+                ["Jobs → Deliver Job",        "✅", "❌", "✅"],
+                ["Masters tab (whole tab)",   "✅", "❌", "✅"],
+                ["Configurations tab (whole tab)", "✅", "❌", "❌"],
+                ["Admin tab / Post-Unpost",   "✅", "❌", "❌"],
+                ["Inventory → Purchase Entry",     "✅", "❌", "✅"],
+                ["Inventory → Sales Entry",        "✅", "❌", "✅"],
+                ["Inventory → Stock Adjustment",   "✅", "❌", "✅"],
+                ["Inventory → Branch Transfer",    "✅", "❌", "✅"],
+                ["Inventory → Opening Stock",       "✅", "❌", "✅"],
+                ["Inventory → Set Part Location",  "✅", "❌", "✅"],
+            ]},
+            { type: "note", text: "Everything not listed above — the rest of Jobs (Single Job, Batch Jobs, Job Control, Job Pipeline, Final a Job, Part Used), Inventory's Stock Overview, Loan Entry, and Part Finder, and all of Reports — is open to every role with no restriction. A Type A (Business Admin) or Super Admin account bypasses every restriction in this table, regardless of which role they also hold." },
         ],
         faqs: [
             { q: "Can I create a custom role with different permissions?", a: "No. Roles are system-defined and seeded — the UI only lets you view them and assign an existing one to a user." },
             { q: "What does the System vs Custom badge mean?", a: "It labels how the role was created (platform-seeded vs otherwise) — it does not change how you use it. Either type is assigned to users the same way, via Associate BU / Role." },
             { q: "A role I need doesn't exist — what do I do?", a: "Roles cannot be created from the UI. Contact your platform administrator to have a new role seeded." },
+            { q: "A menu item is greyed out for me — why?", a: "Your role doesn't include that specific access right. Hover over the dimmed item for a tooltip naming what's required, or see the role/feature table above. A Business Admin or Manager can check your assigned role under Admin → Business Users → Associate BU / Role." },
+            { q: "Why can a Receptionist see Masters but not Configurations?", a: "That split is intentional: Masters holds day-to-day reference data (customers, parts, technicians) that front-desk staff maintain, while Configurations controls system-wide behavior (divisions, numbering, app settings) reserved for Managers." },
         ],
     },
 
@@ -1338,28 +1352,6 @@ export const HELP_ARTICLES: HelpArticle[] = [
     },
 ];
 
-// ─── Search helper ────────────────────────────────────────────────────────────
-
-export function searchArticles(query: string): HelpArticle[] {
-    if (!query.trim()) return HELP_ARTICLES;
-    const q = query.toLowerCase();
-    return HELP_ARTICLES.filter(a =>
-        a.title.toLowerCase().includes(q) ||
-        a.summary.toLowerCase().includes(q) ||
-        a.tags.some(t => t.toLowerCase().includes(q)) ||
-        a.faqs.some(f => f.q.toLowerCase().includes(q) || f.a.toLowerCase().includes(q)) ||
-        a.content.some(c =>
-            (c.type === "para"    && c.text.toLowerCase().includes(q)) ||
-            (c.type === "steps"  && c.items.some(i => i.toLowerCase().includes(q))) ||
-            (c.type === "bullets"&& c.items.some(i => i.toLowerCase().includes(q))) ||
-            (c.type === "heading"&& c.text.toLowerCase().includes(q)) ||
-            (c.type === "note"   && c.text.toLowerCase().includes(q)) ||
-            (c.type === "warning"&& c.text.toLowerCase().includes(q)) ||
-            (c.type === "table"  && c.rows.some(r => r.some(cell => cell.toLowerCase().includes(q))))
-        )
-    );
-}
-
 export const HELP_CATEGORIES = [
     "Getting Started",
     "Jobs",
@@ -1372,3 +1364,102 @@ export const HELP_CATEGORIES = [
     "Access Management",
     "Troubleshooting",
 ] as const;
+
+// ─── Category style map (Client Mode / end-user content) ──────────────────────
+
+export const CLIENT_CAT_STYLE: Record<string, CategoryStyleType> = {
+    "Getting Started": {
+        emoji:    "🚀",
+        gradient: "from-violet-500 to-purple-600",
+        pill:     "bg-violet-100 dark:bg-violet-900/40",
+        pillText: "text-violet-700 dark:text-violet-300",
+        stepBg:   "bg-violet-500",
+        stepText: "text-white",
+        border:   "border-violet-300 dark:border-violet-700",
+    },
+    "Jobs": {
+        emoji:    "🔧",
+        gradient: "from-blue-500 to-sky-600",
+        pill:     "bg-blue-100 dark:bg-blue-900/40",
+        pillText: "text-blue-700 dark:text-blue-300",
+        stepBg:   "bg-blue-500",
+        stepText: "text-white",
+        border:   "border-blue-300 dark:border-blue-700",
+    },
+    "Inventory": {
+        emoji:    "📦",
+        gradient: "from-emerald-500 to-teal-600",
+        pill:     "bg-emerald-100 dark:bg-emerald-900/40",
+        pillText: "text-emerald-700 dark:text-emerald-300",
+        stepBg:   "bg-emerald-500",
+        stepText: "text-white",
+        border:   "border-emerald-300 dark:border-emerald-700",
+    },
+    "Masters": {
+        emoji:    "📋",
+        gradient: "from-amber-500 to-yellow-500",
+        pill:     "bg-amber-100 dark:bg-amber-900/40",
+        pillText: "text-amber-700 dark:text-amber-300",
+        stepBg:   "bg-amber-500",
+        stepText: "text-white",
+        border:   "border-amber-300 dark:border-amber-700",
+    },
+    "Configurations": {
+        emoji:    "⚙️",
+        gradient: "from-orange-500 to-amber-600",
+        pill:     "bg-orange-100 dark:bg-orange-900/40",
+        pillText: "text-orange-700 dark:text-orange-300",
+        stepBg:   "bg-orange-500",
+        stepText: "text-white",
+        border:   "border-orange-300 dark:border-orange-700",
+    },
+    "Reports": {
+        emoji:    "📊",
+        gradient: "from-cyan-500 to-blue-500",
+        pill:     "bg-cyan-100 dark:bg-cyan-900/40",
+        pillText: "text-cyan-700 dark:text-cyan-300",
+        stepBg:   "bg-cyan-500",
+        stepText: "text-white",
+        border:   "border-cyan-300 dark:border-cyan-700",
+    },
+    "GST & Invoicing": {
+        emoji:    "🧾",
+        gradient: "from-teal-500 to-cyan-600",
+        pill:     "bg-teal-100 dark:bg-teal-900/40",
+        pillText: "text-teal-700 dark:text-teal-300",
+        stepBg:   "bg-teal-500",
+        stepText: "text-white",
+        border:   "border-teal-300 dark:border-teal-700",
+    },
+    "Admin & Users": {
+        emoji:    "👤",
+        gradient: "from-indigo-500 to-violet-600",
+        pill:     "bg-indigo-100 dark:bg-indigo-900/40",
+        pillText: "text-indigo-700 dark:text-indigo-300",
+        stepBg:   "bg-indigo-500",
+        stepText: "text-white",
+        border:   "border-indigo-300 dark:border-indigo-700",
+    },
+    "Access Management": {
+        emoji:    "🔐",
+        gradient: "from-rose-500 to-pink-600",
+        pill:     "bg-rose-100 dark:bg-rose-900/40",
+        pillText: "text-rose-700 dark:text-rose-300",
+        stepBg:   "bg-rose-500",
+        stepText: "text-white",
+        border:   "border-rose-300 dark:border-rose-700",
+    },
+    "Troubleshooting": {
+        emoji:    "🆘",
+        gradient: "from-fuchsia-500 to-purple-600",
+        pill:     "bg-fuchsia-100 dark:bg-fuchsia-900/40",
+        pillText: "text-fuchsia-700 dark:text-fuchsia-300",
+        stepBg:   "bg-fuchsia-500",
+        stepText: "text-white",
+        border:   "border-fuchsia-300 dark:border-fuchsia-700",
+    },
+};
+
+// ─── Popular articles shown on the Help Center home view ──────────────────────
+
+export const CLIENT_POPULAR_IDS = ["first-time-setup", "create-job", "job-control", "finalize-job", "deliver-job", "customer-gstin"];

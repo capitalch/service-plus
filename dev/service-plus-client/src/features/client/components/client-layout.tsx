@@ -21,11 +21,12 @@ import {
     setNoOfJobSheetsPerPrint,
     setPostDataToAccounts,
 } from "@/store/context-slice";
+import { HelpPanel } from "@/components/shared/help/help-panel";
 import { ClientActivityBar } from "./client-activity-bar";
 import { ClientExplorerPanel } from "./client-explorer-panel";
 import { ClientStatusBar } from "./client-status-bar";
 import { ClientTopNav } from "./client-top-nav";
-import { HelpPanel } from "./help/help-panel";
+import { CLIENT_CAT_STYLE, CLIENT_POPULAR_IDS, HELP_ARTICLES, HELP_CATEGORIES } from "./help/help-content";
 
 export type Section = 'admin' | 'configurations' | 'inventory' | 'jobs' | 'masters' | 'reports';
 
@@ -251,7 +252,15 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
                     </div>
                 </main>
                 <ClientStatusBar />
-                <HelpPanel open={helpOpen} onClose={closeHelp} />
+                <HelpPanel
+                    articles={HELP_ARTICLES}
+                    categories={HELP_CATEGORIES}
+                    categoryStyles={CLIENT_CAT_STYLE}
+                    isDark={isDark}
+                    onClose={closeHelp}
+                    open={helpOpen}
+                    popularIds={CLIENT_POPULAR_IDS}
+                />
             </div>
         </ClientSelectionContext.Provider>
         </HelpContext.Provider>

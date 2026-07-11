@@ -634,7 +634,7 @@ export const ClientsPage = () => {
 															onClick={() => handleSeedRoles(client)}
 														>
 															<ShieldIcon className="mr-2 h-4 w-4" />
-															Seed Roles
+															Seed Roles + Access Rights
 														</DropdownMenuItem>
 														<DropdownMenuSeparator />
 														{client.is_active ? (

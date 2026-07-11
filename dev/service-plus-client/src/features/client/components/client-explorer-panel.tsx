@@ -12,6 +12,7 @@ import { NavLink } from "react-router-dom";
 import { useClientSelection, useLayout } from "./client-layout";
 import type { Section } from "./client-layout";
 import { selectCurrentUser } from "@/features/auth/store/auth-slice";
+import { ACCESS_RIGHTS, hasAccessRight } from "@/features/auth/utils/access-rights";
 import { ROUTES } from "@/router/routes";
 import { useAppSelector } from "@/store/hooks";
 import { selectPostDataToAccounts } from "@/store/context-slice";
@@ -21,27 +22,33 @@ type Props = { activeSection: Section };
 const GroupContext = createContext<string>('');
 
 type TreeItemProps = {
+    disabled?: boolean;
     icon: ComponentType<{ className?: string }>;
     iconColor?: string;
     label: string;
+    title?: string;
 };
 
-function TreeItem({ icon: Icon, iconColor, label }: TreeItemProps) {
+function TreeItem({ disabled, icon: Icon, iconColor, label, title }: TreeItemProps) {
     const { onSelect, selected } = useClientSelection();
     const group = useContext(GroupContext);
     const isActive = selected === label;
 
     return (
         <div
-            onClick={() => onSelect(label, group || undefined)}
-            className={`group flex cursor-pointer items-center gap-2 rounded px-2 py-2 transition-colors duration-150 ${
-                isActive
-                    ? 'bg-(--cl-accent) text-white shadow-md'
-                    : 'text-(--cl-text-muted) hover:bg-(--cl-hover) hover:text-(--cl-text)'
+            onClick={() => { if (!disabled) onSelect(label, group || undefined); }}
+            title={disabled ? title : undefined}
+            aria-disabled={disabled}
+            className={`group flex items-center gap-2 rounded px-2 py-2 transition-colors duration-150 ${
+                disabled
+                    ? 'cursor-not-allowed text-(--cl-text-muted) opacity-40'
+                    : isActive
+                        ? 'cursor-pointer bg-(--cl-accent) text-white shadow-md'
+                        : 'cursor-pointer text-(--cl-text-muted) hover:bg-(--cl-hover) hover:text-(--cl-text)'
             }`}
         >
-            <Icon className={`h-4 w-4 shrink-0 ${iconColor ?? (isActive ? 'text-white' : '')}`} />
-            <span className={`truncate text-sm ${isActive ? 'font-bold' : ''}`}>{label}</span>
+            <Icon className={`h-4 w-4 shrink-0 ${iconColor ?? (isActive && !disabled ? 'text-white' : '')}`} />
+            <span className={`truncate text-sm ${isActive && !disabled ? 'font-bold' : ''}`}>{label}</span>
         </div>
     );
 }
@@ -96,18 +103,55 @@ function InventoryExplorer() {
     const currentUser = useAppSelector(selectCurrentUser);
     const isAdmin = currentUser?.userType === "A" || currentUser?.userType === "S";
 
+    const canPurchaseEntry   = hasAccessRight(currentUser, ACCESS_RIGHTS.INVENTORY_PURCHASE_ENTRY);
+    const canSalesEntry      = hasAccessRight(currentUser, ACCESS_RIGHTS.INVENTORY_SALES_ENTRY);
+    const canStockAdjustment = hasAccessRight(currentUser, ACCESS_RIGHTS.INVENTORY_STOCK_ADJUSTMENT);
+    const canBranchTransfer  = hasAccessRight(currentUser, ACCESS_RIGHTS.INVENTORY_BRANCH_TRANSFER);
+    const canOpeningStock    = hasAccessRight(currentUser, ACCESS_RIGHTS.INVENTORY_OPENING_STOCK);
+    const canSetPartLocation = hasAccessRight(currentUser, ACCESS_RIGHTS.INVENTORY_SET_PART_LOCATION);
+
     return (
         <div className="space-y-4">
             <div className="space-y-1">
                 <TreeItem icon={Package}       label="Stock Overview" />
-                <TreeItem icon={ShoppingCart}  label="Purchase Entry" />
-                <TreeItem icon={Tag}           label="Sales Entry" />
-                <TreeItem icon={RefreshCcw}    label="Stock Adjustment" />
-                <TreeItem icon={Truck}         label="Branch Transfer" />
+                <TreeItem
+                    icon={ShoppingCart}
+                    label="Purchase Entry"
+                    disabled={!canPurchaseEntry}
+                    title={!canPurchaseEntry ? "Your role does not have access to Purchase Entry" : undefined}
+                />
+                <TreeItem
+                    icon={Tag}
+                    label="Sales Entry"
+                    disabled={!canSalesEntry}
+                    title={!canSalesEntry ? "Your role does not have access to Sales Entry" : undefined}
+                />
+                <TreeItem
+                    icon={RefreshCcw}
+                    label="Stock Adjustment"
+                    disabled={!canStockAdjustment}
+                    title={!canStockAdjustment ? "Your role does not have access to Stock Adjustment" : undefined}
+                />
+                <TreeItem
+                    icon={Truck}
+                    label="Branch Transfer"
+                    disabled={!canBranchTransfer}
+                    title={!canBranchTransfer ? "Your role does not have access to Branch Transfer" : undefined}
+                />
                 <TreeItem icon={ClipboardList} label="Loan Entry" />
-                <TreeItem icon={Package}       label="Opening Stock" />
+                <TreeItem
+                    icon={Package}
+                    label="Opening Stock"
+                    disabled={!canOpeningStock}
+                    title={!canOpeningStock ? "Your role does not have access to Opening Stock" : undefined}
+                />
                 <TreeItem icon={Globe}         label="Part Finder" />
-                <TreeItem icon={MapPin}        label="Set Part Location" />
+                <TreeItem
+                    icon={MapPin}
+                    label="Set Part Location"
+                    disabled={!canSetPartLocation}
+                    title={!canSetPartLocation ? "Your role does not have access to Set Part Location" : undefined}
+                />
             </div>
             {isAdmin && (
                 <CollapsibleGroup defaultOpen={false} label="Admin">
@@ -120,6 +164,12 @@ function InventoryExplorer() {
 
 function JobsExplorer() {
     const postDataToAccounts = useAppSelector(selectPostDataToAccounts);
+    const currentUser = useAppSelector(selectCurrentUser);
+
+    const canAccountsPosting = hasAccessRight(currentUser, ACCESS_RIGHTS.JOBS_ACCOUNTS_POSTING);
+    const canOpeningJobs     = hasAccessRight(currentUser, ACCESS_RIGHTS.JOBS_OPENING_JOBS);
+    const canReceipts        = hasAccessRight(currentUser, ACCESS_RIGHTS.JOBS_RECEIPTS);
+    const canDeliverJob      = hasAccessRight(currentUser, ACCESS_RIGHTS.JOBS_DELIVER_JOB);
 
     return (
         <div className="space-y-4">
@@ -131,10 +181,32 @@ function JobsExplorer() {
                 <TreeItem icon={ClipboardList} label="Job Control" />
                 <TreeItem icon={BarChart3}     label="Job Pipeline" />
                 <TreeItem icon={FileText}      label="Final a Job" />
-                <TreeItem icon={Truck}         label="Deliver Job" />
-                {postDataToAccounts && <TreeItem icon={BookCheck} label="Accounts Posting" />}
-                <TreeItem icon={RotateCcw}     label="Opening Jobs" />
-                <TreeItem icon={Receipt}       label="Receipts" />
+                <TreeItem
+                    icon={Truck}
+                    label="Deliver Job"
+                    disabled={!canDeliverJob}
+                    title={!canDeliverJob ? "Your role does not have access to Deliver Job" : undefined}
+                />
+                {postDataToAccounts && (
+                    <TreeItem
+                        icon={BookCheck}
+                        label="Accounts Posting"
+                        disabled={!canAccountsPosting}
+                        title={!canAccountsPosting ? "Your role does not have access to Accounts Posting" : undefined}
+                    />
+                )}
+                <TreeItem
+                    icon={RotateCcw}
+                    label="Opening Jobs"
+                    disabled={!canOpeningJobs}
+                    title={!canOpeningJobs ? "Your role does not have access to Opening Jobs" : undefined}
+                />
+                <TreeItem
+                    icon={Receipt}
+                    label="Receipts"
+                    disabled={!canReceipts}
+                    title={!canReceipts ? "Your role does not have access to Receipts" : undefined}
+                />
                 <TreeItem icon={Package}       label="Part Used (Job)" />
             </div>
         </div>

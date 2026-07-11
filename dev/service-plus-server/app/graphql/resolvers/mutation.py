@@ -2,10 +2,13 @@
 GraphQL Mutation resolvers.
 """
 
+import json
 from typing import Any
+from urllib.parse import unquote
 from ariadne import MutationType  # pylint: disable=import-error
 from app.logger import logger
 from app.exceptions import ValidationException, GraphQLException, AppMessages
+from app.graphql.resolvers.auth_guards import require_access_right, require_any_access_right
 from app.graphql.resolvers.mutation_helper import (
     resolve_create_admin_user_helper,
     resolve_create_bu_schema_and_feed_seed_data_helper,
@@ -43,6 +46,84 @@ from app.graphql.resolvers.mutation_helper import (
 
 # Create MutationType instance
 mutation = MutationType()
+
+
+# genericUpdate writes to any table by name (`tableName` in the decoded
+# `value` payload), so the access-right check has to key off that name
+# rather than off a dedicated resolver. Only tables owned exclusively by
+# one gated feature are listed here — tables shared with unrestricted
+# areas (e.g. "job", written by Single/Batch/Opening Job and Job Control
+# alike; "job_payment", written by both Receipts and the Deliver-Job
+# payment step) are deliberately NOT included, since gating them by
+# tableName alone would also block roles from legitimately-unrestricted
+# Jobs/Inventory flows that happen to write the same table. See the Step 10
+# note in plans/plan-access-control.md. The stock_* / job_invoice entries
+# below were verified exclusive to their feature in plans/plan.md's
+# "Server-side enforcement feasibility" section — the shared `stock_transaction`
+# table itself is deliberately NOT listed, since it's only ever a nested
+# xDetails write reached through one of these feature-specific top-level
+# tables (including "stock_loan" for Loan Entry, which stays ungated).
+GENERIC_UPDATE_TABLE_RIGHTS: dict[str, str] = {
+    # Masters
+    "brand": "MASTERS_MENU",
+    "customer_type": "MASTERS_MENU",
+    "document_type": "MASTERS_MENU",
+    "job_type": "MASTERS_MENU",
+    "job_receive_manner": "MASTERS_MENU",
+    "job_delivery_manner": "MASTERS_MENU",
+    "job_status": "MASTERS_MENU",
+    "job_receive_condition": "MASTERS_MENU",
+    "product_brand_model": "MASTERS_MENU",
+    "spare_part_master": "MASTERS_MENU",
+    "customer_contact": "MASTERS_MENU",
+    "supplier": "MASTERS_MENU",
+    "technician": "MASTERS_MENU",
+    "branch": "MASTERS_MENU",
+    "state": "MASTERS_MENU",
+    "financial_year": "MASTERS_MENU",
+    "additional_charge": "MASTERS_MENU",
+    # Configurations
+    "division": "CONFIG_MENU",
+    "app_setting": "CONFIG_MENU",
+    "document_sequence": "CONFIG_MENU",
+    # Deliver Job
+    "job_invoice": "JOBS_DELIVER_JOB",
+    # Inventory
+    "purchase_invoice": "INVENTORY_PURCHASE_ENTRY",
+    "sales_invoice": "INVENTORY_SALES_ENTRY",
+    "stock_adjustment": "INVENTORY_STOCK_ADJUSTMENT",
+    "stock_branch_transfer": "INVENTORY_BRANCH_TRANSFER",
+    "stock_opening_balance": "INVENTORY_OPENING_STOCK",
+}
+
+# genericUpdateScript executes a named SqlStore query by sql_id (not a
+# tableName), so it needs its own, separately-keyed rights dict. Only
+# Set Part Location needs one today — see plans/plan.md Step 8.
+GENERIC_UPDATE_SCRIPT_SQL_ID_RIGHTS: dict[str, str] = {
+    "SET_PART_LOCATIONS": "INVENTORY_SET_PART_LOCATION",
+}
+
+
+def _require_generic_update_table_right(info, value: str) -> None:
+    """Gate genericUpdate calls that target a table listed in GENERIC_UPDATE_TABLE_RIGHTS."""
+    try:
+        table_name = json.loads(unquote(value)).get("tableName")
+    except (ValueError, AttributeError):
+        return
+    right = GENERIC_UPDATE_TABLE_RIGHTS.get(table_name)
+    if right:
+        require_access_right(info, right)
+
+
+def _require_generic_update_script_right(info, value: str) -> None:
+    """Gate genericUpdateScript calls whose sql_id is listed in GENERIC_UPDATE_SCRIPT_SQL_ID_RIGHTS."""
+    try:
+        sql_id = json.loads(unquote(value)).get("sql_id")
+    except (ValueError, AttributeError):
+        return
+    right = GENERIC_UPDATE_SCRIPT_SQL_ID_RIGHTS.get(sql_id)
+    if right:
+        require_access_right(info, right)
 
 
 @mutation.field("createAdminUser")
@@ -206,8 +287,9 @@ async def resolve_drop_database(
 
 
 @mutation.field("genericUpdate")
-async def resolve_generic_update(_, _info, db_name="", schema="public", value="") -> Any:
+async def resolve_generic_update(_, info, db_name="", schema="public", value="") -> Any:
     """Execute a generic table upsert/delete operation."""
+    _require_generic_update_table_right(info, value)
     try:
         return await resolve_generic_update_helper(db_name, schema, value)
     except ValidationException:
@@ -220,8 +302,9 @@ async def resolve_generic_update(_, _info, db_name="", schema="public", value=""
 
 
 @mutation.field("genericUpdateScript")
-async def resolve_generic_update_script(_, _info, db_name="", schema="public", value="") -> Any:
+async def resolve_generic_update_script(_, info, db_name="", schema="public", value="") -> Any:
     """Execute a raw SQL update script."""
+    _require_generic_update_script_right(info, value)
     try:
         return await resolve_generic_update_script_helper(db_name, schema, value)
     except ValidationException:
@@ -387,9 +470,10 @@ async def resolve_delete_job_batch(
 
 @mutation.field("deliverJob")
 async def resolve_deliver_job(
-    _, _info, db_name: str = "", schema: str = "public", value: str = ""
+    _, info, db_name: str = "", schema: str = "public", value: str = ""
 ) -> Any:
     """Mark a job as delivered."""
+    require_access_right(info, "JOBS_DELIVER_JOB")
     try:
         return await resolve_deliver_job_helper(db_name, schema, value)
     except ValidationException:
@@ -419,9 +503,10 @@ async def resolve_undo_job_transaction(
 
 @mutation.field("undeliverJob")
 async def resolve_undeliver_job(
-    _, _info, db_name: str = "", schema: str = "public", value: str = ""
+    _, info, db_name: str = "", schema: str = "public", value: str = ""
 ) -> Any:
     """Undeliver a job and restore its pre-delivery status."""
+    require_access_right(info, "JOBS_DELIVER_JOB")
     try:
         return await resolve_undeliver_job_helper(db_name, schema, value)
     except ValidationException:
@@ -435,9 +520,10 @@ async def resolve_undeliver_job(
 
 @mutation.field("createSalesInvoice")
 async def resolve_create_sales_invoice(
-    _, _info, db_name: str = "", schema: str = "public", value: str = ""
+    _, info, db_name: str = "", schema: str = "public", value: str = ""
 ) -> Any:
     """Create a sales invoice."""
+    require_access_right(info, "INVENTORY_SALES_ENTRY")
     try:
         return await resolve_create_sales_invoice_helper(db_name, schema, value)
     except ValidationException:
@@ -451,9 +537,10 @@ async def resolve_create_sales_invoice(
 
 @mutation.field("createJobInvoice")
 async def resolve_create_job_invoice(
-    _, _info, db_name: str = "", schema: str = "public", value: str = ""
+    _, info, db_name: str = "", schema: str = "public", value: str = ""
 ) -> Any:
     """Create an invoice for a job."""
+    require_access_right(info, "JOBS_DELIVER_JOB")
     try:
         return await resolve_create_job_invoice_helper(db_name, schema, value)
     except ValidationException:
@@ -467,9 +554,10 @@ async def resolve_create_job_invoice(
 
 @mutation.field("regenerateJobInvoice")
 async def resolve_regenerate_job_invoice(
-    _, _info, db_name: str = "", schema: str = "public", value: str = ""
+    _, info, db_name: str = "", schema: str = "public", value: str = ""
 ) -> Any:
     """Regenerate an existing job invoice."""
+    require_access_right(info, "JOBS_DELIVER_JOB")
     try:
         return await resolve_regenerate_job_invoice_helper(db_name, schema, value)
     except ValidationException:
@@ -483,9 +571,12 @@ async def resolve_regenerate_job_invoice(
 
 @mutation.field("createJobPayment")
 async def resolve_create_job_payment(
-    _, _info, db_name: str = "", schema: str = "public", value: str = ""
+    _, info, db_name: str = "", schema: str = "public", value: str = ""
 ) -> Any:
     """Record a payment against a job."""
+    # Called from both the Receipts screen and the Deliver Job payment
+    # step, so either right suffices — see plans/plan.md's "Bonus" note.
+    require_any_access_right(info, ["JOBS_RECEIPTS", "JOBS_DELIVER_JOB"])
     try:
         return await resolve_create_job_payment_helper(db_name, schema, value)
     except ValidationException:
@@ -499,9 +590,10 @@ async def resolve_create_job_payment(
 
 @mutation.field("accountsPosting")
 async def resolve_accounts_posting(
-    _, _info, db_name: str = "", schema: str = "public", value: str = ""
+    _, info, db_name: str = "", schema: str = "public", value: str = ""
 ) -> Any:
     """Post unposted money receipts to trace-plus accounts."""
+    require_access_right(info, "JOBS_ACCOUNTS_POSTING")
     try:
         return await resolve_accounts_posting_helper(db_name, schema, value)
     except ValidationException:

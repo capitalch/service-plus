@@ -64,6 +64,7 @@ export type LoginResponseType = {
     lastUsedBranchId?: number | null;
     lastUsedBuId?: number | null;
     mobile?: string;
+    roleCode?: string;
     roleName?: string;
     username: string;
     userType: 'A' | 'B' | 'S';
@@ -82,6 +83,7 @@ export type UserInstanceType = {
     lastUsedBranchId?: number | null;
     lastUsedBuId?: number | null;
     mobile?: string;
+    roleCode?: string;
     roleName?: string;
     userType: 'A' | 'B' | 'S';
     username: string;

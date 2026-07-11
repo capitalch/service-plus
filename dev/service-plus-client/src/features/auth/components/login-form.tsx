@@ -55,6 +55,7 @@ export const LoginForm = ({ onForgotPassword }: LoginFormProps) => {
       setIsLoading(true);
       const result = await loginUser(data);
       const user: UserInstanceType = {
+        accessRights:      result.accessRights,
         availableBus:      result.availableBus,
         clientCode:        result.clientCode,
         dbName:            result.dbName,
@@ -64,6 +65,7 @@ export const LoginForm = ({ onForgotPassword }: LoginFormProps) => {
         lastUsedBranchId:  result.lastUsedBranchId,
         lastUsedBuId:      result.lastUsedBuId,
         mobile:            result.mobile,
+        roleCode:          result.roleCode,
         roleName:          result.roleName,
         userType:          result.userType,
         username:          result.username,

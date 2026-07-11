@@ -1,3 +1,9 @@
+# Modification in access management
+  - Technician role
+    - Not allowed
+      - Deliver job
+      - Inventory: Purchase Entry, Sales Entry, Stock Adjustment, Branch Transfer, Opening Stock,  Set Part Location
+    
 # New column purchase_date in job table
 - Single Job: Add purchase date field after alt job no
 - Batch Job: Add purchase date in each row before job type. Modify save for New / Edit accordingly

@@ -74,6 +74,7 @@ async def login_helper(body: LoginRequest) -> LoginResponse:
             full_name="Super Admin",
             id=None,
             mobile=settings.super_admin_mobile,
+            role_code="",
             role_name="",
             username=settings.super_admin_username,
             user_type="S",
@@ -153,6 +154,8 @@ async def login_helper(body: LoginRequest) -> LoginResponse:
         "user_type": user_type,
         "client_id": body.client_id,
         "db_name": db_name,
+        "role_code": user.get("role_code") or "",
+        "access_rights": user.get("access_rights") or [],
     }
     access_token = create_access_token(token_claims)
     refresh_token = create_refresh_token(token_claims)
@@ -193,6 +196,7 @@ async def login_helper(body: LoginRequest) -> LoginResponse:
         last_used_branch_id=user.get("last_used_branch_id"),
         last_used_bu_id=user.get("last_used_bu_id"),
         mobile=user["mobile"] or "",
+        role_code=user.get("role_code") or "",
         role_name=user["role_name"] or "",
         user_type=user_type,
         username=user["username"],
@@ -335,13 +339,18 @@ async def refresh_token_helper(body: RefreshTokenRequest) -> RefreshTokenRespons
     )
     if not rows or not rows[0].get("is_active"):
         raise HTTPException(status_code=401, detail=AppMessages.TOKEN_INVALID)
+    user = rows[0]
 
-    # [4] Issue new token pair
+    # [4] Issue new token pair — role_code/access_rights are re-read from the DB
+    # (not copied from the old refresh token) so a mid-session role change takes
+    # effect on the next refresh instead of only at the next full login.
     token_claims = {
         "sub": user_id_raw,
         "user_type": user_type,
         "client_id": client_id,
         "db_name": db_name,
+        "role_code": user.get("role_code") or "",
+        "access_rights": user.get("access_rights") or [],
     }
     access_token = create_access_token(token_claims)
     refresh_token = create_refresh_token(token_claims)

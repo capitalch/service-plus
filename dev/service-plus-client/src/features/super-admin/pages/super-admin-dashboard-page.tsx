@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { motion } from "framer-motion";
 import { RefreshCwIcon } from "lucide-react";
 import { useAppDispatch } from "@/store/hooks";
@@ -13,10 +13,6 @@ import type { StatsType } from "../types/index";
 import { Button } from "@/components/ui/button";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { MESSAGES } from "@/constants/messages";
-// import { ROUTES } from "@/router/routes";
-import { SQL_MAP } from "@/constants/sql-map";
-import { apolloClient } from "@/lib/apollo-client";
-import { graphQlUtils } from "@/lib/graphql-utils";
 
 type DashboardStatsDataType = {
 	superAdminDashboardStats: StatsType;
@@ -28,8 +24,6 @@ export const SuperAdminDashboard = () => {
 	const { data, error, loading, refetch } = useQuery<DashboardStatsDataType>(GRAPHQL_MAP.superAdminDashboardStats, {
 		notifyOnNetworkStatusChange: true,
 	});
-
-	const [testLoading, setTestLoading] = useState(false);
 
 	useEffect(() => {
 		if (data?.superAdminDashboardStats) {
@@ -58,9 +52,6 @@ export const SuperAdminDashboard = () => {
 						<p className="mt-1 text-sm text-slate-500">Welcome Super Admin</p>
 					</div>
 					<div className="flex items-center gap-2">
-						<Button disabled={testLoading} size="sm" variant="ghost" onClick={handleTestGraphQl}>
-							{testLoading ? "Testing..." : "Test"}
-						</Button>
 						<Button
 							className="gap-1.5 border border-slate-200 bg-white text-slate-600 shadow-sm hover:bg-slate-50 hover:text-slate-900"
 							disabled={loading}
@@ -93,26 +84,4 @@ export const SuperAdminDashboard = () => {
 			</motion.div>
 		</SuperAdminLayout>
 	);
-
-	async function handleTestGraphQl() {
-		setTestLoading(true);
-		try {
-			const res = await apolloClient.query({
-				query: GRAPHQL_MAP.genericQuery,
-				variables: {
-					db_name: "",
-					value: graphQlUtils.buildGenericQueryValue({
-						sqlId: SQL_MAP.GET_CLIENT_DB_NAMES,
-					}),
-				},
-			});
-			console.log(res.data);
-			toast.success(MESSAGES.SUCCESS_GRAPHQL_TEST);
-		} catch (error) {
-			console.error("GraphQL test error:", error);
-			toast.error(MESSAGES.ERROR_SERVER);
-		} finally {
-			setTestLoading(false);
-		}
-	}
 };

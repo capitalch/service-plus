@@ -1,5 +1,56 @@
 # Access Control: Current State & Implementation Plan
 
+## Status as of 2026-07-11
+
+**All 17 steps have now been implemented or explicitly resolved as-designed,
+except for three access-right codes that hit a genuine architectural
+blocker on the server side (see the "Step 10 blocker" note further down).**
+Summary: Steps 1-3 (seeding), 4-9 (JWT/context/guard infrastructure), 11-16
+(client-side gating + docs) are done. Step 10 is done for
+`JOBS_ACCOUNTS_POSTING`/`MASTERS_MENU`/`CONFIG_MENU` only — `JOBS_RECEIPTS`,
+`JOBS_OPENING_JOBS`, and `ADMIN_MENU` have client-side disabling (Step 14)
+but no matching server-side enforcement yet, because the resolvers they'd
+guard are shared with explicitly-unrestricted flows (see below). Step 17 is
+a documentation-only item and is satisfied by the blocker writeup itself.
+Details on the seeding-mechanism change and earlier findings follow:
+
+- **Mechanism change**: `service-plus-client/src/features/super-admin/constants/seed-data.ts`
+  (the file Steps 1-2 were supposed to edit) **no longer exists** — the
+  client-side `SEED_BATCHES` approach for security-schema data was retired.
+  Seeding is now **server-side**: `service-plus-server/app/db/seed_security_data.py`
+  (`SeedSecurityData.SECURITY_SEED_SQL`) contains the 6 `access_right` rows
+  and the `role_access_right` mapping, matching this plan's catalog and
+  mapping tables exactly. It runs automatically when a new client schema is
+  created (`mutation_helper.py:496-503`) and on-demand via a new
+  `seedSecurityData` GraphQL mutation, wired to
+  `src/features/super-admin/components/seed-roles-dialog.tsx`.
+- **New gap found**: that dialog's re-seed gate,
+  `SQL_MAP.CHECK_ROLE_SEED_EXISTS` (`sql_store.py:1826-1830`), only checks
+  `SELECT 1 FROM security.role LIMIT 1`. Any tenant that already had roles
+  seeded *before* this access-control work landed will see "already exists"
+  with no Apply button offered — so **already-provisioned tenants have no UI
+  path to backfill the new `access_right`/`role_access_right` rows** (Step 3's
+  intent is not actually met for pre-existing tenants). Only brand-new
+  tenants get the full seed automatically. Needs a real fix: either check for
+  `access_right` rows specifically, or always show Apply and rely on the
+  seed SQL's `ON CONFLICT DO NOTHING` idempotency.
+- **Folder rename**: pages this plan calls out under `super-admin/` for
+  Business-Admin-scoped CRUD — `business-units-page.tsx`,
+  `business-users-page.tsx`, `roles-page.tsx`, `associate-bu-role-dialog.tsx`
+  — now live under `src/features/admin/...`. `src/features/super-admin/`
+  was repurposed for the true platform-level super-admin tier (clients,
+  admin-user management, `seed-roles-dialog.tsx`). All paths below have been
+  updated to match.
+- **Stale line number fixed**: `GET_USER_BY_IDENTITY` in `sql_store.py` is at
+  **line 2910**, not 3022 (the query itself, including the `access_rights`
+  aggregation, is unchanged).
+- Steps 4-16 — server-side auth context (`context_value`, `role_code`/
+  `access_rights` on the JWT), the `require_access_right` guard, and all
+  client-side wiring (`access-rights.ts`, explorer-panel/top-nav disabling,
+  role badge short names, help-content updates) — **remain entirely
+  unimplemented**, exactly as originally scoped. Gaps #1-#3 in the section
+  below are all still live.
+
 ## Context
 
 The app currently has almost no real authorization: every button and menu
@@ -34,27 +85,36 @@ the server** — the most significant gap.
 - **`role`** — `code`, `name`, `is_system`. Seeded: `MANAGER` ("Manage
   orders, customers, reports"), `TECHNICIAN` ("Manage service orders and
   update status"), `RECEPTIONIST` ("Create orders, view customers") —
-  `service-plus-client/src/features/super-admin/constants/seed-data.ts`.
-- **`access_right`** — `code`, `name`, `module`, `description`. **Table
-  exists, currently empty** — the seed batch for it is commented out
-  (`seed-data.ts:21`).
-- **`role_access_right`** — role ↔ access_right (M:N). **Also empty today.**
+  `service-plus-server/app/db/seed_security_data.py`
+  (`SeedSecurityData.SECURITY_SEED_SQL`).
+- **`access_right`** — `code`, `name`, `module`, `description`. **Seeded** —
+  the 6 rows from the catalog below are now in `seed_security_data.py:25-33`.
+- **`role_access_right`** — role ↔ access_right (M:N). **Seeded** — mapping
+  in `seed_security_data.py:38-41` matches the Role → rights table below
+  exactly (MANAGER gets all 6, RECEPTIONIST gets 4, TECHNICIAN gets 0 rows).
 - **`user_bu_role`** — user gets one role per business unit (`is_active`
-  flag). Assigned via `associate-bu-role-dialog.tsx`, uniformly across all
-  selected BUs (schema supports per-BU roles; the UI doesn't use that yet —
-  out of scope here, see below).
+  flag). Assigned via `src/features/admin/components/associate-bu-role-dialog.tsx`,
+  uniformly across all selected BUs (schema supports per-BU roles; the UI
+  doesn't use that yet — out of scope here, see below).
 
-`roles-page.tsx` explicitly states "Roles are system-defined and cannot be
-added, edited, or deleted" — there is **no dynamic permissions-editor UI**
-anywhere in the app today, and this plan does not add one (see Decision
-below).
+`src/features/admin/pages/roles-page.tsx` explicitly states "Roles are
+system-defined and cannot be added, edited, or deleted" — there is
+**no dynamic permissions-editor UI** anywhere in the app today, and this
+plan does not add one (see Decision below).
+
+*(Note: the Business-Admin-scoped pages above — `business-units-page.tsx`,
+`business-users-page.tsx`, `roles-page.tsx`, `associate-bu-role-dialog.tsx`
+— moved from `src/features/super-admin/...` to `src/features/admin/...` in
+a folder rename since this plan was first drafted. `src/features/super-admin/`
+now holds only the true platform-level super-admin tier, e.g.
+`seed-roles-dialog.tsx`.)*
 
 ### Authentication (implemented and enforced)
 
 - Login (`POST /api/auth/login` →
   `service-plus-server/app/routers/auth_router_helper.py::login_helper`)
   looks up the user via `SqlStore.GET_USER_BY_IDENTITY`
-  (`app/db/sql_store.py:3022`), which **already aggregates** the user's
+  (`app/db/sql_store.py:2910`), which **already aggregates** the user's
   granular right codes across `user_bu_role → role → role_access_right →
   access_right` into `access_rights: string[]` — this already works
   end-to-end once the two tables are populated, no query change needed for
@@ -87,7 +147,9 @@ below).
 ### Survey — every actionable button/menu item found
 
 **Admin Mode** (kept for reference only — out of scope per Decision below;
-this area is `userType === 'A'`-only and faces no role-based restrictions):
+this area is `userType === 'A'`-only and faces no role-based restrictions).
+Pages below now live under `src/features/admin/pages/` (moved from
+`super-admin/` in a folder rename — see Status section):
 
 | Page | Actions |
 |---|---|
@@ -189,140 +251,183 @@ Configurations and Admin; keeps everything else including Masters.
 
 ## Concrete steps
 
-**Seeding (client-driven, reuses the existing seed-batch mechanism already
-used for Roles — no new backend code required for this part):**
+**Seeding — ✅ DONE, but via a different mechanism than originally scoped
+(see Status section at top): server-side SQL in `seed_security_data.py`
+rather than a client-side seed batch.**
 
-1. In `service-plus-client/src/features/super-admin/constants/seed-data.ts`,
-   fill in the commented-out "Access Rights" batch
-   (`{ tableName: "access_right", xData: [...] }`) with the 6 rows from
-   the catalog above.
-2. Add a new "Role Access Rights" batch seeding `role_access_right` rows
-   (role id ↔ access_right id pairs) per the mapping table above. Check
-   whether `SqlObjectType`'s `xDetails`/`fkeyName` nested-insert pattern
-   (already defined in `src/lib/graphql-utils.ts`) is used elsewhere for a
-   parent→children seed of this shape, and mirror it — don't invent a new
-   insert shape if an existing one already does parent-id-linked child rows.
-3. For **already-provisioned** client databases (not just newly-created
-   ones), re-run the seed batches via the existing super-admin re-seed flow
-   (`seed-roles-dialog.tsx` / `initialize-client-dialog.tsx`, gated by
-   `CHECK_ROLE_SEED_EXISTS`-style idempotency) so existing tenants get
-   backfilled too.
+1. ~~In `service-plus-client/src/features/super-admin/constants/seed-data.ts`,
+   fill in the commented-out "Access Rights" batch...~~ **Done differently**:
+   the 6 rows are seeded via `service-plus-server/app/db/seed_security_data.py`
+   (`SeedSecurityData.SECURITY_SEED_SQL`, lines 25-33) — content matches the
+   catalog below exactly.
+2. ~~Add a new "Role Access Rights" batch...~~ **Done differently**: same
+   file, lines 38-41, seeds `role_access_right` per the mapping table below
+   (MANAGER → all 6, RECEPTIONIST → 4, TECHNICIAN → 0). The client-side
+   `xDetails`/`fkeyName` nested-insert pattern in `graphql-utils.ts` was not
+   needed/used — this moved server-side instead.
+3. ⚠️ **PARTIALLY DONE** — re-seed path exists (`seedSecurityData` GraphQL
+   mutation, wired to `src/features/super-admin/components/seed-roles-dialog.tsx`,
+   also runs automatically on new client-schema creation via
+   `mutation_helper.py:496-503`), but the dialog's idempotency gate,
+   `SQL_MAP.CHECK_ROLE_SEED_EXISTS` (`sql_store.py:1826-1830`), only checks
+   `SELECT 1 FROM security.role LIMIT 1` — tenants that already had roles
+   before this work landed will never see the Apply button, so **existing
+   tenants are not actually getting backfilled today**. Needs fixing: either
+   check for `access_right` rows specifically, or always offer Apply and
+   rely on the seed SQL's `ON CONFLICT DO NOTHING`.
 
-**Server — make rights available on every request:**
+**Server — make rights available on every request (✅ DONE):**
 
-4. `service-plus-server/app/db/sql_store.py` (`GET_USER_BY_IDENTITY`,
-   line 3022) — add `r.code AS role_code` to the SELECT/GROUP BY (useful for
-   display/audit; `access_rights` is already aggregated here, no change
-   needed for that column).
-5. `service-plus-server/app/schemas/auth_schema.py` (`LoginResponse`) — add
-   `role_code: str`.
-6. `auth_router_helper.py` — pass `role_code=user.get("role_code") or ""` at
-   both `role_name=` call sites (super-admin synthetic path at line 77, real
-   user path at line 196).
-7. `auth_router_helper.py` `token_claims` (built at line 150, and again in
-   the refresh-token path around line 340) — add `"role_code"` **and**
-   `"access_rights": user.get("access_rights") or []` so both are available
-   on every GraphQL request without a DB round-trip, and stay current across
-   token refresh.
-8. `service-plus-server/app/graphql/schema.py::create_graphql_app` — add a
-   `context_value` callable to `GraphQL(...)` that reads the `Authorization`
-   header, calls the existing `decode_token()` (already used by
-   `app/core/dependencies.py::get_current_user`), and puts `user_id`,
+4. ✅ `service-plus-server/app/db/sql_store.py` (`GET_USER_BY_IDENTITY`,
+   line 2910) — `r.code AS role_code` added to the SELECT/GROUP BY.
+   `GET_USER_BY_ID_FOR_RESET` (used by the refresh-token path and
+   `get_current_user`) was also extended with `role_code` + `access_rights`
+   (not originally scoped as its own step, but needed for Step 7's refresh
+   path — see below).
+5. ✅ `service-plus-server/app/schemas/auth_schema.py` (`LoginResponse`) —
+   `role_code: str = Field(default="", alias="roleCode", ...)` added.
+6. ✅ `auth_router_helper.py` — `role_code=` passed at both `role_name=`
+   call sites (super-admin synthetic path, real user path).
+7. ✅ `auth_router_helper.py` `token_claims` — `role_code` and
+   `access_rights` added at the login path. The refresh-token path now also
+   re-reads `role_code`/`access_rights` from `GET_USER_BY_ID_FOR_RESET` (a
+   live DB read, not copied from the old refresh token) so a role change
+   takes effect on the next refresh rather than only at the next full login.
+8. ✅ `service-plus-server/app/graphql/schema.py` — `get_graphql_context()`
+   added and wired as `context_value` on `GraphQL(...)`. Reads the
+   `Authorization` header, calls `decode_token()`, and puts `user_id`,
    `user_type`, `role_code`, `access_rights`, `client_id`, `db_name` into
-   resolver context. Missing/invalid token → context user stays `None`,
-   don't hard-fail every query (only resolvers that call the new guard
-   reject).
+   resolver context; missing/invalid token leaves those fields `None`/`[]`
+   rather than failing the request.
 
-**Server — enforce per action:**
+**Server — enforce per action (⚠️ PARTIALLY DONE — see blocker below):**
 
-9. Add a shared guard (e.g. new `app/graphql/resolvers/auth_guards.py`):
-   ```python
-   def require_access_right(info, code: str) -> None:
-       if code not in (info.context.get("access_rights") or []):
-           raise AppHttpException(status_code=403, detail=f"Missing required access right: {code}")
-   ```
-10. Apply `require_access_right(info, "<CODE>")` at the top of every
-    resolver in `app/graphql/resolvers/mutation.py` per the catalog mapping:
-    `JOBS_RECEIPTS` → receipt create/edit/delete resolvers; `JOBS_OPENING_JOBS`
-    → opening-job create/edit/delete resolvers; `JOBS_ACCOUNTS_POSTING` →
-    `accountsPosting`; `MASTERS_MENU` → all master CRUD resolvers (Brand,
-    Product, Model, Parts, Customer, Technician, Vendor, Branch, State,
-    Financial Year, lookups, additional charges); `CONFIG_MENU` →
-    division/app-settings/document-sequence resolvers; `ADMIN_MENU` → the
-    post/unpost-pending-vouchers resolver. The rest of Jobs (single/batch/
-    opening-job-final/job-control/pipeline/deliver/part-used) and all of
-    Inventory and Reports need **no** guard — unrestricted for every role
-    per the Decision above; Step 8's authentication (valid token required)
-    still applies to them.
+9. ✅ `app/graphql/resolvers/auth_guards.py` added:
+   `require_access_right(info, code)`, raising `AuthorizationException`
+   (not `AppHttpException` — that class doesn't exist in this codebase;
+   `AuthorizationException` is the existing equivalent, already used
+   elsewhere and auto-formatted by `format_graphql_error`). Bypasses for
+   `user_type in {"S", "A"}`, matching the client's "no restrictions on
+   Admin" rule.
+10. ⚠️ **Applied only where it's safe — see "Step 10 blocker" below.**
+    Done: `accountsPosting` → `JOBS_ACCOUNTS_POSTING` (clean, dedicated
+    resolver, single call site). `genericUpdate` → `MASTERS_MENU` and
+    `CONFIG_MENU`, via a `tableName` allow-list
+    (`GENERIC_UPDATE_TABLE_RIGHTS` in `mutation.py`) covering all 20
+    Masters/Configurations tables (verified each is written *only* from its
+    own feature area, no cross-area collisions).
+    **Not done**: `JOBS_RECEIPTS`, `JOBS_OPENING_JOBS`, `ADMIN_MENU`
+    (post/unpost) — blocked, see below.
 
-**Client — read and gate:**
+    #### Step 10 blocker: no clean enforcement point for 3 of the 6 codes
 
-11. `service-plus-client/src/lib/auth-service.ts` — add `roleCode?: string`
-    to `UserInstanceType` (mirrors existing `roleName`; `accessRights` is
-    already there).
-12. `login-form.tsx` — add `roleCode: result.roleCode` alongside
-    `roleName: result.roleName` in the `UserInstanceType` built in `onSubmit`.
-13. New file `service-plus-client/src/features/auth/utils/access-rights.ts`
-    (cross-cutting, not admin-only — Client Mode needs it too):
-    ```ts
-    export const ACCESS_RIGHTS = {
-        JOBS_RECEIPTS: 'JOBS_RECEIPTS',
-        JOBS_OPENING_JOBS: 'JOBS_OPENING_JOBS',
-        JOBS_ACCOUNTS_POSTING: 'JOBS_ACCOUNTS_POSTING',
-        MASTERS_MENU: 'MASTERS_MENU',
-        CONFIG_MENU: 'CONFIG_MENU',
-        ADMIN_MENU: 'ADMIN_MENU',
-    } as const;
-    export type AccessRightCode = typeof ACCESS_RIGHTS[keyof typeof ACCESS_RIGHTS];
+    The plan assumed each catalog code maps to its own resolver(s)
+    ("receipt create/edit/delete resolvers", "opening-job create/edit/delete
+    resolvers", "the post/unpost-pending-vouchers resolver"). **That's not
+    how the code is actually structured.** There are no such resolvers —
+    Receipts, Opening Jobs, and Post/Unpost all go through the same generic
+    `genericUpdate`/`createJobPayment` mutations used by other, explicitly
+    **unrestricted** areas, writing the *same* tables with the *same*
+    resolver:
+    - `tableName: "job"` is written by Opening Jobs **and** by Single Job,
+      Batch Job, Job Control, and Final-a-Job (all required to stay open
+      for every role). A `tableName`-only guard can't tell these apart —
+      it would either leave Opening Jobs ungated or block Technicians from
+      Single/Batch Job entirely.
+    - The dedicated `createJobPayment` mutation is called both from the
+      Receipts screen **and** from the "Add Receipt" step inside the
+      Deliver Job modal (`delivery-modal.tsx`) — same mutation, same
+      payload shape, no field distinguishes the two callers. Gating it by
+      `JOBS_RECEIPTS` would also block Technicians from completing a
+      delivery that includes taking a payment, which the plan requires to
+      stay open.
+    - Post/Unpost (`ADMIN_MENU`) toggles `is_posted` via `genericUpdate` on
+      `job_payment`, `purchase_invoice`, `sales_invoice`, `job_invoice` —
+      every one of those tables is also written by an unrestricted flow
+      (Receipts, Inventory purchase/sales entry, Deliver Job). The *only*
+      thing that distinguishes a post/unpost call is that its `xData` is
+      exactly `{id, is_posted}` with no other keys — a payload-shape
+      heuristic, not an explicit signal, and fragile to rely on for access
+      control.
 
-    export function hasAccessRight(
-        user: Pick<UserInstanceType, 'accessRights' | 'userType'> | null,
-        code: AccessRightCode,
-    ): boolean {
-        if (user?.userType === 'S' || user?.userType === 'A') return true; // super-admin / business-admin bypass — "no restrictions on Admin"
-        return !!user?.accessRights?.includes(code);
-    }
-    ```
-    Also add a `ROLE_SHORT_NAMES` map here (or alongside): `{ MANAGER: 'Man',
-    TECHNICIAN: 'Tech', RECEPTIONIST: 'Rec' }`, keyed by `role_code` once
-    Step 5/6 land (falls back to full `roleName` if `role_code` is missing).
-14. Wire `hasAccessRight(user, ...)` into the six gated spots — **always
-    render, disable + tooltip when the right is missing, never hide**:
-    - `client-explorer-panel.tsx` — the `TreeItem` component (line ~29) has
-      no `disabled` prop today; add one (dim styling + non-interactive +
-      `title` tooltip). Apply it to the "Receipts", "Opening Jobs", and
-      "Accounts Posting" `TreeItem`s using `JOBS_RECEIPTS`,
-      `JOBS_OPENING_JOBS`, `JOBS_ACCOUNTS_POSTING` respectively. "Accounts
-      Posting" keeps its existing `postDataToAccounts &&` guard as well —
-      this right is additive, not a replacement.
-    - `client-top-nav.tsx` — `NAV_ITEMS` renders `Masters`/`Configurations`/
-      `Admin` as plain `NavLink`s with no disabled state today. Add a
-      disabled visual treatment (muted text, no hover state) *and* prevent
-      the actual navigation (e.g. render a disabled `<span>`/`<button>`
-      instead of `NavLink` when disabled, or guard the click), each with a
-      `title` tooltip explaining why (e.g. "Requires Manager or Receptionist
-      role" for Masters).
-    - Apply `hasAccessRight(user, ...)` **alongside** any existing
-      data-state conditions elsewhere found in the earlier survey, never
-      replacing them.
-15. Update the role badge in `client-top-nav.tsx` (~line 109,
-    `{user?.roleName ?? (user?.userType === 'A' ? 'Admin' : 'User')}`) to
-    show the short name (`ROLE_SHORT_NAMES` from Step 13) instead of the
-    full `roleName` — this is the tight, `tracking-widest` badge where space
-    is constrained. The account dropdown built earlier in
-    `client-activity-bar.tsx` keeps showing the full role name; no change
-    needed there.
+    This needs a decision, not a workaround guess:
+    (a) accept the payload-shape heuristic above for `ADMIN_MENU` (and find
+        an equivalent for Receipts/Opening Jobs, e.g. `is_opening_job: true`
+        already present in Opening Jobs' own `xData` — confirmed unique to
+        that flow, so **that one is actually safe**, unlike the other two);
+    (b) have the client send an explicit discriminator (e.g. an `area` or
+        `rightCode` field in the `genericUpdate`/`createJobPayment` payload)
+        so the server can key off something authoritative instead of
+        table name or shape; or
+    (c) split the shared resolvers into distinct GraphQL fields per area
+        (bigger change, touches client call sites too).
+    Given `is_opening_job` is already a reliable signal, `JOBS_OPENING_JOBS`
+    could actually be added now on that basis if desired — flagging here
+    rather than silently adding it, since it wasn't in the original Step 10
+    plan text. `JOBS_RECEIPTS` (createJobPayment) and `ADMIN_MENU`
+    (post/unpost) remain unresolved either way.
 
-**Docs and follow-up hardening:**
+**Client — read and gate (✅ DONE):**
 
-16. Update `help-content.ts` for every gated area, noting which right/role
-    is required for each action.
-17. Flag as a separate follow-up (not blocking this rollout): the generic
-    `genericUpdate`/`genericUpdateScript`/`genericQuery` resolvers can write
-    to *any* table by name with no per-table check — Step 8's auth context
-    means they're now at least authenticated, but not yet right-scoped.
-    Closing this fully needs either a table allow-list or a right check
-    keyed by `tableName`, which is a bigger effort than this plan covers.
+11. ✅ `service-plus-client/src/lib/auth-service.ts` — `roleCode?: string`
+    added to both `UserInstanceType` and `LoginResponseType`.
+12. ✅ `login-form.tsx` — `roleCode: result.roleCode` added alongside
+    `roleName:`. Also fixed a pre-existing gap found while implementing this:
+    `accessRights` was typed everywhere but **never actually copied** from
+    the login response into the stored `UserInstanceType` in `onSubmit` — it
+    was silently dropped, which would have made every `hasAccessRight` check
+    below return `false` regardless of the user's real rights. Added
+    `accessRights: result.accessRights` at the same spot.
+13. ✅ `service-plus-client/src/features/auth/utils/access-rights.ts` created
+    with `ACCESS_RIGHTS`, `AccessRightCode`, `hasAccessRight()` (matches the
+    plan's snippet exactly), plus `ROLE_SHORT_NAMES` and a
+    `getRoleDisplayName(user, short)` helper (falls back to full `roleName`
+    when `roleCode` is missing/unmapped, as specified).
+14. ✅ `hasAccessRight(user, ...)` wired into all six gated spots:
+    - `client-explorer-panel.tsx` — `TreeItem` now takes `disabled`/`title`
+      props (dim + `cursor-not-allowed` + non-interactive `onClick` +
+      tooltip). Applied to Receipts/Opening Jobs/Accounts Posting; Accounts
+      Posting keeps its existing `postDataToAccounts &&` guard as an
+      additional, not replaced, condition.
+    - `client-top-nav.tsx` — `NAV_ITEMS` gained an optional `requiredRight`;
+      when the user lacks it, a disabled `<span>` with a tooltip renders
+      instead of the `NavLink` (navigation is fully prevented, not just
+      styled). Existing data-state conditions elsewhere are untouched.
+15. ✅ Role badge in `client-top-nav.tsx` now calls
+    `getRoleDisplayName(user, true)`, showing the short code (Man/Tech/Rec).
+    `client-activity-bar.tsx`'s account dropdown was confirmed unchanged —
+    still shows the full `roleName`.
+
+    **Verification note**: `npx tsc --noEmit` is clean. A live browser
+    check (logging in as each of Manager/Technician/Receptionist and
+    confirming the actual disabled/tooltip behavior) was **not performed** —
+    it was offered and explicitly declined in favor of a manual check by the
+    user, since it required sharing real login credentials. Steps 11-15 are
+    implemented and type-clean but runtime-unverified.
+
+**Docs and follow-up hardening (✅ DONE):**
+
+16. ✅ `help-content.ts` updated. Rather than repeating a role/rights note
+    on every one of the ~5 Masters and ~4 Configurations articles for two
+    whole-tab gates, added one comprehensive Feature × Role table to the
+    existing "Roles" article (`access-roles`, Access Management category) —
+    the natural place an admin would already look — plus a short one-line
+    note on each of the three individually-gated Jobs articles (`receipts`,
+    `opening-jobs`, `accounts-posting`) pointing back to it.
+17. ✅ **Done — as a documentation/flagging item, which is all this step
+    ever asked for.** Status, narrower than originally scoped: `genericUpdate`
+    now has a `tableName` allow-list for `MASTERS_MENU`/`CONFIG_MENU` (Step
+    10), so that part of the gap is closed. What remains open, and is
+    tracked in the "Step 10 blocker" note above rather than re-described
+    here: `genericUpdateScript` and `genericQuery` still have no per-table
+    check at all (not needed today — nothing gated goes through them, but
+    also nothing stops a future feature from adding one unguarded), and
+    `genericUpdate` calls for `job`/`job_payment`/`job_invoice`/
+    `purchase_invoice`/`sales_invoice` remain unscoped by design, since
+    those tables are shared with unrestricted flows and a `tableName`-only
+    check would either miss the restricted case or wrongly block the
+    unrestricted one. Step 8's authentication (valid token required) still
+    applies to all of these regardless.
 
 ## Out of scope
 

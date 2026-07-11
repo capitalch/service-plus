@@ -1,121 +1,35 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { X, Search, ChevronRight, AlertTriangle, Info, ArrowLeft, Lightbulb, BookOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
-import {
-    type HelpArticle,
-    type ContentBlock,
-    type HelpFaq,
-    HELP_ARTICLES,
-    HELP_CATEGORIES,
-    searchArticles,
-} from "./help-content";
+import type { HelpArticle, ContentBlock, HelpFaq, CategoryStyleType } from "./help-types";
 
-// ─── Per-category colour palette ─────────────────────────────────────────────
+// ─── Search helper ────────────────────────────────────────────────────────────
+// Shared across content sets — each content file (help-content.ts, dev-help-content.ts)
+// hands its own `articles` array in; nothing here is specific to end-user or developer content.
 
-type CategoryStyle = {
-    emoji:      string;
-    gradient:   string;   // card gradient
-    pill:       string;   // badge in search / breadcrumb
-    pillText:   string;
-    stepBg:     string;   // numbered step bubble
-    stepText:   string;
-    border:     string;
-};
+export function searchHelpArticles(articles: HelpArticle[], query: string): HelpArticle[] {
+    if (!query.trim()) return articles;
+    const q = query.toLowerCase();
+    return articles.filter(a =>
+        a.title.toLowerCase().includes(q) ||
+        a.summary.toLowerCase().includes(q) ||
+        a.tags.some(t => t.toLowerCase().includes(q)) ||
+        a.faqs.some(f => f.q.toLowerCase().includes(q) || f.a.toLowerCase().includes(q)) ||
+        a.content.some(c =>
+            (c.type === "para"    && c.text.toLowerCase().includes(q)) ||
+            (c.type === "steps"  && c.items.some(i => i.toLowerCase().includes(q))) ||
+            (c.type === "bullets"&& c.items.some(i => i.toLowerCase().includes(q))) ||
+            (c.type === "heading"&& c.text.toLowerCase().includes(q)) ||
+            (c.type === "note"   && c.text.toLowerCase().includes(q)) ||
+            (c.type === "warning"&& c.text.toLowerCase().includes(q)) ||
+            (c.type === "table"  && c.rows.some(r => r.some(cell => cell.toLowerCase().includes(q))))
+        )
+    );
+}
 
-const CAT_STYLE: Record<string, CategoryStyle> = {
-    "Getting Started": {
-        emoji:    "🚀",
-        gradient: "from-violet-500 to-purple-600",
-        pill:     "bg-violet-100 dark:bg-violet-900/40",
-        pillText: "text-violet-700 dark:text-violet-300",
-        stepBg:   "bg-violet-500",
-        stepText: "text-white",
-        border:   "border-violet-300 dark:border-violet-700",
-    },
-    "Jobs": {
-        emoji:    "🔧",
-        gradient: "from-blue-500 to-sky-600",
-        pill:     "bg-blue-100 dark:bg-blue-900/40",
-        pillText: "text-blue-700 dark:text-blue-300",
-        stepBg:   "bg-blue-500",
-        stepText: "text-white",
-        border:   "border-blue-300 dark:border-blue-700",
-    },
-    "Inventory": {
-        emoji:    "📦",
-        gradient: "from-emerald-500 to-teal-600",
-        pill:     "bg-emerald-100 dark:bg-emerald-900/40",
-        pillText: "text-emerald-700 dark:text-emerald-300",
-        stepBg:   "bg-emerald-500",
-        stepText: "text-white",
-        border:   "border-emerald-300 dark:border-emerald-700",
-    },
-    "Masters": {
-        emoji:    "📋",
-        gradient: "from-amber-500 to-yellow-500",
-        pill:     "bg-amber-100 dark:bg-amber-900/40",
-        pillText: "text-amber-700 dark:text-amber-300",
-        stepBg:   "bg-amber-500",
-        stepText: "text-white",
-        border:   "border-amber-300 dark:border-amber-700",
-    },
-    "Configurations": {
-        emoji:    "⚙️",
-        gradient: "from-orange-500 to-amber-600",
-        pill:     "bg-orange-100 dark:bg-orange-900/40",
-        pillText: "text-orange-700 dark:text-orange-300",
-        stepBg:   "bg-orange-500",
-        stepText: "text-white",
-        border:   "border-orange-300 dark:border-orange-700",
-    },
-    "Reports": {
-        emoji:    "📊",
-        gradient: "from-cyan-500 to-blue-500",
-        pill:     "bg-cyan-100 dark:bg-cyan-900/40",
-        pillText: "text-cyan-700 dark:text-cyan-300",
-        stepBg:   "bg-cyan-500",
-        stepText: "text-white",
-        border:   "border-cyan-300 dark:border-cyan-700",
-    },
-    "GST & Invoicing": {
-        emoji:    "🧾",
-        gradient: "from-teal-500 to-cyan-600",
-        pill:     "bg-teal-100 dark:bg-teal-900/40",
-        pillText: "text-teal-700 dark:text-teal-300",
-        stepBg:   "bg-teal-500",
-        stepText: "text-white",
-        border:   "border-teal-300 dark:border-teal-700",
-    },
-    "Admin & Users": {
-        emoji:    "👤",
-        gradient: "from-indigo-500 to-violet-600",
-        pill:     "bg-indigo-100 dark:bg-indigo-900/40",
-        pillText: "text-indigo-700 dark:text-indigo-300",
-        stepBg:   "bg-indigo-500",
-        stepText: "text-white",
-        border:   "border-indigo-300 dark:border-indigo-700",
-    },
-    "Access Management": {
-        emoji:    "🔐",
-        gradient: "from-rose-500 to-pink-600",
-        pill:     "bg-rose-100 dark:bg-rose-900/40",
-        pillText: "text-rose-700 dark:text-rose-300",
-        stepBg:   "bg-rose-500",
-        stepText: "text-white",
-        border:   "border-rose-300 dark:border-rose-700",
-    },
-    "Troubleshooting": {
-        emoji:    "🆘",
-        gradient: "from-fuchsia-500 to-purple-600",
-        pill:     "bg-fuchsia-100 dark:bg-fuchsia-900/40",
-        pillText: "text-fuchsia-700 dark:text-fuchsia-300",
-        stepBg:   "bg-fuchsia-500",
-        stepText: "text-white",
-        border:   "border-fuchsia-300 dark:border-fuchsia-700",
-    },
-};
+// ─── Category style fallback ──────────────────────────────────────────────────
 
-const DEFAULT_STYLE: CategoryStyle = {
+const DEFAULT_STYLE: CategoryStyleType = {
     emoji:    "📄",
     gradient: "from-slate-500 to-slate-600",
     pill:     "bg-slate-100 dark:bg-slate-800",
@@ -125,14 +39,14 @@ const DEFAULT_STYLE: CategoryStyle = {
     border:   "border-slate-300 dark:border-slate-700",
 };
 
-function catStyle(cat: string): CategoryStyle {
-    return CAT_STYLE[cat] ?? DEFAULT_STYLE;
+function catStyle(cat: string, styles: Record<string, CategoryStyleType>): CategoryStyleType {
+    return styles[cat] ?? DEFAULT_STYLE;
 }
 
 // ─── Category pill badge ──────────────────────────────────────────────────────
 
-function CategoryPill({ category }: { category: string }) {
-    const s = catStyle(category);
+function CategoryPill({ category, styles }: { category: string; styles: Record<string, CategoryStyleType> }) {
+    const s = catStyle(category, styles);
     return (
         <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold tracking-wide", s.pill, s.pillText)}>
             <span>{s.emoji}</span>
@@ -143,8 +57,8 @@ function CategoryPill({ category }: { category: string }) {
 
 // ─── Content block renderer ───────────────────────────────────────────────────
 
-function RenderBlock({ block, category }: { block: ContentBlock; category: string }) {
-    const s = catStyle(category);
+function RenderBlock({ block, category, styles }: { block: ContentBlock; category: string; styles: Record<string, CategoryStyleType> }) {
+    const s = catStyle(category, styles);
 
     switch (block.type) {
         case "heading":
@@ -239,9 +153,9 @@ function RenderBlock({ block, category }: { block: ContentBlock; category: strin
 
 // ─── FAQ accordion ────────────────────────────────────────────────────────────
 
-function FaqItem({ faq, category }: { faq: HelpFaq; category: string }) {
+function FaqItem({ faq, category, styles }: { faq: HelpFaq; category: string; styles: Record<string, CategoryStyleType> }) {
     const [open, setOpen] = useState(false);
-    const s = catStyle(category);
+    const s = catStyle(category, styles);
     return (
         <div className="border-b border-(--cl-border)/70 last:border-0">
             <button
@@ -264,8 +178,8 @@ function FaqItem({ faq, category }: { faq: HelpFaq; category: string }) {
 
 // ─── Article view ─────────────────────────────────────────────────────────────
 
-function ArticleView({ article, onBack }: { article: HelpArticle; onBack: () => void }) {
-    const s = catStyle(article.category);
+function ArticleView({ article, onBack, styles }: { article: HelpArticle; onBack: () => void; styles: Record<string, CategoryStyleType> }) {
+    const s = catStyle(article.category, styles);
     return (
         <div className="flex h-full flex-col">
             {/* Coloured article header */}
@@ -277,7 +191,7 @@ function ArticleView({ article, onBack }: { article: HelpArticle; onBack: () => 
             {/* Article body */}
             <div className="flex-1 overflow-y-auto px-5 py-5">
                 {article.content.map((block, i) => (
-                    <RenderBlock key={i} block={block} category={article.category} />
+                    <RenderBlock key={i} block={block} category={article.category} styles={styles} />
                 ))}
 
                 {article.faqs.length > 0 && (
@@ -288,7 +202,7 @@ function ArticleView({ article, onBack }: { article: HelpArticle; onBack: () => 
                         </div>
                         <div className="rounded-xl border border-(--cl-border) bg-(--cl-surface) px-3">
                             {article.faqs.map((faq, i) => (
-                                <FaqItem key={i} faq={faq} category={article.category} />
+                                <FaqItem key={i} faq={faq} category={article.category} styles={styles} />
                             ))}
                         </div>
                     </div>
@@ -310,12 +224,14 @@ function ArticleView({ article, onBack }: { article: HelpArticle; onBack: () => 
 
 // ─── Category article list ────────────────────────────────────────────────────
 
-function CategoryView({ category, onSelectArticle }: {
-    category: string;
+function CategoryView({ category, articles, styles, onSelectArticle }: {
+    category:        string;
+    articles:        HelpArticle[];
+    styles:          Record<string, CategoryStyleType>;
     onSelectArticle: (a: HelpArticle) => void;
 }) {
-    const articles = HELP_ARTICLES.filter(a => a.category === category);
-    const s = catStyle(category);
+    const categoryArticles = articles.filter(a => a.category === category);
+    const s = catStyle(category, styles);
     return (
         <div className="flex h-full flex-col">
             {/* Category header */}
@@ -324,14 +240,14 @@ function CategoryView({ category, onSelectArticle }: {
                     <span className="text-3xl leading-none">{s.emoji}</span>
                     <div>
                         <h2 className="text-[16px] font-bold text-white">{category}</h2>
-                        <p className="text-[12px] text-white/70">{articles.length} article{articles.length !== 1 ? "s" : ""}</p>
+                        <p className="text-[12px] text-white/70">{categoryArticles.length} article{categoryArticles.length !== 1 ? "s" : ""}</p>
                     </div>
                 </div>
             </div>
 
             {/* Article list */}
             <div className="flex-1 overflow-y-auto py-2">
-                {articles.map((article, i) => (
+                {categoryArticles.map((article, i) => (
                     <button
                         key={article.id}
                         onClick={() => onSelectArticle(article)}
@@ -354,11 +270,10 @@ function CategoryView({ category, onSelectArticle }: {
 
 // ─── Search results view ──────────────────────────────────────────────────────
 
-const POPULAR_IDS = ["first-time-setup", "create-job", "job-control", "finalize-job", "deliver-job", "customer-gstin"];
-
-function SearchResults({ query, results, onSelect }: {
+function SearchResults({ query, results, styles, onSelect }: {
     query:    string;
     results:  HelpArticle[];
+    styles:   Record<string, CategoryStyleType>;
     onSelect: (a: HelpArticle) => void;
 }) {
     if (results.length === 0) {
@@ -371,13 +286,6 @@ function SearchResults({ query, results, onSelect }: {
                 <p className="mt-1.5 text-[12px] text-(--cl-text-muted) leading-relaxed">
                     Try searching for a feature name, task, or error message.
                 </p>
-                <div className="mt-4 flex flex-wrap justify-center gap-2">
-                    {["job", "invoice", "GST", "delivery", "HSN"].map(s => (
-                        <span key={s} className="rounded-full bg-(--cl-surface) px-3 py-1 text-[11px] font-medium text-(--cl-text-muted)">
-                            {s}
-                        </span>
-                    ))}
-                </div>
             </div>
         );
     }
@@ -388,7 +296,7 @@ function SearchResults({ query, results, onSelect }: {
                 {results.length} result{results.length !== 1 ? "s" : ""}
             </p>
             {results.map(a => {
-                const s = catStyle(a.category);
+                const s = catStyle(a.category, styles);
                 return (
                     <button
                         key={a.id}
@@ -397,7 +305,7 @@ function SearchResults({ query, results, onSelect }: {
                     >
                         <span className="mt-1 text-xl leading-none">{s.emoji}</span>
                         <div className="min-w-0">
-                            <CategoryPill category={a.category} />
+                            <CategoryPill category={a.category} styles={styles} />
                             <p className="mt-1 text-[13px] font-semibold text-(--cl-text) group-hover:text-(--cl-accent) transition-colors">{a.title}</p>
                             <p className="mt-0.5 text-[11px] text-(--cl-text-muted) line-clamp-2 leading-relaxed">{a.summary}</p>
                         </div>
@@ -411,11 +319,15 @@ function SearchResults({ query, results, onSelect }: {
 
 // ─── Home view ────────────────────────────────────────────────────────────────
 
-function HomeView({ onSelectCategory, onSelectArticle }: {
+function HomeView({ articles, categories, styles, popularIds, onSelectCategory, onSelectArticle }: {
+    articles:         HelpArticle[];
+    categories:       readonly string[];
+    styles:           Record<string, CategoryStyleType>;
+    popularIds:       string[];
     onSelectCategory: (cat: string) => void;
     onSelectArticle:  (a: HelpArticle) => void;
 }) {
-    const popular = POPULAR_IDS.map(id => HELP_ARTICLES.find(a => a.id === id)).filter(Boolean) as HelpArticle[];
+    const popular = popularIds.map(id => articles.find(a => a.id === id)).filter(Boolean) as HelpArticle[];
 
     return (
         <div className="h-full overflow-y-auto">
@@ -423,9 +335,9 @@ function HomeView({ onSelectCategory, onSelectArticle }: {
             <div className="px-4 pt-4 pb-3">
                 <p className="mb-3 text-[11px] font-bold uppercase tracking-wider text-(--cl-text-muted)/70">Browse by topic</p>
                 <div className="grid grid-cols-3 gap-2.5">
-                    {HELP_CATEGORIES.map(cat => {
-                        const s = catStyle(cat);
-                        const count = HELP_ARTICLES.filter(a => a.category === cat).length;
+                    {categories.map(cat => {
+                        const s = catStyle(cat, styles);
+                        const count = articles.filter(a => a.category === cat).length;
                         return (
                             <button
                                 key={cat}
@@ -455,7 +367,7 @@ function HomeView({ onSelectCategory, onSelectArticle }: {
                     </div>
                     <div className="space-y-1.5">
                         {popular.map(article => {
-                            const s = catStyle(article.category);
+                            const s = catStyle(article.category, styles);
                             return (
                                 <button
                                     key={article.id}
@@ -491,12 +403,18 @@ type View =
 // ─── Main panel ───────────────────────────────────────────────────────────────
 
 type HelpPanelProps = {
-    open:             boolean;
-    onClose:          () => void;
+    open:              boolean;
+    onClose:           () => void;
+    articles:          HelpArticle[];
+    categories:        readonly string[];
+    categoryStyles:    Record<string, CategoryStyleType>;
+    popularIds?:       string[];
     initialArticleId?: string;
+    isDark?:           boolean;
+    title?:            string;
 };
 
-export function HelpPanel({ open, onClose, initialArticleId }: HelpPanelProps) {
+export function HelpPanel({ open, onClose, articles, categories, categoryStyles, popularIds = [], initialArticleId, isDark = false, title = "Help Center" }: HelpPanelProps) {
     const [query,    setQuery]    = useState("");
     const [view,     setView]     = useState<View>({ kind: "home" });
     const searchRef = useRef<HTMLInputElement>(null);
@@ -506,11 +424,12 @@ export function HelpPanel({ open, onClose, initialArticleId }: HelpPanelProps) {
         if (!open) return;
         setTimeout(() => searchRef.current?.focus(), 120);
         if (initialArticleId) {
-            const a = HELP_ARTICLES.find(x => x.id === initialArticleId);
+            const a = articles.find(x => x.id === initialArticleId);
             if (a) { setView({ kind: "article", article: a }); setQuery(""); return; }
         }
         setView({ kind: "home" });
         setQuery("");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [open, initialArticleId]);
 
     // Close on Escape
@@ -526,12 +445,12 @@ export function HelpPanel({ open, onClose, initialArticleId }: HelpPanelProps) {
         if (!open) return;
         const q = query.trim();
         if (q) {
-            setView({ kind: "search", query: q, results: searchArticles(q) });
+            setView({ kind: "search", query: q, results: searchHelpArticles(articles, q) });
         } else if (view.kind === "search") {
             setView({ kind: "home" });
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [query, open]);
+    }, [query, open, articles]);
 
     const handleSelectArticle = useCallback((a: HelpArticle) => {
         setQuery("");
@@ -554,7 +473,7 @@ export function HelpPanel({ open, onClose, initialArticleId }: HelpPanelProps) {
 
     // Derive title for the header
     const headerTitle =
-        view.kind === "home"     ? "Help Center"         :
+        view.kind === "home"     ? title                  :
         view.kind === "category" ? view.category          :
         view.kind === "article"  ? view.article.category  :
         "Search Results";
@@ -562,17 +481,19 @@ export function HelpPanel({ open, onClose, initialArticleId }: HelpPanelProps) {
     const headerGradient =
         view.kind === "home"    ? null :
         view.kind === "search"  ? null :
-        catStyle(view.kind === "category" ? view.category : view.article.category).gradient;
+        catStyle(view.kind === "category" ? view.category : view.article.category, categoryStyles).gradient;
 
     if (!open) return null;
+
+    const themeProps = { className: "sp-help-theme", "data-theme": isDark ? "dark" : "light" } as const;
 
     return (
         <>
             {/* Backdrop */}
-            <div className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-[2px]" onClick={onClose} />
+            <div {...themeProps} className={cn(themeProps.className, "fixed inset-0 z-[60] bg-black/50 backdrop-blur-[2px]")} onClick={onClose} />
 
             {/* Drawer */}
-            <div className="fixed right-0 top-0 z-[61] flex h-full w-full max-w-[520px] flex-col shadow-2xl animate-in slide-in-from-right duration-200">
+            <div {...themeProps} className={cn(themeProps.className, "fixed right-0 top-0 z-[61] flex h-full w-full max-w-[520px] flex-col shadow-2xl animate-in slide-in-from-right duration-200")}>
 
                 {/* ── Panel header ── */}
                 <div className={cn(
@@ -645,16 +566,16 @@ export function HelpPanel({ open, onClose, initialArticleId }: HelpPanelProps) {
 
                 {/* ── Body ── */}
                 <div className="flex-1 overflow-hidden bg-(--cl-bg)">
-                    {view.kind === "home"     && <HomeView onSelectCategory={handleSelectCategory} onSelectArticle={handleSelectArticle} />}
-                    {view.kind === "category" && <CategoryView category={view.category} onSelectArticle={handleSelectArticle} />}
-                    {view.kind === "article"  && <ArticleView article={view.article} onBack={handleBack} />}
-                    {view.kind === "search"   && <SearchResults query={view.query} results={view.results} onSelect={handleSelectArticle} />}
+                    {view.kind === "home"     && <HomeView articles={articles} categories={categories} styles={categoryStyles} popularIds={popularIds} onSelectCategory={handleSelectCategory} onSelectArticle={handleSelectArticle} />}
+                    {view.kind === "category" && <CategoryView category={view.category} articles={articles} styles={categoryStyles} onSelectArticle={handleSelectArticle} />}
+                    {view.kind === "article"  && <ArticleView article={view.article} onBack={handleBack} styles={categoryStyles} />}
+                    {view.kind === "search"   && <SearchResults query={view.query} results={view.results} styles={categoryStyles} onSelect={handleSelectArticle} />}
                 </div>
 
                 {/* ── Footer ── */}
                 <div className="shrink-0 border-t border-(--cl-border) bg-(--cl-surface) px-5 py-2">
                     <p className="text-[10px] text-(--cl-text-muted)/50 text-center tracking-wide">
-                        {HELP_ARTICLES.length} articles across {HELP_CATEGORIES.length} topics · Esc to close
+                        {articles.length} articles across {categories.length} topics · Esc to close
                     </p>
                 </div>
             </div>

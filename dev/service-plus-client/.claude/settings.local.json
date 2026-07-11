@@ -47,7 +47,16 @@
       "Bash(npx @tailwindcss/cli --version)",
       "Bash(pnpm exec *)",
       "Bash(echo \"EXIT=$?\")",
-      "Bash(git -C /home/sushant/projects/service-plus/dev/service-plus-client diff -- src/constants/messages.ts src/features/client/components/inventory/sales-entry/sales-entry-section.tsx src/features/client/components/jobs/deliver-job/delivery-modal.tsx src/features/client/components/jobs/opening-job/opening-job-section.tsx src/features/client/components/jobs/single-job/single-job-section.tsx)"
+      "Bash(git -C /home/sushant/projects/service-plus/dev/service-plus-client diff -- src/constants/messages.ts src/features/client/components/inventory/sales-entry/sales-entry-section.tsx src/features/client/components/jobs/deliver-job/delivery-modal.tsx src/features/client/components/jobs/opening-job/opening-job-section.tsx src/features/client/components/jobs/single-job/single-job-section.tsx)",
+      "Bash(echo \"EXIT_CODE=$?\")",
+      "Skill(run)",
+      "Bash(curl -sf http://localhost:8000/health)",
+      "Bash(curl -s http://localhost:5173 -o /dev/null -w \"%{http_code}\\\\n\")",
+      "Bash(curl -s http://localhost:3000 -o /dev/null -w \"%{http_code}\\\\n\")",
+      "Bash(chromium-cli --help)",
+      "Bash(npx playwright *)",
+      "Bash(npm init *)",
+      "Bash(npm install *)"
     ]
   }
 }

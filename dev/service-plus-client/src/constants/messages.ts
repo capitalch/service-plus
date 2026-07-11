@@ -215,6 +215,9 @@ export const MESSAGES = {
   ERROR_SEED_ROLES_FAILED: 'Failed to apply seed roles. Please try again.',
   INFO_SEED_ROLES_ALREADY_EXISTS: 'Seed roles are already present in this client\'s database.',
   SUCCESS_SEED_ROLES: 'Seed roles applied successfully.',
+  ERROR_SEED_ACCESS_RIGHTS_FAILED: 'Failed to apply seed access rights. Please try again.',
+  INFO_SEED_ACCESS_RIGHTS_ALREADY_EXISTS: 'Access rights are already present in this client\'s database.',
+  SUCCESS_SEED_ACCESS_RIGHTS: 'Access rights applied successfully.',
 
   // Reset Password (self-service via link)
   ERROR_RESET_PASSWORD_FAILED: 'Failed to reset password. Please try again.',
