@@ -34,7 +34,10 @@ const DEBOUNCE_MS = 1600;
 
 export function receiptJobRestrictionReason(job: JobLookupForReceiptType): string | null {
     if (job.is_closed)                               return "Job is closed / delivered";
-    if (job.is_final)                                return "Job is final — no payment applicable";
+    // Final jobs may still receive a payment while there is an outstanding due;
+    // block only once the job is fully paid.
+    if (job.is_final && Number(job.amount ?? 0) - Number(job.total_paid ?? 0) <= 0)
+        return "Job is final — fully paid, no due";
     if (job.job_status_code === "ON_HOLD")            return "Job is on hold";
     if (job.job_status_code === "ESTIMATE_REJECTED")  return "Estimate was rejected";
     if (job.job_type_code   === "UNDER_WARRANTY")     return "Under warranty — no payment required";

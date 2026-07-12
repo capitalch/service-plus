@@ -163,6 +163,7 @@ export const FinalAJobSection = ({ onBack, initialTab }: FinalAJobSectionProps =
     // ── Final sub-view state ────────────────────────────────────────────────
     const [selectedJob, setSelectedJob] = useState<JobDetailType | null>(null);
     const [selectedRow, setSelectedRow] = useState<FinalJobRow | null>(null);
+    const [receivedTotal, setReceivedTotal] = useState(0);
     const [selectedDivisionId, setSelectedDivisionId] = useState<number | null>(null);
     const [loadingDetail, setLoadingDetail] = useState<number | null>(null);
     const [submitting, setSubmitting] = useState(false);
@@ -336,7 +337,7 @@ export const FinalAJobSection = ({ onBack, initialTab }: FinalAJobSectionProps =
         if (!dbName || !schema) return;
         setLoadingDetail(row.id);
         try {
-            const [jobRes, partsRes, chargesRes] = await Promise.all([
+            const [jobRes, partsRes, chargesRes, paymentsRes] = await Promise.all([
                 apolloClient.query<GenericQueryData<JobDetailType>>({
                     fetchPolicy: "network-only",
                     query: GRAPHQL_MAP.genericQuery,
@@ -352,6 +353,11 @@ export const FinalAJobSection = ({ onBack, initialTab }: FinalAJobSectionProps =
                     query: GRAPHQL_MAP.genericQuery,
                     variables: { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_JOB_ADDITIONAL_CHARGES_BY_JOB, sqlArgs: { job_id: row.id } }) },
                 }),
+                apolloClient.query<GenericQueryData<{ amount: number }>>({
+                    fetchPolicy: "network-only",
+                    query: GRAPHQL_MAP.genericQuery,
+                    variables: { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_JOB_PAYMENTS_BY_JOB, sqlArgs: { job_id: row.id } }) },
+                }),
             ]);
 
             const job = jobRes.data?.genericQuery?.[0] ?? null;
@@ -359,6 +365,7 @@ export const FinalAJobSection = ({ onBack, initialTab }: FinalAJobSectionProps =
 
             const parts = partsRes.data?.genericQuery ?? [];
             const charges = chargesRes.data?.genericQuery ?? [];
+            setReceivedTotal((paymentsRes.data?.genericQuery ?? []).reduce((s, p) => s + Number(p.amount ?? 0), 0));
 
             // GST status of the job's own division — drives sale_pr_gst on load (before state is set)
             const loadedDivision = availableDivisions.find(d => d.id === row.division_id) ?? null;
@@ -437,6 +444,7 @@ export const FinalAJobSection = ({ onBack, initialTab }: FinalAJobSectionProps =
         setSubView("list");
         setSelectedJob(null);
         setSelectedRow(null);
+        setReceivedTotal(0);
         setSelectedDivisionId(null);
         setPartLines([]);
         setDeletedPartIds([]);
@@ -967,6 +975,7 @@ export const FinalAJobSection = ({ onBack, initialTab }: FinalAJobSectionProps =
             <FinalJobForm
                 selectedJob={selectedJob}
                 selectedRow={selectedRow}
+                receivedTotal={receivedTotal}
                 submitting={submitting}
                 loadingDetail={loadingDetail !== null}
                 selectedDivisionId={selectedDivisionId}

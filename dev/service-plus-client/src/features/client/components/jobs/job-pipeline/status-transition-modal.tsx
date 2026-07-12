@@ -1,7 +1,8 @@
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Loader2, ArrowRight } from "lucide-react";
+import { Loader2, ArrowRight, Info } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,6 +10,14 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { GRAPHQL_MAP } from "@/constants/graphql-map";
+import { MESSAGES } from "@/constants/messages";
+import { SQL_MAP } from "@/constants/sql-map";
+import { selectDbName } from "@/features/auth/store/auth-slice";
+import { apolloClient } from "@/lib/apollo-client";
+import { graphQlUtils } from "@/lib/graphql-utils";
+import { selectSchema } from "@/store/context-slice";
+import { useAppSelector } from "@/store/hooks";
 import type { TechnicianRow } from "@/features/client/types/job";
 import type { DivisionContextType } from "@/features/client/types/division";
 import { STATUS_COLORS } from "./status-transitions";
@@ -67,6 +76,36 @@ const today = new Date().toISOString().slice(0, 10);
 export const StatusTransitionModal = ({ divisions, job, transition, technicians, onClose, onSubmit }: Props) => {
     const { fields } = transition;
     const showEstimate = fields.includes("E");
+    const canPickDivision = divisions.length > 1;
+
+    const dbName = useAppSelector(selectDbName);
+    const schema = useAppSelector(selectSchema);
+
+    // A money receipt locks the job to its current division: moving it elsewhere
+    // would strand the already-issued receipt under the old division. Only check
+    // when a division change is actually offered.
+    const [hasReceipts, setHasReceipts] = useState(false);
+
+    useEffect(() => {
+        if (!canPickDivision || !dbName || !schema) return;
+        let cancelled = false;
+        apolloClient
+            .query<{ genericQuery: { id: number }[] | null }>({
+                fetchPolicy: "network-only",
+                query:       GRAPHQL_MAP.genericQuery,
+                variables:   {
+                    db_name: dbName,
+                    schema,
+                    value: graphQlUtils.buildGenericQueryValue({
+                        sqlId:   SQL_MAP.GET_JOB_PAYMENTS_BY_JOB,
+                        sqlArgs: { job_id: job.id },
+                    }),
+                },
+            })
+            .then(res => { if (!cancelled) setHasReceipts((res.data?.genericQuery ?? []).length > 0); })
+            .catch(() => { /* on failure, leave division editable; server has no guard */ });
+        return () => { cancelled = true; };
+    }, [canPickDivision, dbName, schema, job.id]);
 
     const form = useForm<FormValues>({
         resolver: zodResolver(formSchema),
@@ -80,6 +119,12 @@ export const StatusTransitionModal = ({ divisions, job, transition, technicians,
     });
 
     async function handleSubmit(values: FormValues) {
+        // Guard: block a division change once a receipt exists for the job.
+        const nextDivisionId = values.division_id ? Number(values.division_id) : null;
+        if (hasReceipts && nextDivisionId !== (job.division_id ?? null)) {
+            form.setValue("division_id", job.division_id ? String(job.division_id) : "");
+            return;
+        }
         if (fields.includes("T") && !values.technician_id) {
             form.setError("technician_id", { message: "Technician is required" });
             return;
@@ -136,10 +181,11 @@ export const StatusTransitionModal = ({ divisions, job, transition, technicians,
 
                 <div className="space-y-4">
                     {/* ── Division ───────────────────────────────────────────── */}
-                    {divisions.length > 1 && (
+                    {canPickDivision && (
                         <div className="space-y-1.5">
                             <Label htmlFor="stm-division">Division</Label>
                             <Select
+                                disabled={hasReceipts}
                                 value={form.watch("division_id")}
                                 onValueChange={v => form.setValue("division_id", v)}
                             >
@@ -154,6 +200,12 @@ export const StatusTransitionModal = ({ divisions, job, transition, technicians,
                                     ))}
                                 </SelectContent>
                             </Select>
+                            {hasReceipts && (
+                                <p className="flex items-start gap-1.5 rounded-md border border-amber-300 bg-amber-50 px-2.5 py-1.5 text-xs text-amber-700">
+                                    <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                                    <span>{MESSAGES.ERROR_DIVISION_CHANGE_HAS_RECEIPTS}</span>
+                                </p>
+                            )}
                         </div>
                     )}
 

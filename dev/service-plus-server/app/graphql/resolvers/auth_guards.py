@@ -8,6 +8,20 @@ from app.exceptions import AppMessages, AuthorizationException
 BYPASS_USER_TYPES = {"S", "A"}
 
 
+def _reject_bad_token(context: dict) -> None:
+    """
+    Raise a distinctly-coded AuthorizationException when the request presented
+    a token that was rejected (expired/invalid). Keeping this separate from the
+    FORBIDDEN path lets the client tell "your session lapsed, refresh & retry"
+    apart from "you genuinely lack this right".
+    """
+    if context.get("auth_error"):
+        raise AuthorizationException(
+            message=context["auth_error"],
+            code="TOKEN_EXPIRED",
+        )
+
+
 def require_access_right(info, code: str) -> None:
     """
     Raise AuthorizationException unless the requesting user's token carries
@@ -15,6 +29,7 @@ def require_access_right(info, code: str) -> None:
     both of which bypass every right check).
     """
     context = info.context or {}
+    _reject_bad_token(context)
     if context.get("user_type") in BYPASS_USER_TYPES:
         return
     if code not in (context.get("access_rights") or []):
@@ -34,6 +49,7 @@ def require_any_access_right(info, codes: list[str]) -> None:
     the Deliver Job payment step) — see plans/plan.md's "Bonus" note.
     """
     context = info.context or {}
+    _reject_bad_token(context)
     if context.get("user_type") in BYPASS_USER_TYPES:
         return
     granted = context.get("access_rights") or []

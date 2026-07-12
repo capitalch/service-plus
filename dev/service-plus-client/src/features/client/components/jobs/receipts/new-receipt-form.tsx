@@ -41,11 +41,22 @@ export function NewReceiptForm({ initial }: NewReceiptFormPropsType) {
                 <JobLookupCombobox
                     disabled={isEdit}
                     value={watch("job_id") ?? null}
-                    onChange={(id, _job: JobLookupForReceiptType | null) => {
+                    onChange={(id, job: JobLookupForReceiptType | null) => {
                         setValue("job_id", id ?? (undefined as unknown as number), { shouldValidate: true });
+                        // Cap receipts to the outstanding due only for final jobs;
+                        // other jobs may still take advance / excess payments.
+                        const isFinal = !!job?.is_final;
+                        const due     = job ? Number(job.amount ?? 0) - Number(job.total_paid ?? 0) : null;
+                        setValue("is_final_job", isFinal, { shouldValidate: true });
+                        setValue("max_due", isFinal ? Math.max(0, due ?? 0) : null, { shouldValidate: true });
                     }}
                 />
                 <FieldError message={errors.job_id?.message} />
+                {watch("is_final_job") && watch("max_due") != null && (
+                    <p className="mt-1 text-xs text-(--cl-text-muted)">
+                        Final job — outstanding due: <span className="font-semibold text-(--cl-text)">₹{Number(watch("max_due")).toFixed(2)}</span>. Overpayment is not allowed.
+                    </p>
+                )}
             </div>
 
             {/* Payment Date + Payment Mode */}

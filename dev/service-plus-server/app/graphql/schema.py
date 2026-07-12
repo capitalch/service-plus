@@ -33,6 +33,7 @@ async def get_graphql_context(request: Any, _data: Any) -> dict:
         "access_rights": [],
         "client_id": None,
         "db_name": None,
+        "auth_error": None,
     }
 
     auth_header = request.headers.get("authorization") if hasattr(request, "headers") else None
@@ -42,7 +43,12 @@ async def get_graphql_context(request: Any, _data: Any) -> dict:
     token = auth_header.split(" ", 1)[1].strip()
     try:
         payload = decode_token(token)
-    except AuthorizationException:
+    except AuthorizationException as exc:
+        # A token was presented but rejected (expired/invalid). Record why so
+        # guarded resolvers can surface a distinct TOKEN_EXPIRED error instead
+        # of a misleading "Access forbidden"; a *missing* token stays a plain
+        # unauthenticated context (auth_error=None) and public queries work.
+        context["auth_error"] = exc.message
         return context
 
     context.update({

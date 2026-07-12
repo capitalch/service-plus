@@ -12,6 +12,7 @@ export type JobLookupForReceiptType = {
     job_type_code:    string;
     alternate_job_no?: string | null;
     mobile:           string;
+    total_paid:       number;
 }
 
 export type JobReceiptDetailType = {

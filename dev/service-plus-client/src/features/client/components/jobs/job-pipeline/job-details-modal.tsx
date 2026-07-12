@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Building2, Calendar, FileText, Loader2, MapPin, Package, Paperclip, Printer, ReceiptText, RotateCcw, Truck, User, Wrench } from "lucide-react";
+import { Building2, Calendar, FileText, IndianRupee, Info, Loader2, MapPin, Package, Paperclip, Printer, ReceiptText, RotateCcw, Truck, User, Wrench } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -318,6 +318,17 @@ export const JobDetailsModal = ({ jobId, onClose, onJobChanged }: Props) => {
         : null;
     const division = job?.division_id ? (divisions.find(d => d.id === job.division_id) ?? null) : null;
 
+    // Financials — billed total vs. money received vs. outstanding due.
+    const totalAmount   = Number(job?.amount ?? 0);
+    const receiptsTotal = payments.reduce((sum, p) => sum + Number(p.amount ?? 0), 0);
+    const dueAmount     = Math.max(0, totalAmount - receiptsTotal);
+    const excessAmount  = Math.max(0, receiptsTotal - totalAmount);
+    // Once the amount is locked (finalised or closed), any receipt beyond the
+    // total is a genuine excess that must be settled/refunded in accounts —
+    // before finalisation it is just an advance against a not-yet-fixed amount.
+    const isAmountLocked = !!(job?.is_final || job?.is_closed);
+    const showExcess     = isAmountLocked && excessAmount > 0.005;
+
     const statusKey = job?.job_status_name.toUpperCase().replace(/ /g, "_") ?? "";
     const statusColorParts = STATUS_COLORS[statusKey]?.trim().split(/\s+/) ?? [];
     return (
@@ -517,6 +528,77 @@ export const JobDetailsModal = ({ jobId, onClose, onJobChanged }: Props) => {
                                     ))}
                                 </div>
                             </InfoCard>
+
+                            {/* ── Payment Summary ── */}
+                            <div className="rounded-lg bg-white shadow-sm overflow-hidden">
+                                <div className="flex items-center justify-between px-4 py-2.5 border-b border-emerald-200/60 bg-gradient-to-r from-emerald-50/80 to-white">
+                                    <div className="flex items-center gap-2">
+                                        <IndianRupee className="h-4 w-4 text-emerald-600" />
+                                        <h3 className="text-xs font-bold uppercase tracking-wider text-emerald-700">Payment Summary</h3>
+                                    </div>
+                                    {payments.length > 0 && (
+                                        <span className="inline-flex items-center justify-center rounded-sm bg-emerald-100 px-2.5 py-0.5 text-[11px] font-bold text-emerald-700 border border-emerald-200">
+                                            {payments.length} {payments.length === 1 ? "receipt" : "receipts"}
+                                        </span>
+                                    )}
+                                </div>
+                                <div className="grid grid-cols-3 divide-x divide-slate-100">
+                                    <div className="px-4 py-3">
+                                        <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Total Amount</span>
+                                        <p className="mt-1 text-lg font-bold tabular-nums text-slate-900">{fmtAmount(totalAmount)}</p>
+                                    </div>
+                                    <div className="px-4 py-3">
+                                        <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Receipts</span>
+                                        <p className="mt-1 text-lg font-bold tabular-nums text-emerald-700">{fmtAmount(receiptsTotal)}</p>
+                                    </div>
+                                    {showExcess ? (
+                                        <div className="px-4 py-3">
+                                            <span className="text-[11px] font-semibold uppercase tracking-wider text-rose-600">Excess Paid</span>
+                                            <p className="mt-1 text-lg font-bold tabular-nums text-rose-600">{fmtAmount(excessAmount)}</p>
+                                        </div>
+                                    ) : (
+                                        <div className="px-4 py-3">
+                                            <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Due</span>
+                                            <p className={`mt-1 text-lg font-bold tabular-nums ${dueAmount > 0 ? "text-amber-600" : "text-emerald-700"}`}>{fmtAmount(dueAmount)}</p>
+                                        </div>
+                                    )}
+                                </div>
+                                {showExcess && (
+                                    <div className="flex items-start gap-2 border-t border-rose-100 bg-rose-50/70 px-4 py-2.5 text-xs text-rose-700">
+                                        <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                                        <span>
+                                            Receipts exceed the job total by <span className="font-semibold">{fmtAmount(excessAmount)}</span>. This job is finalised — the excess is to be adjusted or refunded through the accounting system.
+                                        </span>
+                                    </div>
+                                )}
+                                {payments.length > 0 && (
+                                    <div className="overflow-x-auto border-t border-slate-100">
+                                        <table className="min-w-full border-collapse">
+                                            <thead>
+                                                <tr>
+                                                    {["#", "Receipt No", "Date", "Mode", "Ref No", "Amount"].map((h, i) => (
+                                                        <th key={h} className={`text-[11px] font-bold uppercase tracking-wider text-slate-500 px-3 py-2 border-b border-slate-200 bg-slate-50/80 ${i === 5 ? "text-right" : "text-left"}`}>
+                                                            {h}
+                                                        </th>
+                                                    ))}
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {payments.map((p, idx) => (
+                                                    <tr key={p.id} className="odd:bg-white even:bg-slate-50/60 hover:bg-emerald-50/40">
+                                                        <td className="px-3 py-2 text-xs text-slate-500 border-b border-slate-100 font-mono">{idx + 1}</td>
+                                                        <td className="px-3 py-2 text-sm font-mono font-semibold text-slate-800 border-b border-slate-100">{p.receipt_no || "—"}</td>
+                                                        <td className="px-3 py-2 text-xs text-slate-600 border-b border-slate-100 whitespace-nowrap">{p.payment_date?.slice(0, 10)}</td>
+                                                        <td className="px-3 py-2 text-xs text-slate-600 border-b border-slate-100">{p.payment_mode}</td>
+                                                        <td className="px-3 py-2 text-xs text-slate-500 border-b border-slate-100 font-mono">{p.reference_no || "—"}</td>
+                                                        <td className="px-3 py-2 text-sm text-right tabular-nums font-semibold text-emerald-700 border-b border-slate-100">{fmtAmount(p.amount)}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
+                            </div>
 
                             {/* ── Narrative fields ── */}
                             <div className="rounded-lg bg-white shadow-sm overflow-hidden">

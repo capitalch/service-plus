@@ -13,6 +13,18 @@ export const receiptFormSchema = z.object({
     payment_mode: z.string().min(1, MESSAGES.ERROR_RECEIPT_PAYMENT_MODE_REQUIRED),
     reference_no: z.string().optional().default(""),
     remarks:      z.string().optional().default(""),
+    // Carried from the selected job so overpayment can be blocked for final
+    // jobs. `max_due` is null when the cap does not apply (non-final jobs).
+    is_final_job: z.boolean().optional().default(false),
+    max_due:      z.number().nullable().optional().default(null),
+}).superRefine((val, ctx) => {
+    if (val.is_final_job && val.max_due != null && Number(val.amount) - val.max_due > 0.005) {
+        ctx.addIssue({
+            code:    z.ZodIssueCode.custom,
+            path:    ["amount"],
+            message: `${MESSAGES.ERROR_RECEIPT_OVERPAYMENT_FINAL} Maximum allowed: ₹${val.max_due.toFixed(2)}.`,
+        });
+    }
 });
 
 export type ReceiptFormValues = z.infer<typeof receiptFormSchema>;
@@ -25,5 +37,7 @@ export function getReceiptDefaultValues(): ReceiptFormValues {
         payment_mode: "",
         reference_no: "",
         remarks:      "",
+        is_final_job: false,
+        max_due:      null,
     };
 }

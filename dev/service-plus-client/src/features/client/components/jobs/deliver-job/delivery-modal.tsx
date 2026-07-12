@@ -753,23 +753,28 @@ export function DeliveryModal({
             toast.error(MESSAGES.ERROR_DOC_SEQ_RECEIPT_NOT_CONFIGURED);
             return;
         }
-        await apolloClient.mutate({
-            mutation:  GRAPHQL_MAP.createJobPayment,
-            variables: {
-                db_name: dbName, schema,
-                value: encodeObj({
-                    xData: {
-                        branch_id:    branchId,
-                        job_id:       receiptJob.id,
-                        payment_date: values.payment_date,
-                        payment_mode: values.payment_mode,
-                        amount:       Number(values.amount),
-                        reference_no: values.reference_no || null,
-                        remarks:      values.remarks      || null,
-                    },
-                }),
-            },
-        });
+        try {
+            await apolloClient.mutate({
+                mutation:  GRAPHQL_MAP.createJobPayment,
+                variables: {
+                    db_name: dbName, schema,
+                    value: encodeObj({
+                        xData: {
+                            branch_id:    branchId,
+                            job_id:       receiptJob.id,
+                            payment_date: values.payment_date,
+                            payment_mode: values.payment_mode,
+                            amount:       Number(values.amount),
+                            reference_no: values.reference_no || null,
+                            remarks:      values.remarks      || null,
+                        },
+                    }),
+                },
+            });
+        } catch {
+            toast.error(MESSAGES.ERROR_RECEIPT_CREATE_FAILED);
+            return;
+        }
         toast.success("Receipt added.");
 
         if (receiptQueue.length > 0) {

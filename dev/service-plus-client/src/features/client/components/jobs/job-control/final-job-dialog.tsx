@@ -124,6 +124,7 @@ export function FinalJobDialog({ jobId, onClose, onFinalized }: Props) {
 
     const [selectedJob,         setSelectedJob]         = useState<JobDetailType | null>(null);
     const [selectedRow,         setSelectedRow]         = useState<FinalJobRow | null>(null);
+    const [receivedTotal,       setReceivedTotal]       = useState(0);
     const [selectedDivisionId,  setSelectedDivisionId]  = useState<number | null>(null);
     const [loading,             setLoading]             = useState(true);
     const [submitting,          setSubmitting]          = useState(false);
@@ -191,15 +192,17 @@ export function FinalJobDialog({ jobId, onClose, onFinalized }: Props) {
                     query: GRAPHQL_MAP.genericQuery,
                     variables: { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId, sqlArgs }) },
                 });
-            const [jobRes, partsRes, chargesRes] = await Promise.all([
+            const [jobRes, partsRes, chargesRes, paymentsRes] = await Promise.all([
                 gq<JobDetailType>(SQL_MAP.GET_JOB_DETAIL, { id: jobId }),
                 gq<LoadedPartRow>(SQL_MAP.GET_JOB_PART_USED_BY_JOB, { job_id: jobId }),
                 gq<AdditionalChargeRow>(SQL_MAP.GET_JOB_ADDITIONAL_CHARGES_BY_JOB, { job_id: jobId }),
+                gq<{ amount: number }>(SQL_MAP.GET_JOB_PAYMENTS_BY_JOB, { job_id: jobId }),
             ]);
             const job     = jobRes.data?.genericQuery?.[0] ?? null;
             if (!job) { toast.error(MESSAGES.ERROR_JOB_LOAD_FAILED); onClose(); return; }
             const parts   = partsRes.data?.genericQuery ?? [];
             const charges = chargesRes.data?.genericQuery ?? [];
+            setReceivedTotal((paymentsRes.data?.genericQuery ?? []).reduce((s, p) => s + Number(p.amount ?? 0), 0));
 
             const loadedDivision = availableDivisions.find(d => d.id === job.division_id) ?? null;
             const loadedIsGst    = isGstDivision(loadedDivision);
@@ -644,6 +647,7 @@ export function FinalJobDialog({ jobId, onClose, onFinalized }: Props) {
             <FinalJobForm
                 selectedJob={selectedJob}
                 selectedRow={selectedRow}
+                receivedTotal={receivedTotal}
                 submitting={submitting}
                 loadingDetail={false}
                 selectedDivisionId={selectedDivisionId}

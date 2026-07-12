@@ -7,6 +7,7 @@ import { motion } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { MESSAGES } from "@/constants/messages";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { JobDetailType } from "@/features/client/types/job";
 import type { DivisionContextType } from "@/features/client/types/division";
@@ -150,6 +151,7 @@ function computeBackCalc(
 export type FinalJobFormProps = {
     selectedJob: JobDetailType;
     selectedRow: FinalJobRow;
+    receivedTotal: number;
     submitting: boolean;
     loadingDetail: boolean;
     selectedDivisionId: number | null;
@@ -196,7 +198,7 @@ export type FinalJobFormProps = {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function FinalJobForm({
-    selectedJob, selectedRow, submitting, loadingDetail,
+    selectedJob, selectedRow, receivedTotal, submitting, loadingDetail,
     selectedDivisionId, isGst, availableDivisions, brands, additionalChargeOptions,
     partLines, chargeLines, deletedPartIds, forceIgst, backCalcTarget, showPartsInInvoice, gstin,
     defaultHsnForServiceCharge, viewJobId,
@@ -230,6 +232,18 @@ export function FinalJobForm({
     const grandCgstTotal = partsCgstTotal + chargesCgstTotal;
     const grandSgstTotal = partsSgstTotal + chargesSgstTotal;
     const grandIgstTotal = partsIgstTotal + chargesIgstTotal;
+
+    // Amount this job will be finalised at — mirrors the total shown in the
+    // Grand Summary (back-calc target, else existing job amount, else computed).
+    const parsedTarget = parseFloat(backCalcTarget);
+    const finalAmount = isWarranty ? 0
+        : (backCalcTarget !== "" && !isNaN(parsedTarget) && parsedTarget > 0)
+            ? parsedTarget
+            : (selectedJob.amount != null && Number(selectedJob.amount) > 0)
+                ? Number(selectedJob.amount)
+                : grandTotal;
+    const excessReceived     = Math.max(0, receivedTotal - finalAmount);
+    const showExcessReceived = excessReceived > 0.005;
 
     return (
         <>
@@ -325,6 +339,16 @@ export function FinalJobForm({
                         <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300">
                             <AlertTriangle className="h-4 w-4 shrink-0" />
                             Warranty job — only cost prices are recorded; selling prices and final amount are ₹0.
+                        </div>
+                    )}
+
+                    {/* Excess payment banner — receipts already exceed the final amount */}
+                    {showExcessReceived && (
+                        <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300">
+                            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                            <span>
+                                Payments already received (<strong>₹{fmtCurrency(receivedTotal)}</strong>) exceed this job&apos;s final amount (<strong>₹{fmtCurrency(finalAmount)}</strong>) by <strong>₹{fmtCurrency(excessReceived)}</strong>. {MESSAGES.WARN_EXCESS_PAYMENT_ACCOUNTING}
+                            </span>
                         </div>
                     )}
 

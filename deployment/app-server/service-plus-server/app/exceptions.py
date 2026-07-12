@@ -241,9 +241,10 @@ class AuthorizationException(ServicePlusException):
     def __init__(
         self,
         message: str = AppMessages.UNAUTHORIZED,
-        extensions: Optional[Dict[str, Any]] = None
+        extensions: Optional[Dict[str, Any]] = None,
+        code: str = "UNAUTHORIZED"
     ):
-        super().__init__(message=message, code="UNAUTHORIZED", extensions=extensions)
+        super().__init__(message=message, code=code, extensions=extensions)
 
 
 class DatabaseException(ServicePlusException):

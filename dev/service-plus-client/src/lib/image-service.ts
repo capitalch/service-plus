@@ -1,33 +1,7 @@
 import { getApiBaseUrl } from "./utils";
 import type { JobFileRow } from "@/features/client/types/job";
-import { refreshAccessToken } from "@/lib/auth-service";
-import { getAuthItem, setAuthItem } from "@/lib/auth-storage";
-
-async function refreshIfNeeded(): Promise<string | null> {
-    const token = getAuthItem("accessToken");
-    if (!token) return null;
-
-    try {
-        const payload = JSON.parse(atob(token.split(".")[1]));
-        const exp = payload.exp;
-        const now = Math.floor(Date.now() / 1000);
-        const timeLeft = exp - now;
-
-        // Refresh if less than 5 minutes left
-        if (timeLeft < 300) {
-            const refreshToken = getAuthItem("refreshToken");
-            if (!refreshToken) return null;
-
-            const res = await refreshAccessToken(refreshToken);
-            setAuthItem("accessToken", res.accessToken);
-            setAuthItem("refreshToken", res.refreshToken);
-            return res.accessToken;
-        }
-        return token;
-    } catch {
-        return token;
-    }
-}
+import { getAuthItem } from "@/lib/auth-storage";
+import { refreshIfNeeded } from "@/lib/token-refresh";
 
 function getAuthHeaders(): Record<string, string> {
     const token = getAuthItem("accessToken");

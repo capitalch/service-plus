@@ -4472,7 +4472,11 @@ class SqlStore:
             "p_limit"     as (values(%(limit)s::int))
         SELECT j.id, j.job_no, j.alternate_job_no, j.job_date, j.amount, j.is_closed,
                j.is_final, js.code AS job_status_code, js.name AS job_status_name, jt.code AS job_type_code,
-               cc.full_name AS customer_name, cc.mobile, cc.address_line1
+               cc.full_name AS customer_name, cc.mobile, cc.address_line1,
+               COALESCE(
+                   (SELECT SUM(jp2.amount) FROM job_payment jp2 WHERE jp2.job_id = j.id),
+                   0
+               ) AS total_paid
         FROM job j
         LEFT JOIN customer_contact cc ON cc.id = j.customer_contact_id
         JOIN  job_status js ON js.id = j.job_status_id

@@ -583,7 +583,28 @@ function buildJobInfoDoc({ job, division, branchCode, transactions, parts, charg
             columnStyles: { 0: { cellWidth: 8 }, 5: { cellWidth: 22 } },
             theme: "grid",
         });
-        y = (doc as any).lastAutoTable.finalY + 5;
+        y = (doc as any).lastAutoTable.finalY + 4;
+
+        // Excess payment note — once the amount is locked (finalised or closed),
+        // any receipt beyond the job total must be settled through accounts.
+        const totalAmt = Number(job.amount ?? 0);
+        const excess   = paidTotal - totalAmt;
+        if ((job.is_final || job.is_closed) && excess > 0.005) {
+            y = checkPage(doc, y, 18);
+            const note  = `Excess payment of ${fmt(excess)} - receipts exceed the job total of ${fmt(totalAmt)}. This job is finalised; the excess is to be adjusted or refunded through the accounting system.`;
+            doc.setFontSize(7.5);
+            doc.setFont("helvetica", "bold");
+            const lines = doc.splitTextToSize(note, pageWidth - 32);
+            const boxH  = lines.length * 4 + 4;
+            doc.setFillColor(253, 232, 232);
+            doc.setDrawColor(216, 140, 140);
+            doc.rect(14, y, pageWidth - 28, boxH, "FD");
+            doc.setTextColor(170, 40, 40);
+            doc.text(lines, 16, y + 4.5);
+            doc.setTextColor(0, 0, 0);
+            doc.setFont("helvetica", "normal");
+            y += boxH + 4;
+        }
     }
 
     // ── 10. Transaction History ───────────────────────────────────────────────
