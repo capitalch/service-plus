@@ -40,6 +40,8 @@
 		- Aug 2026
 
 # Tracking
+- 12-07-2026
+	- Bug fix, Dead code removal
 - 11-07-2026
 	- Everything completed
 	- Working on QA, code optimization, UI/UX betterment, Warnings removal etc.

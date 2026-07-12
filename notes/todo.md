@@ -1,6 +1,6 @@
 # To Do
 - Brief to do's before 1st release
-	- Should not be possible to change division, once a money receipt is already generated
+								- Should not be possible to change division, once a money receipt is already generated
 	- Create a systematic manual testing numbered steps for All items in Jobs menu item. Give your plan in plans/plan.md
 	- Inventory menu item test scripts
 								- Access management
