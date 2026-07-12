@@ -3,7 +3,7 @@
 // content-agnostic help engine so both this file and the Super Admin developer
 // help content can use them.)
 
-export type { ContentBlock, HelpFaq, HelpArticle, CategoryStyleType } from "@/components/shared/help/help-types";
+export type { HelpArticle, CategoryStyleType } from "@/components/shared/help/help-types";
 import type { CategoryStyleType, HelpArticle } from "@/components/shared/help/help-types";
 
 // ─── Articles ─────────────────────────────────────────────────────────────────

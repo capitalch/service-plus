@@ -32,7 +32,7 @@ const DEBOUNCE_MS = 1600;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-export function receiptJobRestrictionReason(job: JobLookupForReceiptType): string | null {
+function receiptJobRestrictionReason(job: JobLookupForReceiptType): string | null {
     if (job.is_closed)                               return "Job is closed / delivered";
     // Final jobs may still receive a payment while there is an outstanding due;
     // block only once the job is fully paid.

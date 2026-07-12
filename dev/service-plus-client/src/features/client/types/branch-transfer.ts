@@ -22,23 +22,3 @@ export type StockBranchTransferLineType = {
     qty: number;
     remarks: string | null;
 };
-
-export type BranchTransferLineFormItem = {
-    _key: string;
-    part_id: number | null;
-    brand_id: number | null;
-    part_code: string;
-    part_name: string;
-    qty: number;
-    remarks: string;
-};
-
-export const emptyTransferLine = (brandId: number | null = null): BranchTransferLineFormItem => ({
-    _key: crypto.randomUUID(),
-    part_id: null,
-    brand_id: brandId,
-    part_code: "",
-    part_name: "",
-    qty: 0,
-    remarks: "",
-});

@@ -2,7 +2,7 @@ import { z } from "zod";
 import { MESSAGES } from "@/constants/messages";
 import { isValidGstin } from "@/lib/gstin";
 
-export const batchJobRowSchema = z.object({
+const batchJobRowSchema = z.object({
     id:                       z.number().nullable(),
     localId:                  z.string(),
     job_type_id:              z.number({ error: MESSAGES.ERROR_JOB_TYPE_REQUIRED }).int().positive(MESSAGES.ERROR_JOB_TYPE_REQUIRED),

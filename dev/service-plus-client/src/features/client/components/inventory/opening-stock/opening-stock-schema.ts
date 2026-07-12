@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const openingStockLineSchema = z.object({
+const openingStockLineSchema = z.object({
     _key:      z.string(),
     brand_id:  z.number().nullable(),
     part_code: z.string().default(""),

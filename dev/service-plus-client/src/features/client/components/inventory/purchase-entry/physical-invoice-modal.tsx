@@ -13,7 +13,7 @@ export type PhysicalValues = {
     total: number;
 };
 
-export type PhysicalTotals = {
+type PhysicalTotals = {
     qty: number;
     cgst:     number;
     sgst:     number;

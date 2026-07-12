@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const newPartUsedLineSchema = z.object({
+const newPartUsedLineSchema = z.object({
     _key:          z.string(),
     brand_id:      z.number().nullable(),
     part_id:       z.number().nullable(),
@@ -47,19 +47,6 @@ export function getInitialPartUsedLine(): NewPartUsedLineFormValues {
         remarks:       "",
     };
 }
-
-export type JobControlRow = {
-    id:              number;
-    job_no:          string;
-    job_date:        string;
-    branch_id:       number;
-    is_closed:       boolean;
-    is_final:        boolean;
-    job_status_code: string;
-    job_status_name: string;
-    customer_name:   string;
-    mobile:          string;
-};
 
 export type ConsumptionRow = {
     id:                   number;

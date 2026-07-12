@@ -507,14 +507,6 @@ export const MESSAGES = {
   CONFIRM_POST_UNPOST_SELECT_ALL_BODY:           'This will set {count} record{plural} on this page to {state}. The change is staged and applied only when you click Continue.',
 } as const;
 
-// Type for message keys
-export type MessageKey = keyof typeof MESSAGES;
-
-// Helper function to get message by key
-export function getMessage(key: MessageKey): string {
-  return MESSAGES[key];
-}
-
 // Builds the Post/Unpost "Select All" confirmation title + description from central templates.
 export function getPostUnpostSelectAllConfirm(count: number, posted: boolean): { title: string; description: string } {
   return {
@@ -527,33 +519,3 @@ export function getPostUnpostSelectAllConfirm(count: number, posted: boolean): {
       .replace('{state}', posted ? 'Posted' : 'Unposted'),
   };
 }
-
-export const VALIDATION_MESSAGES = {
-  CLIENT_REQUIRED: MESSAGES.ERROR_CLIENT_REQUIRED,
-  EMAIL_INVALID: MESSAGES.ERROR_EMAIL_INVALID,
-  EMAIL_INVALID_FORMAT: MESSAGES.ERROR_EMAIL_INVALID_FORMAT,
-  EMAIL_OR_USERNAME_REQUIRED: MESSAGES.ERROR_EMAIL_OR_USERNAME_REQUIRED,
-  EMAIL_REQUIRED: MESSAGES.ERROR_EMAIL_REQUIRED,
-  PASSWORD_MIN_LENGTH: MESSAGES.ERROR_PASSWORD_MIN_LENGTH,
-  PASSWORD_REQUIRED: MESSAGES.ERROR_PASSWORD_REQUIRED,
-  USERNAME_INVALID_FORMAT: MESSAGES.ERROR_USERNAME_INVALID_FORMAT,
-  USERNAME_MIN_LENGTH: MESSAGES.ERROR_USERNAME_MIN_LENGTH,
-} as const;
-
-export const ERROR_MESSAGES = {
-  ACCOUNT_LOCKED: MESSAGES.ERROR_ACCOUNT_LOCKED,
-  DASHBOARD_LOAD: MESSAGES.ERROR_DASHBOARD_LOAD,
-  INVALID_CREDENTIALS: MESSAGES.ERROR_INVALID_CREDENTIALS,
-  LOGIN_FAILED: MESSAGES.ERROR_LOGIN_FAILED,
-  NETWORK: MESSAGES.ERROR_NETWORK,
-  SERVER: MESSAGES.ERROR_SERVER,
-  SESSION_EXPIRED: MESSAGES.ERROR_SESSION_EXPIRED,
-  TIMEOUT: MESSAGES.ERROR_TIMEOUT,
-  UNKNOWN: MESSAGES.ERROR_UNKNOWN,
-} as const;
-
-export const SUCCESS_MESSAGES = {
-  GRAPHQL_TEST: MESSAGES.SUCCESS_GRAPHQL_TEST,
-  LOGIN: MESSAGES.SUCCESS_LOGIN,
-  RESET_LINK_SENT: MESSAGES.SUCCESS_RESET_LINK_SENT,
-} as const;

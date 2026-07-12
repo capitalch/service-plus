@@ -5,7 +5,7 @@ import { ChevronDown, ChevronUp } from "lucide-react";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 
-export type ColumnAlignType = "center" | "left" | "right";
+type ColumnAlignType = "center" | "left" | "right";
 
 export type ReportColumnType<T> = {
     align?: ColumnAlignType;

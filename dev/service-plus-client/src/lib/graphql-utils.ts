@@ -41,8 +41,6 @@ export type GenericQueryValueType = {
     sqlId: string;
 }
 
-export type GenericUpdateValueType = SqlObjectType;
-
 export type SqlObjectType = {
     deletedIds?: number[];
     fkeyName?: string;
@@ -50,7 +48,7 @@ export type SqlObjectType = {
     xData: XDataItemType | XDataItemType[];
 }
 
-export type XDataItemType = {
+type XDataItemType = {
     id?: number;
     isIdInsert?: boolean;
     xDetails?: SqlObjectType | SqlObjectType[];

@@ -19,7 +19,7 @@ const JOB_TYPE_PALETTE = [
     "text-cyan-700    dark:text-cyan-300    bg-cyan-50    dark:bg-cyan-950/40",
 ];
 
-export const JOB_TYPE_COLORS: Record<string, string> = {
+const JOB_TYPE_COLORS: Record<string, string> = {
     MAKE_READY:     "text-lime-700    dark:text-lime-300    bg-lime-50    dark:bg-lime-950/40",
     ESTIMATE:       "text-blue-700    dark:text-blue-300    bg-blue-50    dark:bg-blue-950/40",
     UNDER_WARRANTY: "text-orange-700  dark:text-orange-300  bg-orange-50  dark:bg-orange-950/40",
@@ -32,7 +32,7 @@ export const JOB_TYPE_COLORS: Record<string, string> = {
     REFURBISH:      "text-cyan-700    dark:text-cyan-300    bg-cyan-50    dark:bg-cyan-950/40",
 };
 
-export function jobTypeColor(code: string | null | undefined): string {
+function jobTypeColor(code: string | null | undefined): string {
     if (code && JOB_TYPE_COLORS[code]) return JOB_TYPE_COLORS[code];
     const key = code ?? "";
     let hash = 0;
@@ -53,7 +53,7 @@ export function JobTypeBadge({ code, name, className = "" }: {
 
 // Status colours double as button colours elsewhere (they carry hover: classes).
 // A badge is not interactive, so strip the hover: variants here.
-export function statusBadgeClass(code: string | null | undefined): string {
+function statusBadgeClass(code: string | null | undefined): string {
     const raw = STATUS_COLORS[code ?? ""] ?? "bg-slate-400 text-white";
     return raw.trim().split(/\s+/).filter(c => c && !c.startsWith("hover:")).join(" ");
 }

@@ -32,7 +32,7 @@ export function hasAccessRight(
     return !!user?.accessRights?.includes(code);
 }
 
-export const ROLE_SHORT_NAMES: Record<string, string> = {
+const ROLE_SHORT_NAMES: Record<string, string> = {
     MANAGER: 'Man',
     TECHNICIAN: 'Tech',
     RECEPTIONIST: 'Rec',

@@ -7,7 +7,7 @@ import type { HelpArticle, ContentBlock, HelpFaq, CategoryStyleType } from "./he
 // Shared across content sets — each content file (help-content.ts, dev-help-content.ts)
 // hands its own `articles` array in; nothing here is specific to end-user or developer content.
 
-export function searchHelpArticles(articles: HelpArticle[], query: string): HelpArticle[] {
+function searchHelpArticles(articles: HelpArticle[], query: string): HelpArticle[] {
     if (!query.trim()) return articles;
     const q = query.toLowerCase();
     return articles.filter(a =>

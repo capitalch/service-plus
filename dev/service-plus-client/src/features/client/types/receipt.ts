@@ -46,12 +46,3 @@ export type JobReceiptListRowType = {
     remarks:          string | null;
     updated_at:       string;
 }
-
-export type ReceiptFormValuesType = {
-    amount:       number | string;
-    job_id:       number | null;
-    payment_date: string;
-    payment_mode: string;
-    reference_no: string;
-    remarks:      string;
-}

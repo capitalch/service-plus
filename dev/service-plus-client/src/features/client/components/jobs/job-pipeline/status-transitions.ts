@@ -1,4 +1,4 @@
-export type TransitionFields = "none" | "R" | "RT" | "RET";
+type TransitionFields = "none" | "R" | "RT" | "RET";
 
 export type Transition = {
     targetId:   number;

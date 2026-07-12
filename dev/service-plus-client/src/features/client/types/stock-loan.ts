@@ -9,7 +9,7 @@ export type StockLoanType = {
     updated_at: string;
 };
 
-export type StockLoanLineType = {
+type StockLoanLineType = {
     created_at: string;
     dr_cr: "D" | "C";
     id: number;
@@ -26,27 +26,3 @@ export type StockLoanLineType = {
 export type StockLoanWithLines = StockLoanType & {
     lines: StockLoanLineType[];
 };
-
-export type LoanLineFormItem = {
-    _key: string;
-    brand_id: number | null;
-    dr_cr: "D" | "C" | "";
-    loan_to: string;
-    part_code: string;
-    part_id: number | null;
-    part_name: string;
-    qty: number;
-    remarks?: string;
-};
-
-export const emptyLoanLine = (brandId?: number | null): LoanLineFormItem => ({
-    _key: crypto.randomUUID(),
-    brand_id: brandId ?? null,
-    dr_cr: "D",
-    loan_to: "",
-    part_code: "",
-    part_id: null,
-    part_name: "",
-    qty: 0,
-    remarks: "",
-});

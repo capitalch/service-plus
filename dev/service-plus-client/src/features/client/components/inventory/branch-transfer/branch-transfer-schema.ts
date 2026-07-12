@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const transferLineSchema = z.object({
+const transferLineSchema = z.object({
     _key:      z.string(),
     part_id:   z.number().nullable(),
     brand_id:  z.number().nullable(),

@@ -68,19 +68,11 @@ const initialState: ContextStateType = {
 
 // ─── Slice ────────────────────────────────────────────────────────────────────
 
-export const contextSlice = createSlice({
+const contextSlice = createSlice({
     name: 'context',
     initialState,
     reducers: {
         clearContext: () => initialState,
-
-        setBuGstStateCode: (state, action: PayloadAction<string | null>) => {
-            state.buGstStateCode = action.payload;
-        },
-
-        setBuGstin: (state, action: PayloadAction<string | null>) => {
-            state.buGstin = action.payload;
-        },
 
         setAvailableBranches: (state, action: PayloadAction<BranchContextType[]>) => {
             state.availableBranches = action.payload;
@@ -88,10 +80,6 @@ export const contextSlice = createSlice({
 
         setAvailableBus: (state, action: PayloadAction<BuContextType[]>) => {
             state.availableBus = action.payload;
-        },
-
-        setCompanyName: (state, action: PayloadAction<string | null>) => {
-            state.companyName = action.payload;
         },
 
         setCurrentBranch: (state, action: PayloadAction<BranchContextType | null>) => {
@@ -126,10 +114,6 @@ export const contextSlice = createSlice({
             state.defaultHsnForServiceCharge = action.payload;
         },
 
-        setIsGstRegistered: (state, action: PayloadAction<boolean>) => {
-            state.isGstRegistered = action.payload;
-        },
-
         setAvailableDivisions: (state, action: PayloadAction<DivisionContextType[]>) => {
             state.availableDivisions = action.payload;
         },
@@ -152,12 +136,9 @@ export const contextSlice = createSlice({
 
 export const {
     clearContext,
-    setBuGstStateCode,
-    setBuGstin,
     setAvailableBranches,
     setAvailableBus,
     setAvailableDivisions,
-    setCompanyName,
     setCurrentBranch,
     setCurrentBu,
     setCurrentDivision,
@@ -168,7 +149,6 @@ export const {
     setNoOfJobInvoicesPerPrint,
     setNoOfJobSheetsPerPrint,
     setDefaultHsnForServiceCharge,
-    setIsGstRegistered,
     setPostDataToAccounts,
 } = contextSlice.actions;
 
@@ -179,8 +159,6 @@ type ContextRootState = { context: ContextStateType };
 export const selectAvailableBranches     = (state: ContextRootState) => state.context.availableBranches;
 export const selectAvailableBus          = (state: ContextRootState) => state.context.availableBus;
 export const selectAvailableDivisions    = (state: ContextRootState) => state.context.availableDivisions;
-export const selectBuGstStateCode        = (state: ContextRootState) => state.context.buGstStateCode;
-export const selectBuGstin               = (state: ContextRootState) => state.context.buGstin;
 export const selectCompanyName           = (state: ContextRootState) => state.context.companyName;
 export const selectCurrentBranch         = (state: ContextRootState) => state.context.currentBranch;
 export const selectCurrentBu             = (state: ContextRootState) => state.context.currentBu;
@@ -192,7 +170,6 @@ export const selectNoOfJobInvoicesPerPrint  = (state: ContextRootState) => state
 export const selectNoOfJobSheetsPerPrint    = (state: ContextRootState) => state.context.noOfJobSheetsPerPrint;
 export const selectDefaultHsnForSparePart      = (state: ContextRootState) => state.context.defaultHsnForSparePart;
 export const selectDefaultHsnForServiceCharge  = (state: ContextRootState) => state.context.defaultHsnForServiceCharge;
-export const selectIsGstRegistered          = (state: ContextRootState) => state.context.isGstRegistered;
 export const selectPostDataToAccounts       = (state: ContextRootState) => state.context.postDataToAccounts;
 export const selectHomeStateId           = (state: ContextRootState): number | null =>
     state.context.currentDivision?.state_id ?? null;

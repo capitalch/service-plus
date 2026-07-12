@@ -54,19 +54,9 @@ export type ClientAdminType = {
     username: string;
 };
 
-export type ClientWithAdminsType = {
-    admins: ClientAdminType[];
-    client_code: string;
-    client_id: number;
-    client_is_active: boolean;
-    client_name: string;
-    db_name: string | null;
-    db_name_valid: boolean;
-};
-
 // ─── Admin Users (maps to User + UserBuRole + Role in db-schema-security) ─────
 
-export type AdminUserRoleType = "ClientAdmin" | "SuperAdmin" | "Viewer";
+type AdminUserRoleType = "ClientAdmin" | "SuperAdmin" | "Viewer";
 
 export type AdminUserType = {
     bu_id: number;
@@ -86,7 +76,7 @@ export type AdminUserType = {
 
 // ─── Audit Logs ───────────────────────────────────────────────────────────────
 
-export type ActivityActionType =
+type ActivityActionType =
     | "Admin Added"
     | "Admin Deactivated"
     | "Client Created"
@@ -105,9 +95,9 @@ export type ActivityLogItemType = {
     timestamp: string;
 };
 
-export type AuditActorType = { type: string; username: string };
+type AuditActorType = { type: string; username: string };
 
-export type AuditResourceType = { id: string | null; name: string | null; type: string };
+type AuditResourceType = { id: string | null; name: string | null; type: string };
 
 export type AuditEntryType = {
     action:    string;
@@ -127,13 +117,13 @@ export type AuditLogPageType = {
     totalPages: number;
 };
 
-export type AuditActionCountType = { action: string; count: number };
+type AuditActionCountType = { action: string; count: number };
 
-export type AuditActorCountType = { actor: string; count: number };
+type AuditActorCountType = { actor: string; count: number };
 
-export type AuditOutcomeCountType = { failure: number; success: number };
+type AuditOutcomeCountType = { failure: number; success: number };
 
-export type AuditTimeSeriesPointType = { count: number; date: string };
+type AuditTimeSeriesPointType = { count: number; date: string };
 
 export type AuditStatsType = {
     actionCounts:  AuditActionCountType[];
@@ -154,7 +144,7 @@ export type ServiceCheckType = {
     status:     HealthStatusType;
 };
 
-export type AuditLogHealthType = {
+type AuditLogHealthType = {
     file_count:  number;
     last_write:  string | null;
     size_bytes:  number;
@@ -167,7 +157,7 @@ export type DbSizeType = {
     size_bytes: number;
 };
 
-export type PlatformStatsType = {
+type PlatformStatsType = {
     active_clients:   number;
     inactive_clients: number;
     total_admins:     number;
@@ -175,7 +165,7 @@ export type PlatformStatsType = {
     total_dbs:        number;
 };
 
-export type ServerInfoType = {
+type ServerInfoType = {
     algorithm:   string;
     app_name:    string;
     app_version: string;
@@ -196,7 +186,7 @@ export type UsageHealthType = {
 
 // ─── System Settings (read-only, mirroring config.py) ────────────────────────
 
-export type ApplicationSettingsType = {
+type ApplicationSettingsType = {
     app_name:    string;
     app_version: string;
     debug:       boolean;
@@ -204,19 +194,19 @@ export type ApplicationSettingsType = {
     port:        number;
 };
 
-export type AuditLogSettingsType = {
+type AuditLogSettingsType = {
     audit_log_dir:            string;
     audit_log_max_read_days:  number;
     audit_log_retention_days: number;
 };
 
-export type SecuritySettingsType = {
+type SecuritySettingsType = {
     access_token_expire_minutes: number;
     algorithm:                   string;
     refresh_token_expire_days:   number;
 };
 
-export type SmtpSettingsType = {
+type SmtpSettingsType = {
     smtp_from:     string;
     smtp_host:     string;
     smtp_password: string;
@@ -224,7 +214,7 @@ export type SmtpSettingsType = {
     smtp_user:     string;
 };
 
-export type SuperAdminSettingsType = {
+type SuperAdminSettingsType = {
     super_admin_email:         string;
     super_admin_mobile:        string;
     super_admin_password_hash: string;

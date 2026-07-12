@@ -1,16 +1,16 @@
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 
-export type ReportPdfMetaType = { label: string; value: string };
+type ReportPdfMetaType = { label: string; value: string };
 
-export type ReportPdfColumnType = {
+type ReportPdfColumnType = {
     align?: "center" | "left" | "right";
     dataKey: string;
     header: string;
     width?: number;
 };
 
-export type ReportPdfRowType = Record<string, number | string>;
+type ReportPdfRowType = Record<string, number | string>;
 
 export type ReportPdfOptionsType = {
     columns:      ReportPdfColumnType[];

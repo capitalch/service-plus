@@ -12,7 +12,7 @@ const saleInvoiceSubSchema = invoiceSubSchema.extend({
     contactsId: z.coerce.number().int().min(0),
 });
 
-export const accountSettingSchema = z.object({
+const accountSettingSchema = z.object({
     clientCode: z.string().min(1, "Client code is required"),
     buCode:     z.string().min(1, "BU code is required"),
     branchId:   z.coerce.number().int().positive("Branch ID must be a positive integer"),

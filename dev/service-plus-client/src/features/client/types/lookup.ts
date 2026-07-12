@@ -9,7 +9,7 @@ export type LookupRecord = {
     is_system:     boolean;
 };
 
-export type LookupMessages = {
+type LookupMessages = {
     createFailed: string;
     created:      string;
     deleteFailed: string;

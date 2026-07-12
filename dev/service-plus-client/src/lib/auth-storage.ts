@@ -12,7 +12,7 @@ export function setRememberFlag(remember: boolean): void {
     localStorage.setItem(REMEMBER_FLAG_KEY, String(remember));
 }
 
-export function isRemembered(): boolean {
+function isRemembered(): boolean {
     return localStorage.getItem(REMEMBER_FLAG_KEY) === 'true';
 }
 

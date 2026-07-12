@@ -43,7 +43,7 @@ export type LoginRequestType = {
     password: string;
 };
 
-export type BuContextType = {
+type BuContextType = {
     code:          string;
     id:            number;
     is_active:     boolean;

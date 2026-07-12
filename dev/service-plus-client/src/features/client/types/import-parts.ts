@@ -1,8 +1,3 @@
-export type MappedField = {
-    fileColumn: string;
-    targetField: string;
-};
-
 export type ParsedPart = {
     rowNumber: number;
     rawData: Record<string, string>;

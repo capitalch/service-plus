@@ -7,21 +7,21 @@ import type { JobInvoiceFullRow } from "./deliver-job/deliver-job-schema";
 
 // ── Types used by the full job-info PDF ──────────────────────────────────────
 
-export type JobInfoPartRow = {
+type JobInfoPartRow = {
     id: number; part_code: string; part_name: string;
     uom: string; qty: number; remarks: string | null;
 };
 
-export type JobInfoChargeRow = {
+type JobInfoChargeRow = {
     id: number; charge_name: string; ref_no: string | null;
     description: string | null; cost_price: number; selling_price: number;
 };
 
-export type JobInfoFileRow = {
+type JobInfoFileRow = {
     id: number; url: string; about: string; created_at: string;
 };
 
-export type JobInfoPaymentRow = {
+type JobInfoPaymentRow = {
     id: number; receipt_no: string | null; payment_date: string;
     payment_mode: string; amount: number; reference_no: string | null; remarks: string | null;
 };
@@ -150,18 +150,9 @@ function buildSingleJobSheetDoc(job: JobDetailType, division: DivisionContextTyp
     return doc;
 }
 
-export function downloadJobSheet(job: JobDetailType, division: DivisionContextType | null): void {
-    buildSingleJobSheetDoc(job, division).save(`JobSheet_${job.job_no}.pdf`);
-}
-
 export function getJobSheetBlobUrl(job: JobDetailType, division: DivisionContextType | null, branchCode?: string, copies = 1): string {
     const doc = buildSingleJobSheetDoc(job, division, branchCode, copies);
     return String(doc.output("bloburl"));
-}
-
-export function openJobSheetInTab(job: JobDetailType, division: DivisionContextType | null): void {
-    const url = getJobSheetBlobUrl(job, division);
-    window.open(url, "_blank");
 }
 
 // ── Batch Job Sheet ───────────────────────────────────────────────────────────

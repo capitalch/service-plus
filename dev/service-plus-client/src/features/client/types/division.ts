@@ -1,4 +1,4 @@
-export type InvoiceAccountSettingType = {
+type InvoiceAccountSettingType = {
     debitAccountId:    number;
     creditAccountId:   number;
     productId:         number;
@@ -6,7 +6,7 @@ export type InvoiceAccountSettingType = {
     defaultGstRate:    number;
 };
 
-export type AccountSettingType = {
+type AccountSettingType = {
     clientCode:       string;
     buCode:           string;
     branchId:         number;

@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const purchaseLineSchema = z.object({
+const purchaseLineSchema = z.object({
     _key:             z.string(),
     part_id:          z.number().nullable(),
     brand_id:         z.number().nullable(),
@@ -30,7 +30,7 @@ export const purchaseInvoiceSchema = z.object({
     lines:           z.array(purchaseLineSchema).min(1, "At least one line item required"),
 });
 
-export type PurchaseLineFormItem = z.infer<typeof purchaseLineSchema>;
+type PurchaseLineFormItem = z.infer<typeof purchaseLineSchema>;
 export type PurchaseInvoiceFormValues = z.infer<typeof purchaseInvoiceSchema>;
 
 export function getPurchaseInvoiceDefaultValues(divisionId = 0): PurchaseInvoiceFormValues {
@@ -44,7 +44,7 @@ export function getPurchaseInvoiceDefaultValues(divisionId = 0): PurchaseInvoice
     };
 }
 
-export function getInitialPurchaseLine(brandId: number | null = null): PurchaseLineFormItem {
+function getInitialPurchaseLine(brandId: number | null = null): PurchaseLineFormItem {
     return {
         _key:             crypto.randomUUID(),
         part_id:          null,

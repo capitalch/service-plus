@@ -1,7 +1,3 @@
-export type PartFinderFiltersType = {
-    search: string;
-};
-
 export type PartFinderResultType = {
     brand_name:          string | null;
     category:            string | null;
@@ -43,21 +39,8 @@ export type PartFinderStockSummaryType = {
 
 export type StockStatusType = "all" | "in_stock" | "low_stock" | "out_of_stock";
 
-export const DEFAULT_FILTERS: PartFinderFiltersType = {
-    search: "",
-};
-
 export function getStockStatus(qty: number): StockStatusType {
     if (qty <= 0) return "out_of_stock";
     if (qty <= 5)  return "low_stock";
     return "in_stock";
-}
-
-export function stockStatusLabel(status: StockStatusType): string {
-    switch (status) {
-        case "all":          return "All";
-        case "in_stock":     return "In Stock";
-        case "low_stock":    return "Low Stock";
-        case "out_of_stock": return "Out of Stock";
-    }
 }

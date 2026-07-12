@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { MESSAGES } from "@/constants/messages";
 
-export const loanLineSchema = z.object({
+const loanLineSchema = z.object({
     _key:      z.string(),
     part_id:   z.number().nullable(),
     brand_id:  z.number().nullable(),

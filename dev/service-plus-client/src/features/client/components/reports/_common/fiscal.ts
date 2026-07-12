@@ -20,11 +20,6 @@ export type DateRangeType = {
     to: Date;
 };
 
-export type MonthEntryType = {
-    idx: number;
-    label: string;
-};
-
 const MONTH_LABELS: string[] = [
     "Jan", "Feb", "Mar", "Apr", "May", "Jun",
     "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
@@ -46,18 +41,18 @@ const RANGE_LABELS: Record<RangeKeyType, string> = {
     ytd:       "Year-to-Date",
 };
 
-export function clampMonth(monthIndex: number): number {
+function clampMonth(monthIndex: number): number {
     const m = ((monthIndex % 12) + 12) % 12;
     return m;
 }
 
-export function endOfDay(d: Date): Date {
+function endOfDay(d: Date): Date {
     const x = new Date(d);
     x.setHours(23, 59, 59, 999);
     return x;
 }
 
-export function endOfMonth(year: number, monthIndex: number): Date {
+function endOfMonth(year: number, monthIndex: number): Date {
     return endOfDay(new Date(year, monthIndex + 1, 0));
 }
 
@@ -72,7 +67,7 @@ export function formatRangeLabel(from: Date, to: Date): string {
     return `${formatShortDate(from)} – ${formatShortDate(to)}`;
 }
 
-export function formatShortDate(d: Date): string {
+function formatShortDate(d: Date): string {
     const dd = String(d.getDate()).padStart(2, "0");
     return `${dd} ${MONTH_LABELS[d.getMonth()]} ${d.getFullYear()}`;
 }
@@ -86,7 +81,7 @@ export function getCurrentFiscalYearBounds(today: Date, fyStart: number): DateRa
     return { from, key: "ytd", label: `FY ${startYear}-${(startYear + 1) % 100}`, to };
 }
 
-export function getFiscalQuarterBounds(q: 1 | 2 | 3 | 4, today: Date, fyStart: number): DateRangeType {
+function getFiscalQuarterBounds(q: 1 | 2 | 3 | 4, today: Date, fyStart: number): DateRangeType {
     const fy = getCurrentFiscalYearBounds(today, fyStart);
     const fyStartIdx = clampMonth(fyStart - 1);
     const startMonthIdx = clampMonth(fyStartIdx + (q - 1) * 3);
@@ -96,17 +91,7 @@ export function getFiscalQuarterBounds(q: 1 | 2 | 3 | 4, today: Date, fyStart: n
     return { from, key: (`q${q}` as RangeKeyType), label: `Q${q}`, to };
 }
 
-export function getMonthlyTickList(months: number): MonthEntryType[] {
-    const today = new Date();
-    const out: MonthEntryType[] = [];
-    for (let i = months - 1; i >= 0; i--) {
-        const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
-        out.push({ idx: i, label: `${MONTH_LABELS[d.getMonth()]} ${String(d.getFullYear()).slice(-2)}` });
-    }
-    return out;
-}
-
-export function getPreviousFiscalYearBounds(today: Date, fyStart: number): DateRangeType {
+function getPreviousFiscalYearBounds(today: Date, fyStart: number): DateRangeType {
     const current = getCurrentFiscalYearBounds(today, fyStart);
     const prevFromYear = current.from.getFullYear() - 1;
     const fyStartIdx   = clampMonth(fyStart - 1);
@@ -166,27 +151,13 @@ export function getRange(
     }
 }
 
-export function getRangeLabel(key: RangeKeyType): string {
-    return RANGE_LABELS[key];
-}
-
-export function monthList(fyStart: number): MonthEntryType[] {
-    const out: MonthEntryType[] = [];
-    const fyStartIdx = clampMonth(fyStart - 1);
-    for (let i = 0; i < 12; i++) {
-        const idx = clampMonth(fyStartIdx + i);
-        out.push({ idx, label: MONTH_LABELS[idx] });
-    }
-    return out;
-}
-
 export function startOfDay(d: Date): Date {
     const x = new Date(d);
     x.setHours(0, 0, 0, 0);
     return x;
 }
 
-export function startOfWeek(d: Date): Date {
+function startOfWeek(d: Date): Date {
     // Monday-start week (ISO).
     const x = startOfDay(d);
     const dow = x.getDay();

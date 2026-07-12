@@ -32,13 +32,13 @@ export type Section = 'admin' | 'configurations' | 'inventory' | 'jobs' | 'maste
 
 type ThemeContextType = { isDark: boolean; toggleTheme: () => void };
 
-export const ThemeContext = createContext<ThemeContextType>({ isDark: false, toggleTheme: () => {} });
+const ThemeContext = createContext<ThemeContextType>({ isDark: false, toggleTheme: () => {} });
 
 export const useTheme = () => useContext(ThemeContext);
 
 type ClientSelectionContextType = { onSelect: (label: string, group?: string) => void; selected: string; selectedGroup: string };
 
-export const ClientSelectionContext = createContext<ClientSelectionContextType>({
+const ClientSelectionContext = createContext<ClientSelectionContextType>({
     onSelect: () => {},
     selected: '',
     selectedGroup: '',
@@ -48,13 +48,13 @@ export const useClientSelection = () => useContext(ClientSelectionContext);
 
 type LayoutContextType = { explorerOpen: boolean; toggleExplorer: () => void };
 
-export const LayoutContext = createContext<LayoutContextType>({ explorerOpen: true, toggleExplorer: () => {} });
+const LayoutContext = createContext<LayoutContextType>({ explorerOpen: true, toggleExplorer: () => {} });
 
 export const useLayout = () => useContext(LayoutContext);
 
 type HelpContextType = { helpOpen: boolean; openHelp: () => void; closeHelp: () => void };
 
-export const HelpContext = createContext<HelpContextType>({ helpOpen: false, openHelp: () => {}, closeHelp: () => {} });
+const HelpContext = createContext<HelpContextType>({ helpOpen: false, openHelp: () => {}, closeHelp: () => {} });
 
 export const useHelp = () => useContext(HelpContext);
 

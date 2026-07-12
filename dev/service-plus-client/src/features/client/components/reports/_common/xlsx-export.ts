@@ -1,6 +1,6 @@
 import * as XLSX from "xlsx";
 
-export type XlsxSheetType = {
+type XlsxSheetType = {
     columns?: { header: string; key: string }[];
     name: string;
     rows: Record<string, number | string>[];
