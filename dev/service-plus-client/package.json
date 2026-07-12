@@ -16,7 +16,6 @@
   },
   "dependencies": {
     "@apollo/client": "^4.2.6",
-    "@base-ui/react": "^1.6.0",
     "@fontsource-variable/inter": "^5.2.8",
     "@hookform/resolvers": "^5.4.0",
     "@reduxjs/toolkit": "^2.12.0",
@@ -25,8 +24,6 @@
     "axios": "^1.18.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "cmdk": "^1.1.1",
-    "date-fns": "^4.4.0",
     "framer-motion": "^12.42.2",
     "graphql": "^17.0.2",
     "graphql-ws": "^6.1.0",

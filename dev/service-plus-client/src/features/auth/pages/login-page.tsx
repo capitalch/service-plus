@@ -5,7 +5,7 @@ import { ForgotPasswordForm } from '../components/forgot-password-form';
 
 type ViewState = 'login' | 'forgotPassword';
 
-export const LoginPage = () => {
+const LoginPage = () => {
   const [view, setView] = useState<ViewState>('login');
 
   return (

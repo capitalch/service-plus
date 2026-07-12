@@ -9,7 +9,7 @@ import { ROUTES } from '@/router/routes';
  * This component redirects authenticated users to their landing page
  * based on their user type and session mode.
  */
-export const App = () => {
+const App = () => {
     const sessionMode = useAppSelector(selectSessionMode);
     const user        = useAppSelector(selectCurrentUser);
 
