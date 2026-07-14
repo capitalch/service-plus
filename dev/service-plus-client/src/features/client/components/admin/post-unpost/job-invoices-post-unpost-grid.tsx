@@ -120,7 +120,7 @@ export function JobInvoicesPostUnpostGrid({ pendingChanges, onChangeToggle, onSt
             <div className="flex flex-wrap items-center gap-2 py-2">
                 <div className="relative flex-1 sm:max-w-md">
                     <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-(--cl-text-muted)" />
-                    <Input className="h-8 border-(--cl-border) bg-(--cl-surface) pl-8 text-xs" placeholder="Invoice no, job no, customer" value={search} onChange={e => handleSearchChange(e.target.value)} />
+                    <Input className="h-8 border-(--cl-border) bg-(--cl-surface) pl-8 text-xs" placeholder="Invoice no, job no, alt job no, customer" value={search} onChange={e => handleSearchChange(e.target.value)} />
                     {search && (
                         <button className="absolute right-2.5 top-1/2 flex h-4 w-4 -translate-y-1/2 items-center justify-center rounded-full bg-(--cl-text-muted) text-(--cl-surface)" type="button" onClick={() => handleSearchChange("")}>
                             <X className="h-2.5 w-2.5" />
@@ -166,7 +166,14 @@ export function JobInvoicesPostUnpostGrid({ pendingChanges, onChangeToggle, onSt
                                         <tr key={row.id} className={`transition-colors hover:bg-(--cl-accent)/5 ${pending ? "bg-amber-50 dark:bg-amber-900/10" : ""}`}>
                                             <td className={tdClass}>{(page - 1) * PAGE_SIZE + idx + 1}</td>
                                             <td className={`${tdClass} font-medium`}>{row.invoice_no}</td>
-                                            <td className={tdClass}>{row.job_no}</td>
+                                            <td className={tdClass}>
+                                                <div className="flex flex-col gap-0.5">
+                                                    <span>{row.job_no}</span>
+                                                    {row.alternate_job_no && (
+                                                        <span className="font-mono text-[10px] font-semibold text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/40 rounded px-1.5 py-0.5 w-fit">Alt: {row.alternate_job_no}</span>
+                                                    )}
+                                                </div>
+                                            </td>
                                             <td className={tdClass}>{row.invoice_date}</td>
                                             <td className={tdClass}>
                                                 <div className="flex flex-col gap-0.5">

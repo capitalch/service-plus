@@ -1189,7 +1189,7 @@ async def resolve_create_single_job_helper(
         ) from e
 
     x_data = payload.get("xData", {})
-    x_data.pop("performed_by_user_id", None)
+    performed_by_user_id = x_data.pop("performed_by_user_id", None)
     branch_id = x_data.get("branch_id")
 
     if not branch_id:
@@ -1230,6 +1230,34 @@ async def resolve_create_single_job_helper(
             # 3. Insert the job
             job_id = await process_data(x_data, cur, "job", None, None)
             logger.info("Single job created with id=%s, job_no=%s", job_id, job_no)
+
+            # 4. Opening Jobs: record the user-selected initial status as a real
+            # job_transaction row. Unlike Single Job (always created as RECEIVED),
+            # an opening job's starting status is user-chosen, so the transaction
+            # history needs a real row to reflect it accurately.
+            if x_data.get("is_opening_job"):
+                txn_data: dict = {
+                    "job_id": job_id,
+                    "status_id": x_data.get("job_status_id"),
+                    "performed_by_user_id": performed_by_user_id,
+                }
+                technician_id = x_data.get("technician_id")
+                if technician_id is not None:
+                    txn_data["technician_id"] = technician_id
+                job_date = x_data.get("job_date")
+                if job_date:
+                    txn_data["transaction_date"] = job_date
+
+                new_txn_id = await process_data(txn_data, cur, "job_transaction", None, None)
+                if new_txn_id:
+                    await process_data(
+                        {"id": job_id, "last_transaction_id": new_txn_id},
+                        cur, "job", None, None,
+                    )
+                logger.info(
+                    "Opening job %s: recorded initial transaction id=%s, status_id=%s",
+                    job_id, new_txn_id, txn_data["status_id"],
+                )
 
     return job_id
 
@@ -1455,13 +1483,11 @@ async def resolve_undeliver_job_helper(
                 target_txn_id = prev["id"]
                 status_id     = prev["status_id"]
                 technician_id = prev["technician_id"]
-                amount        = prev["amount"]
             else:
                 # No earlier non-delivered transaction — fall back to Received
                 target_txn_id = None
                 status_id     = 1
                 technician_id = None
-                amount        = None
             flags = _STATUS_FLAGS.get(status_id, {"is_final": False, "is_closed": False})
 
             # 2. Remove the delivery transaction(s), delete the invoice, then restore the job (atomic)
@@ -1473,7 +1499,6 @@ async def resolve_undeliver_job_helper(
                     "job_id":              job_id,
                     "job_status_id":       status_id,
                     "technician_id":       technician_id,
-                    "amount":              amount,
                     "is_final":            flags["is_final"],
                     "last_transaction_id": target_txn_id,
                 },

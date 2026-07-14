@@ -51,6 +51,7 @@ export type JobInvoicePostUnpostRow = {
     id:            number;
     job_id:        number;
     job_no:        string;
+    alternate_job_no: string | null;
     job_date:      string;
     customer_name: string | null;
     customer_gstin: string | null;

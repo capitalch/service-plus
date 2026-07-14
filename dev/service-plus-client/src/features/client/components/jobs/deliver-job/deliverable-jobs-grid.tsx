@@ -18,6 +18,7 @@ export type DeliverableJobRow = {
     id:                     number;
     job_no:                 string;
     alternate_job_no:       string | null;
+    is_opening_job:         boolean;
     purchase_date:          string | null;
     job_date:               string;
     division_id:            number | null;
@@ -258,9 +259,12 @@ export const DeliverableJobsGrid = forwardRef<GridRetentionHandle, Props>(functi
                                             <div className="flex flex-col gap-0.5">
                                                 <div className="font-mono font-semibold text-(--cl-accent)">
                                                     #{row.job_no}
+                                                    {row.is_opening_job && (
+                                                        <span className="ml-1.5 text-[10px] font-bold text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-950/40 rounded px-1 py-0.5">OPENING</span>
+                                                    )}
                                                 </div>
                                                 {row.alternate_job_no && (
-                                                    <span className="text-[10px] text-(--cl-text-muted)">Alt: {row.alternate_job_no}</span>
+                                                    <span className="font-mono text-[10px] font-semibold text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/40 rounded px-1.5 py-0.5 w-fit">Alt: {row.alternate_job_no}</span>
                                                 )}
                                                 {row.purchase_date && (
                                                     <span className="text-[11px] font-semibold text-(--cl-text-muted)">PUR: {row.purchase_date}</span>
@@ -332,6 +336,15 @@ export const DeliverableJobsGrid = forwardRef<GridRetentionHandle, Props>(functi
                                                     onClick={() => onViewJob(row.id)}
                                                 >
                                                     <Eye className="h-3.5 w-3.5" />
+                                                </Button>
+                                                <Button
+                                                    className="h-7 w-7 p-0 text-(--cl-text-muted) hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/30"
+                                                    size="icon"
+                                                    title="Attach files"
+                                                    variant="ghost"
+                                                    onClick={() => onOpenAttach(row.id, row.job_no)}
+                                                >
+                                                    <Paperclip className="h-3.5 w-3.5" />
                                                 </Button>
                                                 <Button
                                                     className="h-8 gap-1.5 px-3 text-xs font-semibold text-emerald-700 border border-emerald-300 hover:bg-emerald-50 dark:text-emerald-400 dark:border-emerald-700 dark:hover:bg-emerald-950/30"

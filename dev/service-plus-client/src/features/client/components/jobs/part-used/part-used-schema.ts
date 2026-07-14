@@ -53,6 +53,7 @@ export type ConsumptionRow = {
     created_at:           string;
     job_id:               number;
     job_no:               string;
+    alternate_job_no:     string | null;
     job_date:             string;
     is_closed:            boolean;
     is_final:             boolean;

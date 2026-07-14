@@ -4,6 +4,7 @@ import {
     Eye, Loader2, Plus, Radius, RefreshCw, RotateCcw, Trash2, XCircle,
 } from "lucide-react";
 import { motion } from "framer-motion";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -68,6 +69,7 @@ function scaleParts(
     curTotal: number,
     newTotal: number,
     isGst: boolean,
+    allowBelowCost = false,
 ): EditablePartLine[] {
     if (curTotal <= 0) return allParts;
     const rowAmounts = active.map(l =>
@@ -81,18 +83,21 @@ function scaleParts(
     active.forEach((l, i) => {
         const gstRate = isGst ? (parseFloat(l.gst_rate) || 0) : 0;
         const multiplier = 1 + gstRate / 100;
-        const costPrice = parseFloat(l.cost_price) || 0;
+        // Selling price is normally floored at cost price (never sell at a loss);
+        // callers that have exhausted every other option (charges at zero) can
+        // pass allowBelowCost to relax the floor down to ₹0 instead.
+        const floor = allowBelowCost ? 0 : (parseFloat(l.cost_price) || 0);
         if (i < active.length - 1) {
             const spg = rowAmounts[i] / l.qty;
             const sp = gstRate > 0 ? spg / multiplier : spg;
-            const finalSp = parseFloat(Math.max(sp, costPrice).toFixed(2));
+            const finalSp = parseFloat(Math.max(sp, floor).toFixed(2));
             const saleGst = parseFloat((finalSp * multiplier).toFixed(2));
             runningTotal += saleGst * l.qty;
             patch.set(l._key, { selling_price: finalSp.toFixed(2), sale_pr_gst: saleGst.toFixed(2) });
         } else {
             const saleGstPerUnit = parseFloat(((newTotal - runningTotal) / l.qty).toFixed(2));
             const sp = gstRate > 0 ? saleGstPerUnit / multiplier : saleGstPerUnit;
-            const finalSp = parseFloat(Math.max(sp, costPrice).toFixed(2));
+            const finalSp = parseFloat(Math.max(sp, floor).toFixed(2));
             patch.set(l._key, { selling_price: finalSp.toFixed(2), sale_pr_gst: saleGstPerUnit.toFixed(2) });
         }
     });
@@ -104,12 +109,13 @@ function computeBackCalc(
     partLines: EditablePartLine[],
     chargeLines: EditableChargeLine[],
     isGst: boolean,
-): { newPartLines?: EditablePartLine[]; newChargeLines?: EditableChargeLine[] } {
+): { newPartLines?: EditablePartLine[]; newChargeLines?: EditableChargeLine[]; wentBelowCost?: boolean } {
     const partsTotal = partLines.reduce((s, l) => s + (parseFloat(l.sale_pr_gst) || 0) * l.qty, 0);
     const chargesTotal = chargeLines.reduce((s, c) => s + (parseFloat(c.sale_pr_gst) || 0) * (parseFloat(c.qty) || 1), 0);
     const diff = target - partsTotal - chargesTotal;
     if (Math.abs(diff) < 0.005) return {};
 
+    // Step 1: scale part selling prices toward the target, floored at cost price.
     const activeParts = partLines.filter(l => l.part_id !== null);
     let newPartLines: EditablePartLine[] | undefined;
     let remainingDiff = diff;
@@ -127,23 +133,42 @@ function computeBackCalc(
         }
     }
 
+    // Step 2: parts are at cost and the target still isn't reached — absorb the
+    // remainder in Additional Charges, down to zero.
     const activeCharges = chargeLines.filter(c => c.charge_name.trim() !== "");
-    if (activeCharges.length === 0) return { newPartLines };
+    let newChargeLines: EditableChargeLine[] | undefined;
 
-    const curChargesAmt = activeCharges.reduce((s, c) => s + (parseFloat(c.sale_pr_gst) || 0) * (parseFloat(c.qty) || 1), 0);
-    const newChargesAmt = curChargesAmt + remainingDiff;
+    if (activeCharges.length > 0) {
+        const curChargesAmt = activeCharges.reduce((s, c) => s + (parseFloat(c.sale_pr_gst) || 0) * (parseFloat(c.qty) || 1), 0);
+        const newChargesAmt = curChargesAmt + remainingDiff;
 
-    if (newChargesAmt >= 0) {
-        return {
-            newPartLines,
-            newChargeLines: scaleCharges(chargeLines, activeCharges, curChargesAmt, newChargesAmt, isGst),
-        };
+        if (newChargesAmt >= 0) {
+            return {
+                newPartLines,
+                newChargeLines: scaleCharges(chargeLines, activeCharges, curChargesAmt, newChargesAmt, isGst),
+            };
+        }
+
+        // Charges alone can't absorb the rest either — zero them out and carry
+        // whatever's left onto parts in step 3 below.
+        newChargeLines = chargeLines.map(c =>
+            c.charge_name.trim() ? { ...c, selling_price: "0", sale_pr_gst: "0" } : c);
+        remainingDiff = newChargesAmt; // still negative: amount left to cut from parts
     }
-    return {
-        newPartLines,
-        newChargeLines: chargeLines.map(c =>
-            c.charge_name.trim() ? { ...c, selling_price: "0", sale_pr_gst: "0" } : c),
-    };
+
+    // Step 3: parts at cost and charges at zero still don't reach the target —
+    // last resort, let part selling prices drop below cost price (at a loss).
+    if (Math.abs(remainingDiff) >= 0.005 && activeParts.length > 0) {
+        const basisPartLines = newPartLines ?? partLines;
+        const basisActiveParts = basisPartLines.filter(l => l.part_id !== null);
+        const curAmt = basisActiveParts.reduce((s, l) => s + (parseFloat(l.sale_pr_gst) || 0) * l.qty, 0);
+        if (curAmt > 0) {
+            newPartLines = scaleParts(basisPartLines, basisActiveParts, curAmt, curAmt + remainingDiff, isGst, true);
+            return { newPartLines, newChargeLines, wentBelowCost: true };
+        }
+    }
+
+    return { newPartLines, newChargeLines };
 }
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -225,6 +250,34 @@ export function FinalJobForm({
     const chargesQtyTotal = chargeLines.reduce((s, c) => s + (parseFloat(c.qty) || 1), 0);
     const grandTotal = partsTotal + chargesAmountTotal;
     const grandProfitTotal = profitTotal + chargesProfitTotal;
+
+    // Applies a Back Calculate target. Allocation order: part prices down to cost,
+    // then Additional Charges down to zero, then — only as a last resort — part
+    // prices below cost (at a loss, flagged with a warning). Also warns
+    // immediately if the target still isn't fully achievable, rather than only
+    // surfacing this via the small "Diff" figure below.
+    function applyBackCalc(target: number) {
+        const result = computeBackCalc(target, partLines, chargeLines, isGst);
+        const finalPartLines = result.newPartLines ?? partLines;
+        const finalChargeLines = result.newChargeLines ?? chargeLines;
+        if (result.newPartLines) setPartLines(result.newPartLines);
+        if (result.newChargeLines) setChargeLines(result.newChargeLines);
+
+        if (result.wentBelowCost) {
+            toast.warning(
+                `Target of ₹${target.toFixed(2)} required selling one or more parts below their cost price, after Additional Charges were reduced to zero. Please review the part prices before saving.`
+            );
+            return;
+        }
+
+        const achievedTotal = finalPartLines.reduce((s, l) => s + (parseFloat(l.sale_pr_gst) || 0) * l.qty, 0)
+            + finalChargeLines.reduce((s, c) => s + (parseFloat(c.sale_pr_gst) || 0) * (parseFloat(c.qty) || 1), 0);
+        if (Math.abs(achievedTotal - target) > 0.01) {
+            toast.warning(
+                `Target of ₹${target.toFixed(2)} isn't fully achievable with the current parts and charges. Achieved ₹${achievedTotal.toFixed(2)} instead.`
+            );
+        }
+    }
 
     // backCalcTarget is seeded from job.amount on edit-open in final-a-job-section.tsx;
     // do not override it here with the computed grandTotal.
@@ -981,9 +1034,7 @@ export function FinalJobForm({
                                                         onClick={() => {
                                                             const rounded = Math.round(effectiveTotal);
                                                             setBackCalcTarget(String(rounded));
-                                                            const result = computeBackCalc(rounded, partLines, chargeLines, isGst);
-                                                            if (result.newPartLines) setPartLines(result.newPartLines);
-                                                            if (result.newChargeLines) setChargeLines(result.newChargeLines);
+                                                            applyBackCalc(rounded);
                                                         }}
                                                     >
                                                         <Radius className="h-3 w-3" />
@@ -1006,11 +1057,7 @@ export function FinalJobForm({
                                                 disabled={!backCalcTarget || isNaN(backCalcNum) || backCalcNum < 0}
                                                 size="sm"
                                                 variant="default"
-                                                onClick={() => {
-                                                    const result = computeBackCalc(backCalcNum, partLines, chargeLines, isGst);
-                                                    if (result.newPartLines) setPartLines(result.newPartLines);
-                                                    if (result.newChargeLines) setChargeLines(result.newChargeLines);
-                                                }}
+                                                onClick={() => applyBackCalc(backCalcNum)}
                                             >
                                                 Back Calculate
                                             </Button>

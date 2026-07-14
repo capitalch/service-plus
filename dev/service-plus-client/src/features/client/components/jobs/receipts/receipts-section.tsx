@@ -27,7 +27,8 @@ import { currentFinancialYearRange } from "@/lib/utils";
 import { selectAvailableDivisions, selectCurrentBranch, selectPostDataToAccounts, selectSchema } from "@/store/context-slice";
 import { useAppSelector } from "@/store/hooks";
 import type { JobReceiptDetailType, JobReceiptListRowType } from "@/features/client/types/receipt";
-import { StatusBadge } from "../job-badges";
+import { isGstDivision } from "@/features/client/types/division";
+import { JobTypeBadge, StatusBadge } from "../job-badges";
 import { NewReceiptForm } from "./new-receipt-form";
 import { FormProvider, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -330,7 +331,7 @@ export const ReceiptsSection = () => {
     const pageTotal    = rows.reduce((acc, r) => acc + Number(r.amount), 0);
 
     const columns = [
-        "#", "Date", "Receipt No", "Job No", "Customer", "Mode", "Amount", "Ref No", "Actions",
+        "#", "Date", "Receipt No", "Job No", "Customer", "Mobile", "Device Details", "Job Type", "Status", "Mode", "Amount", "Ref No", "Actions",
     ];
 
     return (
@@ -370,7 +371,7 @@ export const ReceiptsSection = () => {
                     <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-(--cl-text-muted)" />
                     <Input
                         className="h-8 border-(--cl-border) bg-(--cl-surface) pl-8 text-xs"
-                        placeholder="Job no, receipt no, customer, mode, ref no…"
+                        placeholder="Job no, alt job no, receipt no, customer, mode, ref no…"
                         value={search}
                         onChange={e => handleSearchChange(e.target.value)}
                     />
@@ -433,6 +434,10 @@ export const ReceiptsSection = () => {
                                     <th className={thClass}>Receipt No</th>
                                     <th className={thClass}>Job No</th>
                                     <th className={thClass}>Customer</th>
+                                    <th className={thClass}>Mobile</th>
+                                    <th className={`${thClass} w-[10rem]`}>Device Details</th>
+                                    <th className={thClass}>Job Type</th>
+                                    <th className={thClass}>Status</th>
                                     <th className={thClass}>Mode</th>
                                     <th className={`${thClass} text-right`}>Amount</th>
                                     <th className={thClass}>Ref No</th>
@@ -459,13 +464,77 @@ export const ReceiptsSection = () => {
                                             )}
                                         </td>
                                         <td className={tdClass}>
-                                            <div className="font-mono font-semibold text-(--cl-accent)">{row.job_no}</div>
-                                            <div className="text-xs text-(--cl-text-muted)">{row.job_date}</div>
-                                            <StatusBadge code={row.job_status_code} name={row.job_status_name} />
+                                            <div className="flex flex-col gap-0.5">
+                                                <div className="font-mono font-semibold text-(--cl-accent)">
+                                                    {row.job_no}
+                                                    {row.is_closed && (
+                                                        <span className="ml-1.5 text-[10px] font-bold text-emerald-600 bg-emerald-100 dark:bg-emerald-950/40 rounded px-1 py-0.5">CLOSED</span>
+                                                    )}
+                                                    {row.is_opening_job && (
+                                                        <span className="ml-1.5 text-[10px] font-bold text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-950/40 rounded px-1 py-0.5">OPENING</span>
+                                                    )}
+                                                </div>
+                                                {row.alternate_job_no && (
+                                                    <span className="font-mono text-[10px] font-semibold text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/40 rounded px-1.5 py-0.5 w-fit">Alt: {row.alternate_job_no}</span>
+                                                )}
+                                                {row.batch_no != null && (
+                                                    <span className="text-[10px] font-bold text-violet-600 dark:text-violet-400 w-fit bg-violet-50 dark:bg-violet-950/40 rounded px-1 py-0.5">Batch #{row.batch_no}</span>
+                                                )}
+                                                {row.division_id != null && (() => {
+                                                    const dv = availableDivisions.find(d => d.id === row.division_id);
+                                                    return dv ? (
+                                                        <span className="font-mono text-[10px] font-semibold text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-950/40 rounded px-1 py-0.5 w-fit">
+                                                            {dv.code}
+                                                        </span>
+                                                    ) : null;
+                                                })()}
+                                                {row.file_count > 0 && (
+                                                    <span className="text-[10px] text-blue-600 dark:text-blue-400 font-medium bg-blue-50 dark:bg-blue-950/40 rounded px-1.5 py-0.5 w-fit">
+                                                        {row.file_count} File{row.file_count !== 1 ? "s" : ""}
+                                                    </span>
+                                                )}
+                                                <span className="text-[10px] text-(--cl-text-muted)">Job: {row.job_date}</span>
+                                            </div>
                                         </td>
                                         <td className={tdClass}>
-                                            <div className="font-medium">{row.customer_name}</div>
-                                            {row.mobile && <div className="text-xs text-(--cl-text-muted)">{row.mobile}</div>}
+                                            <div className="flex flex-col gap-0.5">
+                                                <span className="font-medium">{row.customer_name}</span>
+                                                {row.customer_gstin && (
+                                                    <span className="font-mono text-[10px] font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 rounded px-1.5 py-0.5 w-fit">GSTIN: {row.customer_gstin}</span>
+                                                )}
+                                            </div>
+                                        </td>
+                                        <td className={`${tdClass} font-mono text-xs`}>{row.mobile}</td>
+                                        <td className={`${tdClass} text-xs`}>{row.device_details || "—"}</td>
+                                        <td className={tdClass}>
+                                            <JobTypeBadge code={row.job_type_code} name={row.job_type_name} />
+                                        </td>
+                                        <td className={tdClass}>
+                                            <div className="flex flex-col items-start gap-1">
+                                                <StatusBadge code={row.job_status_code} name={row.job_status_name} />
+                                                <div className="flex flex-wrap gap-1">
+                                                    {row.is_final && !row.is_closed && (
+                                                        <span className="text-[10px] font-bold rounded px-1 py-0.5 text-indigo-600 dark:text-indigo-300 bg-indigo-100 dark:bg-indigo-950/40">FINAL</span>
+                                                    )}
+                                                    {(() => {
+                                                        const gst = isGstDivision(availableDivisions.find(d => d.id === row.division_id) ?? null);
+                                                        return (
+                                                            <span className={`text-[10px] font-bold rounded px-1 py-0.5 ${gst
+                                                                ? "text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40"
+                                                                : "text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40"}`}>
+                                                                {gst ? "GST" : "Non-GST"}
+                                                            </span>
+                                                        );
+                                                    })()}
+                                                    {row.invoice_is_posted != null && (
+                                                        <span className={`text-[10px] font-bold rounded px-1 py-0.5 ${row.invoice_is_posted
+                                                            ? "text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40"
+                                                            : "text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40"}`}>
+                                                            {row.invoice_is_posted ? "Invoice: Posted" : "Invoice: Unposted"}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
                                         </td>
                                         <td className={tdClass}>
                                             <span className={`rounded px-2 py-0.5 text-xs font-semibold ${modeBadgeClass(row.payment_mode)}`}>

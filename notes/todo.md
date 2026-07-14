@@ -10,7 +10,12 @@
 								- Help system for developer in super admin mode
 								- Account icon implement
 - Bug fix
-	- Online, unable to deliver a job
+	- Final a job back calculate does not save altered data to backend.
+								- Fix opening job workflow
+								- Alt job no in all grids and search
+								- Opening job failed to save
+								- While doing / undoing delivery: suddenly amount disappears
+								- Online, unable to deliver a job
 								- When division changes, corresponding GST info is not changed in sales. Amount for spare should be same in gst / non-gst. Robust testing for sales invoie is done w.r.o mrp, selling price and no price
 								- Extra "}" in details line items of sales
 							- Purchase Entry

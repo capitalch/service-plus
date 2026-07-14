@@ -824,11 +824,18 @@ export const JobDetailsModal = ({ jobId, onClose, onJobChanged }: Props) => {
                                                                 {t.transaction_date ?? "—"}
                                                             </td>
                                                             <td className="px-3 py-3 border-b border-slate-100">
-                                                                {t.status_name ? (
-                                                                    <span className={`inline-flex items-center gap-1.5 rounded-sm px-2.5 py-0.5 text-[11px] font-semibold text-white shadow-sm ${sBg}`}>
-                                                                        {t.status_name}
-                                                                    </span>
-                                                                ) : <span className="text-slate-400">—</span>}
+                                                                <div className="flex flex-wrap items-center gap-1.5">
+                                                                    {t.status_name ? (
+                                                                        <span className={`inline-flex items-center gap-1.5 rounded-sm px-2.5 py-0.5 text-[11px] font-semibold text-white shadow-sm ${sBg}`}>
+                                                                            {t.status_name}
+                                                                        </span>
+                                                                    ) : <span className="text-slate-400">—</span>}
+                                                                    {idx === 0 && t.is_opening_job && (
+                                                                        <span className="inline-flex items-center rounded-sm px-2 py-0.5 text-[10px] font-bold text-purple-700 bg-purple-100 border border-purple-200">
+                                                                            Opening Job
+                                                                        </span>
+                                                                    )}
+                                                                </div>
                                                             </td>
                                                             <td className="px-3 py-3 text-sm text-slate-700 border-b border-slate-100">{t.technician_name ?? "—"}</td>
                                                             <td className="px-3 py-3 text-sm text-right tabular-nums font-semibold text-emerald-700 border-b border-slate-100">{fmtAmount(t.amount)}</td>

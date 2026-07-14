@@ -23,15 +23,16 @@ import { apolloClient } from "@/lib/apollo-client";
 import { encodeObj, graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectCurrentUser, selectDbName } from "@/features/auth/store/auth-slice";
-import { selectCurrentBranch, selectSchema } from "@/store/context-slice";
+import { selectAvailableDivisions, selectCurrentBranch, selectDefaultDivisionId, selectSchema } from "@/store/context-slice";
 import type { JobDetailType, JobControlRow, JobLookupRow, ModelRow, TechnicianRow } from "@/features/client/types/job";
 import type { CustomerTypeOption, StateOption } from "@/features/client/types/customer";
 import type { BrandOption, ProductOption } from "@/features/client/types/model";
 import type { DocumentSequenceRow } from "@/features/client/types/sales";
 
 import { JobTypeBadge, StatusBadge } from "../job-badges";
+import { STATUS_FLAGS } from "../job-pipeline/status-transitions";
 import { OpeningJobForm } from "./opening-job-form";
-import { openingJobFormSchema, type OpeningJobFormValues, getOpeningJobDefaultValues, normalizeJobNo } from "./opening-job-schema";
+import { openingJobFormSchema, type OpeningJobFormValues, getOpeningJobDefaultValues } from "./opening-job-schema";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -48,10 +49,12 @@ const tdClass = "p-3 text-sm text-(--cl-text) border-b border-(--cl-border)";
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export const OpeningJobSection = () => {
-    const dbName       = useAppSelector(selectDbName);
-    const schema       = useAppSelector(selectSchema);
-    const globalBranch = useAppSelector(selectCurrentBranch);
-    const branchId     = globalBranch?.id ?? null;
+    const dbName            = useAppSelector(selectDbName);
+    const schema            = useAppSelector(selectSchema);
+    const globalBranch      = useAppSelector(selectCurrentBranch);
+    const branchId          = globalBranch?.id ?? null;
+    const availableDivisions = useAppSelector(selectAvailableDivisions);
+    const defaultDivisionId  = useAppSelector(selectDefaultDivisionId);
 
     // Filters
     const [search,   setSearch]   = useState("");
@@ -87,7 +90,7 @@ export const OpeningJobSection = () => {
     const [editJob, setEditJob] = useState<JobDetailType | null>(null);
 
     const form = useForm<OpeningJobFormValues>({
-        defaultValues: getOpeningJobDefaultValues(),
+        defaultValues: getOpeningJobDefaultValues(defaultDivisionId),
         mode:          "onChange",
         resolver:      zodResolver(openingJobFormSchema) as any,
     });
@@ -290,16 +293,16 @@ export const OpeningJobSection = () => {
             toast.error(MESSAGES.ERROR_DOC_SEQ_JOB_NOT_CONFIGURED);
             return;
         }
-        const normalizedJobNo = normalizeJobNo(values.job_no);
-        const isWarranty = jobTypes.find(t => t.id === values.job_type_id)?.code === "UNDER_WARRANTY";
+        const statusFlags = STATUS_FLAGS[values.job_status_id] ?? { is_closed: false, is_final: false };
         try {
             if (editJob) {
                 const payload = graphQlUtils.buildGenericUpdateValue({
                     tableName: "job",
                     xData: {
                         id:                       editJob.id,
-                        job_no:                   normalizedJobNo,
+                        alternate_job_no:         values.alternate_job_no.trim(),
                         is_opening_job:           true,
+                        division_id:              values.division_id ?? defaultDivisionId,
                         job_date:                 values.job_date,
                         purchase_date:            values.purchase_date?.trim() || null,
                         customer_contact_id:      values.customer_id,
@@ -314,10 +317,9 @@ export const OpeningJobSection = () => {
                         problem_reported:         values.problem_reported.trim(),
                         diagnosis:                values.diagnosis?.trim() || null,
                         work_done:                values.work_done?.trim() || null,
-                        amount:                   values.amount !== "" ? Number(values.amount) : null,
-                        delivery_date:            values.delivery_date || null,
-                        is_closed:                values.is_closed ?? false,
-                        is_final:                 values.is_final ?? false,
+                        amount:                   values.amount !== "" ? Number(values.amount) : 0,
+                        is_closed:                statusFlags.is_closed,
+                        is_final:                 statusFlags.is_final,
                         warranty_card_no:         values.warranty_card_no?.trim() || null,
                         remarks:                  values.remarks?.trim() || null,
                     },
@@ -330,12 +332,11 @@ export const OpeningJobSection = () => {
             } else {
                 const sqlObject = {
                     tableName:         "job",
-                    doc_sequence_id:   null,
-                    doc_sequence_next: null,
                     xData: {
                         branch_id:                branchId,
-                        job_no:                   normalizedJobNo,
+                        alternate_job_no:         values.alternate_job_no.trim(),
                         is_opening_job:           true,
+                        division_id:              values.division_id ?? defaultDivisionId,
                         job_date:                 values.job_date,
                         purchase_date:            values.purchase_date?.trim() || null,
                         customer_contact_id:      values.customer_id,
@@ -350,11 +351,9 @@ export const OpeningJobSection = () => {
                         problem_reported:         values.problem_reported.trim(),
                         diagnosis:                values.diagnosis?.trim() || null,
                         work_done:                values.work_done?.trim() || null,
-                        amount:                   values.amount !== "" ? Number(values.amount) : null,
-                        delivery_date:            values.delivery_date || null,
-                        is_closed:                values.is_closed ?? false,
-                        is_final:                 values.is_final ?? false,
-                        is_warranty:              isWarranty,
+                        amount:                   values.amount !== "" ? Number(values.amount) : 0,
+                        is_closed:                statusFlags.is_closed,
+                        is_final:                 statusFlags.is_final,
                         warranty_card_no:         values.warranty_card_no?.trim() || null,
                         remarks:                  values.remarks?.trim() || null,
                         performed_by_user_id:     currentUser?.id ?? null,
@@ -367,7 +366,7 @@ export const OpeningJobSection = () => {
                 });
                 toast.success(MESSAGES.SUCCESS_OPENING_JOB_CREATED);
             }
-            form.reset(getOpeningJobDefaultValues());
+            form.reset(getOpeningJobDefaultValues(defaultDivisionId));
             if (editJob) {
                 setEditJob(null);
                 setMode("view");
@@ -425,7 +424,7 @@ export const OpeningJobSection = () => {
                         className="h-8 gap-1.5 px-3 text-xs font-extrabold uppercase tracking-widest text-(--cl-text)"
                         disabled={form.formState.isSubmitting}
                         variant="ghost"
-                        onClick={() => { setEditJob(null); form.reset(getOpeningJobDefaultValues()); }}
+                        onClick={() => { setEditJob(null); form.reset(getOpeningJobDefaultValues(defaultDivisionId)); }}
                     >
                         <RefreshCw className={`h-3.5 w-3.5 ${form.formState.isSubmitting ? "animate-spin" : ""}`} />
                         Reset
@@ -448,6 +447,7 @@ export const OpeningJobSection = () => {
                             branchId={branchId}
                             brands={brands}
                             customerTypes={customerTypes}
+                            divisions={availableDivisions}
                             editJob={editJob}
                             jobStatuses={jobStatuses}
                             jobTypes={jobTypes}
@@ -469,7 +469,7 @@ export const OpeningJobSection = () => {
                             <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-(--cl-text-muted)" />
                             <Input
                                 className="h-8 border-(--cl-border) bg-(--cl-surface) pl-8 text-xs"
-                                placeholder="Job no, customer or mobile…"
+                                placeholder="Job no, alt job no, customer or mobile…"
                                 value={search}
                                 onChange={e => handleSearchChange(e.target.value)}
                             />
@@ -554,6 +554,9 @@ export const OpeningJobSection = () => {
                                                     {job.job_no}
                                                     {job.is_closed && (
                                                         <span className="ml-1.5 text-[10px] font-bold text-emerald-600 bg-emerald-100 dark:bg-emerald-950/40 rounded px-1 py-0.5">CLOSED</span>
+                                                    )}
+                                                    {job.alternate_job_no && (
+                                                        <div className="font-mono text-[10px] font-semibold text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/40 rounded px-1.5 py-0.5 w-fit">Alt: {job.alternate_job_no}</div>
                                                     )}
                                                     {job.purchase_date && (
                                                         <div className="text-[11px] font-semibold text-(--cl-text-muted)">PUR: {job.purchase_date}</div>

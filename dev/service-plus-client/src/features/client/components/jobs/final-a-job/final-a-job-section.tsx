@@ -805,7 +805,7 @@ export const FinalAJobSection = ({ onBack, initialTab }: FinalAJobSectionProps =
     }
 
     // ── Save final ──────────────────────────────────────────────────────────
-    async function handleSaveFinal() {
+    async function handleSaveFinal(force = false) {
         if (!selectedJob || !dbName || !schema || !branchId) return;
 
         const newParts = partLines.filter(l => !l.id && l.part_id && l.qty > 0);
@@ -917,17 +917,19 @@ export const FinalAJobSection = ({ onBack, initialTab }: FinalAJobSectionProps =
             });
 
             const backCalcNum = parseFloat(backCalcTarget);
+            const hasTarget = backCalcTarget !== "" && !isNaN(backCalcNum) && backCalcNum > 0;
             const computedTotal = partLines.reduce((s, l) => s + (parseFloat(l.sale_pr_gst) || 0) * l.qty, 0)
                 + chargeLines.reduce((s, c) => s + (parseFloat(c.sale_pr_gst) || 0) * (parseFloat(c.qty) || 1), 0);
-            const amount = isWarrantyJob
-                ? 0
-                : ((backCalcTarget !== "" && !isNaN(backCalcNum) && backCalcNum > 0) ? backCalcNum : computedTotal);
+            // The job is always saved with the true achieved line total — not the
+            // aspirational Back Calculate target, which may be unreachable (e.g. part
+            // selling prices are floored at cost and can't be discounted further).
+            const amount = isWarrantyJob ? 0 : computedTotal;
 
-            if (!isWarrantyJob) {
-                const diff = Math.abs(amount - computedTotal);
+            if (!isWarrantyJob && !force && hasTarget) {
+                const diff = Math.abs(backCalcNum - computedTotal);
                 if (diff > 0.5) {
                     setDiffAlertMsg(
-                        `Job total (₹${amount.toFixed(2)}) differs from the calculated line total (₹${computedTotal.toFixed(2)}) by ₹${diff.toFixed(2)}. Maximum allowed difference is ₹0.50. Please adjust line amounts or use Back Calculate.`
+                        `Your target amount (₹${backCalcNum.toFixed(2)}) differs from the achievable line total (₹${computedTotal.toFixed(2)}) by ₹${diff.toFixed(2)}. This usually happens because part selling prices can't be discounted below their cost price. Saving will use the achievable total of ₹${computedTotal.toFixed(2)}.`
                     );
                     setSubmitting(false);
                     return;
@@ -1019,11 +1021,17 @@ export const FinalAJobSection = ({ onBack, initialTab }: FinalAJobSectionProps =
             <Dialog open={diffAlertMsg !== null} onOpenChange={open => { if (!open) setDiffAlertMsg(null); }}>
                 <DialogContent aria-describedby={undefined} className="sm:max-w-md !bg-white text-(--cl-text)">
                     <DialogHeader>
-                        <DialogTitle className="text-amber-600">Amount Difference Too Large</DialogTitle>
+                        <DialogTitle className="text-amber-600">Target Amount Not Fully Achievable</DialogTitle>
                     </DialogHeader>
                     <p className="text-sm text-(--cl-text) leading-relaxed">{diffAlertMsg}</p>
                     <DialogFooter>
-                        <Button className="cursor-pointer" onClick={() => setDiffAlertMsg(null)}>OK</Button>
+                        <Button className="cursor-pointer" variant="outline" onClick={() => setDiffAlertMsg(null)}>Cancel</Button>
+                        <Button
+                            className="cursor-pointer bg-amber-600 hover:bg-amber-700 text-white"
+                            onClick={() => { setDiffAlertMsg(null); void handleSaveFinal(true); }}
+                        >
+                            Save Anyway
+                        </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

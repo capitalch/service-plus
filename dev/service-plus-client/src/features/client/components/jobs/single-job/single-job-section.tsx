@@ -587,7 +587,7 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
                             <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-(--cl-text-muted)" />
                             <Input
                                 className="h-8 border-(--cl-border) bg-(--cl-surface) pl-8 text-xs"
-                                placeholder="Job no, customer, mobile, model, brand, sl no"
+                                placeholder="Job no, alt job no, customer, mobile, model, brand, sl no"
                                 value={search}
                                 onChange={e => handleSearchChange(e.target.value)}
                             />
@@ -689,6 +689,9 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
                                                                 <span className="ml-1.5 text-[10px] font-bold text-emerald-600 bg-emerald-100 dark:bg-emerald-950/40 rounded px-1 py-0.5">CLOSED</span>
                                                             )}
                                                         </div>
+                                                        {job.alternate_job_no && (
+                                                            <span className="font-mono text-[10px] font-semibold text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/40 rounded px-1.5 py-0.5 w-fit">Alt: {job.alternate_job_no}</span>
+                                                        )}
                                                         {job.batch_no && (
                                                             <span className="text-[9px] font-bold text-violet-600 dark:text-violet-400 w-fit bg-violet-50 dark:bg-violet-950/40 rounded px-1 py-0.5">Batch #{job.batch_no}</span>
                                                         )}
@@ -711,7 +714,7 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
                                                     <div className="flex flex-col gap-0.5">
                                                         <span>{job.customer_name ?? "—"}</span>
                                                         {job.customer_gstin && (
-                                                            <span className="font-mono text-[10px] text-(--cl-text-muted)">GSTIN: {job.customer_gstin}</span>
+                                                            <span className="font-mono text-[10px] font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 rounded px-1.5 py-0.5 w-fit">GSTIN: {job.customer_gstin}</span>
                                                         )}
                                                     </div>
                                                 </td>
@@ -721,7 +724,12 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
                                                     <JobTypeBadge code={job.job_type_code} name={job.job_type_name} />
                                                 </td>
                                                 <td className={tdClass}>
-                                                    <StatusBadge code={job.job_status_code} name={job.job_status_name} />
+                                                    <div className="flex flex-col items-start gap-1">
+                                                        <StatusBadge code={job.job_status_code} name={job.job_status_name} />
+                                                        {job.is_final && !job.is_closed && (
+                                                            <span className="text-[10px] font-bold rounded px-1 py-0.5 text-indigo-600 dark:text-indigo-300 bg-indigo-100 dark:bg-indigo-950/40">FINAL</span>
+                                                        )}
+                                                    </div>
                                                 </td>
                                                 <td className={tdClass}>{job.technician_name ?? "—"}</td>
                                                 <td className={`${tdClass} text-right`}>
@@ -743,12 +751,7 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
                                                                     title={job.is_final ? "Job is finalized — edit not allowed" : undefined}
                                                                     onClick={() => {
                                                                         if (job.is_final) return;
-                                                                        if (job.batch_no && onNavigateToBatchEdit) {
-                                                                            onNavigateToBatchEdit(job.batch_no);
-                                                                        } else {
-                                                                            setEditJob(job as unknown as JobDetailType);
-                                                                            setMode("new");
-                                                                        }
+                                                                        handleEditJob(job);
                                                                     }}
                                                                 >
                                                                     <Pencil className="h-4 w-4" />

@@ -613,7 +613,7 @@ export const BatchJobSection = ({ initialEditBatchNo, onEditBatchNoApplied, onRe
                     <div className="flex flex-wrap items-center gap-2 px-4 py-2 bg-(--cl-surface-2)/30">
                         <div className="relative flex-1 sm:max-w-xs">
                             <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-(--cl-text-muted)" />
-                            <Input className="h-8 border-(--cl-border) bg-white pl-8 text-xs" placeholder="Batch no, customer or mobile…" value={search} onChange={e => handleSearchChange(e.target.value)} />
+                            <Input className="h-8 border-(--cl-border) bg-white pl-8 text-xs" placeholder="Batch no, alt job no, customer or mobile…" value={search} onChange={e => handleSearchChange(e.target.value)} />
                             {search && (
                                 <button
                                     className="absolute right-2.5 top-1/2 flex h-4 w-4 -translate-y-1/2 items-center justify-center rounded-full bg-(--cl-text-muted) text-(--cl-surface) hover:bg-(--cl-text) focus:outline-none"
@@ -955,6 +955,9 @@ function BatchGroupRow({ availableDivisions, batch, onEdit, onView, onPrint, onD
                                     <span className="ml-1.5 text-[9px] font-bold text-emerald-600 bg-emerald-100 dark:bg-emerald-950/40 rounded px-1 py-0.5">CLOSED</span>
                                 )}
                             </div>
+                            {job.alternate_job_no && (
+                                <span className="font-mono text-[10px] font-semibold text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/40 rounded px-1.5 py-0.5 w-fit">Alt: {job.alternate_job_no}</span>
+                            )}
                             {job.purchase_date && (
                                 <span className="text-[11px] font-semibold text-(--cl-text-muted) w-fit">PUR: {job.purchase_date}</span>
                             )}

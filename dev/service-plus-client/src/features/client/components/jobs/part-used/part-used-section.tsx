@@ -341,7 +341,7 @@ export const PartUsedSection = () => {
                     <div className="flex flex-wrap items-center gap-2 px-4 py-2 bg-(--cl-surface-2)/30">
                         <div className="relative flex-1 sm:max-w-xs">
                             <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-(--cl-text-muted)" />
-                            <Input className="h-8 border-(--cl-border) bg-white pl-8 text-xs" placeholder="Job no, part code or part name…" value={search} onChange={e => handleSearchChange(e.target.value)} />
+                            <Input className="h-8 border-(--cl-border) bg-white pl-8 text-xs" placeholder="Job no, alt job no, part code or part name…" value={search} onChange={e => handleSearchChange(e.target.value)} />
                             {search && (
                                 <button
                                     className="absolute right-2.5 top-1/2 flex h-4 w-4 -translate-y-1/2 items-center justify-center rounded-full bg-(--cl-text-muted) text-(--cl-surface) hover:bg-(--cl-text) focus:outline-none"
@@ -408,6 +408,9 @@ export const PartUsedSection = () => {
                                                         {row.isFirstInGroup ? (
                                                             <div className="flex flex-col gap-0.5">
                                                                 <span className="font-mono font-bold text-(--cl-accent)">{row.job_no}</span>
+                                                                {row.alternate_job_no && (
+                                                                    <span className="font-mono text-[10px] font-semibold text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/40 rounded px-1.5 py-0.5 w-fit">Alt: {row.alternate_job_no}</span>
+                                                                )}
                                                                 <JobTypeBadge code={row.job_type_code} name={row.job_type_name} className="w-fit" />
                                                                 <div className="flex items-center gap-1 flex-wrap">
                                                                     <StatusBadge code={row.job_status_code} name={row.job_status_name} />

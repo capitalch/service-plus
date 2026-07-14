@@ -16,9 +16,10 @@ import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
-import { selectSchema } from "@/store/context-slice";
+import { selectDefaultDivisionId, selectSchema } from "@/store/context-slice";
 import type { CustomerSearchRow } from "@/features/client/types/sales";
 import type { JobDetailType, JobLookupRow, ModelRow, TechnicianRow } from "@/features/client/types/job";
+import type { DivisionContextType } from "@/features/client/types/division";
 import { CustomerInput } from "@/features/client/components/shared/customer-select";
 import { SearchableCombobox } from "@/components/ui/searchable-combobox";
 import { AddModelDialog } from "@/features/client/components/shared/model";
@@ -26,6 +27,7 @@ import { Button } from "@/components/ui/button";
 import type { CustomerTypeOption, StateOption } from "@/features/client/types/customer";
 import type { BrandOption, ProductOption } from "@/features/client/types/model";
 import { type OpeningJobFormValues, getOpeningJobDefaultValues } from "./opening-job-schema";
+import { STATUS_FLAGS } from "../job-pipeline/status-transitions";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -33,6 +35,7 @@ type GenericQueryData<T> = { genericQuery: T[] | null };
 
 type Props = {
     branchId:          number | null;
+    divisions:         DivisionContextType[];
     jobStatuses:       JobLookupRow[];
     jobTypes:          JobLookupRow[];
     receiveMannners:   JobLookupRow[];
@@ -52,11 +55,12 @@ const labelCls = "text-xs font-extrabold text-(--cl-text) uppercase tracking-wid
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function OpeningJobForm({
-    branchId, jobStatuses, jobTypes, receiveMannners, receiveConditions, technicians, models, brands, products,
+    branchId, divisions, jobStatuses, jobTypes, receiveMannners, receiveConditions, technicians, models, brands, products,
     customerTypes, masterStates, editJob, onRefreshModels,
 }: Props) {
     const dbName = useAppSelector(selectDbName);
     const schema = useAppSelector(selectSchema);
+    const defaultDivisionId = useAppSelector(selectDefaultDivisionId);
 
     const [showAddModel, setShowAddModel]       = useState(false);
     const [customerAddress, setCustomerAddress] = useState<string>("");
@@ -86,10 +90,11 @@ export function OpeningJobForm({
                 }),
             },
         }).then(res => {
-            const d = res.data?.genericQuery?.[0] as (JobDetailType & { is_final?: boolean }) | undefined;
+            const d = res.data?.genericQuery?.[0] as JobDetailType | undefined;
             if (!d) return;
             form.reset({
-                job_no:               d.job_no,
+                alternate_job_no:     d.alternate_job_no ?? "",
+                division_id:          d.division_id ?? defaultDivisionId,
                 customer_id:          d.customer_contact_id ?? (undefined as unknown as number),
                 customer_name:        d.customer_name ?? d.mobile ?? "",
                 mobile:               d.mobile ?? "",
@@ -98,7 +103,7 @@ export function OpeningJobForm({
                 job_type_id:          d.job_type_id ?? (undefined as unknown as number),
                 receive_manner_id:    d.job_receive_manner_id ?? (undefined as unknown as number),
                 receive_condition_id: d.job_receive_condition_id ?? null,
-                model_id:             d.product_brand_model_id ?? null,
+                model_id:             d.product_brand_model_id ?? (undefined as unknown as number),
                 serial_no:            d.serial_no ?? "",
                 qty:             d.qty,
                 problem_reported:     d.problem_reported,
@@ -108,9 +113,6 @@ export function OpeningJobForm({
                 diagnosis:            d.diagnosis ?? "",
                 work_done:            d.work_done ?? "",
                 amount:               d.amount != null ? String(d.amount) : "",
-                delivery_date:        d.delivery_date ?? "",
-                is_closed:            d.is_closed,
-                is_final:             d.is_final ?? false,
                 remarks:              d.remarks ?? "",
             });
         }).catch(() => toast.error(MESSAGES.ERROR_OPENING_JOB_LOAD_FAILED));
@@ -143,16 +145,46 @@ export function OpeningJobForm({
                     <Card className="border-(--cl-border) shadow-md bg-(--cl-surface) !overflow-visible">
                         <CardContent className="pt-2 grid grid-cols-1 md:grid-cols-6 lg:grid-cols-12 gap-x-3 gap-y-3 !overflow-visible">
 
-                            {/* Job No */}
+                            {/* Division selector — only shown when multiple divisions exist */}
+                            {divisions.length > 1 && (
+                                <div className="space-y-1.5 md:col-span-6 lg:col-span-6">
+                                    <Label className={labelCls}>
+                                        Division <span className="text-red-500 ml-0.5">*</span>
+                                    </Label>
+                                    <select
+                                        className={`w-full h-9 cursor-pointer rounded-md border text-sm px-2 bg-(--cl-surface-2) text-(--cl-text) ${!watch("division_id") ? "border-red-400" : "border-(--cl-border)"}`}
+                                        value={watch("division_id") ?? ""}
+                                        onChange={e => setValue("division_id", e.target.value ? Number(e.target.value) : (undefined as unknown as number), { shouldValidate: true })}
+                                    >
+                                        <option value="">Select Division…</option>
+                                        {divisions.map(d => (
+                                            <option key={d.id} value={d.id}>{d.name}{d.gstin ? " (GST)" : " (Non-GST)"}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
+
+                            {/* System Job No — server auto-generated, read-only */}
+                            <div className="space-y-1.5 md:col-span-3 lg:col-span-3">
+                                <Label className={labelCls}>System Job No</Label>
+                                <Input
+                                    readOnly
+                                    className="bg-(--cl-surface-2) font-mono text-(--cl-accent) font-bold cursor-not-allowed opacity-80"
+                                    value={editJob?.job_no ?? "AUTO"}
+                                />
+                            </div>
+
+                            {/* Job No — user-entered legacy/reference number, saved as alternate_job_no */}
                             <div className="space-y-1.5 md:col-span-3 lg:col-span-3">
                                 <Label className={labelCls}>
                                     Job No <span className="text-red-500 ml-0.5">*</span>
                                 </Label>
                                 <Input
-                                    className={`bg-(--cl-surface-2) font-mono ${errors.job_no ? "border-red-400" : "border-(--cl-border)"}`}
-                                    placeholder="e.g. 001 or Z-001"
-                                    {...register("job_no")}
+                                    className={`bg-(--cl-surface-2) font-mono ${errors.alternate_job_no ? "border-red-400" : "border-(--cl-border)"}`}
+                                    placeholder="Enter the job number…"
+                                    {...register("alternate_job_no")}
                                 />
+                                {errors.alternate_job_no && <p className="mt-1 text-xs text-red-500">{errors.alternate_job_no.message}</p>}
                             </div>
 
                             {/* Job Date */}
@@ -253,14 +285,15 @@ export function OpeningJobForm({
                                 <div className="flex items-end gap-2">
                                     <div className="flex-1">
                                         <SearchableCombobox<ModelRow>
-                                            label="Product / Model"
+                                            label={<>Product / Model <span className="text-red-500 ml-0.5">*</span></>}
                                             placeholder="Search by brand, product or model…"
                                             items={models.filter(m => m.is_active)}
                                             selectedValue={watch("model_id")?.toString() ?? ""}
+                                            isError={!!errors.model_id}
                                             getDisplayValue={m => `${m.brand_name} — ${m.product_name} — ${m.model_name}`}
                                             getFilterKey={m => `${m.brand_name} ${m.product_name} ${m.model_name}`}
                                             getIdentifier={m => m.id.toString()}
-                                            onSelect={m => setValue("model_id", m ? m.id : null, { shouldValidate: false })}
+                                            onSelect={m => setValue("model_id", m ? m.id : (undefined as unknown as number), { shouldValidate: true })}
                                             renderSelectedDisplay={m => (
                                                 <div className="flex flex-col justify-center gap-px">
                                                     <span className="text-xs font-semibold leading-tight text-(--cl-text) truncate">{m.brand_name}</span>
@@ -285,6 +318,7 @@ export function OpeningJobForm({
                                         <Plus className="h-4 w-4" />
                                     </Button>
                                 </div>
+                                {errors.model_id && <p className="mt-1 text-xs text-red-500">{errors.model_id.message}</p>}
                             </div>
 
                             {/* Serial No */}
@@ -307,7 +341,7 @@ export function OpeningJobForm({
                             {/* Problem Reported */}
                             <div className="space-y-1.5 md:col-span-6 lg:col-span-6">
                                 <Label className={labelCls}>
-                                    Problem Reported <span className="text-red-500 ml-0.5">*</span>
+                                    Problem Reported
                                 </Label>
                                 <Textarea
                                     rows={3}
@@ -350,9 +384,11 @@ export function OpeningJobForm({
                                     onChange={e => setValue("job_status_id", e.target.value ? Number(e.target.value) : (undefined as unknown as number), { shouldValidate: true })}
                                 >
                                     <option value="">Select…</option>
-                                    {jobStatuses.filter(s => s.is_active).map(s => (
-                                        <option key={s.id} value={s.id}>{s.name}</option>
-                                    ))}
+                                    {jobStatuses
+                                        .filter(s => s.is_active && s.code !== "DELIVERED_OK" && s.code !== "DELIVERED_NOT_OK")
+                                        .map(s => (
+                                            <option key={s.id} value={s.id}>{s.name}</option>
+                                        ))}
                                 </select>
                             </div>
 
@@ -377,12 +413,6 @@ export function OpeningJobForm({
                                 <Input className="bg-(--cl-surface-2)" min={0} placeholder="Optional…" step="0.01" type="number" {...register("amount")} />
                             </div>
 
-                            {/* Delivery Date */}
-                            <div className="space-y-1.5 md:col-span-3 lg:col-span-3">
-                                <Label className={labelCls}>Delivery Date</Label>
-                                <Input className="bg-(--cl-surface-2)" type="date" {...register("delivery_date")} />
-                            </div>
-
                             {/* Diagnosis */}
                             <div className="space-y-1.5 md:col-span-6 lg:col-span-6">
                                 <Label className={labelCls}>Diagnosis</Label>
@@ -401,17 +431,26 @@ export function OpeningJobForm({
                                 <Textarea rows={2} className="bg-(--cl-surface-2) resize-none border-(--cl-border)" placeholder="Optional…" {...register("remarks")} />
                             </div>
 
-                            {/* Toggles: Is Closed / Is Final */}
-                            <div className="flex flex-wrap items-center gap-6 md:col-span-12 lg:col-span-12">
-                                <label className="flex items-center gap-2 cursor-pointer select-none">
-                                    <input className="h-4 w-4 accent-(--cl-accent)" type="checkbox" {...register("is_closed")} />
-                                    <span className={labelCls}>Is Closed</span>
-                                </label>
-                                <label className="flex items-center gap-2 cursor-pointer select-none">
-                                    <input className="h-4 w-4 accent-(--cl-accent)" type="checkbox" {...register("is_final")} />
-                                    <span className={labelCls}>Is Final</span>
-                                </label>
-                            </div>
+                            {/* Closed / Final — derived automatically from Job Status */}
+                            {(() => {
+                                const flags = STATUS_FLAGS[watch("job_status_id")];
+                                if (!flags) return null;
+                                return (
+                                    <div className="flex flex-wrap items-center gap-2 md:col-span-12 lg:col-span-12">
+                                        <span className={`text-[10px] font-bold rounded px-1.5 py-0.5 ${flags.is_final
+                                            ? "text-indigo-600 dark:text-indigo-300 bg-indigo-100 dark:bg-indigo-950/40"
+                                            : "text-(--cl-text-muted) bg-(--cl-surface-2)"}`}>
+                                            {flags.is_final ? "FINAL" : "Not Final"}
+                                        </span>
+                                        <span className={`text-[10px] font-bold rounded px-1.5 py-0.5 ${flags.is_closed
+                                            ? "text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-950/40"
+                                            : "text-(--cl-text-muted) bg-(--cl-surface-2)"}`}>
+                                            {flags.is_closed ? "CLOSED" : "Open"}
+                                        </span>
+                                        <span className="text-[10px] text-(--cl-text-muted)">(set automatically from Job Status)</span>
+                                    </div>
+                                );
+                            })()}
 
                         </CardContent>
                     </Card>

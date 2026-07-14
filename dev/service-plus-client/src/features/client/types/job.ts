@@ -2,6 +2,7 @@ export type JobControlRow = {
     id:                    number;
     job_no:                string;
     alternate_job_no?:     string | null;
+    is_opening_job?:       boolean;
     purchase_date?:        string | null;
     job_date:              string;
     customer_name:         string | null;
@@ -146,6 +147,7 @@ export type OpenJobRow = {
     id:                  number;
     job_no:              string;
     alternate_job_no:    string | null;
+    is_opening_job:      boolean;
     purchase_date:       string | null;
     job_date:            string;
     job_status_id:       number;
@@ -171,6 +173,7 @@ export type OpenJobRow = {
     job_receive_manner_name:     string | null;
     job_receive_condition_name:  string | null;
     division_id:                 number | null;
+    invoice_is_posted:           boolean | null;
 };
 
 export type JobBoardStatusCount = {
@@ -194,4 +197,5 @@ export type JobTransactionRow = {
     performed_at:            string;
     previous_transaction_id: number | null;
     transaction_date:        string | null;
+    is_opening_job:          boolean;
 };

@@ -421,7 +421,6 @@ export const MESSAGES = {
   ERROR_JOB_TYPE_REQUIRED:             'Please select a job type.',
   ERROR_JOB_RECEIVE_MANNER_REQUIRED:   'Please select a receive manner.',
   ERROR_JOB_MODEL_REQUIRED:            'Please select a product / model.',
-  ERROR_JOB_PROBLEM_REQUIRED:          'Problem reported is required.',
   SUCCESS_JOB_CREATED:                 'Job created successfully.',
   SUCCESS_JOB_UPDATED:                 'Job updated successfully.',
   SUCCESS_JOB_DELETED:                 'Job deleted successfully.',

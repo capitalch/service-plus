@@ -22,6 +22,7 @@ export type DeliveredJobRow = {
     id:               number;
     job_no:           string;
     alternate_job_no: string | null;
+    is_opening_job:   boolean;
     purchase_date:    string | null;
     job_date:         string;
     delivery_date:    string | null;
@@ -223,10 +224,13 @@ export const DeliveredJobsGrid = forwardRef<GridRetentionHandle, Props>(function
                                             <div className="flex flex-col gap-0.5">
                                                 <div className="font-mono font-semibold text-(--cl-accent)">
                                                     #{row.job_no}
+                                                    {row.is_opening_job && (
+                                                        <span className="ml-1.5 text-[10px] font-bold text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-950/40 rounded px-1 py-0.5">OPENING</span>
+                                                    )}
                                                 </div>
                                                 <span className="text-[10px] text-(--cl-text-muted)">Job: {row.job_date}</span>
                                                 {row.alternate_job_no && (
-                                                    <span className="text-[10px] text-(--cl-text-muted)">Alt: {row.alternate_job_no}</span>
+                                                    <span className="font-mono text-[10px] font-semibold text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/40 rounded px-1.5 py-0.5 w-fit">Alt: {row.alternate_job_no}</span>
                                                 )}
                                                 {row.purchase_date && (
                                                     <span className="text-[11px] font-semibold text-(--cl-text-muted)">PUR: {row.purchase_date}</span>
@@ -311,6 +315,9 @@ export const DeliveredJobsGrid = forwardRef<GridRetentionHandle, Props>(function
                                                 <DropdownMenuContent align="end" className="w-48 text-xs">
                                                     <DropdownMenuItem className="gap-2 text-xs text-sky-700 dark:text-sky-400 cursor-pointer" onClick={() => onViewJob(row.id)}>
                                                         <Eye className="h-3.5 w-3.5" /> View
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem className="gap-2 text-xs text-violet-700 dark:text-violet-400 cursor-pointer" onClick={() => onOpenAttach(row.id, row.job_no)}>
+                                                        <Paperclip className="h-3.5 w-3.5" /> Attach Files
                                                     </DropdownMenuItem>
                                                     <DropdownMenuItem className="gap-2 text-xs text-teal-700 dark:text-teal-400 cursor-pointer" onClick={() => onDeliveryNote(row)}>
                                                         <Truck className="h-3.5 w-3.5" /> Delivery Note

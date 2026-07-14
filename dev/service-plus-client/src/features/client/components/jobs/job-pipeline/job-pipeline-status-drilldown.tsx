@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import {
     ArrowLeft, ArrowRightLeft,
     ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon,
-    Eye, Loader2, Lock, Package, RefreshCcw, Search, Undo2, X,
+    Eye, Loader2, Lock, Package, Paperclip, RefreshCcw, Search, Undo2, X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
@@ -19,6 +19,7 @@ import { selectCurrentUser, selectDbName } from "@/features/auth/store/auth-slic
 import { apolloClient } from "@/lib/apollo-client";
 import { encodeObj, graphQlUtils } from "@/lib/graphql-utils";
 import { selectCurrentBranch, selectSchema, selectAvailableDivisions } from "@/store/context-slice";
+import { isGstDivision } from "@/features/client/types/division";
 import { useAppSelector } from "@/store/hooks";
 import { useDebounce } from "@/hooks/use-debounce";
 import type { JobBoardStatusCount, OpenJobRow, TechnicianRow } from "@/features/client/types/job";
@@ -66,6 +67,17 @@ const JOB_TYPE_ROW_COLORS: Record<string, string> = {
     UPGRADE: "bg-gray-50   dark:bg-gray-800/20",
     REFURBISH: "bg-gray-50   dark:bg-gray-800/20",
 };
+
+// Distinct color per batch (keyed by batch_no) so adjacent batches are visually
+// separable instead of sharing one continuous left border — matches Job Control.
+const BATCH_COLORS = [
+    { border: "border-l-violet-400 dark:border-l-violet-500",   badge: "text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-950/40" },
+    { border: "border-l-amber-400 dark:border-l-amber-500",     badge: "text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40" },
+    { border: "border-l-sky-400 dark:border-l-sky-500",         badge: "text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-950/40" },
+    { border: "border-l-teal-400 dark:border-l-teal-500",       badge: "text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/40" },
+    { border: "border-l-emerald-400 dark:border-l-emerald-500", badge: "text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40" },
+    { border: "border-l-fuchsia-400 dark:border-l-fuchsia-500", badge: "text-fuchsia-600 dark:text-fuchsia-400 bg-fuchsia-50 dark:bg-fuchsia-950/40" },
+];
 
 const thClass = "sticky top-0 z-20 text-xs font-semibold uppercase tracking-wide text-(--cl-text-muted) p-3 text-left border-b border-(--cl-border) bg-(--cl-surface-2)";
 const tdClass = "p-3 text-sm text-(--cl-text) border-b border-(--cl-border)";
@@ -313,8 +325,9 @@ export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Prop
                                     <th className={thClass}>Job No</th>
                                     <th className={thClass}>Customer</th>
                                     <th className={thClass}>Mobile</th>
-                                    <th className={thClass}>Device</th>
-                                    <th className={thClass}>Job type</th>
+                                    <th className={`${thClass} w-[10rem]`}>Device Details</th>
+                                    <th className={thClass}>Job Type</th>
+                                    <th className={thClass}>Status</th>
                                     <th className={`${thClass} text-right`}>Amount</th>
                                     <th className={`${thClass} sticky right-0 z-20 !bg-(--cl-surface-2)`}>Actions</th>
                                 </tr>
@@ -325,6 +338,11 @@ export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Prop
                                     const rowBg = JOB_TYPE_ROW_COLORS[row.job_type_code] ?? "";
                                     const isNoAction = NO_ACTION_CODES.has(row.job_status_code);
                                     const rowCanUndo = canUndo(row);
+                                    const batchColor   = row.batch_no != null ? BATCH_COLORS[row.batch_no % BATCH_COLORS.length] : null;
+                                    const isBatchStart = row.batch_no != null && (idx === 0 || rows[idx - 1].batch_no !== row.batch_no);
+                                    const batchClasses = batchColor
+                                        ? `border-l-2 ${batchColor.border}${isBatchStart ? " border-t-2 border-t-(--cl-text-muted)/40" : ""}`
+                                        : "";
                                     return (
                                         <motion.tr
                                             key={row.id}
@@ -333,7 +351,7 @@ export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Prop
                                                 selectedRowId === row.id
                                                     ? "bg-(--cl-accent)/40 hover:bg-(--cl-accent)/45"
                                                     : `hover:bg-(--cl-accent)/10 ${rowBg}`
-                                            }`}
+                                            } ${batchClasses}`}
                                             data-job-id={row.id}
                                             initial={{ opacity: 0 }}
                                             transition={{ delay: idx * 0.015, duration: 0.15 }}
@@ -355,35 +373,33 @@ export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Prop
                                             </td>
                                             <td className={tdClass}>
                                                 <div className="flex flex-col gap-0.5">
-                                                    <div className="flex flex-wrap items-center gap-1">
-                                                        <span className="font-mono font-semibold text-(--cl-accent)">#{row.job_no}</span>
-                                                        {row.alternate_job_no && (
-                                                            <span className="text-[10px] text-(--cl-text-muted)">Alt: {row.alternate_job_no}</span>
-                                                        )}
+                                                    <div className="font-mono font-semibold text-(--cl-accent)">
+                                                        #{row.job_no}
                                                         {row.is_closed && (
-                                                            <span className="rounded px-1 py-0.5 text-[10px] font-bold text-emerald-600 bg-emerald-100 dark:bg-emerald-950/40">CLOSED</span>
+                                                            <span className="ml-1.5 text-[10px] font-bold text-emerald-600 bg-emerald-100 dark:bg-emerald-950/40 rounded px-1 py-0.5">CLOSED</span>
                                                         )}
-                                                        {row.batch_no && (
-                                                            <span className="rounded px-1 py-0.5 text-[10px] font-medium bg-(--cl-accent)/10 text-(--cl-accent)">Batch #{row.batch_no}</span>
+                                                        {row.is_opening_job && (
+                                                            <span className="ml-1.5 text-[10px] font-bold text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-950/40 rounded px-1 py-0.5">OPENING</span>
                                                         )}
                                                     </div>
+                                                    {row.alternate_job_no && (
+                                                        <span className="font-mono text-[10px] font-semibold text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/40 rounded px-1.5 py-0.5 w-fit">Alt: {row.alternate_job_no}</span>
+                                                    )}
                                                     {row.purchase_date && (
                                                         <span className="text-[11px] font-semibold text-(--cl-text-muted)">PUR: {row.purchase_date}</span>
                                                     )}
-                                                    {(status.status_id === 0 || row.file_count > 0) && (
-                                                        <div className="flex flex-wrap items-center gap-1">
-                                                            {status.status_id === 0 && (
-                                                                <StatusBadge code={row.job_status_code} name={row.job_status_name} />
-                                                            )}
-                                                            {row.file_count > 0 && (
-                                                                <button
-                                                                    className="cursor-pointer rounded px-1 py-0.5 text-[10px] font-medium bg-amber-100 text-amber-700 hover:bg-amber-200 dark:bg-amber-950/40 dark:text-amber-400"
-                                                                    onClick={e => { e.stopPropagation(); setAttachJobId(row.id); setAttachJobNo(row.job_no); }}
-                                                                >
-                                                                    {row.file_count} file{row.file_count !== 1 ? "s" : ""}
-                                                                </button>
-                                                            )}
-                                                        </div>
+                                                    {row.batch_no != null && (
+                                                        <span className={`text-[10px] font-bold w-fit rounded px-1 py-0.5 ${batchColor?.badge}`}>Batch #{row.batch_no}</span>
+                                                    )}
+                                                    {row.file_count > 0 && (
+                                                        <button
+                                                            type="button"
+                                                            className="flex items-center gap-1 text-[10px] text-blue-600 dark:text-blue-400 font-medium hover:text-blue-700 dark:hover:text-blue-300 cursor-pointer bg-blue-50 dark:bg-blue-950/40 rounded px-1.5 py-0.5 w-fit border-0 transition-colors"
+                                                            onClick={e => { e.stopPropagation(); setSelectedRowId(row.id); setAttachJobId(row.id); setAttachJobNo(row.job_no); }}
+                                                        >
+                                                            <Paperclip className="h-2.5 w-2.5" />
+                                                            <span>{row.file_count} File{row.file_count !== 1 ? "s" : ""}</span>
+                                                        </button>
                                                     )}
                                                 </div>
                                             </td>
@@ -391,14 +407,41 @@ export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Prop
                                                 <div className="flex flex-col gap-0.5">
                                                     <span>{row.customer_name}</span>
                                                     {row.customer_gstin && (
-                                                        <span className="font-mono text-[10px] text-(--cl-text-muted)">GSTIN: {row.customer_gstin}</span>
+                                                        <span className="font-mono text-[10px] font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 rounded px-1.5 py-0.5 w-fit">GSTIN: {row.customer_gstin}</span>
                                                     )}
                                                 </div>
                                             </td>
                                             <td className={`${tdClass} font-mono text-xs`}>{row.mobile}</td>
-                                            <td className={`${tdClass} max-w-[180px] truncate text-xs`}>{row.device_details ?? "—"}</td>
-                                            <td className={`${tdClass} text-xs`}>
+                                            <td className={`${tdClass} text-xs`}>{row.device_details ?? "—"}</td>
+                                            <td className={tdClass}>
                                                 <JobTypeBadge code={row.job_type_code} name={row.job_type_name} />
+                                            </td>
+                                            <td className={tdClass}>
+                                                <div className="flex flex-col items-start gap-1">
+                                                    <StatusBadge code={row.job_status_code} name={row.job_status_name} />
+                                                    <div className="flex flex-wrap gap-1">
+                                                        {row.is_final && !row.is_closed && (
+                                                            <span className="text-[10px] font-bold rounded px-1 py-0.5 text-indigo-600 dark:text-indigo-300 bg-indigo-100 dark:bg-indigo-950/40">FINAL</span>
+                                                        )}
+                                                        {(() => {
+                                                            const gst = isGstDivision(divisions.find(d => d.id === row.division_id) ?? null);
+                                                            return (
+                                                                <span className={`text-[10px] font-bold rounded px-1 py-0.5 ${gst
+                                                                    ? "text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40"
+                                                                    : "text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40"}`}>
+                                                                    {gst ? "GST" : "Non-GST"}
+                                                                </span>
+                                                            );
+                                                        })()}
+                                                        {row.invoice_is_posted != null && (
+                                                            <span className={`text-[10px] font-bold rounded px-1 py-0.5 ${row.invoice_is_posted
+                                                                ? "text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40"
+                                                                : "text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40"}`}>
+                                                                {row.invoice_is_posted ? "Invoice: Posted" : "Invoice: Unposted"}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </div>
                                             </td>
                                             <td className={`${tdClass} text-right tabular-nums`}>
                                                 {row.amount != null ? `₹${Number(row.amount).toFixed(2)}` : "—"}

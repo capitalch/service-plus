@@ -574,7 +574,7 @@ export const JobControlSection = () => {
                         <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-(--cl-text-muted)" />
                         <Input
                             className="h-8 border-(--cl-border) bg-(--cl-surface) pl-8 text-[11px]"
-                            placeholder="Job no, customer, mobile, product, brand, model or serial…"
+                            placeholder="Job no, alt job no, customer, mobile, product, brand, model or serial…"
                             value={search}
                             onChange={e => handleSearchChange(e.target.value)}
                         />
@@ -729,9 +729,12 @@ export const JobControlSection = () => {
                                                     {job.is_closed && (
                                                         <span className="ml-1.5 text-[9px] font-bold text-emerald-600 bg-emerald-100 dark:bg-emerald-950/40 rounded px-1 py-0.5">CLOSED</span>
                                                     )}
+                                                    {job.is_opening_job && (
+                                                        <span className="ml-1.5 text-[9px] font-bold text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-950/40 rounded px-1 py-0.5">OPENING</span>
+                                                    )}
                                                 </div>
                                                 {job.alternate_job_no && (
-                                                    <span className="text-[9px] text-(--cl-text-muted)">Alt: {job.alternate_job_no}</span>
+                                                    <span className="font-mono text-[10px] font-semibold text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/40 rounded px-1.5 py-0.5 w-fit">Alt: {job.alternate_job_no}</span>
                                                 )}
                                                 {job.purchase_date && (
                                                     <span className="text-[11px] font-semibold text-(--cl-text-muted)">PUR: {job.purchase_date}</span>
@@ -755,7 +758,7 @@ export const JobControlSection = () => {
                                             <div className="flex flex-col gap-0.5">
                                                 <span>{job.customer_name ?? "—"}</span>
                                                 {job.customer_gstin && (
-                                                    <span className="font-mono text-[9px] text-(--cl-text-muted)">Gstin: {job.customer_gstin}</span>
+                                                    <span className="font-mono text-[10px] font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 rounded px-1.5 py-0.5 w-fit">GSTIN: {job.customer_gstin}</span>
                                                 )}
                                             </div>
                                         </td>
@@ -817,34 +820,34 @@ export const JobControlSection = () => {
                                                                 </DropdownMenuTrigger>
                                                                 <DropdownMenuContent align="end" className="min-w-[200px] bg-white dark:bg-zinc-950 border-(--cl-border) shadow-lg rounded-lg p-1">
                                                                     <DropdownMenuItem
-                                                                        className="flex items-center gap-2 px-2 py-1.5 text-[11px] rounded cursor-pointer text-sky-700 dark:text-sky-400 hover:bg-sky-50 dark:hover:bg-sky-950/40"
+                                                                        className="flex items-center gap-2 px-3 py-2.5 text-sm font-medium rounded-lg cursor-pointer text-sky-700 dark:text-sky-400 hover:bg-sky-50 dark:hover:bg-sky-950/40"
                                                                         onClick={() => setViewJobId(job.id)}
                                                                     >
                                                                         <Eye className="h-3.5 w-3.5 shrink-0" /> View
                                                                     </DropdownMenuItem>
                                                                     <DropdownMenuItem
-                                                                        className="flex items-center gap-2 px-2 py-1.5 text-[11px] rounded cursor-pointer text-teal-700 dark:text-teal-400 hover:bg-teal-50 dark:hover:bg-teal-950/40"
+                                                                        className="flex items-center gap-2 px-3 py-2.5 text-sm font-medium rounded-lg cursor-pointer text-teal-700 dark:text-teal-400 hover:bg-teal-50 dark:hover:bg-teal-950/40"
                                                                         onClick={() => void deliveredActions.handleDeliveryNote(job)}
                                                                     >
                                                                         <Truck className="h-3.5 w-3.5 shrink-0" /> Delivery Note
                                                                     </DropdownMenuItem>
                                                                     {job.invoice_is_posted !== null && (
                                                                         <DropdownMenuItem
-                                                                            className="flex items-center gap-2 px-2 py-1.5 text-[11px] rounded cursor-pointer text-indigo-700 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40"
+                                                                            className="flex items-center gap-2 px-3 py-2.5 text-sm font-medium rounded-lg cursor-pointer text-indigo-700 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40"
                                                                             onClick={() => void deliveredActions.handleInvoiceReceipts(job)}
                                                                         >
                                                                             <Printer className="h-3.5 w-3.5 shrink-0" /> Invoice + Receipts
                                                                         </DropdownMenuItem>
                                                                     )}
                                                                     <DropdownMenuItem
-                                                                        className="flex items-center gap-2 px-2 py-1.5 text-[11px] rounded cursor-pointer text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
+                                                                        className="flex items-center gap-2 px-3 py-2.5 text-sm font-medium rounded-lg cursor-pointer text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
                                                                         onClick={() => setPdfJobId(job.id)}
                                                                     >
-                                                                        <FileDown className="h-3.5 w-3.5 shrink-0" /> Print / Save as PDF
+                                                                        <FileDown className="h-3.5 w-3.5 shrink-0" /> Job Details PDF
                                                                     </DropdownMenuItem>
                                                                     <DropdownMenuSeparator className="bg-zinc-100 dark:bg-zinc-800 mx-1" />
                                                                     <DropdownMenuItem
-                                                                        className="flex items-center gap-2 px-2 py-1.5 text-[11px] rounded cursor-pointer text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                                        className="flex items-center gap-2 px-3 py-2.5 text-sm font-medium rounded-lg cursor-pointer text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40 disabled:opacity-50 disabled:cursor-not-allowed"
                                                                         disabled={job.invoice_is_posted === true}
                                                                         title={job.invoice_is_posted === true ? "Cannot undo: invoice is already posted" : undefined}
                                                                         onClick={() => deliveredActions.handleUndoDelivery(job)}
@@ -907,7 +910,7 @@ export const JobControlSection = () => {
                                                                         </DropdownMenuLabel>
                                                                         <DropdownMenuSeparator className="bg-zinc-100 dark:bg-zinc-800 mx-1" />
                                                                         {transitions.length === 0 ? (
-                                                                            <DropdownMenuItem disabled className="rounded-lg text-xs text-zinc-400 py-2.5 px-3 italic">
+                                                                            <DropdownMenuItem disabled className="rounded-lg text-sm text-zinc-400 py-2.5 px-3 italic">
                                                                                 No transitions available
                                                                             </DropdownMenuItem>
                                                                         ) : transitions.map(t => {
@@ -915,7 +918,7 @@ export const JobControlSection = () => {
                                                                             return (
                                                                                 <DropdownMenuItem
                                                                                     key={`${t.targetId}-${t.targetName}`}
-                                                                                    className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-xs font-medium cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-900 focus:bg-zinc-50 dark:focus:bg-zinc-900"
+                                                                                    className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-900 focus:bg-zinc-50 dark:focus:bg-zinc-900"
                                                                                     onClick={() => setPendingTran({ job, transition: t })}
                                                                                 >
                                                                                     <span className={`h-3 w-3 shrink-0 rounded-full ${dotBg} shadow-sm`} />
@@ -930,7 +933,7 @@ export const JobControlSection = () => {
                                                                     <>
                                                                         {!isNoAction && <DropdownMenuSeparator className="bg-zinc-100 dark:bg-zinc-800 mx-1" />}
                                                                         <DropdownMenuItem
-                                                                            className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-xs font-medium cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950/30"
+                                                                            className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950/30"
                                                                             onClick={() => setUndoPendingJob(job)}
                                                                         >
                                                                             <Undo2 className="h-3.5 w-3.5 shrink-0" />
@@ -942,7 +945,7 @@ export const JobControlSection = () => {
                                                                     <>
                                                                         <DropdownMenuSeparator className="bg-zinc-100 dark:bg-zinc-800 mx-1" />
                                                                         <DropdownMenuItem
-                                                                            className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-xs font-medium cursor-pointer text-violet-600 focus:text-violet-700 focus:bg-violet-50 dark:focus:bg-violet-950/30"
+                                                                            className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium cursor-pointer text-violet-600 focus:text-violet-700 focus:bg-violet-50 dark:focus:bg-violet-950/30"
                                                                             onClick={() => setChargesJob({
                                                                                 id:              job.id,
                                                                                 job_no:          job.job_no,
@@ -961,7 +964,7 @@ export const JobControlSection = () => {
                                                                     <>
                                                                         <DropdownMenuSeparator className="bg-zinc-100 dark:bg-zinc-800 mx-1" />
                                                                         <DropdownMenuItem
-                                                                            className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-xs font-medium cursor-pointer text-emerald-700 focus:text-emerald-700 focus:bg-emerald-50 dark:focus:bg-emerald-950/30"
+                                                                            className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium cursor-pointer text-emerald-700 focus:text-emerald-700 focus:bg-emerald-50 dark:focus:bg-emerald-950/30"
                                                                             onClick={() => {
                                                                                 pendingRestoreRef.current = true;
                                                                                 setFinalJobId(job.id);
@@ -976,7 +979,7 @@ export const JobControlSection = () => {
                                                                     <>
                                                                         <DropdownMenuSeparator className="bg-zinc-100 dark:bg-zinc-800 mx-1" />
                                                                         <DropdownMenuItem
-                                                                            className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-xs font-medium cursor-pointer text-orange-600 focus:text-orange-700 focus:bg-orange-50 dark:focus:bg-orange-950/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                                            className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium cursor-pointer text-orange-600 focus:text-orange-700 focus:bg-orange-50 dark:focus:bg-orange-950/30 disabled:opacity-50 disabled:cursor-not-allowed"
                                                                             disabled={job.invoice_is_posted === true}
                                                                             title={job.invoice_is_posted === true ? "Cannot revise a posted job" : undefined}
                                                                             onClick={() => {
@@ -988,7 +991,7 @@ export const JobControlSection = () => {
                                                                             Revise Final
                                                                         </DropdownMenuItem>
                                                                         <DropdownMenuItem
-                                                                            className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-xs font-medium cursor-pointer text-amber-600 focus:text-amber-700 focus:bg-amber-50 dark:focus:bg-amber-950/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                                            className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium cursor-pointer text-amber-600 focus:text-amber-700 focus:bg-amber-50 dark:focus:bg-amber-950/30 disabled:opacity-50 disabled:cursor-not-allowed"
                                                                             disabled={job.invoice_is_posted === true}
                                                                             title={job.invoice_is_posted === true ? "Cannot undo a posted job" : undefined}
                                                                             onClick={() => setUndoFinalPendingJob(job)}
@@ -1002,7 +1005,7 @@ export const JobControlSection = () => {
                                                                     <>
                                                                         <DropdownMenuSeparator className="bg-zinc-100 dark:bg-zinc-800 mx-1" />
                                                                         <DropdownMenuItem
-                                                                            className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-xs font-medium cursor-pointer text-blue-700 focus:text-blue-700 focus:bg-blue-50 dark:focus:bg-blue-950/30"
+                                                                            className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium cursor-pointer text-blue-700 focus:text-blue-700 focus:bg-blue-50 dark:focus:bg-blue-950/30"
                                                                             onClick={() => void handleOpenDelivery(job.id)}
                                                                         >
                                                                             <Truck className="h-3.5 w-3.5 shrink-0" />
@@ -1010,7 +1013,7 @@ export const JobControlSection = () => {
                                                                         </DropdownMenuItem>
                                                                         {Number(job.amount) > 0 && (
                                                                         <DropdownMenuItem
-                                                                            className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-xs font-medium cursor-pointer text-purple-700 focus:text-purple-700 focus:bg-purple-50 dark:focus:bg-purple-950/30"
+                                                                            className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium cursor-pointer text-purple-700 focus:text-purple-700 focus:bg-purple-50 dark:focus:bg-purple-950/30"
                                                                             onClick={() => setProformaJobId(job.id)}
                                                                         >
                                                                             <Receipt className="h-3.5 w-3.5 shrink-0" />
@@ -1018,7 +1021,7 @@ export const JobControlSection = () => {
                                                                         </DropdownMenuItem>
                                                                         )}
                                                                         <DropdownMenuItem
-                                                                            className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-xs font-medium cursor-pointer text-teal-700 focus:text-teal-700 focus:bg-teal-50 dark:focus:bg-teal-950/30"
+                                                                            className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium cursor-pointer text-teal-700 focus:text-teal-700 focus:bg-teal-50 dark:focus:bg-teal-950/30"
                                                                             disabled={chargesReadonlyLoading === job.id}
                                                                             onClick={() => void handleOpenChargesReadonly(job)}
                                                                         >
