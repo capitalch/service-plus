@@ -27,39 +27,87 @@ import { isValidGstin, normalizeGstin } from "@/lib/gstin";
 
 // ─── Back-calculate helpers (only used in this view) ─────────────────────────
 
+type FloorAllocItem = { key: string; curIncl: number; floorIncl: number };
+
+// Iteratively allocates `poolTarget` (a GST-inclusive amount) across `items`
+// proportionally to their current amounts. Any item whose proportional share
+// would fall at or below its floor is pinned there instead, and the shortfall
+// is redistributed proportionally among the remaining (not-yet-floored)
+// items — repeating until a fixed point (no new item pins) or every item is
+// pinned (section infeasible; caller carries the residual to the next phase).
+function allocateFloored(items: FloorAllocItem[], poolTarget: number): Map<string, number> {
+    const result = new Map<string, number>();
+    let pool = items;
+    let target = poolTarget;
+    while (pool.length > 0) {
+        const curSum = pool.reduce((s, i) => s + i.curIncl, 0);
+        const allocs = pool.map(i => curSum > 0 ? i.curIncl * target / curSum : target / pool.length);
+        const notPinned: FloorAllocItem[] = [];
+        let anyPinned = false;
+        pool.forEach((item, idx) => {
+            if (allocs[idx] <= item.floorIncl) {
+                result.set(item.key, item.floorIncl);
+                target -= item.floorIncl;
+                anyPinned = true;
+            } else {
+                notPinned.push(item);
+            }
+        });
+        if (!anyPinned) {
+            pool.forEach((item, idx) => result.set(item.key, allocs[idx]));
+            return result;
+        }
+        pool = notPinned;
+    }
+    return result;
+}
+
+// Picks the item to absorb final rounding residue: the last active item that
+// isn't pinned at its floor, falling back to the last active item overall.
+function pickResidualKey<T extends { _key: string }>(active: T[], pinned: Set<string>): string {
+    for (let i = active.length - 1; i >= 0; i--) {
+        if (!pinned.has(active[i]._key)) return active[i]._key;
+    }
+    return active[active.length - 1]._key;
+}
+
 function scaleCharges(
     allCharges: EditableChargeLine[],
     active: EditableChargeLine[],
-    curTotal: number,
     newTotal: number,
     isGst: boolean,
 ): EditableChargeLine[] {
-    const rowAmounts = active.map(c => {
+    const items: FloorAllocItem[] = active.map(c => {
         const sp = (parseFloat(c.selling_price) || 0) * (parseFloat(c.qty) || 1);
         const gst = isGst ? sp * (parseFloat(c.gst_rate) || 0) / 100 : 0;
-        return curTotal > 0 ? Math.max(0, (sp + gst) * newTotal / curTotal) : newTotal / active.length;
+        return { key: c._key, curIncl: sp + gst, floorIncl: 0 };
     });
-    const sumHead = rowAmounts.slice(0, -1).reduce((s, v) => s + v, 0);
-    rowAmounts[rowAmounts.length - 1] = Math.max(0, newTotal - sumHead);
+    const finalIncl = allocateFloored(items, newTotal);
+    const pinned = new Set(items.filter(i => finalIncl.get(i.key) === i.floorIncl).map(i => i.key));
+    const residualKey = pickResidualKey(active, pinned);
 
     const patch = new Map<string, Pick<EditableChargeLine, "selling_price" | "sale_pr_gst">>();
     let runningTotal = 0;
-    active.forEach((c, i) => {
+    active.forEach(c => {
+        if (c._key === residualKey) return;
         const qty = parseFloat(c.qty) || 1;
         const gstRate = isGst ? (parseFloat(c.gst_rate) || 0) : 0;
         const multiplier = 1 + gstRate / 100;
-        if (i < active.length - 1) {
-            const spg = rowAmounts[i] / qty;
-            const sp = parseFloat((gstRate > 0 ? spg / multiplier : spg).toFixed(2));
-            const saleGst = parseFloat((sp * multiplier).toFixed(2));
-            runningTotal += saleGst * qty;
-            patch.set(c._key, { selling_price: sp.toFixed(2), sale_pr_gst: saleGst.toFixed(2) });
-        } else {
-            const saleGstPerUnit = parseFloat(((newTotal - runningTotal) / qty).toFixed(2));
-            const sp = parseFloat((gstRate > 0 ? saleGstPerUnit / multiplier : saleGstPerUnit).toFixed(2));
-            patch.set(c._key, { selling_price: sp.toFixed(2), sale_pr_gst: saleGstPerUnit.toFixed(2) });
-        }
+        const spg = (finalIncl.get(c._key) ?? 0) / qty;
+        const sp = parseFloat((gstRate > 0 ? spg / multiplier : spg).toFixed(2));
+        const saleGst = parseFloat((sp * multiplier).toFixed(2));
+        runningTotal += saleGst * qty;
+        patch.set(c._key, { selling_price: sp.toFixed(2), sale_pr_gst: saleGst.toFixed(2) });
     });
+    const residual = active.find(c => c._key === residualKey)!;
+    {
+        const qty = parseFloat(residual.qty) || 1;
+        const gstRate = isGst ? (parseFloat(residual.gst_rate) || 0) : 0;
+        const multiplier = 1 + gstRate / 100;
+        const saleGstPerUnit = parseFloat((Math.max(0, newTotal - runningTotal) / qty).toFixed(2));
+        const sp = parseFloat((gstRate > 0 ? saleGstPerUnit / multiplier : saleGstPerUnit).toFixed(2));
+        patch.set(residual._key, { selling_price: sp.toFixed(2), sale_pr_gst: saleGstPerUnit.toFixed(2) });
+    }
     return allCharges.map(c => { const p = patch.get(c._key); return p ? { ...c, ...p } : c; });
 }
 
@@ -72,35 +120,53 @@ function scaleParts(
     allowBelowCost = false,
 ): EditablePartLine[] {
     if (curTotal <= 0) return allParts;
-    const rowAmounts = active.map(l =>
-        Math.max(0, (parseFloat(l.sale_pr_gst) || 0) * l.qty * newTotal / curTotal)
-    );
-    const sumHead = rowAmounts.slice(0, -1).reduce((s, v) => s + v, 0);
-    rowAmounts[rowAmounts.length - 1] = Math.max(0, newTotal - sumHead);
 
-    const patch = new Map<string, Pick<EditablePartLine, "selling_price" | "sale_pr_gst">>();
-    let runningTotal = 0;
-    active.forEach((l, i) => {
+    const items: FloorAllocItem[] = active.map(l => {
         const gstRate = isGst ? (parseFloat(l.gst_rate) || 0) : 0;
         const multiplier = 1 + gstRate / 100;
         // Selling price is normally floored at cost price (never sell at a loss);
         // callers that have exhausted every other option (charges at zero) can
         // pass allowBelowCost to relax the floor down to ₹0 instead.
-        const floor = allowBelowCost ? 0 : (parseFloat(l.cost_price) || 0);
-        if (i < active.length - 1) {
-            const spg = rowAmounts[i] / l.qty;
-            const sp = gstRate > 0 ? spg / multiplier : spg;
-            const finalSp = parseFloat(Math.max(sp, floor).toFixed(2));
-            const saleGst = parseFloat((finalSp * multiplier).toFixed(2));
-            runningTotal += saleGst * l.qty;
-            patch.set(l._key, { selling_price: finalSp.toFixed(2), sale_pr_gst: saleGst.toFixed(2) });
-        } else {
-            const saleGstPerUnit = parseFloat(((newTotal - runningTotal) / l.qty).toFixed(2));
-            const sp = gstRate > 0 ? saleGstPerUnit / multiplier : saleGstPerUnit;
-            const finalSp = parseFloat(Math.max(sp, floor).toFixed(2));
-            patch.set(l._key, { selling_price: finalSp.toFixed(2), sale_pr_gst: saleGstPerUnit.toFixed(2) });
-        }
+        const floorSp = allowBelowCost ? 0 : (parseFloat(l.cost_price) || 0);
+        return {
+            key: l._key,
+            curIncl: (parseFloat(l.sale_pr_gst) || 0) * l.qty,
+            floorIncl: floorSp * multiplier * l.qty,
+        };
     });
+    const finalIncl = allocateFloored(items, newTotal);
+    const pinned = new Set(items.filter(i => finalIncl.get(i.key) === i.floorIncl).map(i => i.key));
+    const residualKey = pickResidualKey(active, pinned);
+
+    const patch = new Map<string, Pick<EditablePartLine, "selling_price" | "sale_pr_gst">>();
+    let runningTotal = 0;
+    active.forEach(l => {
+        if (l._key === residualKey) return;
+        const gstRate = isGst ? (parseFloat(l.gst_rate) || 0) : 0;
+        const multiplier = 1 + gstRate / 100;
+        const floor = allowBelowCost ? 0 : (parseFloat(l.cost_price) || 0);
+        const spg = (finalIncl.get(l._key) ?? 0) / l.qty;
+        const sp = gstRate > 0 ? spg / multiplier : spg;
+        const finalSp = parseFloat(Math.max(sp, floor).toFixed(2));
+        const saleGst = parseFloat((finalSp * multiplier).toFixed(2));
+        runningTotal += saleGst * l.qty;
+        patch.set(l._key, { selling_price: finalSp.toFixed(2), sale_pr_gst: saleGst.toFixed(2) });
+    });
+    const residual = active.find(l => l._key === residualKey)!;
+    {
+        const gstRate = isGst ? (parseFloat(residual.gst_rate) || 0) : 0;
+        const multiplier = 1 + gstRate / 100;
+        const floor = allowBelowCost ? 0 : (parseFloat(residual.cost_price) || 0);
+        const saleGstPerUnit = (newTotal - runningTotal) / residual.qty;
+        const sp = gstRate > 0 ? saleGstPerUnit / multiplier : saleGstPerUnit;
+        // Floor sale_pr_gst from the (already-floored) selling price, not from the
+        // raw un-floored per-unit residual — otherwise an infeasible target can pin
+        // selling_price at cost while sale_pr_gst (which drives the line Amount and
+        // the saved total) still goes negative.
+        const finalSp = parseFloat(Math.max(sp, floor).toFixed(2));
+        const saleGst = parseFloat((finalSp * multiplier).toFixed(2));
+        patch.set(residual._key, { selling_price: finalSp.toFixed(2), sale_pr_gst: saleGst.toFixed(2) });
+    }
     return allParts.map(l => { const p = patch.get(l._key); return p ? { ...l, ...p } : l; });
 }
 
@@ -145,7 +211,7 @@ function computeBackCalc(
         if (newChargesAmt >= 0) {
             return {
                 newPartLines,
-                newChargeLines: scaleCharges(chargeLines, activeCharges, curChargesAmt, newChargesAmt, isGst),
+                newChargeLines: scaleCharges(chargeLines, activeCharges, newChargesAmt, isGst),
             };
         }
 

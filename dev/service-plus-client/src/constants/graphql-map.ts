@@ -164,6 +164,11 @@ export const GRAPHQL_MAP = {
             updateJob(db_name: $db_name, schema: $schema, value: $value)
         }
     `,
+    updateOpeningJob: gql`
+        mutation UpdateOpeningJob($db_name: String!, $schema: String, $value: String!) {
+            updateOpeningJob(db_name: $db_name, schema: $schema, value: $value)
+        }
+    `,
     updateJobBatch: gql`
         mutation UpdateJobBatch($db_name: String!, $schema: String, $value: String!) {
             updateJobBatch(db_name: $db_name, schema: $schema, value: $value)

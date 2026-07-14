@@ -845,6 +845,15 @@ export const FinalAJobSection = ({ onBack, initialTab }: FinalAJobSectionProps =
                 }
             }
 
+            const invalidParts = partLines.some(l => l.part_id
+                && (l.qty <= 0 || (parseFloat(l.cost_price) || 0) < 0 || (parseFloat(l.selling_price) || 0) < 0));
+            const invalidCharges = chargeLines.some(c => c.charge_name.trim()
+                && ((parseFloat(c.qty) || 0) <= 0 || (parseFloat(c.cost_price) || 0) < 0 || (parseFloat(c.selling_price) || 0) < 0));
+            if (invalidParts || invalidCharges) {
+                toast.error("Qty must be greater than 0 and Cost/Sale prices cannot be negative. Please fix the highlighted rows before finalizing.");
+                return;
+            }
+
             const chargeUpsertRows = chargeLines
                 .filter(c => c.charge_name.trim())
                 .map(c => ({

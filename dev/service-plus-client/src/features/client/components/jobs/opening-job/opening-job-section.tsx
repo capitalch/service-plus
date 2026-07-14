@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { FormProvider, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {RotateCcw, ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon,
-    Loader2, MoreHorizontal, Pencil, RefreshCw, Save, Search, Trash2, X} from "lucide-react";
+    Eye, Loader2, MoreHorizontal, Pencil, RefreshCw, Save, Search, Trash2, X} from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 
@@ -30,6 +30,7 @@ import type { BrandOption, ProductOption } from "@/features/client/types/model";
 import type { DocumentSequenceRow } from "@/features/client/types/sales";
 
 import { JobTypeBadge, StatusBadge } from "../job-badges";
+import { JobDetailsModal } from "../job-pipeline/job-details-modal";
 import { STATUS_FLAGS } from "../job-pipeline/status-transitions";
 import { OpeningJobForm } from "./opening-job-form";
 import { openingJobFormSchema, type OpeningJobFormValues, getOpeningJobDefaultValues } from "./opening-job-schema";
@@ -85,6 +86,7 @@ export const OpeningJobSection = () => {
     // Dialogs
     const [deleteId, setDeleteId] = useState<number | null>(null);
     const [deleting, setDeleting] = useState(false);
+    const [viewJobId, setViewJobId] = useState<number | null>(null);
 
     // Edit
     const [editJob, setEditJob] = useState<JobDetailType | null>(null);
@@ -296,37 +298,43 @@ export const OpeningJobSection = () => {
         const statusFlags = STATUS_FLAGS[values.job_status_id] ?? { is_closed: false, is_final: false };
         try {
             if (editJob) {
-                const payload = graphQlUtils.buildGenericUpdateValue({
-                    tableName: "job",
-                    xData: {
-                        id:                       editJob.id,
-                        alternate_job_no:         values.alternate_job_no.trim(),
-                        is_opening_job:           true,
-                        division_id:              values.division_id ?? defaultDivisionId,
-                        job_date:                 values.job_date,
-                        purchase_date:            values.purchase_date?.trim() || null,
-                        customer_contact_id:      values.customer_id,
-                        job_type_id:              values.job_type_id,
-                        job_receive_manner_id:    values.receive_manner_id,
-                        job_receive_condition_id: values.receive_condition_id ?? null,
-                        job_status_id:            values.job_status_id,
-                        technician_id:            values.technician_id ?? null,
-                        product_brand_model_id:   values.model_id ?? null,
-                        serial_no:                values.serial_no?.trim() || null,
-                        qty:                 values.qty,
-                        problem_reported:         values.problem_reported.trim(),
-                        diagnosis:                values.diagnosis?.trim() || null,
-                        work_done:                values.work_done?.trim() || null,
-                        amount:                   values.amount !== "" ? Number(values.amount) : 0,
-                        is_closed:                statusFlags.is_closed,
-                        is_final:                 statusFlags.is_final,
-                        warranty_card_no:         values.warranty_card_no?.trim() || null,
-                        remarks:                  values.remarks?.trim() || null,
-                    },
-                });
+                const xData = {
+                    id:                       editJob.id,
+                    alternate_job_no:         values.alternate_job_no.trim(),
+                    is_opening_job:           true,
+                    division_id:              values.division_id ?? defaultDivisionId,
+                    job_date:                 values.job_date,
+                    purchase_date:            values.purchase_date?.trim() || null,
+                    customer_contact_id:      values.customer_id,
+                    job_type_id:              values.job_type_id,
+                    job_receive_manner_id:    values.receive_manner_id,
+                    job_receive_condition_id: values.receive_condition_id ?? null,
+                    job_status_id:            values.job_status_id,
+                    technician_id:            values.technician_id ?? null,
+                    product_brand_model_id:   values.model_id ?? null,
+                    serial_no:                values.serial_no?.trim() || null,
+                    qty:                 values.qty,
+                    problem_reported:         values.problem_reported.trim(),
+                    diagnosis:                values.diagnosis?.trim() || null,
+                    work_done:                values.work_done?.trim() || null,
+                    amount:                   values.amount !== "" ? Number(values.amount) : 0,
+                    is_closed:                statusFlags.is_closed,
+                    is_final:                 statusFlags.is_final,
+                    warranty_card_no:         values.warranty_card_no?.trim() || null,
+                    remarks:                  values.remarks?.trim() || null,
+                };
+                // Always go through updateOpeningJob: it re-reads the job's current
+                // status from the DB and, only when this edit actually changes it,
+                // records a real job_transaction row (see resolve_update_opening_job_helper).
+                // A plain genericUpdate would only touch job.job_status_id and leave
+                // Transaction History frozen at whatever status was last recorded,
+                // silently disconnecting it from the job's real status.
                 await apolloClient.mutate({
-                    mutation:  GRAPHQL_MAP.genericUpdate,
-                    variables: { db_name: dbName, schema, value: payload },
+                    mutation:  GRAPHQL_MAP.updateOpeningJob,
+                    variables: {
+                        db_name: dbName, schema,
+                        value: encodeObj({ xData: { ...xData, performed_by_user_id: currentUser?.id ?? null } }),
+                    },
                 });
                 toast.success(MESSAGES.SUCCESS_OPENING_JOB_UPDATED);
             } else {
@@ -585,6 +593,13 @@ export const OpeningJobSection = () => {
                                                             </DropdownMenuTrigger>
                                                             <DropdownMenuContent align="end" className="w-[140px] bg-white dark:bg-zinc-950 border-(--cl-border) shadow-[0_10px_30px_rgba(0,0,0,0.2)] z-50">
                                                                 <DropdownMenuItem
+                                                                    className="flex items-center gap-2 cursor-pointer text-sky-600 focus:bg-sky-500/10 focus:text-sky-700"
+                                                                    onClick={() => setViewJobId(job.id)}
+                                                                >
+                                                                    <Eye className="h-4 w-4" />
+                                                                    <span>View Job</span>
+                                                                </DropdownMenuItem>
+                                                                <DropdownMenuItem
                                                                     className="flex items-center gap-2 cursor-pointer text-amber-500 focus:bg-amber-500/10 focus:text-amber-600 disabled:opacity-40 disabled:cursor-not-allowed"
                                                                     disabled={!!job.is_final}
                                                                     title={job.is_final ? "Job is finalized — edit not allowed" : undefined}
@@ -651,6 +666,13 @@ export const OpeningJobSection = () => {
                             </DialogFooter>
                         </DialogContent>
                     </Dialog>
+
+                    {viewJobId !== null && (
+                        <JobDetailsModal
+                            jobId={viewJobId}
+                            onClose={() => setViewJobId(null)}
+                        />
+                    )}
                 </>
             )}
         </motion.div>

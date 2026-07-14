@@ -1,7 +1,7 @@
 {
   "name": "service-plus-client",
   "private": true,
-  "version": "0.8.1",
+  "version": "0.9.0",
   "type": "module",
   "scripts": {
     "start": "vite",
@@ -66,5 +66,5 @@
     "typescript-eslint": "^8.63.0",
     "vite": "^8.1.4"
   },
-  "packageManager": "pnpm@11.12.0"
+  "packageManager": "pnpm@11.10.0"
 }

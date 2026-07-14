@@ -33,6 +33,7 @@ export type JobDetailType = {
     id:                          number;
     job_no:                      string;
     alternate_job_no:            string | null;
+    is_opening_job:              boolean;
     purchase_date:               string | null;
     job_date:                    string;
     customer_contact_id:         number;

@@ -729,10 +729,10 @@ export const JobControlSection = () => {
                                                     {job.is_closed && (
                                                         <span className="ml-1.5 text-[9px] font-bold text-emerald-600 bg-emerald-100 dark:bg-emerald-950/40 rounded px-1 py-0.5">CLOSED</span>
                                                     )}
-                                                    {job.is_opening_job && (
-                                                        <span className="ml-1.5 text-[9px] font-bold text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-950/40 rounded px-1 py-0.5">OPENING</span>
-                                                    )}
                                                 </div>
+                                                {job.is_opening_job && (
+                                                    <span className="text-[10.5px] font-bold text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-950/40 rounded px-1.5 py-0.5 w-fit">OPENING</span>
+                                                )}
                                                 {job.alternate_job_no && (
                                                     <span className="font-mono text-[10px] font-semibold text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/40 rounded px-1.5 py-0.5 w-fit">Alt: {job.alternate_job_no}</span>
                                                 )}

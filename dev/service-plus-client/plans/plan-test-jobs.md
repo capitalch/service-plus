@@ -266,25 +266,25 @@ edge cases to confirm.
 
                ---
 
-## 9. Receipts *(role-gated)*
-Customer payments against jobs.
+   ## 9. Receipts *(role-gated)*
+               Customer payments against jobs.
 
-### List
-1. Columns: #, Date, Receipt No (+Posted/Not-Posted when accounts ON), Job No (+date+status),
-   Customer (+mobile), Mode (colored badge), Amount, Ref No, Actions.
-2. Footer shows **page total** of amounts. Search (job/receipt no/customer/mode/ref);
-   paginate; Refresh; default date range = current FY.
+   ### List
+               1. Columns: #, Date, Receipt No (+Posted/Not-Posted when accounts ON), Job No (+date+status),
+                  Customer (+mobile), Mode (colored badge), Amount, Ref No, Actions.
+               2. Footer shows **page total** of amounts. Search (job/receipt no/customer/mode/ref);
+                  paginate; Refresh; default date range = current FY.
 
-### New / Edit
-3. **+ New Receipt** → dialog: select job (lookup), payment date, mode, amount, ref no,
-   remarks; Save disabled until valid → "receipt created"; list reloads.
-4. **Edit** (⋯): disabled when the job is **restricted** (closed/final/ON_HOLD); else edit
-   → "receipt updated". Dialog can't be dismissed by outside click / while submitting.
+   ### New / Edit
+               3. **+ New Receipt** → dialog: select job (lookup), payment date, mode, amount, ref no,
+                  remarks; Save disabled until valid → "receipt created"; list reloads.
+               4. **Edit** (⋯): disabled when the job is **restricted** (closed/final/ON_HOLD); else edit
+                  → "receipt updated". Dialog can't be dismissed by outside click / while submitting.
 
-### Print, view, delete
-5. **Print Receipt** → PDF (spinner on the menu button) → preview. **View Job** → modal.
-6. Delete when job **restricted** → blocked dialog. Delete when **posted** → blocked dialog.
-   Delete a normal receipt → confirm (names amount/mode/job) → "receipt deleted".
+   ### Print, view, delete
+               5. **Print Receipt** → PDF (spinner on the menu button) → preview. **View Job** → modal.
+               6. Delete when job **restricted** → blocked dialog. Delete when **posted** → blocked dialog.
+                  Delete a normal receipt → confirm (names amount/mode/job) → "receipt deleted".
 
 ---
 
