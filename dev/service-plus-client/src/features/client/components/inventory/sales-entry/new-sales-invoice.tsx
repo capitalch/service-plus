@@ -178,38 +178,15 @@ export function NewSalesInvoice({
 
     const partInputRefs    = useRef<(HTMLInputElement | null)[]>([]);
     const hsnInputRefs     = useRef<(HTMLInputElement | null)[]>([]);
-    const scrollWrapperRef = useRef<HTMLDivElement>(null);
-    const summaryRef       = useRef<HTMLDivElement>(null);
 
     const [customerAddress, setCustomerAddress]  = useState<string>("");
     const [customerMobile, setCustomerMobile]    = useState<string>("");
-    const [maxTableHeight, setMaxTableHeight]    = useState<number | undefined>(undefined);
     // True once the user has actually touched line items (or applied a back-calc
     // target) since an existing invoice was loaded for edit. backCalcTarget is
     // kept auto-synced to the live computed total at all times (see effect below),
     // so it can't be used on its own to tell "just opened for review" apart from
     // "user is actively re-pricing" — this flag is the real signal for that.
     const [invoiceModified, setInvoiceModified]  = useState(false);
-
-    useEffect(() => {
-        function recalc() {
-            // Only cap the table height on md+ (desktop), where the form fills a
-            // fixed-height area and only the table scrolls internally. Below md the
-            // whole form scrolls (see the outer container's overflow-y-auto), so the
-            // table must render at its natural height — no maxHeight.
-            const isDesktop = window.matchMedia("(min-width: 768px)").matches;
-            if (!isDesktop) { setMaxTableHeight(undefined); return; }
-            const el = scrollWrapperRef.current;
-            if (!el) return;
-            const top           = el.getBoundingClientRect().top;
-            const summaryHeight = summaryRef.current?.getBoundingClientRect().height ?? 0;
-            // 14px = clearance from ClientLayout; 8px = gap between table and summary
-            setMaxTableHeight(window.innerHeight - top - summaryHeight - 8 - 14);
-        }
-        recalc();
-        window.addEventListener("resize", recalc);
-        return () => window.removeEventListener("resize", recalc);
-    }, []);
 
     // Populate form when editInvoice changes
     useEffect(() => {
@@ -385,7 +362,7 @@ export function NewSalesInvoice({
     const referenceTotal   = isEditUnmodified ? editInvoice.total_amount : (backCalcApplied ? backCalcNum : null);
     const showCalculated   = referenceTotal != null;
     const footerTotal       = referenceTotal ?? totals.total;
-    const totalDiff        = showCalculated ? Math.round((totals.total - referenceTotal!) * 100) / 100 : 0;
+    const totalDiff        = showCalculated ? Math.round((referenceTotal! - totals.total) * 100) / 100 : 0;
     const hasDiff           = Math.abs(totalDiff) >= 0.005;
 
     return (
@@ -393,7 +370,7 @@ export function NewSalesInvoice({
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="flex min-h-0 flex-1 flex-col gap-2 pb-0 overflow-y-auto md:overflow-hidden"
+            className="flex min-h-0 flex-1 flex-col gap-2 pb-0 overflow-y-auto"
         >
             {!branchId ? (
                 <div className="flex flex-col items-center justify-center py-20 bg-(--cl-surface-2)/30 rounded-xl border-2 border-dashed border-(--cl-border) text-center">
@@ -566,12 +543,8 @@ export function NewSalesInvoice({
                     <p className="text-[10px] font-black uppercase tracking-[0.15em] text-(--cl-text-muted) px-1 my-2">
                         Line Items
                     </p>
-                    <Card className={`border-(--cl-border) shadow-sm relative bg-(--cl-surface) flex min-h-[45vh] md:min-h-0 md:flex-1 flex-col ${isReturn ? "border-l-4 border-l-orange-500" : ""}`}>
-                        <div
-                            ref={scrollWrapperRef}
-                            className="w-full overflow-x-auto overflow-y-auto pb-4 min-h-[43vh] md:min-h-0"
-                            style={maxTableHeight !== undefined ? { maxHeight: maxTableHeight } : undefined}
-                        >
+                    <Card className={`border-(--cl-border) shadow-sm relative bg-(--cl-surface) flex min-h-[45vh] lg:flex-1 flex-col ${isReturn ? "border-l-4 border-l-orange-500" : ""}`}>
+                        <div className="w-full overflow-x-auto overflow-y-auto pb-4 min-h-[43vh] lg:flex-1">
                             <table className="min-w-[920px] w-full border-collapse text-sm sticky-header">
                                 <thead>
                                     <tr className="bg-(--cl-surface-2)/50">
@@ -614,6 +587,7 @@ export function NewSalesInvoice({
                                                         partCode={line.part_code}
                                                         partId={line.part_id}
                                                         partName={line.part_name}
+                                                        costPrice={line.cost_price}
                                                         brandId={line.brand_id}
                                                         selectedBrandId={selectedBrandId}
                                                         brandName={brandName}
@@ -845,16 +819,16 @@ export function NewSalesInvoice({
                     </Card>
 
                     {/* Summary bar — mirrors Final a Job's Grand Summary Apply panel */}
-                    <div ref={summaryRef} style={{ alignSelf: "flex-end", width: "fit-content" }} className={`rounded-lg border-2 overflow-hidden ${isReturn ? "border-orange-500/30 bg-orange-500/5" : "border-(--cl-accent)/30 bg-(--cl-surface)"}`}>
+                    <div className={`sticky bottom-0 z-30 w-full shrink-0 self-stretch lg:w-fit lg:self-end rounded-lg border-2 overflow-hidden bg-(--cl-surface) ${isReturn ? "border-orange-500/30" : "border-(--cl-accent)/30"}`}>
                         <div className="flex shrink-0 flex-col justify-center gap-2 px-4 py-3">
-                            <div className="flex items-center justify-between gap-4">
+                            <div className="flex flex-wrap items-center justify-between gap-4">
                                 {!hasDiff ? (
                                     <div className="flex items-center gap-1 text-emerald-600">
                                         <CheckCircle2 className="h-4 w-4" />
                                         <span className="text-xs font-semibold">Tallied</span>
                                     </div>
                                 ) : <div />}
-                                <div className="flex items-center gap-4">
+                                <div className="flex flex-wrap items-center gap-4">
                                     <div className="flex items-center gap-1.5">
                                         <span className="text-xs font-medium uppercase tracking-wide text-(--cl-text-muted)">Aggregate</span>
                                         <span className="tabular-nums text-sm font-semibold text-(--cl-text)">₹{formatNumber(totals.aggregate)}</span>
@@ -908,7 +882,7 @@ export function NewSalesInvoice({
                                     </div>
                                 </div>
                             </div>
-                            <div className="flex items-center justify-end gap-2">
+                            <div className="flex flex-wrap items-center justify-end gap-2">
                                 <Button
                                     className="h-7 shrink-0 text-xs"
                                     disabled={!backCalcTarget}

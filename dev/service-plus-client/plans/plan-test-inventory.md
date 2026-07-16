@@ -330,55 +330,55 @@ C9. **Line validity gate** — On Purchase, the gate is actually: part missing, 
                         hides them entirely.
                     3.4 **GST price entry / back-calculation** — Editing the GST-inclusive price back-calculates
                         the base unit price on blur (only rendered in GST mode). Verify rounding to 2 decimals.
-3.5 **Target Amount back-calc — CORRECTED, this does NOT mirror "Final a Job".** Sales
-Entry's `computeBackCalcLines` is still the **old naive proportional-scale-and-dump
-algorithm**: every line's price is multiplied by `target/current`, with **no floor at
-cost price (or 0)**, and any small rounding residual (only if between ₹0.005–₹0.10) is
-dumped entirely into the **last line**. This is a materially different, less safe
-algorithm than Jobs' Final-a-Job `allocateFloored` (which iteratively pins lines at their
-floor and redistributes the remainder). A low enough target here can drive a line's
-selling price arbitrarily low, including toward ₹0, with no floor protection. Also test:
-- Typing exactly **"0" as the target is ignored** — the Back Calculate button stays
-    disabled for a zero target.
-- If a target is typed but Back Calculate is never clicked, Save still adopts it directly
-    into the header total as long as it's within ₹0.50 of the calculated line total;
-    beyond that, a dialog titled "Amount Difference Too Large" blocks Save with the exact
-    message: `Invoice total (₹X) differs from the calculated line total (₹Y) by ₹Z.
-    Maximum allowed difference is ₹0.50. Please adjust the target amount or use Back
-    Calculate.`
-3.6 **Line totalling** — Footer sums Qty/Aggregate/tax/Total/Profit correctly, but **there is
-    no combined "GST Amount" column** — CGST/SGST or IGST are only ever shown separately,
-    never summed into one figure (correct the plan's earlier wording).
-3.7 **Return toggle** — RTN badge; `dr_cr` is "D" for a return (inverse of Purchase's
-    convention, where return is "C") — worth noting since the two screens' conventions
-    differ.
-3.8 **Save create** — Invoice number is server-generated, gated on a configured doc
-    sequence; missing prefix shows `ERROR_DOC_SEQ_SINV_NOT_CONFIGURED` ("Sales Invoice
-    document sequence is not configured or has no prefix...").
-3.9 **Edit** — `originalLineIds` tracked and sent as `deletedIds` (delete-then-recreate, see
-    B13); return flag preserved on edit-load.
-3.10 **View / PDF / Excel** — All render Customer/GSTIN/State Code/Remarks + lines + tax
-    breakup with a computed-vs-invoice difference.
-3.11 **Delete** — Stock-restoration correctness is server-side; client just sends the delete.
-3.12 **Negative stock sale — CORRECTED, there is no guard at all.** Grepped every Sales Entry
-    file: no negative/insufficient-stock check exists anywhere client-side. A sale for more
-    units than are on hand is **always silently allowed** and will drive stock negative with
-    zero warning or block. Test this as a confirmed gap, not as "verify the guard behaves
-    correctly" — there isn't one to verify (unless the backend independently enforces it,
-    which wasn't visible from this client-side pass).
-3.13 **Posted badge** — Same unconditional-lock pattern as Purchase (see B14/2.17).
+                    3.5 **Target Amount back-calc — CORRECTED, this does NOT mirror "Final a Job".** Sales
+                    Entry's `computeBackCalcLines` is still the **old naive proportional-scale-and-dump
+                    algorithm**: every line's price is multiplied by `target/current`, with **no floor at
+                    cost price (or 0)**, and any small rounding residual (only if between ₹0.005–₹0.10) is
+                    dumped entirely into the **last line**. This is a materially different, less safe
+                    algorithm than Jobs' Final-a-Job `allocateFloored` (which iteratively pins lines at their
+                    floor and redistributes the remainder). A low enough target here can drive a line's
+                    selling price arbitrarily low, including toward ₹0, with no floor protection. Also test:
+                    - Typing exactly **"0" as the target is ignored** — the Back Calculate button stays
+                        disabled for a zero target.
+                    - If a target is typed but Back Calculate is never clicked, Save still adopts it directly
+                        into the header total as long as it's within ₹0.50 of the calculated line total;
+                        beyond that, a dialog titled "Amount Difference Too Large" blocks Save with the exact
+                        message: `Invoice total (₹X) differs from the calculated line total (₹Y) by ₹Z.
+                        Maximum allowed difference is ₹0.50. Please adjust the target amount or use Back
+                        Calculate.`
+                    3.6 **Line totalling** — Footer sums Qty/Aggregate/tax/Total/Profit correctly, but **there is
+                        no combined "GST Amount" column** — CGST/SGST or IGST are only ever shown separately,
+                        never summed into one figure (correct the plan's earlier wording).
+                    3.7 **Return toggle** — RTN badge; `dr_cr` is "D" for a return (inverse of Purchase's
+                        convention, where return is "C") — worth noting since the two screens' conventions
+                        differ.
+                    3.8 **Save create** — Invoice number is server-generated, gated on a configured doc
+                        sequence; missing prefix shows `ERROR_DOC_SEQ_SINV_NOT_CONFIGURED` ("Sales Invoice
+                        document sequence is not configured or has no prefix...").
+                    3.9 **Edit** — `originalLineIds` tracked and sent as `deletedIds` (delete-then-recreate, see
+                        B13); return flag preserved on edit-load.
+                    3.10 **View / PDF / Excel** — All render Customer/GSTIN/State Code/Remarks + lines + tax
+                        breakup with a computed-vs-invoice difference.
+                    3.11 **Delete** — Stock-restoration correctness is server-side; client just sends the delete.
+                    3.12 **Negative stock sale — CORRECTED, there is no guard at all.** Grepped every Sales Entry
+                        file: no negative/insufficient-stock check exists anywhere client-side. A sale for more
+                        units than are on hand is **always silently allowed** and will drive stock negative with
+                        zero warning or block. Test this as a confirmed gap, not as "verify the guard behaves
+                        correctly" — there isn't one to verify (unless the backend independently enforces it,
+                        which wasn't visible from this client-side pass).
+                    3.13 **Posted badge** — Same unconditional-lock pattern as Purchase (see B14/2.17).
 
 **Additional Sales-only behaviors not previously covered — worth their own test cases:**
-3.14 **Line-level Profit indicator** — `(unit_price − cost_price) × qty` shown per line and
-    totalled in the footer, turning red when negative. Verify it updates live as price/qty
-    change.
-3.15 **Round-off button** — A dedicated icon next to Total rounds the invoice total to the
-    nearest rupee and immediately re-runs back-calculation (§3.5) using that rounded figure
-    as the new target. Verify it composes correctly with 3.5's known lack of a price floor.
-3.16 **MRP-based price derivation on part select** — In GST mode, unit price is back-derived
-    from a GST-inclusive MRP, falling back to selling_price then a markup; in non-GST mode it
-    uses `part.mrp` directly, else grossed selling price, else markup. Verify each fallback
-    tier with parts missing different combinations of MRP/selling_price.
+                    3.14 **Line-level Profit indicator** — `(unit_price − cost_price) × qty` shown per line and
+                        totalled in the footer, turning red when negative. Verify it updates live as price/qty
+                        change.
+                    3.15 **Round-off button** — A dedicated icon next to Total rounds the invoice total to the
+                        nearest rupee and immediately re-runs back-calculation (§3.5) using that rounded figure
+                        as the new target. Verify it composes correctly with 3.5's known lack of a price floor.
+                    3.16 **MRP-based price derivation on part select** — In GST mode, unit price is back-derived
+                        from a GST-inclusive MRP, falling back to selling_price then a markup; in non-GST mode it
+                        uses `part.mrp` directly, else grossed selling price, else markup. Verify each fallback
+                        tier with parts missing different combinations of MRP/selling_price.
 
 ## 4. Stock Adjustment
 4.1 **Header** — Adjustment Date, Adjustment Reason required (zod messages exist but are

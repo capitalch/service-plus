@@ -36,7 +36,7 @@ import { isValidGstin, normalizeGstin } from "@/lib/gstin";
 import { formatCurrency, currentFinancialYearRange } from "@/lib/utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
-import { selectCurrentBranch, selectSchema, selectCurrentDivision, selectDefaultDivisionId, selectAvailableDivisions, selectPostDataToAccounts } from "@/store/context-slice";
+import { selectCurrentBranch, selectSchema, selectCurrentDivision, selectDefaultDivisionId, selectAvailableDivisions, selectPostDataToAccounts, selectCurrentBu } from "@/store/context-slice";
 import { isGstDivision } from "@/features/client/types/division";
 import type { BrandOption } from "@/features/client/types/model";
 import { BrandSelect } from "@/features/client/components/inventory/brand-select";
@@ -66,10 +66,11 @@ export const SalesEntrySection = () => {
     const globalBranch     = useAppSelector(selectCurrentBranch);
     const branchId         = globalBranch?.id ?? null;
     const currentDivision  = useAppSelector(selectCurrentDivision);
+    const currentBu        = useAppSelector(selectCurrentBu);
     const postDataToAccounts = useAppSelector(selectPostDataToAccounts);
     const availableDivisions = useAppSelector(selectAvailableDivisions);
     const defaultDivisionId  = useAppSelector(selectDefaultDivisionId);
-    const companyName      = currentDivision?.name || globalBranch?.name || "Service Plus";
+    const buName           = currentBu?.name || globalBranch?.name || "Service Plus";
 
     const { from: defaultFrom, to: defaultTo } = currentFinancialYearRange();
 
@@ -400,7 +401,7 @@ export const SalesEntrySection = () => {
         }
 
         const salesTypeId  = txnTypes.find(t => t.code === "SALES")?.id;
-        const returnTypeId = txnTypes.find(t => t.code === "SALE_RETURN")?.id;
+        const returnTypeId = txnTypes.find(t => t.code === "SALES_RETURN")?.id;
         if (isReturn && !returnTypeId) {
             toast.error("Sale Return transaction type not found. Please contact admin.");
             return;
@@ -645,26 +646,32 @@ export const SalesEntrySection = () => {
     const handleDownloadAllExcel = () => {
         if (invoices.length === 0) { toast.warning("No data to export"); return; }
         const branchName   = globalBranch?.name || "All Branches";
+        const divisionName = availableDivisions.find(d => d.id === viewDivisionId)?.name ?? "All Divisions";
         const dateRangeStr = `Date: ${fromDate} to ${toDate}`;
+        // Returns are shown as negative figures so they net against sales.
         const totals = invoices.reduce((acc, inv) => {
-            acc.aggregate += Number(inv.aggregate_amount);
-            acc.cgst      += Number(inv.cgst_amount);
-            acc.sgst      += Number(inv.sgst_amount);
-            acc.igst      += Number(inv.igst_amount);
-            acc.total     += Number(inv.total_amount);
+            const s = inv.is_return ? -1 : 1;
+            acc.aggregate += s * Number(inv.aggregate_amount);
+            acc.cgst      += s * Number(inv.cgst_amount);
+            acc.sgst      += s * Number(inv.sgst_amount);
+            acc.igst      += s * Number(inv.igst_amount);
+            acc.total     += s * Number(inv.total_amount);
             return acc;
         }, { aggregate: 0, cgst: 0, sgst: 0, igst: 0, total: 0 });
         const sheetData = [
-            [companyName],
-            [`Branch: ${branchName}`, dateRangeStr],
+            [buName],
+            [`Branch: ${branchName}`, `Division: ${divisionName}`, dateRangeStr],
             [],
             ["Date", "Invoice No", "Customer", "Aggregate", "CGST", "SGST", "IGST", "Total"],
-            ...invoices.map(inv => [
-                inv.invoice_date, inv.invoice_no, inv.customer_name,
-                Number(inv.aggregate_amount), Number(inv.cgst_amount),
-                Number(inv.sgst_amount), Number(inv.igst_amount), Number(inv.total_amount),
-            ]),
-            ["", "", "Total:", totals.aggregate, totals.cgst, totals.sgst, totals.igst, totals.total],
+            ...invoices.map(inv => {
+                const s = inv.is_return ? -1 : 1;
+                return [
+                    inv.invoice_date, inv.invoice_no, inv.customer_name,
+                    s * Number(inv.aggregate_amount), s * Number(inv.cgst_amount),
+                    s * Number(inv.sgst_amount), s * Number(inv.igst_amount), s * Number(inv.total_amount),
+                ];
+            }),
+            ["", "", "Grand Total:", totals.aggregate, totals.cgst, totals.sgst, totals.igst, totals.total],
         ];
         const ws = utils.aoa_to_sheet(sheetData);
         const wb = utils.book_new();
@@ -677,37 +684,78 @@ export const SalesEntrySection = () => {
         if (invoices.length === 0) { toast.warning("No data to export"); return; }
         const doc          = new jsPDF();
         const branchName   = globalBranch?.name || "All Branches";
+        const divisionName = availableDivisions.find(d => d.id === viewDivisionId)?.name ?? "All Divisions";
         const dateRangeStr = `Date: ${fromDate} to ${toDate}`;
         doc.setFontSize(16);
-        doc.text(companyName, 14, 15);
+        doc.text(buName, 14, 15);
         doc.setFontSize(11);
-        doc.text(`Branch: ${branchName}`, 14, 22);
+        doc.text(`Branch: ${branchName}   |   Division: ${divisionName}`, 14, 22);
         doc.text(dateRangeStr, 14, 28);
-        const totals = invoices.reduce((acc, inv) => {
-            acc.aggregate += Number(inv.aggregate_amount);
-            acc.cgst      += Number(inv.cgst_amount);
-            acc.sgst      += Number(inv.sgst_amount);
-            acc.igst      += Number(inv.igst_amount);
-            acc.total     += Number(inv.total_amount);
+        // Returns are shown as negative figures so they net against sales.
+        const sumSigned = (rows: typeof invoices) => rows.reduce((acc, inv) => {
+            const s = inv.is_return ? -1 : 1;
+            acc.aggregate += s * Number(inv.aggregate_amount);
+            acc.cgst      += s * Number(inv.cgst_amount);
+            acc.sgst      += s * Number(inv.sgst_amount);
+            acc.igst      += s * Number(inv.igst_amount);
+            acc.total     += s * Number(inv.total_amount);
             return acc;
         }, { aggregate: 0, cgst: 0, sgst: 0, igst: 0, total: 0 });
-        autoTable(doc, {
-            startY: 32,
-            head: [["Date", "Invoice No", "Customer", "Aggregate", "CGST", "SGST", "IGST", "Total"]],
-            body: invoices.map(inv => [
-                inv.invoice_date, inv.invoice_no, inv.customer_name,
-                Number(inv.aggregate_amount).toFixed(2),
-                Number(inv.cgst_amount).toFixed(2),
-                Number(inv.sgst_amount).toFixed(2),
-                Number(inv.igst_amount).toFixed(2),
-                Number(inv.total_amount).toFixed(2),
-            ]),
-            foot: [["", "", "Total:",
-                totals.aggregate.toFixed(2), totals.cgst.toFixed(2),
-                totals.sgst.toFixed(2), totals.igst.toFixed(2), totals.total.toFixed(2),
-            ]],
-            footStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: "bold" },
-        });
+
+        const grand = sumSigned(invoices);
+        const fmt = (n: number) => n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+        // Render a fixed number of rows per page so each page's "Page Total"
+        // lines up exactly with the rows shown on it; the last page also gets
+        // the "Grand Total". 20 rows always fit within one A4 page here.
+        const ROWS_PER_PAGE = 20;
+        const pageCount = Math.max(1, Math.ceil(invoices.length / ROWS_PER_PAGE));
+        for (let p = 0; p < pageCount; p++) {
+            const chunk   = invoices.slice(p * ROWS_PER_PAGE, (p + 1) * ROWS_PER_PAGE);
+            const pageTot = sumSigned(chunk);
+            const foot    = [["", "", "Page Total:",
+                fmt(pageTot.aggregate), fmt(pageTot.cgst),
+                fmt(pageTot.sgst), fmt(pageTot.igst), fmt(pageTot.total),
+            ]];
+            if (p === pageCount - 1) {
+                foot.push(["", "", "Grand Total:",
+                    fmt(grand.aggregate), fmt(grand.cgst),
+                    fmt(grand.sgst), fmt(grand.igst), fmt(grand.total),
+                ]);
+            }
+            if (p > 0) doc.addPage();
+            autoTable(doc, {
+                startY: p === 0 ? 32 : 15,
+                head: [["Date", "Invoice No", "Customer", "Aggregate", "CGST", "SGST", "IGST", "Total"]],
+                body: chunk.map(inv => {
+                    const s = inv.is_return ? -1 : 1;
+                    return [
+                        inv.invoice_date, inv.invoice_no, inv.customer_name,
+                        fmt(s * Number(inv.aggregate_amount)),
+                        fmt(s * Number(inv.cgst_amount)),
+                        fmt(s * Number(inv.sgst_amount)),
+                        fmt(s * Number(inv.igst_amount)),
+                        fmt(s * Number(inv.total_amount)),
+                    ];
+                }),
+                foot,
+                footStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: "bold", fontSize: 8 },
+                columnStyles: {
+                    3: { halign: "right" },
+                    4: { halign: "right" },
+                    5: { halign: "right" },
+                    6: { halign: "right" },
+                    7: { halign: "right" },
+                },
+                // columnStyles doesn't reliably reach header/footer cells — right-align
+                // the numeric labels and the Page/Grand Total figures too.
+                didParseCell: data => {
+                    if ((data.section === "head" || data.section === "foot") && data.column.index >= 3) {
+                        data.cell.styles.halign = "right";
+                    }
+                },
+            });
+        }
         const branchStr = branchName.replace(/[^a-zA-Z0-9-]/g, "-");
         doc.save(`Sales-invoices-${branchStr}-${fromDate}-${toDate}.pdf`);
     };
@@ -1016,7 +1064,7 @@ export const SalesEntrySection = () => {
                                                 <td className={`${tdClass} font-mono font-medium`} style={{ width: "14%" }}>
                                                     {inv.invoice_no}
                                                     {inv.is_return && (
-                                                        <span className="ml-1.5 text-[10px] font-bold text-orange-600 bg-orange-100 dark:bg-orange-950/40 rounded px-1 py-0.5">RTN</span>
+                                                        <span className="ml-1.5 text-[10px] font-bold text-orange-600 bg-orange-100 dark:bg-orange-950/40 rounded px-1 py-0.5">Return</span>
                                                     )}
                                                     {(postDataToAccounts || (showDivisionCode && divisionCodeById(inv.division_id))) && (
                                                         <div className="mt-0.5 flex items-center gap-1.5">

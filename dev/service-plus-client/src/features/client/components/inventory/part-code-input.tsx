@@ -43,6 +43,10 @@ type CountRowType = { total: number };
 
 const PART_PICK_PAGE_SIZE = 50;
 
+// Survives PartCodeInput remounts (form.reset / row unmount) so the selected part's
+// cost + description keep showing. Keyed by the stable part_id.
+const partInfoCache = new Map<number, { costPrice: number | null; description: string | null }>();
+
 export type PartCodeInputProps = {
     partCode: string;
     partId: number | null;
@@ -118,9 +122,11 @@ export const PartCodeInput = forwardRef<HTMLInputElement, PartCodeInputProps>(({
     const [internalPartDescription, setInternalPartDescription] = useState<string | null>(null);
     useEffect(() => { if (!partId) setInternalPartDescription(null); }, [partId]);
 
-    // Prop takes precedence; fall back to internally captured value
-    const effectiveCostPrice = costPrice !== undefined ? costPrice : internalCostPrice;
-    const effectivePartDescription = partDescription !== undefined ? partDescription : internalPartDescription;
+    // Prop takes precedence, then this instance's captured state, then the
+    // module cache (which survives remounts keyed by part_id).
+    const cached = partId != null ? partInfoCache.get(partId) : undefined;
+    const effectiveCostPrice = costPrice !== undefined ? costPrice : (internalCostPrice ?? cached?.costPrice ?? null);
+    const effectivePartDescription = partDescription !== undefined ? partDescription : (internalPartDescription ?? cached?.description ?? null);
 
     // Inline dropdown state
     const [inlineResults, setInlineResults]   = useState<PartRow[]>([]);
@@ -254,6 +260,7 @@ export const PartCodeInput = forwardRef<HTMLInputElement, PartCodeInputProps>(({
         justSelectedRef.current = true;
         setInternalCostPrice(part.cost_price);
         setInternalPartDescription(part.part_description);
+        partInfoCache.set(part.id, { costPrice: part.cost_price, description: part.part_description });
         onSelect(part);
         setInlineOpen(false);
         setInlineResults([]);
