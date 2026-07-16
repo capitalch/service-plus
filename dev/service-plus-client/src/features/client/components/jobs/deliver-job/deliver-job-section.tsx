@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { MESSAGES }    from "@/constants/messages";
 import { SQL_MAP }     from "@/constants/sql-map";
+import { SEARCH_DEBOUNCE_MS } from "@/constants/timing";
 import { selectCurrentUser, selectDbName } from "@/features/auth/store/auth-slice";
 import { apolloClient }   from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
@@ -16,7 +17,7 @@ import { JobAttachDialog } from "../single-job/job-attach-dialog";
 import { JobDetailsModal } from "../job-pipeline/job-details-modal";
 import { useDeliveredJobActions } from "./use-delivered-job-actions";
 
-import { PAGE_SIZE, DEBOUNCE_MS } from "./deliver-job-helpers";
+import { PAGE_SIZE } from "./deliver-job-helpers";
 import { DeliverableJobsGrid, type DeliverableJobRow } from "./deliverable-jobs-grid";
 import { DeliveredJobsGrid, type DeliveredJobRow } from "./delivered-jobs-grid";
 import { DeliveryModal } from "./delivery-modal";
@@ -183,13 +184,13 @@ export const DeliverJobSection = ({ onBack, initialTab }: DeliverJobSectionProps
     function handleSearchChange(value: string) {
         setSearch(value);
         if (debounceRef.current) clearTimeout(debounceRef.current);
-        debounceRef.current = setTimeout(() => { setPage(1); setSearchQ(value); }, DEBOUNCE_MS);
+        debounceRef.current = setTimeout(() => { setPage(1); setSearchQ(value); }, SEARCH_DEBOUNCE_MS);
     }
 
     function handleDeliveredSearchChange(value: string) {
         setDeliveredSearch(value);
         if (deliveredDebounceRef.current) clearTimeout(deliveredDebounceRef.current);
-        deliveredDebounceRef.current = setTimeout(() => { setDeliveredPage(1); setDeliveredSearchQ(value); }, DEBOUNCE_MS);
+        deliveredDebounceRef.current = setTimeout(() => { setDeliveredPage(1); setDeliveredSearchQ(value); }, SEARCH_DEBOUNCE_MS);
     }
 
     // ── Selection handlers ────────────────────────────────────────────────────

@@ -1990,6 +1990,7 @@ class SqlStore:
         WHERE j.branch_id = (table "p_branch_id")
           AND ((table "p_search") = ''
            OR LOWER(j.job_no)     LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(COALESCE(j.alternate_job_no, '')) LIKE '%%' || LOWER((table "p_search")) || '%%'
            OR LOWER(sp.part_code) LIKE '%%' || LOWER((table "p_search")) || '%%'
            OR LOWER(sp.part_name) LIKE '%%' || LOWER((table "p_search")) || '%%')
     """
@@ -2010,6 +2011,7 @@ class SqlStore:
             jpu.created_at,
             j.id       AS job_id,
             j.job_no,
+            j.alternate_job_no,
             j.job_date,
             j.is_closed,
             j.is_final,
@@ -2040,6 +2042,7 @@ class SqlStore:
         WHERE j.branch_id = (table "p_branch_id")
           AND ((table "p_search") = ''
            OR LOWER(j.job_no)     LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(COALESCE(j.alternate_job_no, '')) LIKE '%%' || LOWER((table "p_search")) || '%%'
            OR LOWER(sp.part_code) LIKE '%%' || LOWER((table "p_search")) || '%%'
            OR LOWER(sp.part_name) LIKE '%%' || LOWER((table "p_search")) || '%%')
         ORDER BY jpu.created_at DESC
@@ -3249,6 +3252,7 @@ class SqlStore:
             j.id,
             j.job_no,
             j.alternate_job_no,
+            j.is_opening_job,
             j.job_date,
             j.purchase_date,
             j.job_status_id,
@@ -3273,7 +3277,8 @@ class SqlStore:
             (SELECT COUNT(*) FROM job_transaction jtr WHERE jtr.job_id = j.id)  AS transaction_count,
             jrm.name       AS job_receive_manner_name,
             jrc.name       AS job_receive_condition_name,
-            j.division_id
+            j.division_id,
+            ji.is_posted   AS invoice_is_posted
         FROM job j
         JOIN customer_contact      cc  ON cc.id  = j.customer_contact_id
         JOIN job_type              jt  ON jt.id  = j.job_type_id
@@ -3284,6 +3289,7 @@ class SqlStore:
         LEFT JOIN product_brand_model pbm ON pbm.id = j.product_brand_model_id
         LEFT JOIN brand            b   ON b.id   = pbm.brand_id
         LEFT JOIN product          p   ON p.id   = pbm.product_id
+        LEFT JOIN job_invoice      ji  ON ji.job_id = j.id
         WHERE j.branch_id     = (table "p_branch_id")
           AND j.job_status_id = (table "p_status_id")
           AND ((table "p_search") = ''
@@ -3341,6 +3347,7 @@ class SqlStore:
             j.id,
             j.job_no,
             j.alternate_job_no,
+            j.is_opening_job,
             j.job_date,
             j.purchase_date,
             j.job_status_id,
@@ -3365,7 +3372,8 @@ class SqlStore:
             (SELECT COUNT(*) FROM job_transaction jtr WHERE jtr.job_id = j.id)  AS transaction_count,
             jrm.name       AS job_receive_manner_name,
             jrc.name       AS job_receive_condition_name,
-            j.division_id
+            j.division_id,
+            ji.is_posted   AS invoice_is_posted
         FROM job j
         JOIN customer_contact      cc  ON cc.id  = j.customer_contact_id
         JOIN job_type              jt  ON jt.id  = j.job_type_id
@@ -3376,6 +3384,7 @@ class SqlStore:
         LEFT JOIN product_brand_model pbm ON pbm.id = j.product_brand_model_id
         LEFT JOIN brand            b   ON b.id   = pbm.brand_id
         LEFT JOIN product          p   ON p.id   = pbm.product_id
+        LEFT JOIN job_invoice      ji  ON ji.job_id = j.id
         WHERE j.branch_id = (table "p_branch_id")
           AND ((table "p_search") = ''
            OR  j.job_no::text                   ILIKE '%%' || (table "p_search") || '%%'
@@ -3437,7 +3446,7 @@ class SqlStore:
     # Most recent transaction whose status is NOT a delivered status — i.e. the
     # state the job was in just before it was delivered.
     GET_LAST_NON_DELIVERED_TRANSACTION = """
-        SELECT t.id, t.status_id, t.technician_id, t.amount
+        SELECT t.id, t.status_id, t.technician_id
         FROM   job_transaction t
         JOIN   job_status js ON js.id = t.status_id
         WHERE  t.job_id = %(job_id)s
@@ -3459,7 +3468,6 @@ class SqlStore:
         UPDATE job
         SET    job_status_id       = %(job_status_id)s,
                technician_id       = %(technician_id)s,
-               amount              = COALESCE(%(amount)s, amount, 0),
                is_final            = %(is_final)s,
                is_closed           = false,
                delivery_date       = NULL,
@@ -3480,6 +3488,7 @@ class SqlStore:
         LEFT JOIN brand            b   ON b.id   = pbm.brand_id
         LEFT JOIN product          p   ON p.id   = pbm.product_id
         WHERE j.branch_id = (table "p_branch_id")
+          AND j.is_opening_job IS NOT TRUE
           AND j.job_date BETWEEN (table "p_from_date") AND (table "p_to_date")
           AND ((table "p_search") = ''
            OR LOWER(j.job_no)       LIKE '%%' || LOWER((table "p_search")) || '%%'
@@ -3533,6 +3542,7 @@ class SqlStore:
         LEFT JOIN brand            b   ON b.id   = pbm.brand_id
         LEFT JOIN product          p   ON p.id   = pbm.product_id
         WHERE j.branch_id = (table "p_branch_id")
+          AND j.is_opening_job IS NOT TRUE
           AND j.job_date BETWEEN (table "p_from_date") AND (table "p_to_date")
           AND ((table "p_search") = ''
            OR LOWER(j.job_no)       LIKE '%%' || LOWER((table "p_search")) || '%%'
@@ -3666,6 +3676,7 @@ class SqlStore:
             j.id,
             j.job_no,
             j.alternate_job_no,
+            j.is_opening_job,
             j.job_date,
             j.purchase_date,
             j.is_closed,
@@ -3850,6 +3861,7 @@ class SqlStore:
                   AND ((table "p_search") = ''
                    OR  LOWER((SELECT cc.full_name FROM customer_contact cc WHERE cc.id = j.customer_contact_id)) LIKE '%%' || LOWER((table "p_search")) || '%%'
                    OR  LOWER((SELECT cc.mobile FROM customer_contact cc WHERE cc.id = j.customer_contact_id)) LIKE '%%' || LOWER((table "p_search")) || '%%'
+                   OR  LOWER(COALESCE(j.alternate_job_no, '')) LIKE '%%' || LOWER((table "p_search")) || '%%'
                    OR  CAST(j.batch_no AS text) LIKE '%%' || (table "p_search") || '%%')
                 ORDER BY j.batch_no DESC
                 LIMIT  (table "p_limit")
@@ -3859,6 +3871,7 @@ class SqlStore:
             j.batch_no,
             j.id,
             j.job_no,
+            j.alternate_job_no,
             j.job_date,
             j.purchase_date,
             j.is_closed,
@@ -3899,6 +3912,7 @@ class SqlStore:
           AND ((table "p_search") = ''
            OR  LOWER((SELECT cc.full_name FROM customer_contact cc WHERE cc.id = j.customer_contact_id)) LIKE '%%' || LOWER((table "p_search")) || '%%'
            OR  LOWER((SELECT cc.mobile FROM customer_contact cc WHERE cc.id = j.customer_contact_id)) LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR  LOWER(COALESCE(j.alternate_job_no, '')) LIKE '%%' || LOWER((table "p_search")) || '%%'
            OR  CAST(j.batch_no AS text) LIKE '%%' || (table "p_search") || '%%')
     """
 
@@ -4043,6 +4057,7 @@ class SqlStore:
           AND jp.payment_date BETWEEN (table "p_from_date") AND (table "p_to_date")
           AND ((table "p_search") = ''
            OR  j.job_no::text ILIKE '%%' || (table "p_search") || '%%'
+           OR  LOWER(COALESCE(j.alternate_job_no, '')) LIKE '%%' || LOWER((table "p_search")) || '%%'
            OR  LOWER(cc.full_name) LIKE '%%' || LOWER((table "p_search")) || '%%'
            OR  LOWER(jp.payment_mode) LIKE '%%' || LOWER((table "p_search")) || '%%'
            OR  LOWER(COALESCE(jp.reference_no, '')) LIKE '%%' || LOWER((table "p_search")) || '%%'
@@ -4057,18 +4072,28 @@ class SqlStore:
             "p_search"     as (values(%(search)s::text)),
             "p_limit"      as (values(%(limit)s::int)),
             "p_offset"     as (values(%(offset)s::int))
-        SELECT jp.id, jp.job_id, jp.receipt_no, j.job_no, j.job_date, cc.full_name AS customer_name, cc.mobile,
+        SELECT jp.id, jp.job_id, jp.receipt_no, j.job_no, j.alternate_job_no, j.is_opening_job, j.job_date, cc.full_name AS customer_name, cc.gstin AS customer_gstin, cc.mobile,
                jp.payment_date, jp.payment_mode, jp.amount, jp.reference_no, jp.remarks,
                jp.is_posted, jp.created_at, jp.updated_at,
-               j.is_closed, j.is_final, js.code AS job_status_code, js.name AS job_status_name
+               j.is_closed, j.is_final, j.batch_no, j.division_id, js.code AS job_status_code, js.name AS job_status_name,
+               jt.name AS job_type_name, jt.code AS job_type_code,
+               TRIM(CONCAT_WS(' ', p.name, b.name, pbm.model_name, j.serial_no)) AS device_details,
+               ji.is_posted AS invoice_is_posted,
+               (SELECT COUNT(*) FROM job_image_doc jid WHERE jid.job_id = j.id) AS file_count
         FROM job_payment jp
         JOIN job j ON j.id = jp.job_id
         JOIN job_status js ON js.id = j.job_status_id
+        JOIN job_type   jt ON jt.id = j.job_type_id
         LEFT JOIN customer_contact cc ON cc.id = j.customer_contact_id
+        LEFT JOIN product_brand_model pbm ON pbm.id = j.product_brand_model_id
+        LEFT JOIN brand   b  ON b.id  = pbm.brand_id
+        LEFT JOIN product p  ON p.id  = pbm.product_id
+        LEFT JOIN job_invoice ji ON ji.job_id = j.id
         WHERE j.branch_id = (table "p_branch_id")
           AND jp.payment_date BETWEEN (table "p_from_date") AND (table "p_to_date")
           AND ((table "p_search") = ''
            OR  j.job_no::text ILIKE '%%' || (table "p_search") || '%%'
+           OR  LOWER(COALESCE(j.alternate_job_no, '')) LIKE '%%' || LOWER((table "p_search")) || '%%'
            OR  LOWER(cc.full_name) LIKE '%%' || LOWER((table "p_search")) || '%%'
            OR  LOWER(jp.payment_mode) LIKE '%%' || LOWER((table "p_search")) || '%%'
            OR  LOWER(COALESCE(jp.reference_no, '')) LIKE '%%' || LOWER((table "p_search")) || '%%'
@@ -4295,6 +4320,7 @@ class SqlStore:
         WHERE j.branch_id = (table "p_branch_id")
           AND ((table "p_search") = ''
            OR  j.job_no::text       ILIKE '%%' || (table "p_search") || '%%'
+           OR  LOWER(COALESCE(j.alternate_job_no, '')) LIKE '%%' || LOWER((table "p_search")) || '%%'
            OR  LOWER(ji.invoice_no)  LIKE '%%' || LOWER((table "p_search")) || '%%'
            OR  LOWER(cc.full_name)   LIKE '%%' || LOWER((table "p_search")) || '%%')
     """
@@ -4309,6 +4335,7 @@ class SqlStore:
             ji.id,
             ji.job_id,
             j.job_no,
+            j.alternate_job_no,
             j.job_date,
             cc.full_name  AS customer_name,
             cc.gstin      AS customer_gstin,
@@ -4326,6 +4353,7 @@ class SqlStore:
         WHERE j.branch_id = (table "p_branch_id")
           AND ((table "p_search") = ''
            OR  j.job_no::text       ILIKE '%%' || (table "p_search") || '%%'
+           OR  LOWER(COALESCE(j.alternate_job_no, '')) LIKE '%%' || LOWER((table "p_search")) || '%%'
            OR  LOWER(ji.invoice_no)  LIKE '%%' || LOWER((table "p_search")) || '%%'
            OR  LOWER(cc.full_name)   LIKE '%%' || LOWER((table "p_search")) || '%%')
         ORDER BY ji.invoice_date DESC, ji.id DESC
@@ -4409,8 +4437,10 @@ class SqlStore:
             COALESCE(su.full_name, su.username) AS performed_by_name,
             jt.performed_at,
             jt.previous_transaction_id,
-            jt.transaction_date
+            jt.transaction_date,
+            j.is_opening_job
         FROM job_transaction jt
+        JOIN job                  j  ON j.id   = jt.job_id
         LEFT JOIN job_status      js ON js.id  = jt.status_id
         LEFT JOIN technician      t  ON t.id   = jt.technician_id
         LEFT JOIN security."user" su ON su.id  = jt.performed_by_user_id
@@ -4431,14 +4461,21 @@ class SqlStore:
             NULL::text                          AS performed_by_name,
             j.created_at                        AS performed_at,
             NULL::bigint                        AS previous_transaction_id,
-            j.created_at::date                  AS transaction_date
+            j.created_at::date                  AS transaction_date,
+            j.is_opening_job
         FROM job j
-        JOIN job_status js ON js.id = 1
+        JOIN job_status js ON js.id = CASE WHEN j.is_opening_job THEN j.job_status_id ELSE 1 END
         WHERE j.id = (table "p_job_id")
-          AND NOT EXISTS (
-              SELECT 1 FROM job_transaction jt2
-              WHERE jt2.job_id = j.id AND jt2.status_id = 1
-          )
+          AND (
+                (j.is_opening_job IS NOT TRUE AND NOT EXISTS (
+                    SELECT 1 FROM job_transaction jt2
+                    WHERE jt2.job_id = j.id AND jt2.status_id = 1
+                ))
+             OR (j.is_opening_job IS TRUE AND NOT EXISTS (
+                    SELECT 1 FROM job_transaction jt2
+                    WHERE jt2.job_id = j.id
+                ))
+              )
 
         ORDER BY performed_at ASC, id ASC
     """
@@ -4767,6 +4804,7 @@ class SqlStore:
             j.id,
             j.job_no,
             j.alternate_job_no,
+            j.is_opening_job,
             j.job_date,
             j.purchase_date,
             j.amount,
@@ -4939,7 +4977,7 @@ class SqlStore:
             "p_search"    as (values(%(search)s::text)),
             "p_limit"     as (values(%(limit)s::int)),
             "p_offset"    as (values(%(offset)s::int))
-        SELECT j.id, j.job_no, j.alternate_job_no, j.job_date, j.purchase_date, j.amount, j.last_transaction_id,
+        SELECT j.id, j.job_no, j.alternate_job_no, j.is_opening_job, j.job_date, j.purchase_date, j.amount, j.last_transaction_id,
                j.division_id, j.batch_no, j.serial_no,
                TRIM(CONCAT_WS(' ', p.name, b.name, pbm.model_name, j.serial_no)) AS device_details,
                cc.full_name  AS customer_name, cc.gstin AS customer_gstin, cc.mobile,
@@ -5022,7 +5060,7 @@ class SqlStore:
             "p_search"    as (values(%(search)s::text)),
             "p_limit"     as (values(%(limit)s::int)),
             "p_offset"    as (values(%(offset)s::int))
-        SELECT j.id, j.job_no, j.alternate_job_no, j.job_date, j.purchase_date, j.delivery_date,
+        SELECT j.id, j.job_no, j.alternate_job_no, j.is_opening_job, j.job_date, j.purchase_date, j.delivery_date,
                j.amount, j.last_transaction_id,
                j.division_id, j.batch_no, j.serial_no,
                TRIM(CONCAT_WS(' ', p.name, b.name, pbm.model_name)) AS device_details,

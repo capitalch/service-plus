@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Loader2, Mail, MapPin, MessageSquare, Phone, Search, Tag, Users, X } from "lucide-react";
+import { SEARCH_DEBOUNCE_MS } from "@/constants/timing";
 
 import {
     Dialog,
@@ -30,7 +31,6 @@ export type CustomerSearchModalProps = {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const DEBOUNCE_MS = 1600;
 const MIN_CHARS   = 2;
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -54,7 +54,7 @@ export function CustomerSearchModal({ open, initialSearch, onOpenChange, onSelec
         setLoading(false);
         if (debounceRef.current) clearTimeout(debounceRef.current);
         if (initialSearch.trim().length >= MIN_CHARS) {
-            debounceRef.current = setTimeout(() => doSearch(initialSearch.trim()), DEBOUNCE_MS);
+            debounceRef.current = setTimeout(() => doSearch(initialSearch.trim()), SEARCH_DEBOUNCE_MS);
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [open, initialSearch]);
@@ -90,7 +90,7 @@ export function CustomerSearchModal({ open, initialSearch, onOpenChange, onSelec
             setResults([]);
             return;
         }
-        debounceRef.current = setTimeout(() => doSearch(val.trim()), DEBOUNCE_MS);
+        debounceRef.current = setTimeout(() => doSearch(val.trim()), SEARCH_DEBOUNCE_MS);
     }
 
     function handleReset() {

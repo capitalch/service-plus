@@ -73,6 +73,7 @@ function emptyLine(brandId: number | null = null): PurchaseLineFormItem {
         _orig_hsn_code:   null,
         _orig_cost_price: null,
         _orig_gst_rate:   null,
+        _pre_warranty_price: null,
     };
 }
 
@@ -224,6 +225,7 @@ export const NewPurchaseInvoice = forwardRef<PurchaseInvoiceHandle, Props>(
                     _orig_hsn_code:   l.hsn_code,
                     _orig_cost_price: Number(l.unit_price),
                     _orig_gst_rate:   Number(l.gst_rate),
+                    _pre_warranty_price: null,
                 }));
                 form.reset({
                     vendor_id:    detail.supplier_id,
@@ -661,7 +663,7 @@ export const NewPurchaseInvoice = forwardRef<PurchaseInvoiceHandle, Props>(
                                         <tr className="bg-(--cl-surface-2)/50">
                                             <th className={thClass} style={{ width: "2%" }}>#</th>
                                             <th className={thClass} style={{ width: "20%" }}>Part <span className="text-red-500 ml-0.5">*</span></th>
-                                            <th className={`${thClass} text-center`} style={{ width: "4%" }} title="Under Warranty"><ShieldOff className="h-3.5 w-3.5 mx-auto" /></th>
+                                            <th className={`${thClass} text-center`} style={{ width: "4%" }} title="Warranty"><ShieldOff className="h-3.5 w-3.5 mx-auto" /></th>
                                             <th className={thClass} style={{ width: "8%" }}>HSN</th>
                                             <th className={`${thClass} text-right`} style={{ width: "6%" }}>Qty <span className="text-red-500 ml-0.5">*</span></th>
                                             <th className={`${thClass} text-right`} style={{ width: "8%" }}>Price</th>
@@ -684,8 +686,10 @@ export const NewPurchaseInvoice = forwardRef<PurchaseInvoiceHandle, Props>(
                                         {fields.map((line, idx) => {
                                             const c = calcLine(line);
                                             return (
-                                                <tr key={line._key} className="hover:bg-(--cl-surface-2)/30 group transition-colors align-top">
-                                                    <td className={`${tdClass} pt-2 pl-4 text-xs font-medium text-(--cl-text-muted)`}>{idx + 1}</td>
+                                                <tr key={line._key} className="hover:bg-(--cl-surface-2)/30 group transition-colors align-middle">
+                                                    <td className={`${tdClass} pl-4 text-xs font-medium text-(--cl-text-muted)`}>
+                                                        <div className="flex h-7 items-center">{idx + 1}</div>
+                                                    </td>
 
                                                     {/* Part */}
                                                     <td className={tdClass}>
@@ -750,13 +754,15 @@ export const NewPurchaseInvoice = forwardRef<PurchaseInvoiceHandle, Props>(
                                                     </td>
 
                                                     {/* Warranty */}
-                                                    <td className={`${tdClass} text-center pt-1.5`}>
+                                                    <td className={`${tdClass} text-center`}>
                                                         <button
                                                             type="button"
                                                             title={line.under_warranty ? "Under Warranty — click to remove" : "Not under warranty — click to mark"}
                                                             onClick={() => {
                                                                 const checked = !line.under_warranty;
-                                                                updateLine(idx, { under_warranty: checked, ...(checked && { unit_price: 0 }) });
+                                                                updateLine(idx, checked
+                                                                    ? { under_warranty: true, unit_price: 0, _pre_warranty_price: line.unit_price }
+                                                                    : { under_warranty: false, unit_price: line._pre_warranty_price ?? 0, _pre_warranty_price: null });
                                                             }}
                                                             className={`mx-auto flex h-6 w-6 items-center justify-center rounded transition-all cursor-pointer ${
                                                                 line.under_warranty
@@ -819,7 +825,7 @@ export const NewPurchaseInvoice = forwardRef<PurchaseInvoiceHandle, Props>(
                                                                             title={`Price changed from ₹${formatNumber(origCost!)} (part's master cost). Saving will update the part master.`}
                                                                         >
                                                                             <AlertTriangle className="h-2.5 w-2.5 shrink-0 text-red-500" />
-                                                                            <span className="text-[9px] font-bold uppercase tracking-tight text-red-500 tabular-nums">
+                                                                            <span className="text-[10px] font-normal uppercase tracking-tight text-red-500 tabular-nums">
                                                                                 was ₹{formatNumber(origCost!)}
                                                                             </span>
                                                                         </div>
@@ -830,8 +836,8 @@ export const NewPurchaseInvoice = forwardRef<PurchaseInvoiceHandle, Props>(
                                                     </td>
 
                                                     {/* Subtotal (read-only) */}
-                                                    <td className={`${tdClass} text-right pt-2 font-mono tabular-nums text-sm font-medium text-(--cl-text) border-l border-(--cl-border) bg-(--cl-surface-2)/40`}>
-                                                        {formatNumber(c.aggregate)}
+                                                    <td className={`${tdClass} px-2 text-right font-mono tabular-nums text-sm font-medium text-(--cl-text) border-l border-(--cl-border) bg-(--cl-surface-2)/40`}>
+                                                        <div className="flex h-7 items-center justify-end">{formatNumber(c.aggregate)}</div>
                                                     </td>
 
                                                     {/* GST % */}
@@ -850,22 +856,22 @@ export const NewPurchaseInvoice = forwardRef<PurchaseInvoiceHandle, Props>(
 
                                                     {!isIgst ? (
                                                         <>
-                                                            <td className={`${tdClass} px-2 text-right pt-2 font-mono tabular-nums text-sm font-medium text-(--cl-text-muted) bg-(--cl-surface-2)/40`}>
-                                                                {formatNumber(c.cgstAmt)}
+                                                            <td className={`${tdClass} px-2 text-right font-mono tabular-nums text-sm font-medium text-(--cl-text-muted) bg-(--cl-surface-2)/40`}>
+                                                                <div className="flex h-7 items-center justify-end">{formatNumber(c.cgstAmt)}</div>
                                                             </td>
-                                                            <td className={`${tdClass} px-2 text-right pt-2 font-mono tabular-nums text-sm font-medium text-(--cl-text-muted) bg-(--cl-surface-2)/40`}>
-                                                                {formatNumber(c.sgstAmt)}
+                                                            <td className={`${tdClass} px-2 text-right font-mono tabular-nums text-sm font-medium text-(--cl-text-muted) bg-(--cl-surface-2)/40`}>
+                                                                <div className="flex h-7 items-center justify-end">{formatNumber(c.sgstAmt)}</div>
                                                             </td>
                                                         </>
                                                     ) : (
-                                                        <td className={`${tdClass} px-2 text-right pt-2 font-mono tabular-nums text-sm font-medium text-(--cl-text-muted) bg-(--cl-surface-2)/40`} title="IGST Amount">
-                                                            {formatNumber(c.igstAmt)}
+                                                        <td className={`${tdClass} px-2 text-right font-mono tabular-nums text-sm font-medium text-(--cl-text-muted) bg-(--cl-surface-2)/40`} title="IGST Amount">
+                                                            <div className="flex h-7 items-center justify-end">{formatNumber(c.igstAmt)}</div>
                                                         </td>
                                                     )}
 
                                                     {/* Total */}
-                                                    <td className={`${tdClass} p-2 text-right font-mono tabular-nums text-sm font-semibold text-(--cl-text) bg-(--cl-surface-2)/40`}>
-                                                        {formatNumber(c.total)}
+                                                    <td className={`${tdClass} px-2 text-right font-mono tabular-nums text-sm font-semibold text-(--cl-text) bg-(--cl-surface-2)/40`}>
+                                                        <div className="flex h-7 items-center justify-end">{formatNumber(c.total)}</div>
                                                     </td>
 
                                                     {/* Remarks */}

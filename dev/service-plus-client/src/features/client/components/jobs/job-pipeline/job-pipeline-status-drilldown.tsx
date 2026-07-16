@@ -15,6 +15,7 @@ import {
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { MESSAGES } from "@/constants/messages";
 import { SQL_MAP } from "@/constants/sql-map";
+import { SEARCH_DEBOUNCE_MS } from "@/constants/timing";
 import { selectCurrentUser, selectDbName } from "@/features/auth/store/auth-slice";
 import { apolloClient } from "@/lib/apollo-client";
 import { encodeObj, graphQlUtils } from "@/lib/graphql-utils";
@@ -91,7 +92,7 @@ export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Prop
     const branchId = currentBranch?.id ?? null;
 
     const [searchInput, setSearchInput] = useState("");
-    const searchQ = useDebounce(searchInput, 1600);
+    const searchQ = useDebounce(searchInput, SEARCH_DEBOUNCE_MS);
     const [page, setPage] = useState(1);
     const [rows, setRows] = useState<OpenJobRow[]>([]);
     const [total, setTotal] = useState(0);

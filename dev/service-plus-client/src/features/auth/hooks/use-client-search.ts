@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { searchClients } from '@/lib/auth-service';
 import { useDebounce } from '@/hooks/use-debounce';
 import type { ClientType, SearchClientsResponseType } from '@/lib/auth-service';
+import { FIELD_VALIDATION_DEBOUNCE_MS } from "@/constants/timing";
 
 /**
  * useClientSearch Hook
@@ -17,7 +18,7 @@ export const useClientSearch = () => {
   const [clients, setClients] = useState<ClientType[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<unknown>(null);
-  const debouncedSearch = useDebounce(criteria, 1200);
+  const debouncedSearch = useDebounce(criteria, FIELD_VALIDATION_DEBOUNCE_MS);
 
   useEffect(() => {
     if (debouncedSearch.length < 2) {

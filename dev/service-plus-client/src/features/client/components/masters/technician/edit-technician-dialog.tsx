@@ -25,6 +25,7 @@ import {
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { MESSAGES } from "@/constants/messages";
 import { SQL_MAP } from "@/constants/sql-map";
+import { FIELD_VALIDATION_DEBOUNCE_MS } from "@/constants/timing";
 import { useDebounce } from "@/hooks/use-debounce";
 import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
@@ -102,7 +103,7 @@ export const EditTechnicianDialog = ({
     const { formState: { errors } } = form;
     const codeValue     = useWatch({ control: form.control, name: "code" });
     const branchIdValue = useWatch({ control: form.control, name: "branch_id" });
-    const debouncedCode = useDebounce(codeValue, 1200);
+    const debouncedCode = useDebounce(codeValue, FIELD_VALIDATION_DEBOUNCE_MS);
 
     // Pre-fill form on open
     useEffect(() => {

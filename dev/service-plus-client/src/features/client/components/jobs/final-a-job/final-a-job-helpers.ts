@@ -1,7 +1,6 @@
 import type { EditablePartLine } from "./final-a-job-schema";
 
 export const PAGE_SIZE  = 50;
-export const DEBOUNCE_MS = 1600;
 
 export const thClass = "sticky top-0 z-20 text-xs font-semibold uppercase tracking-wide text-(--cl-text-muted) px-1.5 py-1.5 text-left border-b border-(--cl-border) bg-(--cl-surface-2)";
 export const tdClass = "px-1.5 py-1 text-sm text-(--cl-text) border-b border-(--cl-border)";

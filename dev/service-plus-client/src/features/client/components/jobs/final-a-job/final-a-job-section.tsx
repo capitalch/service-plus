@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { MESSAGES } from "@/constants/messages";
 import { SQL_MAP } from "@/constants/sql-map";
+import { SEARCH_DEBOUNCE_MS } from "@/constants/timing";
 import { selectDbName, selectCurrentUser } from "@/features/auth/store/auth-slice";
 import { apolloClient } from "@/lib/apollo-client";
 import { encodeObj, graphQlUtils } from "@/lib/graphql-utils";
@@ -30,7 +31,7 @@ import {
     type AdditionalChargeMasterRow,
     emptyChargeLine,
 } from "./final-a-job-schema";
-import { PAGE_SIZE, DEBOUNCE_MS } from "./final-a-job-helpers";
+import { PAGE_SIZE } from "./final-a-job-helpers";
 import { FinalJobForm } from "./final-job-form";
 import { PendingJobsGrid } from "./pending-jobs-grid";
 import { FinalizedJobsGrid } from "./finalized-jobs-grid";
@@ -292,13 +293,13 @@ export const FinalAJobSection = ({ onBack, initialTab }: FinalAJobSectionProps =
     function handleSearchChange(value: string) {
         setSearch(value);
         if (debounceRef.current) clearTimeout(debounceRef.current);
-        debounceRef.current = setTimeout(() => { setPage(1); setSearchQ(value); }, DEBOUNCE_MS);
+        debounceRef.current = setTimeout(() => { setPage(1); setSearchQ(value); }, SEARCH_DEBOUNCE_MS);
     }
 
     function handleFinalizedSearchChange(value: string) {
         setFinalizedSearch(value);
         if (finalizedDebounceRef.current) clearTimeout(finalizedDebounceRef.current);
-        finalizedDebounceRef.current = setTimeout(() => { setFinalizedPage(1); setFinalizedSearchQ(value); }, DEBOUNCE_MS);
+        finalizedDebounceRef.current = setTimeout(() => { setFinalizedPage(1); setFinalizedSearchQ(value); }, SEARCH_DEBOUNCE_MS);
     }
 
     const loadFinalizedData = useCallback(async () => {
@@ -680,9 +681,9 @@ export const FinalAJobSection = ({ onBack, initialTab }: FinalAJobSectionProps =
         setPartLines(prev => [...prev, emptyPartLine(isGst ? defaultGstRate : 0, defaultHsnForSparePart)]);
     }
 
-    // Re-seed the back-calc target to the current grand total whenever lines change,
+    // Re-seed the target amount to the current grand total whenever lines change,
     // so "Total" tracks parts + charges as the user edits. Manual target entry and
-    // Back Calculate bypass these handlers, so they are left untouched.
+    // Apply bypass these handlers, so they are left untouched.
     function resyncTarget(parts: EditablePartLine[], charges: EditableChargeLine[]) {
         const total =
             parts.reduce((s, l) => s + (parseFloat(l.sale_pr_gst) || 0) * l.qty, 0) +
@@ -930,7 +931,7 @@ export const FinalAJobSection = ({ onBack, initialTab }: FinalAJobSectionProps =
             const computedTotal = partLines.reduce((s, l) => s + (parseFloat(l.sale_pr_gst) || 0) * l.qty, 0)
                 + chargeLines.reduce((s, c) => s + (parseFloat(c.sale_pr_gst) || 0) * (parseFloat(c.qty) || 1), 0);
             // The job is always saved with the true achieved line total — not the
-            // aspirational Back Calculate target, which may be unreachable (e.g. part
+            // aspirational Apply target, which may be unreachable (e.g. part
             // selling prices are floored at cost and can't be discounted further).
             const amount = isWarrantyJob ? 0 : computedTotal;
 

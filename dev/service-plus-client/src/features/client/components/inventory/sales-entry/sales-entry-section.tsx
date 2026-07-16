@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { FormProvider, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { SEARCH_DEBOUNCE_MS } from "@/constants/timing";
 import {CheckCircle2, Eye, FileDown, FileSpreadsheet, FileText, Loader2,
     MoreHorizontal, Pencil, RefreshCw, RotateCcw, Save, Search, Trash2, XCircle, ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon, X} from "lucide-react";
 import { ViewModeToggle, type ViewMode } from "@/features/client/components/inventory/view-mode-toggle";
@@ -31,6 +32,7 @@ import { MESSAGES } from "@/constants/messages";
 import { SQL_MAP } from "@/constants/sql-map";
 import { apolloClient } from "@/lib/apollo-client";
 import { encodeObj, graphQlUtils, type GenericQueryData } from "@/lib/graphql-utils";
+import { isValidGstin, normalizeGstin } from "@/lib/gstin";
 import { formatCurrency, currentFinancialYearRange } from "@/lib/utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
@@ -52,7 +54,6 @@ import { SalesInvoicePdfPreviewDialog } from "./sales-invoice-pdf-preview-dialog
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const PAGE_SIZE   = 50;
-const DEBOUNCE_MS = 1600;
 
 const thClass = "sticky top-0 z-20 text-xs font-semibold uppercase tracking-wide text-(--cl-text-muted) p-3 text-left border-b border-(--cl-border) bg-(--cl-surface-2)";
 const tdClass = "p-3 text-sm text-(--cl-text) border-b border-(--cl-border)";
@@ -110,7 +111,22 @@ export const SalesEntrySection = () => {
     const [isReturn,    setIsReturn]    = useState(false);
 
     // Lifted form state
-    const [backCalcTarget,    setBackCalcTarget]    = useState("");
+    const [backCalcTargetRaw, setBackCalcTargetRaw] = useState("");
+    // True only once Apply (or Round Off) has actually redistributed the
+    // line items to match the current backCalcTarget value. Any change to the
+    // target (typing, clearing, auto-sync) resets this to false, so a target that
+    // was merely typed but never applied is never mistaken for the real total.
+    const [backCalcApplied,   setBackCalcApplied]    = useState(false);
+    // Stable identities: this is a dependency of an effect in NewSalesInvoice,
+    // so a function recreated every render would re-trigger that effect on
+    // every keystroke (even ones unrelated to the target field), clobbering
+    // whatever the user just typed.
+    const setBackCalcTarget = useCallback((v: string) => {
+        setBackCalcTargetRaw(v);
+        setBackCalcApplied(false);
+    }, []);
+    const backCalcTarget = backCalcTargetRaw;
+    const markBackCalcApplied = useCallback(() => setBackCalcApplied(true), []);
     const [customerId,        setCustomerId]        = useState<number | null>(null);
     const [customerName,      setCustomerName]      = useState("");
     const [customerGstin,     setCustomerGstin]     = useState("");
@@ -139,7 +155,7 @@ export const SalesEntrySection = () => {
     // reliably (the parent's own form.watch("lines") misses nested per-line updates).
     const [linesValid, setLinesValid] = useState(false);
 
-    const canSave = !!customerName.trim() && !!customerStateCode && !!selectedBrand && linesValid;
+    const canSave = !!customerName.trim() && !!customerStateCode && !!selectedBrand && linesValid && isValidGstin(customerGstin);
 
     const debounceRef     = useRef<ReturnType<typeof setTimeout> | null>(null);
     const scrollWrapperRef = useRef<HTMLDivElement>(null);
@@ -328,7 +344,7 @@ export const SalesEntrySection = () => {
         debounceRef.current = setTimeout(() => {
             setPage(1);
             setSearchQ(value);
-        }, DEBOUNCE_MS);
+        }, SEARCH_DEBOUNCE_MS);
     };
 
     const handleFilterChange = (setter: (v: string) => void) => (v: string) => {
@@ -378,6 +394,10 @@ export const SalesEntrySection = () => {
             toast.error("Customer state is required.");
             return;
         }
+        if (!isValidGstin(customerGstin)) {
+            toast.error("Enter a valid 15-character GSTIN, or clear the field.");
+            return;
+        }
 
         const salesTypeId  = txnTypes.find(t => t.code === "SALES")?.id;
         const returnTypeId = txnTypes.find(t => t.code === "SALE_RETURN")?.id;
@@ -408,12 +428,15 @@ export const SalesEntrySection = () => {
         const calcTotal   = aggTotal + totalTax;
         const backCalcNum = parseFloat(backCalcTarget);
         const hasTarget   = backCalcTarget !== "" && !isNaN(backCalcNum) && backCalcNum > 0;
-        const grandTotal  = hasTarget ? backCalcNum : calcTotal;
+        // A target that was typed but never actually applied via Apply doesn't
+        // affect the line items, so saving it as the invoice amount would
+        // desync the header total from the sum of the saved lines. Ignore it.
+        const grandTotal  = (hasTarget && backCalcApplied) ? backCalcNum : calcTotal;
 
         const diff = Math.abs(grandTotal - calcTotal);
         if (diff > 0.5) {
             setDiffAlertMsg(
-                `Invoice total (₹${grandTotal.toFixed(2)}) differs from the calculated line total (₹${calcTotal.toFixed(2)}) by ₹${diff.toFixed(2)}. Maximum allowed difference is ₹0.50. Please adjust the target amount or use Back Calculate.`
+                `Invoice total (₹${grandTotal.toFixed(2)}) differs from the calculated line total (₹${calcTotal.toFixed(2)}) by ₹${diff.toFixed(2)}. Maximum allowed difference is ₹0.50. Please adjust the target amount or click Apply.`
             );
             return;
         }
@@ -457,7 +480,7 @@ export const SalesEntrySection = () => {
             brand_id:            selectedBrandId,
             cgst_amount:         cgstTotal,
             customer_contact_id: customerId ?? null,
-            customer_gstin:      customerGstin.trim() || null,
+            customer_gstin:      normalizeGstin(customerGstin) || null,
             customer_name:       customerName.trim(),
             customer_state_code: customerStateCode,
             division_id:         values.division_id,
@@ -816,7 +839,9 @@ export const SalesEntrySection = () => {
                 <FormProvider {...form}>
                     <NewSalesInvoice
                         backCalcTarget={backCalcTarget}
+                        backCalcApplied={backCalcApplied}
                         setBackCalcTarget={setBackCalcTarget}
+                        onBackCalcApplied={markBackCalcApplied}
                         branchId={branchId}
                         isIgst={isIgst}
                         setIsIgst={setIsIgst}

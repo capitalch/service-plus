@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/select";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { SQL_MAP } from "@/constants/sql-map";
+import { FIELD_VALIDATION_DEBOUNCE_MS } from "@/constants/timing";
 import { useDebounce } from "@/hooks/use-debounce";
 import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
@@ -94,7 +95,7 @@ export const EditModelDialog = ({
     const modelNameValue = useWatch({ control: form.control, name: "model_name" });
     const productIdValue = useWatch({ control: form.control, name: "product_id" });
     const brandIdValue   = useWatch({ control: form.control, name: "brand_id" });
-    const debouncedModel = useDebounce(modelNameValue, 1200);
+    const debouncedModel = useDebounce(modelNameValue, FIELD_VALIDATION_DEBOUNCE_MS);
 
     useEffect(() => {
         if (!open) return;

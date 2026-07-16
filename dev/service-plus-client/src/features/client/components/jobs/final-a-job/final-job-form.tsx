@@ -24,52 +24,9 @@ import {
 import { fmtCurrency, thClass, tdClass, calculateLinePricing } from "./final-a-job-helpers";
 import { ChargeNameCombobox } from "./charge-name-combobox";
 import { isValidGstin, normalizeGstin } from "@/lib/gstin";
+import { allocateFloored, pickResidualKey, type FloorAllocItem } from "@/lib/back-calc";
 
-// ─── Back-calculate helpers (only used in this view) ─────────────────────────
-
-type FloorAllocItem = { key: string; curIncl: number; floorIncl: number };
-
-// Iteratively allocates `poolTarget` (a GST-inclusive amount) across `items`
-// proportionally to their current amounts. Any item whose proportional share
-// would fall at or below its floor is pinned there instead, and the shortfall
-// is redistributed proportionally among the remaining (not-yet-floored)
-// items — repeating until a fixed point (no new item pins) or every item is
-// pinned (section infeasible; caller carries the residual to the next phase).
-function allocateFloored(items: FloorAllocItem[], poolTarget: number): Map<string, number> {
-    const result = new Map<string, number>();
-    let pool = items;
-    let target = poolTarget;
-    while (pool.length > 0) {
-        const curSum = pool.reduce((s, i) => s + i.curIncl, 0);
-        const allocs = pool.map(i => curSum > 0 ? i.curIncl * target / curSum : target / pool.length);
-        const notPinned: FloorAllocItem[] = [];
-        let anyPinned = false;
-        pool.forEach((item, idx) => {
-            if (allocs[idx] <= item.floorIncl) {
-                result.set(item.key, item.floorIncl);
-                target -= item.floorIncl;
-                anyPinned = true;
-            } else {
-                notPinned.push(item);
-            }
-        });
-        if (!anyPinned) {
-            pool.forEach((item, idx) => result.set(item.key, allocs[idx]));
-            return result;
-        }
-        pool = notPinned;
-    }
-    return result;
-}
-
-// Picks the item to absorb final rounding residue: the last active item that
-// isn't pinned at its floor, falling back to the last active item overall.
-function pickResidualKey<T extends { _key: string }>(active: T[], pinned: Set<string>): string {
-    for (let i = active.length - 1; i >= 0; i--) {
-        if (!pinned.has(active[i]._key)) return active[i]._key;
-    }
-    return active[active.length - 1]._key;
-}
+// ─── Apply-target helpers (only used in this view) ───────────────────────────
 
 function scaleCharges(
     allCharges: EditableChargeLine[],
@@ -84,7 +41,7 @@ function scaleCharges(
     });
     const finalIncl = allocateFloored(items, newTotal);
     const pinned = new Set(items.filter(i => finalIncl.get(i.key) === i.floorIncl).map(i => i.key));
-    const residualKey = pickResidualKey(active, pinned);
+    const residualKey = pickResidualKey(active.map(x => x._key), pinned);
 
     const patch = new Map<string, Pick<EditableChargeLine, "selling_price" | "sale_pr_gst">>();
     let runningTotal = 0;
@@ -136,7 +93,7 @@ function scaleParts(
     });
     const finalIncl = allocateFloored(items, newTotal);
     const pinned = new Set(items.filter(i => finalIncl.get(i.key) === i.floorIncl).map(i => i.key));
-    const residualKey = pickResidualKey(active, pinned);
+    const residualKey = pickResidualKey(active.map(x => x._key), pinned);
 
     const patch = new Map<string, Pick<EditablePartLine, "selling_price" | "sale_pr_gst">>();
     let runningTotal = 0;
@@ -317,7 +274,7 @@ export function FinalJobForm({
     const grandTotal = partsTotal + chargesAmountTotal;
     const grandProfitTotal = profitTotal + chargesProfitTotal;
 
-    // Applies a Back Calculate target. Allocation order: part prices down to cost,
+    // Applies the target amount. Allocation order: part prices down to cost,
     // then Additional Charges down to zero, then — only as a last resort — part
     // prices below cost (at a loss, flagged with a warning). Also warns
     // immediately if the target still isn't fully achievable, rather than only
@@ -1125,7 +1082,7 @@ export function FinalJobForm({
                                                 variant="default"
                                                 onClick={() => applyBackCalc(backCalcNum)}
                                             >
-                                                Back Calculate
+                                                Apply
                                             </Button>
                                             <Input
                                                 className="h-8 w-36 text-right text-base font-bold border-(--cl-border) bg-white"

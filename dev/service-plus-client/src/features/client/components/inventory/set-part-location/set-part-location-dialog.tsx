@@ -25,6 +25,7 @@ import {
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { MESSAGES } from "@/constants/messages";
 import { SQL_MAP } from "@/constants/sql-map";
+import { SEARCH_DEBOUNCE_MS } from "@/constants/timing";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import type { LocationOptionType, SetLocationLineType } from "@/features/client/types/set-part-location";
 import { emptyLine } from "@/features/client/types/set-part-location";
@@ -87,7 +88,7 @@ type RowProps = {
 };
 
 function LocationRow({ allPartCodes, branchId, canRemove, dbName, index, line, locations, onRemove, onUpdate, schema }: RowProps) {
-    const debouncedCode = useDebounce(line.part_code, 800);
+    const debouncedCode = useDebounce(line.part_code, SEARCH_DEBOUNCE_MS);
 
     useEffect(() => {
         const code = debouncedCode.trim();

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import { SEARCH_DEBOUNCE_MS } from "@/constants/timing";
 import {
     ChevronLeft,
     ChevronRight,
@@ -32,7 +33,6 @@ import { PartFinderTable } from "./part-finder-table";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const DEBOUNCE_MS = 1600;
 const PAGE_SIZE   = 50;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -147,7 +147,7 @@ export const PartFinderPage = () => {
         debounceRef.current = setTimeout(() => {
             setPage(1);
             setSearchQ(search);
-        }, DEBOUNCE_MS);
+        }, SEARCH_DEBOUNCE_MS);
         return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
     }, [search]);
 

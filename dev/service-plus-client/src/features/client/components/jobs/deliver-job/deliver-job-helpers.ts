@@ -1,5 +1,4 @@
 export const PAGE_SIZE   = 50;
-export const DEBOUNCE_MS = 1600;
 
 export const PAYMENT_MODES = [
     "Cash", "Card", "UPI", "Cheque", "Online Transfer", "Other",

@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { motion } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
+import { SEARCH_DEBOUNCE_MS } from "@/constants/timing";
 import {
     Dialog,
     DialogContent,
@@ -45,7 +46,6 @@ type GenericQueryData<T> = { genericQuery: T[] | null };
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const PAGE_SIZE   = 50;
-const DEBOUNCE_MS = 1600;
 
 // ─── CSS ──────────────────────────────────────────────────────────────────────
 
@@ -212,7 +212,7 @@ export const OpeningStockSection = () => {
         debounceRef.current = setTimeout(() => {
             setPage(1);
             setSearchQ(value);
-        }, DEBOUNCE_MS);
+        }, SEARCH_DEBOUNCE_MS);
     };
 
     const handleReset = () => {

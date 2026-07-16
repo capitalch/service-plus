@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useFormContext, useFieldArray, useWatch } from "react-hook-form";
-import { Loader2, Plus, Radius } from "lucide-react";
+import { Calculator, CheckCircle2, ChevronDown, Loader2, Plus, Radius } from "lucide-react";
 import { LineAddDeleteActions } from "../line-add-delete-actions";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
@@ -14,6 +14,7 @@ import { MESSAGES } from "@/constants/messages";
 import { SQL_MAP } from "@/constants/sql-map";
 import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils, type GenericQueryData } from "@/lib/graphql-utils";
+import { isValidGstin, normalizeGstin } from "@/lib/gstin";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectAvailableDivisions, selectDefaultDivisionId, selectDefaultGstRate, selectEffectiveGstStateCode, selectMarkupPercentOverCost, selectSchema } from "@/store/context-slice";
@@ -22,7 +23,7 @@ import type { SalesInvoiceType, CustomerSearchRow } from "@/features/client/type
 import type { CustomerTypeOption, StateOption } from "@/features/client/types/customer";
 import { type SalesInvoiceFormValues, getInitialSalesLine } from "./sales-invoice-schema";
 import type { SalesLineFormItem } from "./sales-invoice-schema";
-import { calcLine, computeBackCalcLines } from "./sales-invoice-utils";
+import { calcLine, computeBackCalc } from "./sales-invoice-utils";
 
 import { PartCodeInput } from "../part-code-input";
 import { CustomerInput } from "@/features/client/components/shared/customer-select";
@@ -31,9 +32,11 @@ import { CustomerInput } from "@/features/client/components/shared/customer-sele
 
 type Props = {
     backCalcTarget:       string;
+    backCalcApplied:      boolean;
     branchId:             number | null;
     isIgst:               boolean;
     setBackCalcTarget:    (v: string) => void;
+    onBackCalcApplied:    () => void;
     setIsIgst:            (v: boolean) => void;
     isReturn:             boolean;
     onIsReturnChange:     (v: boolean) => void;
@@ -71,7 +74,7 @@ function formatNumber(num: number): string {
 // skipSync: set true before committing so the effect triggered by the
 // resulting unit_price change skips the sync once, preserving what the
 // user typed. All other external unit_price changes (Price input,
-// back-calculate button) sync normally because skipSync is false.
+// Apply button) sync normally because skipSync is false.
 
 function GstPriceCell({
     unitPrice, gstRate, inputCls, tdClass, onCommit,
@@ -125,7 +128,7 @@ const inputCls = "h-7 border-(--cl-border) bg-white text-sm px-2";
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function NewSalesInvoice({
-    backCalcTarget, setBackCalcTarget,
+    backCalcTarget, backCalcApplied, setBackCalcTarget, onBackCalcApplied,
     branchId,
     isIgst, setIsIgst, isReturn, onIsReturnChange,
     onLinesValidChange, onDivisionChange,
@@ -181,6 +184,12 @@ export function NewSalesInvoice({
     const [customerAddress, setCustomerAddress]  = useState<string>("");
     const [customerMobile, setCustomerMobile]    = useState<string>("");
     const [maxTableHeight, setMaxTableHeight]    = useState<number | undefined>(undefined);
+    // True once the user has actually touched line items (or applied a back-calc
+    // target) since an existing invoice was loaded for edit. backCalcTarget is
+    // kept auto-synced to the live computed total at all times (see effect below),
+    // so it can't be used on its own to tell "just opened for review" apart from
+    // "user is actively re-pricing" — this flag is the real signal for that.
+    const [invoiceModified, setInvoiceModified]  = useState(false);
 
     useEffect(() => {
         function recalc() {
@@ -258,6 +267,7 @@ export function NewSalesInvoice({
                 originalLineIds: originalIds,
             });
             setBackCalcTarget(String(detail.total_amount ?? ""));
+            setInvoiceModified(false);
         }).catch(() => toast.error(MESSAGES.ERROR_SALES_LOAD_FAILED));
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [editInvoice, dbName, schema]);
@@ -286,12 +296,14 @@ export function NewSalesInvoice({
     }, [isIgst]);
 
     const insertLine = (idx: number) => {
+        setInvoiceModified(true);
         insert(idx + 1, getInitialSalesLine(selectedBrandId));
     };
 
     const removeLine = (idx: number) => {
         const currentLines = form.getValues("lines") ?? [];
         if (currentLines.length > 1) {
+            setInvoiceModified(true);
             remove(idx);
         }
     };
@@ -299,6 +311,7 @@ export function NewSalesInvoice({
     const updateLine = (idx: number, patch: Partial<SalesLineFormItem>) => {
         const currentLine = lines[idx];
         if (!currentLine) return;
+        setInvoiceModified(true);
         const next = { ...currentLine, ...patch };
         const c = calcLine(next, isIgst);
         setValue(`lines.${idx}`, {
@@ -326,10 +339,20 @@ export function NewSalesInvoice({
         return { qty, aggregate, cgst, sgst, igst, profit, total: aggregate + cgst + sgst + igst };
     }, [lines, isIgst]);
 
-    // Always keep target in sync with calculated total when lines change
+    // Keep target in sync with the calculated total — but only for the two
+    // cases that should actually refresh it: the initial load (new-invoice
+    // mount, or the edit-load effect below setting it directly) and the user
+    // changing a line's qty/price (or adding/removing a line). Apply itself
+    // also changes `lines` (hence `totals.total`), but Total is meant to
+    // stay an exact copy of the applied target at that point — not get
+    // immediately overwritten by the recomputed line sum — so skipTargetSyncRef
+    // is set right before that specific rewrite to skip the one resulting run.
+    const skipTargetSyncRef = useRef(false);
     useEffect(() => {
+        if (skipTargetSyncRef.current) { skipTargetSyncRef.current = false; return; }
+        if (editInvoice && !invoiceModified) return;
         setBackCalcTarget(totals.total > 0 ? String(Math.round(totals.total * 100) / 100) : "");
-    }, [totals.total, setBackCalcTarget]);
+    }, [totals.total, editInvoice, invoiceModified, setBackCalcTarget]);
 
     const invoiceDate = form.watch("invoice_date");
 
@@ -337,9 +360,33 @@ export function NewSalesInvoice({
     const hasTarget   = backCalcTarget !== "" && !isNaN(backCalcNum) && backCalcNum > 0;
 
     const applyBackCalcTarget = (target: number) => {
-        const scaledLines = computeBackCalcLines(form.getValues("lines") ?? [], target, isIgst);
-        form.setValue("lines", scaledLines);
+        setInvoiceModified(true);
+        onBackCalcApplied();
+        skipTargetSyncRef.current = true;
+        const result = computeBackCalc(form.getValues("lines") ?? [], target, isIgst);
+        form.setValue("lines", result.lines);
+        // No toast for result.wentBelowCost — a part priced below cost is
+        // already surfaced inline via that row's (and the footer's) profit
+        // figure turning red, which is a clearer signal than an easily-missed
+        // toast and doesn't need a separate acknowledgement.
     };
+
+    // Typing a Target Amount never changes Total by itself — only clicking Back
+    // Calculate does. Once applied, Total is an exact copy of the target that
+    // was used (not the recomputed line sum, which can differ by a rounding
+    // paisa or two) — "Calculated" surfaces that real line total alongside it,
+    // and Diff is the gap between the two (should stay ~0; a nonzero Diff means
+    // the target wasn't exactly reachable). In edit mode, until the user
+    // touches anything, Total/reference instead show the amount already saved
+    // on the sales_invoice record, since the freshly recomputed line total can
+    // drift from it (e.g. historical rounding) — backCalcApplied only reflects
+    // backCalcTarget still holding the exact last-applied value.
+    const isEditUnmodified = !!editInvoice && !invoiceModified;
+    const referenceTotal   = isEditUnmodified ? editInvoice.total_amount : (backCalcApplied ? backCalcNum : null);
+    const showCalculated   = referenceTotal != null;
+    const footerTotal       = referenceTotal ?? totals.total;
+    const totalDiff        = showCalculated ? Math.round((totals.total - referenceTotal!) * 100) / 100 : 0;
+    const hasDiff           = Math.abs(totalDiff) >= 0.005;
 
     return (
         <motion.div
@@ -366,6 +413,16 @@ export function NewSalesInvoice({
                     </p>
                     <Card className={`border-(--cl-border) shadow-md !overflow-visible bg-(--cl-surface) ${isReturn ? "border-l-4 border-l-orange-500" : ""}`}>
                         <CardContent className="pt-4 grid grid-cols-1 md:grid-cols-6 lg:grid-cols-12 gap-x-2 gap-y-2 !overflow-visible">
+                            {/* Invoice No (read-only) */}
+                            <div className="space-y-2 md:col-span-1 lg:col-span-2">
+                                <Label className="text-xs font-extrabold text-(--cl-text) uppercase tracking-widest">Invoice No</Label>
+                                <Input
+                                    readOnly
+                                    className="bg-(--cl-surface-2) font-mono text-(--cl-accent) font-bold cursor-not-allowed opacity-80"
+                                    value={editInvoice ? editInvoice.invoice_no : "Auto-generated on save"}
+                                />
+                            </div>
+
                             {/* Customer search */}
                             <div className="space-y-2 md:col-span-2 lg:col-span-3">
                                 <Label className="text-xs font-extrabold text-(--cl-text) uppercase tracking-widest">
@@ -397,7 +454,7 @@ export function NewSalesInvoice({
                                     onSelect={(c: CustomerSearchRow) => {
                                         setCustomerId(c.id);
                                         setCustomerName(c.full_name ?? c.mobile);
-                                        setCustomerGstin(c.gstin ?? "");
+                                        setCustomerGstin(normalizeGstin(c.gstin));
                                         setCustomerStateCode(c.state_code ?? "");
                                         setCustomerMobile(c.mobile ?? "");
                                         setCustomerAddress(c.address_line1 ?? "");
@@ -424,11 +481,15 @@ export function NewSalesInvoice({
                             <div className="space-y-2 md:col-span-1 lg:col-span-2">
                                 <Label className="text-xs font-extrabold text-(--cl-text) uppercase tracking-widest">GSTIN</Label>
                                 <Input
-                                    className="bg-(--cl-surface-2) font-mono"
-                                    placeholder="Optional…"
+                                    className={`bg-(--cl-surface-2) font-mono uppercase ${customerGstin && !isValidGstin(customerGstin) ? "border-red-500 focus:border-red-500 ring-red-500/10" : ""}`}
+                                    maxLength={15}
+                                    placeholder="15-character GSTIN (optional)…"
                                     value={customerGstin}
-                                    onChange={e => setCustomerGstin(e.target.value)}
+                                    onChange={e => setCustomerGstin(normalizeGstin(e.target.value))}
                                 />
+                                {customerGstin && !isValidGstin(customerGstin) && (
+                                    <p className="text-[10px] text-red-500">Enter a valid 15-character GSTIN</p>
+                                )}
                             </div>
 
                             {/* Customer State */}
@@ -451,16 +512,6 @@ export function NewSalesInvoice({
                                     </div>
                                 )}
                             />
-
-                            {/* Invoice No (read-only) */}
-                            <div className="space-y-2 md:col-span-1 lg:col-span-2">
-                                <Label className="text-xs font-extrabold text-(--cl-text) uppercase tracking-widest">Invoice No</Label>
-                                <Input
-                                    readOnly
-                                    className="bg-(--cl-surface-2) font-mono text-(--cl-accent) font-bold cursor-not-allowed opacity-80"
-                                    value={editInvoice ? editInvoice.invoice_no : "Auto-generated on save"}
-                                />
-                            </div>
 
                             {/* Invoice Date */}
                             <div className="space-y-2 md:col-span-1 lg:col-span-2">
@@ -486,23 +537,26 @@ export function NewSalesInvoice({
 
                             {/* Division */}
                             {availableDivisions.length > 0 && (
-                                <div className="space-y-2 md:col-span-2 lg:col-span-2">
+                                <div className="space-y-2 md:col-span-3 lg:col-span-3">
                                     <Label className="text-xs font-extrabold text-(--cl-text) uppercase tracking-widest">
                                         Division <span className="text-red-500 ml-0.5">*</span>
                                     </Label>
-                                    <select
-                                        disabled={!!editInvoice}
-                                        className={`w-full rounded-md border px-3 py-2 text-sm bg-(--cl-surface-2) text-(--cl-text) focus:outline-none focus:ring-2 focus:ring-(--cl-accent)/30 ${
-                                            editInvoice ? "cursor-not-allowed opacity-60" : "cursor-pointer"
-                                        } ${!divisionId ? "border-red-500" : "border-(--cl-border)"}`}
-                                        value={divisionId || ""}
-                                        onChange={e => onDivisionChange(e.target.value ? Number(e.target.value) : 0)}
-                                    >
-                                        <option value="">Select division…</option>
-                                        {availableDivisions.map(d => (
-                                            <option key={d.id} value={d.id}>{d.name}</option>
-                                        ))}
-                                    </select>
+                                    <div className="relative">
+                                        <select
+                                            disabled={!!editInvoice}
+                                            className={`w-full appearance-none truncate rounded-md border py-2 pl-3 pr-8 text-sm bg-(--cl-surface-2) text-(--cl-text) focus:outline-none focus:ring-2 focus:ring-(--cl-accent)/30 ${
+                                                editInvoice ? "cursor-not-allowed opacity-60" : "cursor-pointer"
+                                            } ${!divisionId ? "border-red-500" : "border-(--cl-border)"}`}
+                                            value={divisionId || ""}
+                                            onChange={e => onDivisionChange(e.target.value ? Number(e.target.value) : 0)}
+                                        >
+                                            <option value="">Select division…</option>
+                                            {availableDivisions.map(d => (
+                                                <option key={d.id} value={d.id}>{d.name}</option>
+                                            ))}
+                                        </select>
+                                        <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-(--cl-text-muted)" />
+                                    </div>
                                 </div>
                             )}
                         </CardContent>
@@ -790,32 +844,74 @@ export function NewSalesInvoice({
                         )}
                     </Card>
 
-                    {/* Summary bar */}
-                    <div ref={summaryRef} style={{ alignSelf: "flex-end", width: "fit-content" }} className={`rounded-lg border px-4 py-2.5 flex items-center gap-x-4 ${isReturn ? "border-orange-500/30 bg-orange-500/5" : "border-(--cl-border) bg-(--cl-surface-2)/40"}`}>
-                        {/* Target Amount + Back Calculate — left side */}
-                        <div className="flex items-center gap-2">
-                            <Input
-                                className="h-7 w-36 text-right text-sm font-bold border-(--cl-border) bg-white"
-                                min="0"
-                                step="0.01"
-                                type="number"
-                                placeholder="Target Amount…"
-                                value={backCalcTarget}
-                                onChange={e => setBackCalcTarget(e.target.value)}
-                                onFocus={e => e.target.select()}
-                            />
-                            <Button
-                                className="h-7 cursor-pointer text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white"
-                                disabled={!hasTarget}
-                                size="sm"
-                                type="button"
-                                onClick={() => applyBackCalcTarget(backCalcNum)}
-                            >
-                                Back Calculate
-                            </Button>
-                            {backCalcTarget && (
+                    {/* Summary bar — mirrors Final a Job's Grand Summary Apply panel */}
+                    <div ref={summaryRef} style={{ alignSelf: "flex-end", width: "fit-content" }} className={`rounded-lg border-2 overflow-hidden ${isReturn ? "border-orange-500/30 bg-orange-500/5" : "border-(--cl-accent)/30 bg-(--cl-surface)"}`}>
+                        <div className="flex shrink-0 flex-col justify-center gap-2 px-4 py-3">
+                            <div className="flex items-center justify-between gap-4">
+                                {!hasDiff ? (
+                                    <div className="flex items-center gap-1 text-emerald-600">
+                                        <CheckCircle2 className="h-4 w-4" />
+                                        <span className="text-xs font-semibold">Tallied</span>
+                                    </div>
+                                ) : <div />}
+                                <div className="flex items-center gap-4">
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="text-xs font-medium uppercase tracking-wide text-(--cl-text-muted)">Aggregate</span>
+                                        <span className="tabular-nums text-sm font-semibold text-(--cl-text)">₹{formatNumber(totals.aggregate)}</span>
+                                    </div>
+                                    {isGstMode && (isIgst ? (
+                                        <div className="flex items-center gap-1.5">
+                                            <span className="text-xs font-medium uppercase tracking-wide text-(--cl-text-muted)">IGST</span>
+                                            <span className="tabular-nums text-sm font-semibold text-(--cl-text)">₹{formatNumber(totals.igst)}</span>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <div className="flex items-center gap-1.5">
+                                                <span className="text-xs font-medium uppercase tracking-wide text-(--cl-text-muted)">CGST</span>
+                                                <span className="tabular-nums text-sm font-semibold text-(--cl-text)">₹{formatNumber(totals.cgst)}</span>
+                                            </div>
+                                            <div className="flex items-center gap-1.5">
+                                                <span className="text-xs font-medium uppercase tracking-wide text-(--cl-text-muted)">SGST</span>
+                                                <span className="tabular-nums text-sm font-semibold text-(--cl-text)">₹{formatNumber(totals.sgst)}</span>
+                                            </div>
+                                        </>
+                                    ))}
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="text-xs font-medium uppercase tracking-wide text-(--cl-text-muted)">Total Tax</span>
+                                        <span className="tabular-nums text-sm font-semibold text-(--cl-text)">₹{formatNumber(totals.cgst + totals.sgst + totals.igst)}</span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="text-xs font-medium uppercase tracking-wide text-(--cl-text-muted)">Calculated</span>
+                                        <span className="tabular-nums text-sm font-semibold text-(--cl-text)">₹{formatNumber(totals.total)}</span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="text-xs font-bold uppercase tracking-wide text-amber-600">Diff</span>
+                                        <span className={`tabular-nums text-sm font-semibold ${hasDiff ? "text-amber-700" : "text-emerald-600"}`}>
+                                            {totalDiff > 0 ? "+" : ""}{formatNumber(totalDiff)}
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="text-xs font-bold uppercase tracking-wide text-(--cl-accent)">Total</span>
+                                        <span className="tabular-nums text-md font-bold">₹{formatNumber(footerTotal)}</span>
+                                        <button
+                                            className="ml-1 inline-flex items-center justify-center h-5 w-5 rounded-full bg-(--cl-surface-2) border border-(--cl-border) text-(--cl-text-muted) hover:bg-(--cl-accent) hover:text-white hover:border-(--cl-accent) cursor-pointer transition-all shadow-sm"
+                                            title="Round off to nearest rupee"
+                                            type="button"
+                                            onClick={() => {
+                                                const rounded = Math.round(footerTotal);
+                                                setBackCalcTarget(String(rounded));
+                                                applyBackCalcTarget(rounded);
+                                            }}
+                                        >
+                                            <Radius className="h-3 w-3" />
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="flex items-center justify-end gap-2">
                                 <Button
-                                    className="h-7 text-xs"
+                                    className="h-7 shrink-0 text-xs"
+                                    disabled={!backCalcTarget}
                                     size="sm"
                                     type="button"
                                     variant="outline"
@@ -823,48 +919,27 @@ export function NewSalesInvoice({
                                 >
                                     Clear
                                 </Button>
-                            )}
-                        </div>
-
-                        {/* Totals — right side */}
-                        <div className="flex items-center gap-x-3 gap-y-1 flex-wrap justify-end">
-                            {(() => {
-                                const displayTotal = hasTarget ? backCalcNum : totals.total;
-                                const diff         = hasTarget ? Math.round((backCalcNum - totals.total) * 100) / 100 : 0;
-                                const hasDiff      = Math.abs(diff) >= 0.005;
-                                return (
-                                    <>
-                                        {hasTarget && (
-                                            <div className="flex items-center gap-1.5">
-                                                <span className="text-[10px] font-black uppercase tracking-[0.1em] text-(--cl-text-muted)">Calculated</span>
-                                                <span className="font-bold tabular-nums text-sm text-(--cl-text)">₹{formatNumber(totals.total)}</span>
-                                            </div>
-                                        )}
-                                        <div className="flex items-center gap-1.5">
-                                            <span className="text-[10px] font-black uppercase tracking-[0.1em] text-amber-600">Diff</span>
-                                            <span className={`font-bold tabular-nums text-sm ${hasDiff ? "text-amber-700" : "text-emerald-600"}`}>
-                                                {diff > 0 ? "+" : ""}{formatNumber(diff)}
-                                            </span>
-                                        </div>
-                                        <div className="flex items-center gap-1.5 pl-4 border-l border-(--cl-border)">
-                                            <span className="text-[10px] font-black uppercase tracking-[0.1em] text-(--cl-text-muted)">Total</span>
-                                            <span className="font-black tabular-nums text-base text-(--cl-accent)">₹{formatNumber(displayTotal)}</span>
-                                            <button
-                                                className="ml-1 inline-flex items-center justify-center h-5 w-5 rounded-full bg-(--cl-surface-2) border border-(--cl-border) text-(--cl-text-muted) hover:bg-(--cl-accent) hover:text-white hover:border-(--cl-accent) cursor-pointer transition-all shadow-sm"
-                                                title="Round off to nearest rupee"
-                                                type="button"
-                                                onClick={() => {
-                                                    const rounded = Math.round(displayTotal);
-                                                    setBackCalcTarget(String(rounded));
-                                                    applyBackCalcTarget(rounded);
-                                                }}
-                                            >
-                                                <Radius className="h-3 w-3" />
-                                            </button>
-                                        </div>
-                                    </>
-                                );
-                            })()}
+                                <Button
+                                    className="h-8 shrink-0 gap-1 text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white border-transparent"
+                                    disabled={!hasTarget}
+                                    size="sm"
+                                    type="button"
+                                    variant="default"
+                                    title="Adjust line prices so the total matches the target"
+                                    onClick={() => applyBackCalcTarget(backCalcNum)}
+                                >
+                                    <Calculator className="h-3.5 w-3.5" />
+                                    Apply
+                                </Button>
+                                <Input
+                                    className="h-8 w-36 text-right text-base font-bold border-(--cl-border) bg-white"
+                                    min="0" step="0.01" type="number"
+                                    placeholder="Target amount"
+                                    value={backCalcTarget}
+                                    onChange={e => setBackCalcTarget(e.target.value)}
+                                    onFocus={e => e.target.select()}
+                                />
+                            </div>
                         </div>
                     </div>
 

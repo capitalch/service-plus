@@ -4,6 +4,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { SEARCH_DEBOUNCE_MS } from "@/constants/timing";
 import {
     AlertDialog, AlertDialogAction, AlertDialogCancel,
     AlertDialogContent, AlertDialogDescription,
@@ -22,7 +23,6 @@ import type { MoneyReceiptPostUnpostRow, PostUnpostStats } from "./post-unpost-s
 type GenericQueryData<T> = { genericQuery: T[] | null };
 
 const PAGE_SIZE   = 50;
-const DEBOUNCE_MS = 1600;
 
 const thClass = "sticky top-0 z-20 text-xs font-semibold uppercase tracking-wide text-(--cl-text-muted) p-3 text-left border-b border-(--cl-border) bg-(--cl-surface-2)";
 const tdClass = "p-3 text-sm text-(--cl-text) border-b border-(--cl-border)";
@@ -58,7 +58,7 @@ export function MoneyReceiptsPostUnpostGrid({ pendingChanges, onChangeToggle, on
     const handleSearchChange = (value: string) => {
         setSearch(value);
         if (debounceRef.current) clearTimeout(debounceRef.current);
-        debounceRef.current = setTimeout(() => { setPage(1); setSearchQ(value); }, DEBOUNCE_MS);
+        debounceRef.current = setTimeout(() => { setPage(1); setSearchQ(value); }, SEARCH_DEBOUNCE_MS);
     };
 
     const loadData = useCallback(async (bId: number, q: string, pg: number) => {

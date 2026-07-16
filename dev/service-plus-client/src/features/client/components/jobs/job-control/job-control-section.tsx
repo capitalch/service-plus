@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { SEARCH_DEBOUNCE_MS } from "@/constants/timing";
 import {
     ArrowLeft, ArrowRightLeft, CheckSquare,
     ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon,
@@ -60,7 +61,6 @@ type DeliveryMannerRow = { id: number; name: string };
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const PAGE_SIZE   = 50;
-const DEBOUNCE_MS = 1600;
 
 const NO_ACTION_CODES     = new Set(["COMPLETED_OK", "RETURN", "DELIVERED_OK", "DELIVERED_NOT_OK"]);
 const NO_UNDO_CODES       = new Set(["DELIVERED_OK", "DELIVERED_NOT_OK"]);
@@ -286,7 +286,7 @@ export const JobControlSection = () => {
     const handleSearchChange = (value: string) => {
         setSearch(value);
         if (debounceRef.current) clearTimeout(debounceRef.current);
-        debounceRef.current = setTimeout(() => { setPage(1); setSearchQ(value); }, DEBOUNCE_MS);
+        debounceRef.current = setTimeout(() => { setPage(1); setSearchQ(value); }, SEARCH_DEBOUNCE_MS);
     };
 
     const handleClosedFilterChange = (value: ClosedFilter) => {

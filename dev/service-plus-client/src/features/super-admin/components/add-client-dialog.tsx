@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { MESSAGES } from "@/constants/messages";
 import { SQL_MAP } from "@/constants/sql-map";
+import { FIELD_VALIDATION_DEBOUNCE_MS } from "@/constants/timing";
 import { useDebounce } from "@/hooks/use-debounce";
 import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
@@ -125,8 +126,8 @@ export const AddClientDialog = ({ onOpenChange, onSuccess, open }: AddClientDial
 
 	const codeValue = useWatch({ control, name: "code" });
 	const nameValue = useWatch({ control, name: "name" });
-	const debouncedCode = useDebounce(codeValue, 1200);
-	const debouncedName = useDebounce(nameValue, 1200);
+	const debouncedCode = useDebounce(codeValue, FIELD_VALIDATION_DEBOUNCE_MS);
+	const debouncedName = useDebounce(nameValue, FIELD_VALIDATION_DEBOUNCE_MS);
 
 	useEffect(() => {
 		if (!open) reset();

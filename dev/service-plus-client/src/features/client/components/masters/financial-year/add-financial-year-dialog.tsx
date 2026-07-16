@@ -18,6 +18,7 @@ import { Label } from "@/components/ui/label";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { MESSAGES } from "@/constants/messages";
 import { SQL_MAP } from "@/constants/sql-map";
+import { FIELD_VALIDATION_DEBOUNCE_MS } from "@/constants/timing";
 import { useDebounce } from "@/hooks/use-debounce";
 import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
@@ -80,8 +81,8 @@ export const AddFinancialYearDialog = ({
     const { formState: { errors }, setValue, clearErrors, setError } = form;
     const idValue       = useWatch({ control: form.control, name: "id" });
     const endDateValue  = useWatch({ control: form.control, name: "end_date" });
-    const debouncedId   = useDebounce(idValue, 1200);
-    const debouncedEnd  = useDebounce(endDateValue, 1200);
+    const debouncedId   = useDebounce(idValue, FIELD_VALIDATION_DEBOUNCE_MS);
+    const debouncedEnd  = useDebounce(endDateValue, FIELD_VALIDATION_DEBOUNCE_MS);
 
     // Reset on close
     useEffect(() => {

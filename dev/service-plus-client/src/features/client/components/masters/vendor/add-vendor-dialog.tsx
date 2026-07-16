@@ -25,6 +25,7 @@ import {
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { MESSAGES } from "@/constants/messages";
 import { SQL_MAP } from "@/constants/sql-map";
+import { FIELD_VALIDATION_DEBOUNCE_MS } from "@/constants/timing";
 import { useDebounce } from "@/hooks/use-debounce";
 import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
@@ -112,7 +113,7 @@ export const AddVendorDialog = ({
 
     const { formState: { errors } } = form;
     const nameValue     = useWatch({ control: form.control, name: "name" });
-    const debouncedName = useDebounce(nameValue, 1200);
+    const debouncedName = useDebounce(nameValue, FIELD_VALIDATION_DEBOUNCE_MS);
 
     // Reset on close; default to home state on open
     useEffect(() => {

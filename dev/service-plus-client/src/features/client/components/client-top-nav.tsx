@@ -87,7 +87,7 @@ export const ClientTopNav = ({ activeSection }: Props) => {
 
                 <span className="shrink-0 text-lg font-black tracking-tighter text-(--cl-accent-text) hidden xs:block">Service+</span>
 
-                <nav className="hidden h-full items-center gap-3 md:flex lg:gap-6 mt-1 overflow-hidden">
+                <nav className="hidden items-center gap-1 md:flex overflow-hidden">
                     {NAV_ITEMS.map(({ label, requiredRight, section, to, end }) => {
                         const disabled = !!requiredRight && !hasAccessRight(user, requiredRight);
                         if (disabled) {
@@ -96,7 +96,7 @@ export const ClientTopNav = ({ activeSection }: Props) => {
                                     key={to}
                                     title={`Your role does not have access to ${label}`}
                                     aria-disabled="true"
-                                    className="flex h-full cursor-not-allowed items-center pb-1 text-[13px] lg:text-sm font-medium tracking-tight whitespace-nowrap text-(--cl-text-muted) opacity-40"
+                                    className="flex items-center rounded-md px-3 py-1.5 lg:px-3.5 cursor-not-allowed text-[13px] lg:text-sm font-medium tracking-tight whitespace-nowrap text-(--cl-text-muted) opacity-40"
                                 >
                                     {label}
                                 </span>
@@ -107,10 +107,10 @@ export const ClientTopNav = ({ activeSection }: Props) => {
                                 key={to}
                                 to={to}
                                 end={end}
-                                className={`flex h-full cursor-pointer items-center pb-1 text-[13px] lg:text-sm font-medium tracking-tight transition-all active:scale-95 whitespace-nowrap ${
+                                className={`flex items-center rounded-md px-3 py-1.5 lg:px-3.5 cursor-pointer text-[13px] lg:text-sm font-medium tracking-tight transition-all active:scale-95 whitespace-nowrap ${
                                     activeSection === section
-                                        ? 'border-b-2 border-(--cl-accent) text-(--cl-text)'
-                                        : 'text-(--cl-text-muted) hover:text-(--cl-text)'
+                                        ? 'bg-(--cl-accent) text-white font-semibold shadow-sm'
+                                        : 'text-(--cl-text-muted) hover:bg-(--cl-accent)/10 hover:text-(--cl-accent-text)'
                                 }`}
                             >
                                 {label}
@@ -119,7 +119,7 @@ export const ClientTopNav = ({ activeSection }: Props) => {
                     })}
                     <button
                         onClick={openHelp}
-                        className="flex h-full cursor-pointer items-center pb-1 text-[13px] lg:text-sm font-medium tracking-tight transition-all active:scale-95 whitespace-nowrap text-(--cl-text-muted) hover:text-(--cl-accent)"
+                        className="flex items-center rounded-md px-3 py-1.5 lg:px-3.5 cursor-pointer text-[13px] lg:text-sm font-medium tracking-tight transition-all active:scale-95 whitespace-nowrap text-(--cl-text-muted) hover:bg-(--cl-hover) hover:text-(--cl-accent)"
                     >
                         Help
                     </button>

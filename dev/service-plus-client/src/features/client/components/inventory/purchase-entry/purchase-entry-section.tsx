@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { motion } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
+import { SEARCH_DEBOUNCE_MS } from "@/constants/timing";
 import {
     Dialog,
     DialogContent,
@@ -33,7 +34,7 @@ import { encodeObj, graphQlUtils } from "@/lib/graphql-utils";
 import { formatCurrency, currentFinancialYearRange } from "@/lib/utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
-import { selectAvailableDivisions, selectCurrentBranch, selectDefaultDivisionId, selectSchema, selectCompanyName, selectPostDataToAccounts } from "@/store/context-slice";
+import { selectAvailableDivisions, selectCurrentBranch, selectCurrentBu, selectDefaultDivisionId, selectSchema, selectCompanyName, selectPostDataToAccounts } from "@/store/context-slice";
 import type { BranchType } from "@/features/client/components/masters/branch/branch";
 import type { VendorType } from "@/features/client/types/vendor";
 import type { PurchaseInvoiceType, PurchaseLineType, StockTransactionTypeRow } from "@/features/client/types/purchase";
@@ -54,7 +55,6 @@ type DetailRow = PurchaseInvoiceType & { lines: PurchaseLineType[] };
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const PAGE_SIZE   = 50;
-const DEBOUNCE_MS = 1600;
 
 
 
@@ -71,6 +71,7 @@ export const PurchaseEntrySection = () => {
     const globalBranch       = useAppSelector(selectCurrentBranch);
     const branchId           = globalBranch?.id ?? null;
     const availableDivisions = useAppSelector(selectAvailableDivisions);
+    const currentBu          = useAppSelector(selectCurrentBu);
     const companyName        = useAppSelector(selectCompanyName) || "Service Plus";
     const defaultDivisionId  = useAppSelector(selectDefaultDivisionId);
     const postDataToAccounts = useAppSelector(selectPostDataToAccounts);
@@ -306,7 +307,7 @@ export const PurchaseEntrySection = () => {
         debounceRef.current = setTimeout(() => {
             setPage(1);
             setSearchQ(value);
-        }, DEBOUNCE_MS);
+        }, SEARCH_DEBOUNCE_MS);
     };
 
     const handleFilterChange = (setter: (v: string) => void) => (v: string) => {
@@ -396,6 +397,10 @@ export const PurchaseEntrySection = () => {
         }
 
         const branchName = globalBranch?.name || "All Branches";
+        const buName = currentBu?.name || "—";
+        const divisionName = viewDivisionId != null
+            ? (availableDivisions.find(d => d.id === viewDivisionId)?.name ?? "—")
+            : "All Divisions";
         const dateRangeStr = `Date: ${fromDate} to ${toDate}`;
 
         const totals = invoices.reduce((acc, inv) => {
@@ -409,6 +414,7 @@ export const PurchaseEntrySection = () => {
 
         const sheetData = [
             [companyName],
+            [`BU: ${buName}`, `Division: ${divisionName}`],
             [`Branch: ${branchName}`, dateRangeStr],
             [],
             ["Date", "Invoice No", "Supplier", "Aggregate", "CGST", "SGST", "IGST", "Total"],
@@ -438,17 +444,22 @@ export const PurchaseEntrySection = () => {
         }
 
         const doc = new jsPDF();
-        
+
         const branchName = globalBranch?.name || "All Branches";
+        const buName = currentBu?.name || "—";
+        const divisionName = viewDivisionId != null
+            ? (availableDivisions.find(d => d.id === viewDivisionId)?.name ?? "—")
+            : "All Divisions";
         const dateRangeStr = `Date: ${fromDate} to ${toDate}`;
 
         doc.setFontSize(16);
         doc.text(companyName, 14, 15);
-        
+
         doc.setFontSize(11);
-        doc.text(`Branch: ${branchName}`, 14, 22);
-        doc.text(dateRangeStr, 14, 28);
-        
+        doc.text(`BU: ${buName}   |   Division: ${divisionName}`, 14, 22);
+        doc.text(`Branch: ${branchName}`, 14, 28);
+        doc.text(dateRangeStr, 14, 34);
+
         const totals = invoices.reduce((acc, inv) => {
             acc.aggregate += Number(inv.aggregate_amount);
             acc.cgst += Number(inv.cgst_amount);
@@ -459,7 +470,7 @@ export const PurchaseEntrySection = () => {
         }, { aggregate: 0, cgst: 0, sgst: 0, igst: 0, total: 0 });
         
         autoTable(doc, {
-            startY: 32,
+            startY: 38,
             head: [['Date', 'Invoice No', 'Supplier', 'Aggregate', 'CGST', 'SGST', 'IGST', 'Total']],
             body: invoices.map(inv => [
                 inv.invoice_date, 

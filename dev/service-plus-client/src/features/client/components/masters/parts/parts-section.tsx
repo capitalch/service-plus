@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
+import { SEARCH_DEBOUNCE_MS } from "@/constants/timing";
 import {ChevronLeftIcon,
     ChevronRightIcon,
     ChevronsLeftIcon,
@@ -62,7 +63,6 @@ type GenericQueryDataType<T> = { genericQuery: T[] | null };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const DEBOUNCE_MS = 1600;
 const PAGE_SIZE = 50;
 
 const rowVariants = {
@@ -185,7 +185,7 @@ export const PartsSection = () => {
         debounceRef.current = setTimeout(() => {
             setPage(1);
             setSearchQ(search);
-        }, DEBOUNCE_MS);
+        }, SEARCH_DEBOUNCE_MS);
         return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
     }, [search]);
 

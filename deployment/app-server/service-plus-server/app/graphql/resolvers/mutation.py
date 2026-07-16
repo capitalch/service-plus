@@ -20,6 +20,7 @@ from app.graphql.resolvers.mutation_helper import (
     resolve_regenerate_job_invoice_helper,
     resolve_create_job_payment_helper,
     resolve_update_job_helper,
+    resolve_update_opening_job_helper,
     resolve_create_service_db_helper,
     resolve_delete_bu_schema_helper,
     resolve_delete_client_helper,
@@ -421,6 +422,22 @@ async def resolve_update_job(
         raise
     except Exception as e:
         logger.error("Error updating job: %s", e, exc_info=True)
+        raise GraphQLException(
+            message=AppMessages.OPERATION_FAILED, extensions={"details": str(e)}
+        ) from e
+
+
+@mutation.field("updateOpeningJob")
+async def resolve_update_opening_job(
+    _, _info, db_name: str = "", schema: str = "public", value: str = ""
+) -> Any:
+    """Update an Opening Job, recording a job_transaction row when its status changes."""
+    try:
+        return await resolve_update_opening_job_helper(db_name, schema, value)
+    except ValidationException:
+        raise
+    except Exception as e:
+        logger.error("Error updating opening job: %s", e, exc_info=True)
         raise GraphQLException(
             message=AppMessages.OPERATION_FAILED, extensions={"details": str(e)}
         ) from e

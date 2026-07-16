@@ -25,6 +25,7 @@ import {
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { MESSAGES } from "@/constants/messages";
 import { SQL_MAP } from "@/constants/sql-map";
+import { FIELD_VALIDATION_DEBOUNCE_MS } from "@/constants/timing";
 import { useDebounce } from "@/hooks/use-debounce";
 import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
@@ -116,9 +117,9 @@ export const AddBranchDialog = ({
 
     const { formState: { errors } } = form;
     const codeValue     = useWatch({ control: form.control, name: "code" });
-    const debouncedCode = useDebounce(codeValue, 1200);
+    const debouncedCode = useDebounce(codeValue, FIELD_VALIDATION_DEBOUNCE_MS);
     const nameValue     = useWatch({ control: form.control, name: "name" });
-    const debouncedName = useDebounce(nameValue, 1200);
+    const debouncedName = useDebounce(nameValue, FIELD_VALIDATION_DEBOUNCE_MS);
 
     // Fetch states on open; default to home state
     useEffect(() => {

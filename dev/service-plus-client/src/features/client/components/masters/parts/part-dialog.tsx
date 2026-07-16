@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { SQL_MAP } from "@/constants/sql-map";
+import { FIELD_VALIDATION_DEBOUNCE_MS } from "@/constants/timing";
 import { useDebounce } from "@/hooks/use-debounce";
 import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
@@ -149,7 +150,7 @@ export const PartDialog = (props: PartDialogProps) => {
         if (!(sp > 0)) return null;
         return (Math.round(sp * (1 + (gst > 0 ? gst : 0) / 100) * 100) / 100).toFixed(2);
     })();
-    const debouncedCode  = useDebounce(partCodeValue, 1200);
+    const debouncedCode  = useDebounce(partCodeValue, FIELD_VALIDATION_DEBOUNCE_MS);
 
     // ── Reset / populate on open ───────────────────────────────────────────────
     useEffect(() => {

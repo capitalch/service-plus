@@ -1934,13 +1934,14 @@ class SqlStore:
             "p_search"    as (values(%(search)s::text))
         SELECT count(distinct sp.id) as total
         FROM spare_part_master sp
-        JOIN stock_transaction st ON st.part_id = sp.id AND st.branch_id = (table "p_branch_id")
+        JOIN stock_transaction st ON st.part_id = sp.id AND ((table "p_branch_id") = 0 OR st.branch_id = (table "p_branch_id"))
         WHERE (
             ((table "p_brand_id") = 0 OR sp.brand_id = (table "p_brand_id")) AND
             ((table "p_search") = '' OR
-             LOWER(sp.part_code) ILIKE '%%' || LOWER((table "p_search")) || '%%' OR
-             LOWER(sp.part_name) ILIKE '%%' || LOWER((table "p_search")) || '%%' OR
-             LOWER(sp.category)  ILIKE '%%' || LOWER((table "p_search")) || '%%')
+             LOWER(sp.part_code)        ILIKE '%%' || LOWER((table "p_search")) || '%%' OR
+             LOWER(sp.part_name)        ILIKE '%%' || LOWER((table "p_search")) || '%%' OR
+             LOWER(sp.part_description) ILIKE '%%' || LOWER((table "p_search")) || '%%' OR
+             LOWER(sp.category)         ILIKE '%%' || LOWER((table "p_search")) || '%%')
         )
     """
 
@@ -1955,20 +1956,24 @@ class SqlStore:
             sp.id AS part_id,
             sp.part_code,
             sp.part_name,
+            sp.part_description,
+            b.name AS brand_name,
             sp.category,
             sp.uom,
             sp.cost_price,
             COALESCE(SUM(CASE WHEN st.dr_cr = 'D' THEN st.qty ELSE -st.qty END), 0) AS current_stock
         FROM spare_part_master sp
-        JOIN stock_transaction st ON st.part_id = sp.id AND st.branch_id = (table "p_branch_id")
+        JOIN stock_transaction st ON st.part_id = sp.id AND ((table "p_branch_id") = 0 OR st.branch_id = (table "p_branch_id"))
+        LEFT JOIN brand b ON b.id = sp.brand_id
         WHERE (
             ((table "p_brand_id") = 0 OR sp.brand_id = (table "p_brand_id")) AND
             ((table "p_search") = '' OR
-             LOWER(sp.part_code) ILIKE '%%' || LOWER((table "p_search")) || '%%' OR
-             LOWER(sp.part_name) ILIKE '%%' || LOWER((table "p_search")) || '%%' OR
-             LOWER(sp.category)  ILIKE '%%' || LOWER((table "p_search")) || '%%')
+             LOWER(sp.part_code)        ILIKE '%%' || LOWER((table "p_search")) || '%%' OR
+             LOWER(sp.part_name)        ILIKE '%%' || LOWER((table "p_search")) || '%%' OR
+             LOWER(sp.part_description) ILIKE '%%' || LOWER((table "p_search")) || '%%' OR
+             LOWER(sp.category)         ILIKE '%%' || LOWER((table "p_search")) || '%%')
         )
-        GROUP BY sp.id, sp.part_code, sp.part_name, sp.category, sp.uom, sp.cost_price
+        GROUP BY sp.id, sp.part_code, sp.part_name, sp.part_description, b.name, sp.category, sp.uom, sp.cost_price
         ORDER BY sp.part_name
         LIMIT  (table "p_limit")
         OFFSET (table "p_offset")

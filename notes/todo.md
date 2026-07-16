@@ -1,16 +1,27 @@
 # To Do
+- Inventory testing
+	-  Sales
+		- Back calculate incorrect behavior
+								- In edit mode, Total should show the amount from sales_invoice table and not calculated amount from line items
+								- part select does not show the cost price
+								- GSTIN validation
+								- division sizing
+								- Standerization of debounce time
+							- Stock overview
+								- Part description concatenated with part name
+								- brand
 - Brief to do's before 1st release
 								- Should not be possible to change division, once a money receipt is already generated
-	- Create a systematic manual testing numbered steps for All items in Jobs menu item. Give your plan in plans/plan.md
-	- Inventory menu item test scripts
+								- Create a systematic manual testing numbered steps for All items in Jobs menu item. Give your plan in plans/plan.md
+								- Inventory menu item test scripts
 								- Access management
 								- Validate creation of new client / Bu / Branch / Division end to end
 	- Security of server config file
-	- Cleanup of wanrnings and extra code
+								- Cleanup of warnings and extra code
 								- Help system for developer in super admin mode
 								- Account icon implement
 - Bug fix
-	- Final a job back calculate does not save altered data to backend.
+								- Final a job back calculate does not save altered data to backend.
 								- Fix opening job workflow
 								- Alt job no in all grids and search
 								- Opening job failed to save

@@ -1189,7 +1189,7 @@ async def resolve_create_single_job_helper(
         ) from e
 
     x_data = payload.get("xData", {})
-    x_data.pop("performed_by_user_id", None)
+    performed_by_user_id = x_data.pop("performed_by_user_id", None)
     branch_id = x_data.get("branch_id")
 
     if not branch_id:
@@ -1230,6 +1230,106 @@ async def resolve_create_single_job_helper(
             # 3. Insert the job
             job_id = await process_data(x_data, cur, "job", None, None)
             logger.info("Single job created with id=%s, job_no=%s", job_id, job_no)
+
+            # 4. Opening Jobs: record the user-selected initial status as a real
+            # job_transaction row. Unlike Single Job (always created as RECEIVED),
+            # an opening job's starting status is user-chosen, so the transaction
+            # history needs a real row to reflect it accurately.
+            if x_data.get("is_opening_job"):
+                txn_data: dict = {
+                    "job_id": job_id,
+                    "status_id": x_data.get("job_status_id"),
+                    "performed_by_user_id": performed_by_user_id,
+                }
+                technician_id = x_data.get("technician_id")
+                if technician_id is not None:
+                    txn_data["technician_id"] = technician_id
+                job_date = x_data.get("job_date")
+                if job_date:
+                    txn_data["transaction_date"] = job_date
+
+                new_txn_id = await process_data(txn_data, cur, "job_transaction", None, None)
+                if new_txn_id:
+                    await process_data(
+                        {"id": job_id, "last_transaction_id": new_txn_id},
+                        cur, "job", None, None,
+                    )
+                logger.info(
+                    "Opening job %s: recorded initial transaction id=%s, status_id=%s",
+                    job_id, new_txn_id, txn_data["status_id"],
+                )
+
+    return job_id
+
+
+async def resolve_update_opening_job_helper(
+    db_name: str, schema: str = "public", value: str = ""
+) -> Any:
+    """
+    Update an Opening Job.
+
+    Opening Jobs let the user set/change Status directly on the edit form
+    (unlike the normal Job Control pipeline, which changes status only via a
+    dedicated Status Transition step). A plain field update on `job` alone
+    would silently disconnect job.job_status_id from job_transaction, so
+    Transaction History would stop reflecting the job's real status history.
+    We read the pre-update status, and if the edit changes it, record a real
+    job_transaction row (mirroring the initial-status insert done on create),
+    the same way resolve_update_job_helper does for Job Control transitions —
+    but without that helper's Job-Control-specific side effects (estimate
+    amount defaulting, is_closed recompute, division-change-on-final guard),
+    which don't apply to Opening Jobs' free-form edit.
+    """
+    payload = _decode_value(value, "updateOpeningJob")
+    x_data = payload.get("xData", {})
+    performed_by_user_id = x_data.pop("performed_by_user_id", None)
+    job_id = x_data.get("id")
+    if not job_id:
+        raise ValidationException(
+            message=AppMessages.REQUIRED_FIELD_MISSING,
+            extensions={"field": "id"},
+        )
+
+    db_name_arg: str = db_name or ""
+    schema_name = schema or "public"
+
+    async with get_service_db_connection(db_name_arg) as conn:
+        async with conn.cursor(row_factory=dict_row) as cur:
+            await cur.execute(
+                pgsql.SQL("SET search_path TO {}").format(pgsql.Identifier(schema_name))
+            )
+
+            await cur.execute("SELECT job_status_id FROM job WHERE id = %s", (job_id,))
+            current = await cur.fetchone()
+            previous_status_id = current["job_status_id"] if current else None
+
+            await process_data(x_data, cur, "job", None, None)
+            logger.info("Opening job %s updated", job_id)
+
+            new_status_id = x_data.get("job_status_id")
+            if new_status_id is not None and new_status_id != previous_status_id:
+                txn_data: dict = {
+                    "job_id": job_id,
+                    "status_id": new_status_id,
+                    "performed_by_user_id": performed_by_user_id,
+                }
+                technician_id = x_data.get("technician_id")
+                if technician_id is not None:
+                    txn_data["technician_id"] = technician_id
+                job_date = x_data.get("job_date")
+                if job_date:
+                    txn_data["transaction_date"] = job_date
+
+                new_txn_id = await process_data(txn_data, cur, "job_transaction", None, None)
+                if new_txn_id:
+                    await process_data(
+                        {"id": job_id, "last_transaction_id": new_txn_id},
+                        cur, "job", None, None,
+                    )
+                logger.info(
+                    "Opening job %s: status changed %s -> %s, recorded transaction id=%s",
+                    job_id, previous_status_id, new_status_id, new_txn_id,
+                )
 
     return job_id
 
@@ -1455,13 +1555,11 @@ async def resolve_undeliver_job_helper(
                 target_txn_id = prev["id"]
                 status_id     = prev["status_id"]
                 technician_id = prev["technician_id"]
-                amount        = prev["amount"]
             else:
                 # No earlier non-delivered transaction — fall back to Received
                 target_txn_id = None
                 status_id     = 1
                 technician_id = None
-                amount        = None
             flags = _STATUS_FLAGS.get(status_id, {"is_final": False, "is_closed": False})
 
             # 2. Remove the delivery transaction(s), delete the invoice, then restore the job (atomic)
@@ -1473,7 +1571,6 @@ async def resolve_undeliver_job_helper(
                     "job_id":              job_id,
                     "job_status_id":       status_id,
                     "technician_id":       technician_id,
-                    "amount":              amount,
                     "is_final":            flags["is_final"],
                     "last_transaction_id": target_txn_id,
                 },

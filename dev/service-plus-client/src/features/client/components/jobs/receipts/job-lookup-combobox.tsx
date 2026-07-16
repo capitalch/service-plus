@@ -14,6 +14,7 @@ import { graphQlUtils } from "@/lib/graphql-utils";
 import { selectCurrentBranch, selectSchema } from "@/store/context-slice";
 import { useAppSelector } from "@/store/hooks";
 import type { JobLookupForReceiptType } from "@/features/client/types/receipt";
+import { SEARCH_DEBOUNCE_MS } from "@/constants/timing";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -28,7 +29,6 @@ type JobLookupComboboxPropsType = {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const DEBOUNCE_MS = 1600;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -114,7 +114,7 @@ export const JobLookupCombobox = ({ disabled = false, getRestrictionReason = rec
         setSearch(q);
         setOpen(true);
         if (debounceRef.current) clearTimeout(debounceRef.current);
-        debounceRef.current = setTimeout(() => fetchJobs(q), DEBOUNCE_MS);
+        debounceRef.current = setTimeout(() => fetchJobs(q), SEARCH_DEBOUNCE_MS);
     }
 
     function handleSelect(job: JobLookupForReceiptType) {

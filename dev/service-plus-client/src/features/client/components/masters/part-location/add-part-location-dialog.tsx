@@ -18,6 +18,7 @@ import { Label } from "@/components/ui/label";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { MESSAGES } from "@/constants/messages";
 import { SQL_MAP } from "@/constants/sql-map";
+import { FIELD_VALIDATION_DEBOUNCE_MS } from "@/constants/timing";
 import { useDebounce } from "@/hooks/use-debounce";
 import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
@@ -72,7 +73,7 @@ export const AddPartLocationDialog = ({
 
     const { formState: { errors } } = form;
     const locationValue = useWatch({ control: form.control, name: "location" });
-    const debouncedLoc  = useDebounce(locationValue, 1200);
+    const debouncedLoc  = useDebounce(locationValue, FIELD_VALIDATION_DEBOUNCE_MS);
 
     // Reset on close
     useEffect(() => {

@@ -7,8 +7,9 @@ import { motion } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
 import { Input }  from "@/components/ui/input";
+import { SEARCH_DEBOUNCE_MS } from "@/constants/timing";
 import { type DivisionContextType, isGstDivision } from "@/features/client/types/division";
-import { PAGE_SIZE, DEBOUNCE_MS, thClass, tdClass, fmtCurrency } from "./deliver-job-helpers";
+import { PAGE_SIZE, thClass, tdClass, fmtCurrency } from "./deliver-job-helpers";
 import { JobTypeBadge, StatusBadge } from "../job-badges";
 import { useGridRowRetention, type GridRetentionHandle } from "../use-grid-row-retention";
 
@@ -99,7 +100,7 @@ export const DeliverableJobsGrid = forwardRef<GridRetentionHandle, Props>(functi
     function handleSearchChange(value: string) {
         onSearch(value);
         if (debounceRef.current) clearTimeout(debounceRef.current);
-        debounceRef.current = setTimeout(() => { setPage(1); onSearch(value); }, DEBOUNCE_MS);
+        debounceRef.current = setTimeout(() => { setPage(1); onSearch(value); }, SEARCH_DEBOUNCE_MS);
     }
 
     return (

@@ -19,6 +19,7 @@ import { Label } from "@/components/ui/label";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { MESSAGES } from "@/constants/messages";
 import { SQL_MAP } from "@/constants/sql-map";
+import { FIELD_VALIDATION_DEBOUNCE_MS } from "@/constants/timing";
 import { useDebounce } from "@/hooks/use-debounce";
 import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
@@ -79,7 +80,7 @@ export const EditStateDialog = ({
 
     const { formState: { errors } } = form;
     const nameValue     = useWatch({ control: form.control, name: "name" });
-    const debouncedName = useDebounce(nameValue, 1200);
+    const debouncedName = useDebounce(nameValue, FIELD_VALIDATION_DEBOUNCE_MS);
 
     // Pre-fill on open
     useEffect(() => {

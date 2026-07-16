@@ -8,27 +8,31 @@ import { Input } from "@/components/ui/input";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { MESSAGES } from "@/constants/messages";
 import { SQL_MAP } from "@/constants/sql-map";
+import { SEARCH_DEBOUNCE_MS } from "@/constants/timing";
 import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
-import { selectSchema, selectCurrentBranch } from "@/store/context-slice";
+import { selectSchema, selectCurrentBranch, selectAvailableBranches } from "@/store/context-slice";
 import { formatCurrency } from "@/lib/utils";
 import type { BrandOption } from "@/features/client/types/model";
 import { BrandSelect } from "@/features/client/components/inventory/brand-select";
+import { BranchSelect } from "@/features/client/components/inventory/branch-select";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 
 
 type StockRow = {
-    part_id:       number;
-    part_code:     string;
-    part_name:     string;
-    category:      string | null;
-    uom:           string;
-    cost_price:    number | null;
-    current_stock: number;
+    part_id:          number;
+    part_code:        string;
+    part_name:        string;
+    part_description: string | null;
+    brand_name:       string | null;
+    category:         string | null;
+    uom:              string;
+    cost_price:       number | null;
+    current_stock:    number;
 };
 
 type GenericQueryData<T> = {
@@ -49,12 +53,14 @@ export const StockOverviewSection = () => {
     const dbName = useAppSelector(selectDbName);
     const schema = useAppSelector(selectSchema);
     const currentBranch = useAppSelector(selectCurrentBranch);
+    const availableBranches = useAppSelector(selectAvailableBranches);
 
     // Filter/Sort State
     const [search,         setSearch]         = useState("");
     const [searchQ,        setSearchQ]        = useState("");
     const [brands,         setBrands]         = useState<BrandOption[]>([]);
     const [selectedBrand,  setSelectedBrand]  = useState<string>("0");
+    const [selectedBranch, setSelectedBranch] = useState<string>("");
     const [page,           setPage]           = useState(1);
     const [total,          setTotal]          = useState(0);
     const [sortCol,        setSortCol]        = useState<string | null>("part_name");
@@ -128,15 +134,21 @@ export const StockOverviewSection = () => {
         void fetchBrands();
     }, [dbName, schema]);
 
-    // Re-fetch when global branch, brand, searchQ, or page changes
+    // Default branch filter to the current branch once it becomes available;
+    // leave the user's explicit choice (including "All Branches") untouched afterwards
     useEffect(() => {
-        if (currentBranch?.id) void loadStock(currentBranch.id, Number(selectedBrand), searchQ, page);
+        if (currentBranch?.id && !selectedBranch) setSelectedBranch(String(currentBranch.id));
+    }, [currentBranch?.id, selectedBranch]);
+
+    // Re-fetch when branch, brand, searchQ, or page changes
+    useEffect(() => {
+        if (selectedBranch) void loadStock(Number(selectedBranch), Number(selectedBrand), searchQ, page);
         else { setStockData([]); setTotal(0); }
-    }, [currentBranch?.id, selectedBrand, searchQ, page, loadStock]);
+    }, [selectedBranch, selectedBrand, searchQ, page, loadStock]);
 
     // Debounced search
     useEffect(() => {
-        const timer = setTimeout(() => setSearchQ(search), 500);
+        const timer = setTimeout(() => setSearchQ(search), SEARCH_DEBOUNCE_MS);
         return () => clearTimeout(timer);
     }, [search]);
 
@@ -204,7 +216,7 @@ export const StockOverviewSection = () => {
                     <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-(--cl-text-muted)" />
                     <Input
                         className="h-10 border-(--cl-border) bg-(--cl-surface) pl-9 shadow-sm"
-                        placeholder="Search parts by name, code, or category..."
+                        placeholder="Search parts by name, description, code, or category..."
                         value={search}
                         onChange={e => setSearch(e.target.value)}
                     />
@@ -217,6 +229,16 @@ export const StockOverviewSection = () => {
                                     <X className="h-2.5 w-2.5" />
                                 </button>
                             )}
+                </div>
+
+                <div className="w-56">
+                    <BranchSelect
+                        branches={availableBranches}
+                        disabled={loading}
+                        showAllOption={true}
+                        value={selectedBranch}
+                        onValueChange={setSelectedBranch}
+                    />
                 </div>
 
                 <div className="w-56">
@@ -241,7 +263,8 @@ export const StockOverviewSection = () => {
                             <thead className="sticky top-0 z-30">
                                 <tr className="bg-(--cl-surface-2)">
                                     <th className={thClass}>Part Code</th>
-                                    <th className={thClass}>Part Name</th>
+                                    <th className={thClass}>Part Details</th>
+                                    <th className={thClass}>Brand</th>
                                     <th className={thClass}>Category</th>
                                     <th className={thClass}>UOM</th>
                                     <th className={`${thClass} text-right`}>Current Stock</th>
@@ -253,12 +276,13 @@ export const StockOverviewSection = () => {
                                 {Array.from({ length: 10 }).map((_, i) => (
                                     <tr key={i} className="animate-pulse">
                                         <td className={tdClass} style={{ width: "15%" }}><div className="h-4 w-20 rounded bg-(--cl-border)" /></td>
-                                        <td className={tdClass} style={{ width: "25%" }}><div className="h-4 w-40 rounded bg-(--cl-border)" /></td>
-                                        <td className={tdClass} style={{ width: "15%" }}><div className="h-4 w-24 rounded bg-(--cl-border)" /></td>
-                                        <td className={tdClass} style={{ width: "10%" }}><div className="h-4 w-10 rounded bg-(--cl-border)" /></td>
+                                        <td className={tdClass} style={{ width: "20%" }}><div className="h-4 w-40 rounded bg-(--cl-border)" /></td>
+                                        <td className={tdClass} style={{ width: "12%" }}><div className="h-4 w-20 rounded bg-(--cl-border)" /></td>
+                                        <td className={tdClass} style={{ width: "13%" }}><div className="h-4 w-24 rounded bg-(--cl-border)" /></td>
+                                        <td className={tdClass} style={{ width: "8%" }}><div className="h-4 w-10 rounded bg-(--cl-border)" /></td>
                                         <td className={`${tdClass} text-right`} style={{ width: "12%" }}><div className="ml-auto h-4 w-12 rounded bg-(--cl-border)" /></td>
                                         <td className={`${tdClass} text-right`} style={{ width: "10%" }}><div className="ml-auto h-4 w-16 rounded bg-(--cl-border)" /></td>
-                                        <td className={`${tdClass} text-right`} style={{ width: "13%" }}><div className="ml-auto h-4 w-20 rounded bg-(--cl-border)" /></td>
+                                        <td className={`${tdClass} text-right`} style={{ width: "10%" }}><div className="ml-auto h-4 w-20 rounded bg-(--cl-border)" /></td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -275,7 +299,10 @@ export const StockOverviewSection = () => {
                                         Part Code <SortIcon col="part_code" />
                                     </th>
                                     <th className={thSortClass} onClick={() => handleSort("part_name")}>
-                                        Part Name <SortIcon col="part_name" />
+                                        Part Details <SortIcon col="part_name" />
+                                    </th>
+                                    <th className={thSortClass} onClick={() => handleSort("brand_name")}>
+                                        Brand <SortIcon col="brand_name" />
                                     </th>
                                     <th className={thSortClass} onClick={() => handleSort("category")}>
                                         Category <SortIcon col="category" />
@@ -296,13 +323,16 @@ export const StockOverviewSection = () => {
                                         <td className={`${tdClass} font-mono font-medium`} style={{ width: "15%" }}>
                                             {row.part_code}
                                         </td>
-                                        <td className={`${tdClass} font-medium`} style={{ width: "25%" }}>
-                                            {row.part_name}
+                                        <td className={`${tdClass} font-medium`} style={{ width: "20%" }}>
+                                            {row.part_description ? `${row.part_name} - ${row.part_description}` : row.part_name}
                                         </td>
-                                        <td className={tdClass} style={{ width: "15%" }}>
+                                        <td className={tdClass} style={{ width: "12%" }}>
+                                            {row.brand_name || <span className="text-opacity-50">—</span>}
+                                        </td>
+                                        <td className={tdClass} style={{ width: "13%" }}>
                                             {row.category || <span className="text-opacity-50">—</span>}
                                         </td>
-                                        <td className={tdClass} style={{ width: "10%" }}>
+                                        <td className={tdClass} style={{ width: "8%" }}>
                                             <span className="rounded-md bg-(--cl-surface-3) px-2 py-0.5 text-xs font-semibold">
                                                 {row.uom}
                                             </span>
@@ -315,7 +345,7 @@ export const StockOverviewSection = () => {
                                         <td className={`${tdClass} text-right`} style={{ width: "10%" }}>
                                             {row.cost_price != null ? formatCurrency(row.cost_price) : "—"}
                                         </td>
-                                        <td className={`${tdClass} text-right font-medium`} style={{ width: "13%" }}>
+                                        <td className={`${tdClass} text-right font-medium`} style={{ width: "10%" }}>
                                             {formatCurrency(row.current_stock * (row.cost_price || 0))}
                                         </td>
                                     </tr>

@@ -587,7 +587,7 @@ export function FinalJobDialog({ jobId, onClose, onFinalized }: Props) {
                 partLines.reduce((s, l) => s + (parseFloat(l.sale_pr_gst) || 0) * l.qty, 0) +
                 chargeLines.reduce((s, c) => s + (parseFloat(c.sale_pr_gst) || 0) * (parseFloat(c.qty) || 1), 0);
             // The job is always saved with the true achieved line total — not the
-            // aspirational Back Calculate target, which may be unreachable (e.g. part
+            // aspirational Apply target, which may be unreachable (e.g. part
             // selling prices are floored at cost and can't be discounted further).
             const amount = isWarrantyJob ? 0 : computedTotal;
 

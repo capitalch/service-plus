@@ -504,15 +504,15 @@ export const PartCodeInput = forwardRef<HTMLInputElement, PartCodeInputProps>(({
 
                 {showName && partId && partName && (
                     <div className="flex items-center gap-1.5 px-1 overflow-hidden h-3 animate-in fade-in slide-in-from-top-1 duration-200">
-                        <span className="shrink-0 max-w-[55%] truncate text-[10px] font-bold text-(--cl-accent,#007acc)/70 tracking-tight" title={partName}>{partName}</span>
-                        {effectivePartDescription && (
-                            <span className="min-w-0 truncate text-[10px] font-medium text-slate-500 dark:text-slate-400" title={effectivePartDescription}>
-                                · {effectivePartDescription}
-                            </span>
-                        )}
+                        <span className="shrink-0 max-w-[45%] truncate text-[10px] font-bold text-(--cl-accent,#007acc)/70 tracking-tight" title={partName}>{partName}</span>
                         {effectiveCostPrice != null && (
                             <span className="shrink-0 text-[10px] font-semibold text-slate-500 dark:text-slate-400 tabular-nums">
                                 · ₹{formatNumber(effectiveCostPrice)}
+                            </span>
+                        )}
+                        {effectivePartDescription && (
+                            <span className="min-w-0 truncate text-[10px] font-medium text-slate-500 dark:text-slate-400" title={effectivePartDescription}>
+                                · {effectivePartDescription}
                             </span>
                         )}
                     </div>

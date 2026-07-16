@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { MESSAGES } from "@/constants/messages";
 import { SQL_MAP } from "@/constants/sql-map";
+import { FIELD_VALIDATION_DEBOUNCE_MS } from "@/constants/timing";
 import { useDebounce } from "@/hooks/use-debounce";
 import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
@@ -119,8 +120,8 @@ export const InitializeClientDialog = ({
 
 	const dbNameValue = useWatch({ control: step1Form.control, name: "db_name" });
 	const usernameValue = useWatch({ control: step2Form.control, name: "username" });
-	const debouncedDbName = useDebounce(dbNameValue, 1200);
-	const debouncedUsername = useDebounce(usernameValue, 1200);
+	const debouncedDbName = useDebounce(dbNameValue, FIELD_VALIDATION_DEBOUNCE_MS);
+	const debouncedUsername = useDebounce(usernameValue, FIELD_VALIDATION_DEBOUNCE_MS);
 
 	// Debounced DB name uniqueness check
 	useEffect(() => {

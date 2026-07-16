@@ -7,6 +7,7 @@ import { FormProvider, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
 import { Button } from "@/components/ui/button";
+import { SEARCH_DEBOUNCE_MS } from "@/constants/timing";
 import {
     Dialog,
     DialogContent,
@@ -46,7 +47,6 @@ type GenericQueryData<T> = { genericQuery: T[] | null };
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const PAGE_SIZE   = 50;
-const DEBOUNCE_MS = 1600;
 
 // ─── CSS ──────────────────────────────────────────────────────────────────────
 
@@ -221,7 +221,7 @@ export const LoanEntrySection = () => {
         debounceRef.current = setTimeout(() => {
             setPage(1);
             setSearchQ(value);
-        }, DEBOUNCE_MS);
+        }, SEARCH_DEBOUNCE_MS);
     };
 
     const handleReset = () => {

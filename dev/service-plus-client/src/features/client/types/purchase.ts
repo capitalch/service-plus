@@ -66,4 +66,5 @@ export type PurchaseLineFormItem = {
     _orig_hsn_code:   string | null;
     _orig_cost_price: number | null;
     _orig_gst_rate:   number | null;
+    _pre_warranty_price: number | null;
 };

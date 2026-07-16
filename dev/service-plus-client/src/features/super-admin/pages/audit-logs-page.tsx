@@ -44,6 +44,7 @@ import {
 } from "@/components/ui/table";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { MESSAGES } from "@/constants/messages";
+import { FIELD_VALIDATION_DEBOUNCE_MS } from "@/constants/timing";
 import { SuperAdminLayout } from "@/features/super-admin/components/super-admin-layout";
 import type {
     AuditEntryType,
@@ -190,7 +191,7 @@ export const AuditLogsPage = () => {
     const [actionFilter, setActionFilter]   = useState<string>("");
     const [outcomeFilter, setOutcomeFilter] = useState<OutcomeFilterType>("");
     const [searchInput, setSearchInput]     = useState<string>("");
-    const debouncedSearch                   = useDebounce(searchInput, 1200);
+    const debouncedSearch                   = useDebounce(searchInput, FIELD_VALIDATION_DEBOUNCE_MS);
 
     // Pagination
     const [page, setPage] = useState<number>(1);

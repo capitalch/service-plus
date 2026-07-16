@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useForm, FormProvider } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { SEARCH_DEBOUNCE_MS } from "@/constants/timing";
 import { ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon,
     Eye, Loader2, Pencil, RefreshCw, RotateCcw, Save, Search, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
@@ -35,7 +36,6 @@ type GenericQueryData<T> = { genericQuery: T[] | null };
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const PAGE_SIZE   = 50;
-const DEBOUNCE_MS = 1600;
 
 const thClass = "sticky top-0 z-20 text-xs font-semibold uppercase tracking-wide text-(--cl-text-muted) p-3 text-left border-b border-(--cl-border) bg-(--cl-surface-2)";
 const tdClass = "p-3 text-sm text-(--cl-text) border-b border-(--cl-border)";
@@ -183,7 +183,7 @@ export const PartUsedSection = () => {
     const handleSearchChange = (value: string) => {
         setSearch(value);
         if (debounceRef.current) clearTimeout(debounceRef.current);
-        debounceRef.current = setTimeout(() => { setPage(1); setSearchQ(value); }, DEBOUNCE_MS);
+        debounceRef.current = setTimeout(() => { setPage(1); setSearchQ(value); }, SEARCH_DEBOUNCE_MS);
     };
 
     const handleReset = () => {

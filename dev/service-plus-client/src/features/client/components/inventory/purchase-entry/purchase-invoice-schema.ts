@@ -19,6 +19,7 @@ const purchaseLineSchema = z.object({
     _orig_hsn_code:   z.string().nullable(),
     _orig_cost_price: z.number().nullable(),
     _orig_gst_rate:   z.number().nullable(),
+    _pre_warranty_price: z.number().nullable(),
 });
 
 export const purchaseInvoiceSchema = z.object({
@@ -64,5 +65,6 @@ function getInitialPurchaseLine(brandId: number | null = null): PurchaseLineForm
         _orig_hsn_code:   null,
         _orig_cost_price: null,
         _orig_gst_rate:   null,
+        _pre_warranty_price: null,
     };
 }

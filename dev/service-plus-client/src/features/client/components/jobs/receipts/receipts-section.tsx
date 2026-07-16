@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { SEARCH_DEBOUNCE_MS } from "@/constants/timing";
 import {ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon,
     DollarSign, Eye, Loader2, MoreHorizontal, Pencil, Printer, RefreshCw, Save, Search, Trash2, X} from "lucide-react";
 import { toast } from "sonner";
@@ -43,7 +44,6 @@ type GenericQueryDataType<T> = { genericQuery: T[] | null };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const DEBOUNCE_MS = 1600;
 const PAGE_SIZE   = 50;
 
 const thClass = "sticky top-0 z-20 text-xs font-semibold uppercase tracking-wide text-(--cl-text-muted) p-3 text-left border-b border-(--cl-border) bg-(--cl-surface-2)";
@@ -179,7 +179,7 @@ export const ReceiptsSection = () => {
     function handleSearchChange(value: string) {
         setSearch(value);
         if (debounceRef.current) clearTimeout(debounceRef.current);
-        debounceRef.current = setTimeout(() => { setPage(1); setSearchQ(value); }, DEBOUNCE_MS);
+        debounceRef.current = setTimeout(() => { setPage(1); setSearchQ(value); }, SEARCH_DEBOUNCE_MS);
     }
 
     function handleNewReceipt() {
