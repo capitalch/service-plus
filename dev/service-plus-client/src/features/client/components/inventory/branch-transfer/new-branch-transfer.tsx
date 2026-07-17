@@ -135,6 +135,7 @@ export function NewBranchTransfer({
                 remarks:       detail.remarks ?? "",
                 lines:         loadedLines.length > 0 ? loadedLines : [getInitialTransferLine(selectedBrandId)],
             });
+            void form.trigger();
             setOriginalLineIds((detail.lines ?? []).map(l => l.id));
         }).catch(() => toast.error(MESSAGES.ERROR_TRANSFER_LOAD_FAILED));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -285,24 +286,24 @@ export function NewBranchTransfer({
                                                 partName={line?.part_name ?? ""}
                                                 selectedBrandId={selectedBrandId}
                                                 onChange={code => {
-                                                    if (!code.trim()) { 
-                                                        setValue(`lines.${idx}.part_code`, "");
-                                                        setValue(`lines.${idx}.part_id`, null);
-                                                        setValue(`lines.${idx}.part_name`, "");
+                                                    if (!code.trim()) {
+                                                        setValue(`lines.${idx}.part_code`, "", { shouldValidate: true });
+                                                        setValue(`lines.${idx}.part_id`, null, { shouldValidate: true });
+                                                        setValue(`lines.${idx}.part_name`, "", { shouldValidate: true });
                                                     } else {
-                                                        setValue(`lines.${idx}.part_code`, code);
+                                                        setValue(`lines.${idx}.part_code`, code, { shouldValidate: true });
                                                     }
                                                 }}
                                                 onClear={() => {
-                                                    setValue(`lines.${idx}.part_code`, "");
-                                                    setValue(`lines.${idx}.part_id`, null);
-                                                    setValue(`lines.${idx}.part_name`, "");
+                                                    setValue(`lines.${idx}.part_code`, "", { shouldValidate: true });
+                                                    setValue(`lines.${idx}.part_id`, null, { shouldValidate: true });
+                                                    setValue(`lines.${idx}.part_name`, "", { shouldValidate: true });
                                                 }}
                                                 onSelect={part => {
-                                                    setValue(`lines.${idx}.brand_id`, part.brand_id);
-                                                    setValue(`lines.${idx}.part_code`, part.part_code);
-                                                    setValue(`lines.${idx}.part_id`, part.id);
-                                                    setValue(`lines.${idx}.part_name`, part.part_name);
+                                                    setValue(`lines.${idx}.brand_id`, part.brand_id, { shouldValidate: true });
+                                                    setValue(`lines.${idx}.part_code`, part.part_code, { shouldValidate: true });
+                                                    setValue(`lines.${idx}.part_id`, part.id, { shouldValidate: true });
+                                                    setValue(`lines.${idx}.part_name`, part.part_name, { shouldValidate: true });
                                                 }}
                                                 onTabToNext={() => setFocus(`lines.${idx}.qty`)}
                                             />

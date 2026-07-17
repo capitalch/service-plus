@@ -226,6 +226,7 @@ export const StockAdjustmentSection = () => {
         form.reset(getStockAdjDefaultValues());
         setOriginalLineIds([]);
         setEditAdjustment(null);
+        setMode("new");
     };
 
     // Save
@@ -662,11 +663,11 @@ export const StockAdjustmentSection = () => {
                         open={deleteId !== null}
                         onOpenChange={open => { if (!open && !deleting) setDeleteId(null); }}
                     >
-                        <DialogContent aria-describedby={undefined} className="sm:max-w-sm !bg-(--cl-surface) text-(--cl-text)">
+                        <DialogContent aria-describedby={undefined} className="sm:max-w-sm">
                             <DialogHeader>
                                 <DialogTitle>Delete Stock Adjustment</DialogTitle>
                             </DialogHeader>
-                            <p className="text-sm text-(--cl-text-muted)">
+                            <p className="text-sm text-muted-foreground">
                                 This will permanently delete the adjustment and all associated stock transactions.
                                 This action cannot be undone.
                             </p>

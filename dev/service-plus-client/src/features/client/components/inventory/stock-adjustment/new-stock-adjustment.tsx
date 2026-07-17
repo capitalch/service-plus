@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useFormContext, useFieldArray } from "react-hook-form";
+import { useFormContext, useFieldArray, useWatch } from "react-hook-form";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
@@ -53,10 +53,12 @@ export function NewStockAdjustment({
     const form = useFormContext<StockAdjFormValues>();
     const { register, watch } = form;
 
-    const { fields, remove, insert, update } = useFieldArray({
+    const { fields, remove, insert } = useFieldArray({
         control: form.control,
         name: "lines",
     });
+
+    const lines = useWatch({ control: form.control, name: "lines" }) ?? [];
 
     const partInputRefs    = useRef<(HTMLInputElement | null)[]>([]);
     const qtyInputRefs     = useRef<(HTMLInputElement | null)[]>([]);
@@ -113,6 +115,7 @@ export function NewStockAdjustment({
                 remarks:           detail.remarks ?? "",
                 lines:             loadedLines,
             });
+            void form.trigger();
             setOriginalLineIds((detail.lines ?? []).map(l => l.id));
         }).catch(() => toast.error(MESSAGES.ERROR_ADJUSTMENT_LOAD_FAILED));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -121,7 +124,7 @@ export function NewStockAdjustment({
     // Line mutations
     const updateLine = (idx: number, patch: Partial<StockAdjFormValues["lines"][number]>) => {
         const current = form.getValues(`lines.${idx}`);
-        update(idx, { ...current, ...patch });
+        form.setValue(`lines.${idx}`, { ...current, ...patch }, { shouldValidate: true, shouldDirty: true });
     };
 
     const insertLine = (idx: number) => {
@@ -133,8 +136,8 @@ export function NewStockAdjustment({
     };
 
     const linesValid =
-        fields.length > 0 &&
-        fields.every(l => !!l.part_id && l.qty > 0 && (l.dr_cr === "D" || l.dr_cr === "C"));
+        lines.length > 0 &&
+        lines.every(l => !!l.part_id && l.qty > 0 && (l.dr_cr === "D" || l.dr_cr === "C"));
 
     useEffect(() => {
         onLinesValidChange(linesValid);
@@ -246,8 +249,11 @@ export function NewStockAdjustment({
                                     </tr>
                                 </thead>
                                 <tbody className="bg-(--cl-surface)">
-                                    {fields.map((line, idx) => (
-                                        <tr key={line.id} className="hover:bg-(--cl-surface-2)/30 group transition-colors">
+                                    {fields.map((field, idx) => {
+                                        const line = lines[idx];
+                                        if (!line) return null;
+                                        return (
+                                        <tr key={field.id} className="hover:bg-(--cl-surface-2)/30 group transition-colors">
                                             <td className={`${tdClass} pl-4 text-xs font-medium text-(--cl-text-muted)`}>{idx + 1}</td>
 
                                             {/* Part */}
@@ -341,7 +347,8 @@ export function NewStockAdjustment({
                                                 </div>
                                             </td>
                                         </tr>
-                                    ))}
+                                        );
+                                    })}
                                 </tbody>
                             </table>
                         </div>
@@ -361,20 +368,20 @@ export function NewStockAdjustment({
                         <div className="flex items-center gap-1.5">
                             <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600">IN</span>
                             <span className="font-mono font-semibold text-sm text-(--cl-text)">
-                                {fields.filter(l => l.dr_cr === "D").reduce((s, l) => s + l.qty, 0)}
+                                {lines.filter(l => l.dr_cr === "D").reduce((s, l) => s + l.qty, 0)}
                             </span>
                         </div>
                         <div className="flex items-center gap-1.5">
                             <span className="text-[10px] font-black uppercase tracking-widest text-orange-500">OUT</span>
                             <span className="font-mono font-semibold text-sm text-(--cl-text)">
-                                {fields.filter(l => l.dr_cr === "C").reduce((s, l) => s + l.qty, 0)}
+                                {lines.filter(l => l.dr_cr === "C").reduce((s, l) => s + l.qty, 0)}
                             </span>
                         </div>
                         <div className="flex items-center gap-1.5 border-l border-(--cl-border) pl-4">
                             <span className="text-[10px] font-black uppercase tracking-widest text-(--cl-text-muted)">Net</span>
                             <span className="font-mono font-black text-base text-(--cl-accent)">
-                                {fields.filter(l => l.dr_cr === "D").reduce((s, l) => s + l.qty, 0) -
-                                 fields.filter(l => l.dr_cr === "C").reduce((s, l) => s + l.qty, 0)}
+                                {lines.filter(l => l.dr_cr === "D").reduce((s, l) => s + l.qty, 0) -
+                                 lines.filter(l => l.dr_cr === "C").reduce((s, l) => s + l.qty, 0)}
                             </span>
                         </div>
                     </div>

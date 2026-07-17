@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useFormContext, useFieldArray } from "react-hook-form";
+import { useEffect, useRef, useState } from "react";
+import { useFormContext, useFieldArray, useWatch } from "react-hook-form";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
@@ -51,15 +51,19 @@ export function NewLoanEntry({
     const schema = useAppSelector(selectSchema);
 
     const form = useFormContext<LoanEntryFormValues>();
-    const { register, control, setValue, watch, setFocus } = form;
+    const { register, control, setValue, setFocus } = form;
 
     const { fields, remove, insert } = useFieldArray({
         control,
         name: "lines",
     });
 
-    const rawLines = watch("lines");
-    const formLines = useMemo(() => rawLines ?? [], [rawLines]);
+    const formLines = useWatch({ control, name: "lines" }) ?? [];
+
+    const updateLine = (idx: number, patch: Partial<LoanEntryFormValues["lines"][number]>) => {
+        const current = form.getValues(`lines.${idx}`);
+        setValue(`lines.${idx}`, { ...current, ...patch }, { shouldValidate: true, shouldDirty: true });
+    };
 
     const partInputRefs    = useRef<(HTMLInputElement | null)[]>([]);
     const scrollWrapperRef = useRef<HTMLDivElement>(null);
@@ -118,18 +122,21 @@ export function NewLoanEntry({
                 remarks:   detail.remarks ?? "",
                 lines:     loadedLines.length > 0 ? loadedLines : [getInitialLoanLine(selectedBrandId)],
             });
+            void form.trigger();
             setOriginalLineIds((detail.lines ?? []).map(l => l.id));
         }).catch(() => toast.error(MESSAGES.ERROR_LOAN_LOAD_FAILED));
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [editLoan, dbName, schema]);
 
     // Lines validity
+    const linesValid = fields.length > 0 && formLines.every(
+        l => !!l.part_id && (l.qty ?? 0) > 0 && !!l.loan_to?.trim() && (l.dr_cr === "D" || l.dr_cr === "C")
+    );
+
     useEffect(() => {
-        const valid = fields.length > 0 && formLines.every(
-            l => !!l.part_id && (l.qty ?? 0) > 0 && !!l.loan_to?.trim() && (l.dr_cr === "D" || l.dr_cr === "C")
-        );
-        onLinesValidChange(valid);
-    }, [fields.length, formLines, onLinesValidChange]);
+        onLinesValidChange(linesValid);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [linesValid]);
 
     return (
         <motion.div
@@ -212,7 +219,8 @@ export function NewLoanEntry({
 
                                 {/* Data rows */}
                                 {fields.map((field, idx) => {
-                                    const line = watch(`lines.${idx}`);
+                                    const line = formLines[idx];
+                                    if (!line) return null;
                                     return (
                                     <div
                                         key={field.id}
@@ -235,23 +243,19 @@ export function NewLoanEntry({
                                                 selectedBrandId={selectedBrandId}
                                                 onChange={code => {
                                                     if (!code.trim()) {
-                                                        setValue(`lines.${idx}.part_code`, "");
-                                                        setValue(`lines.${idx}.part_id`, null);
-                                                        setValue(`lines.${idx}.part_name`, "");
+                                                        updateLine(idx, { part_code: "", part_id: null, part_name: "" });
                                                     } else {
-                                                        setValue(`lines.${idx}.part_code`, code);
+                                                        updateLine(idx, { part_code: code });
                                                     }
                                                 }}
-                                                onClear={() => {
-                                                    setValue(`lines.${idx}.part_code`, "");
-                                                    setValue(`lines.${idx}.part_id`, null);
-                                                    setValue(`lines.${idx}.part_name`, "");
-                                                }}
+                                                onClear={() => updateLine(idx, { part_code: "", part_id: null, part_name: "" })}
                                                 onSelect={part => {
-                                                    setValue(`lines.${idx}.brand_id`, part.brand_id);
-                                                    setValue(`lines.${idx}.part_code`, part.part_code);
-                                                    setValue(`lines.${idx}.part_id`, part.id);
-                                                    setValue(`lines.${idx}.part_name`, part.part_name);
+                                                    updateLine(idx, {
+                                                        brand_id:  part.brand_id,
+                                                        part_code: part.part_code,
+                                                        part_id:   part.id,
+                                                        part_name: part.part_name,
+                                                    });
                                                 }}
                                                 onTabToNext={() => setFocus(`lines.${idx}.qty`)}
                                             />
@@ -270,7 +274,7 @@ export function NewLoanEntry({
                                         <div className="flex items-center justify-center gap-1 px-2 py-1.5 border-r border-(--cl-border)/30">
                                             <button
                                                 type="button"
-                                                onClick={() => setValue(`lines.${idx}.dr_cr`, "D")}
+                                                onClick={() => updateLine(idx, { dr_cr: "D" })}
                                                 className={`flex-1 rounded px-2 py-1 text-xs font-bold transition-all cursor-pointer ${
                                                     line?.dr_cr === "D"
                                                         ? "bg-emerald-600 text-white shadow"
@@ -281,7 +285,7 @@ export function NewLoanEntry({
                                             </button>
                                             <button
                                                 type="button"
-                                                onClick={() => setValue(`lines.${idx}.dr_cr`, "C")}
+                                                onClick={() => updateLine(idx, { dr_cr: "C" })}
                                                 className={`flex-1 rounded px-2 py-1 text-xs font-bold transition-all cursor-pointer ${
                                                     line?.dr_cr === "C"
                                                         ? "bg-orange-500 text-white shadow"

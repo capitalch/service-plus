@@ -99,17 +99,17 @@ export const DeleteConfirmDialog = ({
                     <DialogTitle>{title}</DialogTitle>
                     <DialogDescription>
                         Permanently delete{" "}
-                        <span className="font-semibold text-slate-800">{entityName}</span>?
+                        <span className="font-semibold text-foreground">{entityName}</span>?
                     </DialogDescription>
                 </DialogHeader>
 
                 <div className="flex flex-col gap-4">
-                    <p className="text-sm text-slate-600">This action cannot be undone.</p>
+                    <p className="text-sm text-muted-foreground">This action cannot be undone.</p>
 
                     {(blockedMessage || inUse === true) && (
-                        <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5">
+                        <div className="flex items-start gap-2 rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2.5">
                             <AlertTriangleIcon className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
-                            <p className="text-sm text-amber-800">
+                            <p className="text-sm text-amber-600">
                                 {blockedMessage || inUseMessage}
                             </p>
                         </div>
@@ -119,7 +119,7 @@ export const DeleteConfirmDialog = ({
                         <div className="flex flex-col gap-1.5">
                             <Label htmlFor="delete_confirm_input">
                                 Type{" "}
-                                <span className={`font-semibold text-slate-800${confirmKeyClass ? ` ${confirmKeyClass}` : ""}`}>
+                                <span className={`font-semibold text-foreground${confirmKeyClass ? ` ${confirmKeyClass}` : ""}`}>
                                     {confirmKey}
                                 </span>{" "}
                                 to confirm

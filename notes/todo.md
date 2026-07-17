@@ -1,7 +1,14 @@
 # To Do
 - Inventory testing
-	-  Sales
-		- Back calculate incorrect behavior
+	- Loan Entry
+		- Save issue
+	- Branch transfer
+		- save issue
+							- Stock Adjustment
+								- Delete Alert transparent
+								- Part code issue
+							-  Sales
+								- Back calculate incorrect behavior
 								- In edit mode, Total should show the amount from sales_invoice table and not calculated amount from line items
 								- part select does not show the cost price
 								- GSTIN validation

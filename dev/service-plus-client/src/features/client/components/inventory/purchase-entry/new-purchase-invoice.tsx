@@ -235,6 +235,7 @@ export const NewPurchaseInvoice = forwardRef<PurchaseInvoiceHandle, Props>(
                     remarks:      detail.remarks ?? "",
                     lines:        loadedLines,
                 });
+                void form.trigger();
                 onIsReturnChange(Boolean(detail.is_return));
                 setInvoiceExists(false);
                 setOriginalLineIds((detail.lines ?? []).map(l => l.id));

@@ -228,6 +228,7 @@ export const LoanEntrySection = () => {
         form.reset({ ...getLoanEntryDefaultValues(), lines: [getInitialLoanLine(selectedBrandId)] });
         setOriginalLineIds([]);
         setEditLoan(null);
+        setMode("new");
     };
 
     const executeSave = async (values: LoanEntryFormValues) => {

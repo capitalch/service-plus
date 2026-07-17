@@ -230,6 +230,7 @@ export const BranchTransferSection = () => {
         form.reset({ ...getBranchTransferDefaultValues(), lines: [getInitialTransferLine(selectedBrandId)] });
         setOriginalLineIds([]);
         setEditTransfer(null);
+        setMode("new");
     };
 
     // Save

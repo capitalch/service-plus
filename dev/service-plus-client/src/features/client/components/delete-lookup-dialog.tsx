@@ -118,26 +118,26 @@ export const DeleteLookupDialog = ({
                     <DialogTitle>Delete Record</DialogTitle>
                     <DialogDescription>
                         Permanently delete{" "}
-                        <span className="font-semibold text-slate-800">{record.name}</span>?
+                        <span className="font-semibold text-foreground">{record.name}</span>?
                     </DialogDescription>
                 </DialogHeader>
 
                 <div className="flex flex-col gap-4">
-                    <p className="text-sm text-slate-600">This action cannot be undone.</p>
+                    <p className="text-sm text-muted-foreground">This action cannot be undone.</p>
 
                     {/* System record — delete blocked */}
                     {record.is_system && (
-                        <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5">
+                        <div className="flex items-start gap-2 rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2.5">
                             <AlertTriangleIcon className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
-                            <p className="text-sm text-amber-800">{MESSAGES.ERROR_LOOKUP_DELETE_SYSTEM}</p>
+                            <p className="text-sm text-amber-600">{MESSAGES.ERROR_LOOKUP_DELETE_SYSTEM}</p>
                         </div>
                     )}
 
                     {/* In-use check result */}
                     {!record.is_system && inUse === true && (
-                        <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5">
+                        <div className="flex items-start gap-2 rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2.5">
                             <AlertTriangleIcon className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
-                            <p className="text-sm text-amber-800">{config.messages.deleteInUse}</p>
+                            <p className="text-sm text-amber-600">{config.messages.deleteInUse}</p>
                         </div>
                     )}
 
@@ -146,7 +146,7 @@ export const DeleteLookupDialog = ({
                         <div className="flex flex-col gap-1.5">
                             <Label htmlFor="confirm_lookup_name">
                                 Type{" "}
-                                <span className="font-semibold text-slate-800">{record.name}</span>{" "}
+                                <span className="font-semibold text-foreground">{record.name}</span>{" "}
                                 to confirm
                             </Label>
                             <Input
