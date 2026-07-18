@@ -1,5 +1,6 @@
 export type StockLoanType = {
     branch_id: number;
+    brand_id: number;
     created_at: string;
     created_by?: number | null;
     id: number;

@@ -2520,6 +2520,7 @@ class SqlStore:
         SELECT
             sa.id,
             sa.branch_id,
+            sa.brand_id,
             sa.adjustment_date,
             sa.adjustment_reason,
             sa.ref_no,
@@ -2543,6 +2544,7 @@ class SqlStore:
         SELECT
             sa.id,
             sa.branch_id,
+            sa.brand_id,
             sa.adjustment_date,
             sa.adjustment_reason,
             sa.ref_no,
@@ -2597,6 +2599,7 @@ class SqlStore:
             sbt.transfer_date,
             sbt.from_branch_id,
             sbt.to_branch_id,
+            sbt.brand_id,
             sbt.ref_no,
             sbt.remarks,
             sbt.created_by,
@@ -2623,6 +2626,7 @@ class SqlStore:
             sbt.transfer_date,
             sbt.from_branch_id,
             sbt.to_branch_id,
+            sbt.brand_id,
             sbt.ref_no,
             sbt.remarks,
             sbt.created_by,
@@ -2680,7 +2684,7 @@ class SqlStore:
             "p_limit"     as (values(%(limit)s::int)),
             "p_offset"    as (values(%(offset)s::int))
         SELECT
-            sl.id, sl.loan_date, sl.branch_id, sl.ref_no, sl.remarks,
+            sl.id, sl.loan_date, sl.branch_id, sl.brand_id, sl.ref_no, sl.remarks,
             sl.created_at, sl.updated_at
         FROM stock_loan sl
         WHERE sl.branch_id = (table "p_branch_id")
@@ -2706,6 +2710,7 @@ class SqlStore:
             sl.id,
             sl.loan_date,
             sl.branch_id,
+            sl.brand_id,
             sl.ref_no,
             sl.remarks,
             sl.created_at,
@@ -2788,6 +2793,7 @@ class SqlStore:
             sob.id,
             sob.entry_date,
             sob.branch_id,
+            sob.brand_id,
             sob.ref_no,
             sob.remarks,
             COUNT(sobl.id)                                     AS line_count,
@@ -2814,6 +2820,7 @@ class SqlStore:
             sob.id,
             sob.entry_date,
             sob.branch_id,
+            sob.brand_id,
             sob.ref_no,
             sob.remarks,
             sob.created_at,

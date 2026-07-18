@@ -243,6 +243,10 @@ export const BranchTransferSection = () => {
             toast.error(MESSAGES.ERROR_TRANSFER_CREATE_FAILED);
             return;
         }
+        if (!selectedBrandId) {
+            toast.error(MESSAGES.ERROR_TRANSFER_BRAND_REQUIRED);
+            return;
+        }
 
         try {
             const txnRes = await apolloClient.query<GenericQueryData<{ id: number; code: string }>>({
@@ -294,6 +298,7 @@ export const BranchTransferSection = () => {
                 transfer_date:  values.transfer_date,
                 from_branch_id: branchId,
                 to_branch_id:   Number(values.to_branch_id),
+                brand_id:       selectedBrandId,
                 ref_no:         values.ref_no?.trim() || null,
                 remarks:        values.remarks?.trim() || null,
             };
@@ -439,7 +444,7 @@ export const BranchTransferSection = () => {
                     </Button>
                     <Button
                         className="h-8 gap-1.5 px-4 text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm font-extrabold uppercase tracking-widest transition-all disabled:opacity-30 disabled:bg-slate-300 disabled:text-slate-600 disabled:shadow-none disabled:cursor-not-allowed"
-                        disabled={!form.formState.isValid || !linesValid || form.formState.isSubmitting}
+                        disabled={!form.formState.isValid || !linesValid || !selectedBrandId || form.formState.isSubmitting}
                         onClick={form.handleSubmit(executeSave)}
                     >
                         {form.formState.isSubmitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
@@ -526,10 +531,11 @@ export const BranchTransferSection = () => {
                                     <thead className="sticky top-0 z-30">
                                         <tr className="bg-(--cl-surface-2)">
                                             <th className={thClass} style={{ width: "5%" }}>#</th>
-                                            <th className={thClass} style={{ width: "12%" }}>Date</th>
-                                            <th className={thClass} style={{ width: "25%" }}>Source Branch</th>
-                                            <th className={thClass} style={{ width: "25%" }}>Dest. Branch</th>
-                                            <th className={thClass} style={{ width: "23%" }}>Ref No</th>
+                                            <th className={thClass} style={{ width: "10%" }}>Date</th>
+                                            <th className={thClass} style={{ width: "12%" }}>Brand</th>
+                                            <th className={thClass} style={{ width: "23%" }}>Source Branch</th>
+                                            <th className={thClass} style={{ width: "23%" }}>Dest. Branch</th>
+                                            <th className={thClass} style={{ width: "17%" }}>Ref No</th>
                                             <th className={`${thClass} text-center`} style={{ width: "10%" }}>Actions</th>
                                         </tr>
                                     </thead>
@@ -537,6 +543,7 @@ export const BranchTransferSection = () => {
                                         {Array.from({ length: 15 }).map((_, i) => (
                                             <tr key={i} className="animate-pulse">
                                                 <td className={tdClass}><div className="h-4 w-4 rounded bg-(--cl-border)" /></td>
+                                                <td className={tdClass}><div className="h-4 w-20 rounded bg-(--cl-border)" /></td>
                                                 <td className={tdClass}><div className="h-4 w-20 rounded bg-(--cl-border)" /></td>
                                                 <td className={tdClass}><div className="h-4 w-48 rounded bg-(--cl-border)" /></td>
                                                 <td className={tdClass}><div className="h-4 w-48 rounded bg-(--cl-border)" /></td>
@@ -556,6 +563,7 @@ export const BranchTransferSection = () => {
                                         <tr>
                                             <th className={thClass}>#</th>
                                             <th className={thClass}>Date</th>
+                                            <th className={thClass}>Brand</th>
                                             <th className={thClass}>Source Branch</th>
                                             <th className={thClass}>Dest. Branch</th>
                                             <th className={thClass}>Ref No</th>
@@ -568,16 +576,19 @@ export const BranchTransferSection = () => {
                                                 <td className={`${tdClass} text-(--cl-text-muted)`} style={{ width: "5%" }}>
                                                     {(page - 1) * PAGE_SIZE + idx + 1}
                                                 </td>
-                                                <td className={tdClass} style={{ width: "12%" }}>
+                                                <td className={tdClass} style={{ width: "10%" }}>
                                                     {t.transfer_date}
                                                 </td>
-                                                <td className={tdClass} style={{ width: "25%" }}>
+                                                <td className={tdClass} style={{ width: "12%" }}>
+                                                    {brands.find(b => b.id === t.brand_id)?.name ?? "—"}
+                                                </td>
+                                                <td className={tdClass} style={{ width: "23%" }}>
                                                     {t.from_branch_name}
                                                 </td>
-                                                <td className={tdClass} style={{ width: "25%" }}>
+                                                <td className={tdClass} style={{ width: "23%" }}>
                                                     {t.to_branch_name}
                                                 </td>
-                                                <td className={`${tdClass} font-mono`} style={{ width: "23%" }}>
+                                                <td className={`${tdClass} font-mono`} style={{ width: "17%" }}>
                                                     {t.ref_no ?? "—"}
                                                 </td>
                                                 <td className={`${tdClass} sticky right-0 z-10 bg-(--cl-surface) group-hover:bg-(--cl-surface-2)`} style={{ width: "10%" }}>
@@ -595,7 +606,7 @@ export const BranchTransferSection = () => {
                                                             <DropdownMenuContent align="end" className="w-[160px] bg-white dark:bg-zinc-950 border-(--cl-border) shadow-[0_10px_30px_rgba(0,0,0,0.2)] z-50">
                                                                 <DropdownMenuItem
                                                                     className="flex items-center gap-2 cursor-pointer text-amber-500 focus:bg-amber-500/10 focus:text-amber-600"
-                                                                    onClick={() => { setEditTransfer(t); setMode('new'); }}
+                                                                    onClick={() => { setEditTransfer(t); setSelectedBrand(String(t.brand_id)); setMode('new'); }}
                                                                 >
                                                                     <Pencil className="h-4 w-4" />
                                                                     <span>Edit</span>
@@ -625,7 +636,7 @@ export const BranchTransferSection = () => {
                                     <tbody>
                                         <tr>
                                             <td className={tdClass} style={{ width: "5%" }}></td>
-                                            <td className={tdClass} colSpan={5}>
+                                            <td className={tdClass} colSpan={6}>
                                                 <div className="flex items-center justify-between">
                                                     <span className="text-xs text-(--cl-text-muted)">{transfers.length} lines</span>
                                                 </div>
@@ -691,7 +702,7 @@ export const BranchTransferSection = () => {
                         open={deleteId !== null}
                         onOpenChange={open => { if (!open && !deleting) setDeleteId(null); }}
                     >
-                        <DialogContent aria-describedby={undefined} className="sm:max-w-sm !bg-(--cl-surface) text-(--cl-text)">
+                        <DialogContent aria-describedby={undefined} className="sm:max-w-sm !bg-white text-(--cl-text)">
                             <DialogHeader>
                                 <DialogTitle>Delete Branch Transfer</DialogTitle>
                             </DialogHeader>

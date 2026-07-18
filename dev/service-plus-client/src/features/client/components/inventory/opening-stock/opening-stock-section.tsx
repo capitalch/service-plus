@@ -235,6 +235,10 @@ export const OpeningStockSection = () => {
             toast.error(MESSAGES.ERROR_OPENING_STOCK_CREATE_FAILED);
             return;
         }
+        if (!selectedBrandId) {
+            toast.error(MESSAGES.ERROR_OPENING_STOCK_BRAND_REQUIRED);
+            return;
+        }
 
         const linePayload = (values.lines ?? []).map(line => ({
             part_id:   line.part_id,
@@ -257,6 +261,7 @@ export const OpeningStockSection = () => {
 
         const headerFields = {
             entry_date: values.entry_date,
+            brand_id:   selectedBrandId,
             ref_no:     values.ref_no?.trim() || null,
             remarks:    values.remarks?.trim() || null,
         };
@@ -405,7 +410,7 @@ export const OpeningStockSection = () => {
                     </Button>
                     <Button
                         className="h-8 gap-1.5 px-4 text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm font-extrabold uppercase tracking-widest transition-all disabled:opacity-30 disabled:bg-slate-300 disabled:text-slate-600 disabled:shadow-none disabled:cursor-not-allowed"
-                        disabled={!form.formState.isValid || !linesValid || form.formState.isSubmitting}
+                        disabled={!form.formState.isValid || !linesValid || !selectedBrandId || form.formState.isSubmitting}
                         onClick={form.handleSubmit(executeSave)}
                     >
                         {form.formState.isSubmitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
@@ -474,12 +479,13 @@ export const OpeningStockSection = () => {
                                     <thead className="sticky top-0 z-30">
                                         <tr className="bg-(--cl-surface-2)">
                                             <th className={thClass} style={{ width: "5%" }}>#</th>
-                                            <th className={thClass} style={{ width: "12%" }}>Date</th>
-                                            <th className={thClass} style={{ width: "15%" }}>Ref #</th>
+                                            <th className={thClass} style={{ width: "10%" }}>Date</th>
+                                            <th className={thClass} style={{ width: "10%" }}>Brand</th>
+                                            <th className={thClass} style={{ width: "13%" }}>Ref #</th>
                                             <th className={`${thClass} text-right`} style={{ width: "8%" }}>Lines</th>
                                             <th className={`${thClass} text-right`} style={{ width: "12%" }}>Total Qty</th>
                                             <th className={`${thClass} text-right`} style={{ width: "12%" }}>Total Value</th>
-                                            <th className={thClass} style={{ width: "24%" }}>Remarks</th>
+                                            <th className={thClass} style={{ width: "20%" }}>Remarks</th>
                                             <th className={`${thClass} text-center`} style={{ width: "10%" }}>Actions</th>
                                         </tr>
                                     </thead>
@@ -487,6 +493,7 @@ export const OpeningStockSection = () => {
                                         {Array.from({ length: 15 }).map((_, i) => (
                                             <tr key={i} className="animate-pulse">
                                                 <td className={tdClass}><div className="h-4 w-4 rounded bg-(--cl-border)" /></td>
+                                                <td className={tdClass}><div className="h-4 w-20 rounded bg-(--cl-border)" /></td>
                                                 <td className={tdClass}><div className="h-4 w-20 rounded bg-(--cl-border)" /></td>
                                                 <td className={tdClass}><div className="h-4 w-24 rounded bg-(--cl-border)" /></td>
                                                 <td className={`${tdClass} text-right`}><div className="ml-auto h-4 w-8 rounded bg-(--cl-border)" /></td>
@@ -508,6 +515,7 @@ export const OpeningStockSection = () => {
                                         <tr>
                                             <th className={thClass}>#</th>
                                             <th className={thClass}>Date</th>
+                                            <th className={thClass}>Brand</th>
                                             <th className={thClass}>Ref #</th>
                                             <th className={`${thClass} text-right`}>Lines</th>
                                             <th className={`${thClass} text-right`}>Total Qty</th>
@@ -522,10 +530,13 @@ export const OpeningStockSection = () => {
                                                 <td className={`${tdClass} text-(--cl-text-muted)`} style={{ width: "5%" }}>
                                                     {(page - 1) * PAGE_SIZE + idx + 1}
                                                 </td>
-                                                <td className={tdClass} style={{ width: "12%" }}>
+                                                <td className={tdClass} style={{ width: "10%" }}>
                                                     {entry.entry_date}
                                                 </td>
-                                                <td className={`${tdClass} font-mono`} style={{ width: "15%" }}>
+                                                <td className={tdClass} style={{ width: "10%" }}>
+                                                    {brands.find(b => b.id === entry.brand_id)?.name ?? "—"}
+                                                </td>
+                                                <td className={`${tdClass} font-mono`} style={{ width: "13%" }}>
                                                     {entry.ref_no ?? "—"}
                                                 </td>
                                                 <td className={`${tdClass} text-right font-mono`} style={{ width: "8%" }}>
@@ -537,7 +548,7 @@ export const OpeningStockSection = () => {
                                                 <td className={`${tdClass} text-right font-mono font-semibold text-(--cl-accent)`} style={{ width: "12%" }}>
                                                     {Number(entry.total_value).toFixed(2)}
                                                 </td>
-                                                <td className={`${tdClass} text-(--cl-text-muted)`} style={{ width: "24%" }}>
+                                                <td className={`${tdClass} text-(--cl-text-muted)`} style={{ width: "20%" }}>
                                                     {entry.remarks ?? "—"}
                                                 </td>
                                                 <td className={`${tdClass} sticky right-0 z-10 bg-(--cl-surface) group-hover:bg-(--cl-surface-2)`} style={{ width: "10%" }}>
@@ -555,7 +566,7 @@ export const OpeningStockSection = () => {
                                                             <DropdownMenuContent align="end" className="w-[160px] bg-white dark:bg-zinc-950 border-(--cl-border) shadow-[0_10px_30px_rgba(0,0,0,0.2)] z-50">
                                                                 <DropdownMenuItem
                                                                     className="flex items-center gap-2 cursor-pointer text-amber-500 focus:bg-amber-500/10 focus:text-amber-600"
-                                                                    onClick={() => { setEditEntry(entry); setMode("new"); }}
+                                                                    onClick={() => { setEditEntry(entry); setSelectedBrand(String(entry.brand_id)); setMode("new"); }}
                                                                 >
                                                                     <Pencil className="h-4 w-4" />
                                                                     <span>Edit</span>
@@ -611,7 +622,7 @@ export const OpeningStockSection = () => {
                         open={deleteId !== null}
                         onOpenChange={open => { if (!open && !deleting) setDeleteId(null); }}
                     >
-                        <DialogContent aria-describedby={undefined} className="sm:max-w-sm !bg-(--cl-surface) text-(--cl-text)">
+                        <DialogContent aria-describedby={undefined} className="sm:max-w-sm !bg-white text-(--cl-text)">
                             <DialogHeader>
                                 <DialogTitle>Delete Opening Stock Entry</DialogTitle>
                             </DialogHeader>

@@ -3,6 +3,7 @@ export type StockBranchTransferType = {
     transfer_date: string;
     from_branch_id: number;
     to_branch_id: number;
+    brand_id: number;
     ref_no: string | null;
     remarks: string | null;
     created_by: number | null;

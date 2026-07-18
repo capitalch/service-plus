@@ -11,6 +11,7 @@ type OpeningStockLineType = {
 
 export type OpeningStockType = {
     branch_id:  number;
+    brand_id:   number;
     created_at: string;
     entry_date: string;
     id:         number;
@@ -26,6 +27,7 @@ export type OpeningStockListItem = {
     ref_no:     string | null;
     remarks:    string | null;
     branch_id:  number;
+    brand_id:   number;
     line_count: number;
     total_qty:  number;
     total_value: number;

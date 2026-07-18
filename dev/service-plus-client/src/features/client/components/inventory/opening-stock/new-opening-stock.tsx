@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useFormContext, useFieldArray } from "react-hook-form";
+import { useFormContext, useFieldArray, useWatch } from "react-hook-form";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
@@ -20,7 +20,7 @@ import type { OpeningStockListItem, OpeningStockType } from "@/features/client/t
 
 import { LineAddDeleteActions } from "../line-add-delete-actions";
 import { PartCodeInput } from "../part-code-input";
-import { getInitialOpeningStockLine, type OpeningStockFormValues } from "./opening-stock-schema";
+import { getInitialOpeningStockLine, type OpeningStockFormValues, type OpeningStockLineFormValues } from "./opening-stock-schema";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -39,7 +39,7 @@ type Props = {
 // ─── CSS ──────────────────────────────────────────────────────────────────────
 
 const thClass = "sticky top-0 z-20 text-xs font-extrabold uppercase tracking-widest text-(--cl-text) py-2 px-2 text-left border-b border-(--cl-border) bg-zinc-200/60 dark:bg-zinc-800/60 backdrop-blur-sm shadow-[0_1px_0_var(--cl-border)]";
-const tdClass = "p-0.5 border-b border-(--cl-border)";
+const tdClass = "p-0.5 border-b border-(--cl-border) align-top";
 const inputCls = "h-7 border-(--cl-border) bg-white text-sm px-2";
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -51,16 +51,21 @@ export function NewOpeningStock({
     const dbName = useAppSelector(selectDbName);
     const schema = useAppSelector(selectSchema);
 
-    const { control, register, setValue, watch, setFocus } = useFormContext<OpeningStockFormValues>();
+    const { control, register, setValue, getValues, trigger } = useFormContext<OpeningStockFormValues>();
 
     const { fields, append, remove } = useFieldArray({
         control,
         name: "lines",
     });
 
-    // Summary calculations - use useMemo to prevent recalculation on every render
-    const rawLines = watch("lines");
-    const formLines = useMemo(() => rawLines ?? [], [rawLines]);
+    const updateLine = (idx: number, patch: Partial<OpeningStockLineFormValues>) => {
+        const current = getValues(`lines.${idx}`);
+        setValue(`lines.${idx}`, { ...current, ...patch }, { shouldValidate: true, shouldDirty: true });
+        void trigger();
+    };
+
+    // Summary calculations
+    const formLines = useWatch({ control, name: "lines" }) ?? [];
     const totalQty = useMemo(() => formLines.reduce((s, l) => s + (l.qty ?? 0), 0), [formLines]);
     const totalValue = useMemo(() => formLines.reduce((s, l) => s + ((l.qty ?? 0) * (l.unit_cost ?? 0)), 0), [formLines]);
 
@@ -69,6 +74,7 @@ export function NewOpeningStock({
     }, [fields.length, formLines, onLinesValidChange]);
 
     const partInputRefs = useRef<(HTMLInputElement | null)[]>([]);
+    const qtyInputRefs  = useRef<(HTMLInputElement | null)[]>([]);
 
     const scrollWrapperRef = useRef<HTMLDivElement>(null);
     const summaryRef       = useRef<HTMLDivElement>(null);
@@ -232,10 +238,10 @@ export function NewOpeningStock({
                                 </thead>
                                 <tbody className="bg-(--cl-surface)">
                                     {fields.map((field, idx) => {
-                                        const line = watch(`lines.${idx}`);
+                                        const line = formLines[idx];
                                         return (
                                         <tr key={field.id} className="group transition-colors hover:bg-(--cl-surface-2)/30">
-                                            <td className={`${tdClass} pl-4 text-xs font-medium text-(--cl-text-muted)`}>{idx + 1}</td>
+                                            <td className={`${tdClass} pl-4 pt-1 text-xs font-medium text-(--cl-text-muted)`}>{idx + 1}</td>
 
                                             {/* Part */}
                                             <td className={tdClass}>
@@ -248,37 +254,33 @@ export function NewOpeningStock({
                                                     partName={line?.part_name ?? ""}
                                                     selectedBrandId={selectedBrandId}
                                                     onChange={code => {
-                                                        if (!code.trim()) {
-                                                            setValue(`lines.${idx}.part_code`, "", { shouldValidate: true });
-                                                            setValue(`lines.${idx}.part_id`, null, { shouldValidate: true });
-                                                            setValue(`lines.${idx}.part_name`, "", { shouldValidate: true });
-                                                        } else {
-                                                            setValue(`lines.${idx}.part_code`, code, { shouldValidate: true });
-                                                        }
+                                                        const patch: Partial<OpeningStockLineFormValues> = { part_code: code };
+                                                        if (!code.trim()) { patch.part_id = null; patch.part_name = ""; }
+                                                        updateLine(idx, patch);
                                                     }}
-                                                    onClear={() => {
-                                                        setValue(`lines.${idx}.part_code`, "", { shouldValidate: true });
-                                                        setValue(`lines.${idx}.part_id`, null, { shouldValidate: true });
-                                                        setValue(`lines.${idx}.part_name`, "", { shouldValidate: true });
-                                                    }}
+                                                    onClear={() => updateLine(idx, { part_code: "", part_id: null, part_name: "" })}
                                                     onSelect={part => {
-                                                        setValue(`lines.${idx}.brand_id`, part.brand_id, { shouldValidate: true });
-                                                        setValue(`lines.${idx}.part_code`, part.part_code, { shouldValidate: true });
-                                                        setValue(`lines.${idx}.part_id`, part.id, { shouldValidate: true });
-                                                        setValue(`lines.${idx}.part_name`, part.part_name, { shouldValidate: true });
+                                                        updateLine(idx, {
+                                                            part_id:   part.id,
+                                                            brand_id:  part.brand_id,
+                                                            part_code: part.part_code,
+                                                            part_name: part.part_name,
+                                                        });
                                                     }}
-                                                    onTabToNext={() => setFocus(`lines.${idx + 1}.qty`)}
+                                                    onTabToNext={() => qtyInputRefs.current[idx]?.focus()}
                                                 />
                                             </td>
 
                                             {/* Qty */}
                                             <td className={tdClass}>
                                                 <Input
-                                                    className={`${inputCls} border-transparent bg-transparent text-right hover:border-(--cl-border) focus:bg-white ${(line?.qty ?? 0) <= 0 ? "border-red-500 ring-red-500/10 shadow-[0_0_0_1px_rgba(239,68,68,0.2)] focus:border-red-500" : ""}`}
+                                                    ref={el => { qtyInputRefs.current[idx] = el; }}
+                                                    className={`${inputCls} mt-1 border-transparent bg-transparent text-right hover:border-(--cl-border) focus:bg-white ${(line?.qty ?? 0) <= 0 ? "border-red-500 ring-red-500/10 shadow-[0_0_0_1px_rgba(239,68,68,0.2)] focus:border-red-500" : ""}`}
                                                     min={0}
                                                     step="0.001"
                                                     type="number"
-                                                    {...register(`lines.${idx}.qty`, { valueAsNumber: true })}
+                                                    value={line?.qty ?? 0}
+                                                    onChange={e => updateLine(idx, { qty: Number(e.target.value) })}
                                                     onFocus={e => e.target.select()}
                                                 />
                                             </td>
@@ -286,11 +288,12 @@ export function NewOpeningStock({
                                             {/* Unit Cost */}
                                             <td className={tdClass}>
                                                 <Input
-                                                    className={`${inputCls} border-transparent bg-transparent text-right hover:border-(--cl-border) focus:bg-white`}
+                                                    className={`${inputCls} mt-1 border-transparent bg-transparent text-right hover:border-(--cl-border) focus:bg-white`}
                                                     min={0}
                                                     step="0.01"
                                                     type="number"
-                                                    {...register(`lines.${idx}.unit_cost`, { valueAsNumber: true })}
+                                                    value={line?.unit_cost ?? 0}
+                                                    onChange={e => updateLine(idx, { unit_cost: Number(e.target.value) })}
                                                     onFocus={e => e.target.select()}
                                                 />
                                             </td>
@@ -298,9 +301,10 @@ export function NewOpeningStock({
                                             {/* Line Remarks */}
                                             <td className={tdClass}>
                                                 <Input
-                                                    className={`${inputCls} border-transparent bg-transparent hover:border-(--cl-border) focus:bg-white`}
+                                                    className={`${inputCls} mt-1 border-transparent bg-transparent hover:border-(--cl-border) focus:bg-white`}
                                                     placeholder="Optional..."
-                                                    {...register(`lines.${idx}.remarks`)}
+                                                    value={line?.remarks ?? ""}
+                                                    onChange={e => updateLine(idx, { remarks: e.target.value })}
                                                 />
                                             </td>
 

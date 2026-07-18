@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict LO4LASwNQzYx1XZawDxJklBCL9k8WA1hJSME161up7cPhcm1nKcgRmhZneeOKVX
+\restrict NOgC7f5k2ijuqvwVJNfiigdCPMeytSWazcnzzmXA5ob8jHPCV3nS56f3tGybFdQ
 
 -- Dumped from database version 14.6
 -- Dumped by pg_dump version 18.4 (Ubuntu 18.4-0ubuntu0.26.04.1)
@@ -1152,7 +1152,8 @@ CREATE TABLE demo1.stock_adjustment (
     remarks text,
     created_by bigint,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    brand_id bigint NOT NULL
 );
 
 
@@ -1242,6 +1243,7 @@ CREATE TABLE demo1.stock_branch_transfer (
     created_by bigint,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    brand_id bigint NOT NULL,
     CONSTRAINT stock_branch_transfer_check CHECK ((from_branch_id <> to_branch_id))
 );
 
@@ -1306,7 +1308,8 @@ CREATE TABLE demo1.stock_loan (
     remarks text,
     created_by bigint,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    brand_id bigint NOT NULL
 );
 
 
@@ -1372,7 +1375,8 @@ CREATE TABLE demo1.stock_opening_balance (
     branch_id bigint NOT NULL,
     remarks text,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now()
+    updated_at timestamp with time zone DEFAULT now(),
+    brand_id bigint NOT NULL
 );
 
 
@@ -3290,6 +3294,14 @@ ALTER TABLE ONLY demo1.stock_adjustment
 
 
 --
+-- Name: stock_adjustment stock_adjustment_brand_id_fkey; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.stock_adjustment
+    ADD CONSTRAINT stock_adjustment_brand_id_fkey FOREIGN KEY (brand_id) REFERENCES demo1.brand(id) NOT VALID;
+
+
+--
 -- Name: stock_adjustment_line stock_adjustment_line_adjustment_fk; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
 --
 
@@ -3330,6 +3342,14 @@ ALTER TABLE ONLY demo1.stock_balance
 
 
 --
+-- Name: stock_branch_transfer stock_branch_transfer_brand_id_fkey; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.stock_branch_transfer
+    ADD CONSTRAINT stock_branch_transfer_brand_id_fkey FOREIGN KEY (brand_id) REFERENCES demo1.brand(id) NOT VALID;
+
+
+--
 -- Name: stock_branch_transfer stock_branch_transfer_from_branch_id_fkey; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
 --
 
@@ -3367,6 +3387,14 @@ ALTER TABLE ONLY demo1.stock_branch_transfer
 
 ALTER TABLE ONLY demo1.stock_loan
     ADD CONSTRAINT stock_loan_branch_id_fkey FOREIGN KEY (branch_id) REFERENCES demo1.branch(id);
+
+
+--
+-- Name: stock_loan stock_loan_brand_id_fkey; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.stock_loan
+    ADD CONSTRAINT stock_loan_brand_id_fkey FOREIGN KEY (brand_id) REFERENCES demo1.brand(id) NOT VALID;
 
 
 --
@@ -3423,6 +3451,14 @@ ALTER TABLE ONLY demo1.stock_location_master
 
 ALTER TABLE ONLY demo1.stock_opening_balance
     ADD CONSTRAINT stock_opening_balance_branch_id_fkey FOREIGN KEY (branch_id) REFERENCES demo1.branch(id);
+
+
+--
+-- Name: stock_opening_balance stock_opening_balance_brand_id_fkey; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.stock_opening_balance
+    ADD CONSTRAINT stock_opening_balance_brand_id_fkey FOREIGN KEY (brand_id) REFERENCES demo1.brand(id) NOT VALID;
 
 
 --
@@ -3510,7 +3546,7 @@ ALTER TABLE ONLY demo1.stock_transaction
 --
 
 ALTER TABLE ONLY demo1.stock_transaction
-    ADD CONSTRAINT stock_transaction_stock_branch_transfer_line_id_fkey FOREIGN KEY (stock_branch_transfer_line_id) REFERENCES demo1.stock_branch_transfer_line(id);
+    ADD CONSTRAINT stock_transaction_stock_branch_transfer_line_id_fkey FOREIGN KEY (stock_branch_transfer_line_id) REFERENCES demo1.stock_branch_transfer_line(id) ON DELETE CASCADE NOT VALID;
 
 
 --
@@ -3597,5 +3633,5 @@ ALTER TABLE ONLY security.user_bu_role
 -- PostgreSQL database dump complete
 --
 
-\unrestrict LO4LASwNQzYx1XZawDxJklBCL9k8WA1hJSME161up7cPhcm1nKcgRmhZneeOKVX
+\unrestrict NOgC7f5k2ijuqvwVJNfiigdCPMeytSWazcnzzmXA5ob8jHPCV3nS56f3tGybFdQ
 

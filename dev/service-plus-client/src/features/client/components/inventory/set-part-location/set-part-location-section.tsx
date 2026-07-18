@@ -109,6 +109,7 @@ const displayParts = useMemo(() => {
         return parts.filter(p =>
             p.part_code.toLowerCase().includes(q) ||
             p.part_name.toLowerCase().includes(q) ||
+            (p.part_description?.toLowerCase().includes(q) ?? false) ||
             (p.location_name?.toLowerCase().includes(q) ?? false)
         );
     }, [parts, search]);
@@ -216,7 +217,7 @@ const displayParts = useMemo(() => {
                         <Input
                             className="h-8 pl-8 pr-8 text-sm"
                             disabled={loading}
-                            placeholder="Search part code, name or location…"
+                            placeholder="Search part code, name, description or location…"
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                         />
@@ -312,7 +313,7 @@ const displayParts = useMemo(() => {
                                                             .join(" · ")}
                                                     </TableCell>
                                                     <TableCell className="text-sm text-(--cl-text-muted)">{part.uom ?? "—"}</TableCell>
-                                                    <TableCell className="text-right text-sm tabular-nums text-(--cl-text)">{part.qty}</TableCell>
+                                                    <TableCell className={`text-right text-sm tabular-nums ${part.qty < 0 ? "text-red-500" : "text-(--cl-text)"}`}>{part.qty}</TableCell>
                                                     <TableCell>
                                                         {part.location_name ? (
                                                             <Badge

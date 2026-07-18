@@ -4,6 +4,9 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+patchedDependencies:
+  pg-to-ts@4.1.1: 945253ad3818f779d6f77cf7247be715004d36f69d7724317ee04906ea420157
+
 importers:
 
   .:
@@ -140,7 +143,7 @@ importers:
         version: 17.7.0
       pg-to-ts:
         specifier: ^4.1.1
-        version: 4.1.1(typescript@7.0.2)
+        version: 4.1.1(patch_hash=945253ad3818f779d6f77cf7247be715004d36f69d7724317ee04906ea420157)(typescript@7.0.2)
       prettier:
         specifier: ^3.9.5
         version: 3.9.5
@@ -7382,7 +7385,7 @@ snapshots:
 
   pg-protocol@1.11.0: {}
 
-  pg-to-ts@4.1.1(typescript@7.0.2):
+  pg-to-ts@4.1.1(patch_hash=945253ad3818f779d6f77cf7247be715004d36f69d7724317ee04906ea420157)(typescript@7.0.2):
     dependencies:
       lodash: 4.18.1
       pg-promise: 10.15.4

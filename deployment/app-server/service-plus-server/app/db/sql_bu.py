@@ -761,7 +761,8 @@ class SqlBu:
             remarks text,
             created_by bigint,
             created_at timestamp with time zone DEFAULT now() NOT NULL,
-            updated_at timestamp with time zone DEFAULT now() NOT NULL
+            updated_at timestamp with time zone DEFAULT now() NOT NULL,
+            brand_id bigint NOT NULL
         );
 
         ALTER TABLE stock_adjustment ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
@@ -813,6 +814,7 @@ class SqlBu:
             created_by bigint,
             created_at timestamp with time zone DEFAULT now() NOT NULL,
             updated_at timestamp with time zone DEFAULT now() NOT NULL,
+            brand_id bigint NOT NULL,
             CONSTRAINT stock_branch_transfer_check CHECK ((from_branch_id <> to_branch_id))
         );
 
@@ -853,7 +855,8 @@ class SqlBu:
             remarks text,
             created_by bigint,
             created_at timestamp with time zone DEFAULT now() NOT NULL,
-            updated_at timestamp with time zone DEFAULT now() NOT NULL
+            updated_at timestamp with time zone DEFAULT now() NOT NULL,
+            brand_id bigint NOT NULL
         );
 
         ALTER TABLE stock_loan ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
@@ -895,7 +898,8 @@ class SqlBu:
             branch_id bigint NOT NULL,
             remarks text,
             created_at timestamp with time zone DEFAULT now() NOT NULL,
-            updated_at timestamp with time zone DEFAULT now()
+            updated_at timestamp with time zone DEFAULT now(),
+            brand_id bigint NOT NULL
         );
 
         ALTER TABLE stock_opening_balance ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
@@ -1529,6 +1533,9 @@ class SqlBu:
         ALTER TABLE ONLY stock_adjustment
             ADD CONSTRAINT stock_adjustment_branch_fk FOREIGN KEY (branch_id) REFERENCES branch(id) ON DELETE RESTRICT;
 
+        ALTER TABLE ONLY stock_adjustment
+            ADD CONSTRAINT stock_adjustment_brand_id_fkey FOREIGN KEY (brand_id) REFERENCES brand(id) NOT VALID;
+
         ALTER TABLE ONLY stock_adjustment_line
             ADD CONSTRAINT stock_adjustment_line_adjustment_fk FOREIGN KEY (stock_adjustment_id) REFERENCES stock_adjustment(id) ON DELETE CASCADE;
 
@@ -1545,6 +1552,9 @@ class SqlBu:
             ADD CONSTRAINT stock_balance_part_id_fkey FOREIGN KEY (part_id) REFERENCES spare_part_master(id);
 
         ALTER TABLE ONLY stock_branch_transfer
+            ADD CONSTRAINT stock_branch_transfer_brand_id_fkey FOREIGN KEY (brand_id) REFERENCES brand(id) NOT VALID;
+
+        ALTER TABLE ONLY stock_branch_transfer
             ADD CONSTRAINT stock_branch_transfer_from_branch_id_fkey FOREIGN KEY (from_branch_id) REFERENCES branch(id);
 
         ALTER TABLE ONLY stock_branch_transfer_line
@@ -1558,6 +1568,9 @@ class SqlBu:
 
         ALTER TABLE ONLY stock_loan
             ADD CONSTRAINT stock_loan_branch_id_fkey FOREIGN KEY (branch_id) REFERENCES branch(id);
+
+        ALTER TABLE ONLY stock_loan
+            ADD CONSTRAINT stock_loan_brand_id_fkey FOREIGN KEY (brand_id) REFERENCES brand(id) NOT VALID;
 
         ALTER TABLE ONLY stock_loan_line
             ADD CONSTRAINT stock_loan_line_part_id_fkey FOREIGN KEY (part_id) REFERENCES spare_part_master(id);
@@ -1579,6 +1592,9 @@ class SqlBu:
 
         ALTER TABLE ONLY stock_opening_balance
             ADD CONSTRAINT stock_opening_balance_branch_id_fkey FOREIGN KEY (branch_id) REFERENCES branch(id);
+
+        ALTER TABLE ONLY stock_opening_balance
+            ADD CONSTRAINT stock_opening_balance_brand_id_fkey FOREIGN KEY (brand_id) REFERENCES brand(id) NOT VALID;
 
         ALTER TABLE ONLY stock_opening_balance_line
             ADD CONSTRAINT stock_opening_balance_line_part_id_fkey FOREIGN KEY (part_id) REFERENCES spare_part_master(id);
@@ -1611,7 +1627,7 @@ class SqlBu:
             ADD CONSTRAINT stock_transaction_stock_adjustment_line_id_fkey FOREIGN KEY (stock_adjustment_line_id) REFERENCES stock_adjustment_line(id) ON DELETE CASCADE;
 
         ALTER TABLE ONLY stock_transaction
-            ADD CONSTRAINT stock_transaction_stock_branch_transfer_line_id_fkey FOREIGN KEY (stock_branch_transfer_line_id) REFERENCES stock_branch_transfer_line(id);
+            ADD CONSTRAINT stock_transaction_stock_branch_transfer_line_id_fkey FOREIGN KEY (stock_branch_transfer_line_id) REFERENCES stock_branch_transfer_line(id) ON DELETE CASCADE NOT VALID;
 
         ALTER TABLE ONLY stock_transaction
             ADD CONSTRAINT stock_transaction_stock_loan_line_id_fkey FOREIGN KEY (stock_loan_line_id) REFERENCES stock_loan_line(id) ON DELETE CASCADE;

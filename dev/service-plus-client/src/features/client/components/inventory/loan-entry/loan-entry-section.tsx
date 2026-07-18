@@ -239,6 +239,7 @@ export const LoanEntrySection = () => {
             return;
         }
         if (!linesValid) { toast.error(MESSAGES.ERROR_LOAN_LINE_FIELDS_REQUIRED); return; }
+        if (!selectedBrandId) { toast.error(MESSAGES.ERROR_LOAN_BRAND_REQUIRED); return; }
 
         const linePayload = values.lines.map(line => ({
             dr_cr:   line.dr_cr,
@@ -262,6 +263,7 @@ export const LoanEntrySection = () => {
 
         const headerFields = {
             loan_date: values.loan_date,
+            brand_id:  selectedBrandId,
             ref_no:    values.ref_no?.trim() || null,
             remarks:   values.remarks?.trim() || null,
         };
@@ -410,7 +412,7 @@ export const LoanEntrySection = () => {
                     </Button>
                     <Button
                         className="h-8 gap-1.5 px-4 text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm font-extrabold uppercase tracking-widest transition-all disabled:opacity-30 disabled:bg-slate-300 disabled:text-slate-600 disabled:shadow-none disabled:cursor-not-allowed"
-                        disabled={!form.formState.isValid || !linesValid || form.formState.isSubmitting}
+                        disabled={!form.formState.isValid || !linesValid || !selectedBrandId || form.formState.isSubmitting}
                         onClick={form.handleSubmit(executeSave)}
                     >
                         {form.formState.isSubmitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
@@ -495,9 +497,10 @@ export const LoanEntrySection = () => {
                                     <thead className="sticky top-0 z-30">
                                         <tr className="bg-(--cl-surface-2)">
                                             <th className={thClass} style={{ width: "5%" }}>#</th>
-                                            <th className={thClass} style={{ width: "15%" }}>Date</th>
-                                            <th className={thClass} style={{ width: "20%" }}>Ref #</th>
-                                            <th className={thClass} style={{ width: "50%" }}>Remarks</th>
+                                            <th className={thClass} style={{ width: "12%" }}>Date</th>
+                                            <th className={thClass} style={{ width: "12%" }}>Brand</th>
+                                            <th className={thClass} style={{ width: "18%" }}>Ref #</th>
+                                            <th className={thClass} style={{ width: "43%" }}>Remarks</th>
                                             <th className={`${thClass} text-center`} style={{ width: "10%" }}>Actions</th>
                                         </tr>
                                     </thead>
@@ -506,6 +509,7 @@ export const LoanEntrySection = () => {
                                             <tr key={i} className="animate-pulse">
                                                 <td className={tdClass}><div className="h-4 w-4 rounded bg-(--cl-border)" /></td>
                                                 <td className={tdClass}><div className="h-4 w-24 rounded bg-(--cl-border)" /></td>
+                                                <td className={tdClass}><div className="h-4 w-20 rounded bg-(--cl-border)" /></td>
                                                 <td className={tdClass}><div className="h-4 w-32 rounded bg-(--cl-border)" /></td>
                                                 <td className={tdClass}><div className="h-4 w-96 rounded bg-(--cl-border)" /></td>
                                                 <td className={tdClass}><div className="mx-auto h-4 w-8 rounded bg-(--cl-border)" /></td>
@@ -523,6 +527,7 @@ export const LoanEntrySection = () => {
                                         <tr>
                                             <th className={thClass}>#</th>
                                             <th className={thClass}>Date</th>
+                                            <th className={thClass}>Brand</th>
                                             <th className={thClass}>Ref #</th>
                                             <th className={thClass}>Remarks</th>
                                             <th className={`${thClass} sticky right-0 z-20 !bg-(--cl-surface-2)`}>Actions</th>
@@ -534,13 +539,16 @@ export const LoanEntrySection = () => {
                                                 <td className={`${tdClass} text-(--cl-text-muted)`} style={{ width: "5%" }}>
                                                     {(page - 1) * PAGE_SIZE + idx + 1}
                                                 </td>
-                                                <td className={tdClass} style={{ width: "15%" }}>
+                                                <td className={tdClass} style={{ width: "12%" }}>
                                                     {loan.loan_date}
                                                 </td>
-                                                <td className={`${tdClass} font-mono`} style={{ width: "20%" }}>
+                                                <td className={tdClass} style={{ width: "12%" }}>
+                                                    {brands.find(b => b.id === loan.brand_id)?.name ?? "—"}
+                                                </td>
+                                                <td className={`${tdClass} font-mono`} style={{ width: "18%" }}>
                                                     {loan.ref_no ?? "—"}
                                                 </td>
-                                                <td className={`${tdClass} text-(--cl-text-muted)`} style={{ width: "28%" }}>
+                                                <td className={`${tdClass} text-(--cl-text-muted)`} style={{ width: "43%" }}>
                                                     {loan.remarks ?? "—"}
                                                 </td>
                                                 <td className={`${tdClass} sticky right-0 z-10 bg-(--cl-surface) group-hover:bg-(--cl-surface-2)`} style={{ width: "10%" }}>
@@ -558,7 +566,7 @@ export const LoanEntrySection = () => {
                                                             <DropdownMenuContent align="end" className="w-[160px] bg-white dark:bg-zinc-950 border-(--cl-border) shadow-[0_10px_30px_rgba(0,0,0,0.2)] z-50">
                                                                 <DropdownMenuItem
                                                                     className="flex items-center gap-2 cursor-pointer text-amber-500 focus:bg-amber-500/10 focus:text-amber-600"
-                                                                    onClick={() => { setEditLoan(loan); setMode("new"); }}
+                                                                    onClick={() => { setEditLoan(loan); setSelectedBrand(String(loan.brand_id)); setMode("new"); }}
                                                                 >
                                                                     <Pencil className="h-4 w-4" />
                                                                     <span>Edit</span>
@@ -588,7 +596,7 @@ export const LoanEntrySection = () => {
                                     <tbody>
                                         <tr>
                                             <td className={tdClass} style={{ width: "5%" }}></td>
-                                            <td className={tdClass} colSpan={4}>
+                                            <td className={tdClass} colSpan={5}>
                                                 <div className="flex items-center justify-between">
                                                     <span className="text-xs text-(--cl-text-muted)">{loans.length} lines</span>
                                                 </div>
@@ -654,11 +662,11 @@ export const LoanEntrySection = () => {
                         open={deleteId !== null}
                         onOpenChange={open => { if (!open && !deleting) setDeleteId(null); }}
                     >
-                        <DialogContent aria-describedby={undefined} className="sm:max-w-sm !bg-(--cl-surface) text-(--cl-text)">
+                        <DialogContent aria-describedby={undefined} className="sm:max-w-sm">
                             <DialogHeader>
                                 <DialogTitle>Delete Loan Entry</DialogTitle>
                             </DialogHeader>
-                            <p className="text-sm text-(--cl-text-muted)">
+                            <p className="text-sm text-muted-foreground">
                                 This will permanently delete the loan entry and all associated stock transactions.
                                 This action cannot be undone.
                             </p>

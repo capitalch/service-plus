@@ -1,7 +1,6 @@
 /* tslint:disable */
 /* eslint-disable */
 
-
 /**
  * AUTO-GENERATED FILE - DO NOT EDIT!
  *
@@ -9,7 +8,6 @@
  * $ pg-to-ts generate -c postgresql://username:password@node150483-trace-link.cloudjiffy.net:11085/service_plus_demo?connect_timeout=10 -t access_right -t bu -t role -t role_access_right -t user -t user_bu_role -s security
  *
  */
-
 
 export type Json = unknown;
 
@@ -33,13 +31,21 @@ export interface AccessRightInput {
   updated_at?: Date;
 }
 const access_right = {
-  tableName: 'access_right',
-  columns: ['id', 'code', 'name', 'module', 'description', 'created_at', 'updated_at'],
-  requiredForInsert: ['id', 'code', 'name', 'module'],
-  primaryKey: 'id',
+  tableName: "access_right",
+  columns: [
+  "id",
+  "code",
+  "name",
+  "module",
+  "description",
+  "created_at",
+  "updated_at",
+  ],
+  requiredForInsert: ["id", "code", "name", "module"],
+  primaryKey: "id",
   foreignKeys: {},
   $type: null as unknown as AccessRight,
-  $input: null as unknown as AccessRightInput
+  $input: null as unknown as AccessRightInput,
 } as const;
 
 // Table bu
@@ -60,13 +66,13 @@ export interface BuInput {
   updated_at?: Date;
 }
 const bu = {
-  tableName: 'bu',
-  columns: ['id', 'code', 'name', 'is_active', 'created_at', 'updated_at'],
-  requiredForInsert: ['id', 'code', 'name'],
-  primaryKey: 'id',
+  tableName: "bu",
+  columns: ["id", "code", "name", "is_active", "created_at", "updated_at"],
+  requiredForInsert: ["id", "code", "name"],
+  primaryKey: "id",
   foreignKeys: {},
   $type: null as unknown as Bu,
-  $input: null as unknown as BuInput
+  $input: null as unknown as BuInput,
 } as const;
 
 // Table role
@@ -89,13 +95,21 @@ export interface RoleInput {
   updated_at?: Date;
 }
 const role = {
-  tableName: 'role',
-  columns: ['id', 'code', 'name', 'description', 'is_system', 'created_at', 'updated_at'],
-  requiredForInsert: ['id', 'code', 'name'],
-  primaryKey: 'id',
+  tableName: "role",
+  columns: [
+  "id",
+  "code",
+  "name",
+  "description",
+  "is_system",
+  "created_at",
+  "updated_at",
+  ],
+  requiredForInsert: ["id", "code", "name"],
+  primaryKey: "id",
   foreignKeys: {},
   $type: null as unknown as Role,
-  $input: null as unknown as RoleInput
+  $input: null as unknown as RoleInput,
 } as const;
 
 // Table role_access_right
@@ -108,16 +122,20 @@ export interface RoleAccessRightInput {
   access_right_id: number;
 }
 const role_access_right = {
-  tableName: 'role_access_right',
-  columns: ['role_id', 'access_right_id'],
-  requiredForInsert: ['role_id', 'access_right_id'],
-  primaryKey: 'role_id',
+  tableName: "role_access_right",
+  columns: ["role_id", "access_right_id"],
+  requiredForInsert: ["role_id", "access_right_id"],
+  primaryKey: "role_id",
   foreignKeys: {
-    role_id: { table: 'role', column: 'id', $type: null as unknown as Role },
-    access_right_id: { table: 'access_right', column: 'id', $type: null as unknown as AccessRight },
+  role_id: { table: "role", column: "id", $type: null as unknown as Role },
+  access_right_id: {
+    table: "access_right",
+    column: "id",
+    $type: null as unknown as AccessRight,
+  },
   },
   $type: null as unknown as RoleAccessRight,
-  $input: null as unknown as RoleAccessRightInput
+  $input: null as unknown as RoleAccessRightInput,
 } as const;
 
 // Table user
@@ -150,13 +168,26 @@ export interface UserInput {
   last_used_branch_id?: number | null;
 }
 const user = {
-  tableName: 'user',
-  columns: ['id', 'username', 'email', 'mobile', 'password_hash', 'is_active', 'created_at', 'updated_at', 'full_name', 'is_admin', 'last_used_bu_id', 'last_used_branch_id'],
-  requiredForInsert: ['id', 'username', 'email', 'password_hash', 'full_name'],
-  primaryKey: 'id',
+  tableName: "user",
+  columns: [
+  "id",
+  "username",
+  "email",
+  "mobile",
+  "password_hash",
+  "is_active",
+  "created_at",
+  "updated_at",
+  "full_name",
+  "is_admin",
+  "last_used_bu_id",
+  "last_used_branch_id",
+  ],
+  requiredForInsert: ["id", "username", "email", "password_hash", "full_name"],
+  primaryKey: "id",
   foreignKeys: {},
   $type: null as unknown as User,
-  $input: null as unknown as UserInput
+  $input: null as unknown as UserInput,
 } as const;
 
 // Table user_bu_role
@@ -177,44 +208,50 @@ export interface UserBuRoleInput {
   updated_at?: Date;
 }
 const user_bu_role = {
-  tableName: 'user_bu_role',
-  columns: ['user_id', 'bu_id', 'role_id', 'is_active', 'created_at', 'updated_at'],
-  requiredForInsert: ['user_id', 'bu_id', 'role_id'],
-  primaryKey: 'user_id',
+  tableName: "user_bu_role",
+  columns: [
+  "user_id",
+  "bu_id",
+  "role_id",
+  "is_active",
+  "created_at",
+  "updated_at",
+  ],
+  requiredForInsert: ["user_id", "bu_id", "role_id"],
+  primaryKey: "user_id",
   foreignKeys: {
-    user_id: { table: 'user', column: 'id', $type: null as unknown as User },
-    bu_id: { table: 'bu', column: 'id', $type: null as unknown as Bu },
-    role_id: { table: 'role', column: 'id', $type: null as unknown as Role },
+  user_id: { table: "user", column: "id", $type: null as unknown as User },
+  bu_id: { table: "bu", column: "id", $type: null as unknown as Bu },
+  role_id: { table: "role", column: "id", $type: null as unknown as Role },
   },
   $type: null as unknown as UserBuRole,
-  $input: null as unknown as UserBuRoleInput
+  $input: null as unknown as UserBuRoleInput,
 } as const;
-
 
 export interface TableTypes {
   access_right: {
-    select: AccessRight;
-    input: AccessRightInput;
+  select: AccessRight;
+  input: AccessRightInput;
   };
   bu: {
-    select: Bu;
-    input: BuInput;
+  select: Bu;
+  input: BuInput;
   };
   role: {
-    select: Role;
-    input: RoleInput;
+  select: Role;
+  input: RoleInput;
   };
   role_access_right: {
-    select: RoleAccessRight;
-    input: RoleAccessRightInput;
+  select: RoleAccessRight;
+  input: RoleAccessRightInput;
   };
   user: {
-    select: User;
-    input: UserInput;
+  select: User;
+  input: UserInput;
   };
   user_bu_role: {
-    select: UserBuRole;
-    input: UserBuRoleInput;
+  select: UserBuRole;
+  input: UserBuRoleInput;
   };
 }
 
@@ -225,4 +262,4 @@ export const tables = {
   role_access_right,
   user,
   user_bu_role,
-}
+};

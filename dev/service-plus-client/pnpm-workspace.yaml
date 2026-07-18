@@ -27,3 +27,5 @@ minimumReleaseAgeExclude:
   - '@typescript/typescript-win32-x64@7.0.2'
   - typescript@7.0.2
   - react-dropzone@16.0.0
+patchedDependencies:
+  pg-to-ts@4.1.1: patches/pg-to-ts@4.1.1.patch

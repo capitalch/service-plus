@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useFormContext, useFieldArray } from "react-hook-form";
+import { useFormContext, useFieldArray, useWatch } from "react-hook-form";
 import { ArrowRightLeft } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
@@ -28,7 +28,7 @@ import type { Branch } from "@/types/db-schema-service";
 
 import { PartCodeInput } from "../part-code-input";
 import { LineAddDeleteActions } from "../line-add-delete-actions";
-import { getInitialTransferLine, type BranchTransferFormValues } from "./branch-transfer-schema";
+import { getInitialTransferLine, type BranchTransferFormValues, type TransferLineFormValues } from "./branch-transfer-schema";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -60,16 +60,21 @@ export function NewBranchTransfer({
     const dbName = useAppSelector(selectDbName);
     const schema = useAppSelector(selectSchema);
 
-    const { control, register, setValue, watch, setFocus } = useFormContext<BranchTransferFormValues>();
+    const { control, register, setValue, getValues, watch, trigger, formState: { errors } } = useFormContext<BranchTransferFormValues>();
 
     const { fields, append, remove } = useFieldArray({
         control,
         name: "lines",
     });
 
+    const updateLine = (idx: number, patch: Partial<TransferLineFormValues>) => {
+        const current = getValues(`lines.${idx}`);
+        setValue(`lines.${idx}`, { ...current, ...patch }, { shouldValidate: true, shouldDirty: true });
+        void trigger();
+    };
+
     // Summary calculations
-    const rawLines = watch("lines");
-    const formLines = useMemo(() => rawLines ?? [], [rawLines]);
+    const formLines = useWatch({ control, name: "lines" }) ?? [];
     const totalQty = useMemo(() => formLines.reduce((s, l) => s + (l.qty ?? 0), 0), [formLines]);
 
     useEffect(() => {
@@ -77,6 +82,7 @@ export function NewBranchTransfer({
     }, [fields.length, formLines, onLinesValidChange]);
 
     const partInputRefs = useRef<(HTMLInputElement | null)[]>([]);
+    const qtyInputRefs  = useRef<(HTMLInputElement | null)[]>([]);
 
     const scrollWrapperRef = useRef<HTMLDivElement>(null);
     const summaryRef       = useRef<HTMLDivElement>(null);
@@ -192,6 +198,9 @@ export function NewBranchTransfer({
                                         className={`bg-(--cl-surface-2) ${!transferDate ? "border-red-500 focus:border-red-500 ring-red-500/10" : ""}`}
                                         type="date"
                                     />
+                                    {errors.transfer_date && (
+                                        <p className="text-xs text-red-500">{errors.transfer_date.message}</p>
+                                    )}
                                 </div>
 
                                 {/* Destination Branch */}
@@ -201,7 +210,7 @@ export function NewBranchTransfer({
                                     </Label>
                                     <Select
                                         value={toBranchId}
-                                        onValueChange={v => setValue("to_branch_id", v, { shouldValidate: true })}
+                                        onValueChange={v => { setValue("to_branch_id", v, { shouldValidate: true }); void trigger(); }}
                                     >
                                         <SelectTrigger className={`bg-(--cl-surface-2) ${!toBranchId ? "border-red-500" : ""}`}>
                                             <SelectValue placeholder="Select branch" />
@@ -212,6 +221,9 @@ export function NewBranchTransfer({
                                             ))}
                                         </SelectContent>
                                     </Select>
+                                    {errors.to_branch_id && (
+                                        <p className="text-xs text-red-500">{errors.to_branch_id.message}</p>
+                                    )}
                                 </div>
 
                                 {/* Ref No */}
@@ -264,14 +276,14 @@ export function NewBranchTransfer({
 
                                 {/* Data rows */}
                                 {fields.map((field, idx) => {
-                                    const line = watch(`lines.${idx}`);
+                                    const line = formLines[idx];
                                     return (
                                     <div
                                         key={field.id}
                                         className={`grid ${COLS} group transition-colors hover:bg-(--cl-surface-2)/30 border-b border-(--cl-border)`}
                                     >
                                         {/* # */}
-                                        <div className="flex items-center justify-center text-[10px] font-bold text-(--cl-text-muted) border-r border-(--cl-border)/30 bg-(--cl-surface-2)/20">
+                                        <div className="flex items-start justify-center pt-1 text-[10px] font-bold text-(--cl-text-muted) border-r border-(--cl-border)/30 bg-(--cl-surface-2)/20">
                                             {idx + 1}
                                         </div>
 
@@ -286,37 +298,33 @@ export function NewBranchTransfer({
                                                 partName={line?.part_name ?? ""}
                                                 selectedBrandId={selectedBrandId}
                                                 onChange={code => {
-                                                    if (!code.trim()) {
-                                                        setValue(`lines.${idx}.part_code`, "", { shouldValidate: true });
-                                                        setValue(`lines.${idx}.part_id`, null, { shouldValidate: true });
-                                                        setValue(`lines.${idx}.part_name`, "", { shouldValidate: true });
-                                                    } else {
-                                                        setValue(`lines.${idx}.part_code`, code, { shouldValidate: true });
-                                                    }
+                                                    const patch: Partial<TransferLineFormValues> = { part_code: code };
+                                                    if (!code.trim()) { patch.part_id = null; patch.part_name = ""; }
+                                                    updateLine(idx, patch);
                                                 }}
-                                                onClear={() => {
-                                                    setValue(`lines.${idx}.part_code`, "", { shouldValidate: true });
-                                                    setValue(`lines.${idx}.part_id`, null, { shouldValidate: true });
-                                                    setValue(`lines.${idx}.part_name`, "", { shouldValidate: true });
-                                                }}
+                                                onClear={() => updateLine(idx, { part_code: "", part_id: null, part_name: "" })}
                                                 onSelect={part => {
-                                                    setValue(`lines.${idx}.brand_id`, part.brand_id, { shouldValidate: true });
-                                                    setValue(`lines.${idx}.part_code`, part.part_code, { shouldValidate: true });
-                                                    setValue(`lines.${idx}.part_id`, part.id, { shouldValidate: true });
-                                                    setValue(`lines.${idx}.part_name`, part.part_name, { shouldValidate: true });
+                                                    updateLine(idx, {
+                                                        part_id:   part.id,
+                                                        brand_id:  part.brand_id,
+                                                        part_code: part.part_code,
+                                                        part_name: part.part_name,
+                                                    });
                                                 }}
-                                                onTabToNext={() => setFocus(`lines.${idx}.qty`)}
+                                                onTabToNext={() => qtyInputRefs.current[idx]?.focus()}
                                             />
                                         </div>
 
                                         {/* Qty */}
                                         <div className="p-1 border-r border-(--cl-border)/30">
                                             <Input
+                                                ref={el => { qtyInputRefs.current[idx] = el; }}
                                                 className={`${inputCls} bg-transparent border-transparent hover:border-(--cl-border) focus:bg-white text-right px-3 ${(line?.qty ?? 0) <= 0 ? "border-red-500 focus:border-red-500 ring-red-500/10 shadow-[0_0_0_1px_rgba(239,68,68,0.2)]" : ""}`}
                                                 min={0}
                                                 step="0.01"
                                                 type="number"
-                                                {...register(`lines.${idx}.qty`, { valueAsNumber: true })}
+                                                value={line?.qty ?? 0}
+                                                onChange={e => updateLine(idx, { qty: Number(e.target.value) })}
                                                 onFocus={e => e.target.select()}
                                             />
                                         </div>
@@ -326,12 +334,13 @@ export function NewBranchTransfer({
                                             <Input
                                                 className={`${inputCls} bg-transparent border-transparent hover:border-(--cl-border) focus:bg-white`}
                                                 placeholder="Optional line remark..."
-                                                {...register(`lines.${idx}.remarks`)}
+                                                value={line?.remarks ?? ""}
+                                                onChange={e => updateLine(idx, { remarks: e.target.value })}
                                             />
                                         </div>
 
                                         {/* Actions */}
-                                        <div className="flex items-center justify-center gap-0.5 px-2 bg-(--cl-surface-2)/5">
+                                        <div className="flex items-start justify-center gap-0.5 px-2 bg-(--cl-surface-2)/5">
                                             <LineAddDeleteActions
                                                 disableDelete={fields.length === 1}
                                                 onAdd={handleAddLine}

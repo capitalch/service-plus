@@ -4,6 +4,7 @@ export interface StockAdjustmentType {
     adjustment_reason: string;
     ref_no: string | null;
     branch_id: number;
+    brand_id: number;
     remarks: string | null;
     created_by: number | null;
     created_at: string;

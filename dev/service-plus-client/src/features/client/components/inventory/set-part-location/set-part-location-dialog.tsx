@@ -25,15 +25,14 @@ import {
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { MESSAGES } from "@/constants/messages";
 import { SQL_MAP } from "@/constants/sql-map";
-import { SEARCH_DEBOUNCE_MS } from "@/constants/timing";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import type { LocationOptionType, SetLocationLineType } from "@/features/client/types/set-part-location";
 import { emptyLine } from "@/features/client/types/set-part-location";
-import { useDebounce } from "@/hooks/use-debounce";
 import { apolloClient } from "@/lib/apollo-client";
 import { encodeObj, graphQlUtils } from "@/lib/graphql-utils";
 import { selectCurrentBranch, selectSchema } from "@/store/context-slice";
 import { useAppSelector } from "@/store/hooks";
+import { PartCodeInput } from "../part-code-input";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -75,7 +74,7 @@ type SetPartLocationFormValues = z.infer<typeof setPartLocationSchema>;
 // ─── Row component (isolates debounce per row) ────────────────────────────────
 
 type RowProps = {
-    allPartCodes: string[];
+    allPartIds:   (number | null)[];
     branchId:     number;
     canRemove:    boolean;
     dbName:       string | null;
@@ -87,19 +86,14 @@ type RowProps = {
     schema:       string | null;
 };
 
-function LocationRow({ allPartCodes, branchId, canRemove, dbName, index, line, locations, onRemove, onUpdate, schema }: RowProps) {
-    const debouncedCode = useDebounce(line.part_code, SEARCH_DEBOUNCE_MS);
-
+function LocationRow({ allPartIds, branchId, canRemove, dbName, index, line, locations, onRemove, onUpdate, schema }: RowProps) {
+    // Once PartCodeInput resolves a part, confirm it actually has stock at this branch
+    // (this feature is for locating existing stock, not arbitrary parts) and isn't a dupe.
     useEffect(() => {
-        const code = debouncedCode.trim();
-        if (!code) {
-            onUpdate(line._key, { error: null, part_id: null, part_name: "", validating: false });
-            return;
-        }
-        // Duplicate check within the dialog
-        const dupeCount = allPartCodes.filter(c => c.trim().toLowerCase() === code.toLowerCase()).length;
+        if (!line.part_id) return;
+        const dupeCount = allPartIds.filter(id => id === line.part_id).length;
         if (dupeCount > 1) {
-            onUpdate(line._key, { error: "Part already added", part_id: null, part_name: "", validating: false });
+            onUpdate(line._key, { error: "Part already added", validating: false });
             return;
         }
         if (!dbName || !schema) return;
@@ -112,7 +106,7 @@ function LocationRow({ allPartCodes, branchId, canRemove, dbName, index, line, l
                     db_name: dbName,
                     schema,
                     value: graphQlUtils.buildGenericQueryValue({
-                        sqlArgs: { branch_id: branchId, part_code: code },
+                        sqlArgs: { branch_id: branchId, part_code: line.part_code },
                         sqlId:   SQL_MAP.GET_PART_IN_STOCK_BY_CODE,
                     }),
                 },
@@ -120,35 +114,34 @@ function LocationRow({ allPartCodes, branchId, canRemove, dbName, index, line, l
             .then((res) => {
                 const row = res.data?.genericQuery?.[0];
                 if (row) {
-                    onUpdate(line._key, {
-                        error:     null,
-                        part_id:   row.part_id,
-                        part_name: row.part_name,
-                        validating: false,
-                    });
+                    onUpdate(line._key, { error: null, validating: false });
                 } else {
                     onUpdate(line._key, {
-                        error:     MESSAGES.ERROR_SET_PART_LOCATION_PART_NOT_FOUND,
-                        part_id:   null,
-                        part_name: "",
+                        error:      MESSAGES.ERROR_SET_PART_LOCATION_PART_NOT_FOUND,
+                        part_id:    null,
+                        part_name:  "",
                         validating: false,
                     });
                 }
             })
-            .catch(() => onUpdate(line._key, { error: "Validation error", part_id: null, part_name: "", validating: false }));
-    }, [debouncedCode]); // eslint-disable-line react-hooks/exhaustive-deps
+            .catch(() => onUpdate(line._key, { error: "Validation error", validating: false }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [line.part_id]);
 
     return (
         <tr>
-            <td className={`${tdCls} w-8 text-center text-xs text-(--cl-text-muted)`}>{index + 1}</td>
+            <td className={`${tdCls} w-8 pt-2 text-center text-xs text-(--cl-text-muted)`}>{index + 1}</td>
             <td className={tdCls}>
                 <div className="flex flex-col gap-0.5">
-                    <Input
-                        autoComplete="off"
-                        className="h-7 text-sm"
-                        placeholder="Part code"
-                        value={line.part_code}
-                        onChange={(e) => onUpdate(line._key, { error: null, part_code: e.target.value, part_id: null, part_name: "" })}
+                    <PartCodeInput
+                        brandId={null}
+                        selectedBrandId={null}
+                        partCode={line.part_code}
+                        partId={line.part_id}
+                        partName={line.part_name}
+                        onChange={code => onUpdate(line._key, { error: null, part_code: code, part_id: null, part_name: "" })}
+                        onClear={() => onUpdate(line._key, { error: null, part_code: "", part_id: null, part_name: "" })}
+                        onSelect={part => onUpdate(line._key, { error: null, part_id: part.id, part_code: part.part_code, part_name: part.part_name })}
                     />
                     {line.validating && (
                         <span className="flex items-center gap-1 text-xs text-(--cl-text-muted)">
@@ -158,10 +151,10 @@ function LocationRow({ allPartCodes, branchId, canRemove, dbName, index, line, l
                     {line.error && <span className="text-xs text-red-500">{line.error}</span>}
                 </div>
             </td>
-            <td className={`${tdCls} text-(--cl-text-muted)`}>
+            <td className={`${tdCls} pt-3 text-(--cl-text-muted)`}>
                 {line.part_name || <span className="text-(--cl-text-muted) opacity-40">—</span>}
             </td>
-            <td className={tdCls}>
+            <td className={`${tdCls} pt-2`}>
                 <Select
                     value={line.location_id ? String(line.location_id) : ""}
                     onValueChange={(v) => onUpdate(line._key, { location_id: Number(v) })}
@@ -178,7 +171,7 @@ function LocationRow({ allPartCodes, branchId, canRemove, dbName, index, line, l
                     </SelectContent>
                 </Select>
             </td>
-            <td className={`${tdCls} w-8 text-center`}>
+            <td className={`${tdCls} w-8 pt-2 text-center`}>
                 {canRemove && (
                     <Button
                         className="h-6 w-6 text-red-500 hover:text-red-600"
@@ -237,7 +230,7 @@ export const SetPartLocationDialog = ({ locations, onOpenChange, onSuccess, open
         setLines(prev => prev.map(l => ({ ...l, location_id: locationId })));
     }
 
-    const allPartCodes = lines.map(l => l.part_code);
+    const allPartIds = lines.map(l => l.part_id);
 
     const linesValid = useMemo(
         () => lines.length > 0 && lines.every(l => !l.validating && !l.error && l.part_id !== null && l.location_id !== null),
@@ -275,7 +268,11 @@ export const SetPartLocationDialog = ({ locations, onOpenChange, onSuccess, open
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent aria-describedby={undefined} className="flex max-h-[90vh] flex-col sm:max-w-2xl">
+            <DialogContent
+                aria-describedby={undefined}
+                className="flex max-h-[90vh] flex-col sm:max-w-2xl"
+                onPointerDownOutside={e => e.preventDefault()}
+            >
                 <DialogHeader>
                     <DialogTitle className="text-base font-semibold text-foreground">
                         Set Part Location
@@ -351,7 +348,7 @@ export const SetPartLocationDialog = ({ locations, onOpenChange, onSuccess, open
                                 {lines.map((line, idx) => (
                                     <LocationRow
                                         key={line._key}
-                                        allPartCodes={allPartCodes}
+                                        allPartIds={allPartIds}
                                         branchId={currentBranch?.id ?? 0}
                                         canRemove={lines.length > 1}
                                         dbName={dbName}

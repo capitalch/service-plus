@@ -227,7 +227,7 @@ export function NewLoanEntry({
                                         className={`grid ${COLS} group transition-colors hover:bg-(--cl-surface-2)/30 border-b border-(--cl-border)`}
                                     >
                                         {/* # */}
-                                        <div className="flex items-center justify-center text-[10px] font-bold text-(--cl-text-muted) border-r border-(--cl-border)/30 bg-(--cl-surface-2)/20">
+                                        <div className="flex items-start justify-center pt-1 text-[10px] font-bold text-(--cl-text-muted) border-r border-(--cl-border)/30 bg-(--cl-surface-2)/20">
                                             {idx + 1}
                                         </div>
 
@@ -271,7 +271,7 @@ export function NewLoanEntry({
                                         </div>
 
                                         {/* IN / OUT */}
-                                        <div className="flex items-center justify-center gap-1 px-2 py-1.5 border-r border-(--cl-border)/30">
+                                        <div className="flex items-start justify-center gap-1 px-2 py-1.5 border-r border-(--cl-border)/30">
                                             <button
                                                 type="button"
                                                 onClick={() => updateLine(idx, { dr_cr: "D" })}
@@ -318,7 +318,7 @@ export function NewLoanEntry({
                                         </div>
 
                                         {/* Actions */}
-                                        <div className="flex items-center justify-center gap-0.5 px-2 bg-(--cl-surface-2)/5">
+                                        <div className="flex items-start justify-center gap-0.5 px-2 bg-(--cl-surface-2)/5">
                                             <LineAddDeleteActions
                                                 disableDelete={fields.length === 1}
                                                 onAdd={() => insert(idx + 1, getInitialLoanLine(selectedBrandId))}

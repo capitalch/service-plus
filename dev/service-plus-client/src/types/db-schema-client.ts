@@ -1,7 +1,6 @@
 /* tslint:disable */
 /* eslint-disable */
 
-
 /**
  * AUTO-GENERATED FILE - DO NOT EDIT!
  *
@@ -9,7 +8,6 @@
  * $ pg-to-ts generate -c postgresql://username:password@node150483-trace-link.cloudjiffy.net:11085/service_plus_client?connect_timeout=10 -t client -s public
  *
  */
-
 
 export type Json = unknown;
 
@@ -53,23 +51,40 @@ export interface ClientInput {
   db_name?: string | null;
 }
 const client = {
-  tableName: 'client',
-  columns: ['id', 'code', 'name', 'is_active', 'gstin', 'pan', 'phone', 'email', 'address_line1', 'address_line2', 'city', 'state', 'pincode', 'country_code', 'created_at', 'updated_at', 'db_name'],
-  requiredForInsert: ['id', 'code', 'name'],
-  primaryKey: 'id',
+  tableName: "client",
+  columns: [
+  "id",
+  "code",
+  "name",
+  "is_active",
+  "gstin",
+  "pan",
+  "phone",
+  "email",
+  "address_line1",
+  "address_line2",
+  "city",
+  "state",
+  "pincode",
+  "country_code",
+  "created_at",
+  "updated_at",
+  "db_name",
+  ],
+  requiredForInsert: ["id", "code", "name"],
+  primaryKey: "id",
   foreignKeys: {},
   $type: null as unknown as Client,
-  $input: null as unknown as ClientInput
+  $input: null as unknown as ClientInput,
 } as const;
-
 
 export interface TableTypes {
   client: {
-    select: Client;
-    input: ClientInput;
+  select: Client;
+  input: ClientInput;
   };
 }
 
 export const tables = {
   client,
-}
+};

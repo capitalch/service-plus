@@ -38,7 +38,7 @@ type Props = {
 // ─── CSS ──────────────────────────────────────────────────────────────────────
 
 const thClass = "sticky top-0 z-20 text-xs font-extrabold uppercase tracking-widest text-(--cl-text) py-2 px-2 text-left border-b border-(--cl-border) bg-zinc-200/60 dark:bg-zinc-800/60 backdrop-blur-sm shadow-[0_1px_0_var(--cl-border)]";
-const tdClass = "p-0.5 border-b border-(--cl-border)";
+const tdClass = "p-0.5 border-b border-(--cl-border) align-top";
 const inputCls = "h-7 border-(--cl-border) bg-white text-sm px-2";
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -254,7 +254,7 @@ export function NewStockAdjustment({
                                         if (!line) return null;
                                         return (
                                         <tr key={field.id} className="hover:bg-(--cl-surface-2)/30 group transition-colors">
-                                            <td className={`${tdClass} pl-4 text-xs font-medium text-(--cl-text-muted)`}>{idx + 1}</td>
+                                            <td className={`${tdClass} pl-4 pt-1 text-xs font-medium text-(--cl-text-muted)`}>{idx + 1}</td>
 
                                             {/* Part */}
                                             <td className={tdClass}>
@@ -316,7 +316,7 @@ export function NewStockAdjustment({
                                             <td className={tdClass}>
                                                 <Input
                                                     ref={el => { qtyInputRefs.current[idx] = el; }}
-                                                    className={`${inputCls} bg-transparent border-transparent hover:border-(--cl-border) focus:bg-white text-right ${line.qty <= 0 ? "border-red-500 focus:border-red-500 ring-red-500/10 shadow-[0_0_0_1px_rgba(239,68,68,0.2)]" : ""}`}
+                                                    className={`${inputCls} mt-1 bg-transparent border-transparent hover:border-(--cl-border) focus:bg-white text-right ${line.qty <= 0 ? "border-red-500 focus:border-red-500 ring-red-500/10 shadow-[0_0_0_1px_rgba(239,68,68,0.2)]" : ""}`}
                                                     min={0}
                                                     step="0.01"
                                                     type="number"
@@ -329,7 +329,7 @@ export function NewStockAdjustment({
                                             {/* Line Remarks */}
                                             <td className={tdClass}>
                                                 <Input
-                                                    className={`${inputCls} bg-transparent border-transparent hover:border-(--cl-border) focus:bg-white`}
+                                                    className={`${inputCls} mt-1 bg-transparent border-transparent hover:border-(--cl-border) focus:bg-white`}
                                                     placeholder="Optional..."
                                                     value={line.remarks ?? ""}
                                                     onChange={e => updateLine(idx, { remarks: e.target.value })}

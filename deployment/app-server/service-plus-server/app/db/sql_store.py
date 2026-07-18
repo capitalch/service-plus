@@ -1934,13 +1934,14 @@ class SqlStore:
             "p_search"    as (values(%(search)s::text))
         SELECT count(distinct sp.id) as total
         FROM spare_part_master sp
-        JOIN stock_transaction st ON st.part_id = sp.id AND st.branch_id = (table "p_branch_id")
+        JOIN stock_transaction st ON st.part_id = sp.id AND ((table "p_branch_id") = 0 OR st.branch_id = (table "p_branch_id"))
         WHERE (
             ((table "p_brand_id") = 0 OR sp.brand_id = (table "p_brand_id")) AND
             ((table "p_search") = '' OR
-             LOWER(sp.part_code) ILIKE '%%' || LOWER((table "p_search")) || '%%' OR
-             LOWER(sp.part_name) ILIKE '%%' || LOWER((table "p_search")) || '%%' OR
-             LOWER(sp.category)  ILIKE '%%' || LOWER((table "p_search")) || '%%')
+             LOWER(sp.part_code)        ILIKE '%%' || LOWER((table "p_search")) || '%%' OR
+             LOWER(sp.part_name)        ILIKE '%%' || LOWER((table "p_search")) || '%%' OR
+             LOWER(sp.part_description) ILIKE '%%' || LOWER((table "p_search")) || '%%' OR
+             LOWER(sp.category)         ILIKE '%%' || LOWER((table "p_search")) || '%%')
         )
     """
 
@@ -1955,20 +1956,24 @@ class SqlStore:
             sp.id AS part_id,
             sp.part_code,
             sp.part_name,
+            sp.part_description,
+            b.name AS brand_name,
             sp.category,
             sp.uom,
             sp.cost_price,
             COALESCE(SUM(CASE WHEN st.dr_cr = 'D' THEN st.qty ELSE -st.qty END), 0) AS current_stock
         FROM spare_part_master sp
-        JOIN stock_transaction st ON st.part_id = sp.id AND st.branch_id = (table "p_branch_id")
+        JOIN stock_transaction st ON st.part_id = sp.id AND ((table "p_branch_id") = 0 OR st.branch_id = (table "p_branch_id"))
+        LEFT JOIN brand b ON b.id = sp.brand_id
         WHERE (
             ((table "p_brand_id") = 0 OR sp.brand_id = (table "p_brand_id")) AND
             ((table "p_search") = '' OR
-             LOWER(sp.part_code) ILIKE '%%' || LOWER((table "p_search")) || '%%' OR
-             LOWER(sp.part_name) ILIKE '%%' || LOWER((table "p_search")) || '%%' OR
-             LOWER(sp.category)  ILIKE '%%' || LOWER((table "p_search")) || '%%')
+             LOWER(sp.part_code)        ILIKE '%%' || LOWER((table "p_search")) || '%%' OR
+             LOWER(sp.part_name)        ILIKE '%%' || LOWER((table "p_search")) || '%%' OR
+             LOWER(sp.part_description) ILIKE '%%' || LOWER((table "p_search")) || '%%' OR
+             LOWER(sp.category)         ILIKE '%%' || LOWER((table "p_search")) || '%%')
         )
-        GROUP BY sp.id, sp.part_code, sp.part_name, sp.category, sp.uom, sp.cost_price
+        GROUP BY sp.id, sp.part_code, sp.part_name, sp.part_description, b.name, sp.category, sp.uom, sp.cost_price
         ORDER BY sp.part_name
         LIMIT  (table "p_limit")
         OFFSET (table "p_offset")
@@ -2515,6 +2520,7 @@ class SqlStore:
         SELECT
             sa.id,
             sa.branch_id,
+            sa.brand_id,
             sa.adjustment_date,
             sa.adjustment_reason,
             sa.ref_no,
@@ -2538,6 +2544,7 @@ class SqlStore:
         SELECT
             sa.id,
             sa.branch_id,
+            sa.brand_id,
             sa.adjustment_date,
             sa.adjustment_reason,
             sa.ref_no,
@@ -2592,6 +2599,7 @@ class SqlStore:
             sbt.transfer_date,
             sbt.from_branch_id,
             sbt.to_branch_id,
+            sbt.brand_id,
             sbt.ref_no,
             sbt.remarks,
             sbt.created_by,
@@ -2618,6 +2626,7 @@ class SqlStore:
             sbt.transfer_date,
             sbt.from_branch_id,
             sbt.to_branch_id,
+            sbt.brand_id,
             sbt.ref_no,
             sbt.remarks,
             sbt.created_by,
@@ -2675,7 +2684,7 @@ class SqlStore:
             "p_limit"     as (values(%(limit)s::int)),
             "p_offset"    as (values(%(offset)s::int))
         SELECT
-            sl.id, sl.loan_date, sl.branch_id, sl.ref_no, sl.remarks,
+            sl.id, sl.loan_date, sl.branch_id, sl.brand_id, sl.ref_no, sl.remarks,
             sl.created_at, sl.updated_at
         FROM stock_loan sl
         WHERE sl.branch_id = (table "p_branch_id")
@@ -2701,6 +2710,7 @@ class SqlStore:
             sl.id,
             sl.loan_date,
             sl.branch_id,
+            sl.brand_id,
             sl.ref_no,
             sl.remarks,
             sl.created_at,
@@ -2783,6 +2793,7 @@ class SqlStore:
             sob.id,
             sob.entry_date,
             sob.branch_id,
+            sob.brand_id,
             sob.ref_no,
             sob.remarks,
             COUNT(sobl.id)                                     AS line_count,
@@ -2809,6 +2820,7 @@ class SqlStore:
             sob.id,
             sob.entry_date,
             sob.branch_id,
+            sob.brand_id,
             sob.ref_no,
             sob.remarks,
             sob.created_at,

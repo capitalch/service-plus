@@ -241,6 +241,10 @@ export const StockAdjustmentSection = () => {
             toast.error(MESSAGES.ERROR_ADJUSTMENT_CREATE_FAILED);
             return;
         }
+        if (!selectedBrandId) {
+            toast.error(MESSAGES.ERROR_ADJUSTMENT_BRAND_REQUIRED);
+            return;
+        }
 
         const lines = form.getValues("lines");
         const linePayload = lines.map(line => ({
@@ -267,6 +271,7 @@ export const StockAdjustmentSection = () => {
             adjustment_reason: values.adjustment_reason.trim(),
             ref_no:            values.ref_no?.trim() || null,
             remarks:           values.remarks?.trim() || null,
+            brand_id:          selectedBrandId,
         };
 
         try {
@@ -413,7 +418,7 @@ export const StockAdjustmentSection = () => {
                     </Button>
                     <Button
                         className="h-8 gap-1.5 px-4 text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm font-extrabold uppercase tracking-widest transition-all disabled:opacity-30 disabled:bg-slate-300 disabled:text-slate-600 disabled:shadow-none disabled:cursor-not-allowed"
-                        disabled={!form.formState.isValid || !linesValid || form.formState.isSubmitting}
+                        disabled={!form.formState.isValid || !linesValid || !selectedBrandId || form.formState.isSubmitting}
                         onClick={form.handleSubmit(executeSave)}
                     >
                         {form.formState.isSubmitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
@@ -498,10 +503,11 @@ export const StockAdjustmentSection = () => {
                                     <thead className="sticky top-0 z-30">
                                         <tr className="bg-(--cl-surface-2)">
                                             <th className={thClass} style={{ width: "5%" }}>#</th>
-                                            <th className={thClass} style={{ width: "12%" }}>Date</th>
-                                            <th className={thClass} style={{ width: "30%" }}>Reason</th>
-                                            <th className={thClass} style={{ width: "15%" }}>Ref No</th>
-                                            <th className={thClass} style={{ width: "28%" }}>Remarks</th>
+                                            <th className={thClass} style={{ width: "10%" }}>Date</th>
+                                            <th className={thClass} style={{ width: "14%" }}>Brand</th>
+                                            <th className={thClass} style={{ width: "26%" }}>Reason</th>
+                                            <th className={thClass} style={{ width: "13%" }}>Ref No</th>
+                                            <th className={thClass} style={{ width: "22%" }}>Remarks</th>
                                             <th className={`${thClass} text-center`} style={{ width: "10%" }}>Actions</th>
                                         </tr>
                                     </thead>
@@ -509,6 +515,7 @@ export const StockAdjustmentSection = () => {
                                         {Array.from({ length: 15 }).map((_, i) => (
                                             <tr key={i} className="animate-pulse">
                                                 <td className={tdClass}><div className="h-4 w-4 rounded bg-(--cl-border)" /></td>
+                                                <td className={tdClass}><div className="h-4 w-20 rounded bg-(--cl-border)" /></td>
                                                 <td className={tdClass}><div className="h-4 w-20 rounded bg-(--cl-border)" /></td>
                                                 <td className={tdClass}><div className="h-4 w-64 rounded bg-(--cl-border)" /></td>
                                                 <td className={tdClass}><div className="h-4 w-24 rounded bg-(--cl-border)" /></td>
@@ -528,6 +535,7 @@ export const StockAdjustmentSection = () => {
                                         <tr>
                                             <th className={thClass}>#</th>
                                             <th className={thClass}>Date</th>
+                                            <th className={thClass}>Brand</th>
                                             <th className={thClass}>Reason</th>
                                             <th className={thClass}>Ref No</th>
                                             <th className={thClass}>Remarks</th>
@@ -540,16 +548,19 @@ export const StockAdjustmentSection = () => {
                                                 <td className={`${tdClass} text-(--cl-text-muted)`} style={{ width: "5%" }}>
                                                     {(page - 1) * PAGE_SIZE + idx + 1}
                                                 </td>
-                                                <td className={tdClass} style={{ width: "12%" }}>
+                                                <td className={tdClass} style={{ width: "10%" }}>
                                                     {adj.adjustment_date}
                                                 </td>
-                                                <td className={tdClass} style={{ width: "30%" }}>
+                                                <td className={tdClass} style={{ width: "14%" }}>
+                                                    {brands.find(b => b.id === adj.brand_id)?.name ?? "—"}
+                                                </td>
+                                                <td className={tdClass} style={{ width: "26%" }}>
                                                     {adj.adjustment_reason}
                                                 </td>
-                                                <td className={`${tdClass} font-mono`} style={{ width: "15%" }}>
+                                                <td className={`${tdClass} font-mono`} style={{ width: "13%" }}>
                                                     {adj.ref_no ?? "—"}
                                                 </td>
-                                                <td className={`${tdClass} text-(--cl-text-muted)`} style={{ width: "28%" }}>
+                                                <td className={`${tdClass} text-(--cl-text-muted)`} style={{ width: "22%" }}>
                                                     {adj.remarks ?? "—"}
                                                 </td>
                                                 <td className={`${tdClass} sticky right-0 z-10 bg-(--cl-surface) group-hover:bg-(--cl-surface-2)`} style={{ width: "10%" }}>
@@ -567,7 +578,7 @@ export const StockAdjustmentSection = () => {
                                                             <DropdownMenuContent align="end" className="w-[160px] bg-white dark:bg-zinc-950 border-(--cl-border) shadow-[0_10px_30px_rgba(0,0,0,0.2)] z-50">
                                                                 <DropdownMenuItem
                                                                     className="flex items-center gap-2 cursor-pointer text-amber-500 focus:bg-amber-500/10 focus:text-amber-600"
-                                                                    onClick={() => { setEditAdjustment(adj); setMode('new'); }}
+                                                                    onClick={() => { setEditAdjustment(adj); setSelectedBrand(String(adj.brand_id)); setMode('new'); }}
                                                                 >
                                                                     <Pencil className="h-4 w-4" />
                                                                     <span>Edit</span>
@@ -597,7 +608,7 @@ export const StockAdjustmentSection = () => {
                                     <tbody>
                                         <tr>
                                             <td className={tdClass} style={{ width: "5%" }}></td>
-                                            <td className={tdClass} colSpan={5}>
+                                            <td className={tdClass} colSpan={6}>
                                                 <div className="flex items-center justify-between">
                                                     <span className="text-xs text-(--cl-text-muted)">{adjustments.length} lines</span>
                                                 </div>

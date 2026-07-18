@@ -1,7 +1,6 @@
 /* tslint:disable */
 /* eslint-disable */
 
-
 /**
  * AUTO-GENERATED FILE - DO NOT EDIT!
  *
@@ -9,7 +8,6 @@
  * $ pg-to-ts generate -c postgresql://username:password@node150483-trace-link.cloudjiffy.net:11085/service_plus_demo?connect_timeout=10 -t additional_charge -t app_setting -t branch -t brand -t customer_contact -t customer_type -t division -t document_sequence -t document_type -t financial_year -t job -t job_additional_charge -t job_delivery_manner -t job_image_doc -t job_invoice -t job_invoice_line -t job_part_used -t job_payment -t job_receive_condition -t job_receive_manner -t job_status -t job_transaction -t job_type -t product -t product_brand_model -t purchase_invoice -t purchase_invoice_line -t sales_invoice -t sales_invoice_line -t spare_part_master -t state -t stock_adjustment -t stock_adjustment_line -t stock_balance -t stock_branch_transfer -t stock_branch_transfer_line -t stock_loan -t stock_loan_line -t stock_location_change -t stock_location_master -t stock_opening_balance -t stock_opening_balance_line -t stock_snapshot -t stock_transaction -t stock_transaction_type -t supplier -t technician -s demo1
  *
  */
-
 
 export type Json = unknown;
 
@@ -25,13 +23,13 @@ export interface AdditionalChargeInput {
   hsn_code?: string | null;
 }
 const additional_charge = {
-  tableName: 'additional_charge',
-  columns: ['id', 'name', 'hsn_code'],
-  requiredForInsert: ['id', 'name'],
-  primaryKey: 'id',
+  tableName: "additional_charge",
+  columns: ["id", "name", "hsn_code"],
+  requiredForInsert: ["id", "name"],
+  primaryKey: "id",
   foreignKeys: {},
   $type: null as unknown as AdditionalCharge,
-  $input: null as unknown as AdditionalChargeInput
+  $input: null as unknown as AdditionalChargeInput,
 } as const;
 
 // Table app_setting
@@ -54,13 +52,21 @@ export interface AppSettingInput {
   updated_at?: Date;
 }
 const app_setting = {
-  tableName: 'app_setting',
-  columns: ['id', 'setting_key', 'setting_value', 'description', 'is_editable', 'created_at', 'updated_at'],
-  requiredForInsert: ['id', 'setting_key', 'setting_value'],
-  primaryKey: 'id',
+  tableName: "app_setting",
+  columns: [
+  "id",
+  "setting_key",
+  "setting_value",
+  "description",
+  "is_editable",
+  "created_at",
+  "updated_at",
+  ],
+  requiredForInsert: ["id", "setting_key", "setting_value"],
+  primaryKey: "id",
   foreignKeys: {},
   $type: null as unknown as AppSetting,
-  $input: null as unknown as AppSettingInput
+  $input: null as unknown as AppSettingInput,
 } as const;
 
 // Table branch
@@ -99,13 +105,38 @@ export interface BranchInput {
   updated_at?: Date;
 }
 const branch = {
-  tableName: 'branch',
-  columns: ['id', 'code', 'name', 'phone', 'email', 'address_line1', 'address_line2', 'state_id', 'city', 'pincode', 'gstin', 'is_active', 'is_head_office', 'created_at', 'updated_at'],
-  requiredForInsert: ['id', 'code', 'name', 'address_line1', 'state_id', 'pincode'],
-  primaryKey: 'id',
-  foreignKeys: { state_id: { table: 'state', column: 'id', $type: null as unknown as State }, },
+  tableName: "branch",
+  columns: [
+  "id",
+  "code",
+  "name",
+  "phone",
+  "email",
+  "address_line1",
+  "address_line2",
+  "state_id",
+  "city",
+  "pincode",
+  "gstin",
+  "is_active",
+  "is_head_office",
+  "created_at",
+  "updated_at",
+  ],
+  requiredForInsert: [
+  "id",
+  "code",
+  "name",
+  "address_line1",
+  "state_id",
+  "pincode",
+  ],
+  primaryKey: "id",
+  foreignKeys: {
+  state_id: { table: "state", column: "id", $type: null as unknown as State },
+  },
   $type: null as unknown as Branch,
-  $input: null as unknown as BranchInput
+  $input: null as unknown as BranchInput,
 } as const;
 
 // Table brand
@@ -126,13 +157,13 @@ export interface BrandInput {
   updated_at?: Date;
 }
 const brand = {
-  tableName: 'brand',
-  columns: ['id', 'code', 'name', 'is_active', 'created_at', 'updated_at'],
-  requiredForInsert: ['id', 'code', 'name'],
-  primaryKey: 'id',
+  tableName: "brand",
+  columns: ["id", "code", "name", "is_active", "created_at", "updated_at"],
+  requiredForInsert: ["id", "code", "name"],
+  primaryKey: "id",
   foreignKeys: {},
   $type: null as unknown as Brand,
-  $input: null as unknown as BrandInput
+  $input: null as unknown as BrandInput,
 } as const;
 
 // Table customer_contact
@@ -175,16 +206,45 @@ export interface CustomerContactInput {
   updated_at?: Date;
 }
 const customer_contact = {
-  tableName: 'customer_contact',
-  columns: ['id', 'customer_type_id', 'full_name', 'gstin', 'mobile', 'alternate_mobile', 'email', 'address_line1', 'address_line2', 'landmark', 'state_id', 'city', 'postal_code', 'remarks', 'is_active', 'created_at', 'updated_at'],
-  requiredForInsert: ['id', 'customer_type_id', 'full_name', 'mobile', 'address_line1', 'state_id'],
-  primaryKey: 'id',
+  tableName: "customer_contact",
+  columns: [
+  "id",
+  "customer_type_id",
+  "full_name",
+  "gstin",
+  "mobile",
+  "alternate_mobile",
+  "email",
+  "address_line1",
+  "address_line2",
+  "landmark",
+  "state_id",
+  "city",
+  "postal_code",
+  "remarks",
+  "is_active",
+  "created_at",
+  "updated_at",
+  ],
+  requiredForInsert: [
+  "id",
+  "customer_type_id",
+  "full_name",
+  "mobile",
+  "address_line1",
+  "state_id",
+  ],
+  primaryKey: "id",
   foreignKeys: {
-    customer_type_id: { table: 'customer_type', column: 'id', $type: null as unknown as CustomerType },
-    state_id: { table: 'state', column: 'id', $type: null as unknown as State },
+  customer_type_id: {
+    table: "customer_type",
+    column: "id",
+    $type: null as unknown as CustomerType,
+  },
+  state_id: { table: "state", column: "id", $type: null as unknown as State },
   },
   $type: null as unknown as CustomerContact,
-  $input: null as unknown as CustomerContactInput
+  $input: null as unknown as CustomerContactInput,
 } as const;
 
 // Table customer_type
@@ -207,13 +267,21 @@ export interface CustomerTypeInput {
   is_system: boolean;
 }
 const customer_type = {
-  tableName: 'customer_type',
-  columns: ['id', 'code', 'name', 'description', 'is_active', 'display_order', 'is_system'],
-  requiredForInsert: ['id', 'code', 'name', 'is_system'],
-  primaryKey: 'id',
+  tableName: "customer_type",
+  columns: [
+  "id",
+  "code",
+  "name",
+  "description",
+  "is_active",
+  "display_order",
+  "is_system",
+  ],
+  requiredForInsert: ["id", "code", "name", "is_system"],
+  primaryKey: "id",
   foreignKeys: {},
   $type: null as unknown as CustomerType,
-  $input: null as unknown as CustomerTypeInput
+  $input: null as unknown as CustomerTypeInput,
 } as const;
 
 // Table division
@@ -258,16 +326,46 @@ export interface DivisionInput {
   account_setting?: Json | null;
 }
 const division = {
-  tableName: 'division',
-  columns: ['id', 'name', 'address_line1', 'address_line2', 'city', 'state_id', 'country', 'pincode', 'phone', 'email', 'gstin', 'is_active', 'created_at', 'updated_at', 'branch_id', 'code', 'web_site', 'account_setting'],
-  requiredForInsert: ['id', 'name', 'address_line1', 'state_id', 'branch_id', 'code'],
-  primaryKey: 'id',
+  tableName: "division",
+  columns: [
+  "id",
+  "name",
+  "address_line1",
+  "address_line2",
+  "city",
+  "state_id",
+  "country",
+  "pincode",
+  "phone",
+  "email",
+  "gstin",
+  "is_active",
+  "created_at",
+  "updated_at",
+  "branch_id",
+  "code",
+  "web_site",
+  "account_setting",
+  ],
+  requiredForInsert: [
+  "id",
+  "name",
+  "address_line1",
+  "state_id",
+  "branch_id",
+  "code",
+  ],
+  primaryKey: "id",
   foreignKeys: {
-    state_id: { table: 'state', column: 'id', $type: null as unknown as State },
-    branch_id: { table: 'branch', column: 'id', $type: null as unknown as Branch },
+  state_id: { table: "state", column: "id", $type: null as unknown as State },
+  branch_id: {
+    table: "branch",
+    column: "id",
+    $type: null as unknown as Branch,
+  },
   },
   $type: null as unknown as Division,
-  $input: null as unknown as DivisionInput
+  $input: null as unknown as DivisionInput,
 } as const;
 
 // Table document_sequence
@@ -296,16 +394,35 @@ export interface DocumentSequenceInput {
   division_id?: number | null;
 }
 const document_sequence = {
-  tableName: 'document_sequence',
-  columns: ['id', 'document_type_id', 'branch_id', 'prefix', 'next_number', 'padding', 'separator', 'created_at', 'updated_at', 'division_id'],
-  requiredForInsert: ['id', 'document_type_id', 'branch_id', 'next_number'],
-  primaryKey: 'id',
+  tableName: "document_sequence",
+  columns: [
+  "id",
+  "document_type_id",
+  "branch_id",
+  "prefix",
+  "next_number",
+  "padding",
+  "separator",
+  "created_at",
+  "updated_at",
+  "division_id",
+  ],
+  requiredForInsert: ["id", "document_type_id", "branch_id", "next_number"],
+  primaryKey: "id",
   foreignKeys: {
-    document_type_id: { table: 'document_type', column: 'id', $type: null as unknown as DocumentType },
-    branch_id: { table: 'branch', column: 'id', $type: null as unknown as Branch },
+  document_type_id: {
+    table: "document_type",
+    column: "id",
+    $type: null as unknown as DocumentType,
+  },
+  branch_id: {
+    table: "branch",
+    column: "id",
+    $type: null as unknown as Branch,
+  },
   },
   $type: null as unknown as DocumentSequence,
-  $input: null as unknown as DocumentSequenceInput
+  $input: null as unknown as DocumentSequenceInput,
 } as const;
 
 // Table document_type
@@ -326,13 +443,13 @@ export interface DocumentTypeInput {
   is_system: boolean;
 }
 const document_type = {
-  tableName: 'document_type',
-  columns: ['id', 'code', 'prefix', 'name', 'description', 'is_system'],
-  requiredForInsert: ['id', 'code', 'name', 'is_system'],
-  primaryKey: 'id',
+  tableName: "document_type",
+  columns: ["id", "code", "prefix", "name", "description", "is_system"],
+  requiredForInsert: ["id", "code", "name", "is_system"],
+  primaryKey: "id",
   foreignKeys: {},
   $type: null as unknown as DocumentType,
-  $input: null as unknown as DocumentTypeInput
+  $input: null as unknown as DocumentTypeInput,
 } as const;
 
 // Table financial_year
@@ -347,13 +464,13 @@ export interface FinancialYearInput {
   end_date: Date;
 }
 const financial_year = {
-  tableName: 'financial_year',
-  columns: ['id', 'start_date', 'end_date'],
-  requiredForInsert: ['id', 'start_date', 'end_date'],
-  primaryKey: 'id',
+  tableName: "financial_year",
+  columns: ["id", "start_date", "end_date"],
+  requiredForInsert: ["id", "start_date", "end_date"],
+  primaryKey: "id",
   foreignKeys: {},
   $type: null as unknown as FinancialYear,
-  $input: null as unknown as FinancialYearInput
+  $input: null as unknown as FinancialYearInput,
 } as const;
 
 // Table job
@@ -391,6 +508,8 @@ export interface Job {
   division_id: number;
   is_igst: boolean;
   to_show_parts_in_job_invoice: boolean;
+  purchase_date: Date | null;
+  is_opening_job: boolean;
 }
 export interface JobInput {
   id: number;
@@ -426,25 +545,109 @@ export interface JobInput {
   division_id: number;
   is_igst?: boolean;
   to_show_parts_in_job_invoice?: boolean;
+  purchase_date?: Date | null;
+  is_opening_job?: boolean;
 }
 const job = {
-  tableName: 'job',
-  columns: ['id', 'job_no', 'job_date', 'customer_contact_id', 'branch_id', 'technician_id', 'job_status_id', 'job_type_id', 'job_receive_manner_id', 'job_receive_condition_id', 'product_brand_model_id', 'serial_no', 'problem_reported', 'diagnosis', 'work_done', 'remarks', 'amount', 'delivery_date', 'is_closed', 'warranty_card_no', 'is_active', 'created_at', 'updated_at', 'address_snapshot', 'last_transaction_id', 'is_final', 'qty', 'batch_no', 'estimate_amount', 'alternate_job_no', 'division_id', 'is_igst', 'to_show_parts_in_job_invoice'],
-  requiredForInsert: ['id', 'job_no', 'customer_contact_id', 'branch_id', 'job_status_id', 'job_type_id', 'job_receive_manner_id', 'product_brand_model_id', 'division_id'],
-  primaryKey: 'id',
+  tableName: "job",
+  columns: [
+  "id",
+  "job_no",
+  "job_date",
+  "customer_contact_id",
+  "branch_id",
+  "technician_id",
+  "job_status_id",
+  "job_type_id",
+  "job_receive_manner_id",
+  "job_receive_condition_id",
+  "product_brand_model_id",
+  "serial_no",
+  "problem_reported",
+  "diagnosis",
+  "work_done",
+  "remarks",
+  "amount",
+  "delivery_date",
+  "is_closed",
+  "warranty_card_no",
+  "is_active",
+  "created_at",
+  "updated_at",
+  "address_snapshot",
+  "last_transaction_id",
+  "is_final",
+  "qty",
+  "batch_no",
+  "estimate_amount",
+  "alternate_job_no",
+  "division_id",
+  "is_igst",
+  "to_show_parts_in_job_invoice",
+  "purchase_date",
+  "is_opening_job",
+  ],
+  requiredForInsert: [
+  "id",
+  "job_no",
+  "customer_contact_id",
+  "branch_id",
+  "job_status_id",
+  "job_type_id",
+  "job_receive_manner_id",
+  "product_brand_model_id",
+  "division_id",
+  ],
+  primaryKey: "id",
   foreignKeys: {
-    customer_contact_id: { table: 'customer_contact', column: 'id', $type: null as unknown as CustomerContact },
-    branch_id: { table: 'branch', column: 'id', $type: null as unknown as Branch },
-    technician_id: { table: 'technician', column: 'id', $type: null as unknown as Technician },
-    job_status_id: { table: 'job_status', column: 'id', $type: null as unknown as JobStatus },
-    job_type_id: { table: 'job_type', column: 'id', $type: null as unknown as JobType },
-    job_receive_manner_id: { table: 'job_receive_manner', column: 'id', $type: null as unknown as JobReceiveManner },
-    job_receive_condition_id: { table: 'job_receive_condition', column: 'id', $type: null as unknown as JobReceiveCondition },
-    product_brand_model_id: { table: 'product_brand_model', column: 'id', $type: null as unknown as ProductBrandModel },
-    division_id: { table: 'division', column: 'id', $type: null as unknown as Division },
+  customer_contact_id: {
+    table: "customer_contact",
+    column: "id",
+    $type: null as unknown as CustomerContact,
+  },
+  branch_id: {
+    table: "branch",
+    column: "id",
+    $type: null as unknown as Branch,
+  },
+  technician_id: {
+    table: "technician",
+    column: "id",
+    $type: null as unknown as Technician,
+  },
+  job_status_id: {
+    table: "job_status",
+    column: "id",
+    $type: null as unknown as JobStatus,
+  },
+  job_type_id: {
+    table: "job_type",
+    column: "id",
+    $type: null as unknown as JobType,
+  },
+  job_receive_manner_id: {
+    table: "job_receive_manner",
+    column: "id",
+    $type: null as unknown as JobReceiveManner,
+  },
+  job_receive_condition_id: {
+    table: "job_receive_condition",
+    column: "id",
+    $type: null as unknown as JobReceiveCondition,
+  },
+  product_brand_model_id: {
+    table: "product_brand_model",
+    column: "id",
+    $type: null as unknown as ProductBrandModel,
+  },
+  division_id: {
+    table: "division",
+    column: "id",
+    $type: null as unknown as Division,
+  },
   },
   $type: null as unknown as Job,
-  $input: null as unknown as JobInput
+  $input: null as unknown as JobInput,
 } as const;
 
 // Table job_additional_charge
@@ -475,13 +678,27 @@ export interface JobAdditionalChargeInput {
   qty?: number;
 }
 const job_additional_charge = {
-  tableName: 'job_additional_charge',
-  columns: ['id', 'job_id', 'charge_name', 'ref_no', 'description', 'cost_price', 'selling_price', 'created_at', 'hsn_code', 'gst_rate', 'qty'],
-  requiredForInsert: ['id', 'job_id', 'charge_name'],
-  primaryKey: 'id',
-  foreignKeys: { job_id: { table: 'job', column: 'id', $type: null as unknown as Job }, },
+  tableName: "job_additional_charge",
+  columns: [
+  "id",
+  "job_id",
+  "charge_name",
+  "ref_no",
+  "description",
+  "cost_price",
+  "selling_price",
+  "created_at",
+  "hsn_code",
+  "gst_rate",
+  "qty",
+  ],
+  requiredForInsert: ["id", "job_id", "charge_name"],
+  primaryKey: "id",
+  foreignKeys: {
+  job_id: { table: "job", column: "id", $type: null as unknown as Job },
+  },
   $type: null as unknown as JobAdditionalCharge,
-  $input: null as unknown as JobAdditionalChargeInput
+  $input: null as unknown as JobAdditionalChargeInput,
 } as const;
 
 // Table job_delivery_manner
@@ -506,13 +723,22 @@ export interface JobDeliveryMannerInput {
   is_system: boolean;
 }
 const job_delivery_manner = {
-  tableName: 'job_delivery_manner',
-  columns: ['id', 'code', 'name', 'display_order', 'is_active', 'created_at', 'updated_at', 'is_system'],
-  requiredForInsert: ['id', 'code', 'name', 'is_system'],
-  primaryKey: 'id',
+  tableName: "job_delivery_manner",
+  columns: [
+  "id",
+  "code",
+  "name",
+  "display_order",
+  "is_active",
+  "created_at",
+  "updated_at",
+  "is_system",
+  ],
+  requiredForInsert: ["id", "code", "name", "is_system"],
+  primaryKey: "id",
   foreignKeys: {},
   $type: null as unknown as JobDeliveryManner,
-  $input: null as unknown as JobDeliveryMannerInput
+  $input: null as unknown as JobDeliveryMannerInput,
 } as const;
 
 // Table job_image_doc
@@ -531,13 +757,15 @@ export interface JobImageDocInput {
   about: string;
 }
 const job_image_doc = {
-  tableName: 'job_image_doc',
-  columns: ['id', 'job_id', 'url', 'created_at', 'about'],
-  requiredForInsert: ['id', 'job_id', 'url', 'about'],
-  primaryKey: 'id',
-  foreignKeys: { job_id: { table: 'job', column: 'id', $type: null as unknown as Job }, },
+  tableName: "job_image_doc",
+  columns: ["id", "job_id", "url", "created_at", "about"],
+  requiredForInsert: ["id", "job_id", "url", "about"],
+  primaryKey: "id",
+  foreignKeys: {
+  job_id: { table: "job", column: "id", $type: null as unknown as Job },
+  },
   $type: null as unknown as JobImageDoc,
-  $input: null as unknown as JobImageDocInput
+  $input: null as unknown as JobImageDocInput,
 } as const;
 
 // Table job_invoice
@@ -572,13 +800,36 @@ export interface JobInvoiceInput {
   is_posted?: boolean;
 }
 const job_invoice = {
-  tableName: 'job_invoice',
-  columns: ['id', 'job_id', 'invoice_no', 'invoice_date', 'supply_state_code', 'aggregate', 'cgst_amount', 'sgst_amount', 'igst_amount', 'amount', 'created_at', 'updated_at', 'is_posted'],
-  requiredForInsert: ['id', 'job_id', 'invoice_no', 'supply_state_code', 'aggregate', 'amount'],
-  primaryKey: 'id',
-  foreignKeys: { job_id: { table: 'job', column: 'id', $type: null as unknown as Job }, },
+  tableName: "job_invoice",
+  columns: [
+  "id",
+  "job_id",
+  "invoice_no",
+  "invoice_date",
+  "supply_state_code",
+  "aggregate",
+  "cgst_amount",
+  "sgst_amount",
+  "igst_amount",
+  "amount",
+  "created_at",
+  "updated_at",
+  "is_posted",
+  ],
+  requiredForInsert: [
+  "id",
+  "job_id",
+  "invoice_no",
+  "supply_state_code",
+  "aggregate",
+  "amount",
+  ],
+  primaryKey: "id",
+  foreignKeys: {
+  job_id: { table: "job", column: "id", $type: null as unknown as Job },
+  },
   $type: null as unknown as JobInvoice,
-  $input: null as unknown as JobInvoiceInput
+  $input: null as unknown as JobInvoiceInput,
 } as const;
 
 // Table job_invoice_line
@@ -617,13 +868,43 @@ export interface JobInvoiceLineInput {
   hsn_code?: string | null;
 }
 const job_invoice_line = {
-  tableName: 'job_invoice_line',
-  columns: ['id', 'job_invoice_id', 'description', 'part_code', 'qty', 'price', 'aggregate', 'gst_rate', 'cgst_amount', 'sgst_amount', 'igst_amount', 'amount', 'created_at', 'updated_at', 'hsn_code'],
-  requiredForInsert: ['id', 'job_invoice_id', 'description', 'qty', 'price', 'aggregate', 'amount'],
-  primaryKey: 'id',
-  foreignKeys: { job_invoice_id: { table: 'job_invoice', column: 'id', $type: null as unknown as JobInvoice }, },
+  tableName: "job_invoice_line",
+  columns: [
+  "id",
+  "job_invoice_id",
+  "description",
+  "part_code",
+  "qty",
+  "price",
+  "aggregate",
+  "gst_rate",
+  "cgst_amount",
+  "sgst_amount",
+  "igst_amount",
+  "amount",
+  "created_at",
+  "updated_at",
+  "hsn_code",
+  ],
+  requiredForInsert: [
+  "id",
+  "job_invoice_id",
+  "description",
+  "qty",
+  "price",
+  "aggregate",
+  "amount",
+  ],
+  primaryKey: "id",
+  foreignKeys: {
+  job_invoice_id: {
+    table: "job_invoice",
+    column: "id",
+    $type: null as unknown as JobInvoice,
+  },
+  },
   $type: null as unknown as JobInvoiceLine,
-  $input: null as unknown as JobInvoiceLineInput
+  $input: null as unknown as JobInvoiceLineInput,
 } as const;
 
 // Table job_part_used
@@ -654,16 +935,32 @@ export interface JobPartUsedInput {
   hsn_code?: string | null;
 }
 const job_part_used = {
-  tableName: 'job_part_used',
-  columns: ['id', 'job_id', 'part_id', 'qty', 'created_at', 'updated_at', 'remarks', 'cost_price', 'selling_price', 'gst_rate', 'hsn_code'],
-  requiredForInsert: ['id', 'job_id', 'part_id', 'qty'],
-  primaryKey: 'id',
+  tableName: "job_part_used",
+  columns: [
+  "id",
+  "job_id",
+  "part_id",
+  "qty",
+  "created_at",
+  "updated_at",
+  "remarks",
+  "cost_price",
+  "selling_price",
+  "gst_rate",
+  "hsn_code",
+  ],
+  requiredForInsert: ["id", "job_id", "part_id", "qty"],
+  primaryKey: "id",
   foreignKeys: {
-    job_id: { table: 'job', column: 'id', $type: null as unknown as Job },
-    part_id: { table: 'spare_part_master', column: 'id', $type: null as unknown as SparePartMaster },
+  job_id: { table: "job", column: "id", $type: null as unknown as Job },
+  part_id: {
+    table: "spare_part_master",
+    column: "id",
+    $type: null as unknown as SparePartMaster,
+  },
   },
   $type: null as unknown as JobPartUsed,
-  $input: null as unknown as JobPartUsedInput
+  $input: null as unknown as JobPartUsedInput,
 } as const;
 
 // Table job_payment
@@ -694,13 +991,34 @@ export interface JobPaymentInput {
   receipt_no: string;
 }
 const job_payment = {
-  tableName: 'job_payment',
-  columns: ['id', 'job_id', 'payment_date', 'payment_mode', 'amount', 'reference_no', 'remarks', 'created_at', 'updated_at', 'is_posted', 'receipt_no'],
-  requiredForInsert: ['id', 'job_id', 'payment_date', 'payment_mode', 'amount', 'receipt_no'],
-  primaryKey: 'id',
-  foreignKeys: { job_id: { table: 'job', column: 'id', $type: null as unknown as Job }, },
+  tableName: "job_payment",
+  columns: [
+  "id",
+  "job_id",
+  "payment_date",
+  "payment_mode",
+  "amount",
+  "reference_no",
+  "remarks",
+  "created_at",
+  "updated_at",
+  "is_posted",
+  "receipt_no",
+  ],
+  requiredForInsert: [
+  "id",
+  "job_id",
+  "payment_date",
+  "payment_mode",
+  "amount",
+  "receipt_no",
+  ],
+  primaryKey: "id",
+  foreignKeys: {
+  job_id: { table: "job", column: "id", $type: null as unknown as Job },
+  },
   $type: null as unknown as JobPayment,
-  $input: null as unknown as JobPaymentInput
+  $input: null as unknown as JobPaymentInput,
 } as const;
 
 // Table job_receive_condition
@@ -727,13 +1045,23 @@ export interface JobReceiveConditionInput {
   is_system: boolean;
 }
 const job_receive_condition = {
-  tableName: 'job_receive_condition',
-  columns: ['id', 'code', 'name', 'description', 'display_order', 'is_active', 'created_at', 'updated_at', 'is_system'],
-  requiredForInsert: ['id', 'code', 'name', 'is_system'],
-  primaryKey: 'id',
+  tableName: "job_receive_condition",
+  columns: [
+  "id",
+  "code",
+  "name",
+  "description",
+  "display_order",
+  "is_active",
+  "created_at",
+  "updated_at",
+  "is_system",
+  ],
+  requiredForInsert: ["id", "code", "name", "is_system"],
+  primaryKey: "id",
   foreignKeys: {},
   $type: null as unknown as JobReceiveCondition,
-  $input: null as unknown as JobReceiveConditionInput
+  $input: null as unknown as JobReceiveConditionInput,
 } as const;
 
 // Table job_receive_manner
@@ -758,13 +1086,22 @@ export interface JobReceiveMannerInput {
   updated_at?: Date;
 }
 const job_receive_manner = {
-  tableName: 'job_receive_manner',
-  columns: ['id', 'code', 'name', 'is_system', 'is_active', 'display_order', 'created_at', 'updated_at'],
-  requiredForInsert: ['id', 'code', 'name'],
-  primaryKey: 'id',
+  tableName: "job_receive_manner",
+  columns: [
+  "id",
+  "code",
+  "name",
+  "is_system",
+  "is_active",
+  "display_order",
+  "created_at",
+  "updated_at",
+  ],
+  requiredForInsert: ["id", "code", "name"],
+  primaryKey: "id",
   foreignKeys: {},
   $type: null as unknown as JobReceiveManner,
-  $input: null as unknown as JobReceiveMannerInput
+  $input: null as unknown as JobReceiveMannerInput,
 } as const;
 
 // Table job_status
@@ -795,13 +1132,25 @@ export interface JobStatusInput {
   updated_at?: Date;
 }
 const job_status = {
-  tableName: 'job_status',
-  columns: ['id', 'code', 'name', 'description', 'display_order', 'is_initial', 'is_final', 'is_active', 'is_system', 'created_at', 'updated_at'],
-  requiredForInsert: ['id', 'code', 'name', 'display_order'],
-  primaryKey: 'id',
+  tableName: "job_status",
+  columns: [
+  "id",
+  "code",
+  "name",
+  "description",
+  "display_order",
+  "is_initial",
+  "is_final",
+  "is_active",
+  "is_system",
+  "created_at",
+  "updated_at",
+  ],
+  requiredForInsert: ["id", "code", "name", "display_order"],
+  primaryKey: "id",
   foreignKeys: {},
   $type: null as unknown as JobStatus,
-  $input: null as unknown as JobStatusInput
+  $input: null as unknown as JobStatusInput,
 } as const;
 
 // Table job_transaction
@@ -830,17 +1179,36 @@ export interface JobTransactionInput {
   transaction_date?: Date;
 }
 const job_transaction = {
-  tableName: 'job_transaction',
-  columns: ['id', 'job_id', 'status_id', 'technician_id', 'amount', 'performed_by_user_id', 'performed_at', 'previous_transaction_id', 'remarks', 'transaction_date'],
-  requiredForInsert: ['id', 'job_id', 'performed_by_user_id'],
-  primaryKey: 'id',
+  tableName: "job_transaction",
+  columns: [
+  "id",
+  "job_id",
+  "status_id",
+  "technician_id",
+  "amount",
+  "performed_by_user_id",
+  "performed_at",
+  "previous_transaction_id",
+  "remarks",
+  "transaction_date",
+  ],
+  requiredForInsert: ["id", "job_id", "performed_by_user_id"],
+  primaryKey: "id",
   foreignKeys: {
-    job_id: { table: 'job', column: 'id', $type: null as unknown as Job },
-    status_id: { table: 'job_status', column: 'id', $type: null as unknown as JobStatus },
-    technician_id: { table: 'technician', column: 'id', $type: null as unknown as Technician },
+  job_id: { table: "job", column: "id", $type: null as unknown as Job },
+  status_id: {
+    table: "job_status",
+    column: "id",
+    $type: null as unknown as JobStatus,
+  },
+  technician_id: {
+    table: "technician",
+    column: "id",
+    $type: null as unknown as Technician,
+  },
   },
   $type: null as unknown as JobTransaction,
-  $input: null as unknown as JobTransactionInput
+  $input: null as unknown as JobTransactionInput,
 } as const;
 
 // Table job_type
@@ -867,13 +1235,23 @@ export interface JobTypeInput {
   is_system: boolean;
 }
 const job_type = {
-  tableName: 'job_type',
-  columns: ['id', 'code', 'name', 'description', 'display_order', 'is_active', 'created_at', 'updated_at', 'is_system'],
-  requiredForInsert: ['id', 'code', 'name', 'is_system'],
-  primaryKey: 'id',
+  tableName: "job_type",
+  columns: [
+  "id",
+  "code",
+  "name",
+  "description",
+  "display_order",
+  "is_active",
+  "created_at",
+  "updated_at",
+  "is_system",
+  ],
+  requiredForInsert: ["id", "code", "name", "is_system"],
+  primaryKey: "id",
   foreignKeys: {},
   $type: null as unknown as JobType,
-  $input: null as unknown as JobTypeInput
+  $input: null as unknown as JobTypeInput,
 } as const;
 
 // Table product
@@ -892,13 +1270,13 @@ export interface ProductInput {
   updated_at?: Date;
 }
 const product = {
-  tableName: 'product',
-  columns: ['id', 'name', 'is_active', 'created_at', 'updated_at'],
-  requiredForInsert: ['id', 'name'],
-  primaryKey: 'id',
+  tableName: "product",
+  columns: ["id", "name", "is_active", "created_at", "updated_at"],
+  requiredForInsert: ["id", "name"],
+  primaryKey: "id",
   foreignKeys: {},
   $type: null as unknown as Product,
-  $input: null as unknown as ProductInput
+  $input: null as unknown as ProductInput,
 } as const;
 
 // Table product_brand_model
@@ -925,16 +1303,30 @@ export interface ProductBrandModelInput {
   updated_at?: Date;
 }
 const product_brand_model = {
-  tableName: 'product_brand_model',
-  columns: ['id', 'product_id', 'brand_id', 'model_name', 'launch_year', 'remarks', 'is_active', 'created_at', 'updated_at'],
-  requiredForInsert: ['id', 'product_id', 'brand_id', 'model_name'],
-  primaryKey: 'id',
+  tableName: "product_brand_model",
+  columns: [
+  "id",
+  "product_id",
+  "brand_id",
+  "model_name",
+  "launch_year",
+  "remarks",
+  "is_active",
+  "created_at",
+  "updated_at",
+  ],
+  requiredForInsert: ["id", "product_id", "brand_id", "model_name"],
+  primaryKey: "id",
   foreignKeys: {
-    product_id: { table: 'product', column: 'id', $type: null as unknown as Product },
-    brand_id: { table: 'brand', column: 'id', $type: null as unknown as Brand },
+  product_id: {
+    table: "product",
+    column: "id",
+    $type: null as unknown as Product,
+  },
+  brand_id: { table: "brand", column: "id", $type: null as unknown as Brand },
   },
   $type: null as unknown as ProductBrandModel,
-  $input: null as unknown as ProductBrandModelInput
+  $input: null as unknown as ProductBrandModelInput,
 } as const;
 
 // Table purchase_invoice
@@ -979,18 +1371,60 @@ export interface PurchaseInvoiceInput {
   division_id: number;
 }
 const purchase_invoice = {
-  tableName: 'purchase_invoice',
-  columns: ['id', 'supplier_id', 'invoice_no', 'invoice_date', 'aggregate_amount', 'cgst_amount', 'sgst_amount', 'igst_amount', 'total_tax', 'total_amount', 'branch_id', 'remarks', 'created_at', 'updated_at', 'brand_id', 'is_return', 'is_posted', 'division_id'],
-  requiredForInsert: ['id', 'supplier_id', 'invoice_no', 'invoice_date', 'aggregate_amount', 'total_tax', 'total_amount', 'branch_id', 'brand_id', 'division_id'],
-  primaryKey: 'id',
+  tableName: "purchase_invoice",
+  columns: [
+  "id",
+  "supplier_id",
+  "invoice_no",
+  "invoice_date",
+  "aggregate_amount",
+  "cgst_amount",
+  "sgst_amount",
+  "igst_amount",
+  "total_tax",
+  "total_amount",
+  "branch_id",
+  "remarks",
+  "created_at",
+  "updated_at",
+  "brand_id",
+  "is_return",
+  "is_posted",
+  "division_id",
+  ],
+  requiredForInsert: [
+  "id",
+  "supplier_id",
+  "invoice_no",
+  "invoice_date",
+  "aggregate_amount",
+  "total_tax",
+  "total_amount",
+  "branch_id",
+  "brand_id",
+  "division_id",
+  ],
+  primaryKey: "id",
   foreignKeys: {
-    supplier_id: { table: 'supplier', column: 'id', $type: null as unknown as Supplier },
-    branch_id: { table: 'branch', column: 'id', $type: null as unknown as Branch },
-    brand_id: { table: 'brand', column: 'id', $type: null as unknown as Brand },
-    division_id: { table: 'division', column: 'id', $type: null as unknown as Division },
+  supplier_id: {
+    table: "supplier",
+    column: "id",
+    $type: null as unknown as Supplier,
+  },
+  branch_id: {
+    table: "branch",
+    column: "id",
+    $type: null as unknown as Branch,
+  },
+  brand_id: { table: "brand", column: "id", $type: null as unknown as Brand },
+  division_id: {
+    table: "division",
+    column: "id",
+    $type: null as unknown as Division,
+  },
   },
   $type: null as unknown as PurchaseInvoice,
-  $input: null as unknown as PurchaseInvoiceInput
+  $input: null as unknown as PurchaseInvoiceInput,
 } as const;
 
 // Table purchase_invoice_line
@@ -1031,16 +1465,50 @@ export interface PurchaseInvoiceLineInput {
   remarks?: string | null;
 }
 const purchase_invoice_line = {
-  tableName: 'purchase_invoice_line',
-  columns: ['id', 'purchase_invoice_id', 'part_id', 'hsn_code', 'qty', 'unit_price', 'aggregate_amount', 'gst_rate', 'cgst_amount', 'sgst_amount', 'igst_amount', 'total_amount', 'created_at', 'updated_at', 'under_warranty', 'remarks'],
-  requiredForInsert: ['id', 'purchase_invoice_id', 'part_id', 'hsn_code', 'qty', 'unit_price', 'aggregate_amount', 'total_amount'],
-  primaryKey: 'id',
+  tableName: "purchase_invoice_line",
+  columns: [
+  "id",
+  "purchase_invoice_id",
+  "part_id",
+  "hsn_code",
+  "qty",
+  "unit_price",
+  "aggregate_amount",
+  "gst_rate",
+  "cgst_amount",
+  "sgst_amount",
+  "igst_amount",
+  "total_amount",
+  "created_at",
+  "updated_at",
+  "under_warranty",
+  "remarks",
+  ],
+  requiredForInsert: [
+  "id",
+  "purchase_invoice_id",
+  "part_id",
+  "hsn_code",
+  "qty",
+  "unit_price",
+  "aggregate_amount",
+  "total_amount",
+  ],
+  primaryKey: "id",
   foreignKeys: {
-    purchase_invoice_id: { table: 'purchase_invoice', column: 'id', $type: null as unknown as PurchaseInvoice },
-    part_id: { table: 'spare_part_master', column: 'id', $type: null as unknown as SparePartMaster },
+  purchase_invoice_id: {
+    table: "purchase_invoice",
+    column: "id",
+    $type: null as unknown as PurchaseInvoice,
+  },
+  part_id: {
+    table: "spare_part_master",
+    column: "id",
+    $type: null as unknown as SparePartMaster,
+  },
   },
   $type: null as unknown as PurchaseInvoiceLine,
-  $input: null as unknown as PurchaseInvoiceLineInput
+  $input: null as unknown as PurchaseInvoiceLineInput,
 } as const;
 
 // Table sales_invoice
@@ -1087,17 +1555,56 @@ export interface SalesInvoiceInput {
   brand_id: number;
 }
 const sales_invoice = {
-  tableName: 'sales_invoice',
-  columns: ['id', 'invoice_no', 'invoice_date', 'customer_contact_id', 'customer_name', 'customer_gstin', 'customer_state_code', 'aggregate', 'cgst_amount', 'sgst_amount', 'igst_amount', 'amount', 'remarks', 'created_at', 'updated_at', 'is_return', 'division_id', 'is_posted', 'brand_id'],
-  requiredForInsert: ['id', 'invoice_no', 'invoice_date', 'customer_contact_id', 'customer_name', 'customer_state_code', 'aggregate', 'amount', 'division_id', 'brand_id'],
-  primaryKey: 'id',
+  tableName: "sales_invoice",
+  columns: [
+  "id",
+  "invoice_no",
+  "invoice_date",
+  "customer_contact_id",
+  "customer_name",
+  "customer_gstin",
+  "customer_state_code",
+  "aggregate",
+  "cgst_amount",
+  "sgst_amount",
+  "igst_amount",
+  "amount",
+  "remarks",
+  "created_at",
+  "updated_at",
+  "is_return",
+  "division_id",
+  "is_posted",
+  "brand_id",
+  ],
+  requiredForInsert: [
+  "id",
+  "invoice_no",
+  "invoice_date",
+  "customer_contact_id",
+  "customer_name",
+  "customer_state_code",
+  "aggregate",
+  "amount",
+  "division_id",
+  "brand_id",
+  ],
+  primaryKey: "id",
   foreignKeys: {
-    customer_contact_id: { table: 'customer_contact', column: 'id', $type: null as unknown as CustomerContact },
-    division_id: { table: 'division', column: 'id', $type: null as unknown as Division },
-    brand_id: { table: 'brand', column: 'id', $type: null as unknown as Brand },
+  customer_contact_id: {
+    table: "customer_contact",
+    column: "id",
+    $type: null as unknown as CustomerContact,
+  },
+  division_id: {
+    table: "division",
+    column: "id",
+    $type: null as unknown as Division,
+  },
+  brand_id: { table: "brand", column: "id", $type: null as unknown as Brand },
   },
   $type: null as unknown as SalesInvoice,
-  $input: null as unknown as SalesInvoiceInput
+  $input: null as unknown as SalesInvoiceInput,
 } as const;
 
 // Table sales_invoice_line
@@ -1138,16 +1645,50 @@ export interface SalesInvoiceLineInput {
   cost_price?: number;
 }
 const sales_invoice_line = {
-  tableName: 'sales_invoice_line',
-  columns: ['id', 'sales_invoice_id', 'part_id', 'item_description', 'hsn_code', 'qty', 'price', 'gst_rate', 'amount', 'cgst_amount', 'sgst_amount', 'igst_amount', 'created_at', 'updated_at', 'remarks', 'cost_price'],
-  requiredForInsert: ['id', 'sales_invoice_id', 'part_id', 'item_description', 'hsn_code', 'qty', 'price', 'amount'],
-  primaryKey: 'id',
+  tableName: "sales_invoice_line",
+  columns: [
+  "id",
+  "sales_invoice_id",
+  "part_id",
+  "item_description",
+  "hsn_code",
+  "qty",
+  "price",
+  "gst_rate",
+  "amount",
+  "cgst_amount",
+  "sgst_amount",
+  "igst_amount",
+  "created_at",
+  "updated_at",
+  "remarks",
+  "cost_price",
+  ],
+  requiredForInsert: [
+  "id",
+  "sales_invoice_id",
+  "part_id",
+  "item_description",
+  "hsn_code",
+  "qty",
+  "price",
+  "amount",
+  ],
+  primaryKey: "id",
   foreignKeys: {
-    sales_invoice_id: { table: 'sales_invoice', column: 'id', $type: null as unknown as SalesInvoice },
-    part_id: { table: 'spare_part_master', column: 'id', $type: null as unknown as SparePartMaster },
+  sales_invoice_id: {
+    table: "sales_invoice",
+    column: "id",
+    $type: null as unknown as SalesInvoice,
+  },
+  part_id: {
+    table: "spare_part_master",
+    column: "id",
+    $type: null as unknown as SparePartMaster,
+  },
   },
   $type: null as unknown as SalesInvoiceLine,
-  $input: null as unknown as SalesInvoiceLineInput
+  $input: null as unknown as SalesInvoiceLineInput,
 } as const;
 
 // Table spare_part_master
@@ -1188,13 +1729,32 @@ export interface SparePartMasterInput {
   selling_price?: number;
 }
 const spare_part_master = {
-  tableName: 'spare_part_master',
-  columns: ['id', 'brand_id', 'part_code', 'part_name', 'part_description', 'category', 'model', 'uom', 'cost_price', 'mrp', 'hsn_code', 'gst_rate', 'is_active', 'created_at', 'updated_at', 'selling_price'],
-  requiredForInsert: ['id', 'brand_id', 'part_code', 'part_name'],
-  primaryKey: 'id',
-  foreignKeys: { brand_id: { table: 'brand', column: 'id', $type: null as unknown as Brand }, },
+  tableName: "spare_part_master",
+  columns: [
+  "id",
+  "brand_id",
+  "part_code",
+  "part_name",
+  "part_description",
+  "category",
+  "model",
+  "uom",
+  "cost_price",
+  "mrp",
+  "hsn_code",
+  "gst_rate",
+  "is_active",
+  "created_at",
+  "updated_at",
+  "selling_price",
+  ],
+  requiredForInsert: ["id", "brand_id", "part_code", "part_name"],
+  primaryKey: "id",
+  foreignKeys: {
+  brand_id: { table: "brand", column: "id", $type: null as unknown as Brand },
+  },
   $type: null as unknown as SparePartMaster,
-  $input: null as unknown as SparePartMasterInput
+  $input: null as unknown as SparePartMasterInput,
 } as const;
 
 // Table state
@@ -1221,13 +1781,23 @@ export interface StateInput {
   updated_at?: Date;
 }
 const state = {
-  tableName: 'state',
-  columns: ['id', 'code', 'name', 'country_code', 'gst_state_code', 'is_union_territory', 'is_active', 'created_at', 'updated_at'],
-  requiredForInsert: ['id', 'code', 'name'],
-  primaryKey: 'id',
+  tableName: "state",
+  columns: [
+  "id",
+  "code",
+  "name",
+  "country_code",
+  "gst_state_code",
+  "is_union_territory",
+  "is_active",
+  "created_at",
+  "updated_at",
+  ],
+  requiredForInsert: ["id", "code", "name"],
+  primaryKey: "id",
   foreignKeys: {},
   $type: null as unknown as State,
-  $input: null as unknown as StateInput
+  $input: null as unknown as StateInput,
 } as const;
 
 // Table stock_adjustment
@@ -1242,6 +1812,7 @@ export interface StockAdjustment {
   created_by: number | null;
   created_at: Date;
   updated_at: Date;
+  brand_id: number;
 }
 export interface StockAdjustmentInput {
   id: number;
@@ -1254,15 +1825,40 @@ export interface StockAdjustmentInput {
   created_by?: number | null;
   created_at?: Date;
   updated_at?: Date;
+  brand_id: number;
 }
 const stock_adjustment = {
-  tableName: 'stock_adjustment',
-  columns: ['id', 'adjustment_date', 'adjustment_reason', 'ref_no', 'branch_id', 'remarks', 'created_by', 'created_at', 'updated_at'],
-  requiredForInsert: ['id', 'adjustment_date', 'adjustment_reason', 'branch_id'],
-  primaryKey: 'id',
-  foreignKeys: { branch_id: { table: 'branch', column: 'id', $type: null as unknown as Branch }, },
+  tableName: "stock_adjustment",
+  columns: [
+  "id",
+  "adjustment_date",
+  "adjustment_reason",
+  "ref_no",
+  "branch_id",
+  "remarks",
+  "created_by",
+  "created_at",
+  "updated_at",
+  "brand_id",
+  ],
+  requiredForInsert: [
+  "id",
+  "adjustment_date",
+  "adjustment_reason",
+  "branch_id",
+  "brand_id",
+  ],
+  primaryKey: "id",
+  foreignKeys: {
+  branch_id: {
+    table: "branch",
+    column: "id",
+    $type: null as unknown as Branch,
+  },
+  brand_id: { table: "brand", column: "id", $type: null as unknown as Brand },
+  },
   $type: null as unknown as StockAdjustment,
-  $input: null as unknown as StockAdjustmentInput
+  $input: null as unknown as StockAdjustmentInput,
 } as const;
 
 // Table stock_adjustment_line
@@ -1287,16 +1883,33 @@ export interface StockAdjustmentLineInput {
   updated_at?: Date;
 }
 const stock_adjustment_line = {
-  tableName: 'stock_adjustment_line',
-  columns: ['id', 'stock_adjustment_id', 'part_id', 'dr_cr', 'qty', 'remarks', 'created_at', 'updated_at'],
-  requiredForInsert: ['id', 'stock_adjustment_id', 'part_id', 'dr_cr', 'qty'],
-  primaryKey: 'id',
+  tableName: "stock_adjustment_line",
+  columns: [
+  "id",
+  "stock_adjustment_id",
+  "part_id",
+  "dr_cr",
+  "qty",
+  "remarks",
+  "created_at",
+  "updated_at",
+  ],
+  requiredForInsert: ["id", "stock_adjustment_id", "part_id", "dr_cr", "qty"],
+  primaryKey: "id",
   foreignKeys: {
-    stock_adjustment_id: { table: 'stock_adjustment', column: 'id', $type: null as unknown as StockAdjustment },
-    part_id: { table: 'spare_part_master', column: 'id', $type: null as unknown as SparePartMaster },
+  stock_adjustment_id: {
+    table: "stock_adjustment",
+    column: "id",
+    $type: null as unknown as StockAdjustment,
+  },
+  part_id: {
+    table: "spare_part_master",
+    column: "id",
+    $type: null as unknown as SparePartMaster,
+  },
   },
   $type: null as unknown as StockAdjustmentLine,
-  $input: null as unknown as StockAdjustmentLineInput
+  $input: null as unknown as StockAdjustmentLineInput,
 } as const;
 
 // Table stock_balance
@@ -1315,17 +1928,29 @@ export interface StockBalanceInput {
   updated_at?: Date;
 }
 const stock_balance = {
-  tableName: 'stock_balance',
-  columns: ['part_id', 'branch_id', 'qty', 'location_id', 'updated_at'],
-  requiredForInsert: ['part_id', 'branch_id'],
-  primaryKey: 'part_id',
+  tableName: "stock_balance",
+  columns: ["part_id", "branch_id", "qty", "location_id", "updated_at"],
+  requiredForInsert: ["part_id", "branch_id"],
+  primaryKey: "part_id",
   foreignKeys: {
-    part_id: { table: 'spare_part_master', column: 'id', $type: null as unknown as SparePartMaster },
-    branch_id: { table: 'branch', column: 'id', $type: null as unknown as Branch },
-    location_id: { table: 'stock_location_master', column: 'id', $type: null as unknown as StockLocationMaster },
+  part_id: {
+    table: "spare_part_master",
+    column: "id",
+    $type: null as unknown as SparePartMaster,
+  },
+  branch_id: {
+    table: "branch",
+    column: "id",
+    $type: null as unknown as Branch,
+  },
+  location_id: {
+    table: "stock_location_master",
+    column: "id",
+    $type: null as unknown as StockLocationMaster,
+  },
   },
   $type: null as unknown as StockBalance,
-  $input: null as unknown as StockBalanceInput
+  $input: null as unknown as StockBalanceInput,
 } as const;
 
 // Table stock_branch_transfer
@@ -1339,6 +1964,7 @@ export interface StockBranchTransfer {
   created_by: number | null;
   created_at: Date;
   updated_at: Date;
+  brand_id: number;
 }
 export interface StockBranchTransferInput {
   id: number;
@@ -1350,18 +1976,45 @@ export interface StockBranchTransferInput {
   created_by?: number | null;
   created_at?: Date;
   updated_at?: Date;
+  brand_id: number;
 }
 const stock_branch_transfer = {
-  tableName: 'stock_branch_transfer',
-  columns: ['id', 'transfer_date', 'from_branch_id', 'to_branch_id', 'ref_no', 'remarks', 'created_by', 'created_at', 'updated_at'],
-  requiredForInsert: ['id', 'transfer_date', 'from_branch_id', 'to_branch_id'],
-  primaryKey: 'id',
+  tableName: "stock_branch_transfer",
+  columns: [
+  "id",
+  "transfer_date",
+  "from_branch_id",
+  "to_branch_id",
+  "ref_no",
+  "remarks",
+  "created_by",
+  "created_at",
+  "updated_at",
+  "brand_id",
+  ],
+  requiredForInsert: [
+  "id",
+  "transfer_date",
+  "from_branch_id",
+  "to_branch_id",
+  "brand_id",
+  ],
+  primaryKey: "id",
   foreignKeys: {
-    from_branch_id: { table: 'branch', column: 'id', $type: null as unknown as Branch },
-    to_branch_id: { table: 'branch', column: 'id', $type: null as unknown as Branch },
+  from_branch_id: {
+    table: "branch",
+    column: "id",
+    $type: null as unknown as Branch,
+  },
+  to_branch_id: {
+    table: "branch",
+    column: "id",
+    $type: null as unknown as Branch,
+  },
+  brand_id: { table: "brand", column: "id", $type: null as unknown as Brand },
   },
   $type: null as unknown as StockBranchTransfer,
-  $input: null as unknown as StockBranchTransferInput
+  $input: null as unknown as StockBranchTransferInput,
 } as const;
 
 // Table stock_branch_transfer_line
@@ -1384,16 +2037,32 @@ export interface StockBranchTransferLineInput {
   updated_at?: Date;
 }
 const stock_branch_transfer_line = {
-  tableName: 'stock_branch_transfer_line',
-  columns: ['id', 'stock_branch_transfer_id', 'part_id', 'qty', 'remarks', 'created_at', 'updated_at'],
-  requiredForInsert: ['id', 'stock_branch_transfer_id', 'part_id', 'qty'],
-  primaryKey: 'id',
+  tableName: "stock_branch_transfer_line",
+  columns: [
+  "id",
+  "stock_branch_transfer_id",
+  "part_id",
+  "qty",
+  "remarks",
+  "created_at",
+  "updated_at",
+  ],
+  requiredForInsert: ["id", "stock_branch_transfer_id", "part_id", "qty"],
+  primaryKey: "id",
   foreignKeys: {
-    stock_branch_transfer_id: { table: 'stock_branch_transfer', column: 'id', $type: null as unknown as StockBranchTransfer },
-    part_id: { table: 'spare_part_master', column: 'id', $type: null as unknown as SparePartMaster },
+  stock_branch_transfer_id: {
+    table: "stock_branch_transfer",
+    column: "id",
+    $type: null as unknown as StockBranchTransfer,
+  },
+  part_id: {
+    table: "spare_part_master",
+    column: "id",
+    $type: null as unknown as SparePartMaster,
+  },
   },
   $type: null as unknown as StockBranchTransferLine,
-  $input: null as unknown as StockBranchTransferLineInput
+  $input: null as unknown as StockBranchTransferLineInput,
 } as const;
 
 // Table stock_loan
@@ -1406,6 +2075,7 @@ export interface StockLoan {
   created_by: number | null;
   created_at: Date;
   updated_at: Date;
+  brand_id: number;
 }
 export interface StockLoanInput {
   id: number;
@@ -1416,15 +2086,33 @@ export interface StockLoanInput {
   created_by?: number | null;
   created_at?: Date;
   updated_at?: Date;
+  brand_id: number;
 }
 const stock_loan = {
-  tableName: 'stock_loan',
-  columns: ['id', 'loan_date', 'branch_id', 'ref_no', 'remarks', 'created_by', 'created_at', 'updated_at'],
-  requiredForInsert: ['id', 'loan_date', 'branch_id'],
-  primaryKey: 'id',
-  foreignKeys: { branch_id: { table: 'branch', column: 'id', $type: null as unknown as Branch }, },
+  tableName: "stock_loan",
+  columns: [
+  "id",
+  "loan_date",
+  "branch_id",
+  "ref_no",
+  "remarks",
+  "created_by",
+  "created_at",
+  "updated_at",
+  "brand_id",
+  ],
+  requiredForInsert: ["id", "loan_date", "branch_id", "brand_id"],
+  primaryKey: "id",
+  foreignKeys: {
+  branch_id: {
+    table: "branch",
+    column: "id",
+    $type: null as unknown as Branch,
+  },
+  brand_id: { table: "brand", column: "id", $type: null as unknown as Brand },
+  },
   $type: null as unknown as StockLoan,
-  $input: null as unknown as StockLoanInput
+  $input: null as unknown as StockLoanInput,
 } as const;
 
 // Table stock_loan_line
@@ -1451,16 +2139,41 @@ export interface StockLoanLineInput {
   loan_to: string;
 }
 const stock_loan_line = {
-  tableName: 'stock_loan_line',
-  columns: ['id', 'stock_loan_id', 'part_id', 'dr_cr', 'qty', 'remarks', 'created_at', 'updated_at', 'loan_to'],
-  requiredForInsert: ['id', 'stock_loan_id', 'part_id', 'dr_cr', 'qty', 'loan_to'],
-  primaryKey: 'id',
+  tableName: "stock_loan_line",
+  columns: [
+  "id",
+  "stock_loan_id",
+  "part_id",
+  "dr_cr",
+  "qty",
+  "remarks",
+  "created_at",
+  "updated_at",
+  "loan_to",
+  ],
+  requiredForInsert: [
+  "id",
+  "stock_loan_id",
+  "part_id",
+  "dr_cr",
+  "qty",
+  "loan_to",
+  ],
+  primaryKey: "id",
   foreignKeys: {
-    stock_loan_id: { table: 'stock_loan', column: 'id', $type: null as unknown as StockLoan },
-    part_id: { table: 'spare_part_master', column: 'id', $type: null as unknown as SparePartMaster },
+  stock_loan_id: {
+    table: "stock_loan",
+    column: "id",
+    $type: null as unknown as StockLoan,
+  },
+  part_id: {
+    table: "spare_part_master",
+    column: "id",
+    $type: null as unknown as SparePartMaster,
+  },
   },
   $type: null as unknown as StockLoanLine,
-  $input: null as unknown as StockLoanLineInput
+  $input: null as unknown as StockLoanLineInput,
 } as const;
 
 // Table stock_location_change
@@ -1485,17 +2198,44 @@ export interface StockLocationChangeInput {
   created_at?: Date | null;
 }
 const stock_location_change = {
-  tableName: 'stock_location_change',
-  columns: ['id', 'part_id', 'branch_id', 'to_location_id', 'transaction_date', 'ref_no', 'remarks', 'created_at'],
-  requiredForInsert: ['id', 'part_id', 'branch_id', 'to_location_id', 'transaction_date'],
-  primaryKey: 'id',
+  tableName: "stock_location_change",
+  columns: [
+  "id",
+  "part_id",
+  "branch_id",
+  "to_location_id",
+  "transaction_date",
+  "ref_no",
+  "remarks",
+  "created_at",
+  ],
+  requiredForInsert: [
+  "id",
+  "part_id",
+  "branch_id",
+  "to_location_id",
+  "transaction_date",
+  ],
+  primaryKey: "id",
   foreignKeys: {
-    part_id: { table: 'spare_part_master', column: 'id', $type: null as unknown as SparePartMaster },
-    branch_id: { table: 'branch', column: 'id', $type: null as unknown as Branch },
-    to_location_id: { table: 'stock_location_master', column: 'id', $type: null as unknown as StockLocationMaster },
+  part_id: {
+    table: "spare_part_master",
+    column: "id",
+    $type: null as unknown as SparePartMaster,
+  },
+  branch_id: {
+    table: "branch",
+    column: "id",
+    $type: null as unknown as Branch,
+  },
+  to_location_id: {
+    table: "stock_location_master",
+    column: "id",
+    $type: null as unknown as StockLocationMaster,
+  },
   },
   $type: null as unknown as StockLocationChange,
-  $input: null as unknown as StockLocationChangeInput
+  $input: null as unknown as StockLocationChangeInput,
 } as const;
 
 // Table stock_location_master
@@ -1512,13 +2252,19 @@ export interface StockLocationMasterInput {
   is_active?: boolean;
 }
 const stock_location_master = {
-  tableName: 'stock_location_master',
-  columns: ['id', 'branch_id', 'name', 'is_active'],
-  requiredForInsert: ['id', 'branch_id', 'name'],
-  primaryKey: 'id',
-  foreignKeys: { branch_id: { table: 'branch', column: 'id', $type: null as unknown as Branch }, },
+  tableName: "stock_location_master",
+  columns: ["id", "branch_id", "name", "is_active"],
+  requiredForInsert: ["id", "branch_id", "name"],
+  primaryKey: "id",
+  foreignKeys: {
+  branch_id: {
+    table: "branch",
+    column: "id",
+    $type: null as unknown as Branch,
+  },
+  },
   $type: null as unknown as StockLocationMaster,
-  $input: null as unknown as StockLocationMasterInput
+  $input: null as unknown as StockLocationMasterInput,
 } as const;
 
 // Table stock_opening_balance
@@ -1530,6 +2276,7 @@ export interface StockOpeningBalance {
   remarks: string | null;
   created_at: Date;
   updated_at: Date | null;
+  brand_id: number;
 }
 export interface StockOpeningBalanceInput {
   id: number;
@@ -1539,15 +2286,32 @@ export interface StockOpeningBalanceInput {
   remarks?: string | null;
   created_at?: Date;
   updated_at?: Date | null;
+  brand_id: number;
 }
 const stock_opening_balance = {
-  tableName: 'stock_opening_balance',
-  columns: ['id', 'entry_date', 'ref_no', 'branch_id', 'remarks', 'created_at', 'updated_at'],
-  requiredForInsert: ['id', 'entry_date', 'branch_id'],
-  primaryKey: 'id',
-  foreignKeys: { branch_id: { table: 'branch', column: 'id', $type: null as unknown as Branch }, },
+  tableName: "stock_opening_balance",
+  columns: [
+  "id",
+  "entry_date",
+  "ref_no",
+  "branch_id",
+  "remarks",
+  "created_at",
+  "updated_at",
+  "brand_id",
+  ],
+  requiredForInsert: ["id", "entry_date", "branch_id", "brand_id"],
+  primaryKey: "id",
+  foreignKeys: {
+  branch_id: {
+    table: "branch",
+    column: "id",
+    $type: null as unknown as Branch,
+  },
+  brand_id: { table: "brand", column: "id", $type: null as unknown as Brand },
+  },
   $type: null as unknown as StockOpeningBalance,
-  $input: null as unknown as StockOpeningBalanceInput
+  $input: null as unknown as StockOpeningBalanceInput,
 } as const;
 
 // Table stock_opening_balance_line
@@ -1572,16 +2336,33 @@ export interface StockOpeningBalanceLineInput {
   updated_at?: Date;
 }
 const stock_opening_balance_line = {
-  tableName: 'stock_opening_balance_line',
-  columns: ['id', 'stock_opening_balance_id', 'part_id', 'qty', 'unit_cost', 'remarks', 'created_at', 'updated_at'],
-  requiredForInsert: ['id', 'stock_opening_balance_id', 'part_id', 'qty'],
-  primaryKey: 'id',
+  tableName: "stock_opening_balance_line",
+  columns: [
+  "id",
+  "stock_opening_balance_id",
+  "part_id",
+  "qty",
+  "unit_cost",
+  "remarks",
+  "created_at",
+  "updated_at",
+  ],
+  requiredForInsert: ["id", "stock_opening_balance_id", "part_id", "qty"],
+  primaryKey: "id",
   foreignKeys: {
-    stock_opening_balance_id: { table: 'stock_opening_balance', column: 'id', $type: null as unknown as StockOpeningBalance },
-    part_id: { table: 'spare_part_master', column: 'id', $type: null as unknown as SparePartMaster },
+  stock_opening_balance_id: {
+    table: "stock_opening_balance",
+    column: "id",
+    $type: null as unknown as StockOpeningBalance,
+  },
+  part_id: {
+    table: "spare_part_master",
+    column: "id",
+    $type: null as unknown as SparePartMaster,
+  },
   },
   $type: null as unknown as StockOpeningBalanceLine,
-  $input: null as unknown as StockOpeningBalanceLineInput
+  $input: null as unknown as StockOpeningBalanceLineInput,
 } as const;
 
 // Table stock_snapshot
@@ -1620,16 +2401,40 @@ export interface StockSnapshotInput {
   branch_transfer_out?: number;
 }
 const stock_snapshot = {
-  tableName: 'stock_snapshot',
-  columns: ['snapshot_date', 'part_id', 'branch_id', 'opening', 'closing', 'purchase_in', 'purchase_out', 'sales_in', 'sales_out', 'adjust_in', 'adjust_out', 'loan_in', 'loan_out', 'branch_transfer_in', 'branch_transfer_out'],
-  requiredForInsert: ['snapshot_date', 'part_id', 'branch_id'],
-  primaryKey: 'snapshot_date',
+  tableName: "stock_snapshot",
+  columns: [
+  "snapshot_date",
+  "part_id",
+  "branch_id",
+  "opening",
+  "closing",
+  "purchase_in",
+  "purchase_out",
+  "sales_in",
+  "sales_out",
+  "adjust_in",
+  "adjust_out",
+  "loan_in",
+  "loan_out",
+  "branch_transfer_in",
+  "branch_transfer_out",
+  ],
+  requiredForInsert: ["snapshot_date", "part_id", "branch_id"],
+  primaryKey: "snapshot_date",
   foreignKeys: {
-    part_id: { table: 'spare_part_master', column: 'id', $type: null as unknown as SparePartMaster },
-    branch_id: { table: 'branch', column: 'id', $type: null as unknown as Branch },
+  part_id: {
+    table: "spare_part_master",
+    column: "id",
+    $type: null as unknown as SparePartMaster,
+  },
+  branch_id: {
+    table: "branch",
+    column: "id",
+    $type: null as unknown as Branch,
+  },
   },
   $type: null as unknown as StockSnapshot,
-  $input: null as unknown as StockSnapshotInput
+  $input: null as unknown as StockSnapshotInput,
 } as const;
 
 // Table stock_transaction
@@ -1672,24 +2477,90 @@ export interface StockTransactionInput {
   stock_opening_balance_line_id?: number | null;
 }
 const stock_transaction = {
-  tableName: 'stock_transaction',
-  columns: ['id', 'part_id', 'branch_id', 'stock_transaction_type_id', 'transaction_date', 'dr_cr', 'qty', 'unit_cost', 'remarks', 'created_at', 'purchase_line_id', 'sales_line_id', 'stock_adjustment_line_id', 'job_part_used_id', 'stock_branch_transfer_line_id', 'stock_loan_line_id', 'stock_opening_balance_line_id'],
-  requiredForInsert: ['id', 'part_id', 'branch_id', 'stock_transaction_type_id', 'transaction_date', 'dr_cr', 'qty'],
-  primaryKey: 'id',
+  tableName: "stock_transaction",
+  columns: [
+  "id",
+  "part_id",
+  "branch_id",
+  "stock_transaction_type_id",
+  "transaction_date",
+  "dr_cr",
+  "qty",
+  "unit_cost",
+  "remarks",
+  "created_at",
+  "purchase_line_id",
+  "sales_line_id",
+  "stock_adjustment_line_id",
+  "job_part_used_id",
+  "stock_branch_transfer_line_id",
+  "stock_loan_line_id",
+  "stock_opening_balance_line_id",
+  ],
+  requiredForInsert: [
+  "id",
+  "part_id",
+  "branch_id",
+  "stock_transaction_type_id",
+  "transaction_date",
+  "dr_cr",
+  "qty",
+  ],
+  primaryKey: "id",
   foreignKeys: {
-    part_id: { table: 'spare_part_master', column: 'id', $type: null as unknown as SparePartMaster },
-    branch_id: { table: 'branch', column: 'id', $type: null as unknown as Branch },
-    stock_transaction_type_id: { table: 'stock_transaction_type', column: 'id', $type: null as unknown as StockTransactionType },
-    purchase_line_id: { table: 'purchase_invoice_line', column: 'id', $type: null as unknown as PurchaseInvoiceLine },
-    sales_line_id: { table: 'sales_invoice_line', column: 'id', $type: null as unknown as SalesInvoiceLine },
-    stock_adjustment_line_id: { table: 'stock_adjustment_line', column: 'id', $type: null as unknown as StockAdjustmentLine },
-    job_part_used_id: { table: 'job_part_used', column: 'id', $type: null as unknown as JobPartUsed },
-    stock_branch_transfer_line_id: { table: 'stock_branch_transfer_line', column: 'id', $type: null as unknown as StockBranchTransferLine },
-    stock_loan_line_id: { table: 'stock_loan_line', column: 'id', $type: null as unknown as StockLoanLine },
-    stock_opening_balance_line_id: { table: 'stock_opening_balance_line', column: 'id', $type: null as unknown as StockOpeningBalanceLine },
+  part_id: {
+    table: "spare_part_master",
+    column: "id",
+    $type: null as unknown as SparePartMaster,
+  },
+  branch_id: {
+    table: "branch",
+    column: "id",
+    $type: null as unknown as Branch,
+  },
+  stock_transaction_type_id: {
+    table: "stock_transaction_type",
+    column: "id",
+    $type: null as unknown as StockTransactionType,
+  },
+  purchase_line_id: {
+    table: "purchase_invoice_line",
+    column: "id",
+    $type: null as unknown as PurchaseInvoiceLine,
+  },
+  sales_line_id: {
+    table: "sales_invoice_line",
+    column: "id",
+    $type: null as unknown as SalesInvoiceLine,
+  },
+  stock_adjustment_line_id: {
+    table: "stock_adjustment_line",
+    column: "id",
+    $type: null as unknown as StockAdjustmentLine,
+  },
+  job_part_used_id: {
+    table: "job_part_used",
+    column: "id",
+    $type: null as unknown as JobPartUsed,
+  },
+  stock_branch_transfer_line_id: {
+    table: "stock_branch_transfer_line",
+    column: "id",
+    $type: null as unknown as StockBranchTransferLine,
+  },
+  stock_loan_line_id: {
+    table: "stock_loan_line",
+    column: "id",
+    $type: null as unknown as StockLoanLine,
+  },
+  stock_opening_balance_line_id: {
+    table: "stock_opening_balance_line",
+    column: "id",
+    $type: null as unknown as StockOpeningBalanceLine,
+  },
   },
   $type: null as unknown as StockTransaction,
-  $input: null as unknown as StockTransactionInput
+  $input: null as unknown as StockTransactionInput,
 } as const;
 
 // Table stock_transaction_type
@@ -1712,13 +2583,21 @@ export interface StockTransactionTypeInput {
   is_system: boolean;
 }
 const stock_transaction_type = {
-  tableName: 'stock_transaction_type',
-  columns: ['id', 'code', 'name', 'dr_cr', 'description', 'is_active', 'is_system'],
-  requiredForInsert: ['id', 'code', 'name', 'dr_cr', 'is_system'],
-  primaryKey: 'id',
+  tableName: "stock_transaction_type",
+  columns: [
+  "id",
+  "code",
+  "name",
+  "dr_cr",
+  "description",
+  "is_active",
+  "is_system",
+  ],
+  requiredForInsert: ["id", "code", "name", "dr_cr", "is_system"],
+  primaryKey: "id",
   foreignKeys: {},
   $type: null as unknown as StockTransactionType,
-  $input: null as unknown as StockTransactionTypeInput
+  $input: null as unknown as StockTransactionTypeInput,
 } as const;
 
 // Table supplier
@@ -1757,13 +2636,31 @@ export interface SupplierInput {
   updated_at?: Date;
 }
 const supplier = {
-  tableName: 'supplier',
-  columns: ['id', 'name', 'gstin', 'pan', 'phone', 'email', 'address_line1', 'address_line2', 'city', 'state_id', 'pincode', 'is_active', 'remarks', 'created_at', 'updated_at'],
-  requiredForInsert: ['id', 'name', 'state_id'],
-  primaryKey: 'id',
-  foreignKeys: { state_id: { table: 'state', column: 'id', $type: null as unknown as State }, },
+  tableName: "supplier",
+  columns: [
+  "id",
+  "name",
+  "gstin",
+  "pan",
+  "phone",
+  "email",
+  "address_line1",
+  "address_line2",
+  "city",
+  "state_id",
+  "pincode",
+  "is_active",
+  "remarks",
+  "created_at",
+  "updated_at",
+  ],
+  requiredForInsert: ["id", "name", "state_id"],
+  primaryKey: "id",
+  foreignKeys: {
+  state_id: { table: "state", column: "id", $type: null as unknown as State },
+  },
   $type: null as unknown as Supplier,
-  $input: null as unknown as SupplierInput
+  $input: null as unknown as SupplierInput,
 } as const;
 
 // Table technician
@@ -1794,204 +2691,221 @@ export interface TechnicianInput {
   updated_at?: Date;
 }
 const technician = {
-  tableName: 'technician',
-  columns: ['id', 'branch_id', 'code', 'name', 'phone', 'email', 'specialization', 'leaving_date', 'is_active', 'created_at', 'updated_at'],
-  requiredForInsert: ['id', 'branch_id', 'code', 'name'],
-  primaryKey: 'id',
-  foreignKeys: { branch_id: { table: 'branch', column: 'id', $type: null as unknown as Branch }, },
+  tableName: "technician",
+  columns: [
+  "id",
+  "branch_id",
+  "code",
+  "name",
+  "phone",
+  "email",
+  "specialization",
+  "leaving_date",
+  "is_active",
+  "created_at",
+  "updated_at",
+  ],
+  requiredForInsert: ["id", "branch_id", "code", "name"],
+  primaryKey: "id",
+  foreignKeys: {
+  branch_id: {
+    table: "branch",
+    column: "id",
+    $type: null as unknown as Branch,
+  },
+  },
   $type: null as unknown as Technician,
-  $input: null as unknown as TechnicianInput
+  $input: null as unknown as TechnicianInput,
 } as const;
-
 
 export interface TableTypes {
   additional_charge: {
-    select: AdditionalCharge;
-    input: AdditionalChargeInput;
+  select: AdditionalCharge;
+  input: AdditionalChargeInput;
   };
   app_setting: {
-    select: AppSetting;
-    input: AppSettingInput;
+  select: AppSetting;
+  input: AppSettingInput;
   };
   branch: {
-    select: Branch;
-    input: BranchInput;
+  select: Branch;
+  input: BranchInput;
   };
   brand: {
-    select: Brand;
-    input: BrandInput;
+  select: Brand;
+  input: BrandInput;
   };
   customer_contact: {
-    select: CustomerContact;
-    input: CustomerContactInput;
+  select: CustomerContact;
+  input: CustomerContactInput;
   };
   customer_type: {
-    select: CustomerType;
-    input: CustomerTypeInput;
+  select: CustomerType;
+  input: CustomerTypeInput;
   };
   division: {
-    select: Division;
-    input: DivisionInput;
+  select: Division;
+  input: DivisionInput;
   };
   document_sequence: {
-    select: DocumentSequence;
-    input: DocumentSequenceInput;
+  select: DocumentSequence;
+  input: DocumentSequenceInput;
   };
   document_type: {
-    select: DocumentType;
-    input: DocumentTypeInput;
+  select: DocumentType;
+  input: DocumentTypeInput;
   };
   financial_year: {
-    select: FinancialYear;
-    input: FinancialYearInput;
+  select: FinancialYear;
+  input: FinancialYearInput;
   };
   job: {
-    select: Job;
-    input: JobInput;
+  select: Job;
+  input: JobInput;
   };
   job_additional_charge: {
-    select: JobAdditionalCharge;
-    input: JobAdditionalChargeInput;
+  select: JobAdditionalCharge;
+  input: JobAdditionalChargeInput;
   };
   job_delivery_manner: {
-    select: JobDeliveryManner;
-    input: JobDeliveryMannerInput;
+  select: JobDeliveryManner;
+  input: JobDeliveryMannerInput;
   };
   job_image_doc: {
-    select: JobImageDoc;
-    input: JobImageDocInput;
+  select: JobImageDoc;
+  input: JobImageDocInput;
   };
   job_invoice: {
-    select: JobInvoice;
-    input: JobInvoiceInput;
+  select: JobInvoice;
+  input: JobInvoiceInput;
   };
   job_invoice_line: {
-    select: JobInvoiceLine;
-    input: JobInvoiceLineInput;
+  select: JobInvoiceLine;
+  input: JobInvoiceLineInput;
   };
   job_part_used: {
-    select: JobPartUsed;
-    input: JobPartUsedInput;
+  select: JobPartUsed;
+  input: JobPartUsedInput;
   };
   job_payment: {
-    select: JobPayment;
-    input: JobPaymentInput;
+  select: JobPayment;
+  input: JobPaymentInput;
   };
   job_receive_condition: {
-    select: JobReceiveCondition;
-    input: JobReceiveConditionInput;
+  select: JobReceiveCondition;
+  input: JobReceiveConditionInput;
   };
   job_receive_manner: {
-    select: JobReceiveManner;
-    input: JobReceiveMannerInput;
+  select: JobReceiveManner;
+  input: JobReceiveMannerInput;
   };
   job_status: {
-    select: JobStatus;
-    input: JobStatusInput;
+  select: JobStatus;
+  input: JobStatusInput;
   };
   job_transaction: {
-    select: JobTransaction;
-    input: JobTransactionInput;
+  select: JobTransaction;
+  input: JobTransactionInput;
   };
   job_type: {
-    select: JobType;
-    input: JobTypeInput;
+  select: JobType;
+  input: JobTypeInput;
   };
   product: {
-    select: Product;
-    input: ProductInput;
+  select: Product;
+  input: ProductInput;
   };
   product_brand_model: {
-    select: ProductBrandModel;
-    input: ProductBrandModelInput;
+  select: ProductBrandModel;
+  input: ProductBrandModelInput;
   };
   purchase_invoice: {
-    select: PurchaseInvoice;
-    input: PurchaseInvoiceInput;
+  select: PurchaseInvoice;
+  input: PurchaseInvoiceInput;
   };
   purchase_invoice_line: {
-    select: PurchaseInvoiceLine;
-    input: PurchaseInvoiceLineInput;
+  select: PurchaseInvoiceLine;
+  input: PurchaseInvoiceLineInput;
   };
   sales_invoice: {
-    select: SalesInvoice;
-    input: SalesInvoiceInput;
+  select: SalesInvoice;
+  input: SalesInvoiceInput;
   };
   sales_invoice_line: {
-    select: SalesInvoiceLine;
-    input: SalesInvoiceLineInput;
+  select: SalesInvoiceLine;
+  input: SalesInvoiceLineInput;
   };
   spare_part_master: {
-    select: SparePartMaster;
-    input: SparePartMasterInput;
+  select: SparePartMaster;
+  input: SparePartMasterInput;
   };
   state: {
-    select: State;
-    input: StateInput;
+  select: State;
+  input: StateInput;
   };
   stock_adjustment: {
-    select: StockAdjustment;
-    input: StockAdjustmentInput;
+  select: StockAdjustment;
+  input: StockAdjustmentInput;
   };
   stock_adjustment_line: {
-    select: StockAdjustmentLine;
-    input: StockAdjustmentLineInput;
+  select: StockAdjustmentLine;
+  input: StockAdjustmentLineInput;
   };
   stock_balance: {
-    select: StockBalance;
-    input: StockBalanceInput;
+  select: StockBalance;
+  input: StockBalanceInput;
   };
   stock_branch_transfer: {
-    select: StockBranchTransfer;
-    input: StockBranchTransferInput;
+  select: StockBranchTransfer;
+  input: StockBranchTransferInput;
   };
   stock_branch_transfer_line: {
-    select: StockBranchTransferLine;
-    input: StockBranchTransferLineInput;
+  select: StockBranchTransferLine;
+  input: StockBranchTransferLineInput;
   };
   stock_loan: {
-    select: StockLoan;
-    input: StockLoanInput;
+  select: StockLoan;
+  input: StockLoanInput;
   };
   stock_loan_line: {
-    select: StockLoanLine;
-    input: StockLoanLineInput;
+  select: StockLoanLine;
+  input: StockLoanLineInput;
   };
   stock_location_change: {
-    select: StockLocationChange;
-    input: StockLocationChangeInput;
+  select: StockLocationChange;
+  input: StockLocationChangeInput;
   };
   stock_location_master: {
-    select: StockLocationMaster;
-    input: StockLocationMasterInput;
+  select: StockLocationMaster;
+  input: StockLocationMasterInput;
   };
   stock_opening_balance: {
-    select: StockOpeningBalance;
-    input: StockOpeningBalanceInput;
+  select: StockOpeningBalance;
+  input: StockOpeningBalanceInput;
   };
   stock_opening_balance_line: {
-    select: StockOpeningBalanceLine;
-    input: StockOpeningBalanceLineInput;
+  select: StockOpeningBalanceLine;
+  input: StockOpeningBalanceLineInput;
   };
   stock_snapshot: {
-    select: StockSnapshot;
-    input: StockSnapshotInput;
+  select: StockSnapshot;
+  input: StockSnapshotInput;
   };
   stock_transaction: {
-    select: StockTransaction;
-    input: StockTransactionInput;
+  select: StockTransaction;
+  input: StockTransactionInput;
   };
   stock_transaction_type: {
-    select: StockTransactionType;
-    input: StockTransactionTypeInput;
+  select: StockTransactionType;
+  input: StockTransactionTypeInput;
   };
   supplier: {
-    select: Supplier;
-    input: SupplierInput;
+  select: Supplier;
+  input: SupplierInput;
   };
   technician: {
-    select: Technician;
-    input: TechnicianInput;
+  select: Technician;
+  input: TechnicianInput;
   };
 }
 
@@ -2043,4 +2957,4 @@ export const tables = {
   stock_transaction_type,
   supplier,
   technician,
-}
+};
