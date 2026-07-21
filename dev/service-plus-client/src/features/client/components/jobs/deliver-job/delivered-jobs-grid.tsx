@@ -65,6 +65,9 @@ type Props = {
     onUndoDelivery:           (row: DeliveredJobRow) => void;
     onPrintInvoiceReceipts:   (row: DeliveredJobRow) => void;
     onDeliveryNote:           (row: DeliveredJobRow) => void;
+    selectedIds:              Set<number>;
+    onSelectionChange:        (row: DeliveredJobRow, checked: boolean) => void;
+    onPrintCombinedNote:      () => void;
 };
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -73,6 +76,7 @@ export const DeliveredJobsGrid = forwardRef<GridRetentionHandle, Props>(function
     rows, loading, total, page, search,
     branchId, availableDivisions, setPage, postDataToAccounts,
     onSearch, onRefresh, onViewJob, onOpenAttach, onUndoDelivery, onPrintInvoiceReceipts, onDeliveryNote,
+    selectedIds, onSelectionChange, onPrintCombinedNote,
 }, ref) {
     const { scrollWrapperRef, selectedRowId, setSelectedRowId, armRestore } = useGridRowRetention(loading);
     useImperativeHandle(ref, () => ({ armRestore }), [armRestore]);
@@ -93,6 +97,11 @@ export const DeliveredJobsGrid = forwardRef<GridRetentionHandle, Props>(function
     }, [recalc, rows.length]);
 
     const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+    // Reference row that pins what the rest of the selection must match
+    // (same customer mobile + same delivery date) — combining notes across
+    // different customers or delivery dates doesn't make sense.
+    const referenceRow = selectedIds.size > 0 ? rows.find(r => selectedIds.has(r.id)) : undefined;
 
     function handleSearchChange(value: string) {
         onSearch(value);
@@ -122,15 +131,26 @@ export const DeliveredJobsGrid = forwardRef<GridRetentionHandle, Props>(function
                         </button>
                     )}
                 </div>
-                <Button
-                    className="ml-auto h-8 px-2.5 text-xs"
-                    disabled={loading || !branchId}
-                    size="sm"
-                    variant="outline"
-                    onClick={onRefresh}
-                >
-                    <RefreshCw className="mr-1.5 h-3 w-3" /> Refresh
-                </Button>
+                <div className="ml-auto flex items-center gap-2">
+                    <Button
+                        className="h-8 px-2.5 text-xs"
+                        disabled={loading || !branchId}
+                        size="sm"
+                        variant="outline"
+                        onClick={onRefresh}
+                    >
+                        <RefreshCw className="mr-1.5 h-3 w-3" /> Refresh
+                    </Button>
+                    {selectedIds.size >= 2 && (
+                        <Button
+                            className="h-9 gap-2 px-4 text-sm font-bold bg-teal-600 hover:bg-teal-700 text-white shadow-md tracking-wide"
+                            onClick={onPrintCombinedNote}
+                        >
+                            <Truck className="h-4 w-4" />
+                            Print Combined Delivery Note ({selectedIds.size})
+                        </Button>
+                    )}
+                </div>
             </div>
 
             {/* Grid */}
@@ -144,7 +164,7 @@ export const DeliveredJobsGrid = forwardRef<GridRetentionHandle, Props>(function
                         <table className="min-w-full border-collapse">
                             <thead>
                                 <tr>
-                                    {["#", "Date", "Job No", "Customer", "Mobile", "Device Details", "Technician", "Delivery Date", "Invoice Total", "Actions"].map(h => (
+                                    {["", "#", "Date", "Job No", "Customer", "Mobile", "Device Details", "Technician", "Delivery Date", "Invoice Total", "Actions"].map(h => (
                                         <th key={h} className={thClass}>{h}</th>
                                     ))}
                                 </tr>
@@ -152,7 +172,7 @@ export const DeliveredJobsGrid = forwardRef<GridRetentionHandle, Props>(function
                             <tbody>
                                 {Array.from({ length: 8 }).map((_, i) => (
                                     <tr key={i} className="animate-pulse">
-                                        {Array.from({ length: 10 }).map((__, j) => (
+                                        {Array.from({ length: 11 }).map((__, j) => (
                                             <td key={j} className={tdClass}>
                                                 <div className="h-4 w-16 rounded bg-(--cl-border)" />
                                             </td>
@@ -169,6 +189,7 @@ export const DeliveredJobsGrid = forwardRef<GridRetentionHandle, Props>(function
                         <table className="min-w-full border-collapse">
                             <thead className="sticky top-0 z-10">
                                 <tr>
+                                    <th className={`${thClass} w-8`} />
                                     <th className={thClass}>#</th>
                                     <th className={thClass}>Delivered</th>
                                     <th className={thClass}>Job No</th>
@@ -182,20 +203,37 @@ export const DeliveredJobsGrid = forwardRef<GridRetentionHandle, Props>(function
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-(--cl-border) bg-(--cl-surface)">
-                                {rows.map((row, idx) => (
+                                {rows.map((row, idx) => {
+                                    const isSelected  = selectedIds.has(row.id);
+                                    const isSelectable = !referenceRow || isSelected
+                                        || (row.mobile === referenceRow.mobile && row.delivery_date === referenceRow.delivery_date);
+                                    return (
                                     <motion.tr
                                         key={row.id}
                                         animate={{ opacity: 1 }}
                                         className={`group cursor-pointer transition-colors ${
-                                            selectedRowId === row.id
-                                                ? "bg-(--cl-accent)/40 hover:bg-(--cl-accent)/45"
-                                                : "hover:bg-(--cl-accent)/5"
+                                            isSelected
+                                                ? "bg-teal-50 dark:bg-teal-950/20"
+                                                : selectedRowId === row.id
+                                                    ? "bg-(--cl-accent)/40 hover:bg-(--cl-accent)/45"
+                                                    : "hover:bg-(--cl-accent)/5"
                                         }`}
                                         data-job-id={row.id}
                                         initial={{ opacity: 0 }}
                                         transition={{ delay: idx * 0.015, duration: 0.15 }}
                                         onClick={() => setSelectedRowId(row.id)}
                                     >
+                                        <td className={tdClass}>
+                                            <input
+                                                type="checkbox"
+                                                className="h-3.5 w-3.5 rounded border-(--cl-border) accent-teal-600 cursor-pointer disabled:cursor-not-allowed disabled:opacity-30"
+                                                checked={isSelected}
+                                                disabled={!isSelectable}
+                                                title={!isSelectable ? "Select jobs for the same customer and delivery date to combine" : undefined}
+                                                onChange={e => { e.stopPropagation(); onSelectionChange(row, e.target.checked); }}
+                                                onClick={e => e.stopPropagation()}
+                                            />
+                                        </td>
                                         <td className={`${tdClass} text-(--cl-text-muted)`}>{(page - 1) * PAGE_SIZE + idx + 1}</td>
 
                                         {/* Date + division badge + GST tag */}
@@ -341,7 +379,8 @@ export const DeliveredJobsGrid = forwardRef<GridRetentionHandle, Props>(function
                                             </DropdownMenu>
                                         </td>
                                     </motion.tr>
-                                ))}
+                                    );
+                                })}
                             </tbody>
                         </table>
                     )}

@@ -12,18 +12,18 @@ import {
 import { MESSAGES } from "@/constants/messages";
 import { SQL_MAP } from "@/constants/sql-map";
 
-import { ChartCard } from "../_common/chart-card";
-import { formatNumber } from "../_common/formatters";
-import { formatIsoDate, startOfDay } from "../_common/fiscal";
-import { ReportEmpty } from "../_common/report-empty";
-import { ReportError } from "../_common/report-error";
-import { ReportLoading } from "../_common/report-loading";
-import { ReportSection } from "../_common/report-section";
-import { ReportToolbar } from "../_common/report-toolbar";
-import { exportReportPdf } from "../_common/pdf-export";
-import { exportReportXlsx } from "../_common/xlsx-export";
-import { useFiscalSetting } from "../_common/use-fiscal-setting";
-import { useGenericQuery } from "../_common/use-generic-query";
+import { ChartCard } from "../common/chart-card";
+import { formatNumber } from "../common/formatters";
+import { formatIsoDate, startOfDay } from "../common/fiscal";
+import { ReportEmpty } from "../common/report-empty";
+import { ReportError } from "../common/report-error";
+import { ReportLoading } from "../common/report-loading";
+import { ReportSection } from "../common/report-section";
+import { ReportToolbar } from "../common/report-toolbar";
+import { exportReportPdf } from "../common/pdf-export";
+import { exportReportXlsx } from "../common/xlsx-export";
+import { useFiscalSetting } from "../common/use-fiscal-setting";
+import { useGenericQuery } from "../common/use-generic-query";
 
 type RowType = {
     month: string;

@@ -472,6 +472,7 @@ export function buildPackedInvoicePdf(
 // ── Delivery Note / Certificate PDF (A5) ─────────────────────────────────────
 
 export type DeliveryNoteJobInfo = {
+    customer_contact_id?:    number | null;
     job_no:                  string;
     alternate_job_no:        string | null;
     job_date:                string;
@@ -502,16 +503,14 @@ function dashedLine(doc: jsPDF, x1: number, y: number, x2: number) {
     doc.setLineDashPattern([], 0);
 }
 
-function drawDeliveryNoteContent(
+function drawDeliveryNoteHeader(
     doc: jsPDF,
-    job: DeliveryNoteJobInfo,
     division: DivisionContextType | null,
-    branchName?: string | null,
-) {
+    branchName: string | null | undefined,
+    subtitle: string,
+): number {
     const M     = 10;
-    const pageW = doc.internal.pageSize.getWidth();   // 148.5 mm (A5)
-    const pageH = doc.internal.pageSize.getHeight();  // 210 mm
-    const cW    = pageW - M * 2;
+    const pageW = doc.internal.pageSize.getWidth();
     const midX  = pageW / 2;
     let y = M;
 
@@ -553,16 +552,32 @@ function drawDeliveryNoteContent(
     doc.setFont("helvetica", "italic");
     doc.setFontSize(8.5);
     doc.setTextColor(100, 100, 100);
-    doc.text(
-        "This certifies that the customer has received the serviced item described below.",
-        midX, y, { align: "center" },
-    );
+    doc.text(subtitle, midX, y, { align: "center" });
     doc.setTextColor(0, 0, 0);
     y += 5;
     doc.setDrawColor(170, 170, 170);
     doc.setLineWidth(0.25);
     doc.line(M, y, pageW - M, y);
     y += 4;
+
+    return y;
+}
+
+function drawDeliveryNoteContent(
+    doc: jsPDF,
+    job: DeliveryNoteJobInfo,
+    division: DivisionContextType | null,
+    branchName?: string | null,
+) {
+    const M     = 10;
+    const pageW = doc.internal.pageSize.getWidth();   // 148.5 mm (A5)
+    const pageH = doc.internal.pageSize.getHeight();  // 210 mm
+    const cW    = pageW - M * 2;
+    const midX  = pageW / 2;
+    let y = drawDeliveryNoteHeader(
+        doc, division, branchName,
+        "This certifies that the customer has received the serviced item described below.",
+    );
 
     // ── Info box ──────────────────────────────────────────────────────────────
     const col1X  = M + 3;
@@ -737,15 +752,186 @@ function drawDeliveryNoteContent(
     doc.text("Authorised Signatory", pageW - M, sigLineY + 4, { align: "right" });
 }
 
+// Multiple jobs for the same customer, delivered together — one page listing
+// every job as a line item instead of a separate certificate per job, so a
+// combined pickup only consumes one sheet of stationery.
+function drawCombinedDeliveryNoteContent(
+    doc: jsPDF,
+    jobs: DeliveryNoteJobInfo[],
+    division: DivisionContextType | null,
+    branchName?: string | null,
+) {
+    const M     = 10;
+    const pageW = doc.internal.pageSize.getWidth();
+    const pageH = doc.internal.pageSize.getHeight();
+    const cW    = pageW - M * 2;
+    const first = jobs[0];
+    let y = drawDeliveryNoteHeader(
+        doc, division, branchName,
+        `This certifies that the customer has received the ${jobs.length} serviced items described below.`,
+    );
+
+    // ── Info box ──────────────────────────────────────────────────────────────
+    const col1X  = M + 3;
+    const col2X  = M + cW / 2 + 3;
+    const colW   = cW / 2 - 5;
+    const lblW   = 20;
+
+    doc.setFontSize(8);
+    const nameLines = doc.splitTextToSize(first.customer_name, colW) as string[];
+    const addrParts = buildAddrLines([
+        first.customer_address_line1 ?? null, first.customer_address_line2 ?? null,
+        first.customer_landmark ?? null,      first.customer_city ?? null,
+        first.customer_state ?? null,
+        first.customer_postal_code ? `Pin: ${first.customer_postal_code}` : null,
+    ]);
+    const addrWrapped = addrParts.length > 0
+        ? (doc.splitTextToSize(addrParts.join(", "), colW) as string[])
+        : [];
+
+    const leftRows: [string, string][] = [
+        ["Jobs",      String(jobs.length)],
+        ["Del. Date", first.delivery_date || "—"],
+    ];
+    const leftH  = 4 + leftRows.length * 5.5;
+    const rightH = 4 + 4.5 + nameLines.length * 4.5 + addrWrapped.length * 3.8 + (first.mobile ? 4 : 0);
+    const boxH   = Math.max(leftH, rightH) + 5;
+
+    doc.setFillColor(255, 255, 255);
+    doc.setDrawColor(210, 215, 220);
+    doc.setLineWidth(0.3);
+    doc.roundedRect(M, y, cW, boxH, 2, 2, "FD");
+    doc.setDrawColor(210, 215, 220);
+    doc.setLineWidth(0.25);
+    doc.line(M + cW / 2, y + 2, M + cW / 2, y + boxH - 2);
+
+    let ly = y + 4;
+    doc.setFontSize(8);
+    leftRows.forEach(([lbl, val]) => {
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(90, 90, 90);
+        doc.text(`${lbl}:`, col1X, ly);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(0, 0, 0);
+        doc.text(val, col1X + lblW, ly, { maxWidth: colW - lblW });
+        ly += 5.5;
+    });
+
+    let ry = y + 4;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7);
+    doc.setTextColor(100, 100, 100);
+    doc.text("CUSTOMER", col2X, ry);
+    ry += 4.5;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.setTextColor(0, 0, 0);
+    doc.text(nameLines, col2X, ry);
+    ry += nameLines.length * 4.5;
+    if (addrWrapped.length > 0) {
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(7.5);
+        doc.setTextColor(50, 50, 50);
+        doc.text(addrWrapped, col2X, ry);
+        ry += addrWrapped.length * 3.8;
+    }
+    if (first.mobile) {
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        doc.setTextColor(0, 0, 0);
+        doc.text(`Ph: ${first.mobile}`, col2X, ry);
+    }
+
+    y += boxH + 4;
+
+    // ── Job lines ─────────────────────────────────────────────────────────────
+    autoTable(doc, {
+        startY: y,
+        margin: { left: M, right: M },
+        theme: "grid",
+        head: [[
+            "#", "Job No", "Job Date", "Device / Service", "Invoice No", "Receipt No(s)",
+            { content: "Status", styles: { halign: "center" } },
+        ]],
+        body: jobs.map((job, i) => [
+            i + 1,
+            `${job.job_no}${job.alternate_job_no ? ` / ${job.alternate_job_no}` : ""}`,
+            job.job_date,
+            job.device_details ?? "—",
+            job.invoice_no ?? "—",
+            (job.receipt_nos ?? []).filter(Boolean).join(", ") || "—",
+            { content: job.delivery_ok === false ? "Not OK" : "OK", styles: { halign: "center" } },
+        ]),
+        styles: { fontSize: 7.5, cellPadding: 1.8, textColor: [30, 30, 30] },
+        headStyles: { fillColor: [255, 255, 255], textColor: [20, 20, 20], fontStyle: "bold", fontSize: 7.5, lineColor: [180, 180, 180], lineWidth: 0.3 },
+        bodyStyles: { lineColor: [200, 200, 200], lineWidth: 0.3 },
+        columnStyles: {
+            0: { cellWidth: 7,  halign: "center" },
+            1: { cellWidth: 26 },
+            2: { cellWidth: 20 },
+            5: { cellWidth: 28 },
+            6: { cellWidth: 16 },
+        },
+    });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    y = (doc as any).lastAutoTable.finalY + 4;
+
+    // ── Remarks (shared for the whole delivery batch) ───────────────────────────
+    const remarks = first.remarks?.trim();
+    if (remarks) {
+        dashedLine(doc, M, y, pageW - M);
+        y += 3.5;
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(7);
+        doc.setTextColor(100, 100, 100);
+        doc.text("REMARKS", M, y);
+        y += 4;
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        doc.setTextColor(0, 0, 0);
+        const remLines = doc.splitTextToSize(remarks, cW) as string[];
+        doc.text(remLines, M, y);
+        y += remLines.length * 4.2 + 2;
+    }
+
+    // ── Signatures (pinned toward bottom) ─────────────────────────────────────
+    const sigAreaTop = Math.max(y + 6, pageH - M - 24);
+    dashedLine(doc, M, sigAreaTop, pageW - M);
+    const sigLineY = sigAreaTop + 13;
+    doc.setDrawColor(60, 60, 60);
+    doc.setLineWidth(0.45);
+    doc.line(M,            sigLineY, M + 52,        sigLineY);
+    doc.line(pageW - M - 52, sigLineY, pageW - M,   sigLineY);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7.5);
+    doc.setTextColor(60, 60, 60);
+    doc.text("Customer Signature", M, sigLineY + 4);
+    doc.text("Date: ___________", M, sigLineY + 8);
+    doc.text("Authorised Signatory", pageW - M, sigLineY + 4, { align: "right" });
+}
+
 export function buildDeliveryNotePdf(
     jobs: DeliveryNoteJobInfo[],
     division: DivisionContextType | null,
     branchName?: string | null,
 ): jsPDF {
     const doc = new jsPDF({ format: "a5", orientation: "l", unit: "mm" });
-    jobs.forEach((job, i) => {
+
+    // Group jobs by customer so a combined pickup for the same customer gets
+    // one page with a job-lines table instead of one page per job. Jobs with
+    // no customer_contact_id (older callers) fall back to their job_no as a
+    // unique key, i.e. always their own single-job page — unchanged behavior.
+    const groups = new Map<string, DeliveryNoteJobInfo[]>();
+    jobs.forEach(job => {
+        const key = job.customer_contact_id != null ? `c:${job.customer_contact_id}` : `j:${job.job_no}`;
+        const group = groups.get(key);
+        if (group) group.push(job); else groups.set(key, [job]);
+    });
+
+    Array.from(groups.values()).forEach((group, i) => {
         if (i > 0) doc.addPage();
-        drawDeliveryNoteContent(doc, job, division, branchName);
+        if (group.length === 1) drawDeliveryNoteContent(doc, group[0], division, branchName);
+        else drawCombinedDeliveryNoteContent(doc, group, division, branchName);
     });
     return doc;
 }

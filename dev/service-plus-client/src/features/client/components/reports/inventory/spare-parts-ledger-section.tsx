@@ -14,19 +14,19 @@ import { graphQlUtils } from "@/lib/graphql-utils";
 import { selectSchema } from "@/store/context-slice";
 import { useAppSelector } from "@/store/hooks";
 
-import { ChartCard } from "../_common/chart-card";
-import { formatInr, formatNumber } from "../_common/formatters";
-import { ReportEmpty } from "../_common/report-empty";
-import { ReportError } from "../_common/report-error";
-import { ReportLoading } from "../_common/report-loading";
-import { ReportSection } from "../_common/report-section";
-import { ReportTable } from "../_common/report-table";
-import type { ReportColumnType } from "../_common/report-table";
-import { ReportToolbar } from "../_common/report-toolbar";
-import { exportReportPdf } from "../_common/pdf-export";
-import { exportReportXlsx } from "../_common/xlsx-export";
+import { ChartCard } from "../common/chart-card";
+import { formatInr, formatNumber } from "../common/formatters";
+import { ReportEmpty } from "../common/report-empty";
+import { ReportError } from "../common/report-error";
+import { ReportLoading } from "../common/report-loading";
+import { ReportSection } from "../common/report-section";
+import { ReportTable } from "../common/report-table";
+import type { ReportColumnType } from "../common/report-table";
+import { ReportToolbar } from "../common/report-toolbar";
+import { exportReportPdf } from "../common/pdf-export";
+import { exportReportXlsx } from "../common/xlsx-export";
 import { useEffect } from "react";
-import { useGenericQuery } from "../_common/use-generic-query";
+import { useGenericQuery } from "../common/use-generic-query";
 
 type RowType = {
     brand_name: string | null;

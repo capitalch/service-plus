@@ -1,4 +1,4 @@
-import type { Dispatch, SetStateAction } from "react";
+import { useState, type Dispatch, type SetStateAction } from "react";
 import {
     AlertTriangle, ArrowLeft, CheckCheck, CheckCircle2,
     Eye, Loader2, Plus, Radius, RefreshCw, RotateCcw, Trash2, XCircle,
@@ -116,12 +116,19 @@ function scaleParts(
         const floor = allowBelowCost ? 0 : (parseFloat(residual.cost_price) || 0);
         const saleGstPerUnit = (newTotal - runningTotal) / residual.qty;
         const sp = gstRate > 0 ? saleGstPerUnit / multiplier : saleGstPerUnit;
-        // Floor sale_pr_gst from the (already-floored) selling price, not from the
-        // raw un-floored per-unit residual — otherwise an infeasible target can pin
-        // selling_price at cost while sale_pr_gst (which drives the line Amount and
-        // the saved total) still goes negative.
-        const finalSp = parseFloat(Math.max(sp, floor).toFixed(2));
-        const saleGst = parseFloat((finalSp * multiplier).toFixed(2));
+        // Round sale_pr_gst (the GST-inclusive amount summed into the saved job
+        // total) from the exact residual target FIRST, so it lands on the target
+        // to the cent whenever the cost floor allows it; selling_price is then
+        // back-derived from that rounded amount, absorbing any sub-paisa
+        // remainder instead of it being dropped from sale_pr_gst. When the floor
+        // binds, fall back to pinning selling_price at cost and re-deriving
+        // sale_pr_gst from the clamped price, same as before — this preserves the
+        // existing guarantee that sale_pr_gst never goes negative on an
+        // infeasible target.
+        const saleGst = sp < floor
+            ? parseFloat((floor * multiplier).toFixed(2))
+            : parseFloat(saleGstPerUnit.toFixed(2));
+        const finalSp = parseFloat(Math.max(saleGst / multiplier, floor).toFixed(2));
         patch.set(residual._key, { selling_price: finalSp.toFixed(2), sale_pr_gst: saleGst.toFixed(2) });
     }
     return allParts.map(l => { const p = patch.get(l._key); return p ? { ...l, ...p } : l; });
@@ -256,6 +263,10 @@ export function FinalJobForm({
 }: FinalJobFormProps) {
     const isWarranty = selectedRow.job_type_code === "UNDER_WARRANTY";
 
+    // Persistent (non-toast) warning surfaced when applyBackCalc had to sell parts
+    // below cost — stays visible inline until the next successful apply/reset.
+    const [belowCostWarning, setBelowCostWarning] = useState<string | null>(null);
+
     const partsTotal = partLines.reduce((s, l) => s + (parseFloat(l.sale_pr_gst) || 0) * l.qty, 0);
     const profitTotal = partLines.reduce((s, l) => s + ((parseFloat(l.selling_price) || 0) - (parseFloat(l.cost_price) || 0)) * l.qty, 0);
     const partsQtyTotal = partLines.reduce((s, l) => s + l.qty, 0);
@@ -287,15 +298,16 @@ export function FinalJobForm({
         if (result.newChargeLines) setChargeLines(result.newChargeLines);
 
         if (result.wentBelowCost) {
-            toast.warning(
+            setBelowCostWarning(
                 `Target of ₹${target.toFixed(2)} required selling one or more parts below their cost price, after Additional Charges were reduced to zero. Please review the part prices before saving.`
             );
             return;
         }
+        setBelowCostWarning(null);
 
         const achievedTotal = finalPartLines.reduce((s, l) => s + (parseFloat(l.sale_pr_gst) || 0) * l.qty, 0)
             + finalChargeLines.reduce((s, c) => s + (parseFloat(c.sale_pr_gst) || 0) * (parseFloat(c.qty) || 1), 0);
-        if (Math.abs(achievedTotal - target) > 0.01) {
+        if (Math.abs(achievedTotal - target) >= 0.005) {
             toast.warning(
                 `Target of ₹${target.toFixed(2)} isn't fully achievable with the current parts and charges. Achieved ₹${achievedTotal.toFixed(2)} instead.`
             );
@@ -380,7 +392,7 @@ export function FinalJobForm({
                             size="sm"
                             title="Reset all prices from master data — keeps all rows"
                             variant="outline"
-                            onClick={onReset}
+                            onClick={() => { onReset(); setBelowCostWarning(null); }}
                         >
                             <RotateCcw className="h-3 w-3" />
                             Reset
@@ -960,6 +972,14 @@ export function FinalJobForm({
                         )}
                     </div>
 
+                    {/* Below-cost banner — back-calc target required selling parts at a loss */}
+                    {belowCostWarning && (
+                        <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300">
+                            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                            <span>{belowCostWarning}</span>
+                        </div>
+                    )}
+
                     {/* Grand Summary */}
                     <div className="rounded-lg border-2 border-(--cl-accent)/30 bg-(--cl-surface) overflow-hidden">
                         <div className="flex items-stretch">
@@ -1071,7 +1091,7 @@ export function FinalJobForm({
                                                 disabled={!backCalcTarget}
                                                 size="sm"
                                                 variant="outline"
-                                                onClick={() => setBackCalcTarget("")}
+                                                onClick={() => { setBackCalcTarget(""); setBelowCostWarning(null); }}
                                             >
                                                 Clear
                                             </Button>

@@ -207,6 +207,8 @@ export const SQL_MAP = {
     GET_JOB_DETAIL:                       "GET_JOB_DETAIL",
     GET_JOB_IMAGE_DOCS:                   "GET_JOB_IMAGE_DOCS",
     GET_LATEST_JOB:                       "GET_LATEST_JOB",
+    // Batch Warranty Transactions
+    GET_WARRANTY_JOBS_BY_CUSTOMER:        "GET_WARRANTY_JOBS_BY_CUSTOMER",
     // Batch Job Entry
     GET_JOB_BATCHES_PAGED:               "GET_JOB_BATCHES_PAGED",
     GET_JOB_BATCHES_COUNT:               "GET_JOB_BATCHES_COUNT",

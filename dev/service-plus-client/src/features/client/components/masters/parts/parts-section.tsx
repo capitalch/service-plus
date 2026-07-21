@@ -50,7 +50,7 @@ import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectSchema } from "@/store/context-slice";
 import { PartDialog } from "./part-dialog";
-import { DeleteBrandPartsWizardDialog } from "../../delete-brand-parts-wizard-dialog";
+import { DeleteBrandPartsWizardDialog } from "./delete-brand-parts-wizard-dialog";
 import { DeletePartDialog } from "./delete-part-dialog";
 import { ImportPartDialog } from "./import-part-dialog";
 import type { BrandOption } from "@/features/client/types/model";

@@ -1,6 +1,6 @@
 import { Timer } from "lucide-react";
 
-import { ReportEmpty } from "../_common/report-empty";
+import { ReportEmpty } from "../common/report-empty";
 
 type OverdueRowType = {
     customer_name: string;

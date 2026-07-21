@@ -3,7 +3,7 @@ import {
     Tooltip, XAxis, YAxis,
 } from "recharts";
 
-import { formatInr } from "../_common/formatters";
+import { formatInr } from "../common/formatters";
 import type { WarrantyPartRollupType } from "./warranty-types";
 
 type Props = {

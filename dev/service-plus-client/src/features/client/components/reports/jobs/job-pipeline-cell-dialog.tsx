@@ -13,12 +13,12 @@ import { graphQlUtils } from "@/lib/graphql-utils";
 import { selectSchema } from "@/store/context-slice";
 import { useAppSelector } from "@/store/hooks";
 
-import { ReportEmpty } from "../_common/report-empty";
-import { ReportError } from "../_common/report-error";
-import { ReportLoading } from "../_common/report-loading";
-import { ReportTable } from "../_common/report-table";
-import type { ReportColumnType } from "../_common/report-table";
-import { formatNumber } from "../_common/formatters";
+import { ReportEmpty } from "../common/report-empty";
+import { ReportError } from "../common/report-error";
+import { ReportLoading } from "../common/report-loading";
+import { ReportTable } from "../common/report-table";
+import type { ReportColumnType } from "../common/report-table";
+import { formatNumber } from "../common/formatters";
 
 export type PipelineCellType = {
     statusCode: string;

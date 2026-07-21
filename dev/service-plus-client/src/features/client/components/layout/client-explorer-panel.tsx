@@ -3,7 +3,7 @@ import type { ComponentType } from "react";
 import {
     Activity, BarChart3, BookCheck, BookOpen, Building2, Camera, ChevronDown, ChevronRight,
     ClipboardList, DollarSign, FileText, Globe, Hash,
-    LayoutDashboard, LineChart, MapPin, Package, PieChart, PlusCircle, Receipt,
+    LayoutDashboard, Layers, LineChart, MapPin, Package, PieChart, PlusCircle, Receipt,
     RefreshCcw, RotateCcw, Settings2, ShieldCheck, ShoppingCart,
     Tag, Timer, TrendingUp, Truck, User, UserCog, Users, Wrench,
 } from "lucide-react";
@@ -170,6 +170,7 @@ function JobsExplorer() {
     const canOpeningJobs     = hasAccessRight(currentUser, ACCESS_RIGHTS.JOBS_OPENING_JOBS);
     const canReceipts        = hasAccessRight(currentUser, ACCESS_RIGHTS.JOBS_RECEIPTS);
     const canDeliverJob      = hasAccessRight(currentUser, ACCESS_RIGHTS.JOBS_DELIVER_JOB);
+    const canBatchWarranty   = hasAccessRight(currentUser, ACCESS_RIGHTS.JOBS_BATCH_WARRANTY_TRANSACTIONS);
 
     return (
         <div className="space-y-4">
@@ -179,6 +180,12 @@ function JobsExplorer() {
                     <TreeItem icon={PlusCircle} label="Batch Jobs" />
                 </CollapsibleGroup>
                 <TreeItem icon={ClipboardList} label="Job Control" />
+                <TreeItem
+                    icon={Layers}
+                    label="Batch Warranty Jobs"
+                    disabled={!canBatchWarranty}
+                    title={!canBatchWarranty ? "Your role does not have access to Batch Warranty Jobs" : undefined}
+                />
                 <TreeItem icon={BarChart3}     label="Job Pipeline" />
                 <TreeItem icon={FileText}      label="Final a Job" />
                 <TreeItem

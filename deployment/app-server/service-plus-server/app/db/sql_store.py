@@ -3777,6 +3777,55 @@ class SqlStore:
         WHERE j.id = (table "p_id")
     """
 
+    # Batch Warranty Transactions — Job Control: warranty jobs for one customer,
+    # not closed, with zero parts used (the only jobs this batch flow can act on).
+    GET_WARRANTY_JOBS_BY_CUSTOMER = """
+        with
+            "p_customer_contact_id" as (values(%(customer_contact_id)s::bigint)),
+            "p_branch_id"           as (values(%(branch_id)s::bigint))
+        SELECT
+            j.id,
+            j.job_no,
+            j.alternate_job_no,
+            j.job_date,
+            j.job_status_id,
+            js.code      AS job_status_code,
+            js.name      AS job_status_name,
+            j.job_type_id,
+            jt.code      AS job_type_code,
+            jt.name      AS job_type_name,
+            j.technician_id,
+            t.name       AS technician_name,
+            j.division_id,
+            j.amount,
+            j.estimate_amount,
+            j.last_transaction_id,
+            j.is_final,
+            j.is_closed,
+            j.customer_contact_id,
+            cc.full_name AS customer_name,
+            cc.gstin     AS customer_gstin,
+            cc.mobile,
+            TRIM(CONCAT_WS(' ', p.name, b.name, pbm.model_name)) AS device_details,
+            j.serial_no,
+            (SELECT COUNT(*) FROM job_part_used jpu WHERE jpu.job_id = j.id) AS parts_count
+        FROM job j
+        JOIN customer_contact cc ON cc.id = j.customer_contact_id
+        JOIN job_type          jt ON jt.id = j.job_type_id
+        JOIN job_status        js ON js.id = j.job_status_id
+        LEFT JOIN technician   t  ON t.id  = j.technician_id
+        LEFT JOIN product_brand_model pbm ON pbm.id = j.product_brand_model_id
+        LEFT JOIN brand            b   ON b.id   = pbm.brand_id
+        LEFT JOIN product          p   ON p.id   = pbm.product_id
+        WHERE j.customer_contact_id = (table "p_customer_contact_id")
+          AND j.branch_id = (table "p_branch_id")
+          AND jt.code = 'UNDER_WARRANTY'
+          AND j.is_closed = false
+          AND js.code NOT IN ('DELIVERED_OK', 'DELIVERED_NOT_OK', 'DISPOSED')
+          AND (SELECT COUNT(*) FROM job_part_used jpu2 WHERE jpu2.job_id = j.id) = 0
+        ORDER BY j.job_date DESC, j.id DESC
+    """
+
     GET_JOB_IMAGE_DOCS = """
         SELECT id, url, about, created_at
         FROM job_image_doc

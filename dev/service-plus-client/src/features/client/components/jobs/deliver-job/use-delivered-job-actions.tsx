@@ -12,7 +12,7 @@ import { encodeObj, graphQlUtils } from "@/lib/graphql-utils";
 import { selectAvailableDivisions, selectCurrentBranch, selectNoOfJobInvoicesPerPrint, selectSchema } from "@/store/context-slice";
 import { useAppSelector } from "@/store/hooks";
 import { PdfPreviewModal } from "@/components/shared/pdf-preview-modal";
-import { buildInvoicePdf, buildDeliveryNotePdf } from "./deliver-job-pdf";
+import { buildInvoicePdf, buildDeliveryNotePdf, type DeliveryNoteJobInfo } from "./deliver-job-pdf";
 import type { JobInvoiceFullRow } from "./deliver-job-schema";
 import type { DivisionContextType } from "@/features/client/types/division";
 
@@ -172,6 +172,73 @@ export function useDeliveredJobActions() {
         }
     }
 
+    // Combines several already-delivered jobs (same customer + delivery date,
+    // validated by the caller) into one delivery note PDF instead of printing
+    // one per job. DeliveredJobActionContext has no real customer id, so every
+    // item gets the same synthetic customer_contact_id — buildDeliveryNotePdf
+    // only needs it to be identical across the batch to group them onto one page.
+    async function handleCombinedDeliveryNote(jobs: DeliveredJobActionContext[]) {
+        if (!dbName || !schema || jobs.length === 0) return;
+        const gq = <T,>(sqlId: string, sqlArgs?: Record<string, unknown>) =>
+            apolloClient.query<GenericQueryData<T>>({
+                fetchPolicy: "network-only",
+                query: GRAPHQL_MAP.genericQuery,
+                variables: { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId, sqlArgs }) },
+            });
+        try {
+            const noteJobs: DeliveryNoteJobInfo[] = await Promise.all(jobs.map(async job => {
+                const [detailRes, invoiceRes, paymentsRes] = await Promise.all([
+                    gq<{
+                        customer_address_line1: string | null; customer_address_line2: string | null;
+                        customer_landmark: string | null; customer_city: string | null;
+                        customer_postal_code: string | null; customer_state: string | null;
+                        delivery_date: string | null; remarks: string | null;
+                    }>(SQL_MAP.GET_JOB_DETAIL, { id: job.id }),
+                    gq<JobInvoiceFullRow>(SQL_MAP.GET_JOB_INVOICE_BY_JOB, { job_id: job.id }),
+                    gq<{ receipt_no: string | null }>(SQL_MAP.GET_JOB_PAYMENTS_BY_JOB, { job_id: job.id }),
+                ]);
+                const detail   = detailRes.data?.genericQuery?.[0];
+                const invoice  = invoiceRes.data?.genericQuery?.[0];
+                const payments = paymentsRes.data?.genericQuery ?? [];
+                const isOk     = job.job_status_code !== "DELIVERED_NOT_OK";
+                return {
+                    customer_contact_id:    0,
+                    job_no:                 job.job_no,
+                    alternate_job_no:       job.alternate_job_no ?? null,
+                    job_date:               job.job_date,
+                    customer_name:          job.customer_name ?? "",
+                    mobile:                 job.mobile,
+                    customer_address_line1: detail?.customer_address_line1 ?? null,
+                    customer_address_line2: detail?.customer_address_line2 ?? null,
+                    customer_landmark:      detail?.customer_landmark      ?? null,
+                    customer_city:          detail?.customer_city          ?? null,
+                    customer_postal_code:   detail?.customer_postal_code   ?? null,
+                    customer_state:         detail?.customer_state         ?? null,
+                    device_details:         job.device_details,
+                    technician_name:        job.technician_name,
+                    amount:                 job.amount,
+                    invoice_no:             invoice?.invoice_no ?? null,
+                    receipt_nos:            payments.map(p => p.receipt_no).filter((r): r is string => !!r),
+                    delivery_ok:            isOk,
+                    delivery_date:          detail?.delivery_date ?? job.delivery_date ?? "",
+                    remarks:                detail?.remarks ?? null,
+                };
+            }));
+
+            const divisionIds = new Set(jobs.map(j => j.division_id ?? null));
+            const singleDivisionId = divisionIds.size === 1 ? jobs[0].division_id : null;
+            const division = singleDivisionId ? (divisions.find(d => d.id === singleDivisionId) ?? null) : null;
+
+            const doc = buildDeliveryNotePdf(noteJobs, division, currentBranch?.name ?? currentBranch?.code ?? null);
+            if (pdfUrl) URL.revokeObjectURL(pdfUrl);
+            setPdfUrl(URL.createObjectURL(doc.output("blob")));
+            setPdfType("other");
+            setPdfOpen(true);
+        } catch {
+            toast.error("Failed to generate combined delivery note.");
+        }
+    }
+
     function handleUndoDelivery(job: DeliveredJobActionContext) {
         setUndoPendingJob(job);
     }
@@ -267,5 +334,5 @@ export function useDeliveredJobActions() {
         );
     }
 
-    return { handleDeliveryNote, handleInvoiceReceipts, handleUndoDelivery, renderModals };
+    return { handleDeliveryNote, handleCombinedDeliveryNote, handleInvoiceReceipts, handleUndoDelivery, renderModals };
 }

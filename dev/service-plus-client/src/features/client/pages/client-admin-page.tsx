@@ -1,5 +1,5 @@
-import { ClientLayout, useClientSelection } from "../components/client-layout";
-import { AdminSection } from "../components/admin/admin-section";
+import { ClientLayout, useClientSelection } from "../components/layout/client-layout";
+import { AdminSection } from "../components/accounts-admin/admin-section";
 
 function AdminContent() {
     const { selected } = useClientSelection();

@@ -1,6 +1,6 @@
 import { SQL_MAP } from "@/constants/sql-map";
 
-import { RangeMatrixSection } from "../_common/range-matrix-section";
+import { RangeMatrixSection } from "../common/range-matrix-section";
 
 export const JobIntakeSummarySection = () => (
     <RangeMatrixSection

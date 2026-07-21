@@ -1,5 +1,5 @@
 import { Network } from "lucide-react";
-import { version } from "../../../../package.json";
+import { version } from "../../../../../package.json";
 
 export const ClientStatusBar = () => {
     const now     = new Date();

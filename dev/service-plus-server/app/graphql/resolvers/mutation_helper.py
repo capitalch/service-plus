@@ -2237,6 +2237,7 @@ def _build_purchase_invoice_tran_h(
     pi_product_id: Any,
     pi_default_hsn: Any,
     pi_default_gst: Any,
+    is_gst_division: bool,
     branch_id: Any,
 ) -> dict:
     """Build a single purchase-invoice TranH voucher from a serialized purchase_invoice row."""
@@ -2252,9 +2253,9 @@ def _build_purchase_invoice_tran_h(
                           if line.get("qty") else 0),
             "amount":    float(line["total_amount"]),
             "hsn":       (line.get("hsn_code")
-                          or (str(pi_default_hsn) if pi_default_hsn else "")),
+                          or (str(pi_default_hsn) if is_gst_division and pi_default_hsn else "0")),
             "gstRate":   (float(line["gst_rate"]) if line.get("gst_rate")
-                          else (float(pi_default_gst) if pi_default_gst else 0)),
+                          else (float(pi_default_gst) if is_gst_division and pi_default_gst else 0)),
         }
         if line.get("part_code"):
             spd["jData"] = json.dumps({"remarks": f"Part Code: {line['part_code']}"})
@@ -2331,6 +2332,7 @@ def _build_job_invoice_tran_h(
     ji_product_id: Any,
     ji_default_hsn: Any,
     ji_default_gst: Any,
+    is_gst_division: bool,
     branch_id: Any,
     contacts_id: Any = None,
 ) -> dict:
@@ -2347,9 +2349,9 @@ def _build_job_invoice_tran_h(
                           if line.get("qty") else 0),
             "amount":    float(line["amount"]),
             "hsn":       (line.get("hsn_code")
-                          or (str(ji_default_hsn) if ji_default_hsn else "")),
+                          or (str(ji_default_hsn) if is_gst_division and ji_default_hsn else "0")),
             "gstRate":   (float(line["gst_rate"]) if line.get("gst_rate")
-                          else (float(ji_default_gst) if ji_default_gst else 0)),
+                          else (float(ji_default_gst) if is_gst_division and ji_default_gst else 0)),
         }
         if line.get("part_code"):
             spd["jData"] = json.dumps({"remarks": f"Part Code: {line['part_code']}, {line.get('description', '')}"})
@@ -2430,6 +2432,7 @@ def _build_sales_invoice_tran_h(
     si_product_id: Any,
     si_default_hsn: Any,
     si_default_gst: Any,
+    is_gst_division: bool,
     branch_id: Any,
     contacts_id: Any = None,
 ) -> dict:
@@ -2446,9 +2449,9 @@ def _build_sales_invoice_tran_h(
                           if line.get("qty") else 0),
             "amount":    float(line["total_amount"]),
             "hsn":       (line.get("hsn_code")
-                          or (str(si_default_hsn) if si_default_hsn else "")),
+                          or (str(si_default_hsn) if is_gst_division and si_default_hsn else "0")),
             "gstRate":   (float(line["gst_rate"]) if line.get("gst_rate")
-                          else (float(si_default_gst) if si_default_gst else 0)),
+                          else (float(si_default_gst) if is_gst_division and si_default_gst else 0)),
         }
         if line.get("part_code"):
             spd["jData"] = json.dumps({"remarks": f"Part Code: {line['part_code']}, {line.get('part_name', '')}"})
@@ -2598,6 +2601,7 @@ async def resolve_accounts_posting_helper(
             continue
 
         division_code = (div.get("code") or "").strip()
+        is_gst_division = bool(div.get("gstin"))
         receipts = await exec_sql(
             db_name=db_name, schema=schema,
             sql=SqlStore.GET_UNPOSTED_MONEY_RECEIPTS,
@@ -2632,6 +2636,7 @@ async def resolve_accounts_posting_helper(
             "branch_id":         branch_id,
             "debit_account_id":  debit_account_id,
             "credit_account_id": credit_account_id,
+            "is_gst_division":   is_gst_division,
             "pi_debit_acc_id":   pi_settings.get("debitAccountId"),
             "pi_credit_acc_id":  pi_settings.get("creditAccountId"),
             "pi_product_id":     pi_settings.get("productId"),
@@ -2736,7 +2741,7 @@ async def resolve_accounts_posting_helper(
                 try:
                     pi_tran_h = _build_purchase_invoice_tran_h(
                         pi_row, w["pi_debit_acc_id"], w["pi_credit_acc_id"], w["pi_product_id"],
-                        w["pi_default_hsn"], w["pi_default_gst"], w["branch_id"],
+                        w["pi_default_hsn"], w["pi_default_gst"], w["is_gst_division"], w["branch_id"],
                     )
                     await _post_tran_h_to_trace_plus(
                         http_client, w["client_code"], w["bu_code"], pi_tran_h
@@ -2779,7 +2784,7 @@ async def resolve_accounts_posting_helper(
                 try:
                     ji_tran_h = _build_job_invoice_tran_h(
                         ji_row, w["ji_debit_acc_id"], w["ji_credit_acc_id"], w["ji_product_id"],
-                        w["ji_default_hsn"], w["ji_default_gst"], w["branch_id"],
+                        w["ji_default_hsn"], w["ji_default_gst"], w["is_gst_division"], w["branch_id"],
                         contacts_id=w["ji_contacts_id"],
                     )
                     await _post_tran_h_to_trace_plus(
@@ -2823,7 +2828,7 @@ async def resolve_accounts_posting_helper(
                 try:
                     si_tran_h = _build_sales_invoice_tran_h(
                         si_row, w["si_debit_acc_id"], w["si_credit_acc_id"], w["si_product_id"],
-                        w["si_default_hsn"], w["si_default_gst"], w["branch_id"],
+                        w["si_default_hsn"], w["si_default_gst"], w["is_gst_division"], w["branch_id"],
                         contacts_id=w["si_contacts_id"],
                     )
                     await _post_tran_h_to_trace_plus(

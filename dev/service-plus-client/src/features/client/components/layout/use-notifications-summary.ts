@@ -4,7 +4,7 @@ import { SQL_MAP } from "@/constants/sql-map";
 import { selectCurrentBranch } from "@/store/context-slice";
 import { useAppSelector } from "@/store/hooks";
 
-import { useGenericQuery } from "./reports/_common/use-generic-query";
+import { useGenericQuery } from "../reports/common/use-generic-query";
 
 export type NotificationsSummary = {
     jobsOverdue:   number;

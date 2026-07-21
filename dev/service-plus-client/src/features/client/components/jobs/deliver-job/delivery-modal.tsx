@@ -652,6 +652,7 @@ export function DeliveryModal({
         const divisionId = jobDetails.length === 1 ? jobDetails[0].division_id : null;
         const division   = divisionId != null ? (availableDivisions.find(d => d.id === divisionId) ?? null) : null;
         const jobs = jobDetails.map(j => ({
+            customer_contact_id:     j.customer_contact_id,
             job_no:                  j.job_no,
             alternate_job_no:        j.alternate_job_no,
             job_date:                j.job_date,

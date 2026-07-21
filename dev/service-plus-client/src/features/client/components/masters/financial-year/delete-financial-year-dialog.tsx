@@ -5,7 +5,7 @@ import { graphQlUtils } from "@/lib/graphql-utils";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectSchema } from "@/store/context-slice";
-import { DeleteConfirmDialog } from "@/features/client/components/delete-confirm-dialog";
+import { DeleteConfirmDialog } from "@/components/shared/delete-confirm-dialog";
 import type { FinancialYearType } from "@/features/client/types/financial-year";
 
 // ─── Types ────────────────────────────────────────────────────────────────────

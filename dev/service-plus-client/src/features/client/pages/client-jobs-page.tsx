@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { ClientLayout, useClientSelection } from "../components/client-layout";
+import { ClientLayout, useClientSelection } from "../components/layout/client-layout";
 import { BatchJobSection } from "../components/jobs/batch-job/batch-job-section";
 import { DeliverJobSection } from "../components/jobs/deliver-job/deliver-job-section";
 import { JobControlSection } from "../components/jobs/job-control/job-control-section";
@@ -10,6 +10,7 @@ import { ReceiptsSection } from "../components/jobs/receipts/receipts-section";
 import { SingleJobSection } from "../components/jobs/single-job/single-job-section";
 import { JobPipelineSection } from "../components/jobs/job-pipeline/job-pipeline-section";
 import { AccountsPostingSection } from "../components/jobs/accounts-posting/accounts-posting-section";
+import { BatchWarrantySection } from "../components/jobs/batch-warranty-transactions/batch-warranty-section";
 
 // ─── Coming Soon placeholder ──────────────────────────────────────────────────
 
@@ -64,6 +65,8 @@ function JobsContent() {
             return <AccountsPostingSection />;
         case "Job Control":
             return <JobControlSection />;
+        case "Batch Warranty Jobs":
+            return <BatchWarrantySection />;
         default:
             return <ComingSoon label={selected || "Jobs"} />;
     }

@@ -2,7 +2,7 @@ import { ArrowDownRight, ArrowUpRight, Minus } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
-import { formatInr, formatNumber } from "../_common/formatters";
+import { formatInr, formatNumber } from "../common/formatters";
 import type { WarrantySummaryRowType } from "./warranty-types";
 
 type Props = {

@@ -1,9 +1,9 @@
 import { Suspense, lazy } from "react";
 import type { ComponentType } from "react";
 
-import { ClientLayout, useClientSelection } from "../components/client-layout";
-import { ReportEmpty } from "../components/reports/_common/report-empty";
-import { ReportLoading } from "../components/reports/_common/report-loading";
+import { ClientLayout, useClientSelection } from "../components/layout/client-layout";
+import { ReportEmpty } from "../components/reports/common/report-empty";
+import { ReportLoading } from "../components/reports/common/report-loading";
 
 const DashboardSection                       = lazy(() => import("../components/reports/dashboard/dashboard-section").then(m => ({ default: m.DashboardSection })));
 

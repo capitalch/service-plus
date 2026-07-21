@@ -38,13 +38,14 @@ export function getTransitions(statusId: number, jobTypeCode: string): Transitio
                     { targetId: 3,  targetCode: "ESTIMATED", targetName: "Estimated", fields: "RET" },
                 ];
             return [
-                { targetId: 2,  targetCode: "ASSIGNED",     targetName: "Assigned",     fields: "RT"   },
-                { targetId: 3,  targetCode: "ESTIMATED",    targetName: "Estimated",    fields: "RET"  },
-                { targetId: 6,  targetCode: "IN_PROGRESS",  targetName: "In Progress",  fields: "RT"   },
-                { targetId: 11, targetCode: "COMPLETED_OK", targetName: "Completed OK", fields: "RT" },
-                { targetId: 12, targetCode: "RETURN",       targetName: "Return",       fields: "R"    },
-                { targetId: 15, targetCode: "CANCELLED",    targetName: "Cancelled",    fields: "R"    },
-                { targetId: 16, targetCode: "DISPOSED",     targetName: "Disposed",     fields: "R"    },
+                { targetId: 2,  targetCode: "ASSIGNED",        targetName: "Assigned",        fields: "RT"   },
+                { targetId: 3,  targetCode: "ESTIMATED",       targetName: "Estimated",       fields: "RET"  },
+                { targetId: 6,  targetCode: "IN_PROGRESS",     targetName: "In Progress",     fields: "RT"   },
+                { targetId: 10, targetCode: "SENT_TO_COMPANY", targetName: "Sent to Company", fields: "R"    },
+                { targetId: 11, targetCode: "COMPLETED_OK",    targetName: "Completed OK",    fields: "RT" },
+                { targetId: 12, targetCode: "RETURN",          targetName: "Return",          fields: "R"    },
+                { targetId: 15, targetCode: "CANCELLED",       targetName: "Cancelled",       fields: "R"    },
+                { targetId: 16, targetCode: "DISPOSED",        targetName: "Disposed",        fields: "R"    },
             ];
         case 2: // ASSIGNED
             return [
@@ -92,7 +93,10 @@ export function getTransitions(statusId: number, jobTypeCode: string): Transitio
         case 16: // DISPOSED
             return [{ targetId: 6, targetCode: "IN_PROGRESS", targetName: "Re-open",     fields: "RT" }];
         case 17: // RECEIVED_BACK_FROM_COMPANY
-            return [{ targetId: 6, targetCode: "IN_PROGRESS", targetName: "In Progress", fields: "RT" }];
+            return [
+                { targetId: 6,  targetCode: "IN_PROGRESS",  targetName: "In Progress",  fields: "RT" },
+                { targetId: 11, targetCode: "COMPLETED_OK", targetName: "Completed OK", fields: "RT" },
+            ];
         default:
             return [];
     }

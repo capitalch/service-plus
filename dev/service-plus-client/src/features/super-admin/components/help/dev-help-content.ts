@@ -673,7 +673,7 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
         ],
         faqs: [
             { q: "If a menu item is server-enforced, is the client-side disable/tooltip redundant?", a: "No — it's UX (immediate, no round-trip needed to know something is blocked). The server check is the actual security boundary; see 'Known Gaps' for where that server check doesn't exist yet despite the client-side disable being present." },
-            { q: "Is there a hook like usePermission() somewhere?", a: "No dedicated hook — hasAccessRight(user, code) is called directly at each gated call site (client-explorer-panel.tsx, client-top-nav.tsx), not wrapped in a custom hook." },
+            { q: "Is there a hook like usePermission() somewhere?", a: "No dedicated hook — hasAccessRight(user, code) is called directly at each gated call site (layout/client-explorer-panel.tsx, layout/client-top-nav.tsx), not wrapped in a custom hook." },
         ],
     },
 
@@ -855,13 +855,13 @@ export const DEV_HELP_ARTICLES: HelpArticle[] = [
                 ["no_of_job_sheets_per_print / no_of_job_invoices_per_print", "Print copy counts"],
                 ["show_parts_in_job_invoice", "JSON controlling the merged-line invoice fallback label/HSN/GST"],
                 ["markup_percent_over_cost", "Auto-markup for selling price = cost × (1 + markup%)"],
-                ["post_data_to_accounts", "Feature-flags the whole Trace Plus integration (Jobs → Accounts Posting) — read client-side in client-layout.tsx and dispatched into Redux at app load"],
+                ["post_data_to_accounts", "Feature-flags the whole Trace Plus integration (Jobs → Accounts Posting) — read client-side in layout/client-layout.tsx and dispatched into Redux at app load"],
             ]},
             { type: "heading", text: "document_sequence" },
             { type: "para", text: "Required sequences: JOB_SHEET, SERVICE_INVOICE, MONEY_RECEIPT, SALES_INVOICE — each with prefix/separator/padding/next-number columns. JOB_SHEET and PURCHASE_INVOICE numbering is branch-wide; SERVICE_INVOICE/MONEY_RECEIPT/SALES_INVOICE are configured per-division. A sequence with no prefix causes a runtime save failure — see 'Common Dev-Time Issues' and the end-user 'Document Sequences' article." },
         ],
         faqs: [
-            { q: "Where does client-layout.tsx read app_setting from?", a: "A genericQuery call with sqlId: SQL_MAP.GET_APP_SETTINGS, dispatched into context-slice.ts's setDefaultGstRate/setMarkupPercentOverCost/etc. actions on every mount when dbName+schema are available." },
+            { q: "Where does client-layout.tsx read app_setting from?", a: "A genericQuery call with sqlId: SQL_MAP.GET_APP_SETTINGS, dispatched into context-slice.ts's setDefaultGstRate/setMarkupPercentOverCost/etc. actions on every mount when dbName+schema are available. (File: layout/client-layout.tsx.)" },
             { q: "Is there server-side validation that a required document_sequence exists before allowing a job/invoice save?", a: "The failure mode described in notes/todo.md ('Document numbering and auto series') was originally a raw SQL execute failure with a generic client error — check current sql_store.py / resolver behavior for whether a friendlier pre-check has since been added." },
         ],
     },

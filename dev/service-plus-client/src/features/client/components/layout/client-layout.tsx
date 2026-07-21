@@ -26,7 +26,7 @@ import { ClientActivityBar } from "./client-activity-bar";
 import { ClientExplorerPanel } from "./client-explorer-panel";
 import { ClientStatusBar } from "./client-status-bar";
 import { ClientTopNav } from "./client-top-nav";
-import { CLIENT_CAT_STYLE, CLIENT_POPULAR_IDS, HELP_ARTICLES, HELP_CATEGORIES } from "./help/help-content";
+import { CLIENT_CAT_STYLE, CLIENT_POPULAR_IDS, HELP_ARTICLES, HELP_CATEGORIES } from "../help/help-content";
 
 export type Section = 'admin' | 'configurations' | 'inventory' | 'jobs' | 'masters' | 'reports';
 

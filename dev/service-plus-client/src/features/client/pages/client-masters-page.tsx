@@ -1,12 +1,12 @@
 import { motion } from "framer-motion";
 
-import { ClientLayout } from "@/features/client/components/client-layout";
-import { useClientSelection } from "@/features/client/components/client-layout";
+import { ClientLayout } from "@/features/client/components/layout/client-layout";
+import { useClientSelection } from "@/features/client/components/layout/client-layout";
 import { AdditionalChargeSection } from "@/features/client/components/masters/additional-charge/additional-charge-section";
 import { BranchSection } from "@/features/client/components/masters/branch/branch-section";
 import { CustomerSection } from "@/features/client/components/masters/customer/customer-section";
 import { FinancialYearSection } from "@/features/client/components/masters/financial-year/financial-year-section";
-import { LookupSection } from "@/features/client/components/lookup-section";
+import { LookupSection } from "@/features/client/components/masters/lookup/lookup-section";
 import { ModelSection } from "@/features/client/components/masters/model/model-section";
 import { PartsSection } from "@/features/client/components/masters/parts/parts-section";
 import { PartLocationSection } from "@/features/client/components/masters/part-location/part-location-section";

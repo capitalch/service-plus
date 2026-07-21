@@ -1,4 +1,4 @@
-import { ClientLayout, useClientSelection } from "../components/client-layout";
+import { ClientLayout, useClientSelection } from "../components/layout/client-layout";
 import { AppSettingsSection } from "../components/configurations/app-settings/app-settings-section";
 import { DocumentSequenceSection } from "../components/configurations/document-sequence/document-sequence-section";
 import { DivisionSection } from "../components/configurations/division/division-section";

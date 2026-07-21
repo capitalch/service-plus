@@ -184,6 +184,34 @@ export type JobBoardStatusCount = {
     count:       number;
 };
 
+export type WarrantyBatchJobRow = {
+    id:                  number;
+    job_no:              string;
+    alternate_job_no:    string | null;
+    job_date:            string;
+    job_status_id:       number;
+    job_status_code:     string;
+    job_status_name:     string;
+    job_type_id:         number;
+    job_type_code:       string;
+    job_type_name:       string;
+    technician_id:       number | null;
+    technician_name:     string | null;
+    division_id:         number | null;
+    amount:              number | null;
+    estimate_amount:     number | null;
+    last_transaction_id: number | null;
+    is_final:            boolean;
+    is_closed:           boolean;
+    customer_contact_id: number;
+    customer_name:       string | null;
+    customer_gstin:      string | null;
+    mobile:              string;
+    device_details:      string | null;
+    serial_no:           string | null;
+    parts_count:         number;
+};
+
 export type JobTransactionRow = {
     id:                      number;
     job_id:                  number;

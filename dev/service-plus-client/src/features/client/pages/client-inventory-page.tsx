@@ -1,4 +1,4 @@
-import { ClientLayout, useClientSelection } from "../components/client-layout";
+import { ClientLayout, useClientSelection } from "../components/layout/client-layout";
 import { BranchTransferSection } from "../components/inventory/branch-transfer/branch-transfer-section";
 import { LoanEntrySection } from "../components/inventory/loan-entry/loan-entry-section";
 import { OpeningStockSection } from "../components/inventory/opening-stock/opening-stock-section";
@@ -8,7 +8,7 @@ import { SalesEntrySection } from "../components/inventory/sales-entry/sales-ent
 import { SetPartLocationSection } from "../components/inventory/set-part-location/set-part-location-section";
 import { StockAdjustmentSection } from "../components/inventory/stock-adjustment/stock-adjustment-section";
 import { StockSnapshotTrigger } from "../components/inventory/stock-snapshot/stock-snapshot-trigger";
-import { StockOverviewSection } from "../components/stock-overview-section";
+import { StockOverviewSection } from "../components/inventory/stock-overview-section";
 
 // ─── Coming Soon placeholder ──────────────────────────────────────────────────
 

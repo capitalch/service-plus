@@ -1,8 +1,8 @@
 import { ShieldCheck } from "lucide-react";
 
-import { ReportTable } from "../_common/report-table";
-import type { ReportColumnType } from "../_common/report-table";
-import { formatDateShort } from "../_common/formatters";
+import { ReportTable } from "../common/report-table";
+import type { ReportColumnType } from "../common/report-table";
+import { formatDateShort } from "../common/formatters";
 
 type JobRowType = {
     brand_name: string | null;

@@ -66,6 +66,9 @@ export const DeliverJobSection = ({ onBack, initialTab }: DeliverJobSectionProps
     const [deliveredSearch,  setDeliveredSearch]  = useState("");
     const [deliveredSearchQ, setDeliveredSearchQ] = useState("");
     const [deliveredLoading, setDeliveredLoading] = useState(false);
+    // Kept as a Map (not just a Set<id>) so mobile/delivery_date are still
+    // available to validate the selection regardless of pagination.
+    const [selectedDeliveredRows, setSelectedDeliveredRows] = useState<Map<number, DeliveredJobRow>>(new Map());
 
     // ── Meta ──────────────────────────────────────────────────────────────────
     const [deliveryManners,          setDeliveryManners]          = useState<DeliveryMannerRow[]>([]);
@@ -208,6 +211,23 @@ export const DeliverJobSection = ({ onBack, initialTab }: DeliverJobSectionProps
         } else {
             setSelectedIds(new Set());
         }
+    }
+
+    // Constrains multi-select on the Delivered Jobs tab to jobs for the same
+    // customer (by mobile — this grid has no real customer id) and the same
+    // delivery date, so they can be combined into one delivery note.
+    function handleDeliveredSelectionChange(row: DeliveredJobRow, checked: boolean) {
+        setSelectedDeliveredRows(prev => {
+            const next = new Map(prev);
+            if (!checked) { next.delete(row.id); return next; }
+            const reference = next.values().next().value;
+            if (reference && (reference.mobile !== row.mobile || reference.delivery_date !== row.delivery_date)) {
+                toast.error("Select jobs for the same customer and delivery date to combine into one delivery note.");
+                return prev;
+            }
+            next.set(row.id, row);
+            return next;
+        });
     }
 
     // ── Open delivery modal for single job ────────────────────────────────────
@@ -388,6 +408,12 @@ export const DeliverJobSection = ({ onBack, initialTab }: DeliverJobSectionProps
                             return;
                         }
                         deliveredActions.handleUndoDelivery(row);
+                    }}
+                    selectedIds={new Set(selectedDeliveredRows.keys())}
+                    onSelectionChange={handleDeliveredSelectionChange}
+                    onPrintCombinedNote={() => {
+                        void deliveredActions.handleCombinedDeliveryNote(Array.from(selectedDeliveredRows.values()));
+                        setSelectedDeliveredRows(new Map());
                     }}
                 />
             )}
