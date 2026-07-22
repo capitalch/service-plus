@@ -99,6 +99,8 @@ export type JobDeliveryFullDetail = {
     estimate_amount:        number | null;
     qty:                    number | null;
     last_transaction_id:    number | null;
+    delivery_date:          string | null;
+    remarks:                string | null;
     device_details:         string | null;
     customer_contact_id:    number;
     customer_name:          string;

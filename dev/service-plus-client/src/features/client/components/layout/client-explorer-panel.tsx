@@ -276,6 +276,9 @@ function ReportsExplorer() {
             <div className="space-y-1">
                 <TreeItem icon={LayoutDashboard} label="Dashboard" />
             </div>
+            <CollapsibleGroup label="Profit Reports">
+                <TreeItem icon={DollarSign} label="Technician Profit Report" />
+            </CollapsibleGroup>
             <CollapsibleGroup label="Job Reports">
                 <TreeItem icon={ClipboardList} label="Job Intake Summary" />
                 <TreeItem icon={Wrench}        label="Jobs Repaired (OK)" />

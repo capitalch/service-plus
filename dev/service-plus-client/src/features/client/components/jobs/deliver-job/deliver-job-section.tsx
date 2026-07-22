@@ -65,9 +65,10 @@ export const DeliverJobSection = ({ onBack, initialTab }: DeliverJobSectionProps
     const [deliveredPage,    setDeliveredPage]    = useState(1);
     const [deliveredSearch,  setDeliveredSearch]  = useState("");
     const [deliveredSearchQ, setDeliveredSearchQ] = useState("");
+    const [deliveredDateFilter, setDeliveredDateFilter] = useState("");
     const [deliveredLoading, setDeliveredLoading] = useState(false);
-    // Kept as a Map (not just a Set<id>) so mobile/delivery_date are still
-    // available to validate the selection regardless of pagination.
+    // Kept as a Map (not just a Set<id>) so customer_contact_id/delivery_date
+    // are still available to validate the selection regardless of pagination.
     const [selectedDeliveredRows, setSelectedDeliveredRows] = useState<Map<number, DeliveredJobRow>>(new Map());
 
     // ── Meta ──────────────────────────────────────────────────────────────────
@@ -157,10 +158,11 @@ export const DeliverJobSection = ({ onBack, initialTab }: DeliverJobSectionProps
         if (!branchId || !dbName || !schema) return;
         setDeliveredLoading(true);
         const args = {
-            branch_id: branchId,
-            search:    deliveredSearchQ,
-            limit:     PAGE_SIZE,
-            offset:    (deliveredPage - 1) * PAGE_SIZE,
+            branch_id:     branchId,
+            search:        deliveredSearchQ,
+            delivery_date: deliveredDateFilter || null,
+            limit:         PAGE_SIZE,
+            offset:        (deliveredPage - 1) * PAGE_SIZE,
         };
 
         const countPromise = apolloClient.query({
@@ -178,7 +180,7 @@ export const DeliverJobSection = ({ onBack, initialTab }: DeliverJobSectionProps
         const results = await Promise.allSettled([countPromise, rowsPromise]);
         if (results.some(r => r.status === "rejected")) toast.error("Failed to load delivered jobs. Please try again.");
         setDeliveredLoading(false);
-    }, [branchId, dbName, schema, deliveredSearchQ, deliveredPage]);
+    }, [branchId, dbName, schema, deliveredSearchQ, deliveredDateFilter, deliveredPage]);
 
     useEffect(() => {
         if (activeTab === "delivered") void loadDeliveredData();
@@ -214,14 +216,14 @@ export const DeliverJobSection = ({ onBack, initialTab }: DeliverJobSectionProps
     }
 
     // Constrains multi-select on the Delivered Jobs tab to jobs for the same
-    // customer (by mobile — this grid has no real customer id) and the same
-    // delivery date, so they can be combined into one delivery note.
+    // customer and the same delivery date, so they can be combined into one
+    // delivery note.
     function handleDeliveredSelectionChange(row: DeliveredJobRow, checked: boolean) {
         setSelectedDeliveredRows(prev => {
             const next = new Map(prev);
             if (!checked) { next.delete(row.id); return next; }
             const reference = next.values().next().value;
-            if (reference && (reference.mobile !== row.mobile || reference.delivery_date !== row.delivery_date)) {
+            if (reference && (reference.customer_contact_id !== row.customer_contact_id || reference.delivery_date !== row.delivery_date)) {
                 toast.error("Select jobs for the same customer and delivery date to combine into one delivery note.");
                 return prev;
             }
@@ -392,11 +394,13 @@ export const DeliverJobSection = ({ onBack, initialTab }: DeliverJobSectionProps
                     total={deliveredTotal}
                     page={deliveredPage}
                     search={deliveredSearch}
+                    deliveryDateFilter={deliveredDateFilter}
                     branchId={branchId}
                     availableDivisions={availableDivisions}
                     setPage={setDeliveredPage}
                     postDataToAccounts={postDataToAccounts}
                     onSearch={handleDeliveredSearchChange}
+                    onDeliveryDateChange={setDeliveredDateFilter}
                     onRefresh={() => void loadDeliveredData()}
                     onViewJob={id => setViewJobId(id)}
                     onOpenAttach={(id, jobNo) => { setAttachJobId(id); setAttachJobNo(jobNo); }}

@@ -3755,6 +3755,7 @@ class SqlStore:
             s.name           AS customer_state,
             CONCAT_WS(', ', NULLIF(cc.address_line1, ''), NULLIF(cc.address_line2, ''), NULLIF(cc.city, ''), NULLIF(cc.postal_code, '')) AS address_snapshot,
             jt.name       AS job_type_name,
+            jt.code       AS job_type_code,
             js.name       AS job_status_name,
             jrm.name      AS job_receive_manner_name,
             jrc.name      AS job_receive_condition_name,
@@ -3803,9 +3804,15 @@ class SqlStore:
             j.is_final,
             j.is_closed,
             j.customer_contact_id,
-            cc.full_name AS customer_name,
-            cc.gstin     AS customer_gstin,
+            cc.full_name      AS customer_name,
+            cc.gstin          AS customer_gstin,
             cc.mobile,
+            cc.address_line1  AS customer_address_line1,
+            cc.address_line2  AS customer_address_line2,
+            cc.landmark       AS customer_landmark,
+            cc.city           AS customer_city,
+            cc.postal_code    AS customer_postal_code,
+            s.name            AS customer_state,
             TRIM(CONCAT_WS(' ', p.name, b.name, pbm.model_name)) AS device_details,
             j.serial_no,
             (SELECT COUNT(*) FROM job_part_used jpu WHERE jpu.job_id = j.id) AS parts_count
@@ -3814,6 +3821,7 @@ class SqlStore:
         JOIN job_type          jt ON jt.id = j.job_type_id
         JOIN job_status        js ON js.id = j.job_status_id
         LEFT JOIN technician   t  ON t.id  = j.technician_id
+        LEFT JOIN state        s  ON s.id  = cc.state_id
         LEFT JOIN product_brand_model pbm ON pbm.id = j.product_brand_model_id
         LEFT JOIN brand            b   ON b.id   = pbm.brand_id
         LEFT JOIN product          p   ON p.id   = pbm.product_id
@@ -3824,6 +3832,136 @@ class SqlStore:
           AND js.code NOT IN ('DELIVERED_OK', 'DELIVERED_NOT_OK', 'DISPOSED')
           AND (SELECT COUNT(*) FROM job_part_used jpu2 WHERE jpu2.job_id = j.id) = 0
         ORDER BY j.job_date DESC, j.id DESC
+    """
+
+    GET_WARRANTY_CUSTOMERS_BY_BRANCH = """
+        with
+            "p_branch_id" as (values(%(branch_id)s::bigint))
+        SELECT
+            cc.id        AS id,
+            cc.full_name AS full_name,
+            cc.mobile    AS mobile,
+            COUNT(*)     AS job_count
+        FROM job j
+        JOIN customer_contact cc ON cc.id = j.customer_contact_id
+        JOIN job_type         jt ON jt.id = j.job_type_id
+        JOIN job_status       js ON js.id = j.job_status_id
+        WHERE j.branch_id = (table "p_branch_id")
+          AND jt.code = 'UNDER_WARRANTY'
+          AND j.is_closed = false
+          AND js.code NOT IN ('DELIVERED_OK', 'DELIVERED_NOT_OK', 'DISPOSED')
+          AND (SELECT COUNT(*) FROM job_part_used jpu WHERE jpu.job_id = j.id) = 0
+        GROUP BY cc.id, cc.full_name, cc.mobile
+        ORDER BY full_name
+    """
+
+    GET_DELIVERED_WARRANTY_JOBS_BY_CUSTOMER = """
+        with
+            "p_customer_contact_id" as (values(%(customer_contact_id)s::bigint)),
+            "p_branch_id"           as (values(%(branch_id)s::bigint)),
+            "p_delivery_date"       as (values(%(delivery_date)s::date))
+        SELECT
+            j.id,
+            j.job_no,
+            j.alternate_job_no,
+            j.job_date,
+            j.delivery_date,
+            j.division_id,
+            j.amount,
+            j.job_status_id,
+            js.code      AS job_status_code,
+            js.name      AS job_status_name,
+            j.technician_id,
+            t.name       AS technician_name,
+            TRIM(CONCAT_WS(' ', p.name, b.name, pbm.model_name)) AS device_details,
+            j.serial_no
+        FROM job j
+        JOIN job_type          jt ON jt.id = j.job_type_id
+        JOIN job_status        js ON js.id = j.job_status_id
+        LEFT JOIN technician   t  ON t.id  = j.technician_id
+        LEFT JOIN product_brand_model pbm ON pbm.id = j.product_brand_model_id
+        LEFT JOIN brand            b   ON b.id   = pbm.brand_id
+        LEFT JOIN product          p   ON p.id   = pbm.product_id
+        WHERE j.customer_contact_id = (table "p_customer_contact_id")
+          AND j.branch_id = (table "p_branch_id")
+          AND jt.code = 'UNDER_WARRANTY'
+          AND j.is_closed = true
+          AND js.code IN ('DELIVERED_OK', 'DELIVERED_NOT_OK')
+          AND j.delivery_date = (table "p_delivery_date")
+        ORDER BY j.job_no
+    """
+
+    GET_DELIVERED_WARRANTY_JOB_GROUPS_COUNT = """
+        with
+            "p_branch_id" as (values(%(branch_id)s::bigint)),
+            "p_search"    as (values(%(search)s::text))
+        SELECT COUNT(*) AS total FROM (
+            SELECT j.customer_contact_id, j.delivery_date
+            FROM job j
+            JOIN customer_contact cc ON cc.id = j.customer_contact_id
+            JOIN job_type         jt ON jt.id = j.job_type_id
+            JOIN job_status       js ON js.id = j.job_status_id
+            LEFT JOIN product_brand_model pbm ON pbm.id = j.product_brand_model_id
+            LEFT JOIN brand            b   ON b.id   = pbm.brand_id
+            LEFT JOIN product          p   ON p.id   = pbm.product_id
+            WHERE j.branch_id = (table "p_branch_id")
+              AND jt.code = 'UNDER_WARRANTY'
+              AND j.is_closed = true
+              AND js.code IN ('DELIVERED_OK', 'DELIVERED_NOT_OK')
+              AND j.delivery_date IS NOT NULL
+            GROUP BY j.customer_contact_id, j.delivery_date, cc.full_name, cc.mobile
+            HAVING (table "p_search") = ''
+               OR LOWER(cc.full_name) LIKE '%%' || LOWER((table "p_search")) || '%%'
+               OR LOWER(cc.mobile)    LIKE '%%' || LOWER((table "p_search")) || '%%'
+               OR bool_or(LOWER(j.job_no::text) LIKE '%%' || LOWER((table "p_search")) || '%%')
+               OR bool_or(LOWER(COALESCE(TRIM(CONCAT_WS(' ', p.name, b.name, pbm.model_name)), '')) LIKE '%%' || LOWER((table "p_search")) || '%%')
+        ) grp
+    """
+
+    GET_DELIVERED_WARRANTY_JOB_GROUPS_BY_BRANCH = """
+        with
+            "p_branch_id" as (values(%(branch_id)s::bigint)),
+            "p_search"    as (values(%(search)s::text)),
+            "p_limit"     as (values(%(limit)s::int)),
+            "p_offset"    as (values(%(offset)s::int))
+        SELECT
+            j.customer_contact_id,
+            cc.full_name      AS customer_name,
+            cc.mobile,
+            cc.address_line1  AS customer_address_line1,
+            cc.address_line2  AS customer_address_line2,
+            cc.landmark       AS customer_landmark,
+            cc.city           AS customer_city,
+            cc.postal_code    AS customer_postal_code,
+            s.name            AS customer_state,
+            j.delivery_date,
+            COUNT(*)       AS job_count,
+            STRING_AGG(DISTINCT j.job_no::text, ', ') AS job_nos,
+            STRING_AGG(DISTINCT NULLIF(TRIM(CONCAT_WS(' ', p.name, b.name, pbm.model_name)), ''), ', ') AS device_summary
+        FROM job j
+        JOIN customer_contact cc ON cc.id = j.customer_contact_id
+        JOIN job_type         jt ON jt.id = j.job_type_id
+        JOIN job_status       js ON js.id = j.job_status_id
+        LEFT JOIN state       s  ON s.id  = cc.state_id
+        LEFT JOIN product_brand_model pbm ON pbm.id = j.product_brand_model_id
+        LEFT JOIN brand            b   ON b.id   = pbm.brand_id
+        LEFT JOIN product          p   ON p.id   = pbm.product_id
+        WHERE j.branch_id = (table "p_branch_id")
+          AND jt.code = 'UNDER_WARRANTY'
+          AND j.is_closed = true
+          AND js.code IN ('DELIVERED_OK', 'DELIVERED_NOT_OK')
+          AND j.delivery_date IS NOT NULL
+        GROUP BY j.customer_contact_id, cc.full_name, cc.mobile,
+                 cc.address_line1, cc.address_line2, cc.landmark, cc.city, cc.postal_code, s.name,
+                 j.delivery_date
+        HAVING (table "p_search") = ''
+           OR LOWER(cc.full_name) LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR LOWER(cc.mobile)    LIKE '%%' || LOWER((table "p_search")) || '%%'
+           OR bool_or(LOWER(j.job_no::text) LIKE '%%' || LOWER((table "p_search")) || '%%')
+           OR bool_or(LOWER(COALESCE(TRIM(CONCAT_WS(' ', p.name, b.name, pbm.model_name)), '')) LIKE '%%' || LOWER((table "p_search")) || '%%')
+        ORDER BY j.delivery_date DESC, cc.full_name
+        LIMIT  (table "p_limit")
+        OFFSET (table "p_offset")
     """
 
     GET_JOB_IMAGE_DOCS = """
@@ -5091,8 +5229,9 @@ class SqlStore:
 
     GET_DELIVERED_JOBS_COUNT = """
         with
-            "p_branch_id" as (values(%(branch_id)s::bigint)),
-            "p_search"    as (values(%(search)s::text))
+            "p_branch_id"      as (values(%(branch_id)s::bigint)),
+            "p_search"         as (values(%(search)s::text)),
+            "p_delivery_date"  as (values(%(delivery_date)s::date))
         SELECT COUNT(*) AS total
         FROM job j
         JOIN customer_contact      cc  ON cc.id  = j.customer_contact_id
@@ -5103,6 +5242,7 @@ class SqlStore:
         WHERE j.branch_id = (table "p_branch_id")
           AND j.is_final  = true
           AND j.is_closed = true
+          AND ((table "p_delivery_date") IS NULL OR j.delivery_date = (table "p_delivery_date"))
           AND ((table "p_search") = ''
            OR  LOWER(j.job_no::text)                   LIKE '%%' || LOWER((table "p_search")) || '%%'
            OR  LOWER(cc.mobile)                        LIKE '%%' || LOWER((table "p_search")) || '%%'
@@ -5117,15 +5257,23 @@ class SqlStore:
 
     GET_DELIVERED_JOBS_PAGED = """
         with
-            "p_branch_id" as (values(%(branch_id)s::bigint)),
-            "p_search"    as (values(%(search)s::text)),
-            "p_limit"     as (values(%(limit)s::int)),
-            "p_offset"    as (values(%(offset)s::int))
+            "p_branch_id"      as (values(%(branch_id)s::bigint)),
+            "p_search"         as (values(%(search)s::text)),
+            "p_delivery_date"  as (values(%(delivery_date)s::date)),
+            "p_limit"          as (values(%(limit)s::int)),
+            "p_offset"         as (values(%(offset)s::int))
         SELECT j.id, j.job_no, j.alternate_job_no, j.is_opening_job, j.job_date, j.purchase_date, j.delivery_date,
                j.amount, j.last_transaction_id,
                j.division_id, j.batch_no, j.serial_no,
+               j.customer_contact_id,
                TRIM(CONCAT_WS(' ', p.name, b.name, pbm.model_name)) AS device_details,
-               cc.full_name  AS customer_name, cc.gstin AS customer_gstin, cc.mobile,
+               cc.full_name      AS customer_name, cc.gstin AS customer_gstin, cc.mobile,
+               cc.address_line1  AS customer_address_line1,
+               cc.address_line2  AS customer_address_line2,
+               cc.landmark       AS customer_landmark,
+               cc.city           AS customer_city,
+               cc.postal_code    AS customer_postal_code,
+               s.name            AS customer_state,
                js.name       AS job_status_name,
                js.code       AS job_status_code,
                jt.name       AS job_type_name,
@@ -5143,12 +5291,14 @@ class SqlStore:
         JOIN job_receive_manner    jrm ON jrm.id = j.job_receive_manner_id
         LEFT JOIN technician       t   ON t.id   = j.technician_id
         LEFT JOIN job_invoice      ji  ON ji.job_id = j.id
+        LEFT JOIN state            s   ON s.id   = cc.state_id
         LEFT JOIN product_brand_model pbm ON pbm.id = j.product_brand_model_id
         LEFT JOIN brand            b   ON b.id   = pbm.brand_id
         LEFT JOIN product          p   ON p.id   = pbm.product_id
         WHERE j.branch_id = (table "p_branch_id")
           AND j.is_final  = true
           AND j.is_closed = true
+          AND ((table "p_delivery_date") IS NULL OR j.delivery_date = (table "p_delivery_date"))
           AND ((table "p_search") = ''
            OR  LOWER(j.job_no::text)                   LIKE '%%' || LOWER((table "p_search")) || '%%'
            OR  LOWER(cc.mobile)                        LIKE '%%' || LOWER((table "p_search")) || '%%'
@@ -5209,6 +5359,7 @@ class SqlStore:
             j.estimate_amount, j.qty, j.last_transaction_id,
             j.division_id, j.serial_no, j.is_igst, j.to_show_parts_in_job_invoice,
             j.customer_contact_id,
+            j.delivery_date, j.remarks,
             TRIM(CONCAT_WS(' ', p.name, b.name, pbm.model_name, j.serial_no)) AS device_details,
             cc.full_name      AS customer_name, cc.mobile,
             cc.gstin          AS customer_gstin,
@@ -5276,7 +5427,8 @@ class SqlStore:
                  cc.landmark, cc.city, cc.postal_code, s.name,
                  js.name, js.code, jt.name, jt.code,
                  jrm.name, jrc.name, t.name, pbm.model_name, b.name, p.name,
-                 ji.id, ji.invoice_no, ji.invoice_date, ji.amount
+                 ji.id, ji.invoice_no, ji.invoice_date, ji.amount,
+                 j.delivery_date, j.remarks
     """
 
     # ── Reports — Dashboard ───────────────────────────────────────────────────
@@ -6014,6 +6166,80 @@ class SqlStore:
           AND t.is_active = true
         GROUP BY t.id, t.name, jt.transaction_date::date
         ORDER BY t.name, day
+    """
+
+    # ── Reports — Profit ──────────────────────────────────────────────────────
+
+    GET_TECHNICIAN_PROFIT_MONTHLY_FY = """
+        with
+            "p_from" as (values(%(from)s::date))
+        SELECT
+            t.id                                AS technician_id,
+            t.name                              AS technician_name,
+            m.month_idx                         AS month_idx,
+            COUNT(DISTINCT jc.job_id)           AS delivered_count,
+            COALESCE(SUM(jc.profit), 0)         AS profit,
+            COALESCE(SUM(jc.total_charges), 0)  AS total_charges
+        FROM technician t
+        CROSS JOIN (SELECT generate_series(0, 11) AS month_idx) m
+        LEFT JOIN (
+            SELECT
+                j.id                                                     AS job_id,
+                j.technician_id                                          AS technician_id,
+                (
+                  (EXTRACT(YEAR  FROM AGE(date_trunc('month', j.delivery_date), date_trunc('month', (table "p_from")))) * 12
+                 +  EXTRACT(MONTH FROM AGE(date_trunc('month', j.delivery_date), date_trunc('month', (table "p_from")))))
+                )::int                                                   AS month_idx,
+                COALESCE(ji.aggregate, 0)
+                  - COALESCE(parts.parts_cost, 0)
+                  - COALESCE(charges.charges_cost, 0)                    AS profit,
+                COALESCE(ji.aggregate, 0)                                AS total_charges
+            FROM job j
+            JOIN job_status js ON js.id = j.job_status_id AND js.code = 'DELIVERED_OK'
+            LEFT JOIN job_invoice ji ON ji.job_id = j.id
+            LEFT JOIN (
+                SELECT job_id, SUM(cost_price * qty) AS parts_cost FROM job_part_used GROUP BY job_id
+            ) parts ON parts.job_id = j.id
+            LEFT JOIN (
+                SELECT job_id, SUM(cost_price * qty) AS charges_cost FROM job_additional_charge GROUP BY job_id
+            ) charges ON charges.job_id = j.id
+            WHERE j.delivery_date >= (table "p_from")
+              AND j.delivery_date <  (table "p_from") + INTERVAL '12 months'
+              AND COALESCE(ji.amount, 0) > 0
+        ) jc ON jc.technician_id = t.id AND jc.month_idx = m.month_idx
+        WHERE t.is_active = true
+        GROUP BY t.id, t.name, m.month_idx
+        ORDER BY t.name, m.month_idx
+    """
+
+    GET_TECHNICIAN_PROFIT_MONTH_JOBS = """
+        with
+            "p_technician_id" as (values(%(technician_id)s::bigint)),
+            "p_from"          as (values(%(from)s::date)),
+            "p_to"            as (values(%(to)s::date))
+        SELECT
+            j.id                                                   AS id,
+            j.job_no                                               AS job_no,
+            j.delivery_date                                        AS delivery_date,
+            cc.full_name                                           AS customer_name,
+            COALESCE(ji.aggregate, 0)
+              - COALESCE(parts.parts_cost, 0)
+              - COALESCE(charges.charges_cost, 0)                  AS profit,
+            COALESCE(ji.aggregate, 0)                              AS total_charges
+        FROM job j
+        JOIN job_status js       ON js.id = j.job_status_id AND js.code = 'DELIVERED_OK'
+        JOIN customer_contact cc ON cc.id = j.customer_contact_id
+        LEFT JOIN job_invoice ji ON ji.job_id = j.id
+        LEFT JOIN (
+            SELECT job_id, SUM(cost_price * qty) AS parts_cost FROM job_part_used GROUP BY job_id
+        ) parts ON parts.job_id = j.id
+        LEFT JOIN (
+            SELECT job_id, SUM(cost_price * qty) AS charges_cost FROM job_additional_charge GROUP BY job_id
+        ) charges ON charges.job_id = j.id
+        WHERE j.technician_id = (table "p_technician_id")
+          AND j.delivery_date BETWEEN (table "p_from") AND (table "p_to")
+          AND COALESCE(ji.amount, 0) > 0
+        ORDER BY j.delivery_date, j.job_no
     """
 
     # ── Reports — Inventory ───────────────────────────────────────────────────

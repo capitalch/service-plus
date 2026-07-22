@@ -1,11 +1,9 @@
-# Batch Warranty Jobs modifications
-- Create a button "Process n jobs" on right of search box which will be enabled when there are more than one job selected.
-- clicking on this button will open a modal window which will have the following:
-    - technician selection widget.
-    - possible transactions checkboxes.
-    - date selection widget (optional).
-    - remarks text box (optional).
-    - A proceed button and a cancel button.
-- clicking on proceed button will process all the selected jobs together.
+# Reports > Profit Reports > Technician profit report
+- Rows: technician Name
+- columns: month of year from April to March next year
+- cells: No of jobs delivered ok, total profit, total charges
+    - Only delivered jobs in that month should be included
+- Rows should be clickable and should open the job list details with delivery date, job no, customer, charges, profit for that technician and month
+    
     
     

@@ -11,6 +11,7 @@ import { RangePicker } from "./range-picker";
 import type { DateRangeType, RangeKeyType } from "./fiscal";
 
 type Props = {
+    actions?: ReactNode;
     children?: ReactNode;
     className?: string;
     hideRange?: boolean;
@@ -25,6 +26,7 @@ type Props = {
 };
 
 export const ReportToolbar = ({
+    actions,
     children,
     className,
     hideRange = false,
@@ -50,6 +52,7 @@ export const ReportToolbar = ({
                     {subtitle && <p className="mt-0.5 text-xs text-(--cl-text-muted)">{subtitle}</p>}
                 </div>
                 <div className="flex items-center gap-1.5">
+                    {actions}
                     {onRefresh && (
                         <Button
                             aria-label="Refresh"

@@ -30,6 +30,8 @@ const TechnicianProfitRevenueSection         = lazy(() => import("../components/
 const TechnicianRepairedDeliveredSection     = lazy(() => import("../components/reports/performance/technician-repaired-delivered-section").then(m => ({ default: m.TechnicianRepairedDeliveredSection })));
 const TechnicianScorecardSection             = lazy(() => import("../components/reports/performance/technician-scorecard-section").then(m => ({ default: m.TechnicianScorecardSection })));
 
+const TechnicianProfitReportSection          = lazy(() => import("../components/reports/profit/technician-profit-report-section").then(m => ({ default: m.TechnicianProfitReportSection })));
+
 const PartsConsumptionDetailedSection        = lazy(() => import("../components/reports/inventory/parts-consumption-detailed-section").then(m => ({ default: m.PartsConsumptionDetailedSection })));
 const PartsReorderSuggestionsSection         = lazy(() => import("../components/reports/inventory/parts-reorder-suggestions-section").then(m => ({ default: m.PartsReorderSuggestionsSection })));
 const SlowMoversSection                      = lazy(() => import("../components/reports/inventory/slow-movers-section").then(m => ({ default: m.SlowMoversSection })));
@@ -72,6 +74,7 @@ const REPORT_SECTIONS: Record<string, ComponentType> = {
     "Stock Movement Summary":                StockMovementSummarySection,
     "Technician Productivity Heatmap":       TechnicianProductivityHeatmapSection,
     "Technician Profit & Revenue":           TechnicianProfitRevenueSection,
+    "Technician Profit Report":              TechnicianProfitReportSection,
     "Technician Repaired vs Delivered":      TechnicianRepairedDeliveredSection,
     "Technician Scorecard":                  TechnicianScorecardSection,
     "Warranty Parts Consumption Detail":     WarrantyPartsConsumptionDetailSection,

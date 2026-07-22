@@ -203,13 +203,59 @@ export type WarrantyBatchJobRow = {
     last_transaction_id: number | null;
     is_final:            boolean;
     is_closed:           boolean;
-    customer_contact_id: number;
-    customer_name:       string | null;
-    customer_gstin:      string | null;
-    mobile:              string;
-    device_details:      string | null;
-    serial_no:           string | null;
-    parts_count:         number;
+    customer_contact_id:    number;
+    customer_name:          string | null;
+    customer_gstin:         string | null;
+    mobile:                 string;
+    customer_address_line1: string | null;
+    customer_address_line2: string | null;
+    customer_landmark:      string | null;
+    customer_city:          string | null;
+    customer_postal_code:   string | null;
+    customer_state:         string | null;
+    device_details:         string | null;
+    serial_no:              string | null;
+    parts_count:            number;
+};
+
+export type DeliveredWarrantyJobRow = {
+    id:               number;
+    job_no:           string;
+    alternate_job_no: string | null;
+    job_date:         string;
+    delivery_date:    string | null;
+    division_id:      number | null;
+    amount:           number | null;
+    job_status_id:    number;
+    job_status_code:  string;
+    job_status_name:  string;
+    technician_id:    number | null;
+    technician_name:  string | null;
+    device_details:   string | null;
+    serial_no:        string | null;
+};
+
+export type DeliveredWarrantyJobGroupRow = {
+    customer_contact_id:    number;
+    customer_name:          string | null;
+    mobile:                 string;
+    customer_address_line1: string | null;
+    customer_address_line2: string | null;
+    customer_landmark:      string | null;
+    customer_city:          string | null;
+    customer_postal_code:   string | null;
+    customer_state:         string | null;
+    delivery_date:          string;
+    job_count:              number;
+    job_nos:                string | null;
+    device_summary:         string | null;
+};
+
+export type WarrantyCustomerOption = {
+    id:        number;
+    full_name: string | null;
+    mobile:    string;
+    job_count: number;
 };
 
 export type JobTransactionRow = {

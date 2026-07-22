@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Building2, Calendar, FileText, IndianRupee, Info, Loader2, MapPin, Package, Paperclip, Printer, ReceiptText, RotateCcw, Truck, User, Wrench } from "lucide-react";
+import { Building2, Calendar, ClipboardCheck, FileText, IndianRupee, Info, Loader2, MapPin, Package, Paperclip, Printer, ReceiptText, RotateCcw, Truck, User, Wrench } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,7 @@ import type { JobInvoiceFullRow, JobInvoiceLineRow } from "../deliver-job/delive
 import { buildInvoicePdf, buildReceiptPdf, buildDeliveryNotePdf } from "../deliver-job/deliver-job-pdf";
 import { getJobSheetBlobUrl, getJobInfoBlobUrl } from "../job-sheet-pdf";
 import { JobAttachDialog } from "../single-job/job-attach-dialog";
+import { JobFinalInfoModal } from "../final-a-job/job-final-info-modal";
 import { STATUS_COLORS } from "./status-transitions";
 import { UndoTransactionDialog } from "./undo-transaction-dialog";
 
@@ -125,6 +126,7 @@ export const JobDetailsModal = ({ jobId, onClose, onJobChanged }: Props) => {
     const [loading,   setLoading]  = useState(true);
     const [undoing,   setUndoing]  = useState(false);
     const [showUndo,  setShowUndo] = useState(false);
+    const [showFinalInfo, setShowFinalInfo] = useState(false);
 
     // PDF preview
     const [pdfUrl,       setPdfUrl]       = useState<string | null>(null);
@@ -374,8 +376,38 @@ export const JobDetailsModal = ({ jobId, onClose, onJobChanged }: Props) => {
                                 </>
                             )}
                         </div>
-                        {job && !loading && (
-                            <div className="flex items-center gap-1.5 flex-nowrap">
+                    </div>
+                    {job && (
+                        <div className="relative z-10 mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-600">
+                            <span className="inline-flex items-center gap-1.5"><Calendar className="h-3.5 w-3.5" />{job.job_date}</span>
+                            <span className="inline-flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" />{currentBranch?.code ?? job.branch_code ?? "—"}</span>
+                            {division && (
+                                <span className="inline-flex items-center gap-1.5"><Building2 className="h-3.5 w-3.5" />{division.name}</span>
+                            )}
+                            {job.technician_name && (
+                                <span className="inline-flex items-center gap-1.5"><Wrench className="h-3.5 w-3.5" />{job.technician_name}</span>
+                            )}
+                            {job.customer_name && (
+                                <span className="inline-flex items-center gap-1.5"><User className="h-3.5 w-3.5" />{job.customer_name}</span>
+                            )}
+                        </div>
+                    )}
+                </DialogHeader>
+
+                <div className="max-h-[78vh] overflow-y-auto">
+                    {loading ? (
+                        <div className="flex h-48 items-center justify-center gap-2 text-sm text-slate-500">
+                            <Loader2 className="h-5 w-5 animate-spin" /> Loading…
+                        </div>
+                    ) : !job ? (
+                        <div className="flex h-48 items-center justify-center text-sm text-slate-500">
+                            Job not found.
+                        </div>
+                    ) : (
+                        <div className="p-5 space-y-5">
+
+                            {/* ── Actions ── */}
+                            <div className="flex flex-wrap items-center gap-1.5">
                                 <Button
                                     size="sm"
                                     variant="outline"
@@ -426,37 +458,17 @@ export const JobDetailsModal = ({ jobId, onClose, onJobChanged }: Props) => {
                                     <FileText className="h-3 w-3" />
                                     Job Info
                                 </Button>
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-7 px-2.5 text-[11px] gap-1.5 border-violet-200 text-violet-700 hover:bg-violet-50"
+                                    onClick={() => setShowFinalInfo(true)}
+                                    title="View read-only job final info: parts, charges, cost & sale"
+                                >
+                                    <ClipboardCheck className="h-3 w-3" />
+                                    Job Final Info
+                                </Button>
                             </div>
-                        )}
-                    </div>
-                    {job && (
-                        <div className="relative z-10 mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-600">
-                            <span className="inline-flex items-center gap-1.5"><Calendar className="h-3.5 w-3.5" />{job.job_date}</span>
-                            <span className="inline-flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" />{currentBranch?.code ?? job.branch_code ?? "—"}</span>
-                            {division && (
-                                <span className="inline-flex items-center gap-1.5"><Building2 className="h-3.5 w-3.5" />{division.name}</span>
-                            )}
-                            {job.technician_name && (
-                                <span className="inline-flex items-center gap-1.5"><Wrench className="h-3.5 w-3.5" />{job.technician_name}</span>
-                            )}
-                            {job.customer_name && (
-                                <span className="inline-flex items-center gap-1.5"><User className="h-3.5 w-3.5" />{job.customer_name}</span>
-                            )}
-                        </div>
-                    )}
-                </DialogHeader>
-
-                <div className="max-h-[78vh] overflow-y-auto">
-                    {loading ? (
-                        <div className="flex h-48 items-center justify-center gap-2 text-sm text-slate-500">
-                            <Loader2 className="h-5 w-5 animate-spin" /> Loading…
-                        </div>
-                    ) : !job ? (
-                        <div className="flex h-48 items-center justify-center text-sm text-slate-500">
-                            Job not found.
-                        </div>
-                    ) : (
-                        <div className="p-5 space-y-5">
 
                             {/* ── Customer + Device ── */}
                             <div className="space-y-5">
@@ -862,6 +874,10 @@ export const JobDetailsModal = ({ jobId, onClose, onJobChanged }: Props) => {
                 onClose={() => { setAttachOpen(false); loadFiles(); }}
                 onFilesChanged={() => loadFiles()}
             />
+        )}
+
+        {showFinalInfo && (
+            <JobFinalInfoModal jobId={jobId} onClose={() => setShowFinalInfo(false)} />
         )}
 
         {showUndo && job && (

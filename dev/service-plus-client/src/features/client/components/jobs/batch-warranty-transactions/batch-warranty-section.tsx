@@ -1,12 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Layers, Play, Search, X } from "lucide-react";
+import { FileText, Layers, Play, Search, X } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { CustomerInput } from "@/features/client/components/shared/customer-select";
 import { PdfPreviewModal } from "@/components/shared/pdf-preview-modal";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { SQL_MAP } from "@/constants/sql-map";
@@ -15,13 +14,13 @@ import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
 import { selectAvailableDivisions, selectCurrentBranch, selectSchema } from "@/store/context-slice";
 import { useAppSelector } from "@/store/hooks";
-import type { CustomerTypeOption, StateOption } from "@/features/client/types/customer";
-import type { CustomerSearchRow } from "@/features/client/types/sales";
-import type { TechnicianRow, WarrantyBatchJobRow } from "@/features/client/types/job";
+import type { TechnicianRow, WarrantyBatchJobRow, WarrantyCustomerOption } from "@/features/client/types/job";
 import { JobDetailsModal } from "../job-pipeline/job-details-modal";
 import { buildDeliveryNotePdf, type DeliveryNoteJobInfo } from "../deliver-job/deliver-job-pdf";
 
 import { WarrantyJobsGrid } from "./warranty-jobs-grid";
+import { WarrantyCustomerPicker } from "./warranty-customer-picker";
+import { ReprintDeliveryNoteModal } from "./reprint-delivery-note-modal";
 import { BatchResultsModal } from "./batch-results-modal";
 import { executeBatch, type ExecResult } from "./batch-execute";
 import { ProcessJobsModal, type ProcessJobsArgs } from "./process-jobs-modal";
@@ -38,11 +37,26 @@ export function BatchWarrantySection() {
     const branchId    = branch?.id ?? null;
 
     // ── Meta (fetched once per branch) ───────────────────────────────────────
-    const [customerTypes, setCustomerTypes]   = useState<CustomerTypeOption[]>([]);
-    const [masterStates,  setMasterStates]    = useState<StateOption[]>([]);
     const [technicians,   setTechnicians]     = useState<TechnicianRow[]>([]);
     const [deliveryManners, setDeliveryManners] = useState<DeliveryMannerRow[]>([]);
     const [deliveredOkStatusId, setDeliveredOkStatusId] = useState<number | null>(null);
+    const [warrantyCustomers, setWarrantyCustomers] = useState<WarrantyCustomerOption[]>([]);
+
+    const loadWarrantyCustomers = useCallback(async () => {
+        if (!dbName || !schema || !branchId) return;
+        const res = await apolloClient.query<GenericQueryData<WarrantyCustomerOption>>({
+            fetchPolicy: "network-only",
+            query: GRAPHQL_MAP.genericQuery,
+            variables: {
+                db_name: dbName, schema,
+                value: graphQlUtils.buildGenericQueryValue({
+                    sqlId: SQL_MAP.GET_WARRANTY_CUSTOMERS_BY_BRANCH,
+                    sqlArgs: { branch_id: branchId },
+                }),
+            },
+        });
+        setWarrantyCustomers(res.data?.genericQuery ?? []);
+    }, [dbName, schema, branchId]);
 
     useEffect(() => {
         if (!dbName || !schema || !branchId) return;
@@ -52,21 +66,17 @@ export function BatchWarrantySection() {
                 query: GRAPHQL_MAP.genericQuery,
                 variables: { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId, sqlArgs }) },
             });
-        void gq<CustomerTypeOption>(SQL_MAP.GET_ALL_CUSTOMER_TYPES).then(res => setCustomerTypes(res.data?.genericQuery ?? []));
-        void gq<StateOption>(SQL_MAP.GET_ALL_STATES).then(res => setMasterStates(res.data?.genericQuery ?? []));
         void gq<TechnicianRow>(SQL_MAP.GET_ALL_TECHNICIANS, { branch_id: branchId }).then(res => setTechnicians(res.data?.genericQuery ?? []));
         void gq<DeliveryMannerRow>(SQL_MAP.GET_JOB_DELIVERY_MANNERS).then(res => setDeliveryManners(res.data?.genericQuery ?? []));
         void gq<{ id: number; code: string }>(SQL_MAP.GET_JOB_STATUSES).then(res => {
             const statuses = res.data?.genericQuery ?? [];
             setDeliveredOkStatusId(statuses.find(s => s.code === "DELIVERED_OK")?.id ?? null);
         });
-    }, [dbName, schema, branchId]);
+        void loadWarrantyCustomers();
+    }, [dbName, schema, branchId, loadWarrantyCustomers]);
 
     // ── Customer selection ────────────────────────────────────────────────────
-    const [customerId,      setCustomerId]      = useState<number | null>(null);
-    const [customerName,    setCustomerName]    = useState("");
-    const [customerMobile,  setCustomerMobile]  = useState<string | null>(null);
-    const [customerAddress, setCustomerAddress] = useState<string | null>(null);
+    const [customerId, setCustomerId] = useState<number | null>(null);
 
     // ── Eligible jobs for the selected customer ───────────────────────────────
     const [jobs,        setJobs]        = useState<WarrantyBatchJobRow[]>([]);
@@ -106,23 +116,8 @@ export function BatchWarrantySection() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [customerId, loadJobs]);
 
-    function handleCustomerSelect(c: CustomerSearchRow) {
-        setCustomerId(c.id);
-        setCustomerName(c.full_name ?? c.mobile);
-        setCustomerMobile(c.mobile ?? null);
-        setCustomerAddress(c.address_line1 ?? null);
-    }
-
-    function handleCustomerClear() {
-        setCustomerId(null);
-        setCustomerName("");
-        setCustomerMobile(null);
-        setCustomerAddress(null);
-    }
-
-    function handleCustomerChange(name: string) {
-        setCustomerName(name);
-        if (!name.trim()) handleCustomerClear();
+    function handleCustomerSelect(id: number | null) {
+        setCustomerId(id);
     }
 
     function handleSelectionChange(id: number, checked: boolean) {
@@ -140,6 +135,7 @@ export function BatchWarrantySection() {
     const [executing, setExecuting] = useState(false);
     const [results,   setResults]   = useState<ExecResult[] | null>(null);
     const [viewJobId, setViewJobId] = useState<number | null>(null);
+    const [showReprintModal, setShowReprintModal] = useState(false);
 
     // Jobs actually delivered in the last run, so "Job Delivery Note" only
     // enables once at least one job in the batch was successfully delivered.
@@ -185,16 +181,22 @@ export function BatchWarrantySection() {
         const division   = divisionId != null ? (availableDivisions.find(d => d.id === divisionId) ?? null) : null;
 
         const jobsForPdf: DeliveryNoteJobInfo[] = delivered.map(j => ({
-            customer_contact_id: j.customer_contact_id,
-            job_no:              j.job_no,
-            alternate_job_no:    j.alternate_job_no,
-            job_date:            j.job_date,
-            customer_name:       j.customer_name ?? "",
-            mobile:              j.mobile,
-            device_details:      j.device_details,
-            technician_name:     j.technician_name,
-            amount:              j.amount,
-            delivery_date:       lastRunDate,
+            customer_contact_id:    j.customer_contact_id,
+            job_no:                 j.job_no,
+            alternate_job_no:       j.alternate_job_no,
+            job_date:               j.job_date,
+            customer_name:          j.customer_name ?? "",
+            mobile:                 j.mobile,
+            customer_address_line1: j.customer_address_line1,
+            customer_address_line2: j.customer_address_line2,
+            customer_landmark:      j.customer_landmark,
+            customer_city:          j.customer_city,
+            customer_postal_code:   j.customer_postal_code,
+            customer_state:         j.customer_state,
+            device_details:         j.device_details,
+            technician_name:        j.technician_name,
+            amount:                 j.amount,
+            delivery_date:          lastRunDate,
         }));
 
         const doc = buildDeliveryNotePdf(jobsForPdf, division, branch?.name ?? null);
@@ -208,6 +210,7 @@ export function BatchWarrantySection() {
         setSelectedIds(new Set());
         setDeliveredJobIds(new Set());
         if (customerId != null) void loadJobs(customerId);
+        void loadWarrantyCustomers();
     }
 
     // ── Render ────────────────────────────────────────────────────────────────
@@ -227,29 +230,32 @@ export function BatchWarrantySection() {
                 <span className="text-xs text-(--cl-text-muted)">
                     Process multiple no-parts warranty jobs for one customer together
                 </span>
+                <div className="flex-1" />
+                <Button
+                    className="h-8 gap-2 text-xs"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setShowReprintModal(true)}
+                >
+                    <FileText className="h-3.5 w-3.5" />
+                    Reprint Delivery Note
+                </Button>
             </div>
 
             {/* Customer selection + grid search + process button */}
             <div className="flex flex-wrap items-start gap-4">
                 <div className="max-w-md flex-1 min-w-[260px]">
-                    <Label className="mb-1 block">Customer</Label>
-                    <CustomerInput
-                        customerId={customerId}
-                        customerName={customerName}
-                        customerMobile={customerMobile}
-                        customerAddress={customerAddress}
-                        customerTypes={customerTypes}
-                        states={masterStates}
-                        onChange={handleCustomerChange}
-                        onClear={handleCustomerClear}
-                        onSelect={handleCustomerSelect}
+                    <WarrantyCustomerPicker
+                        customers={warrantyCustomers}
+                        value={customerId}
+                        onChange={handleCustomerSelect}
                     />
                 </div>
 
                 {customerId != null && (
                     <>
-                        <div className="min-w-[220px] max-w-xs flex-1">
-                            <Label className="mb-1 block">Search</Label>
+                        <div className="min-w-[220px] max-w-xs flex-1 space-y-2">
+                            <Label className="text-xs font-extrabold text-(--cl-text) uppercase tracking-widest">Search</Label>
                             <div className="relative">
                                 <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-(--cl-text-muted)" />
                                 <Input
@@ -270,16 +276,16 @@ export function BatchWarrantySection() {
                             </div>
                         </div>
 
-                        <div>
-                            <Label className="mb-1 block invisible">Process</Label>
+                        <div className="space-y-2">
+                            <Label className="text-xs font-extrabold uppercase tracking-widest invisible">Process</Label>
                             <Button
                                 className="h-9 gap-2 bg-emerald-600 hover:bg-emerald-700 text-white"
-                                disabled={selectedIds.size <= 1}
-                                title={selectedIds.size <= 1 ? "Select more than one job to process together" : undefined}
+                                disabled={selectedIds.size === 0}
+                                title={selectedIds.size === 0 ? "Select at least one job to process" : undefined}
                                 onClick={() => setShowProcessModal(true)}
                             >
                                 <Play className="h-4 w-4" />
-                                Process {selectedIds.size} Jobs
+                                Process {selectedIds.size} Job{selectedIds.size !== 1 ? "s" : ""}
                             </Button>
                         </div>
                     </>
@@ -294,6 +300,15 @@ export function BatchWarrantySection() {
                     selectedIds={selectedIds}
                     onSelectionChange={handleSelectionChange}
                     onViewJob={setViewJobId}
+                />
+            )}
+
+            {showReprintModal && (
+                <ReprintDeliveryNoteModal
+                    branchId={branchId}
+                    branchName={branch?.name ?? null}
+                    availableDivisions={availableDivisions}
+                    onClose={() => setShowReprintModal(false)}
                 />
             )}
 

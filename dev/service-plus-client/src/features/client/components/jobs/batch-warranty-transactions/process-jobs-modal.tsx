@@ -64,7 +64,7 @@ export function ProcessJobsModal({ jobs, technicians, executing, onCancel, onRem
         <Dialog open onOpenChange={open => { if (!open && !executing) onCancel(); }}>
             <DialogContent className="sm:max-w-lg">
                 <DialogHeader>
-                    <DialogTitle>Process {jobs.length} Jobs</DialogTitle>
+                    <DialogTitle>Process {jobs.length} Job{jobs.length !== 1 ? "s" : ""}</DialogTitle>
                 </DialogHeader>
 
                 <div className="space-y-4">

@@ -32,9 +32,16 @@ export type DeliveredJobRow = {
     serial_no:        string | null;
     amount:           number | null;
     last_transaction_id: number | null;
+    customer_contact_id: number;
     customer_name:    string;
     customer_gstin:   string | null;
     mobile:           string;
+    customer_address_line1: string | null;
+    customer_address_line2: string | null;
+    customer_landmark:      string | null;
+    customer_city:          string | null;
+    customer_postal_code:   string | null;
+    customer_state:         string | null;
     job_status_name:  string;
     job_status_code:  string;
     job_type_name:    string;
@@ -54,10 +61,12 @@ type Props = {
     total:              number;
     page:               number;
     search:             string;
+    deliveryDateFilter: string;
     branchId:           number | null;
     availableDivisions: DivisionContextType[];
     setPage:            (v: number | ((p: number) => number)) => void;
     onSearch:           (v: string) => void;
+    onDeliveryDateChange:     (v: string) => void;
     onRefresh:          () => void;
     onViewJob:                (id: number) => void;
     onOpenAttach:             (id: number, jobNo: string) => void;
@@ -73,9 +82,9 @@ type Props = {
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export const DeliveredJobsGrid = forwardRef<GridRetentionHandle, Props>(function DeliveredJobsGrid({
-    rows, loading, total, page, search,
+    rows, loading, total, page, search, deliveryDateFilter,
     branchId, availableDivisions, setPage, postDataToAccounts,
-    onSearch, onRefresh, onViewJob, onOpenAttach, onUndoDelivery, onPrintInvoiceReceipts, onDeliveryNote,
+    onSearch, onDeliveryDateChange, onRefresh, onViewJob, onOpenAttach, onUndoDelivery, onPrintInvoiceReceipts, onDeliveryNote,
     selectedIds, onSelectionChange, onPrintCombinedNote,
 }, ref) {
     const { scrollWrapperRef, selectedRowId, setSelectedRowId, armRestore } = useGridRowRetention(loading);
@@ -99,7 +108,7 @@ export const DeliveredJobsGrid = forwardRef<GridRetentionHandle, Props>(function
     const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
     // Reference row that pins what the rest of the selection must match
-    // (same customer mobile + same delivery date) — combining notes across
+    // (same customer + same delivery date) — combining notes across
     // different customers or delivery dates doesn't make sense.
     const referenceRow = selectedIds.size > 0 ? rows.find(r => selectedIds.has(r.id)) : undefined;
 
@@ -131,6 +140,13 @@ export const DeliveredJobsGrid = forwardRef<GridRetentionHandle, Props>(function
                         </button>
                     )}
                 </div>
+                <Input
+                    className="h-8 w-40 border-(--cl-border) bg-white text-xs"
+                    title="Filter by delivery date"
+                    type="date"
+                    value={deliveryDateFilter}
+                    onChange={e => { onDeliveryDateChange(e.target.value); setPage(1); }}
+                />
                 <div className="ml-auto flex items-center gap-2">
                     <Button
                         className="h-8 px-2.5 text-xs"
@@ -206,7 +222,7 @@ export const DeliveredJobsGrid = forwardRef<GridRetentionHandle, Props>(function
                                 {rows.map((row, idx) => {
                                     const isSelected  = selectedIds.has(row.id);
                                     const isSelectable = !referenceRow || isSelected
-                                        || (row.mobile === referenceRow.mobile && row.delivery_date === referenceRow.delivery_date);
+                                        || (row.customer_contact_id === referenceRow.customer_contact_id && row.delivery_date === referenceRow.delivery_date);
                                     return (
                                     <motion.tr
                                         key={row.id}
