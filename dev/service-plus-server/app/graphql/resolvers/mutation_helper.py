@@ -8,10 +8,10 @@ from datetime import date, datetime
 from typing import Any
 from urllib.parse import quote, unquote
 
-import httpx  # pylint: disable=import-error
+import httpx
 
-from psycopg import sql as pgsql  # pylint: disable=import-error
-from psycopg.rows import dict_row  # pylint: disable=import-error
+from psycopg import sql as pgsql
+from psycopg.rows import dict_row
 
 from app.core.audit_log import AuditAction, audit_logger
 from app.core.email import send_email

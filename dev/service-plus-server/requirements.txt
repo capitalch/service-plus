@@ -8,6 +8,7 @@ mcp[cli]
 openpyxl
 pandas
 Pillow
+pylint
 python-multipart
 psycopg[binary]
 psycopg-pool
