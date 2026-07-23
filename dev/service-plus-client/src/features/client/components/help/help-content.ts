@@ -263,11 +263,50 @@ export const HELP_ARTICLES: HelpArticle[] = [
             { type: "para", text: "The customer's GSTIN can be captured or edited on the batch form just like on a single job — it auto-fills from the selected customer and is saved back to the customer record. See 'Customer GSTIN on Jobs'." },
             { type: "heading", text: "Editing a batch job" },
             { type: "para", text: "If a job has a Batch No, it must be edited from Batch Jobs — not from Single Job. Find the batch and edit the individual job within it." },
+            { type: "note", text: "Not to be confused with Batch Warranty Jobs (Jobs → Batch Warranty Jobs), which processes transactions on jobs that already exist — this screen is only for creating new job intake records. See 'Batch Warranty Jobs'." },
         ],
         faqs: [
             { q: "Why can't I edit a job from Single Job?", a: "The job belongs to a batch. Open Batch Jobs, find the batch by batch number or customer, and edit the job there." },
             { q: "Can I add a new job to an existing batch?", a: "Yes — open the batch in Batch Jobs and add more job lines before saving." },
             { q: "Can I remove a job from a batch?", a: "Yes — edit the batch and delete the job line. The job will be removed from the batch." },
+        ],
+    },
+
+    {
+        id: "batch-warranty-jobs",
+        category: "Jobs",
+        title: "Batch Warranty Jobs",
+        summary: "Advance several existing zero-parts warranty jobs for one customer through their transactions together — not the same as Batch Jobs.",
+        tags: ["batch warranty jobs", "warranty", "batch process", "completed ok", "final", "deliver", "send to company", "receive from company", "delivery note", "reprint"],
+        content: [
+            { type: "para", text: "Jobs → Batch Warranty Jobs lets you push several existing, zero-parts warranty jobs for one customer through their pipeline transactions in a single run — Completed OK, Final a Job, Deliver a Job, or the vendor Send-to-Company / Received-from-Company cycle — instead of opening each job separately." },
+            { type: "warning", text: "This is not the same as Batch Jobs (New Job → Batch Jobs). Batch Jobs creates new job intake records. Batch Warranty Jobs only processes transactions on warranty jobs that already exist." },
+            { type: "heading", text: "Running a batch" },
+            { type: "steps", items: [
+                "Go to Jobs → Batch Warranty Jobs.",
+                "Pick a customer — only customers with open (not yet delivered), zero-parts warranty jobs are listed.",
+                "The grid shows that customer's eligible jobs. Select one or more with the checkboxes.",
+                "Click 'Process N Jobs' to open the process modal.",
+                "Set the technician (only required if Completed OK is checked), the date (required, defaults to today), and optional remarks.",
+                "Check the transactions to apply, then click Proceed.",
+            ]},
+            { type: "heading", text: "Transaction Groups" },
+            { type: "table", headers: ["Group", "Transactions", "Behavior"], rows: [
+                ["Completion",    "Completed OK → Final a Job → Deliver a Job", "Cascades forward — checking Completed OK unlocks Final, which unlocks Deliver, so one run can carry jobs through several stages at once."],
+                ["Vendor Cycle",  "Send to Company → Received from Company",   "Independent of the Completion group."],
+            ]},
+            { type: "note", text: "Only one group can be active in a single run — checking any box in one group disables the other entirely. A customer with jobs in both states needs two separate runs." },
+            { type: "heading", text: "Results and Delivery Note" },
+            { type: "para", text: "The batch always runs job by job, transaction by transaction, in order. If a step fails for a job, the remaining checked transactions for that job are skipped — but every other job in the batch still runs. A results table is shown after every run, even when everything succeeds, listing each job/transaction as success, skipped, or failed." },
+            { type: "para", text: "If any jobs were delivered during the run, a 'Job Delivery Note' button appears on the results screen to print a combined delivery note for just those jobs." },
+            { type: "heading", text: "Reprint Delivery Note" },
+            { type: "para", text: "The 'Reprint Delivery Note' button in the header is a separate flow for past deliveries — browse previously delivered warranty jobs grouped by customer and delivery date, pick a group, and regenerate that delivery note. It works independently of whichever customer is currently selected in the main grid." },
+        ],
+        faqs: [
+            { q: "How is this different from Batch Jobs?", a: "Batch Jobs (New Job → Batch Jobs) creates new job intake records for a customer. Batch Warranty Jobs only advances existing warranty jobs through their transactions — it never creates a new job." },
+            { q: "Why can't I check Send to Company and Completed OK in the same run?", a: "The Completion group and the Vendor Cycle group are mutually exclusive per run — checking a box in one group disables the other. Run them as two separate batches." },
+            { q: "What happens if one job fails partway through?", a: "Only that job's remaining checked transactions are skipped; every other job in the batch still runs, and the results table shows exactly what succeeded, was skipped, or failed." },
+            { q: "How do I reprint a delivery note for a customer delivered last week?", a: "Use the 'Reprint Delivery Note' button in the header — it lists past delivered warranty jobs by customer and delivery date regardless of what's currently selected in the grid." },
         ],
     },
 
@@ -367,6 +406,35 @@ export const HELP_ARTICLES: HelpArticle[] = [
             { q: "I changed the division — why did prices change?", a: "Switching division recalculates prices for the new GST mode using master data. Switching back produces the same values as the original — no data is corrupted by toggling." },
             { q: "Can I add a part that isn't in the master?", a: "You can type a part name directly without selecting from the master. However, cost price and HSN will not auto-fill; you must enter them manually." },
             { q: "Why is 'Save & Mark Final' blocked with a GSTIN error?", a: "The customer GSTIN field has an invalid value. Fix it to a valid 15-character GSTIN or clear the field (blank is allowed). GSTIN is saved to the customer record. See 'Customer GSTIN on Jobs'." },
+        ],
+    },
+
+    {
+        id: "job-final-info",
+        category: "Jobs",
+        title: "Job Final Info (Read-Only Charges View)",
+        summary: "A read-only breakdown of a job's parts, charges, cost, and sale — viewable without opening the finalize form.",
+        tags: ["job final info", "final info", "charges detail", "read only", "cost price", "selling price", "profit", "GST", "technician profit report"],
+        content: [
+            { type: "para", text: "Job Final Info is a read-only view of everything Finalize recorded for a job — parts used, additional charges, cost price, selling price, and profit — without opening (or risking edits to) the finalize form. It's the same 'Charges Detail' view used inside Final a Job and Job Control, just wrapped for standalone use." },
+            { type: "heading", text: "Opening it" },
+            { type: "bullets", items: [
+                "Job View / Job Details → click the 'Job Final Info' pill in the action row.",
+                "Technician Profit Report → drill into a technician/month cell → click any row in the job list.",
+            ]},
+            { type: "para", text: "Either path opens the same modal for that job's id — there's nothing to configure, and closing it never affects the screen you opened it from." },
+            { type: "heading", text: "What it shows" },
+            { type: "table", headers: ["Section", "Contents"], rows: [
+                ["Parts Used",         "Every part on the job with Qty, Cost, Sale, GST% (GST divisions only), and line Amount"],
+                ["Additional Charges", "Every charge with the same Qty/Cost/Sale/GST/Amount breakdown"],
+                ["Grand Summary",      "Totals for Profit, Qty, CGST/SGST or IGST, Parts, Charges, and the job's overall Total"],
+            ]},
+            { type: "note", text: "Columns adapt automatically: warranty jobs hide Sale/GST columns (only Cost is tracked, Total shows ₹0.00); non-GST divisions hide the GST% and HSN columns entirely." },
+        ],
+        faqs: [
+            { q: "Can I edit anything from Job Final Info?", a: "No. It's strictly read-only — to change parts, charges, or prices, use Final a Job → Undo (if already finalized) → re-open and edit there." },
+            { q: "Why don't I see Sale Price or GST columns?", a: "The job is UNDER_WARRANTY. Warranty jobs never charge the customer, so only Cost Price is shown and the Total is always ₹0.00." },
+            { q: "Where else can I open this besides Job View?", a: "From the Technician Profit Report: drill into any technician/month cell, then click a job row in the list to see that job's full parts/charges breakdown." },
         ],
     },
 
@@ -1014,6 +1082,35 @@ export const HELP_ARTICLES: HelpArticle[] = [
         faqs: [
             { q: "How is revenue attributed to a technician?", a: "Revenue is attributed to whichever technician is currently assigned on the job record — not a snapshot from delivery time. Reassigning a technician after delivery moves that job's historical revenue to the new technician." },
             { q: "What does the Productivity Heatmap show?", a: "A calendar-style grid showing which days and hours have the most job completions — useful for staffing decisions." },
+        ],
+    },
+
+    {
+        id: "technician-profit-report",
+        category: "Reports",
+        title: "Technician Profit Report",
+        summary: "Technician × month matrix of jobs delivered OK, profit, and sale, for a selectable fiscal year — with per-job drill-down.",
+        tags: ["profit reports", "technician profit report", "profit", "sale", "fiscal year", "FY", "delivered OK", "drill down", "GST"],
+        content: [
+            { type: "para", text: "Reports → Profit Reports → Technician Profit Report. Rows are technicians; columns are the 12 months of a fiscal year (April → March), picked from the Fiscal Year selector in the toolbar." },
+            { type: "heading", text: "Reading a Cell" },
+            { type: "table", headers: ["Figure", "Meaning"], rows: [
+                ["Top number (bold)",       "Count of jobs Delivered OK for that technician in that month"],
+                ["Middle number (bold, green)", "Profit — pre-tax sale amount minus parts cost minus charges cost"],
+                ["Bottom number in ( ), light", "Sale — the job's pre-tax invoice amount (GST excluded from both figures)"],
+            ]},
+            { type: "note", text: "Only jobs with a non-zero invoice amount count. A cell shows '—' when the technician had no qualifying delivered jobs that month. Row and column totals, and a grand total, are shown alongside the grid." },
+            { type: "heading", text: "Drilling Down" },
+            { type: "steps", items: [
+                "Click any non-empty cell to open the job list for that technician and month.",
+                "The list shows delivery date, job no, customer, sale, and profit for every qualifying job.",
+                "Click any row in that list to open Job Final Info for the full parts/charges/cost/sale breakdown of that job.",
+            ]},
+        ],
+        faqs: [
+            { q: "Why is Profit sometimes different from what I expect vs. the invoice amount shown elsewhere?", a: "Profit and Sale here both use the job's pre-tax invoice amount, deliberately excluding GST — so GST rate changes never affect either figure. Other screens that show the GST-inclusive invoice total will differ from Sale by the GST amount." },
+            { q: "Can I view a previous fiscal year?", a: "Yes — use the Fiscal Year selector in the top toolbar; it lists the current FY and several prior years." },
+            { q: "Why does a job I know was delivered not appear?", a: "Either its invoice amount is ₹0 (excluded by design), or its delivery date falls outside the selected fiscal year." },
         ],
     },
 

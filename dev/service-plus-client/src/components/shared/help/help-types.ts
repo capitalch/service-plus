@@ -9,7 +9,8 @@ export type ContentBlock =
     | { type: "table";   headers: string[]; rows: string[][] }
     | { type: "note";    text: string }
     | { type: "warning"; text: string }
-    | { type: "heading"; text: string };
+    | { type: "heading"; text: string }
+    | { type: "code";    language: string; text: string };
 
 export type HelpFaq     = { q: string; a: string };
 export type HelpArticle = {

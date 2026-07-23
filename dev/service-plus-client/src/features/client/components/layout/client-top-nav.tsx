@@ -8,7 +8,7 @@ import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { logout, selectCurrentUser } from "@/features/auth/store/auth-slice";
 import { ACCESS_RIGHTS, getRoleDisplayName, hasAccessRight, type AccessRightCode } from "@/features/auth/utils/access-rights";
 import { ROUTES } from "@/router/routes";
-import { useHelp, useLayout, useTheme } from "./client-layout";
+import { useLayout, useTheme } from "./client-layout";
 import type { Section } from "./client-layout";
 import { useNotificationsSummary } from "./use-notifications-summary";
 
@@ -31,7 +31,6 @@ export const ClientTopNav = ({ activeSection }: Props) => {
     const user                     = useAppSelector(selectCurrentUser);
     const { isDark, toggleTheme }  = useTheme();
     const { toggleExplorer }       = useLayout();
-    const { openHelp }             = useHelp();
     const { jobsOverdue, lowStockParts, unpostedDocs } = useNotificationsSummary();
 
     function handleLogout() {
@@ -117,12 +116,6 @@ export const ClientTopNav = ({ activeSection }: Props) => {
                             </NavLink>
                         );
                     })}
-                    <button
-                        onClick={openHelp}
-                        className="flex items-center rounded-md px-3 py-1.5 lg:px-3.5 cursor-pointer text-[13px] lg:text-sm font-medium tracking-tight transition-all active:scale-95 whitespace-nowrap text-(--cl-text-muted) hover:bg-(--cl-hover) hover:text-(--cl-accent)"
-                    >
-                        Help
-                    </button>
                 </nav>
             </div>
 

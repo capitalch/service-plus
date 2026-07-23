@@ -1,7 +1,8 @@
-import { useState, useCallback, useRef, useEffect } from "react";
-import { X, Search, ChevronRight, AlertTriangle, Info, ArrowLeft, Lightbulb, BookOpen } from "lucide-react";
+import { useState, useCallback, useRef, useEffect, useMemo } from "react";
+import { X, Search, ChevronRight, AlertTriangle, Info, ArrowLeft, Lightbulb, BookOpen, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { HelpArticle, ContentBlock, HelpFaq, CategoryStyleType } from "./help-types";
+import { useRecentlyViewed } from "./use-recently-viewed";
 
 // ─── Search helper ────────────────────────────────────────────────────────────
 // Shared across content sets — each content file (help-content.ts, dev-help-content.ts)
@@ -22,6 +23,7 @@ function searchHelpArticles(articles: HelpArticle[], query: string): HelpArticle
             (c.type === "heading"&& c.text.toLowerCase().includes(q)) ||
             (c.type === "note"   && c.text.toLowerCase().includes(q)) ||
             (c.type === "warning"&& c.text.toLowerCase().includes(q)) ||
+            (c.type === "code"   && c.text.toLowerCase().includes(q)) ||
             (c.type === "table"  && c.rows.some(r => r.some(cell => cell.toLowerCase().includes(q))))
         )
     );
@@ -146,6 +148,21 @@ function RenderBlock({ block, category, styles }: { block: ContentBlock; categor
                 </div>
             );
 
+        case "code":
+            return (
+                <div className="mb-3 relative group">
+                    <pre className="overflow-x-auto rounded-lg border border-(--cl-border) bg-(--cl-surface-2) p-3 text-[12px] leading-relaxed text-(--cl-text-muted)">
+                        <code>{block.text}</code>
+                    </pre>
+                    <button
+                        onClick={() => navigator.clipboard.writeText(block.text)}
+                        className="absolute top-2 right-2 rounded border border-(--cl-border) bg-(--cl-surface) px-2 py-0.5 text-[10px] font-semibold text-(--cl-text-muted) opacity-0 transition-opacity hover:bg-(--cl-hover) group-hover:opacity-100"
+                    >
+                        Copy
+                    </button>
+                </div>
+            );
+
         default:
             return null;
     }
@@ -178,8 +195,27 @@ function FaqItem({ faq, category, styles }: { faq: HelpFaq; category: string; st
 
 // ─── Article view ─────────────────────────────────────────────────────────────
 
-function ArticleView({ article, onBack, styles }: { article: HelpArticle; onBack: () => void; styles: Record<string, CategoryStyleType> }) {
+function getRelatedArticles(current: HelpArticle, all: HelpArticle[], limit = 3): HelpArticle[] {
+    return all
+        .filter(a => a.id !== current.id && a.tags.some(t => current.tags.includes(t)))
+        .sort((a, b) => {
+            const aOverlap = a.tags.filter(t => current.tags.includes(t)).length;
+            const bOverlap = b.tags.filter(t => current.tags.includes(t)).length;
+            return bOverlap - aOverlap;
+        })
+        .slice(0, limit);
+}
+
+function ArticleView({ article, onBack, styles, allArticles, onSelectArticle }: {
+    article:         HelpArticle;
+    onBack:          () => void;
+    styles:          Record<string, CategoryStyleType>;
+    allArticles:     HelpArticle[];
+    onSelectArticle: (a: HelpArticle) => void;
+}) {
     const s = catStyle(article.category, styles);
+    const related = useMemo(() => getRelatedArticles(article, allArticles), [article, allArticles]);
+
     return (
         <div className="flex h-full flex-col">
             {/* Coloured article header */}
@@ -204,6 +240,34 @@ function ArticleView({ article, onBack, styles }: { article: HelpArticle; onBack
                             {article.faqs.map((faq, i) => (
                                 <FaqItem key={i} faq={faq} category={article.category} styles={styles} />
                             ))}
+                        </div>
+                    </div>
+                )}
+
+                {related.length > 0 && (
+                    <div className="mt-6">
+                        <div className="mb-3 flex items-center gap-2">
+                            <BookOpen className="h-3.5 w-3.5 text-(--cl-text-muted)" />
+                            <h3 className="text-[13px] font-bold text-(--cl-text)">Related Articles</h3>
+                        </div>
+                        <div className="space-y-1.5">
+                            {related.map(r => {
+                                const rs = catStyle(r.category, styles);
+                                return (
+                                    <button
+                                        key={r.id}
+                                        onClick={() => onSelectArticle(r)}
+                                        className="cursor-pointer flex w-full items-center gap-2.5 rounded-lg border border-(--cl-border) bg-(--cl-surface) px-3 py-2.5 text-left transition-all hover:border-(--cl-accent)/30 hover:bg-(--cl-hover) group"
+                                    >
+                                        <span className="text-base leading-none">{rs.emoji}</span>
+                                        <div className="min-w-0">
+                                            <p className="text-[12px] font-semibold text-(--cl-text) group-hover:text-(--cl-accent) transition-colors truncate">{r.title}</p>
+                                            <p className="text-[10px] text-(--cl-text-muted)">{r.category}</p>
+                                        </div>
+                                        <ChevronRight className="ml-auto h-3 w-3 shrink-0 text-(--cl-text-muted) opacity-0 group-hover:opacity-100 transition-opacity" />
+                                    </button>
+                                );
+                            })}
                         </div>
                     </div>
                 )}
@@ -270,44 +334,106 @@ function CategoryView({ category, articles, styles, onSelectArticle }: {
 
 // ─── Search results view ──────────────────────────────────────────────────────
 
-function SearchResults({ query, results, styles, onSelect }: {
-    query:    string;
-    results:  HelpArticle[];
-    styles:   Record<string, CategoryStyleType>;
-    onSelect: (a: HelpArticle) => void;
+function highlightMatch(text: string, query: string): React.ReactNode {
+    if (!query.trim()) return text;
+    const q = query.trim();
+    const idx = text.toLowerCase().indexOf(q.toLowerCase());
+    if (idx === -1) return text;
+    return (
+        <>
+            {text.slice(0, idx)}
+            <mark className="bg-yellow-200/70 text-inherit rounded-sm px-0.5 dark:bg-yellow-500/30">{text.slice(idx, idx + q.length)}</mark>
+            {text.slice(idx + q.length)}
+        </>
+    );
+}
+
+function SearchResults({ query, results, styles, popularIds, allArticles, onSelect }: {
+    query:      string;
+    results:    HelpArticle[];
+    styles:     Record<string, CategoryStyleType>;
+    popularIds: string[];
+    allArticles: HelpArticle[];
+    onSelect:   (a: HelpArticle) => void;
 }) {
-    if (results.length === 0) {
+    const [activeIdx, setActiveIdx] = useState<number | null>(null);
+
+    useEffect(() => { setActiveIdx(null); }, [query]);
+
+    const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+        if (e.key === "ArrowDown") {
+            e.preventDefault();
+            setActiveIdx(prev => prev === null || prev >= results.length - 1 ? 0 : prev + 1);
+        } else if (e.key === "ArrowUp") {
+            e.preventDefault();
+            setActiveIdx(prev => prev === null || prev <= 0 ? results.length - 1 : prev - 1);
+        } else if (e.key === "Enter" && activeIdx !== null && results[activeIdx]) {
+            onSelect(results[activeIdx]);
+        }
+    }, [results, activeIdx, onSelect]);
+
+    if (results.length === 0 && query.trim()) {
+        const popular = popularIds.map(id => allArticles.find(a => a.id === id)).filter(Boolean) as HelpArticle[];
         return (
-            <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
-                <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-(--cl-surface)">
-                    <Search className="h-7 w-7 text-(--cl-text-muted)/40" />
+            <div className="h-full overflow-y-auto px-5 py-5">
+                <div className="flex flex-col items-center py-8 text-center">
+                    <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-(--cl-surface)">
+                        <Search className="h-7 w-7 text-(--cl-text-muted)/40" />
+                    </div>
+                    <p className="text-[14px] font-semibold text-(--cl-text)">No results for "{query}"</p>
+                    <p className="mt-1.5 text-[12px] text-(--cl-text-muted) leading-relaxed">
+                        Try searching for a feature name, task, or error message.
+                    </p>
                 </div>
-                <p className="text-[14px] font-semibold text-(--cl-text)">No results for "{query}"</p>
-                <p className="mt-1.5 text-[12px] text-(--cl-text-muted) leading-relaxed">
-                    Try searching for a feature name, task, or error message.
-                </p>
+                {popular.length > 0 && (
+                    <div>
+                        <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-(--cl-text-muted)/70">Popular articles</p>
+                        <div className="space-y-1.5">
+                            {popular.map(article => {
+                                const ps = catStyle(article.category, styles);
+                                return (
+                                    <button
+                                        key={article.id}
+                                        onClick={() => onSelect(article)}
+                                        className="cursor-pointer flex w-full items-center gap-2.5 rounded-lg border border-(--cl-border) bg-(--cl-surface) px-3 py-2.5 text-left transition-all hover:border-(--cl-accent)/30 hover:bg-(--cl-hover) group"
+                                    >
+                                        <span className="text-base leading-none">{ps.emoji}</span>
+                                        <div className="min-w-0">
+                                            <p className="text-[12px] font-semibold text-(--cl-text) group-hover:text-(--cl-accent) transition-colors truncate">{article.title}</p>
+                                            <p className="text-[10px] text-(--cl-text-muted)">{article.category}</p>
+                                        </div>
+                                        <ChevronRight className="ml-auto h-3 w-3 shrink-0 text-(--cl-text-muted) opacity-0 group-hover:opacity-100 transition-opacity" />
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+                )}
             </div>
         );
     }
 
     return (
-        <div className="h-full overflow-y-auto py-3">
+        <div className="h-full overflow-y-auto py-3" onKeyDown={handleKeyDown}>
             <p className="px-5 pb-2 text-[11px] font-bold uppercase tracking-wider text-(--cl-text-muted)/60">
                 {results.length} result{results.length !== 1 ? "s" : ""}
             </p>
-            {results.map(a => {
+            {results.map((a, idx) => {
                 const s = catStyle(a.category, styles);
                 return (
                     <button
                         key={a.id}
                         onClick={() => onSelect(a)}
-                        className="cursor-pointer flex w-full items-start gap-3 px-5 py-3 text-left hover:bg-(--cl-hover) transition-colors group"
+                        className={cn(
+                            "cursor-pointer flex w-full items-start gap-3 px-5 py-3 text-left transition-colors group",
+                            activeIdx === idx ? "bg-(--cl-accent)/10" : "hover:bg-(--cl-hover)",
+                        )}
                     >
                         <span className="mt-1 text-xl leading-none">{s.emoji}</span>
                         <div className="min-w-0">
                             <CategoryPill category={a.category} styles={styles} />
-                            <p className="mt-1 text-[13px] font-semibold text-(--cl-text) group-hover:text-(--cl-accent) transition-colors">{a.title}</p>
-                            <p className="mt-0.5 text-[11px] text-(--cl-text-muted) line-clamp-2 leading-relaxed">{a.summary}</p>
+                            <p className="mt-1 text-[13px] font-semibold text-(--cl-text) group-hover:text-(--cl-accent) transition-colors">{highlightMatch(a.title, query)}</p>
+                            <p className="mt-0.5 text-[11px] text-(--cl-text-muted) line-clamp-2 leading-relaxed">{highlightMatch(a.summary, query)}</p>
                         </div>
                         <ChevronRight className="mt-3 h-3.5 w-3.5 shrink-0 text-(--cl-text-muted) opacity-0 group-hover:opacity-100 transition-opacity" />
                     </button>
@@ -319,15 +445,17 @@ function SearchResults({ query, results, styles, onSelect }: {
 
 // ─── Home view ────────────────────────────────────────────────────────────────
 
-function HomeView({ articles, categories, styles, popularIds, onSelectCategory, onSelectArticle }: {
+function HomeView({ articles, categories, styles, popularIds, recentIds, onSelectCategory, onSelectArticle }: {
     articles:         HelpArticle[];
     categories:       readonly string[];
     styles:           Record<string, CategoryStyleType>;
     popularIds:       string[];
+    recentIds:        string[];
     onSelectCategory: (cat: string) => void;
     onSelectArticle:  (a: HelpArticle) => void;
 }) {
     const popular = popularIds.map(id => articles.find(a => a.id === id)).filter(Boolean) as HelpArticle[];
+    const recent = recentIds.map(id => articles.find(a => a.id === id)).filter(Boolean) as HelpArticle[];
 
     return (
         <div className="h-full overflow-y-auto">
@@ -388,6 +516,34 @@ function HomeView({ articles, categories, styles, popularIds, onSelectCategory, 
                     </div>
                 </div>
             )}
+
+            {/* Recently viewed */}
+            {recent.length > 0 && (
+                <div className="px-4 pb-4">
+                    <div className="mb-3 flex items-center gap-2">
+                        <Clock className="h-3.5 w-3.5 text-(--cl-text-muted)" />
+                        <p className="text-[11px] font-bold uppercase tracking-wider text-(--cl-text-muted)/70">Recently viewed</p>
+                    </div>
+                    <div className="space-y-1.5">
+                        {recent.map(article => {
+                            const s = catStyle(article.category, styles);
+                            return (
+                                <button
+                                    key={article.id}
+                                    onClick={() => onSelectArticle(article)}
+                                    className="cursor-pointer flex w-full items-center gap-3 rounded-lg border border-(--cl-border) bg-(--cl-surface) px-3.5 py-2.5 text-left transition-all hover:border-(--cl-accent)/30 hover:bg-(--cl-hover) group"
+                                >
+                                    <span className="text-base leading-none">{s.emoji}</span>
+                                    <div className="min-w-0">
+                                        <p className="text-[12px] font-semibold text-(--cl-text) group-hover:text-(--cl-accent) transition-colors truncate">{article.title}</p>
+                                        <p className="text-[10px] text-(--cl-text-muted)">{article.category}</p>
+                                    </div>
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
@@ -412,12 +568,14 @@ type HelpPanelProps = {
     initialArticleId?: string;
     isDark?:           boolean;
     title?:            string;
+    onArticleViewed?:  (articleId: string) => void;
 };
 
-export function HelpPanel({ open, onClose, articles, categories, categoryStyles, popularIds = [], initialArticleId, isDark = false, title = "Help Center" }: HelpPanelProps) {
+export function HelpPanel({ open, onClose, articles, categories, categoryStyles, popularIds = [], initialArticleId, isDark = false, title = "Help Center", onArticleViewed }: HelpPanelProps) {
     const [query,    setQuery]    = useState("");
     const [view,     setView]     = useState<View>({ kind: "home" });
     const searchRef = useRef<HTMLInputElement>(null);
+    const { ids: recentIds, push: pushRecent } = useRecentlyViewed();
 
     // Reset on open
     useEffect(() => {
@@ -425,7 +583,13 @@ export function HelpPanel({ open, onClose, articles, categories, categoryStyles,
         setTimeout(() => searchRef.current?.focus(), 120);
         if (initialArticleId) {
             const a = articles.find(x => x.id === initialArticleId);
-            if (a) { setView({ kind: "article", article: a }); setQuery(""); return; }
+            if (a) {
+                setView({ kind: "article", article: a });
+                setQuery("");
+                pushRecent(a.id);
+                onArticleViewed?.(a.id);
+                return;
+            }
         }
         setView({ kind: "home" });
         setQuery("");
@@ -455,7 +619,9 @@ export function HelpPanel({ open, onClose, articles, categories, categoryStyles,
     const handleSelectArticle = useCallback((a: HelpArticle) => {
         setQuery("");
         setView({ kind: "article", article: a });
-    }, []);
+        pushRecent(a.id);
+        onArticleViewed?.(a.id);
+    }, [pushRecent, onArticleViewed]);
 
     const handleSelectCategory = useCallback((cat: string) => {
         setView({ kind: "category", category: cat });
@@ -482,6 +648,12 @@ export function HelpPanel({ open, onClose, articles, categories, categoryStyles,
         view.kind === "home"    ? null :
         view.kind === "search"  ? null :
         catStyle(view.kind === "category" ? view.category : view.article.category, categoryStyles).gradient;
+
+    // Breadcrumb
+    const breadcrumb = view.kind === "home" ? null
+        : view.kind === "category" ? [{ label: "Home", onClick: handleBack }, { label: view.category }]
+        : view.kind === "article" ? [{ label: "Home", onClick: () => setView({ kind: "home" }) }, { label: view.article.category, onClick: () => setView({ kind: "category", category: view.article.category }) }, { label: view.article.title }]
+        : [{ label: "Home", onClick: () => setView({ kind: "home" }) }, { label: "Search Results" }];
 
     if (!open) return null;
 
@@ -539,6 +711,24 @@ export function HelpPanel({ open, onClose, articles, categories, categoryStyles,
                     </button>
                 </div>
 
+                {/* ── Breadcrumb ── */}
+                {breadcrumb && (
+                    <div className="shrink-0 border-b border-(--cl-border)/50 bg-(--cl-bg) px-5 py-1.5">
+                        <nav className="flex items-center gap-1 text-[11px] text-(--cl-text-muted)/60">
+                            {breadcrumb.map((crumb, i) => (
+                                <span key={i} className="flex items-center gap-1">
+                                    {i > 0 && <span className="text-[9px]">›</span>}
+                                    {crumb.onClick ? (
+                                        <button onClick={crumb.onClick} className="cursor-pointer font-medium hover:text-(--cl-accent) transition-colors">{crumb.label}</button>
+                                    ) : (
+                                        <span className="font-semibold text-(--cl-text-muted)">{crumb.label}</span>
+                                    )}
+                                </span>
+                            ))}
+                        </nav>
+                    </div>
+                )}
+
                 {/* ── Search bar ── */}
                 {(view.kind === "home" || view.kind === "search") && (
                     <div className="shrink-0 border-b border-(--cl-border) bg-(--cl-bg) px-4 py-3">
@@ -566,10 +756,10 @@ export function HelpPanel({ open, onClose, articles, categories, categoryStyles,
 
                 {/* ── Body ── */}
                 <div className="flex-1 overflow-hidden bg-(--cl-bg)">
-                    {view.kind === "home"     && <HomeView articles={articles} categories={categories} styles={categoryStyles} popularIds={popularIds} onSelectCategory={handleSelectCategory} onSelectArticle={handleSelectArticle} />}
+                    {view.kind === "home"     && <HomeView articles={articles} categories={categories} styles={categoryStyles} popularIds={popularIds} recentIds={recentIds} onSelectCategory={handleSelectCategory} onSelectArticle={handleSelectArticle} />}
                     {view.kind === "category" && <CategoryView category={view.category} articles={articles} styles={categoryStyles} onSelectArticle={handleSelectArticle} />}
-                    {view.kind === "article"  && <ArticleView article={view.article} onBack={handleBack} styles={categoryStyles} />}
-                    {view.kind === "search"   && <SearchResults query={view.query} results={view.results} styles={categoryStyles} onSelect={handleSelectArticle} />}
+                    {view.kind === "article"  && <ArticleView article={view.article} onBack={handleBack} styles={categoryStyles} allArticles={articles} onSelectArticle={handleSelectArticle} />}
+                    {view.kind === "search"   && <SearchResults query={view.query} results={view.results} styles={categoryStyles} popularIds={popularIds} allArticles={articles} onSelect={handleSelectArticle} />}
                 </div>
 
                 {/* ── Footer ── */}

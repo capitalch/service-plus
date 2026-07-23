@@ -22,6 +22,8 @@ import {
     setPostDataToAccounts,
 } from "@/store/context-slice";
 import { HelpPanel } from "@/components/shared/help/help-panel";
+import { HelpFab } from "@/components/shared/help/help-fab";
+import { OnboardingChecklist } from "@/components/shared/help/onboarding-checklist";
 import { ClientActivityBar } from "./client-activity-bar";
 import { ClientExplorerPanel } from "./client-explorer-panel";
 import { ClientStatusBar } from "./client-status-bar";
@@ -52,7 +54,7 @@ const LayoutContext = createContext<LayoutContextType>({ explorerOpen: true, tog
 
 export const useLayout = () => useContext(LayoutContext);
 
-type HelpContextType = { helpOpen: boolean; openHelp: () => void; closeHelp: () => void };
+type HelpContextType = { helpOpen: boolean; openHelp: (articleId?: string) => void; closeHelp: () => void };
 
 const HelpContext = createContext<HelpContextType>({ helpOpen: false, openHelp: () => {}, closeHelp: () => {} });
 
@@ -109,6 +111,7 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
     const [selectedGroup, setSelectedGroup] = useState(() => SECTION_DEFAULT_GROUPS[activeSection]);
     const [explorerOpen, setExplorerOpen]   = useState(() => window.innerWidth >= 1024);
     const [helpOpen, setHelpOpen]           = useState(false);
+    const [helpArticleId, setHelpArticleId] = useState<string | undefined>(undefined);
     const [isDark, setIsDark]               = useState(() => {
         const stored = localStorage.getItem('client-theme');
         return stored ? stored === 'dark' : false;
@@ -194,8 +197,8 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
 
     const toggleTheme    = useCallback(() => setIsDark(d => !d), []);
     const toggleExplorer = useCallback(() => setExplorerOpen(o => !o), []);
-    const openHelp       = useCallback(() => setHelpOpen(true),  []);
-    const closeHelp      = useCallback(() => setHelpOpen(false), []);
+    const openHelp       = useCallback((articleId?: string) => { setHelpArticleId(articleId); setHelpOpen(true); }, []);
+    const closeHelp      = useCallback(() => { setHelpOpen(false); setHelpArticleId(undefined); }, []);
 
     const onSelect = useCallback((label: string, group?: string) => {
         setSelected(label);
@@ -261,6 +264,7 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
                         )}
                     </div>
                     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                        <OnboardingChecklist />
                         {children}
                     </div>
                 </main>
@@ -273,7 +277,9 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
                     onClose={closeHelp}
                     open={helpOpen}
                     popularIds={CLIENT_POPULAR_IDS}
+                    initialArticleId={helpArticleId}
                 />
+                <HelpFab />
             </div>
         </ClientSelectionContext.Provider>
         </HelpContext.Provider>

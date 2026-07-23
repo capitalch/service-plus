@@ -13,11 +13,12 @@ type SuperAdminLayoutPropsType = {
 export const SuperAdminLayout = ({ children }: SuperAdminLayoutPropsType) => {
     const [mobileOpen, setMobileOpen] = useState(false);
     const [helpOpen, setHelpOpen]     = useState(false);
+    const [helpArticleId, setHelpArticleId] = useState<string | undefined>(undefined);
 
     const handleMobileClose = () => setMobileOpen(false);
     const handleMenuToggle = () => setMobileOpen((prev) => !prev);
-    const handleHelpClose = () => setHelpOpen(false);
-    const handleHelpOpen = () => setHelpOpen(true);
+    const handleHelpClose = () => { setHelpOpen(false); setHelpArticleId(undefined); };
+    const handleHelpOpen = (articleId?: string) => { setHelpArticleId(articleId); setHelpOpen(true); };
 
     return (
         <div className="flex h-screen w-full overflow-hidden bg-slate-50">
@@ -34,6 +35,7 @@ export const SuperAdminLayout = ({ children }: SuperAdminLayoutPropsType) => {
                 open={helpOpen}
                 popularIds={DEV_POPULAR_IDS}
                 title="Developer Help Center"
+                initialArticleId={helpArticleId}
             />
         </div>
     );

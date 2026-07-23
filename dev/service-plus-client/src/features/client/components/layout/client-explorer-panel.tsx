@@ -16,6 +16,7 @@ import { ACCESS_RIGHTS, hasAccessRight } from "@/features/auth/utils/access-righ
 import { ROUTES } from "@/router/routes";
 import { useAppSelector } from "@/store/hooks";
 import { selectPostDataToAccounts } from "@/store/context-slice";
+import { HelpHint } from "@/components/shared/help/help-hint";
 
 type Props = { activeSection: Section };
 
@@ -27,28 +28,34 @@ type TreeItemProps = {
     iconColor?: string;
     label: string;
     title?: string;
+    helpArticleId?: string;
 };
 
-function TreeItem({ disabled, icon: Icon, iconColor, label, title }: TreeItemProps) {
+function TreeItem({ disabled, icon: Icon, iconColor, label, title, helpArticleId }: TreeItemProps) {
     const { onSelect, selected } = useClientSelection();
     const group = useContext(GroupContext);
     const isActive = selected === label;
 
     return (
-        <div
-            onClick={() => { if (!disabled) onSelect(label, group || undefined); }}
-            title={disabled ? title : undefined}
-            aria-disabled={disabled}
-            className={`group flex items-center gap-2 rounded px-2 py-2 transition-colors duration-150 ${
-                disabled
-                    ? 'cursor-not-allowed text-(--cl-text-muted) opacity-40'
-                    : isActive
-                        ? 'cursor-pointer bg-(--cl-accent) text-white shadow-md'
-                        : 'cursor-pointer text-(--cl-text-muted) hover:bg-(--cl-hover) hover:text-(--cl-text)'
-            }`}
-        >
-            <Icon className={`h-4 w-4 shrink-0 ${iconColor ?? (isActive && !disabled ? 'text-white' : '')}`} />
-            <span className={`truncate text-sm ${isActive && !disabled ? 'font-bold' : ''}`}>{label}</span>
+        <div className="flex items-center gap-1">
+            <div
+                onClick={() => { if (!disabled) onSelect(label, group || undefined); }}
+                title={disabled ? title : undefined}
+                aria-disabled={disabled}
+                className={`group flex flex-1 items-center gap-2 rounded px-2 py-2 transition-colors duration-150 ${
+                    disabled
+                        ? 'cursor-not-allowed text-(--cl-text-muted) opacity-40'
+                        : isActive
+                            ? 'cursor-pointer bg-(--cl-accent) text-white shadow-md'
+                            : 'cursor-pointer text-(--cl-text-muted) hover:bg-(--cl-hover) hover:text-(--cl-text)'
+                }`}
+            >
+                <Icon className={`h-4 w-4 shrink-0 ${iconColor ?? (isActive && !disabled ? 'text-white' : '')}`} />
+                <span className={`truncate text-sm ${isActive && !disabled ? 'font-bold' : ''}`}>{label}</span>
+            </div>
+            {helpArticleId && !disabled && (
+                <HelpHint articleId={helpArticleId} className={isActive ? "text-white/60 hover:text-white" : ""} />
+            )}
         </div>
     );
 }
@@ -91,9 +98,9 @@ function ConfigurationsExplorer() {
     return (
         <div className="space-y-4">
             <div className="space-y-1">
-                <TreeItem icon={Building2}    label="Divisions" />
-                <TreeItem icon={Settings2}    label="App Settings" />
-                <TreeItem icon={Hash}         label="Numbering / Auto Series" />
+                <TreeItem icon={Building2}    label="Divisions"          helpArticleId="divisions" />
+                <TreeItem icon={Settings2}    label="App Settings"       helpArticleId="app-settings" />
+                <TreeItem icon={Hash}         label="Numbering / Auto Series" helpArticleId="document-sequences" />
             </div>
         </div>
     );
@@ -113,18 +120,20 @@ function InventoryExplorer() {
     return (
         <div className="space-y-4">
             <div className="space-y-1">
-                <TreeItem icon={Package}       label="Stock Overview" />
+                <TreeItem icon={Package}       label="Stock Overview"      helpArticleId="stock-overview" />
                 <TreeItem
                     icon={ShoppingCart}
                     label="Purchase Entry"
                     disabled={!canPurchaseEntry}
                     title={!canPurchaseEntry ? "Your role does not have access to Purchase Entry" : undefined}
+                    helpArticleId="purchase-entry"
                 />
                 <TreeItem
                     icon={Tag}
                     label="Sales Entry"
                     disabled={!canSalesEntry}
                     title={!canSalesEntry ? "Your role does not have access to Sales Entry" : undefined}
+                    helpArticleId="sales-entry"
                 />
                 <TreeItem
                     icon={RefreshCcw}
@@ -176,23 +185,25 @@ function JobsExplorer() {
         <div className="space-y-4">
             <div className="space-y-1">
                 <CollapsibleGroup label="New Job">
-                    <TreeItem icon={PlusCircle} label="Single Job" />
-                    <TreeItem icon={PlusCircle} label="Batch Jobs" />
+                    <TreeItem icon={PlusCircle} label="Single Job" helpArticleId="create-job" />
+                    <TreeItem icon={PlusCircle} label="Batch Jobs"  helpArticleId="batch-jobs" />
                 </CollapsibleGroup>
-                <TreeItem icon={ClipboardList} label="Job Control" />
+                <TreeItem icon={ClipboardList} label="Job Control" helpArticleId="job-control" />
                 <TreeItem
                     icon={Layers}
                     label="Batch Warranty Jobs"
                     disabled={!canBatchWarranty}
                     title={!canBatchWarranty ? "Your role does not have access to Batch Warranty Jobs" : undefined}
+                    helpArticleId="batch-warranty-jobs"
                 />
                 <TreeItem icon={BarChart3}     label="Job Pipeline" />
-                <TreeItem icon={FileText}      label="Final a Job" />
+                <TreeItem icon={FileText}      label="Final a Job"  helpArticleId="finalize-job" />
                 <TreeItem
                     icon={Truck}
                     label="Deliver Job"
                     disabled={!canDeliverJob}
                     title={!canDeliverJob ? "Your role does not have access to Deliver Job" : undefined}
+                    helpArticleId="deliver-job"
                 />
                 {postDataToAccounts && (
                     <TreeItem
@@ -207,12 +218,14 @@ function JobsExplorer() {
                     label="Opening Jobs"
                     disabled={!canOpeningJobs}
                     title={!canOpeningJobs ? "Your role does not have access to Opening Jobs" : undefined}
+                    helpArticleId="opening-jobs"
                 />
                 <TreeItem
                     icon={Receipt}
                     label="Receipts"
                     disabled={!canReceipts}
                     title={!canReceipts ? "Your role does not have access to Receipts" : undefined}
+                    helpArticleId="receipts"
                 />
                 <TreeItem icon={Package}       label="Part Used (Job)" />
             </div>
@@ -237,9 +250,9 @@ function MastersExplorer() {
                 <TreeItem icon={MapPin}    label="State / Province" disabled={!canOrganization} title={orgTitle} />
             </CollapsibleGroup>
             <CollapsibleGroup label="Entities">
-                <TreeItem icon={User}    label="Customer" />
-                <TreeItem icon={Truck}   label="Vendor / Supplier" />
-                <TreeItem icon={UserCog} label="Technician" />
+                <TreeItem icon={User}    label="Customer"         helpArticleId="customers" />
+                <TreeItem icon={Truck}   label="Vendor / Supplier" helpArticleId="vendors-branches" />
+                <TreeItem icon={UserCog} label="Technician"       helpArticleId="technicians" />
             </CollapsibleGroup>
             <CollapsibleGroup label="Service Config" defaultOpen={false}>
                 <TreeItem icon={Users}         label="Customer Type"          disabled={!canServiceConfig} title={configTitle} />
@@ -255,7 +268,7 @@ function MastersExplorer() {
                 <TreeItem icon={Tag}      label="Brand" />
                 <TreeItem icon={Package}  label="Product" />
                 <TreeItem icon={BookOpen} label="Model" />
-                <TreeItem icon={Package}  label="Parts" />
+                <TreeItem icon={Package}  label="Parts"        helpArticleId="parts" />
                 <TreeItem icon={MapPin}   label="Part Location" />
             </CollapsibleGroup>
         </div>
@@ -274,7 +287,7 @@ function ReportsExplorer() {
     return (
         <div className="space-y-3">
             <div className="space-y-1">
-                <TreeItem icon={LayoutDashboard} label="Dashboard" />
+                <TreeItem icon={LayoutDashboard} label="Dashboard" helpArticleId="job-reports" />
             </div>
             <CollapsibleGroup label="Profit Reports">
                 <TreeItem icon={DollarSign} label="Technician Profit Report" />
