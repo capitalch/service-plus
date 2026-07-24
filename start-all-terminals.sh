@@ -34,6 +34,10 @@ sleep 1
 konsole --workdir "/home/sushant/projects/service-plus/dev/service-plus-client" &
 sleep 1
 
+# Window 6.3: Service Client Shell 6
+konsole --workdir "/home/sushant/projects/service-plus/dev/service-plus-client" &
+sleep 1
+
 # Window 6.1: Service deployment
 konsole --workdir "/home/sushant/projects/service-plus/deployment/app-server" &
 sleep 1
