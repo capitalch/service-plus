@@ -236,7 +236,8 @@ export const AddClientDialog = ({ onOpenChange, onSuccess, open }: AddClientDial
 		}
 	}
 
-	const busy = checkingUnique || isSubmitting || mutating;
+	const formBusy = isSubmitting || mutating;
+	const busy = checkingUnique || formBusy;
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
@@ -257,7 +258,7 @@ export const AddClientDialog = ({ onOpenChange, onSuccess, open }: AddClientDial
 								id="code"
 								placeholder="e.g. ACME01"
 								{...register("code")}
-								disabled={busy}
+								disabled={formBusy}
 							/>
 							<FieldError message={errors.code?.message} />
 						</div>
@@ -269,7 +270,7 @@ export const AddClientDialog = ({ onOpenChange, onSuccess, open }: AddClientDial
 								id="name"
 								placeholder="e.g. Acme Corporation"
 								{...register("name")}
-								disabled={busy}
+								disabled={formBusy}
 							/>
 							<FieldError message={errors.name?.message} />
 						</div>
@@ -284,7 +285,7 @@ export const AddClientDialog = ({ onOpenChange, onSuccess, open }: AddClientDial
 								placeholder="contact@example.com"
 								type="email"
 								{...register("email")}
-								disabled={busy}
+								disabled={formBusy}
 							/>
 							<FieldError message={errors.email?.message} />
 						</div>
@@ -295,7 +296,7 @@ export const AddClientDialog = ({ onOpenChange, onSuccess, open }: AddClientDial
 								placeholder="+91 98765 43210"
 								type="tel"
 								{...register("phone")}
-								disabled={busy}
+								disabled={formBusy}
 							/>
 						</div>
 					</div>
@@ -308,7 +309,7 @@ export const AddClientDialog = ({ onOpenChange, onSuccess, open }: AddClientDial
 								id="gstin"
 								placeholder="22AAAAA0000A1Z5"
 								{...register("gstin", { setValueAs: (v: string) => v.toUpperCase() })}
-								disabled={busy}
+								disabled={formBusy}
 							/>
 							<FieldError message={errors.gstin?.message} />
 						</div>
@@ -318,7 +319,7 @@ export const AddClientDialog = ({ onOpenChange, onSuccess, open }: AddClientDial
 								id="pan"
 								placeholder="AAAAA0000A"
 								{...register("pan", { setValueAs: (v: string) => v.toUpperCase() })}
-								disabled={busy}
+								disabled={formBusy}
 							/>
 							<FieldError message={errors.pan?.message} />
 						</div>
@@ -331,7 +332,7 @@ export const AddClientDialog = ({ onOpenChange, onSuccess, open }: AddClientDial
 							id="address_line1"
 							placeholder="Street / Building"
 							{...register("address_line1")}
-							disabled={busy}
+							disabled={formBusy}
 						/>
 					</div>
 
@@ -342,7 +343,7 @@ export const AddClientDialog = ({ onOpenChange, onSuccess, open }: AddClientDial
 							id="address_line2"
 							placeholder="Area / Landmark"
 							{...register("address_line2")}
-							disabled={busy}
+							disabled={formBusy}
 						/>
 					</div>
 
@@ -350,15 +351,15 @@ export const AddClientDialog = ({ onOpenChange, onSuccess, open }: AddClientDial
 					<div className="grid grid-cols-3 gap-3">
 						<div className="flex flex-col gap-1.5">
 							<Label htmlFor="city">City</Label>
-							<Input id="city" placeholder="Mumbai" {...register("city")} disabled={busy} />
+							<Input id="city" placeholder="Mumbai" {...register("city")} disabled={formBusy} />
 						</div>
 						<div className="flex flex-col gap-1.5">
 							<Label htmlFor="state">State</Label>
-							<Input id="state" placeholder="Maharashtra" {...register("state")} disabled={busy} />
+							<Input id="state" placeholder="Maharashtra" {...register("state")} disabled={formBusy} />
 						</div>
 						<div className="flex flex-col gap-1.5">
 							<Label htmlFor="pincode">Pincode</Label>
-							<Input id="pincode" placeholder="400001" {...register("pincode")} disabled={busy} />
+							<Input id="pincode" placeholder="400001" {...register("pincode")} disabled={formBusy} />
 							<FieldError message={errors.pincode?.message} />
 						</div>
 					</div>
@@ -382,7 +383,7 @@ export const AddClientDialog = ({ onOpenChange, onSuccess, open }: AddClientDial
 							type="checkbox"
 							{...register("is_active")}
 							defaultChecked
-							disabled={busy}
+							disabled={formBusy}
 						/>
 						<Label htmlFor="is_active">Active</Label>
 					</div>

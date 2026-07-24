@@ -5,4 +5,4 @@
  */
 
 export const SEARCH_DEBOUNCE_MS = 1600;
-export const FIELD_VALIDATION_DEBOUNCE_MS = 1200;
+export const FIELD_VALIDATION_DEBOUNCE_MS = 1600;
