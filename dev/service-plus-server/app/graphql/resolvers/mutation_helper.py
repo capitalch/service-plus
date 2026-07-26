@@ -10,7 +10,7 @@ from urllib.parse import quote, unquote
 
 import httpx
 
-from psycopg import sql as pgsql
+import psycopg.sql as pgsql
 from psycopg.rows import dict_row
 
 from app.core.audit_log import AuditAction, audit_logger

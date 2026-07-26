@@ -1,6 +1,5 @@
 {
   "pythonVersion": "3.14",
   "venvPath": "/home/sushant/projects/service-plus",
-  "venv": "env",
-  "pythonPath": "/home/sushant/projects/service-plus/env/bin/python3.14"
+  "venv": "env"
 }

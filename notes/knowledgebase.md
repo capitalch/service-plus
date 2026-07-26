@@ -1,5 +1,4 @@
 # gemini api key: AIzaSyARzzPAsk65fx2mAWt1gVjX4bEn5CvyDG0
-# bifrost api key: sk-bf-3160dc3b-7f2b-417d-8ff6-f79c34a20b38
 ## Server
 # **Creating and activating virtual env in windows in context of Trace**
 Download and Install Python from installer

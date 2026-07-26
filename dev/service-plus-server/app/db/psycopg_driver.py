@@ -6,7 +6,7 @@ import os
 from contextlib import asynccontextmanager
 from typing import Any, AsyncGenerator, Required, TypedDict
 import psycopg
-from psycopg import sql as pgsql
+import psycopg.sql as pgsql
 from psycopg_pool import PoolTimeout
 from psycopg.rows import dict_row
 from psycopg.types.datetime import DateLoader, TimestampLoader, TimestamptzLoader
