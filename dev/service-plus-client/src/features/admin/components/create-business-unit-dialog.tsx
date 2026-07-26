@@ -48,7 +48,7 @@ const createBusinessUnitSchema = z.object({
     code: z
         .string()
         .min(3, "Code must be at least 3 characters")
-        .max(9, "Code must be 9 characters or fewer")
+        .max(30, "Code must be 30 characters or fewer")
         .regex(/^[a-zA-Z0-9_]+$/, "Code can only contain letters, numbers and underscores. No spaces or hyphens.")
         .transform((v) => v.toLowerCase()),
     name: z

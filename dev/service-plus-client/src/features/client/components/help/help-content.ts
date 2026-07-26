@@ -1387,7 +1387,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
             { type: "heading", text: "1. Create the Business Unit" },
             { type: "steps", items: [
                 "Click 'Add Business Unit'.",
-                "Enter a Code: 3–9 characters, letters/numbers/underscores only (no spaces or hyphens), automatically lowercased.",
+                "Enter a Code: 3–30 characters, letters/numbers/underscores only (no spaces or hyphens), automatically lowercased.",
                 "Enter a Name: at least 3 characters, letters/numbers/spaces only.",
                 "Save. The new row shows 'Schema: Missing' — it cannot be used yet.",
             ]},

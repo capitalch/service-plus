@@ -1,9 +1,14 @@
 # To Do
-- Inventory testing
-	- Loan Entry
-		- Save issue
-	- Branch transfer
-		- save issue
+- Release
+	- New client
+		- Admin user
+			- Receptionists
+			- Master
+						- Inventory testing
+							- Loan Entry
+								- Save issue
+							- Branch transfer
+								- save issue
 							- Stock Adjustment
 								- Delete Alert transparent
 								- Part code issue
@@ -17,7 +22,7 @@
 							- Stock overview
 								- Part description concatenated with part name
 								- brand
-- Brief to do's before 1st release
+							- Brief to do's before 1st release
 								- Should not be possible to change division, once a money receipt is already generated
 								- Create a systematic manual testing numbered steps for All items in Jobs menu item. Give your plan in plans/plan.md
 								- Inventory menu item test scripts
@@ -27,7 +32,7 @@
 								- Cleanup of warnings and extra code
 								- Help system for developer in super admin mode
 								- Account icon implement
-- Bug fix
+							- Bug fix
 								- Final a job back calculate does not save altered data to backend.
 								- Fix opening job workflow
 								- Alt job no in all grids and search

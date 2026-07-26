@@ -1,0 +1,6 @@
+{
+  "site_package_search_strategy": "all",
+  "source_directories": ["."],
+  "python_version": "3.14",
+  "python_interpreter": "/home/sushant/projects/service-plus/env/bin/python3.14"
+}

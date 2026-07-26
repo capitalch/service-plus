@@ -1,0 +1,3637 @@
+--
+-- PostgreSQL database dump
+--
+
+\restrict aW8T6d35fi1bqvFlnbYpSCO6EV8RaaLYjOwLXG1ZSckxegcwrHEDheReNZSR7l9
+
+-- Dumped from database version 14.6
+-- Dumped by pg_dump version 18.4 (Ubuntu 18.4-0ubuntu0.26.04.1)
+
+SET statement_timeout = 0;
+SET lock_timeout = 0;
+SET idle_in_transaction_session_timeout = 0;
+SET transaction_timeout = 0;
+SET client_encoding = 'UTF8';
+SET standard_conforming_strings = on;
+SELECT pg_catalog.set_config('search_path', '', false);
+SET check_function_bodies = false;
+SET xmloption = content;
+SET client_min_messages = warning;
+SET row_security = off;
+
+--
+-- Name: demo1; Type: SCHEMA; Schema: -; Owner: webadmin
+--
+
+CREATE SCHEMA demo1;
+
+
+ALTER SCHEMA demo1 OWNER TO webadmin;
+
+--
+-- Name: security; Type: SCHEMA; Schema: -; Owner: webadmin
+--
+
+CREATE SCHEMA security;
+
+
+ALTER SCHEMA security OWNER TO webadmin;
+
+--
+-- Name: fn_maintain_stock_balance(); Type: FUNCTION; Schema: demo1; Owner: webadmin
+--
+
+CREATE FUNCTION demo1.fn_maintain_stock_balance() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+    v_effect NUMERIC(12,3);
+BEGIN
+
+    IF TG_OP = 'INSERT' THEN
+
+        v_effect := CASE NEW.dr_cr WHEN 'D' THEN NEW.qty ELSE -NEW.qty END;
+
+        INSERT INTO demo1.stock_balance (part_id, branch_id, qty)
+        VALUES (NEW.part_id, NEW.branch_id, v_effect)
+        ON CONFLICT (part_id, branch_id)
+        DO UPDATE SET
+            qty        = demo1.stock_balance.qty + EXCLUDED.qty,
+            updated_at = now();
+
+    ELSIF TG_OP = 'DELETE' THEN
+
+        -- Reverse the old row's effect
+        v_effect := CASE OLD.dr_cr WHEN 'D' THEN -OLD.qty ELSE OLD.qty END;
+
+        INSERT INTO demo1.stock_balance (part_id, branch_id, qty)
+        VALUES (OLD.part_id, OLD.branch_id, v_effect)
+        ON CONFLICT (part_id, branch_id)
+        DO UPDATE SET
+            qty        = demo1.stock_balance.qty + EXCLUDED.qty,
+            updated_at = now();
+
+    ELSIF TG_OP = 'UPDATE' THEN
+
+        -- Step 1: reverse the old row's effect (handles part_id/branch_id changes too)
+        v_effect := CASE OLD.dr_cr WHEN 'D' THEN -OLD.qty ELSE OLD.qty END;
+
+        INSERT INTO demo1.stock_balance (part_id, branch_id, qty)
+        VALUES (OLD.part_id, OLD.branch_id, v_effect)
+        ON CONFLICT (part_id, branch_id)
+        DO UPDATE SET
+            qty        = demo1.stock_balance.qty + EXCLUDED.qty,
+            updated_at = now();
+
+        -- Step 2: apply the new row's effect
+        v_effect := CASE NEW.dr_cr WHEN 'D' THEN NEW.qty ELSE -NEW.qty END;
+
+        INSERT INTO demo1.stock_balance (part_id, branch_id, qty)
+        VALUES (NEW.part_id, NEW.branch_id, v_effect)
+        ON CONFLICT (part_id, branch_id)
+        DO UPDATE SET
+            qty        = demo1.stock_balance.qty + EXCLUDED.qty,
+            updated_at = now();
+
+    END IF;
+
+    RETURN NULL;
+END;
+$$;
+
+
+ALTER FUNCTION demo1.fn_maintain_stock_balance() OWNER TO webadmin;
+
+SET default_tablespace = '';
+
+SET default_table_access_method = heap;
+
+--
+-- Name: additional_charge; Type: TABLE; Schema: demo1; Owner: webadmin
+--
+
+CREATE TABLE demo1.additional_charge (
+    id smallint NOT NULL,
+    name text NOT NULL,
+    hsn_code text
+);
+
+
+ALTER TABLE demo1.additional_charge OWNER TO webadmin;
+
+--
+-- Name: app_setting; Type: TABLE; Schema: demo1; Owner: webadmin
+--
+
+CREATE TABLE demo1.app_setting (
+    id smallint NOT NULL,
+    setting_key text NOT NULL,
+    setting_value jsonb NOT NULL,
+    description text,
+    is_editable boolean DEFAULT true NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+ALTER TABLE demo1.app_setting OWNER TO webadmin;
+
+--
+-- Name: branch; Type: TABLE; Schema: demo1; Owner: webadmin
+--
+
+CREATE TABLE demo1.branch (
+    id bigint NOT NULL,
+    code text NOT NULL,
+    name text NOT NULL,
+    phone text,
+    email text,
+    address_line1 text NOT NULL,
+    address_line2 text,
+    state_id integer NOT NULL,
+    city text,
+    pincode text NOT NULL,
+    gstin text,
+    is_active boolean DEFAULT true NOT NULL,
+    is_head_office boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT branch_code_check CHECK ((code ~ '^[A-Z0-9_]+$'::text)),
+    CONSTRAINT branch_gstin_check CHECK (((gstin IS NULL) OR (gstin ~ '^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$'::text)))
+);
+
+
+ALTER TABLE demo1.branch OWNER TO webadmin;
+
+--
+-- Name: branch_id_seq; Type: SEQUENCE; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE demo1.branch ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME demo1.branch_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: brand; Type: TABLE; Schema: demo1; Owner: webadmin
+--
+
+CREATE TABLE demo1.brand (
+    id bigint NOT NULL,
+    code text NOT NULL,
+    name text NOT NULL,
+    is_active boolean DEFAULT true NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT brand_code_check CHECK ((code ~ '^[A-Z_]+$'::text))
+);
+
+
+ALTER TABLE demo1.brand OWNER TO webadmin;
+
+--
+-- Name: brand_id_seq; Type: SEQUENCE; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE demo1.brand ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME demo1.brand_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: customer_contact; Type: TABLE; Schema: demo1; Owner: webadmin
+--
+
+CREATE TABLE demo1.customer_contact (
+    id bigint NOT NULL,
+    customer_type_id smallint NOT NULL,
+    full_name text NOT NULL,
+    gstin text,
+    mobile text NOT NULL,
+    alternate_mobile text,
+    email text,
+    address_line1 text NOT NULL,
+    address_line2 text,
+    landmark text,
+    state_id integer NOT NULL,
+    city text,
+    postal_code text,
+    remarks text,
+    is_active boolean DEFAULT true NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+ALTER TABLE demo1.customer_contact OWNER TO webadmin;
+
+--
+-- Name: customer_contact_id_seq; Type: SEQUENCE; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE demo1.customer_contact ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME demo1.customer_contact_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: customer_type; Type: TABLE; Schema: demo1; Owner: webadmin
+--
+
+CREATE TABLE demo1.customer_type (
+    id smallint NOT NULL,
+    code text NOT NULL,
+    name text NOT NULL,
+    description text,
+    is_active boolean DEFAULT true NOT NULL,
+    display_order smallint,
+    is_system boolean NOT NULL
+);
+
+
+ALTER TABLE demo1.customer_type OWNER TO webadmin;
+
+--
+-- Name: division; Type: TABLE; Schema: demo1; Owner: webadmin
+--
+
+CREATE TABLE demo1.division (
+    id bigint NOT NULL,
+    name text NOT NULL,
+    address_line1 text NOT NULL,
+    address_line2 text,
+    city text,
+    state_id integer NOT NULL,
+    country text DEFAULT 'IN'::text,
+    pincode text,
+    phone text,
+    email text,
+    gstin text,
+    is_active boolean DEFAULT true NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    branch_id bigint NOT NULL,
+    code text NOT NULL,
+    web_site text,
+    account_setting jsonb
+);
+
+
+ALTER TABLE demo1.division OWNER TO webadmin;
+
+--
+-- Name: document_sequence; Type: TABLE; Schema: demo1; Owner: webadmin
+--
+
+CREATE TABLE demo1.document_sequence (
+    id bigint NOT NULL,
+    document_type_id smallint NOT NULL,
+    branch_id bigint NOT NULL,
+    prefix text,
+    next_number bigint NOT NULL,
+    padding smallint DEFAULT 0 NOT NULL,
+    separator text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    division_id bigint
+);
+
+
+ALTER TABLE demo1.document_sequence OWNER TO webadmin;
+
+--
+-- Name: document_sequence_id_seq; Type: SEQUENCE; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE demo1.document_sequence ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME demo1.document_sequence_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: document_type; Type: TABLE; Schema: demo1; Owner: webadmin
+--
+
+CREATE TABLE demo1.document_type (
+    id smallint NOT NULL,
+    code text NOT NULL,
+    prefix text,
+    name text NOT NULL,
+    description text,
+    is_system boolean NOT NULL,
+    CONSTRAINT document_type_code_chk CHECK ((code ~ '^[A-Z_]+$'::text))
+);
+
+
+ALTER TABLE demo1.document_type OWNER TO webadmin;
+
+--
+-- Name: financial_year; Type: TABLE; Schema: demo1; Owner: webadmin
+--
+
+CREATE TABLE demo1.financial_year (
+    id integer NOT NULL,
+    start_date date NOT NULL,
+    end_date date NOT NULL,
+    CONSTRAINT financial_year_date_check CHECK ((start_date < end_date))
+);
+
+
+ALTER TABLE demo1.financial_year OWNER TO webadmin;
+
+--
+-- Name: job; Type: TABLE; Schema: demo1; Owner: webadmin
+--
+
+CREATE TABLE demo1.job (
+    id bigint NOT NULL,
+    job_no text NOT NULL,
+    job_date date DEFAULT CURRENT_DATE NOT NULL,
+    customer_contact_id bigint NOT NULL,
+    branch_id bigint NOT NULL,
+    technician_id bigint,
+    job_status_id smallint NOT NULL,
+    job_type_id smallint NOT NULL,
+    job_receive_manner_id smallint NOT NULL,
+    job_receive_condition_id smallint,
+    product_brand_model_id bigint NOT NULL,
+    serial_no text,
+    problem_reported text,
+    diagnosis text,
+    work_done text,
+    remarks text,
+    amount numeric(12,2) DEFAULT 0 NOT NULL,
+    delivery_date date,
+    is_closed boolean DEFAULT false NOT NULL,
+    warranty_card_no text,
+    is_active boolean DEFAULT true NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    address_snapshot text,
+    last_transaction_id bigint,
+    is_final boolean DEFAULT false NOT NULL,
+    qty integer DEFAULT 1 NOT NULL,
+    batch_no integer,
+    estimate_amount numeric(12,2) DEFAULT 0 NOT NULL,
+    alternate_job_no text,
+    division_id bigint NOT NULL,
+    is_igst boolean DEFAULT false NOT NULL,
+    to_show_parts_in_job_invoice boolean DEFAULT true NOT NULL,
+    purchase_date date,
+    is_opening_job boolean DEFAULT false NOT NULL,
+    CONSTRAINT job_qty_check CHECK ((qty <> 0))
+);
+
+
+ALTER TABLE demo1.job OWNER TO webadmin;
+
+--
+-- Name: job_additional_charge; Type: TABLE; Schema: demo1; Owner: webadmin
+--
+
+CREATE TABLE demo1.job_additional_charge (
+    id bigint NOT NULL,
+    job_id bigint NOT NULL,
+    charge_name text NOT NULL,
+    ref_no text,
+    description text,
+    cost_price numeric(12,2) DEFAULT 0 NOT NULL,
+    selling_price numeric(12,2) DEFAULT 0 NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    hsn_code text,
+    gst_rate numeric(5,2) DEFAULT 0 NOT NULL,
+    qty numeric(12,2) DEFAULT 1 NOT NULL,
+    CONSTRAINT job_add_charge_cost_check CHECK ((cost_price >= (0)::numeric)),
+    CONSTRAINT job_add_charge_sell_check CHECK ((selling_price >= (0)::numeric))
+);
+
+
+ALTER TABLE demo1.job_additional_charge OWNER TO webadmin;
+
+--
+-- Name: job_additional_charge_id_seq; Type: SEQUENCE; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE demo1.job_additional_charge ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME demo1.job_additional_charge_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: job_batch_no_seq; Type: SEQUENCE; Schema: demo1; Owner: webadmin
+--
+
+CREATE SEQUENCE demo1.job_batch_no_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE demo1.job_batch_no_seq OWNER TO webadmin;
+
+--
+-- Name: job_batch_no_seq; Type: SEQUENCE OWNED BY; Schema: demo1; Owner: webadmin
+--
+
+ALTER SEQUENCE demo1.job_batch_no_seq OWNED BY demo1.job.batch_no;
+
+
+--
+-- Name: job_delivery_manner; Type: TABLE; Schema: demo1; Owner: webadmin
+--
+
+CREATE TABLE demo1.job_delivery_manner (
+    id smallint NOT NULL,
+    code text NOT NULL,
+    name text NOT NULL,
+    display_order smallint,
+    is_active boolean DEFAULT true NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    is_system boolean NOT NULL
+);
+
+
+ALTER TABLE demo1.job_delivery_manner OWNER TO webadmin;
+
+--
+-- Name: job_id_seq; Type: SEQUENCE; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE demo1.job ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME demo1.job_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: job_image_doc; Type: TABLE; Schema: demo1; Owner: webadmin
+--
+
+CREATE TABLE demo1.job_image_doc (
+    id bigint NOT NULL,
+    job_id bigint NOT NULL,
+    url text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    about text NOT NULL
+);
+
+
+ALTER TABLE demo1.job_image_doc OWNER TO webadmin;
+
+--
+-- Name: job_image_doc_id_seq; Type: SEQUENCE; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE demo1.job_image_doc ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME demo1.job_image_doc_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: job_invoice; Type: TABLE; Schema: demo1; Owner: webadmin
+--
+
+CREATE TABLE demo1.job_invoice (
+    id bigint NOT NULL,
+    job_id bigint NOT NULL,
+    invoice_no text NOT NULL,
+    invoice_date date DEFAULT CURRENT_DATE NOT NULL,
+    supply_state_code character(2) NOT NULL,
+    aggregate numeric(14,2) NOT NULL,
+    cgst_amount numeric(14,2) DEFAULT 0 NOT NULL,
+    sgst_amount numeric(14,2) DEFAULT 0 NOT NULL,
+    igst_amount numeric(14,2) DEFAULT 0 NOT NULL,
+    amount numeric(14,2) NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    is_posted boolean DEFAULT false NOT NULL
+);
+
+
+ALTER TABLE demo1.job_invoice OWNER TO webadmin;
+
+--
+-- Name: job_invoice_id_seq; Type: SEQUENCE; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE demo1.job_invoice ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME demo1.job_invoice_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: job_invoice_line; Type: TABLE; Schema: demo1; Owner: webadmin
+--
+
+CREATE TABLE demo1.job_invoice_line (
+    id bigint NOT NULL,
+    job_invoice_id bigint NOT NULL,
+    description text NOT NULL,
+    part_code text,
+    qty numeric(10,2) NOT NULL,
+    price numeric(12,2) NOT NULL,
+    aggregate numeric(12,2) NOT NULL,
+    gst_rate numeric(5,2) DEFAULT 0 NOT NULL,
+    cgst_amount numeric(12,2) DEFAULT 0 NOT NULL,
+    sgst_amount numeric(12,2) DEFAULT 0 NOT NULL,
+    igst_amount numeric(12,2) DEFAULT 0 NOT NULL,
+    amount numeric(12,2) NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    hsn_code text,
+    CONSTRAINT job_invoice_line_quantity_check CHECK ((qty > (0)::numeric)),
+    CONSTRAINT job_invoice_line_unit_price_check CHECK ((price >= (0)::numeric))
+);
+
+
+ALTER TABLE demo1.job_invoice_line OWNER TO webadmin;
+
+--
+-- Name: job_invoice_line_id_seq; Type: SEQUENCE; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE demo1.job_invoice_line ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME demo1.job_invoice_line_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: job_part_used; Type: TABLE; Schema: demo1; Owner: webadmin
+--
+
+CREATE TABLE demo1.job_part_used (
+    id bigint NOT NULL,
+    job_id bigint NOT NULL,
+    part_id bigint NOT NULL,
+    qty numeric(10,2) NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    remarks text,
+    cost_price numeric(12,2) DEFAULT 0 NOT NULL,
+    selling_price numeric(12,2) DEFAULT 0 NOT NULL,
+    gst_rate numeric(5,2) DEFAULT 0 NOT NULL,
+    hsn_code text,
+    CONSTRAINT job_part_used_quantity_check CHECK ((qty > (0)::numeric))
+);
+
+
+ALTER TABLE demo1.job_part_used OWNER TO webadmin;
+
+--
+-- Name: job_part_used_id_seq; Type: SEQUENCE; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE demo1.job_part_used ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME demo1.job_part_used_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: job_payment; Type: TABLE; Schema: demo1; Owner: webadmin
+--
+
+CREATE TABLE demo1.job_payment (
+    id bigint NOT NULL,
+    job_id bigint NOT NULL,
+    payment_date date NOT NULL,
+    payment_mode text NOT NULL,
+    amount numeric(14,2) NOT NULL,
+    reference_no text,
+    remarks text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    is_posted boolean DEFAULT false NOT NULL,
+    receipt_no text NOT NULL,
+    CONSTRAINT job_payment_amount_check CHECK ((amount > (0)::numeric))
+);
+
+
+ALTER TABLE demo1.job_payment OWNER TO webadmin;
+
+--
+-- Name: job_payment_id_seq; Type: SEQUENCE; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE demo1.job_payment ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME demo1.job_payment_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: job_receive_condition; Type: TABLE; Schema: demo1; Owner: webadmin
+--
+
+CREATE TABLE demo1.job_receive_condition (
+    id smallint NOT NULL,
+    code text NOT NULL,
+    name text NOT NULL,
+    description text,
+    display_order smallint DEFAULT 0 NOT NULL,
+    is_active boolean DEFAULT true NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    is_system boolean NOT NULL
+);
+
+
+ALTER TABLE demo1.job_receive_condition OWNER TO webadmin;
+
+--
+-- Name: job_receive_manner; Type: TABLE; Schema: demo1; Owner: webadmin
+--
+
+CREATE TABLE demo1.job_receive_manner (
+    id smallint NOT NULL,
+    code text NOT NULL,
+    name text NOT NULL,
+    is_system boolean DEFAULT true NOT NULL,
+    is_active boolean DEFAULT true NOT NULL,
+    display_order smallint DEFAULT 0 NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+ALTER TABLE demo1.job_receive_manner OWNER TO webadmin;
+
+--
+-- Name: job_status; Type: TABLE; Schema: demo1; Owner: webadmin
+--
+
+CREATE TABLE demo1.job_status (
+    id smallint NOT NULL,
+    code text NOT NULL,
+    name text NOT NULL,
+    description text,
+    display_order smallint NOT NULL,
+    is_initial boolean DEFAULT false NOT NULL,
+    is_final boolean DEFAULT false NOT NULL,
+    is_active boolean DEFAULT true NOT NULL,
+    is_system boolean DEFAULT true NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT job_status_code_check CHECK ((code ~ '^[A-Z_]+$'::text))
+);
+
+
+ALTER TABLE demo1.job_status OWNER TO webadmin;
+
+--
+-- Name: job_transaction; Type: TABLE; Schema: demo1; Owner: webadmin
+--
+
+CREATE TABLE demo1.job_transaction (
+    id bigint NOT NULL,
+    job_id bigint NOT NULL,
+    status_id smallint,
+    technician_id bigint,
+    amount numeric(12,2),
+    performed_by_user_id bigint NOT NULL,
+    performed_at timestamp with time zone DEFAULT now() NOT NULL,
+    previous_transaction_id bigint,
+    remarks text,
+    transaction_date date DEFAULT now() NOT NULL
+);
+
+
+ALTER TABLE demo1.job_transaction OWNER TO webadmin;
+
+--
+-- Name: job_transaction_id_seq; Type: SEQUENCE; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE demo1.job_transaction ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME demo1.job_transaction_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: job_type; Type: TABLE; Schema: demo1; Owner: webadmin
+--
+
+CREATE TABLE demo1.job_type (
+    id smallint NOT NULL,
+    code text NOT NULL,
+    name text NOT NULL,
+    description text,
+    display_order smallint DEFAULT 0 NOT NULL,
+    is_active boolean DEFAULT true NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    is_system boolean NOT NULL
+);
+
+
+ALTER TABLE demo1.job_type OWNER TO webadmin;
+
+--
+-- Name: product; Type: TABLE; Schema: demo1; Owner: webadmin
+--
+
+CREATE TABLE demo1.product (
+    id bigint NOT NULL,
+    name text NOT NULL,
+    is_active boolean DEFAULT true NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT product_name_check CHECK ((name ~ '^[A-Z_]+$'::text))
+);
+
+
+ALTER TABLE demo1.product OWNER TO webadmin;
+
+--
+-- Name: product_brand_model; Type: TABLE; Schema: demo1; Owner: webadmin
+--
+
+CREATE TABLE demo1.product_brand_model (
+    id bigint NOT NULL,
+    product_id bigint NOT NULL,
+    brand_id bigint NOT NULL,
+    model_name text NOT NULL,
+    launch_year integer,
+    remarks text,
+    is_active boolean DEFAULT true NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+ALTER TABLE demo1.product_brand_model OWNER TO webadmin;
+
+--
+-- Name: product_brand_model_id_seq; Type: SEQUENCE; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE demo1.product_brand_model ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME demo1.product_brand_model_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: product_id_seq; Type: SEQUENCE; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE demo1.product ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME demo1.product_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: purchase_invoice; Type: TABLE; Schema: demo1; Owner: webadmin
+--
+
+CREATE TABLE demo1.purchase_invoice (
+    id bigint NOT NULL,
+    supplier_id bigint NOT NULL,
+    invoice_no text NOT NULL,
+    invoice_date date NOT NULL,
+    aggregate_amount numeric(14,2) NOT NULL,
+    cgst_amount numeric(14,2) DEFAULT 0 NOT NULL,
+    sgst_amount numeric(14,2) DEFAULT 0 NOT NULL,
+    igst_amount numeric(14,2) DEFAULT 0 NOT NULL,
+    total_tax numeric(14,2) NOT NULL,
+    total_amount numeric(14,2) NOT NULL,
+    branch_id bigint NOT NULL,
+    remarks text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    brand_id bigint NOT NULL,
+    is_return boolean DEFAULT false NOT NULL,
+    is_posted boolean DEFAULT false NOT NULL,
+    division_id bigint NOT NULL
+);
+
+
+ALTER TABLE demo1.purchase_invoice OWNER TO webadmin;
+
+--
+-- Name: purchase_invoice_id_seq; Type: SEQUENCE; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE demo1.purchase_invoice ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME demo1.purchase_invoice_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: purchase_invoice_line; Type: TABLE; Schema: demo1; Owner: webadmin
+--
+
+CREATE TABLE demo1.purchase_invoice_line (
+    id bigint NOT NULL,
+    purchase_invoice_id bigint NOT NULL,
+    part_id bigint NOT NULL,
+    hsn_code text NOT NULL,
+    qty numeric(12,2) NOT NULL,
+    unit_price numeric(12,2) NOT NULL,
+    aggregate_amount numeric(12,2) NOT NULL,
+    gst_rate numeric(5,2) DEFAULT 0 NOT NULL,
+    cgst_amount numeric(12,2) DEFAULT 0 NOT NULL,
+    sgst_amount numeric(12,2) DEFAULT 0 NOT NULL,
+    igst_amount numeric(12,2) DEFAULT 0 NOT NULL,
+    total_amount numeric(12,2) NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    under_warranty boolean DEFAULT false NOT NULL,
+    remarks text,
+    CONSTRAINT purchase_invoice_line_quantity_check CHECK ((qty > (0)::numeric)),
+    CONSTRAINT purchase_invoice_line_unit_price_check CHECK ((unit_price >= (0)::numeric))
+);
+
+
+ALTER TABLE demo1.purchase_invoice_line OWNER TO webadmin;
+
+--
+-- Name: purchase_invoice_line_id_seq; Type: SEQUENCE; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE demo1.purchase_invoice_line ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME demo1.purchase_invoice_line_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: sales_invoice; Type: TABLE; Schema: demo1; Owner: webadmin
+--
+
+CREATE TABLE demo1.sales_invoice (
+    id bigint NOT NULL,
+    invoice_no text NOT NULL,
+    invoice_date date NOT NULL,
+    customer_contact_id bigint NOT NULL,
+    customer_name text NOT NULL,
+    customer_gstin text,
+    customer_state_code character(2) NOT NULL,
+    aggregate numeric(14,2) NOT NULL,
+    cgst_amount numeric(14,2) DEFAULT 0 NOT NULL,
+    sgst_amount numeric(14,2) DEFAULT 0 NOT NULL,
+    igst_amount numeric(14,2) DEFAULT 0 NOT NULL,
+    amount numeric(14,2) NOT NULL,
+    remarks text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    is_return boolean DEFAULT false NOT NULL,
+    division_id bigint NOT NULL,
+    is_posted boolean DEFAULT false NOT NULL,
+    brand_id bigint NOT NULL
+);
+
+
+ALTER TABLE demo1.sales_invoice OWNER TO webadmin;
+
+--
+-- Name: sales_invoice_id_seq; Type: SEQUENCE; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE demo1.sales_invoice ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME demo1.sales_invoice_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: sales_invoice_line; Type: TABLE; Schema: demo1; Owner: webadmin
+--
+
+CREATE TABLE demo1.sales_invoice_line (
+    id bigint NOT NULL,
+    sales_invoice_id bigint NOT NULL,
+    part_id bigint NOT NULL,
+    item_description text NOT NULL,
+    hsn_code text NOT NULL,
+    qty numeric(12,2) NOT NULL,
+    price numeric(12,2) NOT NULL,
+    gst_rate numeric(5,2) DEFAULT 0 NOT NULL,
+    amount numeric(12,2) NOT NULL,
+    cgst_amount numeric(12,2) DEFAULT 0 NOT NULL,
+    sgst_amount numeric(12,2) DEFAULT 0 NOT NULL,
+    igst_amount numeric(12,2) DEFAULT 0 NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    remarks text,
+    cost_price numeric(12,2) DEFAULT 0 NOT NULL,
+    CONSTRAINT sales_invoice_line_quantity_check CHECK ((qty > (0)::numeric)),
+    CONSTRAINT sales_invoice_line_unit_price_check CHECK ((price >= (0)::numeric))
+);
+
+
+ALTER TABLE demo1.sales_invoice_line OWNER TO webadmin;
+
+--
+-- Name: sales_invoice_line_id_seq; Type: SEQUENCE; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE demo1.sales_invoice_line ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME demo1.sales_invoice_line_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: spare_part_master; Type: TABLE; Schema: demo1; Owner: webadmin
+--
+
+CREATE TABLE demo1.spare_part_master (
+    id bigint NOT NULL,
+    brand_id bigint NOT NULL,
+    part_code text NOT NULL,
+    part_name text NOT NULL,
+    part_description text,
+    category text,
+    model text,
+    uom text DEFAULT 'NOS'::text NOT NULL,
+    cost_price numeric(12,2),
+    mrp numeric(12,2),
+    hsn_code text,
+    gst_rate numeric(5,2),
+    is_active boolean DEFAULT true NOT NULL,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now(),
+    selling_price numeric(12,2) DEFAULT 0 NOT NULL
+);
+
+
+ALTER TABLE demo1.spare_part_master OWNER TO webadmin;
+
+--
+-- Name: spare_part_id_seq; Type: SEQUENCE; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE demo1.spare_part_master ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME demo1.spare_part_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: stock_location_change; Type: TABLE; Schema: demo1; Owner: webadmin
+--
+
+CREATE TABLE demo1.stock_location_change (
+    id bigint NOT NULL,
+    part_id bigint NOT NULL,
+    branch_id bigint NOT NULL,
+    to_location_id bigint NOT NULL,
+    transaction_date date NOT NULL,
+    ref_no text,
+    remarks text,
+    created_at timestamp with time zone DEFAULT now()
+);
+
+
+ALTER TABLE demo1.stock_location_change OWNER TO webadmin;
+
+--
+-- Name: spare_part_location_change_id_seq; Type: SEQUENCE; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE demo1.stock_location_change ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME demo1.spare_part_location_change_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: stock_location_master; Type: TABLE; Schema: demo1; Owner: webadmin
+--
+
+CREATE TABLE demo1.stock_location_master (
+    id bigint NOT NULL,
+    branch_id bigint NOT NULL,
+    name text NOT NULL,
+    is_active boolean DEFAULT true NOT NULL
+);
+
+
+ALTER TABLE demo1.stock_location_master OWNER TO webadmin;
+
+--
+-- Name: spare_part_location_master_id_seq; Type: SEQUENCE; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE demo1.stock_location_master ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME demo1.spare_part_location_master_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: state; Type: TABLE; Schema: demo1; Owner: webadmin
+--
+
+CREATE TABLE demo1.state (
+    id integer NOT NULL,
+    code text NOT NULL,
+    name text NOT NULL,
+    country_code text DEFAULT 'IN'::text NOT NULL,
+    gst_state_code character(2),
+    is_union_territory boolean DEFAULT false NOT NULL,
+    is_active boolean DEFAULT true NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT country_code_check CHECK ((country_code ~ '^[A-Z]{2}$'::text)),
+    CONSTRAINT state_code_check CHECK ((code ~ '^[A-Z]{2}$'::text))
+);
+
+
+ALTER TABLE demo1.state OWNER TO webadmin;
+
+--
+-- Name: stock_adjustment; Type: TABLE; Schema: demo1; Owner: webadmin
+--
+
+CREATE TABLE demo1.stock_adjustment (
+    id bigint NOT NULL,
+    adjustment_date date NOT NULL,
+    adjustment_reason text NOT NULL,
+    ref_no text,
+    branch_id bigint NOT NULL,
+    remarks text,
+    created_by bigint,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    brand_id bigint NOT NULL
+);
+
+
+ALTER TABLE demo1.stock_adjustment OWNER TO webadmin;
+
+--
+-- Name: COLUMN stock_adjustment.created_by; Type: COMMENT; Schema: demo1; Owner: webadmin
+--
+
+COMMENT ON COLUMN demo1.stock_adjustment.created_by IS 'Loosely coupled to user table - no FK constraint';
+
+
+--
+-- Name: stock_adjustment_id_seq; Type: SEQUENCE; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE demo1.stock_adjustment ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME demo1.stock_adjustment_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: stock_adjustment_line; Type: TABLE; Schema: demo1; Owner: webadmin
+--
+
+CREATE TABLE demo1.stock_adjustment_line (
+    id bigint NOT NULL,
+    stock_adjustment_id bigint NOT NULL,
+    part_id bigint NOT NULL,
+    dr_cr character(1) NOT NULL,
+    qty numeric(12,3) NOT NULL,
+    remarks text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT stock_adjustment_line_dr_cr_check CHECK ((dr_cr = ANY (ARRAY['D'::bpchar, 'C'::bpchar]))),
+    CONSTRAINT stock_adjustment_line_qty_check CHECK ((qty > (0)::numeric))
+);
+
+
+ALTER TABLE demo1.stock_adjustment_line OWNER TO webadmin;
+
+--
+-- Name: stock_adjustment_line_id_seq; Type: SEQUENCE; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE demo1.stock_adjustment_line ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME demo1.stock_adjustment_line_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: stock_balance; Type: TABLE; Schema: demo1; Owner: webadmin
+--
+
+CREATE TABLE demo1.stock_balance (
+    part_id bigint NOT NULL,
+    branch_id bigint NOT NULL,
+    qty numeric(12,3) DEFAULT 0 NOT NULL,
+    location_id bigint,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+ALTER TABLE demo1.stock_balance OWNER TO webadmin;
+
+--
+-- Name: stock_branch_transfer; Type: TABLE; Schema: demo1; Owner: webadmin
+--
+
+CREATE TABLE demo1.stock_branch_transfer (
+    id bigint NOT NULL,
+    transfer_date date NOT NULL,
+    from_branch_id bigint NOT NULL,
+    to_branch_id bigint NOT NULL,
+    ref_no text,
+    remarks text,
+    created_by bigint,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    brand_id bigint NOT NULL,
+    CONSTRAINT stock_branch_transfer_check CHECK ((from_branch_id <> to_branch_id))
+);
+
+
+ALTER TABLE demo1.stock_branch_transfer OWNER TO webadmin;
+
+--
+-- Name: stock_branch_transfer_id_seq; Type: SEQUENCE; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE demo1.stock_branch_transfer ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME demo1.stock_branch_transfer_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: stock_branch_transfer_line; Type: TABLE; Schema: demo1; Owner: webadmin
+--
+
+CREATE TABLE demo1.stock_branch_transfer_line (
+    id bigint NOT NULL,
+    stock_branch_transfer_id bigint NOT NULL,
+    part_id bigint NOT NULL,
+    qty numeric(12,3) NOT NULL,
+    remarks text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT stock_branch_transfer_line_qty_check CHECK ((qty > (0)::numeric))
+);
+
+
+ALTER TABLE demo1.stock_branch_transfer_line OWNER TO webadmin;
+
+--
+-- Name: stock_branch_transfer_line_id_seq; Type: SEQUENCE; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE demo1.stock_branch_transfer_line ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME demo1.stock_branch_transfer_line_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: stock_loan; Type: TABLE; Schema: demo1; Owner: webadmin
+--
+
+CREATE TABLE demo1.stock_loan (
+    id bigint NOT NULL,
+    loan_date date NOT NULL,
+    branch_id bigint NOT NULL,
+    ref_no text,
+    remarks text,
+    created_by bigint,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    brand_id bigint NOT NULL
+);
+
+
+ALTER TABLE demo1.stock_loan OWNER TO webadmin;
+
+--
+-- Name: stock_loan_id_seq; Type: SEQUENCE; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE demo1.stock_loan ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME demo1.stock_loan_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: stock_loan_line; Type: TABLE; Schema: demo1; Owner: webadmin
+--
+
+CREATE TABLE demo1.stock_loan_line (
+    id bigint NOT NULL,
+    stock_loan_id bigint NOT NULL,
+    part_id bigint NOT NULL,
+    dr_cr character(1) NOT NULL,
+    qty numeric(12,3) NOT NULL,
+    remarks text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    loan_to text NOT NULL,
+    CONSTRAINT stock_loan_line_dr_cr_check CHECK ((dr_cr = ANY (ARRAY['D'::bpchar, 'C'::bpchar]))),
+    CONSTRAINT stock_loan_line_qty_check CHECK ((qty > (0)::numeric))
+);
+
+
+ALTER TABLE demo1.stock_loan_line OWNER TO webadmin;
+
+--
+-- Name: stock_loan_line_id_seq; Type: SEQUENCE; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE demo1.stock_loan_line ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME demo1.stock_loan_line_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: stock_opening_balance; Type: TABLE; Schema: demo1; Owner: webadmin
+--
+
+CREATE TABLE demo1.stock_opening_balance (
+    id bigint NOT NULL,
+    entry_date date NOT NULL,
+    ref_no text,
+    branch_id bigint NOT NULL,
+    remarks text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now(),
+    brand_id bigint NOT NULL
+);
+
+
+ALTER TABLE demo1.stock_opening_balance OWNER TO webadmin;
+
+--
+-- Name: stock_opening_balance_id_seq; Type: SEQUENCE; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE demo1.stock_opening_balance ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME demo1.stock_opening_balance_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: stock_opening_balance_line; Type: TABLE; Schema: demo1; Owner: webadmin
+--
+
+CREATE TABLE demo1.stock_opening_balance_line (
+    id bigint NOT NULL,
+    stock_opening_balance_id bigint NOT NULL,
+    part_id bigint NOT NULL,
+    qty numeric(12,3) NOT NULL,
+    unit_cost numeric(12,2),
+    remarks text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT stock_opening_balance_line_qty_check CHECK ((qty > (0)::numeric))
+);
+
+
+ALTER TABLE demo1.stock_opening_balance_line OWNER TO webadmin;
+
+--
+-- Name: stock_opening_balance_line_id_seq; Type: SEQUENCE; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE demo1.stock_opening_balance_line ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME demo1.stock_opening_balance_line_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: stock_snapshot; Type: TABLE; Schema: demo1; Owner: webadmin
+--
+
+CREATE TABLE demo1.stock_snapshot (
+    snapshot_date date NOT NULL,
+    part_id bigint NOT NULL,
+    branch_id bigint NOT NULL,
+    opening numeric(12,3) DEFAULT 0 NOT NULL,
+    closing numeric(12,3) DEFAULT 0 NOT NULL,
+    purchase_in numeric(12,3) DEFAULT 0 NOT NULL,
+    purchase_out numeric(12,3) DEFAULT 0 NOT NULL,
+    sales_in numeric(12,3) DEFAULT 0 NOT NULL,
+    sales_out numeric(12,3) DEFAULT 0 NOT NULL,
+    adjust_in numeric(12,3) DEFAULT 0 NOT NULL,
+    adjust_out numeric(12,3) DEFAULT 0 NOT NULL,
+    loan_in numeric(12,3) DEFAULT 0 NOT NULL,
+    loan_out numeric(12,3) DEFAULT 0 NOT NULL,
+    branch_transfer_in numeric(12,3) DEFAULT 0 NOT NULL,
+    branch_transfer_out numeric(12,3) DEFAULT 0 NOT NULL
+);
+
+
+ALTER TABLE demo1.stock_snapshot OWNER TO webadmin;
+
+--
+-- Name: stock_transaction; Type: TABLE; Schema: demo1; Owner: webadmin
+--
+
+CREATE TABLE demo1.stock_transaction (
+    id bigint NOT NULL,
+    part_id bigint NOT NULL,
+    branch_id bigint NOT NULL,
+    stock_transaction_type_id smallint NOT NULL,
+    transaction_date date NOT NULL,
+    dr_cr character(1) NOT NULL,
+    qty numeric(12,3) NOT NULL,
+    unit_cost numeric(12,2),
+    remarks text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    purchase_line_id bigint,
+    sales_line_id bigint,
+    stock_adjustment_line_id bigint,
+    job_part_used_id bigint,
+    stock_branch_transfer_line_id bigint,
+    stock_loan_line_id bigint,
+    stock_opening_balance_line_id bigint,
+    CONSTRAINT stock_transaction_check CHECK ((((((((((purchase_line_id IS NOT NULL))::integer + ((sales_line_id IS NOT NULL))::integer) + ((stock_adjustment_line_id IS NOT NULL))::integer) + ((job_part_used_id IS NOT NULL))::integer) + ((stock_branch_transfer_line_id IS NOT NULL))::integer) + ((stock_loan_line_id IS NOT NULL))::integer) + ((stock_opening_balance_line_id IS NOT NULL))::integer) = 1)),
+    CONSTRAINT stock_transaction_dr_cr_check CHECK ((dr_cr = ANY (ARRAY['D'::bpchar, 'C'::bpchar]))),
+    CONSTRAINT stock_transaction_qty_check CHECK ((qty > (0)::numeric))
+);
+
+
+ALTER TABLE demo1.stock_transaction OWNER TO webadmin;
+
+--
+-- Name: stock_transaction_id_seq; Type: SEQUENCE; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE demo1.stock_transaction ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME demo1.stock_transaction_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: stock_transaction_type; Type: TABLE; Schema: demo1; Owner: webadmin
+--
+
+CREATE TABLE demo1.stock_transaction_type (
+    id smallint NOT NULL,
+    code text NOT NULL,
+    name text NOT NULL,
+    dr_cr character(1) NOT NULL,
+    description text,
+    is_active boolean DEFAULT true NOT NULL,
+    is_system boolean NOT NULL,
+    CONSTRAINT stock_transaction_type_dr_cr_check CHECK ((dr_cr = ANY (ARRAY['D'::bpchar, 'C'::bpchar])))
+);
+
+
+ALTER TABLE demo1.stock_transaction_type OWNER TO webadmin;
+
+--
+-- Name: supplier; Type: TABLE; Schema: demo1; Owner: webadmin
+--
+
+CREATE TABLE demo1.supplier (
+    id bigint NOT NULL,
+    name text NOT NULL,
+    gstin text,
+    pan text,
+    phone text,
+    email text,
+    address_line1 text,
+    address_line2 text,
+    city text,
+    state_id smallint NOT NULL,
+    pincode text,
+    is_active boolean DEFAULT true NOT NULL,
+    remarks text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+ALTER TABLE demo1.supplier OWNER TO webadmin;
+
+--
+-- Name: supplier_id_seq; Type: SEQUENCE; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE demo1.supplier ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME demo1.supplier_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: technician; Type: TABLE; Schema: demo1; Owner: webadmin
+--
+
+CREATE TABLE demo1.technician (
+    id bigint NOT NULL,
+    branch_id bigint NOT NULL,
+    code text NOT NULL,
+    name text NOT NULL,
+    phone text,
+    email text,
+    specialization text,
+    leaving_date date,
+    is_active boolean DEFAULT true NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT technician_code_check CHECK ((code ~ '^[A-Z0-9_]+$'::text))
+);
+
+
+ALTER TABLE demo1.technician OWNER TO webadmin;
+
+--
+-- Name: technician_id_seq; Type: SEQUENCE; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE demo1.technician ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME demo1.technician_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: access_right; Type: TABLE; Schema: security; Owner: webadmin
+--
+
+CREATE TABLE security.access_right (
+    id integer NOT NULL,
+    code text NOT NULL,
+    name text NOT NULL,
+    module text NOT NULL,
+    description text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT access_right_code_check CHECK ((code ~ '^[A-Z_]+$'::text))
+);
+
+
+ALTER TABLE security.access_right OWNER TO webadmin;
+
+--
+-- Name: access_right_id_seq; Type: SEQUENCE; Schema: security; Owner: webadmin
+--
+
+ALTER TABLE security.access_right ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME security.access_right_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: bu; Type: TABLE; Schema: security; Owner: webadmin
+--
+
+CREATE TABLE security.bu (
+    id bigint NOT NULL,
+    code text NOT NULL,
+    name text NOT NULL,
+    is_active boolean DEFAULT true NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+ALTER TABLE security.bu OWNER TO webadmin;
+
+--
+-- Name: bu_id_seq; Type: SEQUENCE; Schema: security; Owner: webadmin
+--
+
+ALTER TABLE security.bu ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME security.bu_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: role; Type: TABLE; Schema: security; Owner: webadmin
+--
+
+CREATE TABLE security.role (
+    id smallint NOT NULL,
+    code text NOT NULL,
+    name text NOT NULL,
+    description text,
+    is_system boolean DEFAULT false NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT role_code_check CHECK ((code ~ '^[A-Z_]+$'::text))
+);
+
+
+ALTER TABLE security.role OWNER TO webadmin;
+
+--
+-- Name: role_access_right; Type: TABLE; Schema: security; Owner: webadmin
+--
+
+CREATE TABLE security.role_access_right (
+    role_id smallint NOT NULL,
+    access_right_id integer NOT NULL
+);
+
+
+ALTER TABLE security.role_access_right OWNER TO webadmin;
+
+--
+-- Name: user; Type: TABLE; Schema: security; Owner: webadmin
+--
+
+CREATE TABLE security."user" (
+    id bigint NOT NULL,
+    username text NOT NULL,
+    email text NOT NULL,
+    mobile text,
+    password_hash text NOT NULL,
+    is_active boolean DEFAULT true NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    full_name text NOT NULL,
+    is_admin boolean DEFAULT false NOT NULL,
+    last_used_bu_id bigint,
+    last_used_branch_id bigint
+);
+
+
+ALTER TABLE security."user" OWNER TO webadmin;
+
+--
+-- Name: user_bu_role; Type: TABLE; Schema: security; Owner: webadmin
+--
+
+CREATE TABLE security.user_bu_role (
+    user_id bigint NOT NULL,
+    bu_id bigint NOT NULL,
+    role_id bigint NOT NULL,
+    is_active boolean DEFAULT true NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+ALTER TABLE security.user_bu_role OWNER TO webadmin;
+
+--
+-- Name: user_id_seq; Type: SEQUENCE; Schema: security; Owner: webadmin
+--
+
+ALTER TABLE security."user" ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME security.user_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
+-- Name: additional_charge additional_charge_name_key; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.additional_charge
+    ADD CONSTRAINT additional_charge_name_key UNIQUE (name);
+
+
+--
+-- Name: additional_charge additional_charge_pkey; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.additional_charge
+    ADD CONSTRAINT additional_charge_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: app_setting app_setting_key_uidx; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.app_setting
+    ADD CONSTRAINT app_setting_key_uidx UNIQUE (setting_key);
+
+
+--
+-- Name: app_setting app_setting_pkey; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.app_setting
+    ADD CONSTRAINT app_setting_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: branch branch_pkey; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.branch
+    ADD CONSTRAINT branch_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: brand brand_code_key; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.brand
+    ADD CONSTRAINT brand_code_key UNIQUE (code);
+
+
+--
+-- Name: brand brand_pkey; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.brand
+    ADD CONSTRAINT brand_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: customer_contact customer_contact_full_name_mobile_key; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.customer_contact
+    ADD CONSTRAINT customer_contact_full_name_mobile_key UNIQUE (full_name, mobile);
+
+
+--
+-- Name: customer_contact customer_contact_pkey; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.customer_contact
+    ADD CONSTRAINT customer_contact_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: customer_type customer_type_code_uidx; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.customer_type
+    ADD CONSTRAINT customer_type_code_uidx UNIQUE (code);
+
+
+--
+-- Name: customer_type customer_type_pkey; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.customer_type
+    ADD CONSTRAINT customer_type_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: division division_branch_id_code_key; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.division
+    ADD CONSTRAINT division_branch_id_code_key UNIQUE (branch_id, code);
+
+
+--
+-- Name: division division_branch_id_name_key; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.division
+    ADD CONSTRAINT division_branch_id_name_key UNIQUE (branch_id, name);
+
+
+--
+-- Name: division division_code_check; Type: CHECK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE demo1.division
+    ADD CONSTRAINT division_code_check CHECK ((code ~ '^[A-Z0-9_]+$'::text)) NOT VALID;
+
+
+--
+-- Name: division division_pkey; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.division
+    ADD CONSTRAINT division_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: document_sequence document_sequence_pkey; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.document_sequence
+    ADD CONSTRAINT document_sequence_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: document_type document_type_code_uidx; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.document_type
+    ADD CONSTRAINT document_type_code_uidx UNIQUE (code);
+
+
+--
+-- Name: document_type document_type_pkey; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.document_type
+    ADD CONSTRAINT document_type_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: financial_year financial_year_pkey; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.financial_year
+    ADD CONSTRAINT financial_year_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: job_additional_charge job_additional_charge_pkey; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.job_additional_charge
+    ADD CONSTRAINT job_additional_charge_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: job job_branch_job_no_uidx; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.job
+    ADD CONSTRAINT job_branch_job_no_uidx UNIQUE (branch_id, job_no);
+
+
+--
+-- Name: job_delivery_manner job_delivery_manner_code_uidx; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.job_delivery_manner
+    ADD CONSTRAINT job_delivery_manner_code_uidx UNIQUE (code);
+
+
+--
+-- Name: job_delivery_manner job_delivery_manner_pkey; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.job_delivery_manner
+    ADD CONSTRAINT job_delivery_manner_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: job_image_doc job_image_doc_pkey; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.job_image_doc
+    ADD CONSTRAINT job_image_doc_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: job_invoice job_invoice_invoice_no_key; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.job_invoice
+    ADD CONSTRAINT job_invoice_invoice_no_key UNIQUE (invoice_no);
+
+
+--
+-- Name: job_invoice job_invoice_job_id_uidx; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.job_invoice
+    ADD CONSTRAINT job_invoice_job_id_uidx UNIQUE (job_id);
+
+
+--
+-- Name: job_invoice_line job_invoice_line_pkey; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.job_invoice_line
+    ADD CONSTRAINT job_invoice_line_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: job_invoice job_invoice_pkey; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.job_invoice
+    ADD CONSTRAINT job_invoice_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: job job_no_uidx; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.job
+    ADD CONSTRAINT job_no_uidx UNIQUE (job_no);
+
+
+--
+-- Name: job_part_used job_part_used_pkey; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.job_part_used
+    ADD CONSTRAINT job_part_used_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: job_payment job_payment_pkey; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.job_payment
+    ADD CONSTRAINT job_payment_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: job job_pkey; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.job
+    ADD CONSTRAINT job_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: job_receive_condition job_receive_condition_code_uidx; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.job_receive_condition
+    ADD CONSTRAINT job_receive_condition_code_uidx UNIQUE (code);
+
+
+--
+-- Name: job_receive_condition job_receive_condition_pkey; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.job_receive_condition
+    ADD CONSTRAINT job_receive_condition_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: job_receive_manner job_receive_manner_code_uidx; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.job_receive_manner
+    ADD CONSTRAINT job_receive_manner_code_uidx UNIQUE (code);
+
+
+--
+-- Name: job_receive_manner job_receive_manner_pkey; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.job_receive_manner
+    ADD CONSTRAINT job_receive_manner_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: job_status job_status_code_uidx; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.job_status
+    ADD CONSTRAINT job_status_code_uidx UNIQUE (code);
+
+
+--
+-- Name: job_status job_status_pkey; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.job_status
+    ADD CONSTRAINT job_status_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: job_transaction job_transaction_pkey; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.job_transaction
+    ADD CONSTRAINT job_transaction_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: job_type job_type_code_uidx; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.job_type
+    ADD CONSTRAINT job_type_code_uidx UNIQUE (code);
+
+
+--
+-- Name: job_type job_type_pkey; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.job_type
+    ADD CONSTRAINT job_type_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: product_brand_model pbm_unique_model; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.product_brand_model
+    ADD CONSTRAINT pbm_unique_model UNIQUE (product_id, brand_id, model_name);
+
+
+--
+-- Name: product_brand_model product_brand_model_pkey; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.product_brand_model
+    ADD CONSTRAINT product_brand_model_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: product product_name_key; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.product
+    ADD CONSTRAINT product_name_key UNIQUE (name);
+
+
+--
+-- Name: product product_pkey; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.product
+    ADD CONSTRAINT product_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: purchase_invoice_line purchase_invoice_line_pkey; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.purchase_invoice_line
+    ADD CONSTRAINT purchase_invoice_line_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: purchase_invoice purchase_invoice_pkey; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.purchase_invoice
+    ADD CONSTRAINT purchase_invoice_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: purchase_invoice purchase_invoice_supplier_no_uidx; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.purchase_invoice
+    ADD CONSTRAINT purchase_invoice_supplier_no_uidx UNIQUE (supplier_id, invoice_no);
+
+
+--
+-- Name: sales_invoice sales_invoice_division_id_invoice_no_key; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.sales_invoice
+    ADD CONSTRAINT sales_invoice_division_id_invoice_no_key UNIQUE (division_id, invoice_no);
+
+
+--
+-- Name: sales_invoice_line sales_invoice_line_pkey; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.sales_invoice_line
+    ADD CONSTRAINT sales_invoice_line_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: sales_invoice sales_invoice_pkey; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.sales_invoice
+    ADD CONSTRAINT sales_invoice_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: spare_part_master spare_part_code_brand_unique; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.spare_part_master
+    ADD CONSTRAINT spare_part_code_brand_unique UNIQUE (brand_id, part_code);
+
+
+--
+-- Name: spare_part_master spare_part_pkey; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.spare_part_master
+    ADD CONSTRAINT spare_part_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: state state_code_uidx; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.state
+    ADD CONSTRAINT state_code_uidx UNIQUE (code);
+
+
+--
+-- Name: state state_name_uidx; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.state
+    ADD CONSTRAINT state_name_uidx UNIQUE (name);
+
+
+--
+-- Name: state state_pkey; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.state
+    ADD CONSTRAINT state_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: stock_adjustment_line stock_adjustment_line_pkey; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.stock_adjustment_line
+    ADD CONSTRAINT stock_adjustment_line_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: stock_adjustment stock_adjustment_pkey; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.stock_adjustment
+    ADD CONSTRAINT stock_adjustment_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: stock_balance stock_balance_pkey; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.stock_balance
+    ADD CONSTRAINT stock_balance_pkey PRIMARY KEY (part_id, branch_id);
+
+
+--
+-- Name: stock_branch_transfer_line stock_branch_transfer_line_pkey; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.stock_branch_transfer_line
+    ADD CONSTRAINT stock_branch_transfer_line_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: stock_branch_transfer stock_branch_transfer_pkey; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.stock_branch_transfer
+    ADD CONSTRAINT stock_branch_transfer_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: stock_loan_line stock_loan_line_pkey; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.stock_loan_line
+    ADD CONSTRAINT stock_loan_line_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: stock_loan stock_loan_pkey; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.stock_loan
+    ADD CONSTRAINT stock_loan_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: stock_location_change stock_location_change_pkey; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.stock_location_change
+    ADD CONSTRAINT stock_location_change_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: stock_location_master stock_location_master_branch_id_key; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.stock_location_master
+    ADD CONSTRAINT stock_location_master_branch_id_key UNIQUE (branch_id);
+
+
+--
+-- Name: stock_location_master stock_location_master_pkey; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.stock_location_master
+    ADD CONSTRAINT stock_location_master_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: stock_opening_balance stock_opening_balance_branch_id_key; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.stock_opening_balance
+    ADD CONSTRAINT stock_opening_balance_branch_id_key UNIQUE (branch_id);
+
+
+--
+-- Name: stock_opening_balance_line stock_opening_balance_line_pkey; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.stock_opening_balance_line
+    ADD CONSTRAINT stock_opening_balance_line_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: stock_opening_balance stock_opening_balance_pkey; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.stock_opening_balance
+    ADD CONSTRAINT stock_opening_balance_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: stock_snapshot stock_snapshot_pkey; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.stock_snapshot
+    ADD CONSTRAINT stock_snapshot_pkey PRIMARY KEY (snapshot_date, part_id, branch_id);
+
+
+--
+-- Name: stock_snapshot stock_snapshot_snapshot_date_part_id_branch_id_key; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.stock_snapshot
+    ADD CONSTRAINT stock_snapshot_snapshot_date_part_id_branch_id_key UNIQUE (snapshot_date, part_id, branch_id);
+
+
+--
+-- Name: stock_transaction stock_transaction_pkey; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.stock_transaction
+    ADD CONSTRAINT stock_transaction_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: stock_transaction_type stock_transaction_type_code_uidx; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.stock_transaction_type
+    ADD CONSTRAINT stock_transaction_type_code_uidx UNIQUE (code);
+
+
+--
+-- Name: stock_transaction_type stock_transaction_type_pkey; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.stock_transaction_type
+    ADD CONSTRAINT stock_transaction_type_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: supplier supplier_name_key; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.supplier
+    ADD CONSTRAINT supplier_name_key UNIQUE (name);
+
+
+--
+-- Name: supplier supplier_pkey; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.supplier
+    ADD CONSTRAINT supplier_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: technician technician_bu_code_uidx; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.technician
+    ADD CONSTRAINT technician_bu_code_uidx UNIQUE (branch_id, code);
+
+
+--
+-- Name: technician technician_pkey; Type: CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.technician
+    ADD CONSTRAINT technician_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: access_right access_right_code_key; Type: CONSTRAINT; Schema: security; Owner: webadmin
+--
+
+ALTER TABLE ONLY security.access_right
+    ADD CONSTRAINT access_right_code_key UNIQUE (code);
+
+
+--
+-- Name: access_right access_right_pkey; Type: CONSTRAINT; Schema: security; Owner: webadmin
+--
+
+ALTER TABLE ONLY security.access_right
+    ADD CONSTRAINT access_right_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: bu bu_pkey; Type: CONSTRAINT; Schema: security; Owner: webadmin
+--
+
+ALTER TABLE ONLY security.bu
+    ADD CONSTRAINT bu_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: role_access_right role_access_right_pkey; Type: CONSTRAINT; Schema: security; Owner: webadmin
+--
+
+ALTER TABLE ONLY security.role_access_right
+    ADD CONSTRAINT role_access_right_pkey PRIMARY KEY (role_id, access_right_id);
+
+
+--
+-- Name: role role_code_key; Type: CONSTRAINT; Schema: security; Owner: webadmin
+--
+
+ALTER TABLE ONLY security.role
+    ADD CONSTRAINT role_code_key UNIQUE (code);
+
+
+--
+-- Name: role role_pkey; Type: CONSTRAINT; Schema: security; Owner: webadmin
+--
+
+ALTER TABLE ONLY security.role
+    ADD CONSTRAINT role_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: user_bu_role user_bu_role_pkey; Type: CONSTRAINT; Schema: security; Owner: webadmin
+--
+
+ALTER TABLE ONLY security.user_bu_role
+    ADD CONSTRAINT user_bu_role_pkey PRIMARY KEY (user_id, bu_id, role_id);
+
+
+--
+-- Name: user_bu_role user_bu_role_user_id_bu_id_key; Type: CONSTRAINT; Schema: security; Owner: webadmin
+--
+
+ALTER TABLE ONLY security.user_bu_role
+    ADD CONSTRAINT user_bu_role_user_id_bu_id_key UNIQUE (user_id, bu_id);
+
+
+--
+-- Name: user user_email_key; Type: CONSTRAINT; Schema: security; Owner: webadmin
+--
+
+ALTER TABLE ONLY security."user"
+    ADD CONSTRAINT user_email_key UNIQUE (email);
+
+
+--
+-- Name: user user_pkey; Type: CONSTRAINT; Schema: security; Owner: webadmin
+--
+
+ALTER TABLE ONLY security."user"
+    ADD CONSTRAINT user_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: user user_username_key; Type: CONSTRAINT; Schema: security; Owner: webadmin
+--
+
+ALTER TABLE ONLY security."user"
+    ADD CONSTRAINT user_username_key UNIQUE (username);
+
+
+--
+-- Name: branch_state_idx; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX branch_state_idx ON demo1.branch USING btree (state_id);
+
+
+--
+-- Name: customer_contact_email_idx; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX customer_contact_email_idx ON demo1.customer_contact USING btree (email) WITH (deduplicate_items='true');
+
+
+--
+-- Name: division_branch_id_is_active_idx; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX division_branch_id_is_active_idx ON demo1.division USING btree (branch_id, is_active) WITH (deduplicate_items='true');
+
+
+--
+-- Name: division_code_idx; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX division_code_idx ON demo1.division USING btree (code) WITH (deduplicate_items='true');
+
+
+--
+-- Name: document_sequence_unique; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE UNIQUE INDEX document_sequence_unique ON demo1.document_sequence USING btree (document_type_id, branch_id, COALESCE(division_id, (0)::bigint));
+
+
+--
+-- Name: idx_customer_contact_mobile; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX idx_customer_contact_mobile ON demo1.customer_contact USING btree (mobile);
+
+
+--
+-- Name: idx_job_delivery_date; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX idx_job_delivery_date ON demo1.job USING btree (delivery_date);
+
+
+--
+-- Name: idx_job_division; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX idx_job_division ON demo1.job USING btree (division_id);
+
+
+--
+-- Name: idx_job_invoice_job; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX idx_job_invoice_job ON demo1.job_invoice USING btree (job_id);
+
+
+--
+-- Name: idx_job_invoice_line_invoice; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX idx_job_invoice_line_invoice ON demo1.job_invoice_line USING btree (job_invoice_id);
+
+
+--
+-- Name: idx_job_invoice_line_part; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX idx_job_invoice_line_part ON demo1.job_invoice_line USING btree (part_code);
+
+
+--
+-- Name: idx_job_part_used_job; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX idx_job_part_used_job ON demo1.job_part_used USING btree (job_id);
+
+
+--
+-- Name: idx_job_part_used_part; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX idx_job_part_used_part ON demo1.job_part_used USING btree (part_id);
+
+
+--
+-- Name: idx_job_payment_date; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX idx_job_payment_date ON demo1.job_payment USING btree (payment_date);
+
+
+--
+-- Name: idx_job_payment_job; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX idx_job_payment_job ON demo1.job_payment USING btree (job_id);
+
+
+--
+-- Name: idx_job_transaction_job_id; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX idx_job_transaction_job_id ON demo1.job_transaction USING btree (job_id);
+
+
+--
+-- Name: idx_job_transaction_performed_at; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX idx_job_transaction_performed_at ON demo1.job_transaction USING btree (performed_at);
+
+
+--
+-- Name: idx_job_transaction_status; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX idx_job_transaction_status ON demo1.job_transaction USING btree (status_id);
+
+
+--
+-- Name: idx_purchase_invoice_line_spare_part; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX idx_purchase_invoice_line_spare_part ON demo1.purchase_invoice_line USING btree (part_id);
+
+
+--
+-- Name: idx_purchase_invoice_supplier; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX idx_purchase_invoice_supplier ON demo1.purchase_invoice USING btree (supplier_id);
+
+
+--
+-- Name: idx_sales_invoice_customer; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX idx_sales_invoice_customer ON demo1.sales_invoice USING btree (customer_contact_id);
+
+
+--
+-- Name: idx_sales_invoice_line_spare_part; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX idx_sales_invoice_line_spare_part ON demo1.sales_invoice_line USING btree (part_id);
+
+
+--
+-- Name: idx_stock_adj_date; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX idx_stock_adj_date ON demo1.stock_adjustment USING btree (adjustment_date);
+
+
+--
+-- Name: idx_stock_adj_line_adj_id; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX idx_stock_adj_line_adj_id ON demo1.stock_adjustment_line USING btree (stock_adjustment_id);
+
+
+--
+-- Name: idx_stock_adj_line_part; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX idx_stock_adj_line_part ON demo1.stock_adjustment_line USING btree (part_id);
+
+
+--
+-- Name: job_alternate_job_no_idx; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX job_alternate_job_no_idx ON demo1.job USING btree (alternate_job_no) WITH (deduplicate_items='true');
+
+
+--
+-- Name: job_batch_no_idx; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX job_batch_no_idx ON demo1.job USING btree (batch_no) WITH (deduplicate_items='true');
+
+
+--
+-- Name: job_branch_idx; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX job_branch_idx ON demo1.job USING btree (branch_id);
+
+
+--
+-- Name: job_customer_idx; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX job_customer_idx ON demo1.job USING btree (customer_contact_id);
+
+
+--
+-- Name: job_invoice_is_posted_idx; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX job_invoice_is_posted_idx ON demo1.job_invoice USING btree (is_posted) WITH (deduplicate_items='true');
+
+
+--
+-- Name: job_is_igst_idx; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX job_is_igst_idx ON demo1.job USING btree (is_igst) WITH (deduplicate_items='true');
+
+
+--
+-- Name: job_job_date_idx; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX job_job_date_idx ON demo1.job USING btree (job_date);
+
+
+--
+-- Name: job_payment_is_posted_idx; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX job_payment_is_posted_idx ON demo1.job_payment USING btree (is_posted) WITH (deduplicate_items='true');
+
+
+--
+-- Name: job_payment_receipt_no_idx; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX job_payment_receipt_no_idx ON demo1.job_payment USING btree (receipt_no) WITH (deduplicate_items='true');
+
+
+--
+-- Name: job_product_brand_model_id_idx; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX job_product_brand_model_id_idx ON demo1.job USING btree (product_brand_model_id) WITH (deduplicate_items='true');
+
+
+--
+-- Name: job_status_idx; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX job_status_idx ON demo1.job USING btree (job_status_id);
+
+
+--
+-- Name: job_technician_idx; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX job_technician_idx ON demo1.job USING btree (technician_id);
+
+
+--
+-- Name: job_transaction_transaction_date_idx; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX job_transaction_transaction_date_idx ON demo1.job_transaction USING btree (transaction_date) WITH (deduplicate_items='true');
+
+
+--
+-- Name: purchase_invoice_is_posted_idx; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX purchase_invoice_is_posted_idx ON demo1.purchase_invoice USING btree (is_posted) WITH (deduplicate_items='true');
+
+
+--
+-- Name: sales_invoice_is_posted_idx; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX sales_invoice_is_posted_idx ON demo1.sales_invoice USING btree (is_posted) WITH (deduplicate_items='true');
+
+
+--
+-- Name: spare_part_master_category_idx; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX spare_part_master_category_idx ON demo1.spare_part_master USING btree (category) WITH (deduplicate_items='true');
+
+
+--
+-- Name: spare_part_master_is_active_part_code_idx; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX spare_part_master_is_active_part_code_idx ON demo1.spare_part_master USING btree (part_code) WHERE (is_active = true);
+
+
+--
+-- Name: spare_part_master_model_idx; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX spare_part_master_model_idx ON demo1.spare_part_master USING btree (model) WITH (deduplicate_items='true');
+
+
+--
+-- Name: spare_part_master_part_code_idx; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX spare_part_master_part_code_idx ON demo1.spare_part_master USING btree (part_code) WITH (deduplicate_items='true');
+
+
+--
+-- Name: spare_part_master_part_description_idx; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX spare_part_master_part_description_idx ON demo1.spare_part_master USING btree (part_description) WITH (deduplicate_items='true');
+
+
+--
+-- Name: spare_part_master_part_name_idx; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX spare_part_master_part_name_idx ON demo1.spare_part_master USING btree (part_name) WITH (deduplicate_items='true');
+
+
+--
+-- Name: stock_balance_location_id_idx; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX stock_balance_location_id_idx ON demo1.stock_balance USING btree (location_id) WITH (deduplicate_items='true');
+
+
+--
+-- Name: stock_branch_transfer_from_branch_id_idx; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX stock_branch_transfer_from_branch_id_idx ON demo1.stock_branch_transfer USING btree (from_branch_id) WITH (deduplicate_items='true');
+
+
+--
+-- Name: stock_branch_transfer_line_part_id_idx; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX stock_branch_transfer_line_part_id_idx ON demo1.stock_branch_transfer_line USING btree (part_id) WITH (deduplicate_items='true');
+
+
+--
+-- Name: stock_branch_transfer_line_stock_branch_transfer_id_idx; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX stock_branch_transfer_line_stock_branch_transfer_id_idx ON demo1.stock_branch_transfer_line USING btree (stock_branch_transfer_id) WITH (deduplicate_items='true');
+
+
+--
+-- Name: stock_branch_transfer_to_branch_id_idx; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX stock_branch_transfer_to_branch_id_idx ON demo1.stock_branch_transfer USING btree (to_branch_id) WITH (deduplicate_items='true');
+
+
+--
+-- Name: stock_branch_transfer_transfer_date_idx; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX stock_branch_transfer_transfer_date_idx ON demo1.stock_branch_transfer USING btree (transfer_date) WITH (deduplicate_items='true');
+
+
+--
+-- Name: stock_loan_branch_id_idx; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX stock_loan_branch_id_idx ON demo1.stock_loan USING btree (branch_id) WITH (deduplicate_items='true');
+
+
+--
+-- Name: stock_loan_line_part_id_idx; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX stock_loan_line_part_id_idx ON demo1.stock_loan_line USING btree (part_id) WITH (deduplicate_items='true');
+
+
+--
+-- Name: stock_loan_line_stock_loan_id_idx; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX stock_loan_line_stock_loan_id_idx ON demo1.stock_loan_line USING btree (stock_loan_id) WITH (deduplicate_items='true');
+
+
+--
+-- Name: stock_loan_loan_date_idx; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX stock_loan_loan_date_idx ON demo1.stock_loan USING btree (loan_date) WITH (deduplicate_items='true');
+
+
+--
+-- Name: stock_location_change_part_id_branch_id_idx; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX stock_location_change_part_id_branch_id_idx ON demo1.stock_location_change USING btree (part_id, branch_id) WITH (deduplicate_items='true');
+
+
+--
+-- Name: stock_location_change_transaction_date_idx; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX stock_location_change_transaction_date_idx ON demo1.stock_location_change USING btree (transaction_date) WITH (deduplicate_items='true');
+
+
+--
+-- Name: stock_transaction_part_id_branch_id_transaction_date_idx; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX stock_transaction_part_id_branch_id_transaction_date_idx ON demo1.stock_transaction USING btree (part_id, branch_id, transaction_date) WITH (deduplicate_items='true');
+
+
+--
+-- Name: stock_transaction_part_id_idx; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX stock_transaction_part_id_idx ON demo1.stock_transaction USING btree (part_id) WITH (deduplicate_items='true');
+
+
+--
+-- Name: stock_transaction_stock_transaction_type_id_idx; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX stock_transaction_stock_transaction_type_id_idx ON demo1.stock_transaction USING btree (stock_transaction_type_id) WITH (deduplicate_items='true');
+
+
+--
+-- Name: stock_transaction_transaction_date_idx; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX stock_transaction_transaction_date_idx ON demo1.stock_transaction USING btree (transaction_date DESC) WITH (deduplicate_items='true');
+
+
+--
+-- Name: technician_phone_idx; Type: INDEX; Schema: demo1; Owner: webadmin
+--
+
+CREATE INDEX technician_phone_idx ON demo1.technician USING btree (phone);
+
+
+--
+-- Name: access_right_module_idx; Type: INDEX; Schema: security; Owner: webadmin
+--
+
+CREATE INDEX access_right_module_idx ON security.access_right USING btree (module) WITH (deduplicate_items='true');
+
+
+--
+-- Name: role_access_right_access_right_id_idx; Type: INDEX; Schema: security; Owner: webadmin
+--
+
+CREATE INDEX role_access_right_access_right_id_idx ON security.role_access_right USING btree (access_right_id) WITH (deduplicate_items='true');
+
+
+--
+-- Name: role_is_system_idx; Type: INDEX; Schema: security; Owner: webadmin
+--
+
+CREATE INDEX role_is_system_idx ON security.role USING btree (is_system) WITH (deduplicate_items='true');
+
+
+--
+-- Name: user_bu_role_bu_id_idx; Type: INDEX; Schema: security; Owner: webadmin
+--
+
+CREATE INDEX user_bu_role_bu_id_idx ON security.user_bu_role USING btree (bu_id) WITH (deduplicate_items='true');
+
+
+--
+-- Name: user_bu_role_role_id_idx; Type: INDEX; Schema: security; Owner: webadmin
+--
+
+CREATE INDEX user_bu_role_role_id_idx ON security.user_bu_role USING btree (role_id) WITH (deduplicate_items='true');
+
+
+--
+-- Name: user_bu_role_user_id_idx; Type: INDEX; Schema: security; Owner: webadmin
+--
+
+CREATE INDEX user_bu_role_user_id_idx ON security.user_bu_role USING btree (user_id) WITH (deduplicate_items='true');
+
+
+--
+-- Name: user_full_name_idx; Type: INDEX; Schema: security; Owner: webadmin
+--
+
+CREATE INDEX user_full_name_idx ON security."user" USING btree (full_name) WITH (deduplicate_items='true');
+
+
+--
+-- Name: user_mobile_unique_idx; Type: INDEX; Schema: security; Owner: webadmin
+--
+
+CREATE UNIQUE INDEX user_mobile_unique_idx ON security."user" USING btree (mobile) WHERE (mobile IS NOT NULL);
+
+
+--
+-- Name: stock_transaction trg_stock_balance_delete; Type: TRIGGER; Schema: demo1; Owner: webadmin
+--
+
+CREATE TRIGGER trg_stock_balance_delete AFTER DELETE ON demo1.stock_transaction FOR EACH ROW EXECUTE FUNCTION demo1.fn_maintain_stock_balance();
+
+
+--
+-- Name: stock_transaction trg_stock_balance_insert; Type: TRIGGER; Schema: demo1; Owner: webadmin
+--
+
+CREATE TRIGGER trg_stock_balance_insert AFTER INSERT ON demo1.stock_transaction FOR EACH ROW EXECUTE FUNCTION demo1.fn_maintain_stock_balance();
+
+
+--
+-- Name: stock_transaction trg_stock_balance_update; Type: TRIGGER; Schema: demo1; Owner: webadmin
+--
+
+CREATE TRIGGER trg_stock_balance_update AFTER UPDATE ON demo1.stock_transaction FOR EACH ROW EXECUTE FUNCTION demo1.fn_maintain_stock_balance();
+
+
+--
+-- Name: branch branch_state_fk; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.branch
+    ADD CONSTRAINT branch_state_fk FOREIGN KEY (state_id) REFERENCES demo1.state(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: customer_contact customer_contact_state_fk; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.customer_contact
+    ADD CONSTRAINT customer_contact_state_fk FOREIGN KEY (state_id) REFERENCES demo1.state(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: customer_contact customer_contact_type_fk; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.customer_contact
+    ADD CONSTRAINT customer_contact_type_fk FOREIGN KEY (customer_type_id) REFERENCES demo1.customer_type(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: division division_branch_id_fkey; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.division
+    ADD CONSTRAINT division_branch_id_fkey FOREIGN KEY (branch_id) REFERENCES demo1.branch(id);
+
+
+--
+-- Name: division division_state_fk; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.division
+    ADD CONSTRAINT division_state_fk FOREIGN KEY (state_id) REFERENCES demo1.state(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: document_sequence document_sequence_branch_fk; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.document_sequence
+    ADD CONSTRAINT document_sequence_branch_fk FOREIGN KEY (branch_id) REFERENCES demo1.branch(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: document_sequence document_sequence_type_fk; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.document_sequence
+    ADD CONSTRAINT document_sequence_type_fk FOREIGN KEY (document_type_id) REFERENCES demo1.document_type(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: job_additional_charge job_additional_charge_job_id_fkey; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.job_additional_charge
+    ADD CONSTRAINT job_additional_charge_job_id_fkey FOREIGN KEY (job_id) REFERENCES demo1.job(id) ON DELETE CASCADE;
+
+
+--
+-- Name: job job_branch_fk; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.job
+    ADD CONSTRAINT job_branch_fk FOREIGN KEY (branch_id) REFERENCES demo1.branch(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: job job_customer_fk; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.job
+    ADD CONSTRAINT job_customer_fk FOREIGN KEY (customer_contact_id) REFERENCES demo1.customer_contact(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: job job_division_id_fkey; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.job
+    ADD CONSTRAINT job_division_id_fkey FOREIGN KEY (division_id) REFERENCES demo1.division(id);
+
+
+--
+-- Name: job_image_doc job_image_doc_job_id_fkey; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.job_image_doc
+    ADD CONSTRAINT job_image_doc_job_id_fkey FOREIGN KEY (job_id) REFERENCES demo1.job(id);
+
+
+--
+-- Name: job_invoice job_invoice_job_fk; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.job_invoice
+    ADD CONSTRAINT job_invoice_job_fk FOREIGN KEY (job_id) REFERENCES demo1.job(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: job_invoice_line job_invoice_line_invoice_fk; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.job_invoice_line
+    ADD CONSTRAINT job_invoice_line_invoice_fk FOREIGN KEY (job_invoice_id) REFERENCES demo1.job_invoice(id) ON DELETE CASCADE;
+
+
+--
+-- Name: job_part_used job_part_used_job_fk; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.job_part_used
+    ADD CONSTRAINT job_part_used_job_fk FOREIGN KEY (job_id) REFERENCES demo1.job(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: job_part_used job_part_used_part_fk; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.job_part_used
+    ADD CONSTRAINT job_part_used_part_fk FOREIGN KEY (part_id) REFERENCES demo1.spare_part_master(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: job_payment job_payment_job_fk; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.job_payment
+    ADD CONSTRAINT job_payment_job_fk FOREIGN KEY (job_id) REFERENCES demo1.job(id) ON DELETE CASCADE;
+
+
+--
+-- Name: job job_product_brand_model_fk; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.job
+    ADD CONSTRAINT job_product_brand_model_fk FOREIGN KEY (product_brand_model_id) REFERENCES demo1.product_brand_model(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: job job_receive_condition_fk; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.job
+    ADD CONSTRAINT job_receive_condition_fk FOREIGN KEY (job_receive_condition_id) REFERENCES demo1.job_receive_condition(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: job job_receive_manner_fk; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.job
+    ADD CONSTRAINT job_receive_manner_fk FOREIGN KEY (job_receive_manner_id) REFERENCES demo1.job_receive_manner(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: job job_status_fk; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.job
+    ADD CONSTRAINT job_status_fk FOREIGN KEY (job_status_id) REFERENCES demo1.job_status(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: job job_technician_fk; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.job
+    ADD CONSTRAINT job_technician_fk FOREIGN KEY (technician_id) REFERENCES demo1.technician(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: job_transaction job_transaction_job_fk; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.job_transaction
+    ADD CONSTRAINT job_transaction_job_fk FOREIGN KEY (job_id) REFERENCES demo1.job(id) ON DELETE CASCADE;
+
+
+--
+-- Name: job_transaction job_transaction_status_fk; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.job_transaction
+    ADD CONSTRAINT job_transaction_status_fk FOREIGN KEY (status_id) REFERENCES demo1.job_status(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: job_transaction job_transaction_technician_fk; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.job_transaction
+    ADD CONSTRAINT job_transaction_technician_fk FOREIGN KEY (technician_id) REFERENCES demo1.technician(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: job job_type_fk; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.job
+    ADD CONSTRAINT job_type_fk FOREIGN KEY (job_type_id) REFERENCES demo1.job_type(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: product_brand_model pbm_brand_fk; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.product_brand_model
+    ADD CONSTRAINT pbm_brand_fk FOREIGN KEY (brand_id) REFERENCES demo1.brand(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: product_brand_model pbm_product_fk; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.product_brand_model
+    ADD CONSTRAINT pbm_product_fk FOREIGN KEY (product_id) REFERENCES demo1.product(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: purchase_invoice purchase_invoice_branch_fk; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.purchase_invoice
+    ADD CONSTRAINT purchase_invoice_branch_fk FOREIGN KEY (branch_id) REFERENCES demo1.branch(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: purchase_invoice purchase_invoice_brand_id_fkey; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.purchase_invoice
+    ADD CONSTRAINT purchase_invoice_brand_id_fkey FOREIGN KEY (brand_id) REFERENCES demo1.brand(id);
+
+
+--
+-- Name: purchase_invoice purchase_invoice_division_id_fkey; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.purchase_invoice
+    ADD CONSTRAINT purchase_invoice_division_id_fkey FOREIGN KEY (division_id) REFERENCES demo1.division(id) NOT VALID;
+
+
+--
+-- Name: purchase_invoice_line purchase_invoice_line_invoice_fk; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.purchase_invoice_line
+    ADD CONSTRAINT purchase_invoice_line_invoice_fk FOREIGN KEY (purchase_invoice_id) REFERENCES demo1.purchase_invoice(id) ON DELETE CASCADE;
+
+
+--
+-- Name: purchase_invoice_line purchase_invoice_line_part_fk; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.purchase_invoice_line
+    ADD CONSTRAINT purchase_invoice_line_part_fk FOREIGN KEY (part_id) REFERENCES demo1.spare_part_master(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: purchase_invoice purchase_invoice_supplier_fk; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.purchase_invoice
+    ADD CONSTRAINT purchase_invoice_supplier_fk FOREIGN KEY (supplier_id) REFERENCES demo1.supplier(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: sales_invoice sales_invoice_brand_id_fkey; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.sales_invoice
+    ADD CONSTRAINT sales_invoice_brand_id_fkey FOREIGN KEY (brand_id) REFERENCES demo1.brand(id) NOT VALID;
+
+
+--
+-- Name: sales_invoice sales_invoice_customer_fk; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.sales_invoice
+    ADD CONSTRAINT sales_invoice_customer_fk FOREIGN KEY (customer_contact_id) REFERENCES demo1.customer_contact(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: sales_invoice sales_invoice_division_id_fkey; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.sales_invoice
+    ADD CONSTRAINT sales_invoice_division_id_fkey FOREIGN KEY (division_id) REFERENCES demo1.division(id);
+
+
+--
+-- Name: sales_invoice_line sales_invoice_line_invoice_fk; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.sales_invoice_line
+    ADD CONSTRAINT sales_invoice_line_invoice_fk FOREIGN KEY (sales_invoice_id) REFERENCES demo1.sales_invoice(id) ON DELETE CASCADE;
+
+
+--
+-- Name: sales_invoice_line sales_invoice_line_part_fk; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.sales_invoice_line
+    ADD CONSTRAINT sales_invoice_line_part_fk FOREIGN KEY (part_id) REFERENCES demo1.spare_part_master(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: spare_part_master spare_part_brand_id_fkey; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.spare_part_master
+    ADD CONSTRAINT spare_part_brand_id_fkey FOREIGN KEY (brand_id) REFERENCES demo1.brand(id);
+
+
+--
+-- Name: stock_adjustment stock_adjustment_branch_fk; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.stock_adjustment
+    ADD CONSTRAINT stock_adjustment_branch_fk FOREIGN KEY (branch_id) REFERENCES demo1.branch(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: stock_adjustment stock_adjustment_brand_id_fkey; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.stock_adjustment
+    ADD CONSTRAINT stock_adjustment_brand_id_fkey FOREIGN KEY (brand_id) REFERENCES demo1.brand(id) NOT VALID;
+
+
+--
+-- Name: stock_adjustment_line stock_adjustment_line_adjustment_fk; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.stock_adjustment_line
+    ADD CONSTRAINT stock_adjustment_line_adjustment_fk FOREIGN KEY (stock_adjustment_id) REFERENCES demo1.stock_adjustment(id) ON DELETE CASCADE;
+
+
+--
+-- Name: stock_adjustment_line stock_adjustment_line_spare_part_fk; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.stock_adjustment_line
+    ADD CONSTRAINT stock_adjustment_line_spare_part_fk FOREIGN KEY (part_id) REFERENCES demo1.spare_part_master(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: stock_balance stock_balance_branch_id_fkey; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.stock_balance
+    ADD CONSTRAINT stock_balance_branch_id_fkey FOREIGN KEY (branch_id) REFERENCES demo1.branch(id);
+
+
+--
+-- Name: stock_balance stock_balance_location_id_fkey; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.stock_balance
+    ADD CONSTRAINT stock_balance_location_id_fkey FOREIGN KEY (location_id) REFERENCES demo1.stock_location_master(id) NOT VALID;
+
+
+--
+-- Name: stock_balance stock_balance_part_id_fkey; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.stock_balance
+    ADD CONSTRAINT stock_balance_part_id_fkey FOREIGN KEY (part_id) REFERENCES demo1.spare_part_master(id);
+
+
+--
+-- Name: stock_branch_transfer stock_branch_transfer_brand_id_fkey; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.stock_branch_transfer
+    ADD CONSTRAINT stock_branch_transfer_brand_id_fkey FOREIGN KEY (brand_id) REFERENCES demo1.brand(id) NOT VALID;
+
+
+--
+-- Name: stock_branch_transfer stock_branch_transfer_from_branch_id_fkey; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.stock_branch_transfer
+    ADD CONSTRAINT stock_branch_transfer_from_branch_id_fkey FOREIGN KEY (from_branch_id) REFERENCES demo1.branch(id);
+
+
+--
+-- Name: stock_branch_transfer_line stock_branch_transfer_line_part_id_fkey; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.stock_branch_transfer_line
+    ADD CONSTRAINT stock_branch_transfer_line_part_id_fkey FOREIGN KEY (part_id) REFERENCES demo1.spare_part_master(id);
+
+
+--
+-- Name: stock_branch_transfer_line stock_branch_transfer_line_stock_branch_transfer_id_fkey; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.stock_branch_transfer_line
+    ADD CONSTRAINT stock_branch_transfer_line_stock_branch_transfer_id_fkey FOREIGN KEY (stock_branch_transfer_id) REFERENCES demo1.stock_branch_transfer(id) ON DELETE CASCADE;
+
+
+--
+-- Name: stock_branch_transfer stock_branch_transfer_to_branch_id_fkey; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.stock_branch_transfer
+    ADD CONSTRAINT stock_branch_transfer_to_branch_id_fkey FOREIGN KEY (to_branch_id) REFERENCES demo1.branch(id);
+
+
+--
+-- Name: stock_loan stock_loan_branch_id_fkey; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.stock_loan
+    ADD CONSTRAINT stock_loan_branch_id_fkey FOREIGN KEY (branch_id) REFERENCES demo1.branch(id);
+
+
+--
+-- Name: stock_loan stock_loan_brand_id_fkey; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.stock_loan
+    ADD CONSTRAINT stock_loan_brand_id_fkey FOREIGN KEY (brand_id) REFERENCES demo1.brand(id) NOT VALID;
+
+
+--
+-- Name: stock_loan_line stock_loan_line_part_id_fkey; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.stock_loan_line
+    ADD CONSTRAINT stock_loan_line_part_id_fkey FOREIGN KEY (part_id) REFERENCES demo1.spare_part_master(id);
+
+
+--
+-- Name: stock_loan_line stock_loan_line_stock_loan_id_fkey; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.stock_loan_line
+    ADD CONSTRAINT stock_loan_line_stock_loan_id_fkey FOREIGN KEY (stock_loan_id) REFERENCES demo1.stock_loan(id) ON DELETE CASCADE;
+
+
+--
+-- Name: stock_location_change stock_location_change_branch_id_fkey; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.stock_location_change
+    ADD CONSTRAINT stock_location_change_branch_id_fkey FOREIGN KEY (branch_id) REFERENCES demo1.branch(id) NOT VALID;
+
+
+--
+-- Name: stock_location_change stock_location_change_part_id_fkey; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.stock_location_change
+    ADD CONSTRAINT stock_location_change_part_id_fkey FOREIGN KEY (part_id) REFERENCES demo1.spare_part_master(id) NOT VALID;
+
+
+--
+-- Name: stock_location_change stock_location_change_to_location_id_fkey; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.stock_location_change
+    ADD CONSTRAINT stock_location_change_to_location_id_fkey FOREIGN KEY (to_location_id) REFERENCES demo1.stock_location_master(id) NOT VALID;
+
+
+--
+-- Name: stock_location_master stock_location_master_branch_id_fkey; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.stock_location_master
+    ADD CONSTRAINT stock_location_master_branch_id_fkey FOREIGN KEY (branch_id) REFERENCES demo1.branch(id) NOT VALID;
+
+
+--
+-- Name: stock_opening_balance stock_opening_balance_branch_id_fkey; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.stock_opening_balance
+    ADD CONSTRAINT stock_opening_balance_branch_id_fkey FOREIGN KEY (branch_id) REFERENCES demo1.branch(id);
+
+
+--
+-- Name: stock_opening_balance stock_opening_balance_brand_id_fkey; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.stock_opening_balance
+    ADD CONSTRAINT stock_opening_balance_brand_id_fkey FOREIGN KEY (brand_id) REFERENCES demo1.brand(id) NOT VALID;
+
+
+--
+-- Name: stock_opening_balance_line stock_opening_balance_line_part_id_fkey; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.stock_opening_balance_line
+    ADD CONSTRAINT stock_opening_balance_line_part_id_fkey FOREIGN KEY (part_id) REFERENCES demo1.spare_part_master(id);
+
+
+--
+-- Name: stock_opening_balance_line stock_opening_balance_line_stock_opening_balance_id_fkey; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.stock_opening_balance_line
+    ADD CONSTRAINT stock_opening_balance_line_stock_opening_balance_id_fkey FOREIGN KEY (stock_opening_balance_id) REFERENCES demo1.stock_opening_balance(id) ON DELETE CASCADE NOT VALID;
+
+
+--
+-- Name: stock_snapshot stock_snapshot_branch_id_fkey; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.stock_snapshot
+    ADD CONSTRAINT stock_snapshot_branch_id_fkey FOREIGN KEY (branch_id) REFERENCES demo1.branch(id);
+
+
+--
+-- Name: stock_snapshot stock_snapshot_part_id_fkey; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.stock_snapshot
+    ADD CONSTRAINT stock_snapshot_part_id_fkey FOREIGN KEY (part_id) REFERENCES demo1.spare_part_master(id);
+
+
+--
+-- Name: stock_transaction stock_transaction_branch_fk; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.stock_transaction
+    ADD CONSTRAINT stock_transaction_branch_fk FOREIGN KEY (branch_id) REFERENCES demo1.branch(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: stock_transaction stock_transaction_job_part_used_id_fkey; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.stock_transaction
+    ADD CONSTRAINT stock_transaction_job_part_used_id_fkey FOREIGN KEY (job_part_used_id) REFERENCES demo1.job_part_used(id) ON DELETE CASCADE;
+
+
+--
+-- Name: stock_transaction stock_transaction_part_id_fk; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.stock_transaction
+    ADD CONSTRAINT stock_transaction_part_id_fk FOREIGN KEY (part_id) REFERENCES demo1.spare_part_master(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: stock_transaction stock_transaction_purchase_line_id_fkey; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.stock_transaction
+    ADD CONSTRAINT stock_transaction_purchase_line_id_fkey FOREIGN KEY (purchase_line_id) REFERENCES demo1.purchase_invoice_line(id) ON DELETE CASCADE;
+
+
+--
+-- Name: stock_transaction stock_transaction_sales_line_id_fkey; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.stock_transaction
+    ADD CONSTRAINT stock_transaction_sales_line_id_fkey FOREIGN KEY (sales_line_id) REFERENCES demo1.sales_invoice_line(id) ON DELETE CASCADE;
+
+
+--
+-- Name: stock_transaction stock_transaction_stock_adjustment_line_id_fkey; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.stock_transaction
+    ADD CONSTRAINT stock_transaction_stock_adjustment_line_id_fkey FOREIGN KEY (stock_adjustment_line_id) REFERENCES demo1.stock_adjustment_line(id) ON DELETE CASCADE;
+
+
+--
+-- Name: stock_transaction stock_transaction_stock_branch_transfer_line_id_fkey; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.stock_transaction
+    ADD CONSTRAINT stock_transaction_stock_branch_transfer_line_id_fkey FOREIGN KEY (stock_branch_transfer_line_id) REFERENCES demo1.stock_branch_transfer_line(id) ON DELETE CASCADE NOT VALID;
+
+
+--
+-- Name: stock_transaction stock_transaction_stock_loan_line_id_fkey; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.stock_transaction
+    ADD CONSTRAINT stock_transaction_stock_loan_line_id_fkey FOREIGN KEY (stock_loan_line_id) REFERENCES demo1.stock_loan_line(id) ON DELETE CASCADE;
+
+
+--
+-- Name: stock_transaction stock_transaction_stock_opening_balance_line_id_fkey; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.stock_transaction
+    ADD CONSTRAINT stock_transaction_stock_opening_balance_line_id_fkey FOREIGN KEY (stock_opening_balance_line_id) REFERENCES demo1.stock_opening_balance_line(id) ON DELETE CASCADE;
+
+
+--
+-- Name: stock_transaction stock_transaction_type_fk; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.stock_transaction
+    ADD CONSTRAINT stock_transaction_type_fk FOREIGN KEY (stock_transaction_type_id) REFERENCES demo1.stock_transaction_type(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: supplier supplier_state_fk; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.supplier
+    ADD CONSTRAINT supplier_state_fk FOREIGN KEY (state_id) REFERENCES demo1.state(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: technician technician_branch_fk; Type: FK CONSTRAINT; Schema: demo1; Owner: webadmin
+--
+
+ALTER TABLE ONLY demo1.technician
+    ADD CONSTRAINT technician_branch_fk FOREIGN KEY (branch_id) REFERENCES demo1.branch(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: role_access_right role_access_right_access_right_id_fkey; Type: FK CONSTRAINT; Schema: security; Owner: webadmin
+--
+
+ALTER TABLE ONLY security.role_access_right
+    ADD CONSTRAINT role_access_right_access_right_id_fkey FOREIGN KEY (access_right_id) REFERENCES security.access_right(id) ON DELETE CASCADE;
+
+
+--
+-- Name: role_access_right role_access_right_role_id_fkey; Type: FK CONSTRAINT; Schema: security; Owner: webadmin
+--
+
+ALTER TABLE ONLY security.role_access_right
+    ADD CONSTRAINT role_access_right_role_id_fkey FOREIGN KEY (role_id) REFERENCES security.role(id) ON DELETE CASCADE;
+
+
+--
+-- Name: user_bu_role user_bu_role_bu_id_fkey; Type: FK CONSTRAINT; Schema: security; Owner: webadmin
+--
+
+ALTER TABLE ONLY security.user_bu_role
+    ADD CONSTRAINT user_bu_role_bu_id_fkey FOREIGN KEY (bu_id) REFERENCES security.bu(id) ON DELETE CASCADE;
+
+
+--
+-- Name: user_bu_role user_bu_role_role_id_fkey; Type: FK CONSTRAINT; Schema: security; Owner: webadmin
+--
+
+ALTER TABLE ONLY security.user_bu_role
+    ADD CONSTRAINT user_bu_role_role_id_fkey FOREIGN KEY (role_id) REFERENCES security.role(id) ON DELETE CASCADE;
+
+
+--
+-- Name: user_bu_role user_bu_role_user_id_fkey; Type: FK CONSTRAINT; Schema: security; Owner: webadmin
+--
+
+ALTER TABLE ONLY security.user_bu_role
+    ADD CONSTRAINT user_bu_role_user_id_fkey FOREIGN KEY (user_id) REFERENCES security."user"(id) ON DELETE CASCADE;
+
+
+--
+-- PostgreSQL database dump complete
+--
+
+\unrestrict aW8T6d35fi1bqvFlnbYpSCO6EV8RaaLYjOwLXG1ZSckxegcwrHEDheReNZSR7l9
+
