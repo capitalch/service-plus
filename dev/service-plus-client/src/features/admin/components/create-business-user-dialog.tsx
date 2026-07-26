@@ -322,16 +322,19 @@ export const CreateBusinessUserDialog = ({
         }
 
         try {
-            // Step 1: Create business user
+            // Create the business user together with its BU/role associations — the
+            // server does both atomically so a user is never left without a BU.
             const createResult = await apolloClient.mutate<CreateBusinessUserMutationDataType>({
                 mutation: GRAPHQL_MAP.createBusinessUser,
                 variables: {
                     db_name: dbName,
                     schema: "security",
                     value: encodeObj({
+                        bu_ids: selectedBuIds,
                         email: data.email,
                         full_name: data.full_name,
                         mobile: data.mobile || null,
+                        role_id: Number(selectedRoleId),
                         username: data.username,
                     }),
                 },
@@ -342,33 +345,10 @@ export const CreateBusinessUserDialog = ({
                 return;
             }
 
-            const newUserId  = createResult.data.createBusinessUser.id;
-            const emailSent  = createResult.data.createBusinessUser.email_sent;
-
-            // Step 2: Assign BU and Role
-            try {
-                const buRoleResult = await apolloClient.mutate({
-                    mutation: GRAPHQL_MAP.setUserBuRole,
-                    variables: {
-                        db_name: dbName,
-                        schema: "security",
-                        value: encodeObj({
-                            bu_ids: selectedBuIds,
-                            role_id: Number(selectedRoleId),
-                            user_id: newUserId,
-                        }),
-                    },
-                });
-
-                if (buRoleResult.error) {
-                    toast.warning(MESSAGES.WARN_BUSINESS_USER_BU_ROLE_ASSIGN_FAILED);
-                } else if (!emailSent) {
-                    toast.warning(MESSAGES.WARN_BUSINESS_USER_EMAIL_NOT_SENT);
-                } else {
-                    toast.success(MESSAGES.SUCCESS_BUSINESS_USER_CREATED);
-                }
-            } catch {
-                toast.warning(MESSAGES.WARN_BUSINESS_USER_BU_ROLE_ASSIGN_FAILED);
+            if (!createResult.data.createBusinessUser.email_sent) {
+                toast.warning(MESSAGES.WARN_BUSINESS_USER_EMAIL_NOT_SENT);
+            } else {
+                toast.success(MESSAGES.SUCCESS_BUSINESS_USER_CREATED);
             }
 
             onSuccess();

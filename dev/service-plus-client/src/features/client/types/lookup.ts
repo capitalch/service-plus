@@ -36,6 +36,7 @@ export type LookupConfig = {
     hasPrefix:                     boolean;
     hasSystemFlag?:                boolean;  // false = table has no is_system column (e.g. brand)
     readonly?:                     boolean;  // true = no add/edit/delete; display only
+    nonAdminWritable?:             boolean;  // true = non-admin business users may also manage (e.g. Brand)
     // UI text
     entityName:                    string;
     sectionTitle:                  string;

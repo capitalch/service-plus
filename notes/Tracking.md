@@ -40,6 +40,8 @@
 		- Aug 2026
 
 # Tracking
+- 26-07-2026
+	- Several bug fixes before going live
 - 23-07-2026
 	- Completed testing and bugs fixed
 	- Added new profit report

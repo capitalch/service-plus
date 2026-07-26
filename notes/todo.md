@@ -1,5 +1,6 @@
 # To Do
 - Release
+	- Release data in file server
 	- New client
 		- Admin user
 			- Receptionists

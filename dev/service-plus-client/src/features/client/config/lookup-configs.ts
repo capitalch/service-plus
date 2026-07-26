@@ -13,6 +13,7 @@ export const BRAND_CONFIG: LookupConfig = {
     hasIsActive:                   true,
     hasPrefix:                     false,
     hasSystemFlag:                 false,  // brand has no is_system column
+    nonAdminWritable:              true,   // Manager & Receptionist may manage brands
     entityName:                    "Brand",
     sectionTitle:                  "Brands",
     sectionDescription:            "Manage product brands.",

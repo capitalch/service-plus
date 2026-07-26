@@ -72,6 +72,9 @@ export const LookupSection = ({ config }: LookupSectionProps) => {
     const schema      = useAppSelector(selectSchema);
     const currentUser = useAppSelector(selectCurrentUser);
     const isAdmin     = currentUser?.userType === 'A' || currentUser?.userType === 'S';
+    // Admins get write controls everywhere; non-admin business users only on configs
+    // explicitly marked nonAdminWritable (e.g. Brand). Otherwise they are view-only.
+    const canManage   = !config.readonly && (isAdmin || !!config.nonAdminWritable);
 
     const [addOpen,      setAddOpen]      = useState(false);
     const [deleteRecord, setDeleteRecord] = useState<LookupRecord | null>(null);
@@ -184,10 +187,8 @@ export const LookupSection = ({ config }: LookupSectionProps) => {
 
     // ── Derived: filter + sort ─────────────────────────────────────────────────
 
-    const visibleRecords = useMemo(
-        () => records.filter(r => isAdmin || !r.is_system),
-        [records, isAdmin]
-    );
+    // All rows are visible to everyone (system rows stay Edit/Delete-protected below).
+    const visibleRecords = records;
 
     const displayRecords = useMemo(() => {
         let rows = visibleRecords;
@@ -263,7 +264,7 @@ export const LookupSection = ({ config }: LookupSectionProps) => {
                             <RefreshCwIcon className="h-3.5 w-3.5" />
                             Refresh
                         </Button>
-                        {!config.readonly && (
+                        {canManage && (
                             <Button
                                 className="bg-teal-600 text-white hover:bg-teal-700"
                                 size="sm"
@@ -351,7 +352,7 @@ export const LookupSection = ({ config }: LookupSectionProps) => {
                                         {config.hasSystemFlag !== false && (
                                             <TableHead className={thClass}>System</TableHead>
                                         )}
-                                        {!config.readonly && (
+                                        {canManage && (
                                             <TableHead className={thClass}>Actions</TableHead>
                                         )}
                                     </TableRow>
@@ -391,7 +392,7 @@ export const LookupSection = ({ config }: LookupSectionProps) => {
                                                             <span className="w-8 text-right text-sm font-mono text-(--cl-text-muted) tabular-nums">
                                                                 {record.display_order ?? "—"}
                                                             </span>
-                                                            {!config.readonly && (
+                                                            {canManage && (
                                                                 movingOrderId === record.id ? (
                                                                     <Loader2 className="h-4 w-4 animate-spin text-(--cl-text-muted)" />
                                                                 ) : (
@@ -447,7 +448,7 @@ export const LookupSection = ({ config }: LookupSectionProps) => {
                                                         )}
                                                     </TableCell>
                                                 )}
-                                                {!config.readonly && (
+                                                {canManage && (
                                                     <TableCell>
                                                         {(!record.is_system || config.hasIsActive) && (
                                                             <DropdownMenu>
@@ -521,7 +522,7 @@ export const LookupSection = ({ config }: LookupSectionProps) => {
             </motion.div>
 
             {/* ── Dialogs ──────────────────────────────────────────────────────── */}
-            {!config.readonly && (
+            {canManage && (
                 <AddLookupDialog
                     config={config}
                     open={addOpen}

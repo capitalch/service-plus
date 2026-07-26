@@ -10,8 +10,8 @@ class AppMessages:
     """Centralized class for all application messages."""
 
     # General messages
-    SERVER_STARTED = "Service Plus Server started successfully"
-    SERVER_STOPPED = "Service Plus Server stopped"
+    SERVER_STARTED = "Service+ Server started successfully"
+    SERVER_STOPPED = "Service+ Server stopped"
     HEALTH_CHECK_OK = "Server is healthy and running"
     ROOT_ENDPOINT_ACCESSED = "Root endpoint accessed"
     HEALTH_ENDPOINT_ACCESSED = "Health check endpoint accessed"
@@ -85,24 +85,31 @@ class AppMessages:
     # Email messages
     EMAIL_CLIENT_WELCOME_BODY = (
         "Hello,\n\n"
-        "Welcome to Service Plus! Your client account has been created.\n\n"
+        "Welcome to Service+! Your client account has been created.\n\n"
         "  Client Name : {name}\n"
         "  Client Code : {code}\n\n"
         "Your Super Admin will share further setup and login details with you shortly.\n\n"
-        "-- Service Plus"
+        "-- Service+"
     )
-    EMAIL_CLIENT_WELCOME_SUBJECT = "Welcome to Service Plus"
+    EMAIL_CLIENT_WELCOME_SUBJECT = "Welcome to Service+"
 
     EMAIL_NEW_ADMIN_LINK_BODY = (
         "Hello {full_name},\n\n"
-        "Your admin account has been created.\n\n"
+        "Welcome to Service+ — your service management software.\n\n"
+        "An administrator account has been created for you in Service+. With it you can "
+        "manage business units, users, and the overall configuration of the platform.\n\n"
+        "Here are your sign-in details:\n\n"
         "  Login ID : {username}\n\n"
-        "Click the link below to set your password (valid for 48 hours):\n\n"
+        "To get started, please set your password using the secure link below. "
+        "For your security, this link is valid for 48 hours:\n\n"
         "  {reset_link}\n\n"
-        "If you did not expect this email, please ignore it.\n\n"
-        "-- Service Plus"
+        "Once your password is set, you can sign in to Service+ with your Login ID "
+        "and the password you chose.\n\n"
+        "If you did not expect this email, please ignore it or contact your Super Admin.\n\n"
+        "Welcome aboard,\n"
+        "The Service+ Team"
     )
-    EMAIL_NEW_ADMIN_LINK_SUBJECT = "Your Admin Account — Set Your Password"
+    EMAIL_NEW_ADMIN_LINK_SUBJECT = "Welcome to Service+ — Set Your Admin Password to Get Started"
 
     EMAIL_RESET_LINK_BODY = (
         "Hello {full_name},\n\n"
@@ -110,7 +117,7 @@ class AppMessages:
         "Click the link below to set your new password (valid for 48 hours):\n\n"
         "  {reset_link}\n\n"
         "If you did not request this, please contact your Super Admin.\n\n"
-        "-- Service Plus"
+        "-- Service+"
     )
     EMAIL_RESET_LINK_SUBJECT = "Reset Your Admin Password"
 
@@ -132,14 +139,21 @@ class AppMessages:
 
     EMAIL_NEW_BU_USER_LINK_BODY = (
         "Hello {full_name},\n\n"
-        "Your account has been created.\n\n"
+        "Welcome to Service+ — your service management software.\n\n"
+        "An account has been created for you in Service+. You can use it to manage "
+        "jobs, customers, inventory, and day-to-day service operations for your business.\n\n"
+        "Here are your sign-in details:\n\n"
         "  Login ID : {username}\n\n"
-        "Click the link below to set your password (valid for 48 hours):\n\n"
+        "To get started, please set your password using the secure link below. "
+        "For your security, this link is valid for 48 hours:\n\n"
         "  {reset_link}\n\n"
-        "If you did not expect this email, please ignore it.\n\n"
-        "-- Service Plus"
+        "Once your password is set, you can sign in to Service+ with your Login ID "
+        "and the password you chose.\n\n"
+        "If you did not expect this email, please ignore it or contact your administrator.\n\n"
+        "Welcome aboard,\n"
+        "The Service+ Team"
     )
-    EMAIL_NEW_BU_USER_LINK_SUBJECT = "Your Account — Set Your Password"
+    EMAIL_NEW_BU_USER_LINK_SUBJECT = "Welcome to Service+ — Set Your Password to Get Started"
 
     EMAIL_BU_RESET_LINK_BODY = (
         "Hello {full_name},\n\n"
@@ -147,7 +161,7 @@ class AppMessages:
         "Click the link below to set your new password (valid for 48 hours):\n\n"
         "  {reset_link}\n\n"
         "If you did not request this, please contact your administrator.\n\n"
-        "-- Service Plus"
+        "-- Service+"
     )
     EMAIL_BU_RESET_LINK_SUBJECT = "Reset Your Password"
 
@@ -161,14 +175,14 @@ class AppMessages:
     DUPLICATE_ENTRY = "Duplicate entry exists"
 
     # Test email
-    EMAIL_TEST_SUBJECT = "Service Plus - Connectivity Test"
+    EMAIL_TEST_SUBJECT = "Service+ - Connectivity Test"
     EMAIL_TEST_BODY = (
         "Hello,\n\n"
-        "This is an automated connectivity test from the Service Plus system.\n\n"
+        "This is an automated connectivity test from the Service+ system.\n\n"
         "If you received this message, the mail server is configured correctly\n"
         "and outbound delivery is working as expected.\n\n"
         "No action is required.\n\n"
-        "-- Service Plus"
+        "-- Service+"
     )
     EMAIL_TEST_RECIPIENT = "capitalch@gmail.com"
     EMAIL_TEST_SENT = "Test email dispatched successfully"
@@ -199,7 +213,7 @@ class AppMessages:
 
 
 class ServicePlusException(Exception):
-    """Base exception class for Service Plus application."""
+    """Base exception class for Service+ application."""
 
     def __init__(
         self,

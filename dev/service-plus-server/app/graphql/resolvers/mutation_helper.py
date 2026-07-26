@@ -53,12 +53,28 @@ def _decode_value(value: str, context: str) -> dict:
         ) from e
 
 
+def _build_reset_link(request: Any, token: str) -> str:
+    """Build the password-reset link from the incoming request's host/proto so it
+    matches whatever domain the caller used (localhost in dev, the real domain in
+    production). nginx forwards `Host` and `X-Forwarded-Proto`. Falls back to
+    settings.frontend_url when no request is available."""
+    base = None
+    if request is not None:
+        host = request.headers.get("host")
+        if host:
+            proto = request.headers.get("x-forwarded-proto") or request.url.scheme or "http"
+            base = f"{proto}://{host}"
+    if not base:
+        base = settings.frontend_url  # dev / no-request fallback (localhost:3000)
+    return f"{base}/reset-password?token={token}"
+
+
 def _serialize_row(row: dict) -> dict:
     return {k: v.isoformat() if isinstance(v, (date, datetime)) else v for k, v in row.items()}
 
 
 async def resolve_create_admin_user_helper(
-    db_name: str, schema: str, value: str
+    db_name: str, schema: str, value: str, request: Any = None
 ) -> dict:
     """
     Decode value payload, create an admin user (is_admin=True) with a random unusable
@@ -109,7 +125,7 @@ async def resolve_create_admin_user_helper(
             "client_id": client_id,
         }
     )
-    reset_link = f"{settings.frontend_url}/reset-password?token={token}"
+    reset_link = _build_reset_link(request, token)
 
     email_sent = False
     try:
@@ -157,12 +173,12 @@ async def resolve_create_bu_schema_and_feed_seed_data_helper(
             extensions={"fields": ["code", "name"]},
         )
 
-    # 2. Validate code format: alphanumeric + underscore, 3–9 chars
-    if not re.match(r"^[a-z0-9_]{3,9}$", code):
+    # 2. Validate code format: alphanumeric + underscore, 3–30 chars
+    if not re.match(r"^[a-z0-9_]{3,30}$", code):
         raise ValidationException(
             message=AppMessages.INVALID_INPUT,
             extensions={
-                "detail": "Code must be 3–9 alphanumeric/underscore characters",
+                "detail": "Code must be 3–30 alphanumeric/underscore characters",
                 "field": "code",
             },
         )
@@ -257,13 +273,14 @@ async def resolve_create_bu_schema_and_feed_seed_data_helper(
 
 
 async def resolve_create_business_user_helper(
-    db_name: str, schema: str, value: str
+    db_name: str, schema: str, value: str, request: Any = None
 ) -> dict:
     """
     Decode value payload, hash a temp password, create a business user (is_admin=False)
-    in the specified client database, and email credentials.
+    in the specified client database, atomically assign the given BU/role associations,
+    and email credentials.
 
-    Value payload (URL-encoded JSON): { email, full_name, mobile, username }
+    Value payload (URL-encoded JSON): { email, full_name, mobile, username, bu_ids, role_id }
     """
     # pylint: disable=too-many-locals
     payload = _decode_value(value, "createBusinessUser")
@@ -272,11 +289,21 @@ async def resolve_create_business_user_helper(
     full_name = payload.get("full_name", "")
     mobile = payload.get("mobile") or None
     username = payload.get("username", "")
+    bu_ids = payload.get("bu_ids") or []
+    role_id = payload.get("role_id")
 
     if not email or not full_name or not username:
         raise ValidationException(
             message=AppMessages.REQUIRED_FIELD_MISSING,
             extensions={"fields": ["email", "full_name", "username"]},
+        )
+
+    # A business user must be associated with at least one BU and a role, or they
+    # would log in with no BU context and see empty master/config grids.
+    if not bu_ids or not role_id:
+        raise ValidationException(
+            message=AppMessages.REQUIRED_FIELD_MISSING,
+            extensions={"fields": ["bu_ids", "role_id"]},
         )
 
     schema_name = schema or "security"
@@ -324,12 +351,29 @@ async def resolve_create_business_user_helper(
             "username": username,
         },
     }
-    record_id = await exec_sql_object(db_name, schema_name, sql_object)
-    logger.info("Business user created with id=%s", record_id)
+
+    # Insert the user and its BU/role associations in a single transaction so a user is
+    # never left without an association (the connection commits on clean exit, rolls
+    # back on error).
+    connection = get_service_db_connection(db_name)
+    async with connection as conn:
+        async with conn.cursor(row_factory=dict_row) as cur:
+            await cur.execute(
+                pgsql.SQL("SET search_path TO {}").format(pgsql.Identifier(schema_name))
+            )
+            record_id = await process_details(sql_object, cur)
+            for bu_id in bu_ids:
+                await cur.execute(
+                    "INSERT INTO user_bu_role (user_id, bu_id, role_id) VALUES (%s, %s, %s)",
+                    (record_id, bu_id, role_id),
+                )
+    logger.info(
+        "Business user created with id=%s and %d BU association(s)", record_id, len(bu_ids)
+    )
 
     # Generate reset link so user can set their own password
     token = create_reset_token({"sub": str(record_id), "db_name": db_name})
-    reset_link = f"{settings.frontend_url}/reset-password?token={token}"
+    reset_link = _build_reset_link(request, token)
 
     email_sent = False
     try:
@@ -540,11 +584,11 @@ async def resolve_feed_bu_seed_data_helper(
             extensions={"field": "code"},
         )
 
-    if not re.match(r"^[a-z0-9_]{3,9}$", code):
+    if not re.match(r"^[a-z0-9_]{3,30}$", code):
         raise ValidationException(
             message=AppMessages.INVALID_INPUT,
             extensions={
-                "detail": "Code must be 3–9 alphanumeric/underscore characters",
+                "detail": "Code must be 3–30 alphanumeric/underscore characters",
                 "field": "code",
             },
         )
@@ -628,7 +672,7 @@ async def resolve_delete_bu_schema_helper(
     Drop a BU schema from the database and optionally delete the security.bu row.
 
     Value payload (URL-encoded JSON): { code, delete_bu_row: bool }
-    - code: schema name (lowercase, 3–9 chars, alphanumeric + underscore)
+    - code: schema name (lowercase, 3–30 chars, alphanumeric + underscore)
     - delete_bu_row: if true, also DELETE FROM security.bu WHERE LOWER(code) = code
     """
     # pylint: disable=unused-argument
@@ -643,11 +687,11 @@ async def resolve_delete_bu_schema_helper(
             extensions={"field": "code"},
         )
 
-    if not re.match(r"^[a-z0-9_]{3,9}$", code):
+    if not re.match(r"^[a-z0-9_]{3,30}$", code):
         raise ValidationException(
             message=AppMessages.INVALID_INPUT,
             extensions={
-                "detail": "Code must be 3–9 alphanumeric/underscore characters",
+                "detail": "Code must be 3–30 alphanumeric/underscore characters",
                 "field": "code",
             },
         )
@@ -815,7 +859,7 @@ async def resolve_drop_database_helper(db_name: str, schema: str, value: str) ->
 
 
 async def resolve_mail_business_user_credentials_helper(
-    db_name: str, schema: str, value: str
+    db_name: str, schema: str, value: str, request: Any = None
 ) -> dict:
     """
     Decode value payload, generate a new temporary password for the business user,
@@ -852,7 +896,7 @@ async def resolve_mail_business_user_credentials_helper(
 
     # 2. Generate reset token — no password change in DB at this stage
     token = create_reset_token({"sub": str(id_), "db_name": db_name})
-    reset_link = f"{settings.frontend_url}/reset-password?token={token}"
+    reset_link = _build_reset_link(request, token)
 
     # 3. Email reset link
     email_sent = False
@@ -2048,7 +2092,7 @@ async def resolve_import_spare_parts_helper(
 
 
 async def resolve_mail_admin_credentials_helper(
-    db_name: str, schema: str, value: str
+    db_name: str, schema: str, value: str, request: Any = None
 ) -> dict:
     """
     Decode value payload, generate a password-reset JWT, and email the reset link
@@ -2088,7 +2132,7 @@ async def resolve_mail_admin_credentials_helper(
             "client_id": client_id,
         }
     )
-    reset_link = f"{settings.frontend_url}/reset-password?token={token}"
+    reset_link = _build_reset_link(request, token)
     logger.info(
         "Password reset link generated for admin user id=%s in %s", id_, db_name
     )

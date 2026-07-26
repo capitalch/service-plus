@@ -129,11 +129,13 @@ def _require_generic_update_script_right(info, value: str) -> None:
 
 @mutation.field("createAdminUser")
 async def resolve_create_admin_user(
-    _, _info, db_name: str = "", schema: str = "security", value: str = ""
+    _, info, db_name: str = "", schema: str = "security", value: str = ""
 ) -> Any:
     """Create an admin user and email a password-reset link."""
     try:
-        return await resolve_create_admin_user_helper(db_name, schema, value)
+        return await resolve_create_admin_user_helper(
+            db_name, schema, value, request=info.context.get("request")
+        )
     except ValidationException:
         raise
     except Exception as e:
@@ -177,11 +179,13 @@ async def resolve_create_client(
 
 @mutation.field("createBusinessUser")
 async def resolve_create_business_user(
-    _, _info, db_name: str = "", schema: str = "security", value: str = ""
+    _, info, db_name: str = "", schema: str = "security", value: str = ""
 ) -> Any:
     """Create a business user in the security schema."""
     try:
-        return await resolve_create_business_user_helper(db_name, schema, value)
+        return await resolve_create_business_user_helper(
+            db_name, schema, value, request=info.context.get("request")
+        )
     except ValidationException:
         raise
     except Exception as e:
@@ -349,11 +353,13 @@ async def resolve_import_spare_parts(_, _info, db_name="", schema="public", valu
 
 @mutation.field("mailAdminCredentials")
 async def resolve_mail_admin_credentials(
-    _, _info, db_name: str = "", schema: str = "security", value: str = ""
+    _, info, db_name: str = "", schema: str = "security", value: str = ""
 ) -> Any:
     """Email login credentials to an admin user."""
     try:
-        return await resolve_mail_admin_credentials_helper(db_name, schema, value)
+        return await resolve_mail_admin_credentials_helper(
+            db_name, schema, value, request=info.context.get("request")
+        )
     except ValidationException:
         raise
     except Exception as e:
@@ -365,11 +371,13 @@ async def resolve_mail_admin_credentials(
 
 @mutation.field("mailBusinessUserCredentials")
 async def resolve_mail_business_user_credentials(
-    _, _info, db_name: str = "", schema: str = "security", value: str = ""
+    _, info, db_name: str = "", schema: str = "security", value: str = ""
 ) -> Any:
     """Email login credentials to a business user."""
     try:
-        return await resolve_mail_business_user_credentials_helper(db_name, schema, value)
+        return await resolve_mail_business_user_credentials_helper(
+            db_name, schema, value, request=info.context.get("request")
+        )
     except ValidationException:
         raise
     except Exception as e:
