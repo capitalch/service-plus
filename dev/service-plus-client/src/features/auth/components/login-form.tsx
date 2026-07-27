@@ -15,7 +15,6 @@ import { loginUser } from '@/lib/auth-service';
 import type { ApiError, UserInstanceType } from '@/lib/auth-service';
 import { useAppDispatch } from '@/store/hooks';
 import { setCredentials, setSessionMode } from '@/features/auth/store/auth-slice';
-import { setAvailableBus, setCurrentBu } from '@/store/context-slice';
 import { MESSAGES } from '@/constants/messages';
 import { ROUTES } from '@/router/routes';
 
@@ -72,12 +71,6 @@ export const LoginForm = ({ onForgotPassword }: LoginFormProps) => {
       };
 
       dispatch(setCredentials({ user, token: result.accessToken, refreshToken: result.refreshToken, clientId: data.clientId, rememberMe }));
-
-      // Initialise context slice
-      const buses = result.availableBus ?? [];
-      dispatch(setAvailableBus(buses));
-      const currentBu = buses.find(b => b.id === result.lastUsedBuId) ?? buses[0] ?? null;
-      dispatch(setCurrentBu(currentBu));
 
       toast.success(MESSAGES.SUCCESS_LOGIN);
 

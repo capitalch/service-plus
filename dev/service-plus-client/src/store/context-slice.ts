@@ -41,6 +41,7 @@ type ContextStateType = {
     defaultHsnForServiceCharge:  string;
     isGstRegistered:          boolean;
     postDataToAccounts:       boolean;
+    isResolvingContext:       boolean;
 };
 
 // ─── Initial State ────────────────────────────────────────────────────────────
@@ -64,6 +65,7 @@ const initialState: ContextStateType = {
     defaultHsnForServiceCharge: "",
     isGstRegistered:          false,
     postDataToAccounts:       false,
+    isResolvingContext:       true,
 };
 
 // ─── Slice ────────────────────────────────────────────────────────────────────
@@ -129,6 +131,10 @@ const contextSlice = createSlice({
         setPostDataToAccounts: (state, action: PayloadAction<boolean>) => {
             state.postDataToAccounts = action.payload;
         },
+
+        setIsResolvingContext: (state, action: PayloadAction<boolean>) => {
+            state.isResolvingContext = action.payload;
+        },
     },
 });
 
@@ -150,6 +156,7 @@ export const {
     setNoOfJobSheetsPerPrint,
     setDefaultHsnForServiceCharge,
     setPostDataToAccounts,
+    setIsResolvingContext,
 } = contextSlice.actions;
 
 // ─── Selectors ────────────────────────────────────────────────────────────────
@@ -179,6 +186,13 @@ export const selectSchema                = (state: ContextRootState): string | n
     state.context.currentBu?.code?.toLowerCase() ?? null;
 export const selectEffectiveGstStateCode = (state: ContextRootState): string | null =>
     state.context.currentBranch?.gst_state_code ?? state.context.buGstStateCode ?? null;
+export const selectIsResolvingContext    = (state: ContextRootState) => state.context.isResolvingContext;
+export const selectIsBuBranchDivisionComplete = (state: ContextRootState): boolean => {
+    const { currentBu, currentBranch, currentDivision, availableDivisions } = state.context;
+    if (!currentBu || !currentBranch) return false;
+    if (availableDivisions.length === 0) return true;
+    return currentDivision !== null;
+};
 
 // ─── Reducer ──────────────────────────────────────────────────────────────────
 

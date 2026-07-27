@@ -43,6 +43,7 @@ const ACCESS_RIGHT_PREVIEW_ITEMS = [
 	{ code: "INVENTORY_SET_PART_LOCATION", module: "Inventory", name: "Set Part Location" },
 	{ code: "MASTERS_ORGANIZATION", module: "Masters", name: "Organization (Manager only)" },
 	{ code: "MASTERS_SERVICE_CONFIG", module: "Masters", name: "Service Config (Manager only)" },
+	{ code: "JOBS_BATCH_WARRANTY_TRANSACTIONS", module: "Jobs", name: "Batch Warranty Jobs" },
 ];
 
 type SeedRolesDialogPropsType = {

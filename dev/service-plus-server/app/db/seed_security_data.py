@@ -44,7 +44,8 @@ class SeedSecurityData:
             (12, 'INVENTORY_OPENING_STOCK',     'Opening Stock',         'INVENTORY', 'Access to Inventory -> Opening Stock'),
             (13, 'INVENTORY_SET_PART_LOCATION', 'Set Part Location',     'INVENTORY', 'Access to Inventory -> Set Part Location'),
             (14, 'MASTERS_ORGANIZATION',        'Masters: Organization', 'MASTERS',   'Access to Masters -> Organization'),
-            (15, 'MASTERS_SERVICE_CONFIG',      'Masters: Service Config', 'MASTERS', 'Access to Masters -> Service Config')
+            (15, 'MASTERS_SERVICE_CONFIG',      'Masters: Service Config', 'MASTERS', 'Access to Masters -> Service Config'),
+            (16, 'JOBS_BATCH_WARRANTY_TRANSACTIONS', 'Batch Warranty Jobs', 'JOBS',   'Access to Jobs -> Batch Warranty Jobs')
         ON CONFLICT (id) DO NOTHING;
 
         -- MANAGER (role_id=1): every right
@@ -52,8 +53,8 @@ class SeedSecurityData:
         --                           MASTERS_ORGANIZATION and MASTERS_SERVICE_CONFIG
         -- TECHNICIAN (role_id=2): none — no rows
         INSERT INTO security.role_access_right (role_id, access_right_id) VALUES
-            (1, 1), (1, 2), (1, 3), (1, 4), (1, 5), (1, 6), (1, 7), (1, 8), (1, 9), (1, 10), (1, 11), (1, 12), (1, 13), (1, 14), (1, 15),
-            (3, 1), (3, 2), (3, 3), (3, 4), (3, 7), (3, 8), (3, 9), (3, 10), (3, 11), (3, 12), (3, 13)
+            (1, 1), (1, 2), (1, 3), (1, 4), (1, 5), (1, 6), (1, 7), (1, 8), (1, 9), (1, 10), (1, 11), (1, 12), (1, 13), (1, 14), (1, 15), (1, 16),
+            (3, 1), (3, 2), (3, 3), (3, 4), (3, 7), (3, 8), (3, 9), (3, 10), (3, 11), (3, 12), (3, 13), (3, 16)
         ON CONFLICT (role_id, access_right_id) DO NOTHING;
     """
 

@@ -24,6 +24,7 @@ import {
 import { HelpPanel } from "@/components/shared/help/help-panel";
 import { HelpFab } from "@/components/shared/help/help-fab";
 import { OnboardingChecklist } from "@/components/shared/help/onboarding-checklist";
+import { BuBranchDivisionGate } from "@/features/admin/components/bu-branch-division-gate";
 import { ClientActivityBar } from "./client-activity-bar";
 import { ClientExplorerPanel } from "./client-explorer-panel";
 import { ClientStatusBar } from "./client-status-bar";
@@ -223,6 +224,7 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
         <HelpContext.Provider value={{ helpOpen, openHelp, closeHelp }}>
         <ClientSelectionContext.Provider value={{ onSelect, selected, selectedGroup }}>
             <div className="client-theme relative h-full bg-(--cl-bg) text-(--cl-text)" data-theme={isDark ? 'dark' : 'light'}>
+                <BuBranchDivisionGate />
                 <ClientTopNav activeSection={activeSection} />
                 <ClientActivityBar activeSection={activeSection} />
                 <ClientExplorerPanel activeSection={activeSection} />
