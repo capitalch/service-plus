@@ -29,6 +29,7 @@ import { FIELD_VALIDATION_DEBOUNCE_MS } from "@/constants/timing";
 import { useDebounce } from "@/hooks/use-debounce";
 import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
+import { MOBILE_REGEX, normalizeMobile } from "@/lib/mobile";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectSchema } from "@/store/context-slice";
@@ -56,8 +57,9 @@ type CheckQueryDataType = {
 const editVendorSchema = z.object({
     name:          z.string().min(2, "Name must be at least 2 characters"),
     phone:         z.string()
-        .regex(/^(\+91)?[6-9]\d{9}$/, "Invalid phone number (10 digits, starts with 6-9)")
-        .or(z.literal("")).optional(),
+        .transform((v) => normalizeMobile(v))
+        .refine((v) => v === "" || MOBILE_REGEX.test(v), { message: MESSAGES.ERROR_MOBILE_INVALID })
+        .optional(),
     email:         z.string().email("Invalid email address").or(z.literal("")).optional(),
     gstin:         z.string()
         .regex(/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/, "Invalid GSTIN format")
@@ -242,8 +244,15 @@ export const EditVendorDialog = ({
                             <Input
                                 autoComplete="off"
                                 id="ev_phone"
+                                inputMode="numeric"
+                                maxLength={15}
                                 placeholder="10-digit mobile number"
-                                {...form.register("phone")}
+                                {...form.register("phone", {
+                                    onChange: (e) => {
+                                        const digits = normalizeMobile(e.target.value).slice(0, 10);
+                                        form.setValue("phone", digits, { shouldValidate: true });
+                                    },
+                                })}
                             />
                             <FieldError message={errors.phone?.message} />
                         </div>

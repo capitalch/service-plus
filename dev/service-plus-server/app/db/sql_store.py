@@ -3691,6 +3691,7 @@ class SqlStore:
             j.is_opening_job,
             j.job_date,
             j.purchase_date,
+            j.delivery_date,
             j.is_closed,
             j.is_final,
             j.amount,
@@ -3735,7 +3736,8 @@ class SqlStore:
            OR LOWER(pbm.model_name) LIKE '%%' || LOWER((table "p_search")) || '%%'
            OR LOWER(j.serial_no)  LIKE '%%' || LOWER((table "p_search")) || '%%'
            OR LOWER(COALESCE(j.alternate_job_no, '')) LIKE '%%' || LOWER((table "p_search")) || '%%')
-         ORDER BY j.job_date DESC, j.id DESC
+         ORDER BY CASE WHEN (table "p_show_closed") IS TRUE THEN j.delivery_date ELSE j.job_date END DESC,
+                  j.id DESC
          LIMIT  (table "p_limit")
          OFFSET (table "p_offset")
      """

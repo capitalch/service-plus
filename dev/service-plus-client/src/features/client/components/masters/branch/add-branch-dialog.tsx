@@ -29,6 +29,7 @@ import { FIELD_VALIDATION_DEBOUNCE_MS } from "@/constants/timing";
 import { useDebounce } from "@/hooks/use-debounce";
 import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
+import { MOBILE_REGEX, normalizeMobile } from "@/lib/mobile";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectHomeStateId, selectSchema } from "@/store/context-slice";
@@ -71,7 +72,10 @@ const addBranchSchema = z.object({
     email:          z.string().email("Invalid email").or(z.literal("")).optional(),
     gstin:          z.string().regex(/^[0-9A-Z]{15}$/, "Invalid GSTIN (15 characters)").or(z.literal("")).optional(),
     name:           z.string().min(2, "Name must be at least 2 characters"),
-    phone:          z.string().optional(),
+    phone:          z.string()
+                      .transform((v) => normalizeMobile(v))
+                      .refine((v) => v === "" || MOBILE_REGEX.test(v), { message: MESSAGES.ERROR_MOBILE_INVALID })
+                      .optional(),
     pincode:        z.string().min(4, "Pincode is required"),
     state_id:       z.coerce.number().positive("State is required"),
 });
@@ -388,9 +392,17 @@ export const AddBranchDialog = ({
                             <Input
                                 autoComplete="off"
                                 id="br_phone"
+                                inputMode="numeric"
+                                maxLength={15}
                                 placeholder="Phone number"
-                                {...form.register("phone")}
+                                {...form.register("phone", {
+                                    onChange: (e) => {
+                                        const digits = normalizeMobile(e.target.value).slice(0, 10);
+                                        form.setValue("phone", digits, { shouldValidate: true });
+                                    },
+                                })}
                             />
+                            <FieldError message={errors.phone?.message} />
                         </div>
                     </div>
 

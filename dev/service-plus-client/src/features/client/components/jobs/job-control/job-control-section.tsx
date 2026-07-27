@@ -453,7 +453,8 @@ export const JobControlSection = () => {
 
     // ── List view ─────────────────────────────────────────────────────────────
 
-    const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+    const totalPages   = Math.max(1, Math.ceil(total / PAGE_SIZE));
+    const isDelivered  = filter.group === "closed" && filter.value === true;
 
     const closedFilterLabel: Record<string, string> = {
         "null":  "All",
@@ -655,7 +656,7 @@ export const JobControlSection = () => {
                         <table className="min-w-full border-collapse">
                             <thead>
                                 <tr className="bg-(--cl-surface-2)">
-                                    {["#", "Date", "Job No", "Customer", "Mobile", "Device Details", "Job Type", "Status", "Amount", "Actions"].map(h => (
+                                    {["#", isDelivered ? "Del Date" : "Date", "Job No", "Customer", "Mobile", "Device Details", "Job Type", "Status", "Amount", "Actions"].map(h => (
                                         <th key={h} className={`${thClass} ${h === "Actions" ? "hidden md:table-cell" : ""}`}>{h}</th>
                                     ))}
                                 </tr>
@@ -679,7 +680,7 @@ export const JobControlSection = () => {
                             <thead className="sticky top-0 z-10">
                                 <tr>
                                     <th className={thClass}>#</th>
-                                    <th className={thClass}>Date</th>
+                                    <th className={thClass}>{isDelivered ? "Del Date" : "Date"}</th>
                                     <th className={thClass}>Job No</th>
                                     <th className={thClass}>Customer</th>
                                     <th className={thClass}>Mobile</th>
@@ -711,7 +712,7 @@ export const JobControlSection = () => {
                                         </td>
                                         <td className={`${tdClass} whitespace-nowrap`}>
                                             <div className="flex flex-col gap-0.5">
-                                                <span>{job.job_date}</span>
+                                                <span>{isDelivered ? (job.delivery_date ?? "—") : job.job_date}</span>
                                                 {job.division_id && (() => {
                                                     const dv = divisions.find(d => d.id === job.division_id);
                                                     return dv ? (
@@ -730,6 +731,9 @@ export const JobControlSection = () => {
                                                         <span className="ml-1.5 text-[9px] font-bold text-emerald-600 bg-emerald-100 dark:bg-emerald-950/40 rounded px-1 py-0.5">CLOSED</span>
                                                     )}
                                                 </div>
+                                                {isDelivered && (
+                                                    <span className="text-[10px] text-(--cl-text-muted)">job dt: {job.job_date}</span>
+                                                )}
                                                 {job.is_opening_job && (
                                                     <span className="text-[10.5px] font-bold text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-950/40 rounded px-1.5 py-0.5 w-fit">OPENING</span>
                                                 )}

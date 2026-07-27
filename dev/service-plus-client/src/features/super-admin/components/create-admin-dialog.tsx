@@ -17,6 +17,7 @@ import { FIELD_VALIDATION_DEBOUNCE_MS } from "@/constants/timing";
 import { useDebounce } from "@/hooks/use-debounce";
 import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
+import { MOBILE_REGEX, normalizeMobile } from "@/lib/mobile";
 import type { ClientType } from "@/features/super-admin/types/index";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -43,7 +44,11 @@ type CreateAdminFormType = z.infer<typeof createAdminSchema>;
 const createAdminSchema = z.object({
 	email: z.string().email({ message: MESSAGES.ERROR_EMAIL_INVALID }),
 	full_name: z.string().min(1, MESSAGES.ERROR_FULL_NAME_REQUIRED),
-	mobile: z.string().optional(),
+	mobile: z
+		.string()
+		.transform((val) => normalizeMobile(val))
+		.refine((val) => val === "" || MOBILE_REGEX.test(val), { message: MESSAGES.ERROR_MOBILE_INVALID })
+		.optional(),
 	username: z
 		.string()
 		.min(1, MESSAGES.ERROR_ADMIN_USERNAME_REQUIRED)
@@ -330,11 +335,19 @@ export const CreateAdminDialog = ({
 						<Label htmlFor="mobile">Mobile</Label>
 						<Input
 							id="mobile"
+							inputMode="numeric"
+							maxLength={15}
 							placeholder="+91 98765 43210"
 							type="tel"
-							{...form.register("mobile")}
+							{...form.register("mobile", {
+								onChange: (e) => {
+									const digits = normalizeMobile(e.target.value).slice(0, 10);
+									form.setValue("mobile", digits, { shouldValidate: true });
+								},
+							})}
 							disabled={submitting}
 						/>
+						<FieldError message={errors.mobile?.message} />
 					</div>
 
 					<DialogFooter className="pt-2">

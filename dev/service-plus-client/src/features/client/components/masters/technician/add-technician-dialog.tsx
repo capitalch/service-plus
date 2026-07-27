@@ -29,6 +29,7 @@ import { FIELD_VALIDATION_DEBOUNCE_MS } from "@/constants/timing";
 import { useDebounce } from "@/hooks/use-debounce";
 import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
+import { MOBILE_REGEX, normalizeMobile } from "@/lib/mobile";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectSchema } from "@/store/context-slice";
@@ -59,7 +60,10 @@ const addTechnicianSchema = z.object({
                       .regex(/^[A-Za-z0-9_]+$/, "Only letters, numbers and underscores")
                       .transform((v) => v.toUpperCase()),
     name:           z.string().min(2, "Name must be at least 2 characters"),
-    phone:          z.string().optional(),
+    phone:          z.string()
+                      .transform((v) => normalizeMobile(v))
+                      .refine((v) => v === "" || MOBILE_REGEX.test(v), { message: MESSAGES.ERROR_MOBILE_INVALID })
+                      .optional(),
     email:          z.string().email("Invalid email address").or(z.literal("")).optional(),
     specialization: z.string().optional(),
     leaving_date:   z.string().optional(),
@@ -256,9 +260,17 @@ export const AddTechnicianDialog = ({
                             <Input
                                 autoComplete="off"
                                 id="at_phone"
+                                inputMode="numeric"
+                                maxLength={15}
                                 placeholder="Phone number"
-                                {...form.register("phone")}
+                                {...form.register("phone", {
+                                    onChange: (e) => {
+                                        const digits = normalizeMobile(e.target.value).slice(0, 10);
+                                        form.setValue("phone", digits, { shouldValidate: true });
+                                    },
+                                })}
                             />
+                            <FieldError message={errors.phone?.message} />
                         </div>
 
                         {/* Email */}

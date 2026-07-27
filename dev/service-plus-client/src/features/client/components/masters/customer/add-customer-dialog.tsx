@@ -27,6 +27,7 @@ import { MESSAGES } from "@/constants/messages";
 import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
 import { GSTIN_REGEX } from "@/lib/gstin";
+import { MOBILE_REGEX, normalizeMobile } from "@/lib/mobile";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectHomeStateId, selectSchema } from "@/store/context-slice";
@@ -46,14 +47,18 @@ type AddCustomerFormType = z.infer<typeof addCustomerSchema>;
 
 // ─── Schema ───────────────────────────────────────────────────────────────────
 
-const MOBILE_REGEX      = /^[6-9]\d{9}$/;
 const POSTAL_CODE_REGEX = /^[1-9][0-9]{5}$/;
 
 const addCustomerSchema = z.object({
     customer_type_id: z.coerce.number().positive("Customer type is required"),
     full_name:        z.string().min(1, "Full name is required"),
-    mobile:           z.string().regex(MOBILE_REGEX, { message: "Enter a valid 10-digit mobile number" }),
-    alternate_mobile: z.string().refine((v) => !v || MOBILE_REGEX.test(v), "Enter a valid 10-digit mobile number").optional(),
+    mobile:           z.string()
+        .transform((v) => normalizeMobile(v))
+        .refine((v) => MOBILE_REGEX.test(v), { message: MESSAGES.ERROR_MOBILE_INVALID }),
+    alternate_mobile: z.string()
+        .transform((v) => normalizeMobile(v))
+        .refine((v) => v === "" || MOBILE_REGEX.test(v), { message: MESSAGES.ERROR_MOBILE_INVALID })
+        .optional(),
     email:            z.string().email("Invalid email address").or(z.literal("")).optional(),
     gstin:            z.string().refine((v) => !v || GSTIN_REGEX.test(v), "Enter a valid 15-character GSTIN").optional(),
     address_line1:    z.string().min(1, "Address line 1 is required"),
@@ -213,8 +218,15 @@ export const AddCustomerDialog = ({
                             <Input
                                 autoComplete="off"
                                 id="ac_mobile"
+                                inputMode="numeric"
+                                maxLength={15}
                                 placeholder="Mobile number"
-                                {...form.register("mobile")}
+                                {...form.register("mobile", {
+                                    onChange: (e) => {
+                                        const digits = normalizeMobile(e.target.value).slice(0, 10);
+                                        form.setValue("mobile", digits, { shouldValidate: true });
+                                    },
+                                })}
                             />
                             <FieldError message={errors.mobile?.message} />
                         </div>
@@ -225,8 +237,15 @@ export const AddCustomerDialog = ({
                             <Input
                                 autoComplete="off"
                                 id="ac_alt_mobile"
+                                inputMode="numeric"
+                                maxLength={15}
                                 placeholder="Alternate number"
-                                {...form.register("alternate_mobile")}
+                                {...form.register("alternate_mobile", {
+                                    onChange: (e) => {
+                                        const digits = normalizeMobile(e.target.value).slice(0, 10);
+                                        form.setValue("alternate_mobile", digits, { shouldValidate: true });
+                                    },
+                                })}
                             />
                             <FieldError message={errors.alternate_mobile?.message} />
                         </div>

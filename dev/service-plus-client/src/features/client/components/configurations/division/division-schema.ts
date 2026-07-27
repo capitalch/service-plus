@@ -1,5 +1,8 @@
 import { z } from "zod";
 
+import { MESSAGES } from "@/constants/messages";
+import { MOBILE_REGEX, normalizeMobile } from "@/lib/mobile";
+
 const invoiceSubSchema = z.object({
     debitAccountId:    z.coerce.number().int().min(0),
     creditAccountId:   z.coerce.number().int().min(0),
@@ -44,7 +47,10 @@ export const divisionSchema = z.object({
         .optional(),
     is_active:     z.boolean().default(true),
     name:          z.string().min(2, "Name must be at least 2 characters"),
-    phone:         z.string().optional(),
+    phone:         z.string()
+        .transform((v) => normalizeMobile(v))
+        .refine((v) => v === "" || MOBILE_REGEX.test(v), { message: MESSAGES.ERROR_MOBILE_INVALID })
+        .optional(),
     pincode:       z.string().optional(),
     state_id:        z.coerce.number().positive("State is required"),
     web_site:        z.string().optional(),

@@ -26,6 +26,7 @@ import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { MESSAGES } from "@/constants/messages";
 import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
+import { MOBILE_REGEX, normalizeMobile } from "@/lib/mobile";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectSchema } from "@/store/context-slice";
@@ -49,8 +50,13 @@ type EditCustomerFormType = z.infer<typeof editCustomerSchema>;
 const editCustomerSchema = z.object({
     customer_type_id: z.coerce.number().positive("Customer type is required"),
     full_name:        z.string().optional(),
-    mobile:           z.string().min(1, "Mobile is required"),
-    alternate_mobile: z.string().optional(),
+    mobile:           z.string()
+        .transform((v) => normalizeMobile(v))
+        .refine((v) => MOBILE_REGEX.test(v), { message: MESSAGES.ERROR_MOBILE_INVALID }),
+    alternate_mobile: z.string()
+        .transform((v) => normalizeMobile(v))
+        .refine((v) => v === "" || MOBILE_REGEX.test(v), { message: MESSAGES.ERROR_MOBILE_INVALID })
+        .optional(),
     email:            z.string().email("Invalid email address").or(z.literal("")).optional(),
     gstin:            z.string().optional(),
     address_line1:    z.string().min(1, "Address line 1 is required"),
@@ -220,8 +226,15 @@ export const EditCustomerDialog = ({
                             <Input
                                 autoComplete="off"
                                 id="ec_mobile"
+                                inputMode="numeric"
+                                maxLength={15}
                                 placeholder="Mobile number"
-                                {...form.register("mobile")}
+                                {...form.register("mobile", {
+                                    onChange: (e) => {
+                                        const digits = normalizeMobile(e.target.value).slice(0, 10);
+                                        form.setValue("mobile", digits, { shouldValidate: true });
+                                    },
+                                })}
                             />
                             <FieldError message={errors.mobile?.message} />
                         </div>
@@ -232,9 +245,17 @@ export const EditCustomerDialog = ({
                             <Input
                                 autoComplete="off"
                                 id="ec_alt_mobile"
+                                inputMode="numeric"
+                                maxLength={15}
                                 placeholder="Alternate number"
-                                {...form.register("alternate_mobile")}
+                                {...form.register("alternate_mobile", {
+                                    onChange: (e) => {
+                                        const digits = normalizeMobile(e.target.value).slice(0, 10);
+                                        form.setValue("alternate_mobile", digits, { shouldValidate: true });
+                                    },
+                                })}
                             />
+                            <FieldError message={errors.alternate_mobile?.message} />
                         </div>
                     </div>
 

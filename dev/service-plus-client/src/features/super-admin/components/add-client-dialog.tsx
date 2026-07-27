@@ -16,6 +16,7 @@ import { FIELD_VALIDATION_DEBOUNCE_MS } from "@/constants/timing";
 import { useDebounce } from "@/hooks/use-debounce";
 import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
+import { MOBILE_REGEX, normalizeMobile } from "@/lib/mobile";
 
 // ─── Zod schema ───────────────────────────────────────────────────────────────
 
@@ -46,7 +47,11 @@ const addClientSchema = z.object({
 		.regex(/^[A-Z]{5}[0-9]{4}[A-Z]$/, "Invalid PAN format (e.g. AAAAA0000A)")
 		.or(z.literal(""))
 		.optional(),
-	phone: z.string().optional(),
+	phone: z
+		.string()
+		.transform((val) => normalizeMobile(val))
+		.refine((val) => val === "" || MOBILE_REGEX.test(val), { message: MESSAGES.ERROR_MOBILE_INVALID })
+		.optional(),
 	pincode: z.string().max(10, "Pincode must be at most 10 characters").optional(),
 	state: z.string().optional(),
 });
@@ -116,6 +121,7 @@ export const AddClientDialog = ({ onOpenChange, onSuccess, open }: AddClientDial
 		register,
 		reset,
 		setError,
+		setValue,
 	} = useForm<AddClientFormType>({
 		defaultValues: EMPTY_DEFAULTS,
 		resolver: zodResolver(addClientSchema),
@@ -293,11 +299,19 @@ export const AddClientDialog = ({ onOpenChange, onSuccess, open }: AddClientDial
 							<Label htmlFor="phone">Phone</Label>
 							<Input
 								id="phone"
+								inputMode="numeric"
+								maxLength={15}
 								placeholder="+91 98765 43210"
 								type="tel"
-								{...register("phone")}
+								{...register("phone", {
+									onChange: (e) => {
+										const digits = normalizeMobile(e.target.value).slice(0, 10);
+										setValue("phone", digits, { shouldValidate: true });
+									},
+								})}
 								disabled={formBusy}
 							/>
+							<FieldError message={errors.phone?.message} />
 						</div>
 					</div>
 

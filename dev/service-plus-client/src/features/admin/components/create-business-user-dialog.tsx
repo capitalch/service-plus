@@ -32,6 +32,7 @@ import { FIELD_VALIDATION_DEBOUNCE_MS } from "@/constants/timing";
 import { useDebounce } from "@/hooks/use-debounce";
 import { apolloClient } from "@/lib/apollo-client";
 import { encodeObj, graphQlUtils } from "@/lib/graphql-utils";
+import { MOBILE_REGEX, normalizeMobile } from "@/lib/mobile";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectBusinessUnits, selectRoles, setBusinessUnits, setRoles } from "@/features/admin/store/admin-slice";
@@ -66,11 +67,9 @@ const createBusinessUserSchema = z.object({
     full_name: z.string().min(2, MESSAGES.ERROR_FULL_NAME_REQUIRED),
     mobile: z
         .string()
-        .optional()
-        .refine(
-            (val) => !val || /^\+?[\d\s\-().]{7,15}$/.test(val),
-            { message: MESSAGES.ERROR_MOBILE_INVALID },
-        ),
+        .transform((val) => normalizeMobile(val))
+        .refine((val) => val === "" || MOBILE_REGEX.test(val), { message: MESSAGES.ERROR_MOBILE_INVALID })
+        .optional(),
     username: z
         .string()
         .min(1, MESSAGES.ERROR_ADMIN_USERNAME_REQUIRED)
@@ -456,9 +455,16 @@ export const CreateBusinessUserDialog = ({
                             autoComplete="off"
                             disabled={form.formState.isSubmitting}
                             id="mobile"
+                            inputMode="numeric"
+                            maxLength={15}
                             placeholder="+91 98765 43210"
                             type="tel"
-                            {...form.register("mobile")}
+                            {...form.register("mobile", {
+                                onChange: (e) => {
+                                    const digits = normalizeMobile(e.target.value).slice(0, 10);
+                                    form.setValue("mobile", digits, { shouldValidate: true });
+                                },
+                            })}
                         />
                         <FieldError message={errors.mobile?.message} />
                     </div>

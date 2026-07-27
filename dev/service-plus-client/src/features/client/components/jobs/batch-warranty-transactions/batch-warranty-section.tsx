@@ -232,9 +232,8 @@ export function BatchWarrantySection() {
                 </span>
                 <div className="flex-1" />
                 <Button
-                    className="h-8 gap-2 text-xs"
+                    className="h-8 gap-2 text-sm font-semibold bg-indigo-600 text-white shadow-sm hover:bg-indigo-700 dark:bg-indigo-600 dark:hover:bg-indigo-500"
                     size="sm"
-                    variant="outline"
                     onClick={() => setShowReprintModal(true)}
                 >
                     <FileText className="h-3.5 w-3.5" />

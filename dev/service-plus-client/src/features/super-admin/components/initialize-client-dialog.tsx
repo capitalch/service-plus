@@ -17,6 +17,7 @@ import { FIELD_VALIDATION_DEBOUNCE_MS } from "@/constants/timing";
 import { useDebounce } from "@/hooks/use-debounce";
 import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
+import { MOBILE_REGEX, normalizeMobile } from "@/lib/mobile";
 import type { ClientType } from "@/features/super-admin/types/index";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -54,11 +55,9 @@ const step2Schema = z.object({
 	full_name: z.string().min(1, MESSAGES.ERROR_FULL_NAME_REQUIRED),
 	mobile: z
 		.string()
-		.optional()
-		.refine(
-			(val) => !val || /^\+?[\d\s\-().]{7,15}$/.test(val),
-			{ message: MESSAGES.ERROR_MOBILE_INVALID },
-		),
+		.transform((val) => normalizeMobile(val))
+		.refine((val) => val === "" || MOBILE_REGEX.test(val), { message: MESSAGES.ERROR_MOBILE_INVALID })
+		.optional(),
 	username: z
 		.string()
 		.min(1, MESSAGES.ERROR_ADMIN_USERNAME_REQUIRED)
@@ -497,9 +496,16 @@ export const InitializeClientDialog = ({
 										<Label htmlFor="mobile">Mobile</Label>
 										<Input
 											id="mobile"
+											inputMode="numeric"
+											maxLength={15}
 											placeholder="+91 98765 43210"
 											type="tel"
-											{...step2Form.register("mobile")}
+											{...step2Form.register("mobile", {
+												onChange: (e) => {
+													const digits = normalizeMobile(e.target.value).slice(0, 10);
+													step2Form.setValue("mobile", digits, { shouldValidate: true });
+												},
+											})}
 											className="w-full"
 											disabled={step2Busy}
 										/>

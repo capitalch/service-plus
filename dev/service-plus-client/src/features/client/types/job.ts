@@ -5,6 +5,7 @@ export type JobControlRow = {
     is_opening_job?:       boolean;
     purchase_date?:        string | null;
     job_date:              string;
+    delivery_date?:        string | null;
     customer_name:         string | null;
     customer_gstin?:       string | null;
     file_count:            number;

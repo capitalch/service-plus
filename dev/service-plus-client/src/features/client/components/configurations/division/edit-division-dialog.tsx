@@ -29,6 +29,7 @@ import { FIELD_VALIDATION_DEBOUNCE_MS } from "@/constants/timing";
 import { useDebounce } from "@/hooks/use-debounce";
 import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
+import { normalizeMobile } from "@/lib/mobile";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectCurrentBranch, selectPostDataToAccounts, selectSchema } from "@/store/context-slice";
@@ -474,9 +475,17 @@ export const EditDivisionDialog = ({
                                                 <Input
                                                     autoComplete="off"
                                                     id="edv_phone"
+                                                    inputMode="numeric"
+                                                    maxLength={15}
                                                     placeholder="Phone number"
-                                                    {...form.register("phone")}
+                                                    {...form.register("phone", {
+                                                        onChange: (e) => {
+                                                            const digits = normalizeMobile(e.target.value).slice(0, 10);
+                                                            form.setValue("phone", digits, { shouldValidate: true });
+                                                        },
+                                                    })}
                                                 />
+                                                <FieldError message={errors.phone?.message} />
                                             </div>
 
                                             <div className="flex flex-col gap-1.5">

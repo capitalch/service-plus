@@ -31,6 +31,7 @@ type JobBasicInfo = {
     customer_postal_code?: string | null;
     customer_state?: string | null;
     device_details?: string | null;
+    serial_no?: string | null;
     technician_name: string | null;
     amount: number | null;
     payments?: JobPaymentRow[];
@@ -183,6 +184,25 @@ function drawInvoiceContent(
     ]).join("   ");
     doc.text(typeJobLine, titleX, ry, { maxWidth: titleColW });
     ry += 4.5;
+
+    // Device details, directly below Job #
+    if (job.device_details) {
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        doc.setTextColor(50, 50, 50);
+        const devLines = doc.splitTextToSize(job.device_details, titleColW) as string[];
+        doc.text(devLines, titleX, ry);
+        ry += devLines.length * 4;
+    }
+
+    // Serial No, if available
+    if (job.serial_no) {
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        doc.setTextColor(50, 50, 50);
+        doc.text(`Serial No: ${job.serial_no}`, titleX, ry, { maxWidth: titleColW });
+        ry += 4;
+    }
 
     y = Math.max(y, ry);
 

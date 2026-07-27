@@ -24,6 +24,7 @@ import { FIELD_VALIDATION_DEBOUNCE_MS } from "@/constants/timing";
 import { useDebounce } from "@/hooks/use-debounce";
 import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
+import { MOBILE_REGEX, normalizeMobile } from "@/lib/mobile";
 import { useAppSelector } from "@/store/hooks";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import type { BusinessUserType } from "@/features/admin/types/index";
@@ -50,11 +51,9 @@ const editBusinessUserSchema = z.object({
     full_name: z.string().min(2, MESSAGES.ERROR_FULL_NAME_REQUIRED),
     mobile: z
         .string()
-        .optional()
-        .refine(
-            (val) => !val || /^\+?[\d\s\-().]{7,15}$/.test(val),
-            { message: MESSAGES.ERROR_MOBILE_INVALID },
-        ),
+        .transform((val) => normalizeMobile(val))
+        .refine((val) => val === "" || MOBILE_REGEX.test(val), { message: MESSAGES.ERROR_MOBILE_INVALID })
+        .optional(),
 });
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -97,6 +96,7 @@ export const EditBusinessUserDialog = ({
         register,
         reset,
         setError,
+        setValue,
     } = useForm<EditBusinessUserFormType>({
         defaultValues: { email: "", full_name: "", mobile: "" },
         mode: "onChange",
@@ -273,8 +273,15 @@ export const EditBusinessUserDialog = ({
                             autoComplete="off"
                             disabled={isSubmitting}
                             id="mobile"
+                            inputMode="numeric"
+                            maxLength={15}
                             placeholder="Mobile (optional)"
-                            {...register("mobile")}
+                            {...register("mobile", {
+                                onChange: (e) => {
+                                    const digits = normalizeMobile(e.target.value).slice(0, 10);
+                                    setValue("mobile", digits, { shouldValidate: true });
+                                },
+                            })}
                         />
                         <FieldError message={errors.mobile?.message} />
                     </div>

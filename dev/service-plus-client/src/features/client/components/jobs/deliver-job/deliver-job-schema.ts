@@ -102,6 +102,7 @@ export type JobDeliveryFullDetail = {
     delivery_date:          string | null;
     remarks:                string | null;
     device_details:         string | null;
+    serial_no:              string | null;
     customer_contact_id:    number;
     customer_name:          string;
     mobile:                 string;
