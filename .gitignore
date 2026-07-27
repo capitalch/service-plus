@@ -145,3 +145,4 @@ keys/
 node_modules
 .vscode/settings.json
 **/config.*
+logs/
