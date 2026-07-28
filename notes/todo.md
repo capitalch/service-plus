@@ -1,6 +1,6 @@
 # To Do
+- app settings: no_of_job_receipts per print and single page print
 - Release
-	- Release data in file server
 	- New client
 		- Admin user
 			- Receptionists

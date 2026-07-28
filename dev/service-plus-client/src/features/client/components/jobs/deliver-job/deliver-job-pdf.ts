@@ -453,11 +453,35 @@ export function buildInvoicePdf(
     existingDoc?: jsPDF,
     copies = 1,
 ): jsPDF {
-    const doc = existingDoc ?? new jsPDF({ format: "a4", orientation: "p", unit: "mm" });
+    const doc        = existingDoc ?? new jsPDF({ format: "a4", orientation: "p", unit: "mm" });
+    const pageWidth  = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const HALF_PAGE  = pageHeight / 2;
+    const M = 10;
+
+    // Pack the 2nd copy into the bottom half of the same page when the 1st copy's
+    // content fits within half the page; otherwise one copy per page (unchanged).
+    let copyHeight = 0;
+    let canPackTwo = false;
 
     for (let i = 0; i < copies; i++) {
-        if (i === 0 ? !!existingDoc : true) doc.addPage();
-        drawInvoiceContent(doc, job, invoice, division, branchName, 0, true);
+        const isBottomHalf = canPackTwo && i % 2 === 1;
+        const needsNewPage = !isBottomHalf && (i === 0 ? !!existingDoc : true);
+        if (needsNewPage) doc.addPage();
+
+        const yOffset = isBottomHalf ? HALF_PAGE : 0;
+        const endY = drawInvoiceContent(doc, job, invoice, division, branchName, yOffset, !isBottomHalf);
+
+        if (i === 0) {
+            copyHeight = endY;
+            canPackTwo = copyHeight <= HALF_PAGE;
+        }
+
+        if (isBottomHalf) {
+            doc.setLineDashPattern([2, 2], 0);
+            doc.line(M, HALF_PAGE, pageWidth - M, HALF_PAGE);
+            doc.setLineDashPattern([], 0);
+        }
     }
 
     return doc;
@@ -477,13 +501,36 @@ export function buildPackedInvoicePdf(
     const allItems = copies > 1
         ? items.flatMap(item => Array<InvoiceItem>(copies).fill(item))
         : items;
-    const doc = new jsPDF({ format: "a4", orientation: "p", unit: "mm" });
-    let firstPage = true;
+    const doc        = new jsPDF({ format: "a4", orientation: "p", unit: "mm" });
+    const pageWidth  = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const HALF_PAGE  = pageHeight / 2;
+    const M = 10;
+
+    // Each item can be a different job/invoice with a different content height, so
+    // measure it on a disposable doc first, then greedily pack it into the bottom
+    // half of the current page if it fits and that slot is still open.
+    let firstItem = true;
+    let bottomHalfAvailable = false;
 
     for (const item of allItems) {
-        if (!firstPage) doc.addPage();
-        firstPage = false;
-        drawInvoiceContent(doc, item.job, item.invoice, item.division, branchName, 0, true);
+        const measureDoc = new jsPDF({ format: "a4", orientation: "p", unit: "mm" });
+        const height = drawInvoiceContent(measureDoc, item.job, item.invoice, item.division, branchName, 0, false);
+        const fitsInHalf = height <= HALF_PAGE;
+
+        if (!firstItem && bottomHalfAvailable && fitsInHalf) {
+            drawInvoiceContent(doc, item.job, item.invoice, item.division, branchName, HALF_PAGE, false);
+            doc.setLineDashPattern([2, 2], 0);
+            doc.line(M, HALF_PAGE, pageWidth - M, HALF_PAGE);
+            doc.setLineDashPattern([], 0);
+            bottomHalfAvailable = false;
+        } else {
+            if (!firstItem) doc.addPage();
+            drawInvoiceContent(doc, item.job, item.invoice, item.division, branchName, 0, true);
+            bottomHalfAvailable = fitsInHalf;
+        }
+
+        firstItem = false;
     }
 
     return doc;

@@ -139,12 +139,23 @@ function buildSingleJobSheetDoc(job: JobDetailType, division: DivisionContextTyp
         doc.line(pageWidth - 70, sigY - 4, pageWidth - 15, sigY - 4);
         doc.text("Customer Signature",  15,            sigY);
         doc.text("Authorized Signatory", pageWidth - 15, sigY, { align: "right" });
+
+        // Cut/separation guide between two copies stacked on the same page
+        if (yOffset > 0) {
+            doc.setLineDashPattern([2, 2], 0);
+            doc.line(15, yOffset, pageWidth - 15, yOffset);
+            doc.setLineDashPattern([], 0);
+        }
     }
 
-    drawContent(0);
-    for (let i = 1; i < copies; i++) {
-        doc.addPage();
-        drawContent(0);
+    // Two copies share one A4 page (top/bottom half); a new page starts only every 2 copies
+    const SECOND_COPY_Y_OFFSET = 148.5;
+    for (let i = 0; i < copies; i++) {
+        const isBottomHalf = i % 2 === 1;
+        if (i > 0 && !isBottomHalf) {
+            doc.addPage();
+        }
+        drawContent(isBottomHalf ? SECOND_COPY_Y_OFFSET : 0);
     }
 
     return doc;
@@ -176,15 +187,15 @@ function buildBatchJobSheetDoc(jobs: JobDetailType[], division: DivisionContextT
         creator:  "Service Plus",
     });
 
-    function drawContent() {
+    function drawContent(yOffset: number = 0): number {
         // ── Header (2 lines) ──────────────────────────────────────────────────
         doc.setFontSize(13);
         doc.setFont("helvetica", "bold");
-        doc.text(division?.name ?? "Electronic Gadgets Repair", pageWidth / 2, 11, { align: "center" });
+        doc.text(division?.name ?? "Electronic Gadgets Repair", pageWidth / 2, 11 + yOffset, { align: "center" });
 
         doc.setFontSize(7.5);
         doc.setFont("helvetica", "normal");
-        let y = 16;
+        let y = 16 + yOffset;
 
         if (division) {
             const line1 = [division.address_line1, division.address_line2, division.city, division.pincode].filter(Boolean).join(", ");
@@ -296,12 +307,39 @@ function buildBatchJobSheetDoc(jobs: JobDetailType[], division: DivisionContextT
         doc.line(pageWidth - 60, sigY - 4, pageWidth - 15, sigY - 4);
         doc.text("Customer Signature",  15,            sigY);
         doc.text("Authorized Signatory", pageWidth - 15, sigY, { align: "right" });
+
+        return (finalY + 20) - yOffset; // natural content height of this copy, unclamped
     }
 
-    drawContent();
-    for (let i = 1; i < copies; i++) {
-        doc.addPage();
-        drawContent();
+    // Pack a second copy into the bottom half of the same page when the first
+    // copy's content fits within half the page; otherwise fall back to one copy
+    // per page. Since every copy renders the same jobs array, measuring the first
+    // copy's height is enough to decide the layout for all remaining copies. The
+    // split is anchored to the page's physical middle (not right after the content)
+    // so the cut line lands in the same place regardless of content length.
+    const docPageHeight = doc.internal.pageSize.getHeight();
+    const HALF_PAGE = docPageHeight / 2;
+    let copyHeight = 0;
+    let canPackTwo = false;
+
+    for (let i = 0; i < copies; i++) {
+        const isBottomHalf = canPackTwo && i % 2 === 1;
+        if (i > 0 && !isBottomHalf) {
+            doc.addPage();
+        }
+        const yOffset = isBottomHalf ? HALF_PAGE : 0;
+        const height = drawContent(yOffset);
+
+        if (i === 0) {
+            copyHeight = height;
+            canPackTwo = copyHeight <= HALF_PAGE;
+        }
+
+        if (isBottomHalf) {
+            doc.setLineDashPattern([2, 2], 0);
+            doc.line(15, HALF_PAGE, pageWidth - 15, HALF_PAGE);
+            doc.setLineDashPattern([], 0);
+        }
     }
 
     return doc;

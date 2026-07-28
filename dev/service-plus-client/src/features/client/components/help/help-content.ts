@@ -210,6 +210,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
                 "Search by job no, customer, mobile, product, brand, model, or serial number.",
                 "Click a row to select it — the selection is kept in view after any action that reloads the list.",
             ]},
+            { type: "note", text: "In the Delivered filter, the Date column becomes Del Date and shows each job's delivery date instead of its intake date, sorted with the most recently delivered job first (ties broken by newest job id). The job's original intake date is still shown, as a 'job dt:' line under the Job No." },
             { type: "heading", text: "Status badges on each row" },
             { type: "bullets", items: [
                 "FINAL — the job has been finalized (locked for invoicing).",
