@@ -225,6 +225,7 @@ class SeedBuData:
             (7, 'no_of_job_sheets_per_print',               '2',         'The no of job sheets to be printed when print pdf',                                        true),
             (8, 'no_of_job_invoices_per_print',             '2',       'The no of job invoices to be printed when print pdf',                                          true),
             (9, 'post_data_to_accounts',             'true',       'Post purchase ,receipts, sale to Trace+ accounts',                                          true),
-            (10, 'fiscal_year_start_month_num',             '4',       'Financial year start month number. e,g 4 for April,5 for May,1 for January',              true)
+            (10, 'fiscal_year_start_month_num',             '4',       'Financial year start month number. e,g 4 for April,5 for May,1 for January',              true),
+            (11, 'no_of_job_receipts_per_print',            '2',         'The no of job receipts to be printed when print pdf',                                      true)
         ON CONFLICT (id) DO NOTHING;
     """

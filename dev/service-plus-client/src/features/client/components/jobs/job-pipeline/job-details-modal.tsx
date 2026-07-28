@@ -10,7 +10,7 @@ import { SQL_MAP } from "@/constants/sql-map";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { apolloClient } from "@/lib/apollo-client";
 import { encodeObj, graphQlUtils } from "@/lib/graphql-utils";
-import { selectAvailableDivisions, selectCurrentBranch, selectNoOfJobInvoicesPerPrint, selectNoOfJobSheetsPerPrint, selectSchema } from "@/store/context-slice";
+import { selectAvailableDivisions, selectCurrentBranch, selectNoOfJobInvoicesPerPrint, selectNoOfJobReceiptsPerPrint, selectNoOfJobSheetsPerPrint, selectSchema } from "@/store/context-slice";
 import { useAppSelector } from "@/store/hooks";
 import type { JobDetailType, JobTransactionRow } from "@/features/client/types/job";
 import type { JobInvoiceFullRow, JobInvoiceLineRow } from "../deliver-job/deliver-job-schema";
@@ -114,6 +114,7 @@ export const JobDetailsModal = ({ jobId, onClose, onJobChanged }: Props) => {
     const divisions = useAppSelector(selectAvailableDivisions);
     const noOfSheets   = useAppSelector(selectNoOfJobSheetsPerPrint);
     const noOfInvoices = useAppSelector(selectNoOfJobInvoicesPerPrint);
+    const noOfReceipts = useAppSelector(selectNoOfJobReceiptsPerPrint);
 
     const [job, setJob] = useState<JobDetailType | null>(null);
     const [transactions, setTransactions] = useState<JobTransactionRow[]>([]);
@@ -252,9 +253,10 @@ export const JobDetailsModal = ({ jobId, onClose, onJobChanged }: Props) => {
         const doc = buildReceiptPdf(
             { ...job, customer_name: job.customer_name ?? "", payments },
             jobDivision,
+            noOfReceipts,
         );
         const url = URL.createObjectURL(doc.output("blob"));
-        openPdf(url, `Receipt — Job #${job.job_no}`, 1, "receipt");
+        openPdf(url, `Receipt — Job #${job.job_no}`, noOfReceipts, "receipt");
     }
 
     function handlePrintInfo() {
@@ -311,8 +313,14 @@ export const JobDetailsModal = ({ jobId, onClose, onJobChanged }: Props) => {
                 n,
             );
             setPdfUrl(URL.createObjectURL(doc.output("blob")));
+        } else if (type === "receipt") {
+            const doc = buildReceiptPdf(
+                { ...job, customer_name: job.customer_name ?? "", payments },
+                jobDivision,
+                n,
+            );
+            setPdfUrl(URL.createObjectURL(doc.output("blob")));
         }
-        // receipt has no copy count — no regen needed
     }
 
     const device = job
@@ -901,8 +909,8 @@ export const JobDetailsModal = ({ jobId, onClose, onJobChanged }: Props) => {
             pdfUrl={pdfUrl}
             title={pdfTitle}
             filename={`${pdfTitle}.pdf`}
-            printCopies={pendingPrintRef.current?.type !== "receipt" && pendingPrintRef.current?.type !== "info" ? printCopies : undefined}
-            onPrintCopiesChange={pendingPrintRef.current?.type !== "receipt" && pendingPrintRef.current?.type !== "info" ? handleCopiesChange : undefined}
+            printCopies={pendingPrintRef.current?.type !== "info" ? printCopies : undefined}
+            onPrintCopiesChange={pendingPrintRef.current?.type !== "info" ? handleCopiesChange : undefined}
         />
         </>
     );

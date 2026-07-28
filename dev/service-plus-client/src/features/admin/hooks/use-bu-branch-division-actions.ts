@@ -25,6 +25,7 @@ import {
     setDefaultDivisionId,
     setIsResolvingContext,
     setNoOfJobInvoicesPerPrint,
+    setNoOfJobReceiptsPerPrint,
     setNoOfJobSheetsPerPrint,
 } from "@/store/context-slice";
 import type { BranchContextType, BuContextType } from "@/store/context-slice";
@@ -46,11 +47,13 @@ function parseAppSettings(settings: AppSettingRow[]) {
     const rawDefaultId  = settings.find(s => s.setting_key === 'default_division_id')?.setting_value;
     const rawSheets     = settings.find(s => s.setting_key === 'no_of_job_sheets_per_print')?.setting_value;
     const rawInvoices   = settings.find(s => s.setting_key === 'no_of_job_invoices_per_print')?.setting_value;
+    const rawReceipts   = settings.find(s => s.setting_key === 'no_of_job_receipts_per_print')?.setting_value;
 
     return {
         defaultDivisionId: rawDefaultId !== undefined ? Number(coerce(rawDefaultId) ?? 1) : 1,
         jobSheets:         Math.max(1, Number(coerce(rawSheets)   ?? 1)),
         jobInvoices:       Math.max(1, Number(coerce(rawInvoices) ?? 1)),
+        jobReceipts:       Math.max(1, Number(coerce(rawReceipts) ?? 1)),
     };
 }
 
@@ -155,6 +158,7 @@ export function useBuBranchDivisionActions() {
         dispatch(setDefaultDivisionId(parsed.defaultDivisionId));
         dispatch(setNoOfJobSheetsPerPrint(parsed.jobSheets));
         dispatch(setNoOfJobInvoicesPerPrint(parsed.jobInvoices));
+        dispatch(setNoOfJobReceiptsPerPrint(parsed.jobReceipts));
 
         if (ctx.divisions.length === 0) {
             dispatch(setCurrentDivision(null));

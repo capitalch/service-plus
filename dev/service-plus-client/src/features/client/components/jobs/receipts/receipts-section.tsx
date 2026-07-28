@@ -25,7 +25,7 @@ import { selectDbName } from "@/features/auth/store/auth-slice";
 import { apolloClient } from "@/lib/apollo-client";
 import { encodeObj, graphQlUtils } from "@/lib/graphql-utils";
 import { currentFinancialYearRange } from "@/lib/utils";
-import { selectAvailableDivisions, selectCurrentBranch, selectPostDataToAccounts, selectSchema } from "@/store/context-slice";
+import { selectAvailableDivisions, selectCurrentBranch, selectNoOfJobReceiptsPerPrint, selectPostDataToAccounts, selectSchema } from "@/store/context-slice";
 import { useAppSelector } from "@/store/hooks";
 import type { JobReceiptDetailType, JobReceiptListRowType } from "@/features/client/types/receipt";
 import { isGstDivision } from "@/features/client/types/division";
@@ -82,6 +82,7 @@ export const ReceiptsSection = () => {
     const branchId           = currentBranch?.id ?? null;
     const availableDivisions = useAppSelector(selectAvailableDivisions);
     const postDataToAccounts = useAppSelector(selectPostDataToAccounts);
+    const noOfReceipts       = useAppSelector(selectNoOfJobReceiptsPerPrint);
 
     const { from: fromDate, to: toDate } = currentFinancialYearRange();
     const [search,      setSearch]      = useState("");
@@ -111,6 +112,9 @@ export const ReceiptsSection = () => {
     // PDF preview
     const [pdfUrl,     setPdfUrl]     = useState<string | null>(null);
     const [pdfTitle,   setPdfTitle]   = useState("");
+    const [printCopies, setPrintCopies] = useState(1);
+    // Inputs of the currently previewed receipt, kept so the copy count can be changed in-place.
+    const lastReceiptRef = useRef<{ job: Parameters<typeof buildReceiptPdf>[0]; division: Parameters<typeof buildReceiptPdf>[1] } | null>(null);
     const [pdfLoading, setPdfLoading] = useState<number | null>(null); // row.id being loaded
     const debounceRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
     const scrollRef    = useRef<HTMLDivElement>(null);
@@ -236,7 +240,10 @@ export const ReceiptsSection = () => {
             const payments = (paymentsRes.data?.genericQuery ?? []).filter(p => p.id === row.id);
             if (!job) { toast.error("Failed to load job details."); return; }
             const division = availableDivisions.find(d => d.id === (job as unknown as { division_id: number | null }).division_id) ?? null;
-            const doc = buildReceiptPdf({ ...job, customer_name: job.customer_name ?? "", payments }, division);
+            const receiptJob = { ...job, customer_name: job.customer_name ?? "", payments };
+            lastReceiptRef.current = { job: receiptJob, division };
+            setPrintCopies(noOfReceipts);
+            const doc = buildReceiptPdf(receiptJob, division, noOfReceipts);
             if (pdfUrl) URL.revokeObjectURL(pdfUrl);
             setPdfUrl(URL.createObjectURL(doc.output("blob")));
             setPdfTitle(`Receipt — #${row.job_no} / ${row.customer_name}`);
@@ -245,6 +252,15 @@ export const ReceiptsSection = () => {
         } finally {
             setPdfLoading(null);
         }
+    }
+
+    function handleReceiptCopiesChange(n: number) {
+        setPrintCopies(n);
+        const ctx = lastReceiptRef.current;
+        if (!ctx) return;
+        const doc = buildReceiptPdf(ctx.job, ctx.division, n);
+        if (pdfUrl) URL.revokeObjectURL(pdfUrl);
+        setPdfUrl(URL.createObjectURL(doc.output("blob")));
     }
 
     const executeSave = async (values: ReceiptFormValues) => {
@@ -712,8 +728,10 @@ export const ReceiptsSection = () => {
                 filename={`receipt-${pdfTitle}.pdf`}
                 isOpen={!!pdfUrl}
                 pdfUrl={pdfUrl}
+                printCopies={printCopies}
                 title={pdfTitle}
                 onClose={() => { if (pdfUrl) URL.revokeObjectURL(pdfUrl); setPdfUrl(null); }}
+                onPrintCopiesChange={handleReceiptCopiesChange}
             />
 
             {/* Job Details */}

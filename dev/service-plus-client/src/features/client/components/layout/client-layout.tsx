@@ -18,6 +18,7 @@ import {
     setDefaultHsnForSparePart,
     setDefaultHsnForServiceCharge,
     setNoOfJobInvoicesPerPrint,
+    setNoOfJobReceiptsPerPrint,
     setNoOfJobSheetsPerPrint,
     setPostDataToAccounts,
 } from "@/store/context-slice";
@@ -188,6 +189,11 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
             let parsedInvCopies: unknown = rawInvCopies;
             if (typeof rawInvCopies === 'string') { try { parsedInvCopies = JSON.parse(rawInvCopies); } catch { /* keep raw */ } }
             dispatch(setNoOfJobInvoicesPerPrint(Math.max(1, Number(parsedInvCopies ?? 1))));
+
+            const rawRcptCopies = settings.find(s => s.setting_key === 'no_of_job_receipts_per_print')?.setting_value;
+            let parsedRcptCopies: unknown = rawRcptCopies;
+            if (typeof rawRcptCopies === 'string') { try { parsedRcptCopies = JSON.parse(rawRcptCopies); } catch { /* keep raw */ } }
+            dispatch(setNoOfJobReceiptsPerPrint(Math.max(1, Number(parsedRcptCopies ?? 1))));
 
             const rawPost = settings.find(s => s.setting_key === 'post_data_to_accounts')?.setting_value;
             let parsedPost: unknown = rawPost;

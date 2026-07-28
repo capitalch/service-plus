@@ -36,6 +36,7 @@ type ContextStateType = {
     defaultGstRate:           number;
     markupPercentOverCost:    number;
     noOfJobInvoicesPerPrint:  number;
+    noOfJobReceiptsPerPrint:  number;
     noOfJobSheetsPerPrint:    number;
     defaultHsnForSparePart:      string;
     defaultHsnForServiceCharge:  string;
@@ -60,6 +61,7 @@ const initialState: ContextStateType = {
     defaultGstRate:           0,
     markupPercentOverCost:    20,
     noOfJobInvoicesPerPrint:  1,
+    noOfJobReceiptsPerPrint:  1,
     noOfJobSheetsPerPrint:    1,
     defaultHsnForSparePart:     "",
     defaultHsnForServiceCharge: "",
@@ -102,6 +104,10 @@ const contextSlice = createSlice({
 
         setNoOfJobInvoicesPerPrint: (state, action: PayloadAction<number>) => {
             state.noOfJobInvoicesPerPrint = action.payload;
+        },
+
+        setNoOfJobReceiptsPerPrint: (state, action: PayloadAction<number>) => {
+            state.noOfJobReceiptsPerPrint = action.payload;
         },
 
         setNoOfJobSheetsPerPrint: (state, action: PayloadAction<number>) => {
@@ -153,6 +159,7 @@ export const {
     setMarkupPercentOverCost,
     setDefaultHsnForSparePart,
     setNoOfJobInvoicesPerPrint,
+    setNoOfJobReceiptsPerPrint,
     setNoOfJobSheetsPerPrint,
     setDefaultHsnForServiceCharge,
     setPostDataToAccounts,
@@ -174,6 +181,7 @@ export const selectDefaultDivisionId     = (state: ContextRootState) => state.co
 export const selectDefaultGstRate           = (state: ContextRootState) => state.context.defaultGstRate;
 export const selectMarkupPercentOverCost    = (state: ContextRootState) => state.context.markupPercentOverCost;
 export const selectNoOfJobInvoicesPerPrint  = (state: ContextRootState) => state.context.noOfJobInvoicesPerPrint;
+export const selectNoOfJobReceiptsPerPrint  = (state: ContextRootState) => state.context.noOfJobReceiptsPerPrint;
 export const selectNoOfJobSheetsPerPrint    = (state: ContextRootState) => state.context.noOfJobSheetsPerPrint;
 export const selectDefaultHsnForSparePart      = (state: ContextRootState) => state.context.defaultHsnForSparePart;
 export const selectDefaultHsnForServiceCharge  = (state: ContextRootState) => state.context.defaultHsnForServiceCharge;

@@ -1008,12 +1008,19 @@ export function buildDeliveryNotePdf(
 export function buildReceiptPdf(
     job: JobBasicInfo & { payments: { id: number; receipt_no: string | null; payment_date: string; payment_mode: string; amount: number; reference_no: string | null; remarks: string | null }[] },
     division?: DivisionContextType | null,
+    copies = 1,
 ): jsPDF {
-    const doc = new jsPDF({ format: "a5", orientation: "p", unit: "mm" });
+    const doc = new jsPDF({ format: "a4", orientation: "p", unit: "mm" });
     const margin = 14;
     const pageWidth = doc.internal.pageSize.getWidth();
     const midX = pageWidth / 2;
-    let y = margin;
+    // Two receipts share one A4 page (top/bottom half); the bottom copy is shifted
+    // down by half the page height, with a cut line between them.
+    const SECOND_COPY_Y_OFFSET = 148.5;
+
+    // yOffset places the copy in the top half (0) or bottom half (148.5) of the A4 page.
+    function drawContent(yOffset: number) {
+    let y = margin + yOffset;
 
     // Division header
     if (division?.name) {
@@ -1149,6 +1156,24 @@ export function buildReceiptPdf(
         doc.setFont("helvetica", "bold");
         doc.setFontSize(9);
         doc.text("Authorised Signatory", pageWidth - margin, y, { align: "right" });
+    }
+
+    // Cut/separation guide between the two copies stacked on the same page
+    if (yOffset > 0) {
+        doc.setDrawColor(120, 120, 120);
+        doc.setLineWidth(0.2);
+        doc.setLineDashPattern([2, 2], 0);
+        doc.line(margin, yOffset, pageWidth - margin, yOffset);
+        doc.setLineDashPattern([], 0);
+    }
+    }
+
+    // Two copies per A4 page (top/bottom half); a new page starts only every 2 copies.
+    const numCopies = Math.max(1, copies);
+    for (let i = 0; i < numCopies; i++) {
+        const isBottomHalf = i % 2 === 1;
+        if (i > 0 && !isBottomHalf) doc.addPage();
+        drawContent(isBottomHalf ? SECOND_COPY_Y_OFFSET : 0);
     }
 
     return doc;

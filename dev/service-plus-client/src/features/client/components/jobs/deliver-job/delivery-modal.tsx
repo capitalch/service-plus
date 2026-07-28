@@ -38,7 +38,7 @@ import { isValidGstin, normalizeGstin, saveCustomerGstin } from "@/lib/gstin";
 import { MESSAGES } from "@/constants/messages";
 import { buildInvoicePdf, buildPackedInvoicePdf, buildReceiptPdf, buildDeliveryNotePdf } from "./deliver-job-pdf";
 import { useAppSelector } from "@/store/hooks";
-import { selectNoOfJobInvoicesPerPrint } from "@/store/context-slice";
+import { selectNoOfJobInvoicesPerPrint, selectNoOfJobReceiptsPerPrint } from "@/store/context-slice";
 import { DeliveryModalJobsTable } from "./delivery-modal-jobs-table";
 import { DeliveryModalInvoicesSection } from "./delivery-modal-invoices-section";
 import { DeliveryModalReceiptsSection } from "./delivery-modal-receipts-section";
@@ -217,6 +217,7 @@ export function DeliveryModal({
     onDelivered,
 }: Props) {
     const noOfJobInvoicesPerPrint = useAppSelector(selectNoOfJobInvoicesPerPrint);
+    const noOfJobReceiptsPerPrint = useAppSelector(selectNoOfJobReceiptsPerPrint);
 
     const [jobDetails,                  setJobDetails]                  = useState<JobDeliveryFullDetail[]>(initialJobs);
     // GSTIN is per-customer; in a multi-job delivery each row is editable and
@@ -736,7 +737,7 @@ export function DeliveryModal({
 
     function handlePrintReceiptPdf(job: JobDeliveryFullDetail) {
         const division = availableDivisions.find(d => d.id === job.division_id) ?? null;
-        const doc = buildReceiptPdf(job, division);
+        const doc = buildReceiptPdf(job, division, noOfJobReceiptsPerPrint);
         if (pdfUrl) URL.revokeObjectURL(pdfUrl);
         setPdfUrl(URL.createObjectURL(doc.output("blob")));
         setPdfTitle(`Receipt — ${job.job_no} / ${job.customer_name}`);
