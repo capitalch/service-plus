@@ -188,13 +188,15 @@ export const DeliverableJobsGrid = forwardRef<GridRetentionHandle, Props>(functi
                             <thead className="sticky top-0 z-10">
                                 <tr>
                                     <th className={`${thClass} w-8`}>
-                                        <input
-                                            type="checkbox"
-                                            className="h-3.5 w-3.5 rounded border-(--cl-border) accent-emerald-600 cursor-pointer"
-                                            checked={allChecked}
-                                            ref={el => { if (el) el.indeterminate = someChecked && !allChecked; }}
-                                            onChange={e => onSelectAll(e.target.checked)}
-                                        />
+                                        <label className="flex h-7 w-7 cursor-pointer items-center justify-center">
+                                            <input
+                                                type="checkbox"
+                                                className="h-4.5 w-4.5 rounded border-(--cl-border) accent-emerald-600 cursor-pointer"
+                                                checked={allChecked}
+                                                ref={el => { if (el) el.indeterminate = someChecked && !allChecked; }}
+                                                onChange={e => onSelectAll(e.target.checked)}
+                                            />
+                                        </label>
                                     </th>
                                     <th className={thClass}>#</th>
                                     <th className={thClass}>Date</th>
@@ -226,12 +228,17 @@ export const DeliverableJobsGrid = forwardRef<GridRetentionHandle, Props>(functi
                                         onClick={() => setSelectedRowId(row.id)}
                                     >
                                         <td className={tdClass}>
-                                            <input
-                                                type="checkbox"
-                                                className="h-3.5 w-3.5 rounded border-(--cl-border) accent-emerald-600 cursor-pointer"
-                                                checked={selectedIds.has(row.id)}
-                                                onChange={e => { e.stopPropagation(); onSelectionChange(row.id, e.target.checked); }}
-                                            />
+                                            <label
+                                                className="flex h-7 w-7 cursor-pointer items-center justify-center"
+                                                onClick={e => e.stopPropagation()}
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    className="h-4.5 w-4.5 rounded border-(--cl-border) accent-emerald-600 cursor-pointer"
+                                                    checked={selectedIds.has(row.id)}
+                                                    onChange={e => { e.stopPropagation(); onSelectionChange(row.id, e.target.checked); }}
+                                                />
+                                            </label>
                                         </td>
                                         <td className={`${tdClass} text-(--cl-text-muted)`}>{(page - 1) * PAGE_SIZE + idx + 1}</td>
 

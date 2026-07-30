@@ -1,13 +1,13 @@
 # Recommended File/Folder Reorganization — service-plus-server
 
-**This is a recommendation report, not something that has been executed.** No application files have been moved or split — this documents a proposed target structure for review before any implementation pass.
+**This is a recommendation report, not something that has been executed.** No application files have been moved or split — this documents a proposed target structure, plus a detailed step-by-step execution plan, for review before any implementation pass.
 
 ## Context
 `service-plus-server` (the Python/FastAPI GraphQL backend for service-plus-client) grew organically into a flat, concern-mixing layout. The two most-touched files are already unmanageable:
 - `app/db/sql_store.py` — **6,514 lines**, one `SqlStore` class holding 331 SQL string constants for every domain (jobs, inventory, sales, BU/security, reports...).
 - `app/graphql/resolvers/mutation_helper.py` — **2,917 lines** (`# pylint: disable=too-many-lines` was added instead of splitting it), mixing job/invoice/BU-provisioning/security logic in one flat function soup, mirrored 1:1 by `mutation.py`'s thin dispatchers.
 
-`app/db/sql_bu.py` (1,646 lines) is a third large file. Alongside this, real production secrets are hardcoded in `app/config.py`; both `config.py` and `logs/` are already ignored via the repo-root `.gitignore` (`/home/sushant/projects/service-plus/.gitignore`, applies repo-wide since this is a single git repo) — see item 6 below for the `logs/audit/*.jsonl` files that were tracked before that rule took effect. There's no `tests/` directory and no architecture doc (`claude.md`/`GEMINI.md` are AI-agent instruction files, not structural docs). The goal below is a domain-based structure that matches how the code actually divides (confirmed via SQL-constant prefixes and resolver function names): **jobs, inventory/masters, sales/accounts, BU-admin/security/provisioning, reports/audit, and shared/core infra.**
+`app/db/sql_bu.py` (1,646 lines) is a third large file. Alongside this, real production secrets are hardcoded in `app/config.py`; both `config.py` and `logs/` are already ignored via the repo-root `.gitignore` (`/home/sushant/projects/service-plus/.gitignore`, applies repo-wide since this is a single git repo) — see Step 1 below for the `logs/audit/*.jsonl` files that were tracked before that rule took effect. There's no `tests/` directory and no architecture doc (`claude.md`/`GEMINI.md` are AI-agent instruction files, not structural docs). The goal below is a domain-based structure that matches how the code actually divides (confirmed via SQL-constant prefixes and resolver function names): **jobs, inventory/masters, sales/accounts, BU-admin/security/provisioning, reports/audit, and shared/core infra.**
 
 ## Evidence for the domain split
 - `sql_store.py` constant prefixes cluster into: `JOB(S)`/`WARRANTY`/`TECHNICIAN`/`DELIVERED`/`DELIVERABLE` (**jobs**), `STOCK`/`PART(S)`/`PRODUCT`/`BRAND`/`MODEL`/`VENDOR`/`SUPPLIER`/`PURCHASE` (**inventory/masters**), `SALES`/`CUSTOMER(S)` (**sales**), `BU`/`BUSINESS`/`DIVISION`/`BRANCH`/`CLIENT`/`ADMIN`/`USER`/`FY`/`STATE` (**bu-admin/security**), `DASHBOARD`/`PROFIT`/`REVENUE` (**reports**).
@@ -47,7 +47,7 @@ service-plus-server/
 │   │   │   ├── pool_manager.py
 │   │   │   └── psycopg_driver.py
 │   │   ├── sql/                         # NEW — sql_store.py split by domain
-│   │   │   ├── sql_base.py              # SqlStore base class (see migration note below)
+│   │   │   ├── sql_base.py              # SqlStore base class (see Step 3 below)
 │   │   │   ├── sql_jobs.py
 │   │   │   ├── sql_inventory.py
 │   │   │   ├── sql_sales_accounts.py
@@ -102,7 +102,7 @@ service-plus-server/
 
 Dropped/merged from current layout: `app/schemas/auth_schema.py` folds into `app/graphql/resolvers/bu_admin/` or `app/routers/auth/` (wherever it's actually consumed — worth confirming at implementation time); `app/utils/` (currently empty) is dropped entirely; pick **one** of `.pyre_configuration` / `pyrightconfig.json` and remove the other (both currently configure type-checking with no evident reason to keep both).
 
-## Key redistribution notes
+## Design notes (why each move is shaped this way)
 
 1. **`sql_store.py` → domain files, same access pattern.** To split the single `SqlStore.CONST_NAME` class (referenced at ~300+ call sites) without a one-shot rewrite of every call site, each domain file defines its own class with only its constants (`class JobsSql: GET_JOB = "..."`), and `sql_base.py` composes them via multiple inheritance: `class SqlStore(JobsSql, InventorySql, SalesAccountsSql, BuAdminSql, ReportsAuditSql, SharedSql): pass`. Existing `SqlStore.X` references keep working untouched; only the constant *definitions* move. This is the low-risk migration path — moving to fully separate `JobsSql.GET_JOB`-style call sites everywhere is the cleaner end state but requires touching every call site and should be a separate, later pass if wanted.
 2. **`mutation_helper.py`/`query_helper.py` → per-domain modules, `mutation.py`/`query.py` stay as thin dispatchers.** Since `mutation.py` already just delegates to `mutation_helper.py` function-for-function, splitting the helper file along the domain boundaries above (jobs/inventory/sales_accounts/bu_admin/reports_audit/shared) and having `mutation.py`/`query.py` import from the right submodule is mechanical — no logic changes, just moving functions and fixing imports.
@@ -114,7 +114,7 @@ Dropped/merged from current layout: `app/schemas/auth_schema.py` folds into `app
 
 ## Additional improvements (new suggestions)
 
-8. **Centralize `APP_ENV` resolution — it's duplicated in 4 places.** `os.environ.get("APP_ENV", "development")` is independently read in `app/config.py:169`, `app/db/pool_manager.py:16`, `app/db/psycopg_driver.py:21`, and `app/routers/image_router.py:21`. Each constructs its own env-based branching. The config split (item 4) should add a single `app_env: str` field to `Settings` (reading from the `APP_ENV` env var), then all four consumers reference `settings.app_env` instead of repeating the `os.environ.get` call. This eliminates drift risk if the default ever changes.
+8. **Centralize `APP_ENV` resolution — it's duplicated in 4 places.** `os.environ.get("APP_ENV", "development")` is independently read in `app/config.py:169`, `app/db/pool_manager.py:16`, `app/db/psycopg_driver.py:21`, and `app/routers/image_router.py:21`. Each constructs its own env-based branching. The config split (Step 2) should add a single `app_env: str` field to `Settings` (reading from the `APP_ENV` env var), then all four consumers reference `settings.app_env` instead of repeating the `os.environ.get` call. This eliminates drift risk if the default ever changes.
 
 9. **Deduplicate the mutation resolver try/except boilerplate.** Every resolver in `mutation.py` (and most in `query.py`) follows the identical pattern:
    ```python
@@ -153,13 +153,112 @@ Dropped/merged from current layout: `app/schemas/auth_schema.py` folds into `app
 - Doesn't propose scrubbing git history for the exposed secrets — that's a decision (and risk) to make separately, since rewriting history affects every clone/branch.
 - Doesn't pick which of `.pyre_configuration`/`pyrightconfig.json` to keep — worth a quick check of which one is actually wired into CI/editor before deleting either.
 
-## If/when this gets implemented
-This report intentionally stops short of moving files. A follow-up implementation pass would need to: (a) do the mechanical splits with import-path fixups verified by running the type-checker across the whole repo after each domain's move, (b) handle the `SqlStore` composition carefully so no constant is dropped, and (c) treat the secrets/`.gitignore`/audit-log fixes as a separate, first PR since they're higher priority and lower risk than the code reorg.
+---
 
-### Suggested implementation order
-1. **PR 1 (security, independent of reorg):** `.env.example` + move `config.py` defaults to a gitignored `.env` (hygiene, not history cleanup), `git rm --cached` the tracked `logs/audit/*.jsonl` files, pin or lock `requirements.txt`, move `mcp[cli]` to dev deps. (No new `.gitignore` needed — the repo-root one already covers this subfolder.)
-2. **PR 2 (config centralization):** Split `config.py` → `core/settings/`, add `app_env` computed field, centralize `APP_ENV` reads (items 4, 8, 19). Tighten CORS (item 14). Uncomment uvicorn host/port (item 15).
-3. **PR 3 (SQL split):** Split `sql_store.py` → `sql/*.py` with `SqlStore` multiple-inheritance composition (item 1). Move scheduler inline SQL (item 10). Update extractor script (item 17).
-4. **PR 4 (resolver split):** Split `mutation_helper.py` → domain modules, add error-handling decorator (items 2, 9, 13). Split `GENERIC_UPDATE_TABLE_RIGHTS`.
-5. **PR 5 (move & clean):** Move `exceptions.py` → `core/`, reorganize `routers/`, drop `utils/`, delete one of `.pyre_configuration`/`pyrightconfig.json`, add `__init__.py` files.
-6. **PR 6 (tests scaffolding):** Add `tests/` with domain folders and initial smoke tests.
+# Detailed Step-by-Step Implementation Plan
+
+This report intentionally stopped short of moving files. The steps below are the follow-up implementation pass, ordered from highest-priority/lowest-risk to most invasive. Each step is scoped to be its own PR — small enough to review, and independently revertable if something breaks.
+
+## Step 1 — Security hygiene (independent of the folder reorg)
+Highest priority, lowest risk, touches no application logic.
+
+1. **Step 1.1 — Add `.env.example`.** Document every env var `Settings` currently reads (names only, no real values) so a new developer/environment knows what to set.
+2. **Step 1.2 — Move hardcoded secret defaults out of `config.py`.** Move the literal values of `client_db_password`, `service_db_password`, `secret_key`, `smtp_password`, `super_admin_password_hash`, `file_server_api_key` into a local, gitignored `.env` file; `config.py` reads them via Pydantic settings instead of hardcoding defaults. (Design note 5 — this is hygiene, not git-history cleanup, since `config.py` was never committed.)
+3. **Step 1.3 — Untrack the audit logs.** Run `git rm --cached` on the 44 tracked files under `logs/audit/*.jsonl` (keep them on disk; the repo-root `.gitignore` already has the `logs/` rule so they won't be re-added).
+4. **Step 1.4 — Pin `requirements.txt`.** Either add compatible-release pins (`fastapi>=0.115,<0.116`, etc.) or generate a `pip-compile` lockfile for all 18 dependencies.
+5. **Step 1.5 — Split out dev-only dependencies.** Move `mcp[cli]` into a `requirements-dev.txt` (or `[project.optional-dependencies] dev` group) so production installs stay lean.
+
+**Verification:** `git status` shows the audit `.jsonl` files as untracked-but-present-on-disk; `git log -- app/config.py` still shows no history; app boots locally reading secrets from `.env`; `pip install -r requirements.txt` succeeds with pinned versions.
+
+## Step 2 — Config centralization
+Depends on Step 1 (the `.env` file must exist first).
+
+1. **Step 2.1 — Create `app/core/settings/` package** with `database_settings.py`, `auth_settings.py`, `email_settings.py`, `api_settings.py`.
+2. **Step 2.2 — Split the `Settings` class** by concern into those four files, composed back into one `Settings` object via Pydantic nested-settings support (design note 4).
+3. **Step 2.3 — Add a single `app_env` field** to `Settings`, then replace the 4 duplicated `os.environ.get("APP_ENV", "development")` reads (`app/config.py:169`, `app/db/pool_manager.py:16`, `app/db/psycopg_driver.py:21`, `app/routers/image_router.py:21`) with `settings.app_env` (item 8).
+4. **Step 2.4 — Centralize `file_server_url` selection** on `Settings` alongside `app_env`, replacing the branch in `image_router.py:22-26` (item 19).
+5. **Step 2.5 — Tighten CORS.** Replace `allow_origins=["*"]` (`app/main.py:68`) with `settings.cors_origins`, defaulting to `["http://localhost:3000"]` in dev (item 14).
+6. **Step 2.6 — Fix the commented-out uvicorn bind.** Uncomment `host=settings.host, port=settings.port` in `app/main.py:93-94`, or remove the dead code/fields if defaults are intentional (item 15).
+
+**Verification:** run the type-checker across `app/` (whichever of `.pyre_configuration`/`pyrightconfig.json` is actually wired in); start the server locally and confirm it binds to the configured host/port and reads all settings correctly; confirm CORS behavior against a local client origin.
+
+## Step 3 — SQL layer split
+Independent of Step 2; can run in parallel once Step 1 lands.
+
+1. **Step 3.1 — Create `app/db/sql/` package** with `sql_base.py`, `sql_jobs.py`, `sql_inventory.py`, `sql_sales_accounts.py`, `sql_bu_admin.py`, `sql_reports_audit.py`, `sql_shared.py`.
+2. **Step 3.2 — Move constants into per-domain classes**, grouped by the prefixes in "Evidence for the domain split" above (`JOB(S)`/`WARRANTY`/... → `JobsSql`, etc.), moving `sql_bu.py`'s content into `SqlBuAdmin`.
+3. **Step 3.3 — Compose `SqlStore` via multiple inheritance** in `sql_base.py`: `class SqlStore(JobsSql, InventorySql, SalesAccountsSql, BuAdminSql, ReportsAuditSql, SharedSql): pass` (design note 1) — every existing `SqlStore.CONST_NAME` call site keeps working unmodified.
+4. **Step 3.4 — Move `scheduler.py`'s inline SQL** (`_GET_ACTIVE_CLIENTS`, `_GET_ACTIVE_SCHEMAS`) into `sql_reports_audit.py`/`sql_shared.py` as `SqlStore` constants, then reference them from `scheduler.py` (item 10).
+5. **Step 3.5 — Update `extract_schema.py`** so the auto-generation for the (now-merged) `sql_bu.py`/`sql_security.py` content writes into `sql_bu_admin.py` under the right class name (item 17).
+6. **Step 3.6 — Reorganize `app/db/`**: move `pool_manager.py`/`psycopg_driver.py` into `connection/`, add `seeds/` (`seed_bu_data.py`, `seed_security_data.py`) and `schema_dumps/` (raw `.sql` DDL files), keep `extract_schema.py` under `tools/`.
+7. **Step 3.7 — Add `__init__.py`** to every new subdirectory created in this step (item 18).
+
+**Verification:** grep for every `SqlStore.` usage across `app/` and confirm the referenced constant still resolves (no `AttributeError` at import time — import `app.db.sql.sql_base` and instantiate/inspect `SqlStore` in a REPL or a smoke test); run the type-checker; run `extract_schema.py` once against a scratch/dev schema to confirm it writes to the new location.
+
+## Step 4 — Resolver split
+Depends on Step 3 landing first (resolvers import `SqlStore`, so a stable SQL layer avoids double churn).
+
+1. **Step 4.1 — Create `app/graphql/resolvers/{shared,jobs,inventory,sales_accounts,bu_admin,reports_audit}/` packages.**
+2. **Step 4.2 — Move `mutation_helper.py` functions** into the matching domain package's `mutations.py`/`provisioning.py`/`users_roles.py`/`mailers.py`/`invoicing.py` per the function-name mapping in "Evidence for the domain split" (design note 2) — pure move, no logic changes.
+3. **Step 4.3 — Move `query_helper.py` functions** the same way into `reports_audit/queries.py` and `shared/generic_query.py`.
+4. **Step 4.4 — Move `_decode_value`/`_serialize_row`/generic envelope helpers** into `shared/generic_query.py` / `shared/generic_update.py`.
+5. **Step 4.5 — Add the `@handle_graphql_errors(...)` decorator** (item 9) and apply it across `mutation.py`/`query.py` resolvers, replacing the repeated try/except block.
+6. **Step 4.6 — Split `GENERIC_UPDATE_TABLE_RIGHTS`/`GENERIC_UPDATE_SCRIPT_SQL_ID_RIGHTS`** by domain (item 13) and pass the relevant dict into `generic_update.py` as a parameter instead of importing one monolithic dict.
+7. **Step 4.7 — Reduce `mutation.py`/`query.py` to thin dispatchers** that import from the domain packages and apply the decorator.
+8. **Step 4.8 — Leave `subscription.py` flat** at `resolvers/subscription.py` (item 16) — explicitly not domain-split in this pass.
+9. **Step 4.9 — Add `__init__.py`** to every new resolver subdirectory (item 18).
+
+**Verification:** run the type-checker across `app/graphql/`; exercise the GraphQL schema against a local/dev DB — at minimum, one mutation and one query per domain (job create, inventory import, sales invoice, BU user creation, dashboard stats) — to confirm no import/dispatch regressions; confirm `mutation.py`/`query.py` line counts dropped roughly as expected (~630→~200 lines for `mutation.py`).
+
+## Step 5 — Structural move & cleanup
+Cosmetic/organizational; safe to do last since it doesn't touch resolver or SQL logic.
+
+1. **Step 5.1 — Move `app/exceptions.py` → `app/core/exceptions.py`** (design note 3) and fix imports.
+2. **Step 5.2 — Reorganize `app/routers/`**: `auth_router.py`/`auth_router_helper.py` → `routers/auth/router.py`/`helper.py`; `image_router.py` → `routers/media/image_router.py`.
+3. **Step 5.3 — Fold `app/schemas/auth_schema.py`** into `resolvers/bu_admin/` or `routers/auth/`, whichever actually consumes it — confirm the real consumer before moving.
+4. **Step 5.4 — Move loose root scripts into `scripts/`**: `run_server.bat`, `activate.bat`, `install_dependencies.bat`, `extract_schema.sh`.
+5. **Step 5.5 — Drop `app/utils/`** (confirmed empty).
+6. **Step 5.6 — Remove one of `.pyre_configuration`/`pyrightconfig.json`** — first confirm which one CI/editor actually uses, then delete the other.
+7. **Step 5.7 — Add any remaining `__init__.py` files** missed in earlier steps (final sweep of item 18).
+
+**Verification:** run the type-checker one more time across the whole repo; start the server and confirm auth/media routes still resolve; confirm no dangling imports reference the old `app/exceptions.py` or `app/schemas/auth_schema.py` paths.
+
+## Step 6 — Tests scaffolding
+Can start any time after Step 3/4 land (tests need stable module paths to import against).
+
+1. **Step 6.1 — Create `tests/{jobs,inventory,sales_accounts,bu_admin,reports_audit,core}/`** mirroring the `app/` domain layout (design note 7).
+2. **Step 6.2 — Add one smoke test per domain** exercising the highest-risk resolver/SQL path moved in Steps 3–4 (e.g. `resolve_create_job_batch`, `resolve_import_spare_parts`, `resolve_create_sales_invoice`, `resolve_create_admin_user`, `resolve_admin_dashboard_stats`).
+3. **Step 6.3 — Wire tests into whatever CI exists** (or document the manual `pytest` invocation if there's no CI yet).
+
+**Verification:** `pytest tests/` passes locally against a dev DB.
+
+---
+
+# Detailed Workflow
+
+How to actually execute Steps 1–6 without breaking `service-plus-client` (the GraphQL consumer) or losing work mid-reorg.
+
+1. **One branch per step, off `main`.** Each step above becomes its own branch (`reorg/step-1-security`, `reorg/step-2-config`, …) and its own PR — never bundle two steps into one PR. This keeps blast radius small and makes `git bisect`/revert trivial if a step regresses something.
+
+2. **Order strictly as numbered, with two exceptions.** Steps 1 and 3 can run in parallel (both are independent of each other), but Step 2 must come after Step 1 (needs `.env`), Step 4 must come after Step 3 (resolvers import `SqlStore`), and Step 6 should trail Step 4 (tests need the final module paths). Step 5 is safe any time after Step 4 since it's purely cosmetic. Recommended sequence: **1 → 3 → 2 → 4 → 5 → 6** (security first, then the two independent-of-each-other structural splits, config next since it's small, then the big resolver split, then cleanup, then tests).
+
+3. **Before starting each step:** pull latest `main`, branch off it (not off the previous reorg branch) — each step should merge to `main` before the next begins, so `service-plus-client` integration issues surface one step at a time instead of compounding.
+
+4. **While making each step's changes:** move code mechanically first (no logic edits mixed in) — a pure "cut here, paste there, fix imports" pass is easy to review and easy to trust. Any actual behavior change called out in the plan (e.g. the `@handle_graphql_errors` decorator in Step 4.5, CORS tightening in Step 2.5) should be its own commit within the step's branch, separate from the mechanical move, so a reviewer can tell "moved code" from "changed code" at a glance.
+
+5. **After each step, before opening the PR — run this checklist:**
+   - Type-checker across the whole `app/` tree (not just the touched files — catches import fallout elsewhere).
+   - Start the server locally (`scripts/run_server.bat` or equivalent) and confirm it boots without errors.
+   - Run the step's own "Verification" bullet from above.
+   - Grep for any remaining references to the old file/module path being removed (e.g. `grep -rn "from app.exceptions"` after Step 5.1) to catch missed import fixups.
+   - If Step 6 tests exist yet (i.e., this is Step 6 itself or later), run `pytest tests/`.
+
+6. **Manual smoke test against `service-plus-client` after Steps 2, 3, and 4 specifically** (the three steps capable of silently changing resolver behavior or breaking `SqlStore` constant resolution) — open the client against the locally reorganized server and exercise: login, one job create/update/deliver flow, one inventory import, one sales invoice, one BU-admin action, and the admin dashboard. These are exactly the domains touched by the resolver/SQL split, so this is the fastest way to catch a dropped constant or a broken dispatch before merging.
+
+7. **Merge and tag each step.** After a step's PR merges to `main`, tag it (e.g. `reorg-step-1-done`) so there's a clean rollback point if a later step's integration testing reveals the earlier step actually broke something subtle.
+
+8. **Rollback plan.** Because each step is its own small PR, reverting one step is a single `git revert` of its merge commit, not an unwind of a giant combined reorg. If Step 4 (resolver split) is the one most likely to need a rollback (it's the largest, most mechanical, most import-fixup-heavy step), consider splitting it further into one PR per domain package (`jobs/`, `inventory/`, `sales_accounts/`, `bu_admin/`, `reports_audit/`, `shared/`) if the full-step PR turns out too large to review confidently in one pass.
+
+9. **Track the checklist items (item 18, `__init__.py` files) as part of each step's own checklist**, not as a separate cleanup pass — every step that creates a new package directory adds its own `__init__.py` in the same commit, so nothing is left for a final "did we forget any" sweep except the safety-net check in Step 5.7.
+
+10. **Secrets rotation is out of scope for this reorg** (per "What this report intentionally does NOT do") but should be tracked as its own, separate follow-up ticket once Step 1 lands — moving secrets to `.env` is hygiene, not a substitute for a rotation policy going forward.

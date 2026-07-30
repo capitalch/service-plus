@@ -240,15 +240,19 @@ export const DeliveredJobsGrid = forwardRef<GridRetentionHandle, Props>(function
                                         onClick={() => setSelectedRowId(row.id)}
                                     >
                                         <td className={tdClass}>
-                                            <input
-                                                type="checkbox"
-                                                className="h-3.5 w-3.5 rounded border-(--cl-border) accent-teal-600 cursor-pointer disabled:cursor-not-allowed disabled:opacity-30"
-                                                checked={isSelected}
-                                                disabled={!isSelectable}
-                                                title={!isSelectable ? "Select jobs for the same customer and delivery date to combine" : undefined}
-                                                onChange={e => { e.stopPropagation(); onSelectionChange(row, e.target.checked); }}
+                                            <label
+                                                className="flex h-7 w-7 cursor-pointer items-center justify-center"
                                                 onClick={e => e.stopPropagation()}
-                                            />
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    className="h-4.5 w-4.5 rounded border-(--cl-border) accent-teal-600 cursor-pointer disabled:cursor-not-allowed disabled:opacity-30"
+                                                    checked={isSelected}
+                                                    disabled={!isSelectable}
+                                                    title={!isSelectable ? "Select jobs for the same customer and delivery date to combine" : undefined}
+                                                    onChange={e => { e.stopPropagation(); onSelectionChange(row, e.target.checked); }}
+                                                />
+                                            </label>
                                         </td>
                                         <td className={`${tdClass} text-(--cl-text-muted)`}>{(page - 1) * PAGE_SIZE + idx + 1}</td>
 

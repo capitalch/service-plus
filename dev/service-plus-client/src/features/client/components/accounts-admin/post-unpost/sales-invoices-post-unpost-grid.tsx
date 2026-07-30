@@ -150,10 +150,12 @@ export function SalesInvoicesPostUnpostGrid({ pendingChanges, onChangeToggle, on
                                     <th className={thClass}>GST Type</th>
                                     <th className={`${thClass} text-right`}>Amount</th>
                                     <th className={thClass}>
-                                        <span className="flex items-center gap-1.5">
-                                            <input type="checkbox" className="cursor-pointer accent-(--cl-accent)" checked={allChecked} onChange={() => setConfirmAllOpen(true)} />
+                                        <label className="flex cursor-pointer items-center gap-1.5">
+                                            <span className="flex h-7 w-7 items-center justify-center">
+                                                <input type="checkbox" className="h-4.5 w-4.5 cursor-pointer accent-(--cl-accent)" checked={allChecked} onChange={() => setConfirmAllOpen(true)} />
+                                            </span>
                                             Posted
-                                        </span>
+                                        </label>
                                     </th>
                                 </tr>
                             </thead>
@@ -180,7 +182,9 @@ export function SalesInvoicesPostUnpostGrid({ pendingChanges, onChangeToggle, on
                                             </td>
                                             <td className={`${tdClass} text-right`}>{fmtAmt(row.total_amount)}</td>
                                             <td className={tdClass}>
-                                                <input type="checkbox" className="cursor-pointer accent-(--cl-accent)" checked={displayed} onChange={() => onChangeToggle(row.id, row.is_posted)} />
+                                                <label className="flex h-7 w-7 cursor-pointer items-center justify-center">
+                                                    <input type="checkbox" className="h-4.5 w-4.5 cursor-pointer accent-(--cl-accent)" checked={displayed} onChange={() => onChangeToggle(row.id, row.is_posted)} />
+                                                </label>
                                             </td>
                                         </tr>
                                     );

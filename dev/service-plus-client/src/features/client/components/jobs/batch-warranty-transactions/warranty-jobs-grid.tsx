@@ -115,14 +115,14 @@ export function WarrantyJobsGrid({ rows, loading, search, selectedIds, onSelecti
                                     transition={{ delay: idx * 0.015, duration: 0.15 }}
                                 >
                                     <td className={tdClass}>
-                                        <div className="flex items-center justify-center">
+                                        <label className="flex h-7 w-7 cursor-pointer items-center justify-center">
                                             <input
                                                 type="checkbox"
-                                                className="h-3.5 w-3.5 rounded border-(--cl-border) accent-emerald-600 cursor-pointer"
+                                                className="h-4.5 w-4.5 rounded border-(--cl-border) accent-emerald-600 cursor-pointer"
                                                 checked={selectedIds.has(row.id)}
                                                 onChange={e => onSelectionChange(row.id, e.target.checked)}
                                             />
-                                        </div>
+                                        </label>
                                     </td>
                                     <td className={tdClass}>
                                         <div className="flex flex-col gap-0.5">
