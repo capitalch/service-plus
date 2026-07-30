@@ -40,7 +40,7 @@
 		- Aug 2026
 
 # Tracking
-- 28-07-2026
+- 28-07-2026 - 30-07-2026
 	- Minor changes before release
 - 26-07-2026
 	- Several bug fixes before going live

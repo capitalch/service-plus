@@ -4,10 +4,14 @@ import { cn } from "@/lib/utils";
 type TabsContextType = { active: string; setActive: (v: string) => void };
 const TabsCtx = React.createContext<TabsContextType>({ active: "", setActive: () => {} });
 
-export function Tabs({ defaultValue, children, className }: {
-    defaultValue: string; children: React.ReactNode; className?: string;
-}) {
-    const [active, setActive] = React.useState(defaultValue);
+type TabsPropsType =
+    | { defaultValue: string; value?: undefined; onValueChange?: undefined; children: React.ReactNode; className?: string }
+    | { defaultValue?: undefined; value: string; onValueChange: (v: string) => void; children: React.ReactNode; className?: string };
+
+export function Tabs({ defaultValue, value, onValueChange, children, className }: TabsPropsType) {
+    const [uncontrolledActive, setUncontrolledActive] = React.useState(defaultValue ?? value ?? "");
+    const active = value ?? uncontrolledActive;
+    const setActive = onValueChange ?? setUncontrolledActive;
     return (
         <TabsCtx.Provider value={{ active, setActive }}>
             <div className={cn("flex flex-col", className)}>{children}</div>
@@ -23,17 +27,18 @@ export function TabsList({ children, className }: { children: React.ReactNode; c
     );
 }
 
-export function TabsTrigger({ value, children }: { value: string; children: React.ReactNode }) {
+export function TabsTrigger({ value, children, className }: { value: string; children: React.ReactNode; className?: string }) {
     const { active, setActive } = React.useContext(TabsCtx);
     const isActive = active === value;
     return (
         <button
             type="button"
             className={cn(
-                "flex-1 px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-150 cursor-pointer",
+                "flex-1 flex items-center justify-center px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-150 cursor-pointer",
                 isActive
                     ? "bg-indigo-600 text-white shadow-md"
-                    : "text-(--cl-text-muted) hover:text-(--cl-text) hover:bg-(--cl-surface)/60"
+                    : "text-(--cl-text-muted) hover:text-(--cl-text) hover:bg-(--cl-surface)/60",
+                className
             )}
             onClick={() => setActive(value)}
         >

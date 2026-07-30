@@ -116,6 +116,7 @@ export const EditDivisionDialog = ({
     const [checkingCode, setCheckingCode] = useState(false);
     const [codeTaken,    setCodeTaken]    = useState<boolean | null>(null);
     const [states,       setStates]       = useState<StateType[]>([]);
+    const [activeTab,    setActiveTab]    = useState("details");
     const dbName             = useAppSelector(selectDbName);
     const schema             = useAppSelector(selectSchema);
     const currentBranch      = useAppSelector(selectCurrentBranch);
@@ -169,6 +170,7 @@ export const EditDivisionDialog = ({
         });
         setNameTaken(null);
         setCodeTaken(null);
+        setActiveTab("details");
         if (!dbName || !schema) return;
         apolloClient
             .query<StatesQueryDataType>({
@@ -295,10 +297,14 @@ export const EditDivisionDialog = ({
         }
     }
 
+    function onInvalid(formErrors: typeof errors) {
+        setActiveTab(formErrors.account_setting ? "accounts" : "details");
+        toast.error(MESSAGES.ERROR_DIVISION_FORM_INVALID);
+    }
+
     const submitDisabled =
         checkingName ||
         checkingCode ||
-        Object.keys(errors).length > 0 ||
         nameTaken === true ||
         codeTaken === true ||
         form.formState.isSubmitting;
@@ -316,12 +322,17 @@ export const EditDivisionDialog = ({
                     </DialogTitle>
                 </DialogHeader>
 
-                <form className="flex flex-col min-h-0 flex-1" onSubmit={form.handleSubmit(onSubmit)}>
-                    <Tabs defaultValue="details" className="flex flex-col min-h-0 flex-1">
+                <form className="flex flex-col min-h-0 flex-1" onSubmit={form.handleSubmit(onSubmit, onInvalid)}>
+                    <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col min-h-0 flex-1">
                         <TabsList className="shrink-0">
                             <TabsTrigger value="details">Details</TabsTrigger>
                             {postDataToAccounts && (
-                                <TabsTrigger value="accounts">Trace+ Accounts Integration</TabsTrigger>
+                                <TabsTrigger value="accounts" className="gap-1.5">
+                                    Trace+ Accounts Integration
+                                    {errors.account_setting && (
+                                        <span className="h-1.5 w-1.5 rounded-full bg-red-500" title="Has validation errors" />
+                                    )}
+                                </TabsTrigger>
                             )}
                         </TabsList>
 
@@ -541,7 +552,9 @@ export const EditDivisionDialog = ({
                                         </p>
                                         <div className="grid grid-cols-3 gap-3">
                                             <div className="flex flex-col gap-1.5">
-                                                <Label htmlFor="edv_client_code" className="text-xs">Client Code</Label>
+                                                <Label htmlFor="edv_client_code" className="text-xs">
+                                                    Client Code <span className="text-red-500">*</span>
+                                                </Label>
                                                 <Input
                                                     autoComplete="off"
                                                     className="h-8 text-sm"
@@ -552,7 +565,9 @@ export const EditDivisionDialog = ({
                                                 <FieldError message={errors.account_setting?.clientCode?.message} />
                                             </div>
                                             <div className="flex flex-col gap-1.5">
-                                                <Label htmlFor="edv_bu_code" className="text-xs">BU Code</Label>
+                                                <Label htmlFor="edv_bu_code" className="text-xs">
+                                                    BU Code <span className="text-red-500">*</span>
+                                                </Label>
                                                 <Input
                                                     autoComplete="off"
                                                     className="h-8 text-sm"
@@ -563,7 +578,9 @@ export const EditDivisionDialog = ({
                                                 <FieldError message={errors.account_setting?.buCode?.message} />
                                             </div>
                                             <div className="flex flex-col gap-1.5">
-                                                <Label htmlFor="edv_branch_id" className="text-xs">Branch ID</Label>
+                                                <Label htmlFor="edv_branch_id" className="text-xs">
+                                                    Branch ID <span className="text-red-500">*</span>
+                                                </Label>
                                                 <Input
                                                     autoComplete="off"
                                                     className="h-8 text-sm"

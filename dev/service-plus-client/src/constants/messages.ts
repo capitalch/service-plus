@@ -120,6 +120,7 @@ export const MESSAGES = {
   ERROR_DIVISION_CODE_EXISTS_EDIT: 'This code is already used by another division in this branch.',
   ERROR_DIVISION_UPDATE_FAILED:  'Failed to update division. Please try again.',
   ERROR_DIVISION_CHANGE_HAS_RECEIPTS: 'Division cannot be changed because one or more money receipts have already been issued against this job. Delete the receipts first to move the job to another division.',
+  ERROR_DIVISION_FORM_INVALID:   'Some fields need attention before this division can be saved. Check the highlighted tab.',
   SUCCESS_DIVISION_CREATED:      'Division created successfully.',
   SUCCESS_DIVISION_DELETED:      'Division deleted successfully.',
   SUCCESS_DIVISION_UPDATED:      'Division updated successfully.',
