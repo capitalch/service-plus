@@ -24,7 +24,6 @@ import {
 } from "@/store/context-slice";
 import { HelpPanel } from "@/components/shared/help/help-panel";
 import { HelpFab } from "@/components/shared/help/help-fab";
-import { OnboardingChecklist } from "@/components/shared/help/onboarding-checklist";
 import { BuBranchDivisionGate } from "@/features/admin/components/bu-branch-division-gate";
 import { ClientActivityBar } from "./client-activity-bar";
 import { ClientExplorerPanel } from "./client-explorer-panel";
@@ -272,7 +271,6 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
                         )}
                     </div>
                     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-                        <OnboardingChecklist />
                         {children}
                     </div>
                 </main>

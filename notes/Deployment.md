@@ -23,10 +23,11 @@
   
 ## Successful Deployment in April 2026 for service-plus-server
 
-# 1 stage: started with python:3.14.3-slim-bookworm
+# 1 stage: create environment in cloudjiffy start with python:3.14.3-slim-bookworm
 	- this is selected by selecting docker image of python, then at top dropdown select 3.14.3-slim-bookworm. This is debian
-	apt update
-	apt install nginx
+	- at command prompt
+      apt update
+      apt install nginx
 	
 # 2 Remove old apache index file. otherwise apache site will appear
   rm /usr/share/nginx/html/index.html
@@ -38,7 +39,6 @@
   sudo systemctl disable nginx
   
 # 5 create a new file as /etc/nginx/conf.d/service-plus-server.conf as
-- corrected
 server {
     listen 80;
     server_name _;
@@ -87,9 +87,9 @@ server {
   
 # 7 install code and libraries
 	pip install --upgrade pip
--   pip install aiofiles ariadne bcrypt fastapi openpyxl pandas python-multipart psycopg[binary] pydantic pydantic-settings PyJWT uvicorn[standard] websockets apscheduler mcp[cli]
+-   pip install aiofiles ariadne bcrypt fastapi openpyxl pandas python-multipart psycopg[binary] pydantic pydantic-settings PyJWT uvicorn[standard] websockets apscheduler mcp[cli] psycopg_pool httpx
 	- copy TraceServer folder as it is containing config.py to final folder in local machine
-	- npm run build for react trace-client app. Copy the dist folder to final folder in local machine
+	- npm run build for react service-plus-client app. Copy the dist folder to final folder in local machine
 	- zip final folder as say final.zip: final.zip
 	- upload in folder /usr/share/nginx/html
 	
