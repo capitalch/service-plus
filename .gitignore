@@ -146,5 +146,6 @@ keys/
 node_modules
 .vscode/settings.json
 **/config.*
+!dev/service-plus-server/app/config.py
 logs/
 deployment/
