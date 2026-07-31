@@ -1,5 +1,6 @@
 # To Do
-- app settings: no_of_job_receipts per print and single page print
+	- Opening stock does not save
+						- app settings: no_of_job_receipts per print and single page print
 - Release
 	- New client
 		- Admin user
