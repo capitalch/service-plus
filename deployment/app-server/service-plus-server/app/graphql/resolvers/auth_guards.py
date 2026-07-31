@@ -1,7 +1,7 @@
 """
 Shared GraphQL resolver guards for access-right enforcement.
 """
-from app.exceptions import AppMessages, AuthorizationException
+from app.core.exceptions import AppMessages, AuthorizationException
 
 # userType tiers that bypass every access-right check, everywhere —
 # matches the client's `hasAccessRight` bypass ("no restrictions on Admin").

@@ -7,7 +7,7 @@ from ariadne import make_executable_schema, load_schema_from_path
 from ariadne.asgi import GraphQL
 from ariadne.asgi.handlers import GraphQLTransportWSHandler
 from app.logger import logger
-from app.exceptions import format_graphql_error, AuthorizationException
+from app.core.exceptions import format_graphql_error, AuthorizationException
 from app.config import settings
 from app.core.security import decode_token
 from app.graphql.resolvers.query import query
