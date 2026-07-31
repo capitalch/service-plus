@@ -8,20 +8,12 @@ from datetime import datetime
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
-from app.db.psycopg_driver import exec_sql
-from app.db.sql_store import SqlStore
-from app.exceptions import DatabaseException
+from app.db.connection.psycopg_driver import exec_sql
+from app.db.sql.sql_base import SqlStore
+from app.core.exceptions import DatabaseException
 from app.logger import logger
 
 _scheduler: dict[str, AsyncIOScheduler | None] = {"instance": None}
-
-_GET_ACTIVE_CLIENTS = """
-    SELECT db_name FROM public.client WHERE is_active = true AND db_name IS NOT NULL
-"""
-
-_GET_ACTIVE_SCHEMAS = """
-    SELECT code FROM security.bu WHERE is_active = true
-"""
 
 
 async def generate_snapshot_for_client(db_name: str, schema: str, year: int, month: int) -> int:
@@ -53,7 +45,7 @@ async def run_monthly_snapshot() -> None:
     logger.info("Monthly snapshot job started for %d/%d", year, month)
 
     try:
-        client_rows = await exec_sql(db_name=None, schema="public", sql=_GET_ACTIVE_CLIENTS)
+        client_rows = await exec_sql(db_name=None, schema="public", sql=SqlStore.GET_ACTIVE_CLIENTS)
     except DatabaseException as exc:
         logger.error("Failed to fetch active clients for snapshot: %s", exc)
         return
@@ -63,7 +55,7 @@ async def run_monthly_snapshot() -> None:
         db_name: str = client["db_name"]
         try:
             schema_rows = await exec_sql(db_name=db_name,
-                schema="security", sql=_GET_ACTIVE_SCHEMAS)
+                schema="security", sql=SqlStore.GET_ACTIVE_SCHEMAS)
         except DatabaseException as exc:
             logger.error("Failed to fetch schemas for %s: %s", db_name, exc)
             continue

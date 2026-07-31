@@ -1,6 +1,6 @@
 """
-Regenerates app/db/sql_security.py and app/db/sql_bu.py from a pg_dump
-schema-only file (default: app/db/service_plus_service.sql).
+Regenerates app/db/sql/sql_bu_admin_ddl.py from a pg_dump schema-only file
+(default: app/db/schema_dumps/service_plus_service.sql).
 
 The source file is a `pg_dump --schema-only` dump containing two Postgres
 schemas: a fixed `security` schema and one "template" BU schema (default
@@ -15,6 +15,11 @@ This script scans for those markers, keeps only the blocks belonging to the
 target schema for each pass, strips pg_dump ownership/comment noise, and
 (for the BU pass only) strips the schema-qualifier prefix so the emitted DDL
 relies on `search_path` like the rest of the BU-schema tooling.
+
+Both DDL blocks are written into a single generated module — sql_bu_admin_ddl.py
+— as one BuAdminDdl class (SECURITY_SCHEMA_DDL + BU_SCHEMA_DDL). It is imported
+and subclassed by the hand-maintained BuAdminSql (app/db/sql/sql_bu_admin.py),
+so re-running this extractor never touches the hand-written business constants.
 
 Run manually whenever service_plus_service.sql changes:
 
@@ -114,14 +119,21 @@ def extract_schema_ddl(blocks: list[DdlBlock], schema_name: str, *, unqualify: b
     return "\n\n".join(statements) + "\n"
 
 
-def render_module(class_name: str, constant_name: str, ddl: str, source_path: Path) -> str:
+def _render_constant(constant_name: str, ddl: str) -> str:
     indented_lines = [f"        {line}" if line.strip() else "" for line in ddl.splitlines()]
     indented = "\n".join(indented_lines)
+    return f'    {constant_name} = """\n{indented}\n    """\n'
+
+
+def render_combined_module(security_ddl: str, bu_ddl: str, source_path: Path) -> str:
+    """Render both DDL blocks into one BuAdminDdl class."""
     return (
         _GENERATED_HEADER.format(source_name=source_path.name)
-        + f"class {class_name}:\n"
-        + f'    """DDL generated from {source_path.name}. Do not hand-edit."""\n\n'
-        + f'    {constant_name} = """\n{indented}\n    """\n'
+        + "class BuAdminDdl:\n"
+        + f'    """Raw DDL generated from {source_path.name}. Do not hand-edit."""\n\n'
+        + _render_constant("SECURITY_SCHEMA_DDL", security_ddl)
+        + "\n"
+        + _render_constant("BU_SCHEMA_DDL", bu_ddl)
     )
 
 
@@ -134,15 +146,11 @@ def run(source: Path, bu_schema_name: str, out_dir: Path) -> dict[str, int]:
     security_ddl = extract_schema_ddl(blocks, "security", unqualify=False)
     bu_ddl = extract_schema_ddl(blocks, bu_schema_name, unqualify=True)
 
-    security_path = out_dir / "sql_security.py"
-    bu_path = out_dir / "sql_bu.py"
-
-    security_path.write_text(render_module("SqlSecurity", "SECURITY_SCHEMA_DDL", security_ddl, source))
-    bu_path.write_text(render_module("SqlBu", "BU_SCHEMA_DDL", bu_ddl, source))
+    out_path = out_dir / "sql_bu_admin_ddl.py"
+    out_path.write_text(render_combined_module(security_ddl, bu_ddl, source))
 
     return {
-        str(security_path): len(security_ddl.splitlines()),
-        str(bu_path): len(bu_ddl.splitlines()),
+        str(out_path): len(security_ddl.splitlines()) + len(bu_ddl.splitlines()),
     }
 
 
@@ -150,7 +158,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument(
         "--source",
-        default="app/db/service_plus_service.sql",
+        default="app/db/schema_dumps/service_plus_service.sql",
         help="Path to the pg_dump schema-only source file.",
     )
     parser.add_argument(
@@ -160,8 +168,8 @@ def main() -> None:
     )
     parser.add_argument(
         "--out-dir",
-        default="app/db",
-        help="Directory to write sql_security.py / sql_bu.py into.",
+        default="app/db/sql",
+        help="Directory to write sql_bu_admin_ddl.py into.",
     )
     args = parser.parse_args()
 

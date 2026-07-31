@@ -9,13 +9,13 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.core.audit_log import audit_logger
-from app.db.pool_manager import pool_manager
-from app.exceptions import AppMessages
+from app.db.connection.pool_manager import pool_manager
+from app.core.exceptions import AppMessages
 from app.graphql.schema import create_graphql_app
 from app.logger import logger, configure_for_uvicorn
-from app.routers.auth_router import router as auth_router
+from app.routers.auth.router import router as auth_router
 from app.routers.base_router import router as base_router
-from app.routers.image_router import router as image_router
+from app.routers.media.image_router import router as image_router
 from app.scheduler import start_scheduler, stop_scheduler
 
 
@@ -66,7 +66,7 @@ app = FastAPI(
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -90,8 +90,8 @@ if __name__ == "__main__":
 
     uvicorn.run(
         "app.main:app",
-        # host=settings.host,
-        # port=settings.port,
+        host=settings.host,
+        port=settings.port,
         reload=settings.debug,
         log_level="info" if settings.debug else "warning"
     )
