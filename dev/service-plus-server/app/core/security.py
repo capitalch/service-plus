@@ -9,7 +9,7 @@ import jwt
 
 from app.config import settings
 from app.logger import logger
-from app.exceptions import AppMessages, AuthorizationException
+from app.core.exceptions import AppMessages, AuthorizationException
 
 
 # ---------------------------------------------------------------------------

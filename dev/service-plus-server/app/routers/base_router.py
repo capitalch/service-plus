@@ -5,7 +5,7 @@ from fastapi import APIRouter
 import smtplib
 from app.config import settings
 from app.core.email import send_email
-from app.exceptions import AppMessages
+from app.core.exceptions import AppMessages
 from app.logger import logger
 
 router = APIRouter()

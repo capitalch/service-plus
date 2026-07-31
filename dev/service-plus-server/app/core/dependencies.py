@@ -5,9 +5,9 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 
 from app.core.security import decode_token
-from app.db.psycopg_driver import exec_sql
-from app.db.sql_store import SqlStore
-from app.exceptions import AppMessages, AuthorizationException
+from app.db.connection.psycopg_driver import exec_sql
+from app.db.sql.sql_base import SqlStore
+from app.core.exceptions import AppMessages, AuthorizationException
 from app.logger import logger
 
 # Reads the Bearer token from the Authorization header.
