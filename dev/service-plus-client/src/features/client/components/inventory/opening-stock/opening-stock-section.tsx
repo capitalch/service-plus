@@ -1,13 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { FormProvider, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import {FileText, Loader2, MoreHorizontal, Pencil, RefreshCw, Save, Search, Trash2, X} from "lucide-react";
-import { ViewModeToggle, type ViewMode } from "@/features/client/components/inventory/view-mode-toggle";
+import { FileText, Loader2, RefreshCw, Save, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
-import { SEARCH_DEBOUNCE_MS } from "@/constants/timing";
 import {
     Dialog,
     DialogContent,
@@ -15,13 +13,6 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
 
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { MESSAGES } from "@/constants/messages";
@@ -43,15 +34,6 @@ import { NewOpeningStock } from "./new-opening-stock";
 
 type GenericQueryData<T> = { genericQuery: T[] | null };
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-const PAGE_SIZE   = 50;
-
-// ─── CSS ──────────────────────────────────────────────────────────────────────
-
-const thClass = "sticky top-0 z-20 text-xs font-semibold uppercase tracking-wide text-(--cl-text-muted) p-3 text-left border-b border-(--cl-border) bg-(--cl-surface-2)";
-const tdClass = "p-3 text-sm text-(--cl-text) border-b border-(--cl-border)";
-
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export const OpeningStockSection = () => {
@@ -60,30 +42,19 @@ export const OpeningStockSection = () => {
     const globalBranch = useAppSelector(selectCurrentBranch);
     const branchId     = globalBranch?.id ?? null;
 
-    // Filter state
-    const [search,        setSearch]        = useState("");
-    const [searchQ,       setSearchQ]       = useState("");
     const [selectedBrand, setSelectedBrand] = useState("");
-
-    // Mode
-    const [mode, setMode] = useState<ViewMode>("new");
 
     // Metadata
     const [brands,   setBrands]   = useState<BrandOption[]>([]);
     const [txnTypes, setTxnTypes] = useState<StockTransactionTypeRow[]>([]);
 
-    // Data
-    const [entries, setEntries] = useState<OpeningStockListItem[]>([]);
-    const [total,   setTotal]   = useState(0);
-    const [page,    setPage]    = useState(1);
-    const [loading, setLoading] = useState(false);
+    // The branch's single opening-stock entry, if one already exists.
+    const [existingEntry, setExistingEntry] = useState<OpeningStockListItem | null>(null);
+    const [entryLoading,  setEntryLoading]  = useState(false);
 
     // Dialog state
-    const [deleteId, setDeleteId] = useState<number | null>(null);
-    const [deleting, setDeleting] = useState(false);
-
-    // Edit state
-    const [editEntry, setEditEntry] = useState<OpeningStockListItem | null>(null);
+    const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+    const [deleting,          setDeleting]          = useState(false);
 
     // Lines lifted from child
     const selectedBrandId = selectedBrand ? Number(selectedBrand) : null;
@@ -96,30 +67,6 @@ export const OpeningStockSection = () => {
         mode:          "onChange",
         resolver:      zodResolver(openingStockSchema) as any,
     });
-
-    const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const scrollWrapperRef = useRef<HTMLDivElement>(null);
-
-    const [maxHeight, setMaxHeight] = useState<number>(0);
-
-    const recalc = useCallback(() => {
-        if (scrollWrapperRef.current) {
-            const rect = scrollWrapperRef.current.getBoundingClientRect();
-            const availableHeight = window.innerHeight - rect.top - 60;
-            setMaxHeight(Math.max(200, availableHeight));
-        }
-    }, []);
-
-    useEffect(() => {
-        if (mode === "view") {
-            const timer = setTimeout(recalc, 100);
-            window.addEventListener("resize", recalc);
-            return () => {
-                clearTimeout(timer);
-                window.removeEventListener("resize", recalc);
-            };
-        }
-    }, [mode, recalc, entries.length]);
 
     // Load brands and txnTypes on mount
     useEffect(() => {
@@ -157,68 +104,61 @@ export const OpeningStockSection = () => {
         void fetchMeta();
     }, [dbName, schema]);
 
-    // Load entries (paged)
-    const loadData = useCallback(async (
-        bId: number, q: string, pg: number,
-    ) => {
+    // A branch can only ever have one opening-stock entry (DB-unique on
+    // branch_id). Check whether one already exists whenever the branch changes.
+    const checkExistingEntry = useCallback(async (bId: number) => {
         if (!dbName || !schema) return;
-        setLoading(true);
+        setEntryLoading(true);
         try {
-            const commonArgs = { branch_id: bId, search: q };
-            const [dataRes, countRes] = await Promise.all([
-                apolloClient.query<GenericQueryData<OpeningStockListItem>>({
-                    fetchPolicy: "network-only",
-                    query: GRAPHQL_MAP.genericQuery,
-                    variables: {
-                        db_name: dbName,
-                        schema,
-                        value: graphQlUtils.buildGenericQueryValue({
-                            sqlArgs: { ...commonArgs, limit: PAGE_SIZE, offset: (pg - 1) * PAGE_SIZE },
-                            sqlId:   SQL_MAP.GET_OPENING_STOCK_PAGED,
-                        }),
-                    },
-                }),
-                apolloClient.query<GenericQueryData<{ total: number }>>({
-                    fetchPolicy: "network-only",
-                    query: GRAPHQL_MAP.genericQuery,
-                    variables: {
-                        db_name: dbName,
-                        schema,
-                        value: graphQlUtils.buildGenericQueryValue({
-                            sqlArgs: commonArgs,
-                            sqlId:   SQL_MAP.GET_OPENING_STOCK_COUNT,
-                        }),
-                    },
-                }),
-            ]);
-            setEntries(dataRes.data?.genericQuery ?? []);
-            setTotal(countRes.data?.genericQuery?.[0]?.total ?? 0);
+            const res = await apolloClient.query<GenericQueryData<OpeningStockListItem>>({
+                fetchPolicy: "network-only",
+                query: GRAPHQL_MAP.genericQuery,
+                variables: {
+                    db_name: dbName,
+                    schema,
+                    value: graphQlUtils.buildGenericQueryValue({
+                        sqlArgs: { branch_id: bId, limit: 1, offset: 0, search: "" },
+                        sqlId:   SQL_MAP.GET_OPENING_STOCK_PAGED,
+                    }),
+                },
+            });
+            const found = res.data?.genericQuery?.[0] ?? null;
+            setExistingEntry(found);
+            // NewOpeningStock's populate-on-editEntry effect only acts when editEntry is
+            // truthy, so switching to a branch with no entry needs an explicit blank reset
+            // here — otherwise the previous branch's lines would stay on screen.
+            if (!found) {
+                form.reset({ ...getOpeningStockDefaultValues(), lines: [getInitialOpeningStockLine(selectedBrandId)] });
+                setOriginalLineIds([]);
+            }
         } catch {
             toast.error(MESSAGES.ERROR_OPENING_STOCK_LOAD_FAILED);
         } finally {
-            setLoading(false);
+            setEntryLoading(false);
         }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [dbName, schema]);
 
-    // Re-fetch when filters or branch change
     useEffect(() => {
-        if (mode !== "view" || !branchId) return;
-        void loadData(Number(branchId), searchQ, page);
-    }, [branchId, searchQ, page, mode, loadData]);
-
-    const handleSearchChange = (value: string) => {
-        setSearch(value);
-        if (debounceRef.current) clearTimeout(debounceRef.current);
-        debounceRef.current = setTimeout(() => {
-            setPage(1);
-            setSearchQ(value);
-        }, SEARCH_DEBOUNCE_MS);
-    };
+        if (!branchId) {
+            setExistingEntry(null);
+            form.reset({ ...getOpeningStockDefaultValues(), lines: [getInitialOpeningStockLine(selectedBrandId)] });
+            setOriginalLineIds([]);
+            return;
+        }
+        void checkExistingEntry(Number(branchId));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [branchId, checkExistingEntry]);
 
     const handleReset = () => {
-        form.reset({ ...getOpeningStockDefaultValues(), lines: [getInitialOpeningStockLine(selectedBrandId)] });
-        setOriginalLineIds([]);
-        setEditEntry(null);
+        if (existingEntry) {
+            // Discard unsaved local edits by re-triggering NewOpeningStock's
+            // populate-from-server effect (it re-fetches on editEntry identity change).
+            setExistingEntry({ ...existingEntry });
+        } else {
+            form.reset({ ...getOpeningStockDefaultValues(), lines: [getInitialOpeningStockLine(selectedBrandId)] });
+            setOriginalLineIds([]);
+        }
     };
 
     const executeSave = async (values: OpeningStockFormValues) => {
@@ -267,11 +207,11 @@ export const OpeningStockSection = () => {
         };
 
         try {
-            if (editEntry) {
+            if (existingEntry) {
                 const payload = graphQlUtils.buildGenericUpdateValue({
                     tableName: "stock_opening_balance",
                     xData: {
-                        id: editEntry.id,
+                        id: existingEntry.id,
                         ...headerFields,
                         xDetails: {
                             deletedIds: originalLineIds,
@@ -286,8 +226,7 @@ export const OpeningStockSection = () => {
                     variables: { db_name: dbName, schema, value: payload },
                 });
                 toast.success(MESSAGES.SUCCESS_OPENING_STOCK_UPDATED);
-                setMode("view");
-                if (branchId) void loadData(Number(branchId), searchQ, 1);
+                await checkExistingEntry(Number(branchId));
             } else {
                 const payload = graphQlUtils.buildGenericUpdateValue({
                     tableName: "stock_opening_balance",
@@ -306,18 +245,19 @@ export const OpeningStockSection = () => {
                     variables: { db_name: dbName, schema, value: payload },
                 });
                 toast.success(MESSAGES.SUCCESS_OPENING_STOCK_CREATED);
+                // The branch now has its one-and-only entry — load it so any
+                // further parts added go through the update path, not another insert.
+                await checkExistingEntry(Number(branchId));
             }
-            form.reset({ ...getOpeningStockDefaultValues(), lines: [getInitialOpeningStockLine(selectedBrandId)] });
             setOriginalLineIds([]);
-            setEditEntry(null);
         } catch {
-            toast.error(editEntry ? MESSAGES.ERROR_OPENING_STOCK_UPDATE_FAILED : MESSAGES.ERROR_OPENING_STOCK_CREATE_FAILED);
+            toast.error(existingEntry ? MESSAGES.ERROR_OPENING_STOCK_UPDATE_FAILED : MESSAGES.ERROR_OPENING_STOCK_CREATE_FAILED);
         }
     };
 
     // Delete
     const handleDelete = async () => {
-        if (!deleteId || !dbName || !schema || !branchId) return;
+        if (!existingEntry || !dbName || !schema) return;
         setDeleting(true);
         try {
             await apolloClient.mutate({
@@ -326,15 +266,17 @@ export const OpeningStockSection = () => {
                     db_name: dbName,
                     schema,
                     value: graphQlUtils.buildGenericUpdateValue({
-                        deletedIds: [deleteId],
+                        deletedIds: [existingEntry.id],
                         tableName:  "stock_opening_balance",
                         xData:      {},
                     }),
                 },
             });
             toast.success(MESSAGES.SUCCESS_OPENING_STOCK_DELETED);
-            setDeleteId(null);
-            void loadData(Number(branchId), searchQ, page);
+            setDeleteConfirmOpen(false);
+            setExistingEntry(null);
+            form.reset({ ...getOpeningStockDefaultValues(), lines: [getInitialOpeningStockLine(selectedBrandId)] });
+            setOriginalLineIds([]);
         } catch {
             toast.error(MESSAGES.ERROR_OPENING_STOCK_DELETE_FAILED);
         } finally {
@@ -342,14 +284,12 @@ export const OpeningStockSection = () => {
         }
     };
 
-    const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-
     // ── Render ─────────────────────────────────────────────────────────────────
 
     return (
         <motion.div
             animate={{ opacity: 1 }}
-            className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden"
+            className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto md:overflow-hidden"
             initial={{ opacity: 0 }}
             transition={{ duration: 0.25 }}
         >
@@ -363,13 +303,13 @@ export const OpeningStockSection = () => {
                     <div className="flex items-baseline gap-2 overflow-hidden">
                         <h1 className="text-lg font-bold text-(--cl-text) truncate">
                             Opening Stock
-                            {mode === "new" && !editEntry && <span className="ml-2 text-sm font-medium text-(--cl-text-muted) whitespace-nowrap">— New</span>}
-                            {mode === "new" &&  editEntry && <span className="ml-2 text-sm font-medium text-amber-500 whitespace-nowrap">— Edit</span>}
-                            {mode === "view" && <span className="ml-2 text-sm font-medium text-(--cl-text-muted) whitespace-nowrap">— View</span>}
+                            {entryLoading && <span className="ml-2 text-sm font-medium text-(--cl-text-muted) whitespace-nowrap">— Loading…</span>}
+                            {!entryLoading && existingEntry && <span className="ml-2 text-sm font-medium text-amber-500 whitespace-nowrap">— Edit</span>}
+                            {!entryLoading && !existingEntry && <span className="ml-2 text-sm font-medium text-(--cl-text-muted) whitespace-nowrap">— New</span>}
                         </h1>
-                        {mode === "view" && (
-                            <span className="text-xs text-(--cl-text-muted) whitespace-nowrap">
-                                {loading ? "Loading…" : `(${total})`}
+                        {!entryLoading && existingEntry && (
+                            <span className="truncate text-xs text-(--cl-text-muted)">
+                                {MESSAGES.INFO_OPENING_STOCK_EXISTING_ENTRY}
                             </span>
                         )}
                     </div>
@@ -378,30 +318,33 @@ export const OpeningStockSection = () => {
                 {/* Spacer */}
                 <div className="flex-1" />
 
-                {/* Mode Toggle */}
-                <ViewModeToggle
-                    mode={mode}
-                    isEditing={!!editEntry}
-                    onNewClick={() => { handleReset(); setMode("new"); }}
-                    onViewClick={() => { setMode("view"); if (branchId) void loadData(Number(branchId), searchQ, page); }}
+                {/* Brand */}
+                <BrandSelect
+                    brands={brands}
+                    value={selectedBrand}
+                    onValueChange={setSelectedBrand}
+                    disabled={brands.length === 0 || entryLoading}
+                    highlightEmpty={!existingEntry && !selectedBrand}
                 />
 
-                {/* Brand */}
-                <div className={mode !== "new" ? "hidden md:flex md:invisible pointer-events-none" : ""}>
-                    <BrandSelect
-                        brands={brands}
-                        value={selectedBrand}
-                        onValueChange={setSelectedBrand}
-                        disabled={brands.length === 0 || loading}
-                        highlightEmpty={mode === "new" && !selectedBrand}
-                    />
-                </div>
+                {/* Delete — only when an entry exists */}
+                {existingEntry && (
+                    <Button
+                        className="h-8 gap-1.5 px-3 text-xs font-extrabold uppercase tracking-widest text-red-600 hover:bg-red-500/10 hover:text-red-700"
+                        disabled={form.formState.isSubmitting || entryLoading}
+                        variant="ghost"
+                        onClick={() => setDeleteConfirmOpen(true)}
+                    >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        Delete
+                    </Button>
+                )}
 
-                {/* Reset · Save — invisible in view mode */}
-                <div className={`flex items-center gap-2 ${mode !== "new" ? "hidden md:flex md:invisible pointer-events-none" : ""}`}>
+                {/* Reset · Save */}
+                <div className="flex items-center gap-2">
                     <Button
                         className="h-8 gap-1.5 px-3 text-xs font-extrabold uppercase tracking-widest text-(--cl-text)"
-                        disabled={form.formState.isSubmitting}
+                        disabled={form.formState.isSubmitting || entryLoading}
                         variant="ghost"
                         onClick={handleReset}
                     >
@@ -410,7 +353,7 @@ export const OpeningStockSection = () => {
                     </Button>
                     <Button
                         className="h-8 gap-1.5 px-4 text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm font-extrabold uppercase tracking-widest transition-all disabled:opacity-30 disabled:bg-slate-300 disabled:text-slate-600 disabled:shadow-none disabled:cursor-not-allowed"
-                        disabled={!form.formState.isValid || !linesValid || !selectedBrandId || form.formState.isSubmitting}
+                        disabled={!form.formState.isValid || !linesValid || !selectedBrandId || form.formState.isSubmitting || entryLoading}
                         onClick={form.handleSubmit(executeSave)}
                     >
                         {form.formState.isSubmitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
@@ -419,238 +362,50 @@ export const OpeningStockSection = () => {
                 </div>
             </div>
 
-            {mode === "new" ? (
-                <FormProvider {...form}>
-                    <NewOpeningStock
-                        branchId={branchId}
-                        brandName={brands.find(b => String(b.id) === selectedBrand)?.name}
-                        editEntry={editEntry}
-                        onLinesValidChange={setLinesValid}
-                        selectedBrandId={selectedBrandId}
-                        setOriginalLineIds={setOriginalLineIds}
-                        form={form}
-                    />
-                </FormProvider>
-            ) : (
-                <>
-                    {/* Toolbar */}
-                    <div className="flex flex-wrap items-center gap-2 px-4 py-2 bg-(--cl-surface-2)/30">
-                        <div className="relative flex-1 sm:max-w-xs">
-                            <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-(--cl-text-muted)" />
-                            <Input
-                                className="h-8 border-(--cl-border) bg-(--cl-surface) pl-8 text-xs"
-                                placeholder="Ref #, Remarks…"
-                                value={search}
-                                onChange={e => handleSearchChange(e.target.value)}
-                            />
-                            {search && (
-                                <button
-                                    className="absolute right-2.5 top-1/2 flex h-4 w-4 -translate-y-1/2 items-center justify-center rounded-full bg-(--cl-text-muted) text-(--cl-surface) hover:bg-(--cl-text) focus:outline-none"
-                                    type="button"
-                                    onClick={() => handleSearchChange("")}
-                                >
-                                    <X className="h-2.5 w-2.5" />
-                                </button>
-                            )}
-                        </div>
-                        <div className="flex items-center gap-2 ml-auto">
-                            <Button
-                                className="h-8 px-2.5 text-xs"
-                                disabled={loading || !branchId}
-                                size="sm"
-                                variant="outline"
-                                onClick={() => { if (branchId) void loadData(Number(branchId), searchQ, page); }}
-                            >
-                                <RefreshCw className="mr-1.5 h-3 w-3" />
-                                Refresh
-                            </Button>
-                        </div>
-                    </div>
+            <FormProvider {...form}>
+                <NewOpeningStock
+                    branchId={branchId}
+                    brandName={brands.find(b => String(b.id) === selectedBrand)?.name}
+                    editEntry={existingEntry}
+                    onLinesValidChange={setLinesValid}
+                    selectedBrandId={selectedBrandId}
+                    setOriginalLineIds={setOriginalLineIds}
+                    form={form}
+                />
+            </FormProvider>
 
-                    {/* Data Grid */}
-                    <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-(--cl-border) bg-(--cl-surface) shadow-sm">
-                        <div
-                            ref={scrollWrapperRef}
-                            className="flex-1 overflow-x-auto overflow-y-auto"
-                            style={{ maxHeight: mode === "view" ? maxHeight : undefined }}
+            {/* Delete Confirm Dialog */}
+            <Dialog
+                open={deleteConfirmOpen}
+                onOpenChange={open => { if (!open && !deleting) setDeleteConfirmOpen(false); }}
+            >
+                <DialogContent aria-describedby={undefined} className="sm:max-w-sm !bg-white text-(--cl-text)">
+                    <DialogHeader>
+                        <DialogTitle>Delete Opening Stock Entry</DialogTitle>
+                    </DialogHeader>
+                    <p className="text-sm text-(--cl-text-muted)">
+                        This will permanently delete the opening stock entry and all associated stock transactions.
+                        This action cannot be undone.
+                    </p>
+                    <DialogFooter>
+                        <Button
+                            disabled={deleting}
+                            variant="outline"
+                            onClick={() => setDeleteConfirmOpen(false)}
                         >
-                            {loading ? (
-                                <table className="min-w-full border-collapse">
-                                    <thead className="sticky top-0 z-30">
-                                        <tr className="bg-(--cl-surface-2)">
-                                            <th className={thClass} style={{ width: "5%" }}>#</th>
-                                            <th className={thClass} style={{ width: "10%" }}>Date</th>
-                                            <th className={thClass} style={{ width: "10%" }}>Brand</th>
-                                            <th className={thClass} style={{ width: "13%" }}>Ref #</th>
-                                            <th className={`${thClass} text-right`} style={{ width: "8%" }}>Lines</th>
-                                            <th className={`${thClass} text-right`} style={{ width: "12%" }}>Total Qty</th>
-                                            <th className={`${thClass} text-right`} style={{ width: "12%" }}>Total Value</th>
-                                            <th className={thClass} style={{ width: "20%" }}>Remarks</th>
-                                            <th className={`${thClass} text-center`} style={{ width: "10%" }}>Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {Array.from({ length: 15 }).map((_, i) => (
-                                            <tr key={i} className="animate-pulse">
-                                                <td className={tdClass}><div className="h-4 w-4 rounded bg-(--cl-border)" /></td>
-                                                <td className={tdClass}><div className="h-4 w-20 rounded bg-(--cl-border)" /></td>
-                                                <td className={tdClass}><div className="h-4 w-20 rounded bg-(--cl-border)" /></td>
-                                                <td className={tdClass}><div className="h-4 w-24 rounded bg-(--cl-border)" /></td>
-                                                <td className={`${tdClass} text-right`}><div className="ml-auto h-4 w-8 rounded bg-(--cl-border)" /></td>
-                                                <td className={`${tdClass} text-right`}><div className="ml-auto h-4 w-12 rounded bg-(--cl-border)" /></td>
-                                                <td className={`${tdClass} text-right`}><div className="ml-auto h-4 w-16 rounded bg-(--cl-border)" /></td>
-                                                <td className={tdClass}><div className="h-4 w-48 rounded bg-(--cl-border)" /></td>
-                                                <td className={tdClass}><div className="mx-auto h-4 w-8 rounded bg-(--cl-border)" /></td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            ) : entries.length === 0 ? (
-                                <div className="flex h-32 items-center justify-center text-sm text-(--cl-text-muted)">
-                                    No opening stock entries found for the selected filters.
-                                </div>
-                            ) : (
-                                <table className="min-w-full border-collapse">
-                                    <thead>
-                                        <tr>
-                                            <th className={thClass}>#</th>
-                                            <th className={thClass}>Date</th>
-                                            <th className={thClass}>Brand</th>
-                                            <th className={thClass}>Ref #</th>
-                                            <th className={`${thClass} text-right`}>Lines</th>
-                                            <th className={`${thClass} text-right`}>Total Qty</th>
-                                            <th className={`${thClass} text-right`}>Total Value</th>
-                                            <th className={thClass}>Remarks</th>
-                                            <th className={`${thClass} sticky right-0 z-20 !bg-(--cl-surface-2)`}>Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-(--cl-border) bg-(--cl-surface)">
-                                        {entries.map((entry, idx) => (
-                                            <tr key={entry.id} className="group transition-colors hover:bg-(--cl-accent)/5 dark:hover:bg-white/[0.03]">
-                                                <td className={`${tdClass} text-(--cl-text-muted)`} style={{ width: "5%" }}>
-                                                    {(page - 1) * PAGE_SIZE + idx + 1}
-                                                </td>
-                                                <td className={tdClass} style={{ width: "10%" }}>
-                                                    {entry.entry_date}
-                                                </td>
-                                                <td className={tdClass} style={{ width: "10%" }}>
-                                                    {brands.find(b => b.id === entry.brand_id)?.name ?? "—"}
-                                                </td>
-                                                <td className={`${tdClass} font-mono`} style={{ width: "13%" }}>
-                                                    {entry.ref_no ?? "—"}
-                                                </td>
-                                                <td className={`${tdClass} text-right font-mono`} style={{ width: "8%" }}>
-                                                    {entry.line_count}
-                                                </td>
-                                                <td className={`${tdClass} text-right font-mono`} style={{ width: "12%" }}>
-                                                    {Number(entry.total_qty).toFixed(3)}
-                                                </td>
-                                                <td className={`${tdClass} text-right font-mono font-semibold text-(--cl-accent)`} style={{ width: "12%" }}>
-                                                    {Number(entry.total_value).toFixed(2)}
-                                                </td>
-                                                <td className={`${tdClass} text-(--cl-text-muted)`} style={{ width: "20%" }}>
-                                                    {entry.remarks ?? "—"}
-                                                </td>
-                                                <td className={`${tdClass} sticky right-0 z-10 bg-(--cl-surface) group-hover:bg-(--cl-surface-2)`} style={{ width: "10%" }}>
-                                                    <div className="flex items-center justify-center">
-                                                        <DropdownMenu>
-                                                            <DropdownMenuTrigger asChild>
-                                                                <Button
-                                                                    className="h-8 w-8 p-0 hover:bg-(--cl-accent)/15 dark:hover:bg-(--cl-accent)/20 transition-all duration-200"
-                                                                    variant="ghost"
-                                                                >
-                                                                    <MoreHorizontal className="h-4 w-4" />
-                                                                    <span className="sr-only">Open menu</span>
-                                                                </Button>
-                                                            </DropdownMenuTrigger>
-                                                            <DropdownMenuContent align="end" className="w-[160px] bg-white dark:bg-zinc-950 border-(--cl-border) shadow-[0_10px_30px_rgba(0,0,0,0.2)] z-50">
-                                                                <DropdownMenuItem
-                                                                    className="flex items-center gap-2 cursor-pointer text-amber-500 focus:bg-amber-500/10 focus:text-amber-600"
-                                                                    onClick={() => { setEditEntry(entry); setSelectedBrand(String(entry.brand_id)); setMode("new"); }}
-                                                                >
-                                                                    <Pencil className="h-4 w-4" />
-                                                                    <span>Edit</span>
-                                                                </DropdownMenuItem>
-                                                                <DropdownMenuItem
-                                                                    className="flex items-center gap-2 cursor-pointer text-red-500 focus:bg-red-500/10 focus:text-red-600 font-semibold"
-                                                                    onClick={() => setDeleteId(entry.id)}
-                                                                >
-                                                                    <Trash2 className="h-4 w-4" />
-                                                                    <span>Delete</span>
-                                                                </DropdownMenuItem>
-                                                            </DropdownMenuContent>
-                                                        </DropdownMenu>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            )}
-                        </div>
-
-                        {/* Pagination */}
-                        {totalPages > 1 && (
-                            <div className="flex items-center justify-between border-t border-(--cl-border) px-4 py-2">
-                                <span className="text-xs text-(--cl-text-muted)">
-                                    {total === 0 ? "No items" : `Showing ${(page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, total)} of ${total} items (Page ${page} of ${totalPages})`}
-                                </span>
-                                <div className="flex gap-1">
-                                    <Button
-                                        disabled={page <= 1 || loading}
-                                        size="sm"
-                                        variant="outline"
-                                        onClick={() => setPage(p => p - 1)}
-                                    >
-                                        Prev
-                                    </Button>
-                                    <Button
-                                        disabled={page >= totalPages || loading}
-                                        size="sm"
-                                        variant="outline"
-                                        onClick={() => setPage(p => p + 1)}
-                                    >
-                                        Next
-                                    </Button>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Delete Confirm Dialog */}
-                    <Dialog
-                        open={deleteId !== null}
-                        onOpenChange={open => { if (!open && !deleting) setDeleteId(null); }}
-                    >
-                        <DialogContent aria-describedby={undefined} className="sm:max-w-sm !bg-white text-(--cl-text)">
-                            <DialogHeader>
-                                <DialogTitle>Delete Opening Stock Entry</DialogTitle>
-                            </DialogHeader>
-                            <p className="text-sm text-(--cl-text-muted)">
-                                This will permanently delete the opening stock entry and all associated stock transactions.
-                                This action cannot be undone.
-                            </p>
-                            <DialogFooter>
-                                <Button
-                                    disabled={deleting}
-                                    variant="outline"
-                                    onClick={() => setDeleteId(null)}
-                                >
-                                    Cancel
-                                </Button>
-                                <Button
-                                    disabled={deleting}
-                                    variant="destructive"
-                                    onClick={() => void handleDelete()}
-                                >
-                                    {deleting && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}
-                                    Delete
-                                </Button>
-                            </DialogFooter>
-                        </DialogContent>
-                    </Dialog>
-                </>
-            )}
+                            Cancel
+                        </Button>
+                        <Button
+                            disabled={deleting}
+                            variant="destructive"
+                            onClick={() => void handleDelete()}
+                        >
+                            {deleting && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}
+                            Delete
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </motion.div>
     );
 };

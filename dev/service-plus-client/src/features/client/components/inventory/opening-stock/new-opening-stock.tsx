@@ -82,6 +82,11 @@ export function NewOpeningStock({
 
     useEffect(() => {
         function recalc() {
+            // Below md, opening-stock-section.tsx's root scrolls the whole screen
+            // (overflow-y-auto) instead of being a fixed-height overflow-hidden shell —
+            // so the table should just flow at its natural height and let the page
+            // handle scrolling. Capping it here too would create a second, nested
+            // scroll region competing with the page scroll on touch devices.
             if (window.innerWidth < 768) {
                 setMaxTableHeight(undefined);
                 return;
@@ -90,7 +95,15 @@ export function NewOpeningStock({
             if (!el) return;
             const top = el.getBoundingClientRect().top;
             const summaryHeight = summaryRef.current?.getBoundingClientRect().height ?? 0;
-            setMaxTableHeight(window.innerHeight - top - summaryHeight - 8 - 14);
+            // On md+, opening-stock-section.tsx's root IS a fixed-height overflow-hidden
+            // shell (matches the rest of the app's page layout), so the table owns its
+            // own internal scroll area there instead.
+            //
+            // <main> is absolutely positioned with a "bottom-6" inset (space reserved for
+            // ClientStatusBar below it) — its real bottom edge is NOT window.innerHeight.
+            // Measure it directly instead of guessing the offset.
+            const bottomBoundary = el.closest("main")?.getBoundingClientRect().bottom ?? window.innerHeight;
+            setMaxTableHeight(Math.max(200, bottomBoundary - top - summaryHeight - 14));
         }
         recalc();
         window.addEventListener("resize", recalc);
@@ -174,7 +187,7 @@ export function NewOpeningStock({
 
                     {/* Header card */}
                     <Card className="border-(--cl-border) bg-(--cl-surface) !overflow-visible shadow-md">
-                        <CardContent className="pt-4 !overflow-visible">
+                        <CardContent className="pt-0 !overflow-visible">
                             <div className="grid grid-cols-1 gap-x-2 gap-y-2 md:grid-cols-6 lg:grid-cols-12">
                                 {/* Date */}
                                 <div className="space-y-2 md:col-span-2 lg:col-span-2">

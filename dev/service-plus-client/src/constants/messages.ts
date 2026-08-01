@@ -474,6 +474,7 @@ export const MESSAGES = {
   ERROR_JOB_INVOICE_REGEN_FAILED:      'Failed to regenerate invoice. Please try again.',
   PDF_RECEIPT_DISCLAIMER:              'Received the amounts stated above on the specified dates against their respective reference numbers. Cheque receipts are subject to realization.',
   // Opening Stock
+  INFO_OPENING_STOCK_EXISTING_ENTRY:      '· Add more parts below',
   ERROR_OPENING_STOCK_LOAD_FAILED:        'Failed to load opening stock. Please try again.',
   ERROR_OPENING_STOCK_CREATE_FAILED:      'Failed to save opening stock. Please try again.',
   ERROR_OPENING_STOCK_UPDATE_FAILED:      'Failed to update opening stock. Please try again.',
