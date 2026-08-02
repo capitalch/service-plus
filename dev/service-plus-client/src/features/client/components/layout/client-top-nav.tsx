@@ -64,17 +64,19 @@ export const ClientTopNav = ({ activeSection }: Props) => {
 
     return (
         <header className="fixed left-0 right-0 top-0 z-50 flex h-12 items-center border-b border-(--cl-border) bg-(--cl-bg) px-3 sm:px-4">
+            {/* Mobile Menu Toggle — opens the Explorer Panel which has section nav + sub-items.
+                Kept as a direct, shrink-0 child of the header (outside the overflow-hidden left
+                section) so it can never be clipped when the right-hand switcher is wide. */}
+            <button
+                onClick={toggleExplorer}
+                className="mr-2 shrink-0 rounded p-1.5 text-(--cl-text-muted) transition-colors hover:bg-(--cl-hover) hover:text-(--cl-text) md:hidden focus:outline-none cursor-pointer"
+                title="Open menu"
+            >
+                <Menu className="h-4 w-4" />
+            </button>
+
             {/* Left Section - grows to fill available space */}
             <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3 lg:gap-4 overflow-hidden">
-                {/* Mobile Menu Toggle — opens the Explorer Panel which has section nav + sub-items */}
-                <button
-                    onClick={toggleExplorer}
-                    className="rounded p-1.5 text-(--cl-text-muted) transition-colors hover:bg-(--cl-hover) hover:text-(--cl-text) md:hidden focus:outline-none cursor-pointer"
-                    title="Open menu"
-                >
-                    <Menu className="h-4 w-4" />
-                </button>
-
                 {/* Explorer Toggle on md+ */}
                 <button
                     onClick={toggleExplorer}
