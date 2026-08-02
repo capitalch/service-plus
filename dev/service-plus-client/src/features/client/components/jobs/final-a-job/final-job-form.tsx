@@ -28,6 +28,13 @@ import { allocateFloored, pickResidualKey, type FloorAllocItem } from "@/lib/bac
 
 // ─── Apply-target helpers (only used in this view) ───────────────────────────
 
+// Labour charges are the last-resort lever during Apply: they are only adjusted
+// once parts and every non-labour charge have been exhausted (in both the
+// increase and decrease directions). Matches "labour"/"labor", case-insensitive.
+function isLabourCharge(c: EditableChargeLine): boolean {
+    return /lab(ou)?r/i.test(c.charge_name);
+}
+
 function scaleCharges(
     allCharges: EditableChargeLine[],
     active: EditableChargeLine[],
@@ -41,7 +48,7 @@ function scaleCharges(
     });
     const finalIncl = allocateFloored(items, newTotal);
     const pinned = new Set(items.filter(i => finalIncl.get(i.key) === i.floorIncl).map(i => i.key));
-    const residualKey = pickResidualKey(active.map(x => x._key), pinned);
+    const residualKey = pickResidualKey(active.map(x => ({ key: x._key, qty: parseFloat(x.qty) || 1 })), pinned);
 
     const patch = new Map<string, Pick<EditableChargeLine, "selling_price" | "sale_pr_gst">>();
     let runningTotal = 0;
@@ -93,7 +100,7 @@ function scaleParts(
     });
     const finalIncl = allocateFloored(items, newTotal);
     const pinned = new Set(items.filter(i => finalIncl.get(i.key) === i.floorIncl).map(i => i.key));
-    const residualKey = pickResidualKey(active.map(x => x._key), pinned);
+    const residualKey = pickResidualKey(active.map(x => ({ key: x._key, qty: x.qty })), pinned);
 
     const patch = new Map<string, Pick<EditablePartLine, "selling_price" | "sale_pr_gst">>();
     let runningTotal = 0;
@@ -109,25 +116,16 @@ function scaleParts(
         runningTotal += saleGst * l.qty;
         patch.set(l._key, { selling_price: finalSp.toFixed(2), sale_pr_gst: saleGst.toFixed(2) });
     });
+    // Residual line absorbs the exact remainder. pickResidualKey prefers a qty=1
+    // line, for which round(remainder/qty, 2) × qty === remainder — so the saved
+    // job total (Σ sale_pr_gst × qty) lands on the target to the paisa whenever
+    // the cost floor isn't binding. The floor clamp is the only guard left.
     const residual = active.find(l => l._key === residualKey)!;
     {
         const gstRate = isGst ? (parseFloat(residual.gst_rate) || 0) : 0;
         const multiplier = 1 + gstRate / 100;
         const floor = allowBelowCost ? 0 : (parseFloat(residual.cost_price) || 0);
-        const saleGstPerUnit = (newTotal - runningTotal) / residual.qty;
-        const sp = gstRate > 0 ? saleGstPerUnit / multiplier : saleGstPerUnit;
-        // Round sale_pr_gst (the GST-inclusive amount summed into the saved job
-        // total) from the exact residual target FIRST, so it lands on the target
-        // to the cent whenever the cost floor allows it; selling_price is then
-        // back-derived from that rounded amount, absorbing any sub-paisa
-        // remainder instead of it being dropped from sale_pr_gst. When the floor
-        // binds, fall back to pinning selling_price at cost and re-deriving
-        // sale_pr_gst from the clamped price, same as before — this preserves the
-        // existing guarantee that sale_pr_gst never goes negative on an
-        // infeasible target.
-        const saleGst = sp < floor
-            ? parseFloat((floor * multiplier).toFixed(2))
-            : parseFloat(saleGstPerUnit.toFixed(2));
+        const saleGst = parseFloat(Math.max((newTotal - runningTotal) / residual.qty, floor * multiplier).toFixed(2));
         const finalSp = parseFloat(Math.max(saleGst / multiplier, floor).toFixed(2));
         patch.set(residual._key, { selling_price: finalSp.toFixed(2), sale_pr_gst: saleGst.toFixed(2) });
     }
@@ -139,66 +137,76 @@ function computeBackCalc(
     partLines: EditablePartLine[],
     chargeLines: EditableChargeLine[],
     isGst: boolean,
-): { newPartLines?: EditablePartLine[]; newChargeLines?: EditableChargeLine[]; wentBelowCost?: boolean } {
-    const partsTotal = partLines.reduce((s, l) => s + (parseFloat(l.sale_pr_gst) || 0) * l.qty, 0);
-    const chargesTotal = chargeLines.reduce((s, c) => s + (parseFloat(c.sale_pr_gst) || 0) * (parseFloat(c.qty) || 1), 0);
-    const diff = target - partsTotal - chargesTotal;
+): { newPartLines?: EditablePartLine[]; newChargeLines?: EditableChargeLine[]; wentBelowCost?: boolean; touchedLabour?: boolean } {
+    const total = (parts: EditablePartLine[], charges: EditableChargeLine[]) =>
+        parts.reduce((s, l) => s + (parseFloat(l.sale_pr_gst) || 0) * l.qty, 0) +
+        charges.reduce((s, c) => s + (parseFloat(c.sale_pr_gst) || 0) * (parseFloat(c.qty) || 1), 0);
+
+    const diff = target - total(partLines, chargeLines);
     if (Math.abs(diff) < 0.005) return {};
 
-    // Step 1: scale part selling prices toward the target, floored at cost price.
-    const activeParts = partLines.filter(l => l.part_id !== null);
+    const activeParts      = partLines.filter(l => l.part_id !== null);
+    const activeCharges    = chargeLines.filter(c => c.charge_name.trim() !== "");
+    const nonLabourCharges = activeCharges.filter(c => !isLabourCharge(c));
+    const labourCharges    = activeCharges.filter(c => isLabourCharge(c));
+
     let newPartLines: EditablePartLine[] | undefined;
+    let newChargeLines: EditableChargeLine[] | undefined;
+    let wentBelowCost = false;
+    const curParts   = () => newPartLines ?? partLines;
+    const curCharges = () => newChargeLines ?? chargeLines;
     let remainingDiff = diff;
 
+    // Step 1: scale part selling prices toward the target, floored at cost price.
     if (activeParts.length > 0) {
-        const curPartsAmt = activeParts.reduce((s, l) => s + (parseFloat(l.sale_pr_gst) || 0) * l.qty, 0);
+        const curPartsAmt = total(activeParts, []);
         if (curPartsAmt > 0) {
-            newPartLines = scaleParts(partLines, activeParts, curPartsAmt, curPartsAmt + diff, isGst);
-            const actualNewPartsTotal = newPartLines.reduce((s, l) => {
-                if (l.part_id === null) return s;
-                return s + (parseFloat(l.sale_pr_gst) || 0) * l.qty;
-            }, 0);
-            remainingDiff = target - actualNewPartsTotal - chargesTotal;
+            newPartLines = scaleParts(partLines, activeParts, curPartsAmt, curPartsAmt + remainingDiff, isGst);
+            remainingDiff = target - total(curParts(), curCharges());
             if (Math.abs(remainingDiff) < 0.005) return { newPartLines };
         }
     }
 
-    // Step 2: parts are at cost and the target still isn't reached — absorb the
-    // remainder in Additional Charges, down to zero.
-    const activeCharges = chargeLines.filter(c => c.charge_name.trim() !== "");
-    let newChargeLines: EditableChargeLine[] | undefined;
-
-    if (activeCharges.length > 0) {
-        const curChargesAmt = activeCharges.reduce((s, c) => s + (parseFloat(c.sale_pr_gst) || 0) * (parseFloat(c.qty) || 1), 0);
-        const newChargesAmt = curChargesAmt + remainingDiff;
-
-        if (newChargesAmt >= 0) {
-            return {
-                newPartLines,
-                newChargeLines: scaleCharges(chargeLines, activeCharges, newChargesAmt, isGst),
-            };
+    // Step 2: absorb the remainder in NON-LABOUR Additional Charges, down to zero.
+    // Labour charges are held at their current value here.
+    if (nonLabourCharges.length > 0) {
+        const curNonLabourAmt = total([], nonLabourCharges);
+        const newNonLabourAmt = curNonLabourAmt + remainingDiff;
+        if (newNonLabourAmt >= 0) {
+            newChargeLines = scaleCharges(curCharges(), nonLabourCharges, newNonLabourAmt, isGst);
+            return { newPartLines, newChargeLines };
         }
-
-        // Charges alone can't absorb the rest either — zero them out and carry
-        // whatever's left onto parts in step 3 below.
-        newChargeLines = chargeLines.map(c =>
-            c.charge_name.trim() ? { ...c, selling_price: "0", sale_pr_gst: "0" } : c);
-        remainingDiff = newChargesAmt; // still negative: amount left to cut from parts
+        // Non-labour charges alone can't absorb the rest — zero them out (leaving
+        // labour untouched) and carry the shortfall onto parts in step 3.
+        newChargeLines = curCharges().map(c =>
+            (c.charge_name.trim() && !isLabourCharge(c)) ? { ...c, selling_price: "0", sale_pr_gst: "0" } : c);
+        remainingDiff = target - total(curParts(), curCharges());
     }
 
-    // Step 3: parts at cost and charges at zero still don't reach the target —
-    // last resort, let part selling prices drop below cost price (at a loss).
+    // Step 3: parts at cost and non-labour charges at zero still don't reach the
+    // target — let part selling prices drop below cost price (at a loss).
     if (Math.abs(remainingDiff) >= 0.005 && activeParts.length > 0) {
-        const basisPartLines = newPartLines ?? partLines;
-        const basisActiveParts = basisPartLines.filter(l => l.part_id !== null);
-        const curAmt = basisActiveParts.reduce((s, l) => s + (parseFloat(l.sale_pr_gst) || 0) * l.qty, 0);
+        const basisParts = curParts();
+        const basisActiveParts = basisParts.filter(l => l.part_id !== null);
+        const curAmt = total(basisActiveParts, []);
         if (curAmt > 0) {
-            newPartLines = scaleParts(basisPartLines, basisActiveParts, curAmt, curAmt + remainingDiff, isGst, true);
-            return { newPartLines, newChargeLines, wentBelowCost: true };
+            newPartLines = scaleParts(basisParts, basisActiveParts, curAmt, curAmt + remainingDiff, isGst, true);
+            wentBelowCost = true;
+            remainingDiff = target - total(curParts(), curCharges());
+            if (Math.abs(remainingDiff) < 0.005) return { newPartLines, newChargeLines, wentBelowCost };
         }
     }
 
-    return { newPartLines, newChargeLines };
+    // Step 4: everything else is exhausted — adjust LABOUR charges as the last
+    // resort (down to zero, or up when there is nothing else to increase).
+    if (Math.abs(remainingDiff) >= 0.005 && labourCharges.length > 0) {
+        const curLabourAmt = total([], labourCharges);
+        const newLabourAmt = Math.max(0, curLabourAmt + remainingDiff);
+        newChargeLines = scaleCharges(curCharges(), labourCharges, newLabourAmt, isGst);
+        return { newPartLines, newChargeLines, wentBelowCost, touchedLabour: true };
+    }
+
+    return { newPartLines, newChargeLines, wentBelowCost };
 }
 
 // ─── Props ────────────────────────────────────────────────────────────────────

@@ -1,8 +1,7 @@
-# Modify: Inventory > Opening Stock
-- At present user can try to enter multiple instances of opening balances for a single branch. In that case referential integrity error happens at database level. Reason is, for one branch only one instance of opening balance can occur, which may consist of many parts. There is nothing wrong from database; referential integrity is correct. Problem is in UX.
-- UX can be modified in a way that user should not be able to enter multiple instances of opening balances for a single branch. If there is an instance of opening balance for a branch, user should be able to add more parts to it. If there is no instance of opening balance for a branch, user should be able to enter a new instance of opening balance for that branch.
-- MAybe the view tab is not required. It can be integrated into the main tab.
-- Create a plan to modify the ux in plans/plan.md
+# Modify: Accounts Posting
+- When job invoice is posted to trace-server, there is some difference in the amount which is posted. There is some difference of approximation done at service plus end. The price before round off is hit to the trace-server which should be after round off.
+- In Trace package, sales >sales view > grid view shows the correct amount. But when edit is opened, the difference is visible.
+- Find out how to rectify that and give your plan to plans/plan.md
 
     
     

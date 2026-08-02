@@ -163,6 +163,23 @@ function buildInvoiceLines(
     return [...partLines, ...chargeLines];
 }
 
+// Nudge line amounts so they sum EXACTLY to the invoice header amount. The
+// header comes from the finalized job.amount, while the lines sum to
+// aggregate + gst; a paisa-level rounding residual between the two makes the
+// trace-plus edit form (which re-derives the total from the line values) differ
+// from the grid. Absorb the residual into the last line as taxable so that
+// Σ line.amount === targetAmount while keeping amount = aggregate + gst per line.
+function reconcileLineAmounts(lines: InvoiceLine[], targetAmount: number): InvoiceLine[] {
+    if (lines.length === 0) return lines;
+    const sum      = Math.round(lines.reduce((s, l) => s + l.amount, 0) * 100) / 100;
+    const residual = Math.round((targetAmount - sum) * 100) / 100;
+    if (residual === 0) return lines;
+    const last = lines[lines.length - 1];
+    last.amount    = Math.round((last.amount    + residual) * 100) / 100;
+    last.aggregate = Math.round((last.aggregate + residual) * 100) / 100;
+    return lines;
+}
+
 // ── Step section wrapper ──────────────────────────────────────────────────────
 
 type StepAccent = "sky" | "violet" | "emerald";
@@ -460,7 +477,6 @@ export function DeliveryModal({
                     skipped++;
                     continue;
                 }
-                const aggregate   = Math.round(lines.reduce((s, l) => s + l.aggregate,   0) * 100) / 100;
                 const cgst_amount = Math.round(lines.reduce((s, l) => s + l.cgst_amount, 0) * 100) / 100;
                 const sgst_amount = Math.round(lines.reduce((s, l) => s + l.sgst_amount, 0) * 100) / 100;
                 const igst_amount = Math.round(lines.reduce((s, l) => s + l.igst_amount, 0) * 100) / 100;
@@ -468,11 +484,16 @@ export function DeliveryModal({
                 // (set during "Final a Job", may include a user-adjusted total).
                 // Fall back to the sum of invoice lines when job.amount is null or 0
                 // (job never finalised, or finalised before parts were added).
-                const lineTotal   = Math.round((aggregate + cgst_amount + sgst_amount + igst_amount) * 100) / 100;
-                const jobAmt      = Number(job.amount ?? 0);
-                const amount      = jobAmt > 0
+                const preAggregate = Math.round(lines.reduce((s, l) => s + l.aggregate, 0) * 100) / 100;
+                const lineTotal    = Math.round((preAggregate + cgst_amount + sgst_amount + igst_amount) * 100) / 100;
+                const jobAmt       = Number(job.amount ?? 0);
+                const amount       = jobAmt > 0
                     ? Math.round(jobAmt * 100) / 100
                     : lineTotal;
+                // Reconcile lines so Σ line.amount === header amount, then derive
+                // the header aggregate from the reconciled lines.
+                reconcileLineAmounts(lines, amount);
+                const aggregate   = Math.round(lines.reduce((s, l) => s + l.aggregate, 0) * 100) / 100;
 
                 await apolloClient.mutate({
                     mutation:  GRAPHQL_MAP.createJobInvoice,
@@ -563,11 +584,17 @@ export function DeliveryModal({
                 toast.error(MESSAGES.ERROR_JOB_INVOICE_REGEN_NO_LINES);
                 return;
             }
-            const aggregate   = Math.round(lines.reduce((s, l) => s + l.aggregate,   0) * 100) / 100;
             const cgst_amount = Math.round(lines.reduce((s, l) => s + l.cgst_amount, 0) * 100) / 100;
             const sgst_amount = Math.round(lines.reduce((s, l) => s + l.sgst_amount, 0) * 100) / 100;
             const igst_amount = Math.round(lines.reduce((s, l) => s + l.igst_amount, 0) * 100) / 100;
-            const amount      = Math.round(Number(job.amount ?? 0) * 100) / 100;
+            const preAggregate = Math.round(lines.reduce((s, l) => s + l.aggregate, 0) * 100) / 100;
+            const lineTotal    = Math.round((preAggregate + cgst_amount + sgst_amount + igst_amount) * 100) / 100;
+            const jobAmt       = Number(job.amount ?? 0);
+            const amount       = jobAmt > 0 ? Math.round(jobAmt * 100) / 100 : lineTotal;
+            // Reconcile lines so Σ line.amount === header amount, then derive the
+            // header aggregate from the reconciled lines.
+            reconcileLineAmounts(lines, amount);
+            const aggregate   = Math.round(lines.reduce((s, l) => s + l.aggregate, 0) * 100) / 100;
 
             await apolloClient.mutate({
                 mutation:  GRAPHQL_MAP.regenerateJobInvoice,

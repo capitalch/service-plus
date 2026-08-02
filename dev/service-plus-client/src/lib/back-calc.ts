@@ -43,12 +43,16 @@ export function allocateFloored(items: FloorAllocItem[], poolTarget: number): Ma
 }
 
 /**
- * Picks the item to absorb final rounding residue: the last key that isn't
- * pinned at its floor, falling back to the last key overall.
+ * Picks the item to absorb final rounding residue. Prefers a non-pinned item
+ * with qty === 1: only a single-unit line can absorb an arbitrary paisa
+ * remainder exactly, because a qty>1 line's total moves in steps of qty × ₹0.01
+ * (its per-unit price is rounded to 2dp, then multiplied by qty). Falls back to
+ * any non-pinned item (best effort), then to the last item overall.
  */
-export function pickResidualKey(keys: string[], pinned: Set<string>): string {
-    for (let i = keys.length - 1; i >= 0; i--) {
-        if (!pinned.has(keys[i])) return keys[i];
-    }
-    return keys[keys.length - 1];
+export function pickResidualKey(items: { key: string; qty: number }[], pinned: Set<string>): string {
+    const nonPinned = items.filter(i => !pinned.has(i.key));
+    const unit = [...nonPinned].reverse().find(i => i.qty === 1);
+    if (unit) return unit.key;
+    if (nonPinned.length) return nonPinned[nonPinned.length - 1].key;
+    return items[items.length - 1].key;
 }

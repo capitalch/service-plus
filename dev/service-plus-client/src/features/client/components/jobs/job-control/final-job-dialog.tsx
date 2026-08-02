@@ -2,15 +2,13 @@ import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { MESSAGES }    from "@/constants/messages";
 import { SQL_MAP }     from "@/constants/sql-map";
 import { apolloClient } from "@/lib/apollo-client";
 import { encodeObj, graphQlUtils } from "@/lib/graphql-utils";
-import { isValidGstin, normalizeGstin, saveCustomerGstin } from "@/lib/gstin";
+import { normalizeGstin } from "@/lib/gstin";
 import { selectDbName } from "@/features/auth/store/auth-slice";
 import { selectAvailableDivisions, selectCurrentBranch, selectDefaultGstRate, selectDefaultHsnForSparePart, selectDefaultHsnForServiceCharge, selectSchema } from "@/store/context-slice";
 import { useAppSelector } from "@/store/hooks";
@@ -29,6 +27,8 @@ import {
     emptyChargeLine,
 } from "../final-a-job/final-a-job-schema";
 import { FinalJobForm } from "../final-a-job/final-job-form";
+import { finalizeJobSave } from "../final-a-job/finalize-job-save";
+import { TargetNotAppliedDialog } from "../final-a-job/target-not-applied-dialog";
 
 // ─── Local types ──────────────────────────────────────────────────────────────
 
@@ -471,163 +471,16 @@ export function FinalJobDialog({ jobId, onClose, onFinalized }: Props) {
 
     // ── Save final ────────────────────────────────────────────────────────────
 
-    async function handleSaveFinal(force = false) {
-        if (!selectedJob || !dbName || !schema || !branchId) return;
-
-        const newParts = partLines.filter(l => !l.id && l.part_id && l.qty > 0);
-        if (newParts.length > 0 && !jobConsumeTypeId) {
-            toast.error("Stock transaction type not loaded. Please try again.");
-            return;
-        }
-
-        const backCalcNumFinal = parseFloat(backCalcTarget);
-        const hasTargetFinal   = backCalcTarget !== "" && !isNaN(backCalcNumFinal) && backCalcNumFinal > 0;
-        const hasLinesFinal    = partLines.some(l => l.part_id) || chargeLines.some(c => c.charge_name.trim());
-        if (hasTargetFinal && !hasLinesFinal) {
-            toast.error("Target amount cannot be set without any parts or charges.");
-            return;
-        }
-
-        if (!isValidGstin(gstin)) {
-            toast.error("Enter a valid 15-character GSTIN, or clear the field, before finalizing.");
-            return;
-        }
-
-        const isWarrantyJob = selectedRow?.job_type_code === "UNDER_WARRANTY";
-        setSubmitting(true);
-        try {
-            if (isGst && !isWarrantyJob) {
-                const missingHsnParts   = partLines.filter(l => l.part_id && !l.hsn_code.trim()).length;
-                const missingHsnCharges = chargeLines.filter(c => c.charge_name.trim() && !c.hsn_code.trim()).length;
-                if (missingHsnParts > 0 || missingHsnCharges > 0) {
-                    toast.error("HSN is required for all parts and charges in a GST invoice.");
-                    return;
-                }
-                const missingGstParts   = partLines.filter(l => l.part_id && !(parseFloat(l.gst_rate) > 0)).length;
-                const missingGstCharges = chargeLines.filter(c => c.charge_name.trim() && !(parseFloat(c.gst_rate) > 0)).length;
-                if (missingGstParts > 0 || missingGstCharges > 0) {
-                    toast.error("GST rate must be greater than 0 for all parts and charges in a GST invoice.");
-                    return;
-                }
-            }
-
-            const invalidParts = partLines.some(l => l.part_id
-                && (l.qty <= 0 || (parseFloat(l.cost_price) || 0) < 0 || (parseFloat(l.selling_price) || 0) < 0));
-            const invalidCharges = chargeLines.some(c => c.charge_name.trim()
-                && ((parseFloat(c.qty) || 0) <= 0 || (parseFloat(c.cost_price) || 0) < 0 || (parseFloat(c.selling_price) || 0) < 0));
-            if (invalidParts || invalidCharges) {
-                toast.error("Qty must be greater than 0 and Cost/Sale prices cannot be negative. Please fix the highlighted rows before finalizing.");
-                return;
-            }
-
-            const chargeUpsertRows = chargeLines.filter(c => c.charge_name.trim()).map(c => ({
-                ...(c.id !== undefined ? { id: c.id } : {}),
-                charge_name:   c.charge_name.trim(),
-                ref_no:        c.ref_no.trim()        || null,
-                description:   c.description.trim()   || null,
-                hsn_code:      (isGst && !isWarrantyJob) ? (c.hsn_code.trim() || null) : null,
-                gst_rate:      !isWarrantyJob ? (parseFloat(c.gst_rate) || 0) : 0,
-                qty:           parseFloat(c.qty) || 1,
-                cost_price:    parseFloat(c.cost_price) || 0,
-                selling_price: isWarrantyJob ? 0 : (parseFloat(c.selling_price) || 0),
-            }));
-
-            const xDetails: Record<string, unknown>[] = [];
-            const existingUpdates = partLines.filter(l => l.id !== undefined && l.part_id).map(l => ({
-                id: l.id, part_id: l.part_id,
-                cost_price:    parseFloat(l.cost_price)    || 0,
-                selling_price: isWarrantyJob ? 0 : (parseFloat(l.selling_price) || 0),
-                gst_rate:      !isWarrantyJob ? (parseFloat(l.gst_rate) || 0) : 0,
-                qty:     l.qty,
-                remarks: l.remarks.trim() || null,
-                hsn_code: (isGst && !isWarrantyJob) ? (l.hsn_code.trim() || null) : null,
-            }));
-            const newInserts = newParts.map(l => ({
-                part_id: l.part_id,
-                cost_price:    parseFloat(l.cost_price)    || 0,
-                selling_price: isWarrantyJob ? 0 : (parseFloat(l.selling_price) || 0),
-                gst_rate:      !isWarrantyJob ? (parseFloat(l.gst_rate) || 0) : 0,
-                qty:     l.qty,
-                remarks: l.remarks.trim() || null,
-                hsn_code: (isGst && !isWarrantyJob) ? (l.hsn_code.trim() || null) : null,
-                xDetails: {
-                    tableName: "stock_transaction",
-                    fkeyName:  "job_part_used_id",
-                    xData: {
-                        branch_id: branchId,
-                        part_id:   l.part_id,
-                        qty:       l.qty,
-                        dr_cr:     "C",
-                        transaction_date:         selectedJob.job_date,
-                        stock_transaction_type_id: jobConsumeTypeId,
-                        remarks: l.remarks.trim() || null,
-                    },
-                },
-            }));
-
-            const allPartXData = [...existingUpdates, ...newInserts];
-            if (allPartXData.length > 0 || deletedPartIds.length > 0) {
-                xDetails.push({
-                    tableName: "job_part_used",
-                    fkeyName:  "job_id",
-                    ...(deletedPartIds.length > 0 ? { deletedIds: deletedPartIds } : {}),
-                    xData: allPartXData,
-                });
-            }
-            xDetails.push({
-                tableName: "job_additional_charge",
-                fkeyName:  "job_id",
-                ...(deletedChargeIds.length > 0 ? { deletedIds: deletedChargeIds } : {}),
-                xData: chargeUpsertRows,
-            });
-
-            const backCalcNum    = parseFloat(backCalcTarget);
-            const hasTarget      = backCalcTarget !== "" && !isNaN(backCalcNum) && backCalcNum > 0;
-            const computedTotal  =
-                partLines.reduce((s, l) => s + (parseFloat(l.sale_pr_gst) || 0) * l.qty, 0) +
-                chargeLines.reduce((s, c) => s + (parseFloat(c.sale_pr_gst) || 0) * (parseFloat(c.qty) || 1), 0);
-            // The job is always saved with the true achieved line total — not the
-            // aspirational Apply target, which may be unreachable (e.g. part
-            // selling prices are floored at cost and can't be discounted further).
-            const amount = isWarrantyJob ? 0 : computedTotal;
-
-            if (!isWarrantyJob && !force && hasTarget) {
-                const diff = Math.abs(backCalcNum - computedTotal);
-                if (diff > 0.5) {
-                    setDiffAlertMsg(
-                        `Your target amount (₹${backCalcNum.toFixed(2)}) differs from the achievable line total (₹${computedTotal.toFixed(2)}) by ₹${diff.toFixed(2)}. This usually happens because part selling prices can't be discounted below their cost price. Saving will use the achievable total of ₹${computedTotal.toFixed(2)}.`
-                    );
-                    setSubmitting(false);
-                    return;
-                }
-            }
-
-            await apolloClient.mutate({
-                mutation: GRAPHQL_MAP.genericUpdate,
-                variables: {
-                    db_name: dbName, schema,
-                    value: encodeObj({
-                        tableName: "job",
-                        xData: { id: selectedJob.id, is_final: true, is_igst: forceIgst, division_id: selectedDivisionId, amount, to_show_parts_in_job_invoice: showPartsInInvoice, to_set_updated_at: true, xDetails },
-                    }),
-                },
-            });
-
-            await saveCustomerGstin({
-                customerId: selectedJob.customer_contact_id,
-                gstin,
-                currentGstin: selectedJob.customer_gstin,
-                dbName,
-                schema,
-            });
-
-            toast.success("Job marked as final.");
-            onFinalized();
-        } catch {
-            toast.error("Failed to save. Please try again.");
-        } finally {
-            setSubmitting(false);
-        }
+    async function handleSaveFinal() {
+        if (!selectedJob || !selectedRow) return;
+        const saved = await finalizeJobSave({
+            selectedJob, selectedRow, dbName, schema, branchId, selectedDivisionId,
+            isGst, forceIgst, gstin, showPartsInInvoice, partLines, chargeLines,
+            deletedPartIds, deletedChargeIds, jobConsumeTypeId, backCalcTarget,
+            setSubmitting, setDiffAlertMsg,
+        });
+        if (!saved) return;
+        onFinalized();
     }
 
     // ── Render ────────────────────────────────────────────────────────────────
@@ -645,23 +498,7 @@ export function FinalJobDialog({ jobId, onClose, onFinalized }: Props) {
 
     return (
         <>
-            <Dialog open={diffAlertMsg !== null} onOpenChange={open => { if (!open) setDiffAlertMsg(null); }}>
-                <DialogContent aria-describedby={undefined} className="sm:max-w-md !bg-white text-(--cl-text)">
-                    <DialogHeader>
-                        <DialogTitle className="text-amber-600">Target Amount Not Fully Achievable</DialogTitle>
-                    </DialogHeader>
-                    <p className="text-sm text-(--cl-text) leading-relaxed">{diffAlertMsg}</p>
-                    <DialogFooter>
-                        <Button className="cursor-pointer" variant="outline" onClick={() => setDiffAlertMsg(null)}>Cancel</Button>
-                        <Button
-                            className="cursor-pointer bg-amber-600 hover:bg-amber-700 text-white"
-                            onClick={() => { setDiffAlertMsg(null); void handleSaveFinal(true); }}
-                        >
-                            Save Anyway
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+            <TargetNotAppliedDialog msg={diffAlertMsg} onClose={() => setDiffAlertMsg(null)} />
             <FinalJobForm
                 selectedJob={selectedJob}
                 selectedRow={selectedRow}

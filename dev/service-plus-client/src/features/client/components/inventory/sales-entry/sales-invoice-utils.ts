@@ -43,7 +43,7 @@ function scaleLines(
     });
     const finalIncl   = allocateFloored(items, newTotal);
     const pinned      = new Set(items.filter(i => finalIncl.get(i.key) === i.floorIncl).map(i => i.key));
-    const residualKey = pickResidualKey(active.map(l => l._key), pinned);
+    const residualKey = pickResidualKey(active.map(l => ({ key: l._key, qty: l.qty })), pinned);
 
     const patch = new Map<string, number>(); // _key -> new unit_price
     let runningTotal = 0;

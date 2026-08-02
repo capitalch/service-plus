@@ -235,10 +235,14 @@ def _build_job_invoice_tran_h(
     for line in ji_lines:
         spd: dict = {
             "productId": int(ji_product_id),
-            "qty":       float(line["qty"]),
-            "price":     float(line["price"]),
-            "priceGst":  (float(line["amount"]) / float(line["qty"])
-                          if line.get("qty") else 0),
+            # Post each line as a single unit so job_invoice_line.amount maps 1:1
+            # into trace-plus's priceGst. Trace's edit form re-derives the line
+            # total as round(qty * priceGst, 2); with qty=1 that reproduces the
+            # posted amount exactly, so the grid and edit-form totals match. See
+            # plans/plan.md.
+            "qty":       1,
+            "price":     float(line["aggregate"]),
+            "priceGst":  float(line["amount"]),
             "amount":    float(line["amount"]),
             "hsn":       (line.get("hsn_code")
                           or (str(ji_default_hsn) if is_gst_division and ji_default_hsn else "0")),

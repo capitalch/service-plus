@@ -105,6 +105,7 @@ export const LoginForm = ({ onForgotPassword }: LoginFormProps) => {
           {!isSuperAdmin && <span className="ml-0.5 text-red-500">*</span>}
         </Label>
         <ClientCombobox
+          autoFocus
           disabled={isSuperAdmin}
           value={clientId}
           onValueChange={(value) => setValue('clientId', value, { shouldValidate: true })}
