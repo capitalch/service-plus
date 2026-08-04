@@ -217,7 +217,7 @@ export function NewBatchJobForm({
             </div>
 
             {/* Column headers */}
-            <div className="hidden md:grid grid-cols-[32px_1fr_130px_130px_100px_100px_60px_70px_32px_32px] gap-x-2 px-3 text-[10px] font-bold uppercase tracking-widest text-(--cl-text-muted)">
+            <div className="hidden md:grid grid-cols-[32px_minmax(240px,1fr)_130px_130px_100px_100px_60px_140px_70px_32px_32px] gap-x-2 px-3 text-[10px] font-bold uppercase tracking-widest text-(--cl-text-muted)">
                 <span>#</span>
                 <span>Product / Model</span>
                 <span>Purchase Date</span>
@@ -225,6 +225,7 @@ export function NewBatchJobForm({
                 <span>Serial No</span>
                 <span>Condition</span>
                 <span>Qty</span>
+                <span>Remarks</span>
                 <span></span>
                 <span></span>
                 <span></span>
@@ -244,7 +245,7 @@ export function NewBatchJobForm({
                             >
                                 <Card className="border-(--cl-border) bg-(--cl-surface) border-l-4 border-l-(--cl-accent) overflow-visible">
                                     {/* Compact single-line row */}
-                                    <div className="grid grid-cols-[32px_1fr] md:grid-cols-[32px_1fr_130px_130px_100px_100px_60px_70px_32px_32px] gap-x-2 items-center px-3 py-2">
+                                    <div className="grid grid-cols-[32px_1fr] md:grid-cols-[32px_minmax(240px,1fr)_130px_130px_100px_100px_60px_140px_70px_32px_32px] gap-x-2 items-center px-3 py-2">
                                         {/* Index badge */}
                                         <span className="flex items-center justify-center h-5 w-5 rounded-full bg-(--cl-accent)/10 text-(--cl-accent) text-[10px] font-bold shrink-0">
                                             {idx + 1}
@@ -332,6 +333,13 @@ export function NewBatchJobForm({
                                             type="number" min={1}
                                             className={`h-8 text-xs bg-(--cl-surface-2) hidden md:block ${(watch(`rows.${idx}.qty`) ?? 0) < 1 ? "border-red-400" : ""}`}
                                             {...register(`rows.${idx}.qty`, { valueAsNumber: true })}
+                                        />
+
+                                        {/* Remarks */}
+                                        <Input
+                                            className="h-8 text-xs bg-(--cl-surface-2) hidden md:block"
+                                            placeholder="Remarks…"
+                                            {...register(`rows.${idx}.remarks`)}
                                         />
 
                                         {/* Attach files */}
@@ -429,15 +437,15 @@ export function NewBatchJobForm({
                                                             {...register(`rows.${idx}.qty`, { valueAsNumber: true })}
                                                         />
                                                     </div>
+                                                    <div className="space-y-1 md:hidden">
+                                                        <Label className={labelCls}>Remarks</Label>
+                                                        <Input className="h-8 text-xs bg-(--cl-surface-2)" placeholder="Optional…" {...register(`rows.${idx}.remarks`)} />
+                                                    </div>
 
                                                     {/* Always expanded fields */}
                                                     <div className="space-y-1 sm:col-span-2">
                                                         <Label className={labelCls}>Problem Reported</Label>
                                                         <Textarea rows={2} className="bg-(--cl-surface-2) resize-none text-xs" placeholder="Describe the problem…" {...register(`rows.${idx}.problem_reported`)} />
-                                                    </div>
-                                                    <div className="space-y-1">
-                                                        <Label className={labelCls}>Remarks</Label>
-                                                        <Input className="h-8 text-xs bg-(--cl-surface-2)" placeholder="Optional…" {...register(`rows.${idx}.remarks`)} />
                                                     </div>
                                                     <div className="space-y-1">
                                                         <Label className={labelCls}>Alt Job No</Label>

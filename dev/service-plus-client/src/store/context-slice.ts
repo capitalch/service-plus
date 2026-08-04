@@ -1,6 +1,7 @@
 import { createSlice } from '@reduxjs/toolkit';
 import type { PayloadAction } from '@reduxjs/toolkit';
 import type { DivisionContextType } from '../features/client/types/division';
+import { logout, setCredentials } from '../features/auth/store/auth-slice';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -141,6 +142,17 @@ const contextSlice = createSlice({
         setIsResolvingContext: (state, action: PayloadAction<boolean>) => {
             state.isResolvingContext = action.payload;
         },
+    },
+    extraReducers: (builder) => {
+        // Tenant identity can change on logout OR on a direct re-login (the
+        // /login route has no guard against an already-authenticated user, so
+        // login can fire without a preceding logout). Reset in both cases so
+        // BuBranchSwitcher's mount guard re-resolves BU/branch/division for
+        // whichever tenant is now active, instead of keeping the previous
+        // tenant's stale schema.
+        builder
+            .addCase(logout, () => initialState)
+            .addCase(setCredentials, () => initialState);
     },
 });
 
