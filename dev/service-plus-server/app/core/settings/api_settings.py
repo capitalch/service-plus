@@ -47,6 +47,11 @@ class ApiSettings(BaseSettings):
     file_server_api_key: str = Field(
         description="Shared API key for file server. Must match the file server's FILE_SERVER_API_KEY.",
     )
+    website_api_key: str = Field(
+        description="""Shared API key for the public website (service-plus-web),
+            sent as the X-Website-Key header. Must match service-plus-web's
+            NEXT_PUBLIC_WEBSITE_KEY.""",
+    )
     # GraphQL Settings
     graphql_path: str = Field(default="/graphql", description="GraphQL endpoint path")
     graphql_playground: bool = Field(
