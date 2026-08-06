@@ -63,14 +63,24 @@ konsole --workdir "/home/sushant/projects/trace-plus/deployment/final" &
 # Window 10.2: Trace deployment
 konsole --workdir "/home/sushant/mydrive" &
 
-# Final initialization pause before starting any background IDE tasks
+konsole --workdir "/home/sushant/projects/service-plus/dev/service-plus-web" & -e bash -ic "pnpm start; exec bash" &
 sleep 1
 
-# THE IDE LAUNCH PIECE
-# Point directly to the actual wrapper binary
-#IDE_BIN="/home/sushant/.local/share/antigravity-ide/antigravity-ide"
-# Pass the fallback sandbox instruction flags directly to the runtime variables
-#IDE_FLAGS="--no-sandbox --disable-setuid-sandbox"
+konsole --workdir "/home/sushant/projects/service-plus/dev/service-plus-web" & -e bash -c "claude; exec bash" &
+sleep 1
 
-#(cd /home/sushant/projects/service-plus/dev/service-plus-server/ && $IDE_BIN $IDE_FLAGS) &
-#(cd /home/sushant/projects/service-plus/dev/service-plus-client/ && $IDE_BIN $IDE_FLAGS) &
+konsole --workdir "/home/sushant/projects/service-plus/dev/service-plus-web" &
+
+konsole --workdir "/home/sushant/projects/capital-chowringhee-web/" & -e bash -ic "git pull; exec bash" &
+sleep 1
+
+konsole --workdir "/home/sushant/projects/capital-chowringhee-web/" & -e bash -ic "pnpm start; exec bash" &
+sleep 1
+
+konsole --workdir "/home/sushant/projects/capital-chowringhee-web/" & -e bash -ic "claude; exec bash" &
+sleep 1
+
+konsole --workdir "/home/sushant/projects/capital-chowringhee-web/" &
+sleep 1
+
+sleep 1
