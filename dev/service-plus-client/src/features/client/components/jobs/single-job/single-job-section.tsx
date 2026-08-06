@@ -30,8 +30,8 @@ import { encodeObj, graphQlUtils } from "@/lib/graphql-utils";
 import { saveCustomerGstin } from "@/lib/gstin";
 
 import { useAppSelector } from "@/store/hooks";
-import { selectCurrentUser, selectDbName } from "@/features/auth/store/auth-slice";
-import { selectAvailableDivisions, selectCurrentBranch, selectCurrentDivision, selectDefaultDivisionId, selectNoOfJobSheetsPerPrint, selectSchema } from "@/store/context-slice";
+import { selectClientName, selectCurrentUser, selectDbName } from "@/features/auth/store/auth-slice";
+import { selectAvailableDivisions, selectCurrentBranch, selectCurrentBu, selectCurrentDivision, selectDefaultDivisionId, selectNoOfJobSheetsPerPrint, selectSchema, selectTrackJobUrl } from "@/store/context-slice";
 import type { JobDetailType, JobControlRow, JobLookupRow, ModelRow, TechnicianRow } from "@/features/client/types/job";
 import type { DivisionContextType } from "@/features/client/types/division";
 import type { CustomerTypeOption, StateOption } from "@/features/client/types/customer";
@@ -65,6 +65,9 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
     const currentDivision    = useAppSelector(selectCurrentDivision);
     const defaultDivisionId      = useAppSelector(selectDefaultDivisionId);
     const noOfJobSheetsPerPrint  = useAppSelector(selectNoOfJobSheetsPerPrint);
+    const currentBu           = useAppSelector(selectCurrentBu);
+    const clientName          = useAppSelector(selectClientName);
+    const trackJobUrl         = useAppSelector(selectTrackJobUrl);
     const branchId           = globalBranch?.id ?? null;
 
     // Filters
@@ -479,7 +482,7 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
             const jobDivision = availableDivisions.find(d => d.id === details.division_id) ?? currentDivision;
             pendingPrintRef.current = { job: details, division: jobDivision ?? null, branchCode: globalBranch?.code };
             setPrintCopies(copies);
-            const url = getJobSheetBlobUrl(details, jobDivision ?? null, globalBranch?.code, copies);
+            const url = getJobSheetBlobUrl(details, jobDivision ?? null, globalBranch?.code, copies, { clientName, buName: currentBu?.name ?? null, trackJobUrl });
             setPdfPreviewUrl(url);
             setPdfFilename(`Job-Sheet_${details.job_date}_${details.customer_name || "customer"}.pdf`);
             setPdfTitle(`Job Sheet #${details.job_no}`);
@@ -879,7 +882,7 @@ export const SingleJobSection = ({ onNavigateToBatchEdit, forceView, onViewModeA
                     setPrintCopies(n);
                     if (pendingPrintRef.current) {
                         const { job, division, branchCode } = pendingPrintRef.current;
-                        setPdfPreviewUrl(getJobSheetBlobUrl(job, division ?? null, branchCode, n));
+                        setPdfPreviewUrl(getJobSheetBlobUrl(job, division ?? null, branchCode, n, { clientName, buName: currentBu?.name ?? null, trackJobUrl }));
                     }
                 }}
                 onClose={() => {

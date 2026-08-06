@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState } from "react";
 import type { ComponentType } from "react";
 import {
     Activity, BarChart3, BookCheck, BookOpen, Building2, Camera, ChevronDown, ChevronRight,
-    ClipboardList, DollarSign, FileText, Globe, Hash,
+    ClipboardList, DollarSign, FileText, Globe, Hash, History,
     LayoutDashboard, Layers, LineChart, MapPin, Package, PieChart, PlusCircle, Receipt,
     RefreshCcw, RotateCcw, Settings2, ShieldCheck, ShoppingCart,
     Tag, Timer, TrendingUp, Truck, User, UserCog, Users, Wrench,
@@ -293,6 +293,7 @@ function ReportsExplorer() {
                 <TreeItem icon={DollarSign} label="Technician Profit Report" />
             </CollapsibleGroup>
             <CollapsibleGroup label="Job Reports">
+                <TreeItem icon={History}       label="Event Tracking" />
                 <TreeItem icon={ClipboardList} label="Job Intake Summary" />
                 <TreeItem icon={Wrench}        label="Jobs Repaired (OK)" />
                 <TreeItem icon={Truck}         label="Jobs Delivered (OK)" />

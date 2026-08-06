@@ -28,6 +28,7 @@ export const LoginForm = ({ onForgotPassword }: LoginFormProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+  const [clientName, setClientName] = useState('');
 
   const {
     register,
@@ -70,7 +71,7 @@ export const LoginForm = ({ onForgotPassword }: LoginFormProps) => {
         username:          result.username,
       };
 
-      dispatch(setCredentials({ user, token: result.accessToken, refreshToken: result.refreshToken, clientId: data.clientId, rememberMe }));
+      dispatch(setCredentials({ user, token: result.accessToken, refreshToken: result.refreshToken, clientId: data.clientId, clientName, rememberMe }));
 
       toast.success(MESSAGES.SUCCESS_LOGIN);
 
@@ -109,6 +110,7 @@ export const LoginForm = ({ onForgotPassword }: LoginFormProps) => {
           disabled={isSuperAdmin}
           value={clientId}
           onValueChange={(value) => setValue('clientId', value, { shouldValidate: true })}
+          onSelect={(client) => setClientName(client.name)}
           error={errors.clientId?.message}
         />
       </div>
@@ -224,6 +226,7 @@ export const LoginForm = ({ onForgotPassword }: LoginFormProps) => {
             setValue('isSuperAdmin', checked, { shouldValidate: true });
             if (checked) {
               setValue('clientId', '', { shouldValidate: false });
+              setClientName('');
               clearErrors('clientId');
             }
           }}

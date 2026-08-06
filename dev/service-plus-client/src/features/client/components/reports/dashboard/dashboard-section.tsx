@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
     Activity, AlertTriangle, ClipboardList, IndianRupee,
     Package, ShieldCheck, Timer, Wrench,
@@ -16,11 +16,24 @@ import { ReportLoading } from "../common/report-loading";
 import { ReportSection } from "../common/report-section";
 import { ReportToolbar } from "../common/report-toolbar";
 import { formatIsoDate, getRange, startOfDay } from "../common/fiscal";
+import type { RangeKeyType } from "../common/fiscal";
 import { useFiscalSetting } from "../common/use-fiscal-setting";
 import { useGenericQuery } from "../common/use-generic-query";
 import { DashboardMonthlyChart } from "./dashboard-monthly-chart";
 import { DashboardRecentJobs } from "./dashboard-recent-jobs";
 import { DashboardAlertsPanel } from "./dashboard-alerts-panel";
+
+type RangeOptionType = { key: RangeKeyType; label: string };
+
+const RANGE_OPTIONS: RangeOptionType[] = [
+    { key: "today",              label: "Today" },
+    { key: "yesterday",          label: "Yesterday" },
+    { key: "dayBeforeYesterday", label: "Day Before" },
+    { key: "thisWeek",           label: "This Week" },
+    { key: "prevWeek",           label: "Previous Week" },
+    { key: "thisMonth",          label: "This Month" },
+    { key: "lastMonth",          label: "Previous Month" },
+];
 
 type DashboardKpiRowType = {
     jobs_delivered: number;
@@ -37,8 +50,10 @@ const RECENT_LIMIT = 8;
 
 export const DashboardSection = () => {
     const { fyStartMonth, isReady } = useFiscalSetting();
+    const [rangeIndex, setRangeIndex] = useState(0);
+    const selectedRange = RANGE_OPTIONS[rangeIndex];
 
-    const todayRange  = useMemo(() => getRange("today", new Date(), fyStartMonth), [fyStartMonth]);
+    const todayRange  = useMemo(() => getRange(selectedRange.key, new Date(), fyStartMonth), [selectedRange.key, fyStartMonth]);
     const yearRange   = useMemo(() => {
         const today = new Date();
         const start = startOfDay(new Date(today.getFullYear() - 1, today.getMonth(), 1));
@@ -126,11 +141,35 @@ export const DashboardSection = () => {
         );
     }
 
+    const rangePicker = (
+        <div className="flex flex-wrap gap-0.5 rounded-md border border-(--cl-border) bg-(--cl-surface-3) p-0.5">
+            {RANGE_OPTIONS.map((opt, idx) => (
+                <button
+                    key={opt.key}
+                    className={`cursor-pointer rounded px-2.5 py-1 text-xs font-medium transition-colors ${
+                        rangeIndex === idx
+                            ? "bg-white dark:bg-zinc-800 text-(--cl-text) shadow-sm"
+                            : "text-(--cl-text-muted) hover:text-(--cl-text)"
+                    }`}
+                    type="button"
+                    onClick={() => setRangeIndex(idx)}
+                >
+                    {opt.label}
+                </button>
+            ))}
+        </div>
+    );
+
+    const rangeSubtitle = todayArgs.from === todayArgs.to
+        ? `${selectedRange.label}: ${todayArgs.from}`
+        : `${selectedRange.label}: ${todayArgs.from} – ${todayArgs.to}`;
+
     return (
         <ReportSection>
             <ReportToolbar
+                actions={rangePicker}
                 onRefresh={handleRefresh}
-                subtitle={`Today: ${todayArgs.from}`}
+                subtitle={rangeSubtitle}
                 title="Operations Dashboard"
             />
 
@@ -138,20 +177,20 @@ export const DashboardSection = () => {
                 <KpiCard
                     accentClassName="text-(--cl-accent-text)"
                     icon={ClipboardList}
-                    label="Jobs Received Today"
+                    label={`Jobs Received (${selectedRange.label})`}
                     subValue={kpis ? `W ${formatNumber(kpis.jobs_received_warranty)} / OOW ${formatNumber(kpis.jobs_received_oow)}` : undefined}
                     value={formatNumber(kpis?.jobs_received ?? 0)}
                 />
                 <KpiCard
                     accentClassName="text-emerald-500"
                     icon={Wrench}
-                    label="Jobs Delivered Today"
+                    label={`Jobs Delivered (${selectedRange.label})`}
                     value={formatNumber(kpis?.jobs_delivered ?? 0)}
                 />
                 <KpiCard
                     accentClassName="text-emerald-500"
                     icon={IndianRupee}
-                    label="Revenue Today"
+                    label={`Revenue (${selectedRange.label})`}
                     value={formatInr(kpis?.revenue ?? 0)}
                 />
                 <KpiCard
@@ -173,13 +212,13 @@ export const DashboardSection = () => {
                 <KpiCard
                     accentClassName="text-(--cl-accent-text)"
                     icon={ShieldCheck}
-                    label="Warranty Jobs (Today)"
+                    label={`Warranty Jobs (${selectedRange.label})`}
                     value={formatNumber(kpis?.jobs_received_warranty ?? 0)}
                 />
                 <KpiCard
                     accentClassName="text-(--cl-accent-text)"
                     icon={Package}
-                    label="Out-of-Warranty (Today)"
+                    label={`Out-of-Warranty (${selectedRange.label})`}
                     value={formatNumber(kpis?.jobs_received_oow ?? 0)}
                 />
                 <KpiCard

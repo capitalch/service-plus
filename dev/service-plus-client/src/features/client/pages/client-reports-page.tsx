@@ -7,6 +7,7 @@ import { ReportLoading } from "../components/reports/common/report-loading";
 
 const DashboardSection                       = lazy(() => import("../components/reports/dashboard/dashboard-section").then(m => ({ default: m.DashboardSection })));
 
+const EventTrackingSection                   = lazy(() => import("../components/reports/jobs/event-tracking-section").then(m => ({ default: m.EventTrackingSection })));
 const JobIntakeSummarySection                = lazy(() => import("../components/reports/jobs/job-intake-summary-section").then(m => ({ default: m.JobIntakeSummarySection })));
 const JobPipelineAgingSection                = lazy(() => import("../components/reports/jobs/job-pipeline-aging-section").then(m => ({ default: m.JobPipelineAgingSection })));
 const JobsRepairedSection                    = lazy(() => import("../components/reports/jobs/jobs-repaired-section").then(m => ({ default: m.JobsRepairedSection })));
@@ -50,6 +51,7 @@ const REPORT_SECTIONS: Record<string, ComponentType> = {
     "Cash Register":                         CashRegisterSection,
     "Dashboard":                             DashboardSection,
     "Delivered Jobs — Detailed":             JobsDeliveredDetailedSection,
+    "Event Tracking":                        EventTrackingSection,
     "GST Summary":                           GstSummarySection,
     "Job Intake Summary":                    JobIntakeSummarySection,
     "Job Pipeline / Aging":                  JobPipelineAgingSection,

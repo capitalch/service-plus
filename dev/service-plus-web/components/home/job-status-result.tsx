@@ -1,53 +1,73 @@
-import { CheckCircle2, Circle } from "lucide-react";
+import { CalendarClock, PackageCheck, Smartphone } from "lucide-react";
+
+import type { LucideIcon } from "lucide-react";
+import type { ReactNode } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { formatDate } from "@/lib/format";
+import { statusPillClass } from "@/lib/status-colors";
 import type { JobStatus } from "@/lib/types";
 
-function formatDate(value: string | null): string {
-  if (!value) return "—";
-  return new Date(value).toLocaleDateString("en-IN", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
+function DetailRow({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: LucideIcon;
+  label: string;
+  value: ReactNode;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-4 py-3 text-sm">
+      <span className="flex items-center gap-2 text-muted-foreground">
+        <Icon className="size-4 shrink-0" />
+        {label}
+      </span>
+      <span className="text-right font-medium">{value}</span>
+    </div>
+  );
 }
 
 export function JobStatusResult({ result }: { result: JobStatus }) {
   return (
-    <Card className="mt-6 text-left">
+    <Card className="text-left shadow-sm">
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
           <span>Job {result.jobNo}</span>
-          <Badge variant={result.isClosed ? "default" : "secondary"}>
-            {result.isClosed ? (
-              <CheckCircle2 className="size-3" />
-            ) : (
-              <Circle className="size-3" />
-            )}
-            {result.status}
-          </Badge>
+          <Badge className={statusPillClass(result.statusCode)}>{result.status}</Badge>
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <dl className="grid grid-cols-2 gap-y-3 text-sm sm:grid-cols-4">
-          <div>
-            <dt className="text-muted-foreground">Device</dt>
-            <dd className="mt-0.5 font-medium">{result.deviceDetails ?? "—"}</dd>
-          </div>
-          <div>
-            <dt className="text-muted-foreground">Job date</dt>
-            <dd className="mt-0.5 font-medium">{formatDate(result.jobDate)}</dd>
-          </div>
-          <div>
-            <dt className="text-muted-foreground">Delivery date</dt>
-            <dd className="mt-0.5 font-medium">{formatDate(result.deliveryDate)}</dd>
-          </div>
-          <div>
-            <dt className="text-muted-foreground">Service center</dt>
-            <dd className="mt-0.5 font-medium">{result.branchName ?? "—"}</dd>
-          </div>
-        </dl>
+        <div className="rounded-lg bg-accent/40 p-4">
+          <p className="text-sm font-medium text-accent-foreground">{result.status}</p>
+          {result.statusDescription && (
+            <p className="mt-1 text-sm text-muted-foreground">{result.statusDescription}</p>
+          )}
+        </div>
+
+        <div className="mt-1 divide-y divide-border">
+          <DetailRow
+            icon={Smartphone}
+            label="Device"
+            value={
+              <>
+                {result.deviceDetails ?? "—"}
+                {result.serialNo && (
+                  <span className="block text-xs font-normal text-muted-foreground">
+                    SN: {result.serialNo}
+                  </span>
+                )}
+              </>
+            }
+          />
+          <DetailRow icon={CalendarClock} label="Job date" value={formatDate(result.jobDate)} />
+          <DetailRow
+            icon={PackageCheck}
+            label="Delivery date"
+            value={formatDate(result.deliveryDate)}
+          />
+        </div>
       </CardContent>
     </Card>
   );

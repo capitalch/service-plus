@@ -41,7 +41,6 @@ export const RangeMatrixSection = ({ description, fileSlug, sqlId, title, valueI
         {
             align:  "right",
             cell:   r => fmt(r.warranty_count),
-            footer: rows => fmt(rows.reduce((s, r) => s + r.warranty_count, 0)),
             header: "Warranty",
             id:     "warranty",
             value:  r => r.warranty_count,
@@ -49,7 +48,6 @@ export const RangeMatrixSection = ({ description, fileSlug, sqlId, title, valueI
         {
             align:  "right",
             cell:   r => fmt(r.oow_count),
-            footer: rows => fmt(rows.reduce((s, r) => s + r.oow_count, 0)),
             header: "Out of Warranty",
             id:     "oow",
             value:  r => r.oow_count,
@@ -57,7 +55,6 @@ export const RangeMatrixSection = ({ description, fileSlug, sqlId, title, valueI
         {
             align:  "right",
             cell:   r => <span className="font-bold text-(--cl-accent-text)">{fmt(r.total_count)}</span>,
-            footer: rows => fmt(rows.reduce((s, r) => s + r.total_count, 0)),
             header: "Total",
             id:     "total",
             value:  r => r.total_count,
@@ -83,12 +80,6 @@ export const RangeMatrixSection = ({ description, fileSlug, sqlId, title, valueI
                     warranty: fmt(r.warranty_count),
                 })),
                 title,
-                totalsRow: {
-                    bucket:   "TOTAL",
-                    oow:      fmt(matrix.rows.reduce((s, r) => s + r.oow_count, 0)),
-                    total:    fmt(matrix.rows.reduce((s, r) => s + r.total_count, 0)),
-                    warranty: fmt(matrix.rows.reduce((s, r) => s + r.warranty_count, 0)),
-                },
             });
             toast.success(MESSAGES.SUCCESS_REPORTS_EXPORTED);
         } catch { toast.error(MESSAGES.ERROR_REPORTS_EXPORT_FAILED); }
@@ -126,7 +117,7 @@ export const RangeMatrixSection = ({ description, fileSlug, sqlId, title, valueI
 
             {matrix.error && <ReportError onRetry={matrix.refetch} />}
 
-            <ChartCard description="Standard date buckets — warranty vs out-of-warranty" title={title}>
+            <ChartCard description="Standard date buckets — warranty vs out-of-warranty. Ranges overlap (e.g. Today is included in This Week, Q1, and YTD), so rows are not additive — no grand total is shown." title={title}>
                 {matrix.loading
                     ? <ReportLoading lines={4} />
                     : (
@@ -134,7 +125,6 @@ export const RangeMatrixSection = ({ description, fileSlug, sqlId, title, valueI
                             columns={columns}
                             rowKey={r => r.key}
                             rows={matrix.rows}
-                            showFooter
                             stickyHeader={false}
                         />
                     )

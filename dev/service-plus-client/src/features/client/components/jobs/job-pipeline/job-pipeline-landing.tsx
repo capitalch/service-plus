@@ -67,6 +67,9 @@ export const JobPipelineLanding = ({ onStatusClick }: Props) => {
             const colorParts = (STATUS_COLORS[s.status_code] ?? "bg-slate-400 hover:bg-slate-500 text-white").trim().split(/\s+/).filter(Boolean);
             const colorClass = colorParts[0] ?? "bg-slate-400";
             const textClass  = colorParts.find(p => p.startsWith("text-")) ?? "text-white";
+            const warrantySuffix = s.status_code === "COMPLETED_OK"
+                ? ` (w:${Number(s.warranty_count)} ow:${Number(s.oow_count)})`
+                : "";
 
             return (
                 <motion.button
@@ -74,12 +77,13 @@ export const JobPipelineLanding = ({ onStatusClick }: Props) => {
                     animate={{ opacity: 1 }}
                     className={`group flex w-full items-center gap-3 rounded px-3 py-2 text-left focus:outline-none transition-colors duration-150 ${isZero ? "opacity-40 cursor-not-allowed" : "cursor-pointer focus-visible:ring-2 focus-visible:ring-(--cl-accent) hover:bg-(--cl-hover)"}`}
                     initial={{ opacity: 0 }}
-                    title={`${s.status_name}: ${count} job${count !== 1 ? "s" : ""}`}
+                    title={`${s.status_name}${warrantySuffix}: ${count} job${count !== 1 ? "s" : ""}`}
                     transition={{ delay: idx * 0.04, duration: 0.2 }}
                     onClick={() => { if (!isZero) onStatusClick(s); }}
                 >
-                    <span className="w-44 shrink-0 truncate text-sm font-semibold text-(--cl-text)" title={s.status_name}>
+                    <span className="w-44 shrink-0 truncate text-sm font-semibold text-(--cl-text)" title={`${s.status_name}${warrantySuffix}`}>
                         {s.status_name}
+                        {warrantySuffix && <span className="text-xs font-medium text-(--cl-text-muted)">{warrantySuffix}</span>}
                     </span>
 
                     <span className="w-8 shrink-0 text-right text-xs font-bold tabular-nums text-zinc-700 bg-zinc-200 rounded px-1.5 py-0.5">
@@ -154,7 +158,14 @@ export const JobPipelineLanding = ({ onStatusClick }: Props) => {
                             initial={{ opacity: 0 }}
                             title={`All: ${totalJobs} job${totalJobs !== 1 ? "s" : ""}`}
                             transition={{ delay: 0, duration: 0.2 }}
-                            onClick={() => onStatusClick({ status_id: 0, status_code: "ALL", status_name: "All", count: totalJobs })}
+                            onClick={() => onStatusClick({
+                                count:          totalJobs,
+                                oow_count:      statusCounts.reduce((s, r) => s + Number(r.oow_count), 0),
+                                status_code:    "ALL",
+                                status_id:      0,
+                                status_name:    "All",
+                                warranty_count: statusCounts.reduce((s, r) => s + Number(r.warranty_count), 0),
+                            })}
                         >
                             <span className="w-44 shrink-0 truncate text-sm font-semibold text-(--cl-text)">All</span>
                             <span className="w-8 shrink-0 text-right text-xs font-bold tabular-nums text-(--cl-accent) bg-(--cl-accent)/10 rounded px-1.5 py-0.5">

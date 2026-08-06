@@ -9,6 +9,7 @@ import { clearAuthStorage, getAuthItem, setAuthItem, setRememberFlag } from '@/l
 type AuthState = {
     isAuthenticated:  boolean;
     selectedClientId: string | null;
+    clientName:       string | null;
     sessionMode:      'admin' | 'client' | null;
     token:            string | null;
     refreshToken:     string | null;
@@ -24,6 +25,7 @@ function loadInitialState(): AuthState {
     const refreshToken = getAuthItem('refreshToken');
     const userStr     = getAuthItem('user');
     const user        = userStr ? JSON.parse(userStr) : null;
+    const clientName  = getAuthItem('clientName');
     let sessionMode   = getAuthItem('sessionMode') as 'admin' | 'client' | null;
 
     // Self-heal stale/legacy sessions (token + user present but no valid sessionMode):
@@ -36,6 +38,7 @@ function loadInitialState(): AuthState {
     return {
         isAuthenticated:  !!token,
         selectedClientId: null,
+        clientName,
         sessionMode,
         token,
         refreshToken,
@@ -59,11 +62,12 @@ const authSlice = createSlice({
          */
         setCredentials: (
             state,
-            action: PayloadAction<{ user: UserInstanceType; token: string; refreshToken: string; clientId: string; rememberMe: boolean }>
+            action: PayloadAction<{ user: UserInstanceType; token: string; refreshToken: string; clientId: string; clientName: string; rememberMe: boolean }>
         ) => {
-            const { user, token, refreshToken, clientId, rememberMe } = action.payload;
+            const { user, token, refreshToken, clientId, clientName, rememberMe } = action.payload;
             state.isAuthenticated  = true;
             state.selectedClientId = clientId;
+            state.clientName       = clientName || null;
             state.token            = token;
             state.refreshToken     = refreshToken;
             state.user             = user;
@@ -76,6 +80,9 @@ const authSlice = createSlice({
             setAuthItem('user', JSON.stringify(user));
             if (user.clientCode) {
                 setAuthItem('clientCode', user.clientCode);
+            }
+            if (clientName) {
+                setAuthItem('clientName', clientName);
             }
         },
 
@@ -90,6 +97,7 @@ const authSlice = createSlice({
         logout: (state) => {
             state.isAuthenticated  = false;
             state.selectedClientId = null;
+            state.clientName       = null;
             state.sessionMode      = null;
             state.token            = null;
             state.refreshToken     = null;
@@ -112,6 +120,7 @@ export const selectCurrentUser      = (state: { auth: AuthState }) => state.auth
 export const selectDbName           = (state: { auth: AuthState }) => state.auth.user?.dbName ?? null;
 export const selectIsAuthenticated  = (state: { auth: AuthState }) => state.auth.isAuthenticated;
 export const selectClientCode       = (state: { auth: AuthState }) => state.auth.user?.clientCode ?? localStorage.getItem('clientCode') ?? null;
+export const selectClientName       = (state: { auth: AuthState }) => state.auth.clientName ?? getAuthItem('clientName');
 export const selectSessionMode      = (state: { auth: AuthState }) => state.auth.sessionMode;
 
 /**

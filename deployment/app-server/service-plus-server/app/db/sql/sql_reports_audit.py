@@ -19,12 +19,11 @@ class ReportsAuditSql:
             ) AS jobs_received,
             COUNT(DISTINCT j.id) FILTER (
                 WHERE j.job_date BETWEEN (table "p_from") AND (table "p_to")
-                  AND j.warranty_card_no IS NOT NULL
-                  AND j.warranty_card_no <> ''
+                  AND j.job_type_id = (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY')
             ) AS jobs_received_warranty,
             COUNT(DISTINCT j.id) FILTER (
                 WHERE j.job_date BETWEEN (table "p_from") AND (table "p_to")
-                  AND (j.warranty_card_no IS NULL OR j.warranty_card_no = '')
+                  AND j.job_type_id IS DISTINCT FROM (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY')
             ) AS jobs_received_oow,
             COUNT(DISTINCT j.id) FILTER (
                 WHERE j.delivery_date BETWEEN (table "p_from") AND (table "p_to")
@@ -51,10 +50,10 @@ class ReportsAuditSql:
         SELECT
             to_char(date_trunc('month', j.job_date), 'YYYY-MM') AS month,
             COUNT(*) FILTER (
-                WHERE j.warranty_card_no IS NOT NULL AND j.warranty_card_no <> ''
+                WHERE j.job_type_id = (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY')
             ) AS warranty_count,
             COUNT(*) FILTER (
-                WHERE j.warranty_card_no IS NULL OR j.warranty_card_no = ''
+                WHERE j.job_type_id IS DISTINCT FROM (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY')
             ) AS oow_count,
             COUNT(*) AS total_count
         FROM job j
@@ -74,7 +73,7 @@ class ReportsAuditSql:
             js.code                   AS status_code,
             js.name                   AS status_name,
             t.name                    AS technician_name,
-            (j.warranty_card_no IS NOT NULL AND j.warranty_card_no <> '') AS is_warranty
+            (j.job_type_id = (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY')) AS is_warranty
         FROM job j
         JOIN customer_contact         cc  ON cc.id  = j.customer_contact_id
         JOIN job_status               js  ON js.id  = j.job_status_id
@@ -131,8 +130,8 @@ class ReportsAuditSql:
             t.id                AS technician_id,
             t.name              AS technician_name,
             COUNT(DISTINCT j.id) AS jobs_count,
-            COALESCE(SUM(ji.amount), 0) AS revenue,
-            COALESCE(SUM(ji.amount), 0)
+            COALESCE(SUM(ji.aggregate), 0) AS revenue,
+            COALESCE(SUM(ji.aggregate), 0)
               - COALESCE((
                   SELECT SUM(jpu.cost_price * jpu.qty)
                   FROM job_part_used jpu
@@ -167,8 +166,7 @@ class ReportsAuditSql:
             COUNT(DISTINCT jpu.part_id)                        AS distinct_parts_count
         FROM job j
         LEFT JOIN job_part_used jpu ON jpu.job_id = j.id
-        WHERE j.warranty_card_no IS NOT NULL
-          AND j.warranty_card_no <> ''
+        WHERE j.job_type_id = (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY')
           AND COALESCE(j.delivery_date, j.job_date) BETWEEN (table "p_from") AND (table "p_to")
     """
 
@@ -199,8 +197,7 @@ class ReportsAuditSql:
         LEFT JOIN brand               b   ON b.id   = pbm.brand_id
         LEFT JOIN product             p   ON p.id   = pbm.product_id
         LEFT JOIN job_part_used       jpu ON jpu.job_id = j.id
-        WHERE j.warranty_card_no IS NOT NULL
-          AND j.warranty_card_no <> ''
+        WHERE j.job_type_id = (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY')
           AND COALESCE(j.delivery_date, j.job_date) BETWEEN (table "p_from") AND (table "p_to")
         GROUP BY j.id, j.job_no, j.job_date, j.delivery_date, j.warranty_card_no,
                  cc.full_name, p.name, b.name, pbm.model_name, t.name,
@@ -230,8 +227,7 @@ class ReportsAuditSql:
         JOIN spare_part_master spm ON spm.id = jpu.part_id
         LEFT JOIN brand        b   ON b.id   = spm.brand_id
         LEFT JOIN technician   t   ON t.id   = j.technician_id
-        WHERE j.warranty_card_no IS NOT NULL
-          AND j.warranty_card_no <> ''
+        WHERE j.job_type_id = (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY')
           AND jpu.created_at::date BETWEEN (table "p_from") AND (table "p_to")
         ORDER BY jpu.created_at DESC, jpu.id DESC
     """
@@ -252,8 +248,7 @@ class ReportsAuditSql:
         JOIN job              j   ON j.id   = jpu.job_id
         JOIN spare_part_master spm ON spm.id = jpu.part_id
         LEFT JOIN brand        b   ON b.id   = spm.brand_id
-        WHERE j.warranty_card_no IS NOT NULL
-          AND j.warranty_card_no <> ''
+        WHERE j.job_type_id = (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY')
           AND jpu.created_at::date BETWEEN (table "p_from") AND (table "p_to")
         GROUP BY spm.id, spm.part_code, spm.part_name, b.name
         ORDER BY total_value DESC NULLS LAST
@@ -275,8 +270,7 @@ class ReportsAuditSql:
             )::date AS month_start
         ) m
         LEFT JOIN job j
-               ON j.warranty_card_no IS NOT NULL
-              AND j.warranty_card_no <> ''
+               ON j.job_type_id = (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY')
               AND date_trunc('month', COALESCE(j.delivery_date, j.job_date)) = m.month_start
         LEFT JOIN job_part_used jpu ON jpu.job_id = j.id
         GROUP BY m.month_start
@@ -309,11 +303,36 @@ class ReportsAuditSql:
             "p_from" as (values(%(from)s::date)),
             "p_to"   as (values(%(to)s::date))
         SELECT
-            COUNT(*) FILTER (WHERE j.warranty_card_no IS NOT NULL AND j.warranty_card_no <> '') AS warranty_count,
-            COUNT(*) FILTER (WHERE j.warranty_card_no IS NULL OR j.warranty_card_no = '')      AS oow_count,
+            COUNT(*) FILTER (WHERE j.job_type_id = (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY'))              AS warranty_count,
+            COUNT(*) FILTER (WHERE j.job_type_id IS DISTINCT FROM (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY')) AS oow_count,
             COUNT(*)                                                                            AS total_count
         FROM job j
         WHERE j.job_date BETWEEN (table "p_from") AND (table "p_to")
+    """
+
+    GET_EVENT_TRACKING_COUNTS = """
+        with
+            "p_from" as (values(%(from)s::date)),
+            "p_to"   as (values(%(to)s::date)),
+            categorized as (
+                select
+                    case js.code
+                        when 'RECEIVED'         then 'Received'
+                        when 'COMPLETED_OK'     then 'Finalize'
+                        when 'DELIVERED_OK'     then 'Deliver'
+                        when 'DELIVERED_NOT_OK' then 'Deliver'
+                        else 'Status Change'
+                    end as event_name
+                from job_transaction jt
+                join job_status js on js.id = jt.status_id
+                where jt.transaction_date between (table "p_from") and (table "p_to")
+                  -- Return / Cancel / Disposed are not tracked as events at all —
+                  -- excluded here rather than folded into "Status Change".
+                  and js.code not in ('RETURN', 'CANCELLED', 'DISPOSED')
+            )
+        select event_name, count(*) as count
+        from categorized
+        group by event_name
     """
 
     GET_JOBS_REPAIRED_OK_RANGE_SPLIT = """
@@ -321,8 +340,8 @@ class ReportsAuditSql:
             "p_from" as (values(%(from)s::date)),
             "p_to"   as (values(%(to)s::date))
         SELECT
-            COUNT(*) FILTER (WHERE j.warranty_card_no IS NOT NULL AND j.warranty_card_no <> '') AS warranty_count,
-            COUNT(*) FILTER (WHERE j.warranty_card_no IS NULL OR j.warranty_card_no = '')      AS oow_count,
+            COUNT(*) FILTER (WHERE j.job_type_id = (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY'))              AS warranty_count,
+            COUNT(*) FILTER (WHERE j.job_type_id IS DISTINCT FROM (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY')) AS oow_count,
             COUNT(*)                                                                            AS total_count
         FROM job j
         JOIN job_status js ON js.id = j.job_status_id
@@ -336,8 +355,8 @@ class ReportsAuditSql:
             "p_from" as (values(%(from)s::date)),
             "p_to"   as (values(%(to)s::date))
         SELECT
-            COUNT(*) FILTER (WHERE j.warranty_card_no IS NOT NULL AND j.warranty_card_no <> '') AS warranty_count,
-            COUNT(*) FILTER (WHERE j.warranty_card_no IS NULL OR j.warranty_card_no = '')      AS oow_count,
+            COUNT(*) FILTER (WHERE j.job_type_id = (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY'))              AS warranty_count,
+            COUNT(*) FILTER (WHERE j.job_type_id IS DISTINCT FROM (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY')) AS oow_count,
             COUNT(*)                                                                            AS total_count
         FROM job j
         JOIN job_status js ON js.id = j.job_status_id
@@ -356,11 +375,11 @@ class ReportsAuditSql:
             pbm.model_name                      AS model_name,
             p.name                              AS product_name,
             t.name                              AS technician_name,
-            (j.warranty_card_no IS NOT NULL AND j.warranty_card_no <> '') AS is_warranty,
+            (j.job_type_id = (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY')) AS is_warranty,
             COALESCE(parts.parts_cost, 0)       AS parts_cost,
             COALESCE(charges.charges_cost, 0)   AS charges_cost,
             COALESCE(ji.amount, 0)              AS selling_total,
-            COALESCE(ji.amount, 0)
+            COALESCE(ji.aggregate, 0)
               - COALESCE(parts.parts_cost, 0)
               - COALESCE(charges.charges_cost, 0) AS profit,
             COALESCE(ji.cgst_amount, 0)
@@ -438,7 +457,7 @@ class ReportsAuditSql:
             js.code                   AS status_code,
             js.name                   AS status_name,
             t.name                    AS technician_name,
-            (j.warranty_card_no IS NOT NULL AND j.warranty_card_no <> '') AS is_warranty
+            (j.job_type_id = (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY')) AS is_warranty
         FROM job j
         JOIN customer_contact         cc  ON cc.id  = j.customer_contact_id
         JOIN job_status               js  ON js.id  = j.job_status_id
@@ -474,35 +493,35 @@ class ReportsAuditSql:
             "p_from" as (values(%(from)s::date)),
             "p_to"   as (values(%(to)s::date))
         SELECT
-            COALESCE(SUM(ji.amount), 0)                        AS total_revenue,
+            COALESCE(SUM(ji.aggregate), 0)                        AS total_revenue,
             COALESCE(SUM(parts.parts_cost), 0)
               + COALESCE(SUM(charges.charges_cost), 0)         AS total_cost,
-            COALESCE(SUM(ji.amount), 0)
+            COALESCE(SUM(ji.aggregate), 0)
               - COALESCE(SUM(parts.parts_cost), 0)
               - COALESCE(SUM(charges.charges_cost), 0)         AS total_profit,
-            COALESCE(SUM(ji.amount) FILTER (
-                WHERE j.warranty_card_no IS NOT NULL AND j.warranty_card_no <> ''
+            COALESCE(SUM(ji.aggregate) FILTER (
+                WHERE j.job_type_id = (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY')
             ), 0)                                              AS warranty_revenue,
-            COALESCE(SUM(ji.amount) FILTER (
-                WHERE j.warranty_card_no IS NULL OR j.warranty_card_no = ''
+            COALESCE(SUM(ji.aggregate) FILTER (
+                WHERE j.job_type_id IS DISTINCT FROM (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY')
             ), 0)                                              AS oow_revenue,
-            COALESCE(SUM(ji.amount) FILTER (
-                WHERE j.warranty_card_no IS NOT NULL AND j.warranty_card_no <> ''
+            COALESCE(SUM(ji.aggregate) FILTER (
+                WHERE j.job_type_id = (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY')
             ), 0)
               - COALESCE(SUM(parts.parts_cost) FILTER (
-                  WHERE j.warranty_card_no IS NOT NULL AND j.warranty_card_no <> ''
+                  WHERE j.job_type_id = (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY')
                 ), 0)
               - COALESCE(SUM(charges.charges_cost) FILTER (
-                  WHERE j.warranty_card_no IS NOT NULL AND j.warranty_card_no <> ''
+                  WHERE j.job_type_id = (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY')
                 ), 0)                                          AS warranty_profit,
-            COALESCE(SUM(ji.amount) FILTER (
-                WHERE j.warranty_card_no IS NULL OR j.warranty_card_no = ''
+            COALESCE(SUM(ji.aggregate) FILTER (
+                WHERE j.job_type_id IS DISTINCT FROM (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY')
             ), 0)
               - COALESCE(SUM(parts.parts_cost) FILTER (
-                  WHERE j.warranty_card_no IS NULL OR j.warranty_card_no = ''
+                  WHERE j.job_type_id IS DISTINCT FROM (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY')
                 ), 0)
               - COALESCE(SUM(charges.charges_cost) FILTER (
-                  WHERE j.warranty_card_no IS NULL OR j.warranty_card_no = ''
+                  WHERE j.job_type_id IS DISTINCT FROM (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY')
                 ), 0)                                          AS oow_profit
         FROM job j
         LEFT JOIN job_invoice ji ON ji.job_id = j.id
@@ -647,10 +666,10 @@ class ReportsAuditSql:
               WHERE j.delivery_date BETWEEN (table "p_from") AND (table "p_to")
                 AND j.is_closed = true
             )                                     AS delivered_count,
-            COALESCE(SUM(ji.amount) FILTER (
+            COALESCE(SUM(ji.aggregate) FILTER (
               WHERE ji.invoice_date BETWEEN (table "p_from") AND (table "p_to")
             ), 0)                                 AS revenue,
-            COALESCE(SUM(ji.amount) FILTER (
+            COALESCE(SUM(ji.aggregate) FILTER (
               WHERE ji.invoice_date BETWEEN (table "p_from") AND (table "p_to")
             ), 0)
               - COALESCE(SUM(parts.parts_cost) FILTER (
@@ -706,10 +725,10 @@ class ReportsAuditSql:
         SELECT
             t.id                                  AS technician_id,
             t.name                                AS technician_name,
-            COALESCE(SUM(ji.amount), 0)           AS revenue,
+            COALESCE(SUM(ji.aggregate), 0)         AS revenue,
             COALESCE(SUM(parts.parts_cost), 0)
               + COALESCE(SUM(charges.charges_cost), 0) AS cost,
-            COALESCE(SUM(ji.amount), 0)
+            COALESCE(SUM(ji.aggregate), 0)
               - COALESCE(SUM(parts.parts_cost), 0)
               - COALESCE(SUM(charges.charges_cost), 0) AS profit
         FROM technician t
@@ -1031,10 +1050,10 @@ class ReportsAuditSql:
                  ELSE (EXTRACT(YEAR FROM j.job_date) - 1)::int
             END AS fy_year,
             COUNT(*) FILTER (
-              WHERE j.warranty_card_no IS NOT NULL AND j.warranty_card_no <> ''
+              WHERE j.job_type_id = (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY')
             ) AS warranty_count,
             COUNT(*) FILTER (
-              WHERE j.warranty_card_no IS NULL OR j.warranty_card_no = ''
+              WHERE j.job_type_id IS DISTINCT FROM (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY')
             ) AS oow_count,
             COUNT(*) AS total_count
         FROM job j
@@ -1073,7 +1092,7 @@ class ReportsAuditSql:
             "p_months_back" as (values(%(months_back)s::int))
         SELECT
             to_char(date_trunc('month', ji.invoice_date), 'YYYY-MM') AS month,
-            COALESCE(SUM(ji.amount), 0)
+            COALESCE(SUM(ji.aggregate), 0)
               - COALESCE(SUM(parts.parts_cost), 0)
               - COALESCE(SUM(charges.charges_cost), 0) AS profit
         FROM job_invoice ji

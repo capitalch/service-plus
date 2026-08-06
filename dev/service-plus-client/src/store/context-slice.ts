@@ -39,6 +39,7 @@ type ContextStateType = {
     noOfJobInvoicesPerPrint:  number;
     noOfJobReceiptsPerPrint:  number;
     noOfJobSheetsPerPrint:    number;
+    trackJobUrl:              string | null;
     defaultHsnForSparePart:      string;
     defaultHsnForServiceCharge:  string;
     isGstRegistered:          boolean;
@@ -64,6 +65,7 @@ const initialState: ContextStateType = {
     noOfJobInvoicesPerPrint:  1,
     noOfJobReceiptsPerPrint:  1,
     noOfJobSheetsPerPrint:    1,
+    trackJobUrl:              null,
     defaultHsnForSparePart:     "",
     defaultHsnForServiceCharge: "",
     isGstRegistered:          false,
@@ -113,6 +115,10 @@ const contextSlice = createSlice({
 
         setNoOfJobSheetsPerPrint: (state, action: PayloadAction<number>) => {
             state.noOfJobSheetsPerPrint = action.payload;
+        },
+
+        setTrackJobUrl: (state, action: PayloadAction<string | null>) => {
+            state.trackJobUrl = action.payload;
         },
 
         setDefaultHsnForSparePart: (state, action: PayloadAction<string>) => {
@@ -173,6 +179,7 @@ export const {
     setNoOfJobInvoicesPerPrint,
     setNoOfJobReceiptsPerPrint,
     setNoOfJobSheetsPerPrint,
+    setTrackJobUrl,
     setDefaultHsnForServiceCharge,
     setPostDataToAccounts,
     setIsResolvingContext,
@@ -195,6 +202,7 @@ export const selectMarkupPercentOverCost    = (state: ContextRootState) => state
 export const selectNoOfJobInvoicesPerPrint  = (state: ContextRootState) => state.context.noOfJobInvoicesPerPrint;
 export const selectNoOfJobReceiptsPerPrint  = (state: ContextRootState) => state.context.noOfJobReceiptsPerPrint;
 export const selectNoOfJobSheetsPerPrint    = (state: ContextRootState) => state.context.noOfJobSheetsPerPrint;
+export const selectTrackJobUrl              = (state: ContextRootState) => state.context.trackJobUrl;
 export const selectDefaultHsnForSparePart      = (state: ContextRootState) => state.context.defaultHsnForSparePart;
 export const selectDefaultHsnForServiceCharge  = (state: ContextRootState) => state.context.defaultHsnForServiceCharge;
 export const selectPostDataToAccounts       = (state: ContextRootState) => state.context.postDataToAccounts;

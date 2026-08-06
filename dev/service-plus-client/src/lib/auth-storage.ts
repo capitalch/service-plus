@@ -4,7 +4,7 @@
  * the browser/tab closes) without every caller duplicating that choice.
  */
 
-const AUTH_KEYS = ['accessToken', 'refreshToken', 'user', 'selectedClientId', 'sessionMode', 'clientCode'] as const;
+const AUTH_KEYS = ['accessToken', 'refreshToken', 'user', 'selectedClientId', 'sessionMode', 'clientCode', 'clientName'] as const;
 
 const REMEMBER_FLAG_KEY = 'rememberMe';
 

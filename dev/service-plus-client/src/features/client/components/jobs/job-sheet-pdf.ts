@@ -26,12 +26,51 @@ type JobInfoPaymentRow = {
     payment_mode: string; amount: number; reference_no: string | null; remarks: string | null;
 };
 
-function buildSingleJobSheetDoc(job: JobDetailType, division: DivisionContextType | null, branchCode?: string, copies = 1): jsPDF {
+// ── Shared "track job" info line (single job sheet + batch job sheet) ─────────
+
+type SingleJobSheetPrintMeta = {
+    clientName?:  string | null;
+    buName?:      string | null;
+    trackJobUrl?: string | null;
+};
+
+function buildTrackInfoLine(printMeta: SingleJobSheetPrintMeta | undefined, extra: { label: string; value: string }[]): string {
+    const segments: string[] = [];
+    if (printMeta?.trackJobUrl) segments.push(`Track your Job URL: ${printMeta.trackJobUrl}`);
+    const nameBu = [printMeta?.clientName, printMeta?.buName].filter(Boolean).join(" -- ");
+    if (nameBu) segments.push(nameBu);
+    for (const e of extra) segments.push(`${e.label}: ${e.value}`);
+    return segments.join("  |  ");
+}
+
+// Shrinks the font size until `text` fits within `maxWidth` on one line (floor 5.5pt),
+// since client/BU names and URLs vary too much in length for a fixed size to be safe.
+// Measures using the same font weight it'll actually be rendered in — bold glyphs are
+// wider than normal ones, so measuring at the wrong weight risks under-shrinking.
+function fitSingleLineFontSize(doc: jsPDF, text: string, maxWidth: number, startSize = 7, minSize = 5.5, step = 0.25, bold = false): number {
+    let size = startSize;
+    doc.setFont("helvetica", bold ? "bold" : "normal");
+    doc.setFontSize(size);
+    while (size > minSize && doc.getTextWidth(text) > maxWidth) {
+        size -= step;
+        doc.setFontSize(size);
+    }
+    return size;
+}
+
+function buildSingleJobSheetDoc(job: JobDetailType, division: DivisionContextType | null, branchCode?: string, copies = 1, printMeta?: SingleJobSheetPrintMeta): jsPDF {
     // Standard A4 page; content fits within top 148.5 mm (half-A4 stationery)
     const doc       = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
     // Signatures are anchored to the bottom edge of the printable half-A4 area
-    const HALF_A4_BOTTOM = 140;
+    const HALF_A4_BOTTOM = 144;
+
+    const trackLineText     = buildTrackInfoLine(printMeta, [
+        { label: "Job No", value: job.job_no },
+        { label: "Mobile", value: job.mobile },
+    ]);
+    // -4 accounts for the table cell's own left/right padding (cellPadding: 2 each side)
+    const trackLineFontSize = trackLineText ? fitSingleLineFontSize(doc, trackLineText, pageWidth - 30 - 4, 11, 5.5, 0.25, true) : 0;
 
     doc.setProperties({
         title: `Job-Sheet_${job.job_date}_${job.customer_name || "customer"}`,
@@ -102,6 +141,13 @@ function buildSingleJobSheetDoc(job: JobDetailType, division: DivisionContextTyp
                 [{ content: "Qty:", styles: { fontStyle: "bold" } }, { content: String(job.qty), colSpan: 3 }],
                 ["Job Type:", job.job_type_name,             "Warranty Card:", job.warranty_card_no ?? "—"],
                 ["Receive Manner:",   job.job_receive_manner_name,   "Condition:",     job.job_receive_condition_name ?? "—"],
+                ...(trackLineText ? [[
+                    {
+                        content: trackLineText,
+                        colSpan: 4,
+                        styles: { fontStyle: "bold" as const, halign: "center" as const, fontSize: trackLineFontSize },
+                    },
+                ]] : []),
             ],
             columnStyles: { 0: { cellWidth: 35, fontStyle: "bold" }, 2: { cellWidth: 35, fontStyle: "bold" } },
             margin:       { left: 15, right: 15 },
@@ -161,14 +207,14 @@ function buildSingleJobSheetDoc(job: JobDetailType, division: DivisionContextTyp
     return doc;
 }
 
-export function getJobSheetBlobUrl(job: JobDetailType, division: DivisionContextType | null, branchCode?: string, copies = 1): string {
-    const doc = buildSingleJobSheetDoc(job, division, branchCode, copies);
+export function getJobSheetBlobUrl(job: JobDetailType, division: DivisionContextType | null, branchCode?: string, copies = 1, printMeta?: SingleJobSheetPrintMeta): string {
+    const doc = buildSingleJobSheetDoc(job, division, branchCode, copies, printMeta);
     return String(doc.output("bloburl"));
 }
 
 // ── Batch Job Sheet ───────────────────────────────────────────────────────────
 
-function buildBatchJobSheetDoc(jobs: JobDetailType[], division: DivisionContextType | null, branchCode?: string, copies = 1): jsPDF {
+function buildBatchJobSheetDoc(jobs: JobDetailType[], division: DivisionContextType | null, branchCode?: string, copies = 1, printMeta?: SingleJobSheetPrintMeta): jsPDF {
     const doc       = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
 
@@ -179,6 +225,12 @@ function buildBatchJobSheetDoc(jobs: JobDetailType[], division: DivisionContextT
     const address   = jobs[0]?.address_snapshot ?? "—";
     const manner    = jobs[0]?.job_receive_manner_name ?? "—";
     const branch    = branchCode ?? "—";
+
+    // No "Job No" segment here — a batch covers multiple jobs, each already
+    // listed with its own job no in the jobs table below.
+    const trackLineText     = buildTrackInfoLine(printMeta, [{ label: "Mobile", value: mobile }]);
+    // -2.4 accounts for the batch info grid's own cell padding (cellPadding: 1.2 each side)
+    const trackLineFontSize = trackLineText ? fitSingleLineFontSize(doc, trackLineText, pageWidth - 30 - 2.4, 11, 5.5, 0.25, true) : 0;
 
     doc.setProperties({
         title:    `Batch-Job-Sheet_${batchNo}`,
@@ -220,6 +272,13 @@ function buildBatchJobSheetDoc(jobs: JobDetailType[], division: DivisionContextT
                 ["Branch:",   branch,          "Customer:", customer],
                 ["Mobile:",   mobile,          "Receive Manner:", manner],
                 ["Address:",  address,          "Jobs:",     String(jobs.length)],
+                ...(trackLineText ? [[
+                    {
+                        content: trackLineText,
+                        colSpan: 4,
+                        styles: { fontStyle: "bold" as const, halign: "center" as const, fontSize: trackLineFontSize },
+                    },
+                ]] : []),
             ],
             columnStyles: { 0: { cellWidth: 28, fontStyle: "bold" }, 2: { cellWidth: 28, fontStyle: "bold" } },
             margin:       { left: 15, right: 15 },
@@ -345,8 +404,8 @@ function buildBatchJobSheetDoc(jobs: JobDetailType[], division: DivisionContextT
     return doc;
 }
 
-export function getBatchJobSheetBlobUrl(jobs: JobDetailType[], division: DivisionContextType | null, branchCode?: string, copies = 1): string {
-    const doc = buildBatchJobSheetDoc(jobs, division, branchCode, copies);
+export function getBatchJobSheetBlobUrl(jobs: JobDetailType[], division: DivisionContextType | null, branchCode?: string, copies = 1, printMeta?: SingleJobSheetPrintMeta): string {
+    const doc = buildBatchJobSheetDoc(jobs, division, branchCode, copies, printMeta);
     return String(doc.output("bloburl"));
 }
 

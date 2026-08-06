@@ -1,6 +1,8 @@
 export type RangeKeyType =
     | "custom"
+    | "dayBeforeYesterday"
     | "lastMonth"
+    | "lastQuarter"
     | "lastYear"
     | "prevWeek"
     | "q1"
@@ -8,6 +10,7 @@ export type RangeKeyType =
     | "q3"
     | "q4"
     | "thisMonth"
+    | "thisQuarter"
     | "thisWeek"
     | "today"
     | "yesterday"
@@ -26,19 +29,22 @@ const MONTH_LABELS: string[] = [
 ];
 
 const RANGE_LABELS: Record<RangeKeyType, string> = {
-    custom:    "Custom",
-    lastMonth: "Last Month",
-    lastYear:  "Last Year",
-    prevWeek:  "Previous Week",
-    q1:        "Q1",
-    q2:        "Q2",
-    q3:        "Q3",
-    q4:        "Q4",
-    thisMonth: "This Month",
-    thisWeek:  "This Week",
-    today:     "Today",
-    yesterday: "Yesterday",
-    ytd:       "Year-to-Date",
+    custom:              "Custom",
+    dayBeforeYesterday:  "Day Before",
+    lastMonth:           "Last Month",
+    lastQuarter:         "Last Quarter",
+    lastYear:            "Last Year",
+    prevWeek:            "Previous Week",
+    q1:                  "Q1",
+    q2:                  "Q2",
+    q3:                  "Q3",
+    q4:                  "Q4",
+    thisMonth:           "This Month",
+    thisQuarter:         "This Quarter",
+    thisWeek:            "This Week",
+    today:               "Today",
+    yesterday:           "Yesterday",
+    ytd:                 "Year-to-Date",
 };
 
 function clampMonth(monthIndex: number): number {
@@ -91,6 +97,31 @@ function getFiscalQuarterBounds(q: 1 | 2 | 3 | 4, today: Date, fyStart: number):
     return { from, key: (`q${q}` as RangeKeyType), label: `Q${q}`, to };
 }
 
+// "This quarter" / "last quarter" relative to `today` (as opposed to q1-q4, which are
+// the four fixed quarters of the current fiscal year, used elsewhere for a full-year
+// breakdown). Self-contained rather than built on getFiscalQuarterBounds, since that
+// helper always resolves the fiscal year from `today` — "last quarter" needs to be able
+// to roll back into the *previous* fiscal year when `today` falls in fiscal Q1.
+function getRelativeFiscalQuarterBounds(today: Date, fyStart: number): { lastQuarter: DateRangeType; thisQuarter: DateRangeType } {
+    const fyStartIdx      = clampMonth(fyStart - 1);
+    const fyBeginYear     = today.getMonth() >= fyStartIdx ? today.getFullYear() : today.getFullYear() - 1;
+    const monthsSinceFyStart = clampMonth(today.getMonth() - fyStartIdx);
+    const thisQOffset     = Math.floor(monthsSinceFyStart / 3) * 3; // 0, 3, 6, or 9
+
+    function quarterBoundsFromOffset(offsetMonths: number): DateRangeType {
+        // offsetMonths is measured from the fiscal year start and may be negative
+        // (rolls into the previous fiscal year) — Date's constructor handles the
+        // month/year rollover correctly for both directions.
+        const start = new Date(fyBeginYear, fyStartIdx + offsetMonths, 1);
+        return { from: startOfDay(start), key: "custom", label: "", to: endOfMonth(start.getFullYear(), start.getMonth() + 2) };
+    }
+
+    return {
+        lastQuarter: { ...quarterBoundsFromOffset(thisQOffset - 3), key: "lastQuarter", label: RANGE_LABELS.lastQuarter },
+        thisQuarter: { ...quarterBoundsFromOffset(thisQOffset),     key: "thisQuarter", label: RANGE_LABELS.thisQuarter },
+    };
+}
+
 function getPreviousFiscalYearBounds(today: Date, fyStart: number): DateRangeType {
     const current = getCurrentFiscalYearBounds(today, fyStart);
     const prevFromYear = current.from.getFullYear() - 1;
@@ -115,6 +146,10 @@ export function getRange(
         case "yesterday": {
             const y = new Date(today.getTime() - dayMs);
             return { from: startOfDay(y), key, label: RANGE_LABELS.yesterday, to: endOfDay(y) };
+        }
+        case "dayBeforeYesterday": {
+            const d = new Date(today.getTime() - 2 * dayMs);
+            return { from: startOfDay(d), key, label: RANGE_LABELS.dayBeforeYesterday, to: endOfDay(d) };
         }
         case "thisWeek": {
             const start = startOfWeek(today);
@@ -142,6 +177,8 @@ export function getRange(
         case "q2": return getFiscalQuarterBounds(2, today, fyStart);
         case "q3": return getFiscalQuarterBounds(3, today, fyStart);
         case "q4": return getFiscalQuarterBounds(4, today, fyStart);
+        case "thisQuarter": return getRelativeFiscalQuarterBounds(today, fyStart).thisQuarter;
+        case "lastQuarter": return getRelativeFiscalQuarterBounds(today, fyStart).lastQuarter;
         case "ytd": {
             const fy = getCurrentFiscalYearBounds(today, fyStart);
             return { from: fy.from, key, label: RANGE_LABELS.ytd, to: endOfDay(today) };

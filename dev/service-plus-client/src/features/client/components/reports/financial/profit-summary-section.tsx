@@ -97,7 +97,6 @@ export const ProfitSummarySection = () => {
         {
             align:  "right",
             cell:   r => formatInr(r.warranty_profit),
-            footer: rs => formatInr(rs.reduce((s, r) => s + r.warranty_profit, 0)),
             header: "Warranty Profit",
             id:     "wp",
             value:  r => r.warranty_profit,
@@ -105,7 +104,6 @@ export const ProfitSummarySection = () => {
         {
             align:  "right",
             cell:   r => formatInr(r.oow_profit),
-            footer: rs => formatInr(rs.reduce((s, r) => s + r.oow_profit, 0)),
             header: "OOW Profit",
             id:     "op",
             value:  r => r.oow_profit,
@@ -113,7 +111,6 @@ export const ProfitSummarySection = () => {
         {
             align:  "right",
             cell:   r => <span className="font-bold text-emerald-600">{formatInr(r.total_profit)}</span>,
-            footer: rs => formatInr(rs.reduce((s, r) => s + r.total_profit, 0)),
             header: "Total Profit",
             id:     "tp",
             value:  r => r.total_profit,
@@ -176,7 +173,7 @@ export const ProfitSummarySection = () => {
 
             {error && <ReportError onRetry={refetch} />}
 
-            <ChartCard description="Profit = invoice amount − parts cost − charges cost" title="Profit by Range">
+            <ChartCard description="Profit = net invoice value (excl. GST) − parts cost − charges cost. Ranges overlap (e.g. Today is included in This Week, Q1, and YTD), so rows are not additive — no grand total is shown." title="Profit by Range">
                 {loading
                     ? <ReportLoading lines={4} />
                     : rows.length === 0
@@ -186,7 +183,6 @@ export const ProfitSummarySection = () => {
                                 columns={COLUMNS}
                                 rowKey={r => r.key}
                                 rows={rows}
-                                showFooter
                                 stickyHeader={false}
                             />
                         )

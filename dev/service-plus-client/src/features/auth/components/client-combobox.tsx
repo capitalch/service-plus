@@ -5,16 +5,18 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { useClientSearch } from '../hooks/use-client-search';
+import type { ClientType } from '@/lib/auth-service';
 
 type ClientComboboxProps = {
   autoFocus?: boolean;
   disabled?: boolean;
   error?: string;
+  onSelect?: (client: ClientType) => void;
   onValueChange: (value: string) => void;
   value: string;
 };
 
-export const ClientCombobox = ({ autoFocus, disabled, error, onValueChange, value }: ClientComboboxProps) => {
+export const ClientCombobox = ({ autoFocus, disabled, error, onSelect, onValueChange, value }: ClientComboboxProps) => {
   const { clients, hasMinimumChars, isLoading, setCriteria } = useClientSearch();
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const [inputValue, setInputValue] = useState('');
@@ -70,14 +72,15 @@ export const ClientCombobox = ({ autoFocus, disabled, error, onValueChange, valu
 
     if (e.key === 'Enter' && highlightedIndex >= 0 && clients[highlightedIndex]) {
       e.preventDefault();
-      selectClient(clients[highlightedIndex].id, clients[highlightedIndex].name);
+      selectClient(clients[highlightedIndex]);
     }
   };
 
-  const selectClient = (id: string, name: string) => {
-    setInputValue(name);
+  const selectClient = (client: ClientType) => {
+    setInputValue(client.name);
     setCriteria('');
-    onValueChange(String(id));
+    onValueChange(String(client.id));
+    onSelect?.(client);
     closeDropdown();
   };
 
@@ -150,7 +153,7 @@ export const ClientCombobox = ({ autoFocus, disabled, error, onValueChange, valu
                         : 'text-slate-700 hover:bg-slate-50'
                     )}
                     key={client.id}
-                    onMouseDown={() => selectClient(client.id, client.name)}
+                    onMouseDown={() => selectClient(client)}
                     onMouseEnter={() => setHighlightedIndex(index)}
                     role="option"
                   >

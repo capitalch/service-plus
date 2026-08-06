@@ -179,10 +179,12 @@ export type OpenJobRow = {
 };
 
 export type JobBoardStatusCount = {
-    status_id:   number;
-    status_name: string;
-    status_code: string;
-    count:       number;
+    status_id:      number;
+    status_name:    string;
+    status_code:    string;
+    count:          number;
+    warranty_count: number;
+    oow_count:      number;
 };
 
 export type WarrantyBatchJobRow = {

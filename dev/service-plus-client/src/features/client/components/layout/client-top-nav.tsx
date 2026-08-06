@@ -63,7 +63,7 @@ export const ClientTopNav = ({ activeSection }: Props) => {
     ];
 
     return (
-        <header className="fixed left-0 right-0 top-0 z-50 flex h-12 items-center border-b border-(--cl-border) bg-(--cl-bg) px-3 sm:px-4">
+        <header className="fixed left-0 right-0 top-0 z-50 flex h-12 items-center overflow-x-auto border-b border-(--cl-border) bg-(--cl-bg) px-3 sm:px-4">
             {/* Mobile Menu Toggle — opens the Explorer Panel which has section nav + sub-items.
                 Kept as a direct, shrink-0 child of the header (outside the overflow-hidden left
                 section) so it can never be clipped when the right-hand switcher is wide. */}

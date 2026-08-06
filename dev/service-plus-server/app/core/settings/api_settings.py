@@ -28,7 +28,11 @@ class ApiSettings(BaseSettings):
 
     # CORS Settings
     cors_origins: list[str] = Field(
-        default=["http://localhost:3000"],
+        default=[
+            "http://localhost:3000",
+            "http://localhost:3002",
+            "https://serviceplus.capital-chowringhee.com",
+        ],
         description="Allowed CORS origins. Set to the real client domain(s) in production.",
     )
 

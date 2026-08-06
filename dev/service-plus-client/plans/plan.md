@@ -1,249 +1,119 @@
-# Plan — Minimum Deployable `service-plus-web` (POC)
+# Spare Parts Sale on the Web — Design
 
-Distilled from `plans/plan-nextjs.md` §10-11 and `plans/tran.md`, corrected against the current
-state of `service-plus-server` and `service-plus-client` (verified 2026-08-03; see §0). Scope is
-**only** the first shippable artifact: a single-page site deployable to milesweb.in that proves the
-end-to-end path (browser → API key → tenant/BU resolution → real job-status data). Everything else
-in `plan-nextjs.md` (Option 2 search, Contacts, admin toggles, AI help) is explicitly **out of
-scope** here and unaffected by this plan.
+## 1. Context
 
----
+`service-plus-web` (the public Next.js static site) already has a "Genuine spare parts — Coming soon" teaser card (`components/home/feature-cards.tsx`) sitting next to the live "Track your repair" feature. This design fills that placeholder: a public parts catalog (search/browse, in-stock + active parts only, per company/tenant) plus a payment-free "order request" flow (no payment gateway — customer submits an order, staff fulfills it manually, presumably cash-on-pickup/delivery).
 
-## 0. Corrections to `plan-nextjs.md` (verified by re-reading the current code)
+This spans three repos in the monorepo (`/home/sushant/projects/service-plus/dev/`):
+- **`service-plus-web`** — new pages/components for browsing + ordering.
+- **`service-plus-server`** — new public (unauthenticated, key-gated) API endpoints + new tables.
+- **`service-plus-file-server`** — evaluated for part images; **recommendation: don't extend it for this** (see §6).
 
-These change what counts as "new" vs "reuse" — noted so the plan below isn't built on a false
-premise:
+I read the actual existing code for all three before writing this (not guessing): the live "Track your repair" feature, the public API's tenant-resolution mechanism, the `spare_part_master`/`stock_balance` schema, and the file-server's auth model.
 
-1. **No inbound pre-shared-key auth exists in `service-plus-server`.** `plan-nextjs.md` claims the
-   server "already authenticates internal callers with a shared key in a header" and that the
-   website API will "reuse this exact pattern." False as stated: `X-Service-Key`
-   (`trace_plus_service_key`) and `file_server_api_key` are used **outbound only** — this server
-   presents them when *calling* trace-plus / the file-server. `app/core/dependencies.py` today
-   contains exactly one dependency, `get_current_user`, which validates a JWT bearer token, not a
-   static header key. **`require_website_key` must be written from scratch** — a reasonable design,
-   just not a reuse of prior art.
-2. **`app/main.py`'s `include_router()` calls take no prefix arg** — each router sets its own
-   prefix internally (e.g. `image_router = APIRouter(prefix="/api/images", ...)`). Follow that
-   convention: `website_router = APIRouter(prefix="/api/public", tags=["public"])`.
-3. **`GET_CLIENT_DB_NAMES` lives in `app/db/sql/sql_bu_admin.py`** (line ~503), not `sql_shared.py`
-   as `plan-nextjs.md` §5.3 states. `sql_shared.py` only holds app-setting queries.
-4. **`service-plus-client` is a Vite + React SPA, not Next.js.** `plan-nextjs.md` §3-E says the UI
-   stack "mirrors `service-plus-client`'s stack" — true for the *component/design* layer, not the
-   framework. Confirmed reusable from the client: Tailwind **v4** (CSS-first, no `tailwind.config.js`),
-   shadcn/ui (`style: radix-nova`, `baseColor: neutral`), the single `radix-ui` package,
-   `lucide-react`, `framer-motion`, `zod` + `react-hook-form` + `@hookform/resolvers`, `sonner`,
-   `class-variance-authority` + `clsx` + `tailwind-merge`, `@fontsource-variable/inter`, and the
-   OKLCH color-token block in `src/index.css`. The client's Vite plugin (`@tailwindcss/vite`) has a
-   Next.js equivalent, `@tailwindcss/postcss` — use that instead.
-5. **`send_email` in `app/core/email.py` is plain-text only** and raises `RuntimeError` if SMTP
-   isn't configured (not silent). Irrelevant to this POC (no contact form in scope) but flagged for
-   the later Contacts phase.
-6. **No rate-limiting library is installed** (`slowapi` etc. absent) — confirmed gap, must add
-   something minimal for the POC's two public endpoints.
+## 2. How the public site currently talks to the backend (the pattern to replicate)
 
-Everything else `plan-nextjs.md` asserts about the server (`pool_manager.get_service_pool`,
-search-path-per-query via `psycopg_driver.py`, `GET_ALL_BUS`/`GET_ALL_BUS_WITH_SCHEMA_STATUS`,
-`GET_ALL_BRANCHES`, `sql_jobs.py`'s `GET_JOB_DETAIL`/`GET_JOB_SEARCH_PAGED` shape) checked out
-accurately and is safe to build on.
+- **Static export, no server code**: `service-plus-web`'s `next.config.ts` sets `output: "export"`. There are zero `app/api/*/route.ts` files — every page is a `"use client"` component doing plain `fetch` straight to `service-plus-server`, via `lib/api.ts`'s `publicGet<T>(path, params)` helper. Base URL from `NEXT_PUBLIC_API_BASE_URL`, plus a required `X-Website-Key` header (`NEXT_PUBLIC_WEBSITE_KEY`) baked into the static bundle.
+- **Backend gate**: `app/routers/public/website_router.py` (FastAPI, prefix `/api/public`) — every route is `Depends(require_website_key)` (compares the header against `settings.website_api_key` via `secrets.compare_digest`) plus a per-route rate limiter.
+- **Tenant resolution without login — the critical mechanism to reuse, not reinvent**: `app/services/public_directory.py`'s `public_directory` singleton fans out across every active row in `public.client`, reads each one's `security.bu`, and builds a 5-minute-TTL cache mapping an **opaque token** (`sha256(f"{db_name}:{bu_code}")[:20]`) → `(db_name, bu_code)`. `GET /api/public/companies` returns only `{id: token, label}` pairs — the browser never sees or can forge a real `db_name`/schema. Every subsequent request (existing job-status/open-jobs, and the new parts endpoints) just echoes back that same `company` token; the router resolves it server-side via `public_directory.resolve_company(token)` before running any SQL. **The new parts endpoints must use this exact same token, not the raw-id `/api/auth/clients` pattern** (that one exists only to let a human pick a tenant before a real login+JWT, and is not safe as an authorization boundary for a public write).
+- SQL lives in `app/db/sql/sql_public.py` (`PublicSql` class) as whitelisted-column queries called via the same `exec_sql_query(db_name, schema, ...)` used elsewhere — no raw SQL in the frontend, consistent with the rest of the app.
 
----
+## 3. Data model
 
-## 1. Scope of this deliverable
+### 3a. What exists today (confirmed by reading `db-schema-service.ts`)
 
-- **One page**: Home, with hero + feature cards + a **live** "Check your repair status" mini-form
-  (company dropdown → job number → mobile → result card).
-- **Two real endpoints** on `service-plus-server`: `GET /api/public/companies`,
-  `GET /api/public/job-status`.
-- **A deploy script + runbook** that pushes the static build to milesweb.in (domain or subdomain).
-- Everything is additive — zero changes to existing GraphQL, auth, or admin behavior.
+- **`spare_part_master`**: `id, brand_id (FK brand), part_code, part_name, part_description, category, model (free text — NOT an FK), uom, cost_price, mrp, hsn_code, gst_rate, is_active, selling_price, created_at, updated_at`. **No image column. No link to `product`/`product_brand_model`** — only a free-text `model`/`category` string, and a real FK to `brand`.
+- **`stock_balance`**: `part_id (FK), branch_id (FK), qty, location_id, updated_at` — stock is per-branch; "current stock" for a part = `SUM(qty)` across all its branch rows.
+- Existing query to adapt: `GET_PARTS_CURRENT_STOCK` (`sql_reports_audit.py`) already does `LEFT JOIN stock_balance ... GROUP BY spm.id ... WHERE spm.is_active = true` — the new public catalog query is this pattern plus a search filter and `HAVING COALESCE(SUM(sb.qty),0) > 0`.
+- **No existing order/inquiry/quote table anywhere** — confirmed via grep across both repos. This is a from-scratch addition.
 
-Deferred to later phases (documented in `plan-nextjs.md`, not touched now): Option 2
-(name+mobile search), Spare-parts placeholder, Contacts page, admin `show_on_website` toggles, AI
-help.
+### 3b. New tables (added per-tenant-schema, same DDL file that defines `job`/`sales_invoice` etc. — `app/db/sql/sql_bu_admin_ddl.py` — plus a backfill migration for existing tenants, same two-step pattern used for the `track_job_url` app setting earlier: new tenants get it via DDL, existing tenants need an explicit migration run)
 
----
+```sql
+CREATE TABLE web_part_order (
+    id               bigserial PRIMARY KEY,
+    customer_name    text NOT NULL,
+    mobile           text NOT NULL,
+    email            text,
+    fulfillment_type text NOT NULL CHECK (fulfillment_type IN ('PICKUP', 'DELIVERY')),
+    branch_id        bigint REFERENCES branch(id),      -- pickup branch, or nearest branch for delivery
+    delivery_address text,                               -- required when fulfillment_type = 'DELIVERY'
+    remarks          text,
+    status           text NOT NULL DEFAULT 'NEW'         -- NEW | CONFIRMED | FULFILLED | CANCELLED
+                        CHECK (status IN ('NEW','CONFIRMED','FULFILLED','CANCELLED')),
+    total_amount     numeric NOT NULL DEFAULT 0,          -- snapshot at submission time
+    created_at       timestamptz NOT NULL DEFAULT now(),
+    updated_at       timestamptz NOT NULL DEFAULT now()
+);
 
-## 2. New project: `service-plus-web`
-
-Location: `service-plus/dev/service-plus-web` (peer to `-server`/`-client`). Package manager
-**pnpm** (matches the workspace; `service-plus-client` pins `pnpm@11.16.0` via `packageManager` —
-match that pin).
-
-### 2.1 Stack
-- Next.js (App Router, TypeScript), `output: 'export'`, `images: { unoptimized: true }` (required
-  for static export).
-- Tailwind **v4** via `@tailwindcss/postcss` (Next's PostCSS pipeline, not the Vite plugin) —
-  port `service-plus-client/src/index.css`'s `:root`/`.dark`/`@theme inline` OKLCH token block
-  verbatim into `app/globals.css`, dropping the client-specific `.client-theme` overrides.
-- shadcn/ui initialized with the **same `components.json` settings** as the client
-  (`style: radix-nova`, `baseColor: neutral`, `cssVariables: true`, `iconLibrary: lucide`) so
-  visual language matches; pull in only the primitives this page needs (Button, Card, Input,
-  Select/Combobox, Badge, Form).
-- `radix-ui` (single package), `lucide-react`, `framer-motion` for hero/card motion.
-- `zod` + `react-hook-form` + `@hookform/resolvers` for the job-status form.
-- `sonner` for toast feedback (not-found / error states).
-- Data fetching: native `fetch` in a small typed client `lib/api.ts` — no Apollo (this is REST,
-  not GraphQL).
-- `@fontsource-variable/inter` to match the client's font.
-
-### 2.2 Structure (POC-sized — no placeholder routes for out-of-scope pages)
-```
-service-plus-web/
-  app/
-    layout.tsx              # root layout, Inter font, theme tokens, minimal header/footer
-    page.tsx                # Home: Hero + FeatureCards + JobStatusForm
-    globals.css              # ported OKLCH token block + Tailwind v4 @theme inline
-  components/
-    ui/                       # shadcn primitives (button, card, input, select, badge, form)
-    layout/ (Header, Footer)
-    home/ (Hero, FeatureCards, JobStatusForm, JobStatusResult)
-  lib/
-    api.ts                    # fetch client: base URL + X-Website-Key header
-    types.ts                  # Company, JobStatusResult response types
-  public/                     # favicon, og image
-  next.config.ts              # output:'export', images.unoptimized, basePath if subfolder deploy
-  components.json
-  .env.example                 # NEXT_PUBLIC_API_BASE_URL, NEXT_PUBLIC_WEBSITE_KEY
-  deploy/
-    build-and-deploy-milesweb.sh
-    .env.deploy.example         # host/path/key — real .env.deploy is gitignored
-    README.md
+CREATE TABLE web_part_order_line (
+    id               bigserial PRIMARY KEY,
+    web_part_order_id bigint NOT NULL REFERENCES web_part_order(id) ON DELETE CASCADE,
+    part_id          bigint NOT NULL REFERENCES spare_part_master(id),
+    qty              integer NOT NULL CHECK (qty > 0),
+    unit_price       numeric NOT NULL,   -- selling_price snapshot at order time, not live-linked
+    line_total       numeric NOT NULL
+);
 ```
 
-### 2.3 Home page content (single page, POC)
-- **Hero**: headline, one-line value prop, primary CTA that scrolls to the form.
-- **Feature cards** (static, no backend): Job status query (live today), AI repair help
-  *(coming soon)*, Genuine spare parts *(coming soon)*.
-- **JobStatusForm**: `CompanySelect` (populated from `GET /api/public/companies`) → `job_no` text
-  input → 10-digit `mobile` input (zod-validated) → Submit → calls
-  `GET /api/public/job-status`. States: loading, not-found ("check your job number and mobile"),
-  error, success (`JobStatusResult`: status badge, device/brand, job date, delivery date,
-  service-center name — **no amounts**, matching `plan-nextjs.md` §12 Q6's default).
+Deliberately **not** touching `stock_balance` at order-submission time — a web order is a *request*, not a confirmed sale. Stock only actually moves when staff fulfills it through the existing Sales flow (§5), so there is exactly one code path that ever mutates `stock_balance`/`stock_transaction`, avoiding a second, inconsistent stock-deduction mechanism.
 
----
+Optional, only if images are done (§6): `ALTER TABLE spare_part_master ADD COLUMN image_url text;`
 
-## 3. `service-plus-server` changes (additive only)
+## 4. New public API endpoints (`app/routers/public/website_router.py` + `sql_public.py`)
 
-### 3.1 New router — `app/routers/public/__init__.py`, `app/routers/public/website_router.py`
-```python
-router = APIRouter(prefix="/api/public", tags=["public"],
-                    dependencies=[Depends(require_website_key), Depends(public_rate_limit)])
+All under the existing `require_website_key` + rate-limit pattern; writes get a stricter limit than reads.
 
-@router.get("/companies")
-async def list_companies() -> list[CompanyOut]: ...
+- **`GET /api/public/parts?company=&search=&category=&brand=&page=&page_size=`** → paginated `{items: PartOut[], total, page, page_size}`. `PartOut = {id, part_code, part_name, part_description, category, brand_name, model, uom, selling_price, stock_qty}`. Query: adapt `GET_PARTS_CURRENT_STOCK`, add `WHERE spm.is_active = true`, `HAVING SUM(sb.qty) > 0`, and `ILIKE` filters on `part_code`/`part_name`/`category`/`model`/`brand.name` for `search`. **No `cost_price`/`hsn_code`/`gst_rate` in the response** — same whitelist-columns discipline as the existing public job-status query (don't leak internal costing).
+- **`GET /api/public/parts/{part_id}?company=`** → single `PartOut`, 404 if not found/inactive/out-of-stock for that tenant (mirrors the existing job-status 404 handling the frontend already expects).
+- **`POST /api/public/part-orders`** → body `{company, customer_name, mobile, email?, fulfillment_type, branch_id?, delivery_address?, remarks?, lines: [{part_id, qty}]}`. Server **re-validates price and stock at submission time** (never trusts client-cached values — a cart built minutes earlier could be stale), rejects with a clear per-line error if any part is now inactive/out of stock/qty exceeds available stock, otherwise inserts `web_part_order` + `web_part_order_line` rows (using the tenant-resolved `db_name`/schema from the token, same as every other public write in this app) and returns `{order_id, status: "NEW"}`. Rate-limited tighter than reads (e.g. a handful per hour per IP) since it's a write with no other abuse defense yet.
 
-@router.get("/job-status")
-async def get_job_status(company: str, job_no: str, mobile: str) -> JobStatusOut: ...
-```
-Registered in `app/main.py` as `app.include_router(website_router)` (no prefix arg at call site,
-per the existing convention — see §0.2). Response models are explicit Pydantic classes exposing
-only whitelisted fields (no amounts, no internal ids beyond the opaque `company` token).
+## 5. Staff-side fulfillment (`service-plus-client`)
 
-### 3.2 Auth dependency — new, in `app/core/dependencies.py`
-```python
-async def require_website_key(x_website_key: str = Header(...)) -> None:
-    if not secrets.compare_digest(x_website_key, settings.website_api_key):
-        raise HTTPException(status_code=401, detail="invalid key")
-```
-Add `website_api_key: str` to `app/core/settings/api_settings.py` (same `Field(...)` pattern as
-`file_server_api_key`), sourced from `.env`. Document in `.env.example`.
+Web orders need to be visible and actionable inside the existing internal app — otherwise they just pile up in a table nobody looks at. Add a small **"Web Part Orders"** screen (new item under the existing Jobs or Sales sidebar group, whichever fits the app's current IA best — the codebase already has patterns for both a list+detail modal, e.g. `job-pipeline/job-details-modal.tsx`, to mirror):
 
-### 3.3 Rate limiting — minimal, no new dependency
-Since nothing is installed (§0.6), add a small in-memory per-IP token-bucket dependency
-(`app/core/rate_limit.py`, e.g. 20 req/min for `/companies`, 5 req/min for `/job-status`) rather
-than pulling in `slowapi` for two endpoints. Good enough for a POC on a single instance; revisit if
-this grows to needing shared/multi-instance rate limiting.
+- List view: `web_part_order` rows filterable by `status`, newest first, with line items expandable per row.
+- Actions: mark `CONFIRMED` (staff has called the customer to confirm) → `FULFILLED` or `CANCELLED`.
+- **Fulfillment should create/link a normal Sales Invoice** (reusing the existing `sales_invoice`/`sales_invoice_line` creation flow already in the app) rather than inventing a second stock-deduction path — this is the one place `stock_balance` actually changes, going through the same `stock_transaction` mechanism as every other sale. `web_part_order.status` flips to `FULFILLED` once that invoice is created, with `sales_invoice_id` optionally recorded for traceability (add the column if this is wired up in v1, or leave it for the fast-follow that connects the two).
 
-### 3.4 New SQL — `app/db/sql/sql_public.py` (new `PublicSql` class)
-Two distilled, read-only queries (do not reuse the heavy admin queries as-is):
-- `GET_ACTIVE_CLIENT_DBS` — mirrors `GET_CLIENT_DB_NAMES` (`app/db/sql/sql_bu_admin.py`) but
-  selects only `id, name, db_name` where `is_active` and `db_name IS NOT NULL`.
-- `LIST_ACTIVE_BUS` — per tenant DB, mirrors `GET_ALL_BUS`: `id, code, name` from `security.bu`
-  where `is_active`.
-- `GET_PUBLIC_JOB_STATUS` — within a BU schema, new query modeled on `GET_JOB_DETAIL`'s joins
-  (`job ⋈ customer_contact ⋈ job_status ⋈ product_brand_model ⋈ brand/product ⋈ branch`) but
-  filtered by `job_no = %(job_no)s AND cc.mobile = %(mobile)s` (not by internal `id`, since the
-  public caller never has that) and selecting only: job_no, job_date, device (brand+product),
-  status name, is_closed, delivery_date, branch/service-center name. No amounts, no `SELECT *`.
+## 6. Part images — recommendation: skip for v1, don't extend the file-server
 
-### 3.5 Cross-tenant fan-out — `app/services/public_directory.py`
-For `/companies`: iterate active clients (`GET_ACTIVE_CLIENT_DBS`) → `pool_manager.get_service_pool(db_name)`
-→ per BU, run `LIST_ACTIVE_BUS` with `search_path` set to that BU's schema (same
-set-at-query-time pattern already used in `psycopg_driver.py`) → emit
-`{ id: opaque_token(db_name, bu_code), label: "<client> — <bu>" }` (per `plan-nextjs.md` §2's
-"company = business unit" resolution). Cache the assembled list in-process with a short TTL
-(5 min) so a page load doesn't fan out to every tenant DB on every request.
+Investigated `service-plus-file-server` directly: it's a small internal-only Python/FastAPI microservice, every route (including file *reads*) requires `X-API-Key`, local-disk storage with no CDN, and it's wired for exactly one purpose today (private job-attachment photos, called only by the trusted internal API server). **It is not safely reusable as-is for public traffic** — opening it up would mean adding unauthenticated read routes and tenant-safe path validation to a service that currently assumes only one trusted caller, plus it has no CDN in front of it.
 
-For `/job-status`: decode the opaque `company` token back to `(db_name, bu_code)`, open that one
-pool, set `search_path`, run `GET_PUBLIC_JOB_STATUS`. No caching (per-user, per-job data).
+Two real options, in order of recommendation:
+1. **Skip images in v1.** Show a category icon/placeholder client-side. Given `spare_part_master` has no image column today either, this needs zero schema change and zero new infra — ship the catalog + order flow first, add photos later if it turns out to matter.
+2. **Fast-follow, if photos are wanted**: add `spare_part_master.image_url` (nullable) populated by staff through the *existing* internal upload flow (already authenticated, already working), then add a narrow **public image-proxy** endpoint on `service-plus-server` itself — e.g. `GET /api/public/part-image/{id}` — that fetches the image server-side (using the server's own trusted `FILE_SERVER_API_KEY`, exactly like `image_router.py` already does for job attachments) and streams it back. This never exposes the file-server or its key publicly and reuses 100% of the existing upload/storage code; it just adds one more authenticated-outbound, public-inbound passthrough route, isolated to a `parts/` namespace.
 
-### 3.6 CORS + `.env`
-- Add the milesweb origin (subdomain first, per §4) to `settings.cors_origins`.
-- `.env` / `.env.example`: add `WEBSITE_API_KEY=...`.
-- No changes to existing GraphQL, JWT auth, or any other router.
+Do **not** point the public website directly at the file-server or add public credentials to it — that changes its trust model for every existing (private, job-attachment) use case too.
 
----
+## 7. `service-plus-web` frontend additions
 
-## 4. Deployment to milesweb.in
+Following the exact conventions the "Track your repair" feature already established (`react-hook-form` + `zod` + shadcn/ui primitives, `lib/api.ts`'s `publicGet`/`ApiError` pattern, `sonner` toasts):
 
-Static export (`next build` → `out/`) is the right default for a POC: cheapest MilesWeb plans are
-shared cPanel/Apache, and a static bundle "just works" in `public_html` (or a subdomain docroot)
-without needing Node hosting. The browser will hold `NEXT_PUBLIC_WEBSITE_KEY`, which is therefore a
-coarse gate, not a secret — real protection for `/job-status` is that the caller must already know
-both `job_no` and `mobile`, plus the rate limiting in §3.3 and strict CORS in §3.6. **If MilesWeb's
-plan turns out to support Node**, the natural upgrade is Next.js route handlers as a server-side
-proxy so the key never reaches the browser — worth revisiting after the POC is live, not before.
+- New route `app/spare-parts/page.tsx` (static export supports multiple routes fine — the constraint is no *dynamic server* routes, which this doesn't need).
+- `components/spare-parts/`:
+  - `company-select.tsx` — the company picker is now needed in two features; worth extracting the existing inline dropdown logic out of `job-status-form.tsx`/`open-jobs-form.tsx` into one shared component both features use, rather than a third copy-paste.
+  - `parts-search.tsx` — search box + category/brand filters.
+  - `parts-grid.tsx` / `part-card.tsx` — catalog display (name, code, brand, price, stock badge, qty stepper + "Add to cart").
+  - `cart-drawer.tsx` — client-side only, `localStorage`-persisted (no server session needed since there's no auth) — line items + qty, running total.
+  - `checkout-form.tsx` — customer name/mobile/email, pickup-branch vs delivery-address choice, remarks, submit → calls the new `submitPartOrder`.
+  - `order-confirmation.tsx` — shows the returned order id/status, explicit "no online payment — pay on pickup/delivery" messaging.
+- `lib/api.ts` + `lib/types.ts`: add `fetchParts`, `fetchPartById`, `submitPartOrder` + matching types, snake_case→camelCase mapping like the existing `mapJobStatus`.
+- `components/home/feature-cards.tsx`: flip "Genuine spare parts" from "Coming soon" to a real link to `/spare-parts`.
+- `components/layout/header.tsx`: currently has no nav links at all (single-page site) — add one link to the new route now that there are two pages.
 
-`service-plus-web/deploy/build-and-deploy-milesweb.sh`:
-```bash
-#!/usr/bin/env bash
-set -euo pipefail
-# 1. source deploy/.env.deploy (gitignored: SSH host/user/path or FTP creds, remote path)
-# 2. pnpm install --frozen-lockfile
-# 3. pnpm build            # next build -> static export in ./out
-# 4. write out/.htaccess   # https redirect, long cache for /_next/*, index.html fallback
-# 5. rsync -az --delete ./out/ "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH/"   (FTP/lftp fallback in README)
-# 6. curl -sSf smoke-check of the deployed homepage; print the URL
-```
-`deploy/README.md` documents both SSH+rsync and FTP (`lftp mirror -R`) paths, and how to set
-`basePath`/`assetPrefix` in `next.config.ts` if deployed under a subfolder rather than a
-subdomain root. Domain-vs-subdomain and SSH-vs-FTP are deploy-time config in `.env.deploy`, not
-decisions this plan needs to lock in now.
+## 8. Known limitation to flag explicitly
 
----
+Search/browse can only filter on `part_code`/`part_name`/`category`/free-text `model`/`brand` — there's no FK from `spare_part_master` to `product`/`product_brand_model`, so there's no way to browse "parts for my exact phone model" the way the internal app browses jobs by device. Living with free-text search is the pragmatic v1 choice (zero schema risk to the core parts table); adding a real `product_brand_model_id` FK to `spare_part_master` would enable structured browsing but is a larger, separate migration touching a core table used everywhere else in the app — not bundled into this feature.
 
-## 5. Verification
+## 9. Phased rollout
 
-1. **Server**: `pytest` for the new `PublicSql`/router (happy path: valid job_no+mobile → 200 with
-   expected fields and no amount field present; wrong mobile → 404; missing/invalid
-   `X-Website-Key` → 401; missing CORS origin → browser-blocked). Manually hit
-   `GET /api/public/companies` and `GET /api/public/job-status` with `curl -H "X-Website-Key: ..."`
-   against a local dev DB with known seed data (e.g. the `demo1` client visible in this repo's
-   `uploads/demo/demo1/` fixtures) to confirm real tenant fan-out works end-to-end.
-2. **Web**: `pnpm build` succeeds as a static export; `pnpm preview`/serve `out/` locally; confirm
-   the company dropdown populates and a real job number + mobile returns a status card (and that a
-   wrong mobile shows the not-found state, not the actual record).
-3. **Deploy**: run `deploy/build-and-deploy-milesweb.sh` against the chosen subdomain, then load it
-   in a browser and repeat the job-status check against the live server (with CORS + rate limit
-   active) before asking the user to test.
+1. **Phase 1**: read-only catalog (`GET /api/public/parts*`) + order-request submission (`POST /api/public/part-orders`), web frontend, no images, no staff-side screen yet (orders land in the DB; staff query them manually if needed for the very first soft-launch).
+2. **Phase 2**: staff-side "Web Part Orders" screen + Sales Invoice linkage (§5) — required before this is genuinely usable end-to-end, should ship close behind Phase 1, not be deferred indefinitely.
+3. **Phase 3 (optional)**: image proxy (§6, option 2); structured product/model browsing (§8) if free-text search proves insufficient in practice.
 
----
+## 10. Verification
 
-## 6. Files created/changed (summary)
-
-**New — `service-plus-web/`:** whole project per §2.2, incl. `deploy/build-and-deploy-milesweb.sh`.
-
-**`service-plus-server/` (new):**
-- `app/routers/public/__init__.py`, `app/routers/public/website_router.py`
-- `app/services/public_directory.py`
-- `app/db/sql/sql_public.py`
-- `app/core/rate_limit.py`
-
-**`service-plus-server/` (edit):**
-- `app/main.py` (`app.include_router(website_router)`)
-- `app/core/dependencies.py` (`require_website_key` — new, not a reuse of existing code, see §0.1)
-- `app/core/settings/api_settings.py` (`website_api_key` field)
-- `.env.example` (`WEBSITE_API_KEY`, CORS origin)
-
-**No changes** to `service-plus-client` or any database schema for this POC — both are only
-touched in later phases of `plan-nextjs.md` (§6-7), which remain deferred.
+- Backend: confirm the new public endpoints are unreachable without `X-Website-Key`, confirm the opaque `company` token round-trips correctly end-to-end (can't be forged into a different tenant's data), confirm stock/price re-validation actually rejects a stale/tampered cart at submit time, confirm rate limits apply.
+- Frontend: build with `next build` (static export) and confirm the new route emits correctly into `out/`; verify the cart survives a page reload (localStorage) and clears after a successful order.
+- Data: after submitting a test order, confirm it's visible via a direct DB query in the target tenant schema, and (once Phase 2 ships) visible and actionable in the staff-side screen, and that fulfilling it produces a normal Sales Invoice with correct stock deduction.

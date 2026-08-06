@@ -37,15 +37,41 @@ class PublicSql:
             j.delivery_date,
             j.is_closed,
             js.name AS job_status_name,
+            js.code AS status_code,
+            js.description AS status_description,
             TRIM(CONCAT_WS(' ', bn.name, p.name, pbm.model_name)) AS device_details,
-            br.name AS branch_name
+            j.serial_no
         FROM job j
         JOIN customer_contact cc ON cc.id = j.customer_contact_id
         JOIN job_status        js ON js.id = j.job_status_id
         LEFT JOIN product_brand_model pbm ON pbm.id = j.product_brand_model_id
         LEFT JOIN brand            bn  ON bn.id   = pbm.brand_id
         LEFT JOIN product          p   ON p.id   = pbm.product_id
-        LEFT JOIN branch           br  ON br.id  = j.branch_id
         WHERE LOWER(j.job_no) = LOWER((table "p_job_no"))
           AND cc.mobile = (table "p_mobile")
+    """
+
+    GET_PUBLIC_OPEN_JOBS_BY_MOBILE = """
+        with
+            "p_mobile" as (values(%(mobile)s::text))
+        SELECT
+            cc.full_name AS customer_name,
+            j.job_no,
+            j.job_date,
+            j.delivery_date,
+            j.is_closed,
+            js.name AS job_status_name,
+            js.code AS status_code,
+            js.description AS status_description,
+            TRIM(CONCAT_WS(' ', bn.name, p.name, pbm.model_name)) AS device_details,
+            j.serial_no
+        FROM job j
+        JOIN customer_contact cc ON cc.id = j.customer_contact_id
+        JOIN job_status        js ON js.id = j.job_status_id
+        LEFT JOIN product_brand_model pbm ON pbm.id = j.product_brand_model_id
+        LEFT JOIN brand            bn  ON bn.id   = pbm.brand_id
+        LEFT JOIN product          p   ON p.id   = pbm.product_id
+        WHERE cc.mobile = (table "p_mobile")
+          AND j.is_closed = false
+        ORDER BY j.job_date DESC NULLS LAST
     """

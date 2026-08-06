@@ -21,8 +21,8 @@ import { apolloClient } from "@/lib/apollo-client";
 import { graphQlUtils } from "@/lib/graphql-utils";
 import { saveCustomerGstin } from "@/lib/gstin";
 import { useAppSelector } from "@/store/hooks";
-import { selectDbName, selectCurrentUser } from "@/features/auth/store/auth-slice";
-import { selectAvailableDivisions, selectCurrentBranch, selectCurrentDivision, selectDefaultDivisionId, selectNoOfJobSheetsPerPrint, selectSchema } from "@/store/context-slice";
+import { selectClientName, selectDbName, selectCurrentUser } from "@/features/auth/store/auth-slice";
+import { selectAvailableDivisions, selectCurrentBranch, selectCurrentBu, selectCurrentDivision, selectDefaultDivisionId, selectNoOfJobSheetsPerPrint, selectSchema, selectTrackJobUrl } from "@/store/context-slice";
 import type { JobBatchDetailRow, JobDetailType, JobInBatchRow, JobLookupRow, ModelRow } from "@/features/client/types/job";
 import type { CustomerTypeOption, StateOption } from "@/features/client/types/customer";
 import type { BrandOption, ProductOption } from "@/features/client/types/model";
@@ -73,6 +73,9 @@ export const BatchJobSection = ({ initialEditBatchNo, onEditBatchNoApplied, onRe
     const currentDivision    = useAppSelector(selectCurrentDivision);
     const defaultDivisionId      = useAppSelector(selectDefaultDivisionId);
     const noOfJobSheetsPerPrint  = useAppSelector(selectNoOfJobSheetsPerPrint);
+    const currentBu           = useAppSelector(selectCurrentBu);
+    const clientName          = useAppSelector(selectClientName);
+    const trackJobUrl         = useAppSelector(selectTrackJobUrl);
     const branchId           = globalBranch?.id ?? null;
 
     const [search,   setSearch]   = useState("");
@@ -468,7 +471,7 @@ export const BatchJobSection = ({ initialEditBatchNo, onEditBatchNoApplied, onRe
         const copies = noOfJobSheetsPerPrint;
         pendingPrintRef.current = { jobs: batchJobs, division: batchDivision, branchCode: globalBranch?.code };
         setPrintCopies(copies);
-        const url = getBatchJobSheetBlobUrl(batchJobs, batchDivision, globalBranch?.code, copies);
+        const url = getBatchJobSheetBlobUrl(batchJobs, batchDivision, globalBranch?.code, copies, { clientName, buName: currentBu?.name ?? null, trackJobUrl });
         setPdfPreviewUrl(url);
         setPdfFilename(`Batch-Job-Sheet_${batchJobs[0]?.job_no ?? "batch"}.pdf`);
         setShowPdfModal(true);
@@ -853,7 +856,7 @@ export const BatchJobSection = ({ initialEditBatchNo, onEditBatchNoApplied, onRe
                 setPrintCopies(n);
                 if (pendingPrintRef.current) {
                     const { jobs: batchJobs, division, branchCode } = pendingPrintRef.current;
-                    setPdfPreviewUrl(getBatchJobSheetBlobUrl(batchJobs, division ?? null, branchCode, n));
+                    setPdfPreviewUrl(getBatchJobSheetBlobUrl(batchJobs, division ?? null, branchCode, n, { clientName, buName: currentBu?.name ?? null, trackJobUrl }));
                 }
             }}
             onClose={() => {

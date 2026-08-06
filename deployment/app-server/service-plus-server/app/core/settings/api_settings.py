@@ -28,7 +28,11 @@ class ApiSettings(BaseSettings):
 
     # CORS Settings
     cors_origins: list[str] = Field(
-        default=["http://localhost:3000"],
+        default=[
+            "http://localhost:3000",
+            "http://localhost:3002",
+            "https://serviceplus.capital-chowringhee.com",
+        ],
         description="Allowed CORS origins. Set to the real client domain(s) in production.",
     )
 
@@ -46,6 +50,11 @@ class ApiSettings(BaseSettings):
     )
     file_server_api_key: str = Field(
         description="Shared API key for file server. Must match the file server's FILE_SERVER_API_KEY.",
+    )
+    website_api_key: str = Field(
+        description="""Shared API key for the public website (service-plus-web),
+            sent as the X-Website-Key header. Must match service-plus-web's
+            NEXT_PUBLIC_WEBSITE_KEY.""",
     )
     # GraphQL Settings
     graphql_path: str = Field(default="/graphql", description="GraphQL endpoint path")

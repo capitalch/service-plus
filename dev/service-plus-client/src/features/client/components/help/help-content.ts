@@ -1018,9 +1018,10 @@ export const HELP_ARTICLES: HelpArticle[] = [
         category: "Reports",
         title: "Job Reports",
         summary: "Reports for job intake, repair, delivery, aging, and transaction history.",
-        tags: ["job reports", "intake", "repaired", "delivered", "aging", "pipeline", "ledger", "trend"],
+        tags: ["job reports", "intake", "repaired", "delivered", "aging", "pipeline", "ledger", "trend", "event tracking"],
         content: [
             { type: "table", headers: ["Report", "What It Shows", "Best Used For"], rows: [
+                ["Event Tracking",           "Counts of Received / Status Change / Finalize / Deliver events, across fixed periods (Today/This Week/.../YTD)", "Monitor job-lifecycle activity volume over time"],
                 ["Job Intake Summary",       "Cumulative jobs received, shown across fixed periods (Today/This Week/.../YTD)", "Monitor inflow volume and trends"],
                 ["Jobs Repaired",            "Count of jobs Completed OK or already Delivered OK, by last-updated date", "Track technician output"],
                 ["Jobs Delivered",           "Count of jobs delivered in working condition (DELIVERED_OK only)", "Revenue recognition milestone"],
@@ -1035,6 +1036,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
             { q: "How do I see how long a specific job has been open?", a: "Run Job Pipeline / Aging. It shows each job's age in days. Alternatively, the Job Transaction Ledger shows all status changes with timestamps for a specific job." },
             { q: "Can I export job reports?", a: "Yes. Most reports have an Export button that downloads a PDF or XLSX file." },
             { q: "Why doesn't a job appear in the delivered report?", a: "The job must have completed the Deliver Job workflow (status = DELIVERED_OK or DELIVERED_NOT_OK) within the selected date range." },
+            { q: "What counts as an \"event\" in Event Tracking?", a: "Received (job created), Finalize (Final a Job step), Deliver (Deliver Job — OK or Not OK), and Status Change (any other intermediate status update). Return, Cancel, and Disposed are intentionally not tracked in this report." },
         ],
     },
 

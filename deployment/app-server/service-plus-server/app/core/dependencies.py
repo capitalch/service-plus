@@ -1,9 +1,12 @@
 """
 FastAPI dependency injection helpers for authentication.
 """
-from fastapi import Depends, HTTPException, status
+import secrets
+
+from fastapi import Depends, Header, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 
+from app.config import settings
 from app.core.security import decode_token
 from app.db.connection.psycopg_driver import exec_sql
 from app.db.sql.sql_base import SqlStore
@@ -97,3 +100,21 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> dict:
         )
 
     return user
+
+
+async def require_website_key(x_website_key: str = Header(default="")) -> None:
+    """
+    FastAPI dependency guarding the public website API (`/api/public/*`).
+
+    Unlike get_current_user (a per-user JWT), this is a static pre-shared-key
+    check for an anonymous public caller — service-plus-web sends its
+    NEXT_PUBLIC_WEBSITE_KEY as the X-Website-Key header on every request.
+
+    Raises:
+        HTTPException 401: If the header is missing or doesn't match.
+    """
+    if not x_website_key or not secrets.compare_digest(x_website_key, settings.website_api_key):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or missing website key",
+        )

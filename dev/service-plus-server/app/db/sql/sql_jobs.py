@@ -240,7 +240,9 @@ class JobsSql:
             js.id   AS status_id,
             js.name AS status_name,
             js.code AS status_code,
-            COUNT(j.id) AS count
+            COUNT(j.id) AS count,
+            COUNT(j.id) FILTER (WHERE j.job_type_id = (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY'))              AS warranty_count,
+            COUNT(j.id) FILTER (WHERE j.job_type_id IS DISTINCT FROM (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY')) AS oow_count
         FROM job_status js
         LEFT JOIN job j
             ON j.job_status_id = js.id

@@ -1,4 +1,4 @@
-import { ApiError, type Company, type JobStatus } from "./types";
+import { ApiError, type Company, type CustomerJobs, type JobStatus } from "./types";
 
 function apiBaseUrl(): string {
   return process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
@@ -33,8 +33,24 @@ interface JobStatusApiResponse {
   delivery_date: string | null;
   is_closed: boolean;
   status: string;
+  status_code: string;
+  status_description: string | null;
   device_details: string | null;
-  branch_name: string | null;
+  serial_no: string | null;
+}
+
+function mapJobStatus(data: JobStatusApiResponse): JobStatus {
+  return {
+    jobNo: data.job_no,
+    jobDate: data.job_date,
+    deliveryDate: data.delivery_date,
+    isClosed: data.is_closed,
+    status: data.status,
+    statusCode: data.status_code,
+    statusDescription: data.status_description,
+    deviceDetails: data.device_details,
+    serialNo: data.serial_no,
+  };
 }
 
 export async function fetchJobStatus(params: {
@@ -48,13 +64,25 @@ export async function fetchJobStatus(params: {
     mobile: params.mobile,
   });
 
+  return mapJobStatus(data);
+}
+
+interface CustomerJobsApiResponse {
+  customer_name: string;
+  jobs: JobStatusApiResponse[];
+}
+
+export async function fetchOpenJobsByMobile(params: {
+  company: string;
+  mobile: string;
+}): Promise<CustomerJobs> {
+  const data = await publicGet<CustomerJobsApiResponse>("/api/public/open-jobs", {
+    company: params.company,
+    mobile: params.mobile,
+  });
+
   return {
-    jobNo: data.job_no,
-    jobDate: data.job_date,
-    deliveryDate: data.delivery_date,
-    isClosed: data.is_closed,
-    status: data.status,
-    deviceDetails: data.device_details,
-    branchName: data.branch_name,
+    customerName: data.customer_name,
+    jobs: data.jobs.map(mapJobStatus),
   };
 }

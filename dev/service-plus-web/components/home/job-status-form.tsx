@@ -8,7 +8,6 @@ import { toast } from "sonner";
 import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -72,78 +71,72 @@ export function JobStatusForm() {
   };
 
   return (
-    <section id="job-status" className="mx-auto max-w-2xl scroll-mt-8 px-4 py-12">
-      <Card>
-        <CardHeader>
-          <CardTitle>Check your repair status</CardTitle>
-          <CardDescription>
-            Select your service center and enter your job number and mobile number.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="company">Company</Label>
-              <Select
-                value={watch("company")}
-                onValueChange={(value) => setValue("company", value, { shouldValidate: true })}
-              >
-                <SelectTrigger id="company" className="w-full">
-                  <SelectValue
-                    placeholder={companiesError ? "Couldn't load companies" : "Select a company"}
-                  />
-                </SelectTrigger>
-                <SelectContent>
-                  {companies.map((company) => (
-                    <SelectItem key={company.id} value={company.id}>
-                      {company.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {errors.company && (
-                <p className="text-sm text-destructive">{errors.company.message}</p>
-              )}
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="jobNo">Job number</Label>
-              <Input id="jobNo" placeholder="e.g. J/00001" {...register("jobNo")} />
-              {errors.jobNo && (
-                <p className="text-sm text-destructive">{errors.jobNo.message}</p>
-              )}
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="mobile">Mobile number</Label>
-              <Input
-                id="mobile"
-                inputMode="numeric"
-                maxLength={10}
-                placeholder="10-digit mobile number"
-                {...register("mobile")}
+    <div className="mx-auto w-full max-w-sm">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <div className="space-y-1.5">
+          <Label htmlFor="company">Company</Label>
+          <Select
+            value={watch("company")}
+            onValueChange={(value) => setValue("company", value, { shouldValidate: true })}
+          >
+            <SelectTrigger id="company" className="w-full">
+              <SelectValue
+                placeholder={companiesError ? "Couldn't load companies" : "Select a company"}
               />
-              {errors.mobile && (
-                <p className="text-sm text-destructive">{errors.mobile.message}</p>
-              )}
-            </div>
-
-            <Button type="submit" disabled={isSubmitting} className="w-full">
-              {isSubmitting && <Loader2 className="size-4 animate-spin" />}
-              Check status
-            </Button>
-          </form>
-
-          {notFound && (
-            <div className="mt-6 flex items-center gap-2 rounded-lg border border-border p-4 text-sm text-muted-foreground">
-              <SearchX className="size-4 shrink-0" />
-              No job found for that job number and mobile number — please double-check both.
-            </div>
+            </SelectTrigger>
+            <SelectContent>
+              {companies.map((company) => (
+                <SelectItem key={company.id} value={company.id}>
+                  {company.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {errors.company && (
+            <p className="text-sm text-destructive">{errors.company.message}</p>
           )}
+        </div>
 
-          {result && <JobStatusResult result={result} />}
-        </CardContent>
-      </Card>
-    </section>
+        <div className="space-y-1.5">
+          <Label htmlFor="jobNo">Job number</Label>
+          <Input id="jobNo" placeholder="e.g. J/00001" {...register("jobNo")} />
+          {errors.jobNo && (
+            <p className="text-sm text-destructive">{errors.jobNo.message}</p>
+          )}
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="mobile">Mobile number</Label>
+          <Input
+            id="mobile"
+            inputMode="numeric"
+            maxLength={10}
+            placeholder="10-digit mobile number"
+            {...register("mobile")}
+          />
+          {errors.mobile && (
+            <p className="text-sm text-destructive">{errors.mobile.message}</p>
+          )}
+        </div>
+
+        <Button type="submit" disabled={isSubmitting} className="w-full">
+          {isSubmitting && <Loader2 className="size-4 animate-spin" />}
+          Check status
+        </Button>
+      </form>
+
+      {notFound && (
+        <div className="mt-6 flex items-center gap-2 rounded-lg border border-border bg-muted/40 p-4 text-sm text-muted-foreground">
+          <SearchX className="size-4 shrink-0" />
+          No job found for that job number and mobile number — please double-check both.
+        </div>
+      )}
+
+      {result && (
+        <div className="mt-6">
+          <JobStatusResult result={result} />
+        </div>
+      )}
+    </div>
   );
 }
