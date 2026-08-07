@@ -114,6 +114,7 @@ export const STATUS_COLORS: Record<string, string> = {
     OUTSOURCED:                  "bg-teal-500   hover:bg-teal-600   text-white",
     SENT_TO_COMPANY:             "bg-cyan-600   hover:bg-cyan-700   text-white",
     COMPLETED_OK:                "bg-emerald-500 hover:bg-emerald-600 text-white",
+    COMPLETED_OK_FINAL:          "bg-emerald-700 hover:bg-emerald-800 text-white",
     RETURN:                      "bg-lime-600   hover:bg-lime-700   text-white",
     DELIVERED_OK:                "bg-green-600  hover:bg-green-700  text-white",
     DELIVERED_NOT_OK:            "bg-orange-500 hover:bg-orange-600 text-white",

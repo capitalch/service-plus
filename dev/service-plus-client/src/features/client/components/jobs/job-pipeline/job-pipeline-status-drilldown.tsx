@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import {
-    ArrowLeft, ArrowRightLeft,
+    ArrowLeft, ArrowRightLeft, CheckSquare,
     ChevronsLeftIcon, ChevronLeftIcon, ChevronRightIcon, ChevronsRightIcon,
-    Eye, Loader2, Lock, Package, Paperclip, RefreshCcw, Search, Undo2, X,
+    Eye, FileDown, Loader2, Lock, Package, Paperclip, Pencil, Receipt, ReceiptText,
+    RefreshCcw, Search, Truck, Undo2, X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
@@ -12,6 +13,11 @@ import {
     DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
     DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+    AlertDialog, AlertDialogAction, AlertDialogCancel,
+    AlertDialogContent, AlertDialogDescription,
+    AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { GRAPHQL_MAP } from "@/constants/graphql-map";
 import { MESSAGES } from "@/constants/messages";
 import { SQL_MAP } from "@/constants/sql-map";
@@ -34,6 +40,12 @@ import { JobDetailsModal } from "./job-details-modal";
 import { JobChargesModal, type ChargesJobSummary } from "./job-charges-modal";
 import { UndoTransactionDialog } from "./undo-transaction-dialog";
 import { useGridRowRetention } from "../use-grid-row-retention";
+import { JobPdfModal } from "../job-control/job-pdf-modal";
+import { JobProformaInvoiceModal } from "../job-control/job-proforma-invoice-modal";
+import { FinalJobDialog } from "../job-control/final-job-dialog";
+import { DeliveryModal } from "../deliver-job/delivery-modal";
+import type { JobDeliveryFullDetail } from "../deliver-job/deliver-job-schema";
+import { JobChargesReadonlyModal, type ChargesViewPartLine, type ChargesViewChargeLine } from "../final-a-job/job-charges-readonly-modal";
 
 type Props = {
     status: JobBoardStatusCount;
@@ -41,11 +53,13 @@ type Props = {
     onBack: () => void;
 };
 
+type DeliveryMannerRow = { id: number; name: string };
+
 type GenericQueryData<T> = { genericQuery: T[] | null };
 
 const PAGE_SIZE = 50;
 
-const NO_ACTION_CODES = new Set(["COMPLETED_OK", "RETURN", "DELIVERED_OK", "DELIVERED_NOT_OK"]);
+const NO_ACTION_CODES = new Set(["COMPLETED_OK", "COMPLETED_OK_FINAL", "RETURN", "DELIVERED_OK", "DELIVERED_NOT_OK"]);
 const NO_UNDO_CODES = new Set(["DELIVERED_OK", "DELIVERED_NOT_OK"]);
 const ADD_CHARGES_CODES = new Set(["RECEIVED", "ASSIGNED", "ESTIMATE_APPROVED", "IN_PROGRESS"]);
 const NO_CHARGES_JOB_TYPES = new Set(["DEMO", "INSPECTION"]);
@@ -109,6 +123,29 @@ export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Prop
     const [viewJobId, setViewJobId] = useState<number | null>(null);
     const [chargesJob, setChargesJob] = useState<ChargesJobSummary | null>(null);
 
+    const [undoFinalPendingJob, setUndoFinalPendingJob] = useState<OpenJobRow | null>(null);
+    const [undoFinalSubmitting, setUndoFinalSubmitting] = useState(false);
+
+    const [pdfJobId, setPdfJobId] = useState<number | null>(null);
+    const [proformaJobId, setProformaJobId] = useState<number | null>(null);
+    const [finalJobId, setFinalJobId] = useState<number | null>(null);
+
+    const [chargesReadonlyOpen,       setChargesReadonlyOpen]       = useState(false);
+    const [chargesReadonlyJobNo,      setChargesReadonlyJobNo]      = useState("");
+    const [chargesReadonlyIsGst,      setChargesReadonlyIsGst]      = useState(false);
+    const [chargesReadonlyIsWarranty, setChargesReadonlyIsWarranty] = useState(false);
+    const [chargesReadonlyForceIgst,  setChargesReadonlyForceIgst]  = useState(false);
+    const [chargesReadonlyAmount,     setChargesReadonlyAmount]     = useState<number | null>(null);
+    const [chargesReadonlyParts,      setChargesReadonlyParts]      = useState<ChargesViewPartLine[]>([]);
+    const [chargesReadonlyCharges,    setChargesReadonlyCharges]    = useState<ChargesViewChargeLine[]>([]);
+    const [chargesReadonlyLoading,    setChargesReadonlyLoading]    = useState<number | null>(null);
+
+    const [deliveryManners,           setDeliveryManners]           = useState<DeliveryMannerRow[]>([]);
+    const [showPartsInInvoiceSetting, setShowPartsInInvoiceSetting] = useState<{ show: boolean; text: string; hsn: number; gst_rate: number } | null>(null);
+    const [deliveryJobDetails,        setDeliveryJobDetails]        = useState<JobDeliveryFullDetail[]>([]);
+    const [showDeliveryModal,         setShowDeliveryModal]         = useState(false);
+    const [loadingDelivery,           setLoadingDelivery]           = useState<number | null>(null);
+
     const { scrollWrapperRef, selectedRowId, setSelectedRowId, armRestore, disarmRestore } = useGridRowRetention(loading);
     const [maxHeight, setMaxHeight] = useState(0);
 
@@ -127,6 +164,22 @@ export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Prop
 
     // Reset page when search changes
     useEffect(() => { setPage(1); }, [searchQ]);
+
+    useEffect(() => {
+        if (!dbName || !schema) return;
+        const gq = <T,>(sqlId: string, sqlArgs?: Record<string, unknown>) =>
+            apolloClient.query<GenericQueryData<T>>({
+                fetchPolicy: "network-only",
+                query: GRAPHQL_MAP.genericQuery,
+                variables: { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId, sqlArgs }) },
+            });
+        void gq<DeliveryMannerRow>(SQL_MAP.GET_JOB_DELIVERY_MANNERS).then(res => setDeliveryManners(res.data?.genericQuery ?? []));
+        void gq<{ setting_value: unknown }>(SQL_MAP.GET_APP_SETTING_BY_KEY, { setting_key: "show_parts_in_job_invoice" })
+            .then(res => {
+                const sv = res.data?.genericQuery?.[0]?.setting_value;
+                if (sv != null && typeof sv === "object") setShowPartsInInvoiceSetting(sv as { show: boolean; text: string; hsn: number; gst_rate: number });
+            });
+    }, [dbName, schema]);
 
     const loadData = useCallback(async () => {
         if (!dbName || !schema || !branchId) return;
@@ -246,8 +299,106 @@ export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Prop
         }
     }
 
+    async function handleUndoFinalConfirm(job: OpenJobRow) {
+        if (!dbName || !schema) return;
+        setUndoFinalSubmitting(true);
+        try {
+            await apolloClient.mutate({
+                mutation: GRAPHQL_MAP.genericUpdate,
+                variables: {
+                    db_name: dbName,
+                    schema,
+                    value: encodeObj({ tableName: "job", xData: { id: job.id, is_final: false } }),
+                },
+            });
+            toast.success(`Job #${job.job_no} moved back to pending.`);
+            refreshGrid();
+        } catch {
+            toast.error("Failed to undo final. Please try again.");
+        } finally {
+            setUndoFinalSubmitting(false);
+            setUndoFinalPendingJob(null);
+        }
+    }
+
+    async function handleOpenDelivery(jobId: number) {
+        if (!dbName || !schema) return;
+        setLoadingDelivery(jobId);
+        try {
+            const res = await apolloClient.query<GenericQueryData<JobDeliveryFullDetail>>({
+                fetchPolicy: "network-only",
+                query: GRAPHQL_MAP.genericQuery,
+                variables: {
+                    db_name: dbName, schema,
+                    value: graphQlUtils.buildGenericQueryValue({
+                        sqlId:   SQL_MAP.GET_DELIVERABLE_JOBS_DETAIL_MULTI,
+                        sqlArgs: { job_ids: [jobId] },
+                    }),
+                },
+            });
+            const details = res.data?.genericQuery ?? [];
+            if (details.length === 0) { toast.error("Failed to load job delivery details."); return; }
+            setDeliveryJobDetails(details);
+            setShowDeliveryModal(true);
+        } catch {
+            toast.error("Failed to load job delivery details.");
+        } finally {
+            setLoadingDelivery(null);
+        }
+    }
+
+    async function handleOpenChargesReadonly(job: OpenJobRow) {
+        if (!dbName || !schema) return;
+        setChargesReadonlyLoading(job.id);
+        try {
+            type LoadedPartRow = { id: number; part_code: string; part_name: string; uom: string; qty: number; cost_price: number | null; selling_price: number | null; gst_rate: number | null; hsn_code: string | null; remarks: string | null };
+            type AdditionalChargeRow = { id: number; charge_name: string; ref_no: string | null; description: string | null; hsn_code: string | null; gst_rate: number; qty: number; cost_price: number; selling_price: number };
+            const [partsRes, chargesRes, jobRes] = await Promise.all([
+                apolloClient.query<GenericQueryData<LoadedPartRow>>({
+                    fetchPolicy: "network-only",
+                    query: GRAPHQL_MAP.genericQuery,
+                    variables: { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_JOB_PART_USED_BY_JOB, sqlArgs: { job_id: job.id } }) },
+                }),
+                apolloClient.query<GenericQueryData<AdditionalChargeRow>>({
+                    fetchPolicy: "network-only",
+                    query: GRAPHQL_MAP.genericQuery,
+                    variables: { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_JOB_ADDITIONAL_CHARGES_BY_JOB, sqlArgs: { job_id: job.id } }) },
+                }),
+                apolloClient.query<GenericQueryData<{ is_igst: boolean }>>({
+                    fetchPolicy: "network-only",
+                    query: GRAPHQL_MAP.genericQuery,
+                    variables: { db_name: dbName, schema, value: graphQlUtils.buildGenericQueryValue({ sqlId: SQL_MAP.GET_JOB_DETAIL, sqlArgs: { id: job.id } }) },
+                }),
+            ]);
+            const jobDetail = jobRes.data?.genericQuery?.[0] ?? null;
+            const division  = divisions.find(d => d.id === job.division_id) ?? null;
+            setChargesReadonlyJobNo(job.job_no);
+            setChargesReadonlyIsGst(isGstDivision(division));
+            setChargesReadonlyIsWarranty(job.job_type_code === "UNDER_WARRANTY");
+            setChargesReadonlyForceIgst(jobDetail?.is_igst ?? false);
+            setChargesReadonlyAmount(job.amount);
+            setChargesReadonlyParts(partsRes.data?.genericQuery ?? []);
+            setChargesReadonlyCharges(chargesRes.data?.genericQuery ?? []);
+            setChargesReadonlyOpen(true);
+        } catch {
+            toast.error("Failed to load charges. Please try again.");
+        } finally {
+            setChargesReadonlyLoading(null);
+        }
+    }
+
     const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
     const badgeColorClass = STATUS_COLORS[status.status_code]?.split(" ")[0] ?? "bg-slate-400";
+
+    if (finalJobId !== null) {
+        return (
+            <FinalJobDialog
+                jobId={finalJobId}
+                onClose={() => setFinalJobId(null)}
+                onFinalized={() => { setFinalJobId(null); refreshGrid(); }}
+            />
+        );
+    }
 
     return (
         <motion.div
@@ -339,6 +490,11 @@ export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Prop
                                     const rowBg = JOB_TYPE_ROW_COLORS[row.job_type_code] ?? "";
                                     const isNoAction = NO_ACTION_CODES.has(row.job_status_code);
                                     const rowCanUndo = canUndo(row);
+                                    const showCharges    = ADD_CHARGES_CODES.has(row.job_status_code) && !NO_CHARGES_JOB_TYPES.has(row.job_type_code);
+                                    const showFinalJob   = row.job_status_code === "COMPLETED_OK" && !row.is_final;
+                                    const showUndoFinal  = row.job_status_code === "COMPLETED_OK" && row.is_final;
+                                    const showDeliverJob = row.is_final && !row.is_closed;
+                                    const hasAnyAction   = !isNoAction || rowCanUndo || showCharges || showFinalJob || showUndoFinal || showDeliverJob;
                                     const batchColor   = row.batch_no != null ? BATCH_COLORS[row.batch_no % BATCH_COLORS.length] : null;
                                     const isBatchStart = row.batch_no != null && (idx === 0 || rows[idx - 1].batch_no !== row.batch_no);
                                     const batchClasses = batchColor
@@ -466,8 +622,8 @@ export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Prop
                                                     >
                                                         <Eye className="h-4 w-4" />
                                                     </Button>
-                                                    {/* No-action + no undo → lock icon */}
-                                                    {isNoAction && !rowCanUndo ? (
+                                                    {/* No remaining actions → lock icon */}
+                                                    {!hasAnyAction ? (
                                                         <span className="flex h-7 w-7 items-center justify-center">
                                                             <Lock className="h-3.5 w-3.5 text-(--cl-text-muted) opacity-40" />
                                                         </span>
@@ -476,7 +632,7 @@ export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Prop
                                                             <DropdownMenuTrigger asChild>
                                                                 <Button
                                                                     className="h-8 w-8 p-0 text-(--cl-accent) hover:text-white hover:bg-(--cl-accent) rounded-lg transition-colors"
-                                                                    disabled={submitting}
+                                                                    disabled={submitting || loadingDelivery === row.id}
                                                                     size="icon"
                                                                     title="Actions"
                                                                     variant="ghost"
@@ -525,7 +681,7 @@ export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Prop
                                                                         </DropdownMenuItem>
                                                                     </>
                                                                 )}
-                                                                {ADD_CHARGES_CODES.has(row.job_status_code) && !NO_CHARGES_JOB_TYPES.has(row.job_type_code) && (
+                                                                {showCharges && (
                                                                     <>
                                                                         <DropdownMenuSeparator className="bg-zinc-100 dark:bg-zinc-800 mx-1" />
                                                                         <DropdownMenuItem
@@ -544,9 +700,86 @@ export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Prop
                                                                         </DropdownMenuItem>
                                                                     </>
                                                                 )}
+                                                                {showFinalJob && (
+                                                                    <>
+                                                                        <DropdownMenuSeparator className="bg-zinc-100 dark:bg-zinc-800 mx-1" />
+                                                                        <DropdownMenuItem
+                                                                            className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium cursor-pointer text-emerald-700 focus:text-emerald-700 focus:bg-emerald-50 dark:focus:bg-emerald-950/30"
+                                                                            onClick={() => setFinalJobId(row.id)}
+                                                                        >
+                                                                            <CheckSquare className="h-3.5 w-3.5 shrink-0" />
+                                                                            Final the Job
+                                                                        </DropdownMenuItem>
+                                                                    </>
+                                                                )}
+                                                                {showUndoFinal && (
+                                                                    <>
+                                                                        <DropdownMenuSeparator className="bg-zinc-100 dark:bg-zinc-800 mx-1" />
+                                                                        <DropdownMenuItem
+                                                                            className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium cursor-pointer text-orange-600 focus:text-orange-700 focus:bg-orange-50 dark:focus:bg-orange-950/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                                            disabled={row.invoice_is_posted === true}
+                                                                            title={row.invoice_is_posted === true ? "Cannot revise a posted job" : undefined}
+                                                                            onClick={() => setFinalJobId(row.id)}
+                                                                        >
+                                                                            <Pencil className="h-3.5 w-3.5 shrink-0" />
+                                                                            Revise Final
+                                                                        </DropdownMenuItem>
+                                                                        <DropdownMenuItem
+                                                                            className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium cursor-pointer text-amber-600 focus:text-amber-700 focus:bg-amber-50 dark:focus:bg-amber-950/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                                            disabled={row.invoice_is_posted === true}
+                                                                            title={row.invoice_is_posted === true ? "Cannot undo a posted job" : undefined}
+                                                                            onClick={() => setUndoFinalPendingJob(row)}
+                                                                        >
+                                                                            <Undo2 className="h-3.5 w-3.5 shrink-0" />
+                                                                            Undo Final
+                                                                        </DropdownMenuItem>
+                                                                    </>
+                                                                )}
+                                                                {showDeliverJob && (
+                                                                    <>
+                                                                        <DropdownMenuSeparator className="bg-zinc-100 dark:bg-zinc-800 mx-1" />
+                                                                        <DropdownMenuItem
+                                                                            className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium cursor-pointer text-blue-700 focus:text-blue-700 focus:bg-blue-50 dark:focus:bg-blue-950/30"
+                                                                            onClick={() => void handleOpenDelivery(row.id)}
+                                                                        >
+                                                                            <Truck className="h-3.5 w-3.5 shrink-0" />
+                                                                            Deliver Job
+                                                                        </DropdownMenuItem>
+                                                                        {Number(row.amount) > 0 && (
+                                                                        <DropdownMenuItem
+                                                                            className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium cursor-pointer text-purple-700 focus:text-purple-700 focus:bg-purple-50 dark:focus:bg-purple-950/30"
+                                                                            onClick={() => setProformaJobId(row.id)}
+                                                                        >
+                                                                            <Receipt className="h-3.5 w-3.5 shrink-0" />
+                                                                            Proforma Invoice
+                                                                        </DropdownMenuItem>
+                                                                        )}
+                                                                        <DropdownMenuItem
+                                                                            className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium cursor-pointer text-teal-700 focus:text-teal-700 focus:bg-teal-50 dark:focus:bg-teal-950/30"
+                                                                            disabled={chargesReadonlyLoading === row.id}
+                                                                            onClick={() => void handleOpenChargesReadonly(row)}
+                                                                        >
+                                                                            {chargesReadonlyLoading === row.id
+                                                                                ? <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" />
+                                                                                : <ReceiptText className="h-3.5 w-3.5 shrink-0" />
+                                                                            }
+                                                                            Charges
+                                                                        </DropdownMenuItem>
+                                                                    </>
+                                                                )}
                                                             </DropdownMenuContent>
                                                         </DropdownMenu>
                                                     )}
+                                                    {/* PDF / Print */}
+                                                    <Button
+                                                        className="h-8 w-8 p-0 text-(--cl-text-muted) hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
+                                                        size="icon"
+                                                        title="Print / Save as PDF"
+                                                        variant="ghost"
+                                                        onClick={() => setPdfJobId(row.id)}
+                                                    >
+                                                        <FileDown className="h-4 w-4" />
+                                                    </Button>
                                                 </div>
                                             </td>
                                         </motion.tr>
@@ -615,6 +848,73 @@ export const JobPipelineStatusDrilldown = ({ status, technicians, onBack }: Prop
                     schema={schema ?? ""}
                     onClose={() => setChargesJob(null)}
                     onSaved={() => { setChargesJob(null); refreshGrid(); }}
+                />
+            )}
+
+            {pdfJobId !== null && (
+                <JobPdfModal
+                    jobId={pdfJobId}
+                    onClose={() => setPdfJobId(null)}
+                />
+            )}
+
+            {proformaJobId !== null && (
+                <JobProformaInvoiceModal
+                    jobId={proformaJobId}
+                    onClose={() => setProformaJobId(null)}
+                />
+            )}
+
+            <JobChargesReadonlyModal
+                open={chargesReadonlyOpen}
+                onClose={() => setChargesReadonlyOpen(false)}
+                jobNo={chargesReadonlyJobNo}
+                isGst={chargesReadonlyIsGst}
+                isWarranty={chargesReadonlyIsWarranty}
+                forceIgst={chargesReadonlyForceIgst}
+                amount={chargesReadonlyAmount}
+                parts={chargesReadonlyParts}
+                charges={chargesReadonlyCharges}
+            />
+
+            {/* Undo Final confirmation */}
+            <AlertDialog open={!!undoFinalPendingJob} onOpenChange={open => { if (!open) setUndoFinalPendingJob(null); }}>
+                <AlertDialogContent className="max-w-sm">
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Undo Final?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Job #{undoFinalPendingJob?.job_no} will be moved back to pending. Are you sure?
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            disabled={undoFinalSubmitting}
+                            onClick={() => { if (undoFinalPendingJob) void handleUndoFinalConfirm(undoFinalPendingJob); }}
+                        >
+                            Undo Final
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            {showDeliveryModal && deliveryJobDetails.length > 0 && (
+                <DeliveryModal
+                    jobs={deliveryJobDetails}
+                    branchId={branchId}
+                    branchName={currentBranch?.name ?? null}
+                    deliveryManners={deliveryManners}
+                    availableDivisions={divisions}
+                    currentUser={currentUser}
+                    dbName={dbName}
+                    schema={schema}
+                    showPartsInInvoiceSetting={showPartsInInvoiceSetting}
+                    onClose={() => { setShowDeliveryModal(false); setDeliveryJobDetails([]); }}
+                    onDelivered={() => {
+                        setShowDeliveryModal(false);
+                        setDeliveryJobDetails([]);
+                        refreshGrid();
+                    }}
                 />
             )}
         </motion.div>

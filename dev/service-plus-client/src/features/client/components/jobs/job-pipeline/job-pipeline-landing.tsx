@@ -19,7 +19,7 @@ type Props = {
 
 type GenericQueryData<T> = { genericQuery: T[] | null };
 
-const NO_ACTION_CODES = new Set(["COMPLETED_OK", "RETURN", "DELIVERED_OK", "DELIVERED_NOT_OK"]);
+const NO_ACTION_CODES = new Set(["COMPLETED_OK", "COMPLETED_OK_FINAL", "RETURN", "DELIVERED_OK", "DELIVERED_NOT_OK"]);
 
 export const JobPipelineLanding = ({ onStatusClick }: Props) => {
     const dbName        = useAppSelector(selectDbName);
@@ -67,7 +67,7 @@ export const JobPipelineLanding = ({ onStatusClick }: Props) => {
             const colorParts = (STATUS_COLORS[s.status_code] ?? "bg-slate-400 hover:bg-slate-500 text-white").trim().split(/\s+/).filter(Boolean);
             const colorClass = colorParts[0] ?? "bg-slate-400";
             const textClass  = colorParts.find(p => p.startsWith("text-")) ?? "text-white";
-            const warrantySuffix = s.status_code === "COMPLETED_OK"
+            const warrantySuffix = s.status_code === "COMPLETED_OK" || s.status_code === "COMPLETED_OK_FINAL"
                 ? ` (w:${Number(s.warranty_count)} ow:${Number(s.oow_count)})`
                 : "";
 
