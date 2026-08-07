@@ -234,27 +234,79 @@ class JobsSql:
 
     # ── Job Pipeline ──────────────────────────────────────────────────────────
 
+    # NOTE: "Completed OK" (job_status.id = 11) is split into two synthetic
+    # pipeline stages by the job.is_final flag: 1001 = "Completed OK"
+    # (is_final = false), 1002 = "Completed OK Final" (is_final = true).
+    # These ids only ever exist in this query and GET_JOB_PIPELINE_COUNT /
+    # GET_JOB_PIPELINE_PAGED below — they are never written to the DB.
     GET_JOB_PIPELINE_STATUS_COUNTS = """
         with "p_branch_id" as (values(%(branch_id)s::bigint))
-        SELECT
-            js.id   AS status_id,
-            js.name AS status_name,
-            js.code AS status_code,
-            COUNT(j.id) AS count,
-            COUNT(j.id) FILTER (WHERE j.job_type_id = (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY'))              AS warranty_count,
-            COUNT(j.id) FILTER (WHERE j.job_type_id IS DISTINCT FROM (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY')) AS oow_count
-        FROM job_status js
-        LEFT JOIN job j
-            ON j.job_status_id = js.id
-           AND j.branch_id = (table "p_branch_id")
-        GROUP BY js.id, js.name, js.code, js.display_order
-        ORDER BY js.display_order NULLS LAST, js.id
+        SELECT status_id, status_name, status_code, count, warranty_count, oow_count
+        FROM (
+            SELECT
+                js.id   AS status_id,
+                js.name AS status_name,
+                js.code AS status_code,
+                COUNT(j.id) AS count,
+                COUNT(j.id) FILTER (WHERE j.job_type_id = (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY'))              AS warranty_count,
+                COUNT(j.id) FILTER (WHERE j.job_type_id IS DISTINCT FROM (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY')) AS oow_count,
+                js.display_order AS sort_order
+            FROM job_status js
+            LEFT JOIN job j
+                ON j.job_status_id = js.id
+               AND j.branch_id = (table "p_branch_id")
+            WHERE js.code <> 'COMPLETED_OK'
+            GROUP BY js.id, js.name, js.code, js.display_order
+
+            UNION ALL
+
+            SELECT
+                1001                AS status_id,
+                'Completed OK'      AS status_name,
+                'COMPLETED_OK'      AS status_code,
+                COUNT(j.id) FILTER (WHERE NOT j.is_final)                                                                                          AS count,
+                COUNT(j.id) FILTER (WHERE NOT j.is_final AND j.job_type_id = (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY'))              AS warranty_count,
+                COUNT(j.id) FILTER (WHERE NOT j.is_final AND j.job_type_id IS DISTINCT FROM (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY')) AS oow_count,
+                js.display_order AS sort_order
+            FROM job_status js
+            LEFT JOIN job j
+                ON j.job_status_id = js.id
+               AND j.branch_id = (table "p_branch_id")
+            WHERE js.code = 'COMPLETED_OK'
+            GROUP BY js.display_order
+
+            UNION ALL
+
+            SELECT
+                1002                    AS status_id,
+                'Completed OK Final'    AS status_name,
+                'COMPLETED_OK_FINAL'    AS status_code,
+                COUNT(j.id) FILTER (WHERE j.is_final)                                                                                          AS count,
+                COUNT(j.id) FILTER (WHERE j.is_final AND j.job_type_id = (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY'))              AS warranty_count,
+                COUNT(j.id) FILTER (WHERE j.is_final AND j.job_type_id IS DISTINCT FROM (SELECT id FROM job_type WHERE code = 'UNDER_WARRANTY')) AS oow_count,
+                js.display_order AS sort_order
+            FROM job_status js
+            LEFT JOIN job j
+                ON j.job_status_id = js.id
+               AND j.branch_id = (table "p_branch_id")
+            WHERE js.code = 'COMPLETED_OK'
+            GROUP BY js.display_order
+        ) x
+        ORDER BY sort_order NULLS LAST, status_id
     """
 
     GET_JOB_PIPELINE_COUNT = """
         with
             "p_branch_id" as (values(%(branch_id)s::bigint)),
             "p_status_id" as (values(%(status_id)s::smallint)),
+            "p_job_status_id" as (
+                values( (CASE WHEN %(status_id)s::smallint IN (1001, 1002) THEN 11 ELSE %(status_id)s::smallint END)::smallint )
+            ),
+            "p_is_final_filter" as (
+                values( (CASE WHEN %(status_id)s::smallint = 1001 THEN false
+                              WHEN %(status_id)s::smallint = 1002 THEN true
+                              ELSE NULL END)::boolean )
+            ),
             "p_search"    as (values(%(search)s::text))
         SELECT COUNT(*) AS total
         FROM job j
@@ -264,7 +316,8 @@ class JobsSql:
         LEFT JOIN product    p ON p.id  = pbm.product_id
         LEFT JOIN technician t ON t.id  = j.technician_id
         WHERE j.branch_id     = (table "p_branch_id")
-          AND j.job_status_id = (table "p_status_id")
+          AND j.job_status_id = (table "p_job_status_id")
+          AND ((table "p_is_final_filter") IS NULL OR j.is_final = (table "p_is_final_filter"))
           AND ((table "p_search") = ''
            OR  j.job_no::text                   ILIKE '%%' || (table "p_search") || '%%'
            OR  cc.full_name                      ILIKE '%%' || (table "p_search") || '%%'
@@ -284,6 +337,14 @@ class JobsSql:
         with
             "p_branch_id" as (values(%(branch_id)s::bigint)),
             "p_status_id" as (values(%(status_id)s::smallint)),
+            "p_job_status_id" as (
+                values( (CASE WHEN %(status_id)s::smallint IN (1001, 1002) THEN 11 ELSE %(status_id)s::smallint END)::smallint )
+            ),
+            "p_is_final_filter" as (
+                values( (CASE WHEN %(status_id)s::smallint = 1001 THEN false
+                              WHEN %(status_id)s::smallint = 1002 THEN true
+                              ELSE NULL END)::boolean )
+            ),
             "p_search"    as (values(%(search)s::text)),
             "p_limit"     as (values(%(limit)s::int)),
             "p_offset"    as (values(%(offset)s::int))
@@ -330,7 +391,8 @@ class JobsSql:
         LEFT JOIN product          p   ON p.id   = pbm.product_id
         LEFT JOIN job_invoice      ji  ON ji.job_id = j.id
         WHERE j.branch_id     = (table "p_branch_id")
-          AND j.job_status_id = (table "p_status_id")
+          AND j.job_status_id = (table "p_job_status_id")
+          AND ((table "p_is_final_filter") IS NULL OR j.is_final = (table "p_is_final_filter"))
           AND ((table "p_search") = ''
            OR  j.job_no::text                   ILIKE '%%' || (table "p_search") || '%%'
            OR  cc.full_name                      ILIKE '%%' || (table "p_search") || '%%'
