@@ -34,6 +34,12 @@ type CellJobType = {
     job_no: string;
     delivery_date: string;
     customer_name: string;
+    brand_name: string | null;
+    model_name: string | null;
+    product_name: string | null;
+    parts_cost: number;
+    charges_cost: number;
+    total_cost: number;
     profit: number;
     total_charges: number;
 };
@@ -62,6 +68,28 @@ export const TechnicianProfitCellDialog = ({ cell, onClose }: Props) => {
             width:  "110px",
         },
         { header: "Customer",      id: "customer",      value: r => r.customer_name },
+        {
+            cell:   r => (
+                <div className="flex flex-col">
+                    <span>{r.product_name ?? "—"}</span>
+                    <span className="text-[10px] text-(--cl-text-muted)">
+                        {[r.brand_name, r.model_name].filter(Boolean).join(" • ")}
+                    </span>
+                </div>
+            ),
+            header: "Device",
+            id:     "device",
+            value:  r => `${r.product_name ?? ""} ${r.brand_name ?? ""} ${r.model_name ?? ""}`,
+        },
+        {
+            align:  "right",
+            cell:   r => formatNumber(Number(r.total_cost)),
+            footer: rs => formatNumber(rs.reduce((s, r) => s + Number(r.total_cost), 0)),
+            header: "Cost",
+            id:     "total_cost",
+            value:  r => Number(r.total_cost),
+            width:  "100px",
+        },
         {
             align:  "right",
             cell:   r => <span className="font-light text-amber-600 dark:text-amber-400">{formatNumber(Number(r.total_charges))}</span>,
@@ -120,7 +148,7 @@ export const TechnicianProfitCellDialog = ({ cell, onClose }: Props) => {
     return (
         <>
         <Dialog onOpenChange={v => { if (!v) onClose(); }} open={open}>
-            <DialogContent className="max-w-3xl">
+            <DialogContent className="max-w-5xl">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
                         <DollarSign className="h-4 w-4 text-(--cl-accent-text)" />

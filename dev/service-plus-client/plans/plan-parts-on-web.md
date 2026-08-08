@@ -276,7 +276,57 @@ Following the conventions the "Track your repair" feature established (`react-ho
 3. **Phase 3 — order submission.** `POST /api/public/part-orders` with branch validation, branch-scoped cart/checkout/confirmation UI, branch-routed staff email notification (§5, §7). This is the point the feature is usable end-to-end.
 4. **Phase 4 (optional)** — the "Web Part Orders" staff list screen, the §6a "Copy to branch…" bulk action, and/or the per-branch `DELETE /files/delete-folder` capability (§4, §8), added only if and when actually needed.
 
-## 12. Verification
+## 12. Implementation steps
+
+Each step maps onto the corresponding phase in §11; substeps are in dependency order within the step and tagged with the repo they touch. A step's "Exit check" is the minimum bar for moving to the next one — it is a fast smoke test, not a substitute for §13.
+
+### Step 1 — schema + internal admin (Phase 1: nothing public yet)
+
+1. **[server]** Add `spare_part_web`, `web_part_order`, `web_part_order_line` DDL (§3b) to the template `service_plus_service.sql`; regenerate `sql_bu_admin_ddl.py` via `python -m app.db.tools.extract_schema`.
+2. **[server]** Add the `web_order_notify_email` app-setting (two-step DDL pattern, matching the existing `track_job_url` setting) — needed by §7's recipient resolution in Step 3.
+3. **[server]** Hand-apply the new DDL to every existing tenant schema (no migration runner exists — §3b); track which schemas are done.
+4. **[server]** Add `spare_part_web` to `BU_ADMIN_GENERIC_UPDATE_TABLE_RIGHTS` (`provisioning.py`) with a new right code, and register the `SQL_MAP` read query the admin list needs (parts by branch).
+5. **[file-server]** Add `DELETE /files/delete-folder` (`client_code, bu_code, branch_code` → `shutil.rmtree`, `X-API-Key` gated) — the one net-new file-server route this whole design needs (§4).
+6. **[server]** Add the four `/api/images/spare-part-web/*` routes in `image_router.py` — upload (append to `image_urls`), delete-by-url, reorder, delete-all-for-part — plus a `FileClient.delete_folder()` wrapper calling substep 5's new route (§4).
+7. **[client]** Add the sidebar entry (`TreeItem` in `client-explorer-panel.tsx` + matching branch in `client-masters-page.tsx`) and the new `src/features/client/components/masters/spare-parts-web/` folder: `spare-parts-web-section.tsx` (branch-scoped table + toolbar) and `spare-part-web-dialog.tsx` (RHF+zod form, optional `part_id` autocomplete against `spare_part_master`) (§6a).
+8. **[client]** Generalize `job-image-upload.tsx` into an entity-agnostic uploader — drop the required `about` caption, post the full url list on reorder — and wire it into the dialog against substep 6's routes (§6b).
+9. **[client]** Wire the part-delete action to call the delete-all-for-part image route (substep 6) *before* the GraphQL delete, so a removed part never strands its image folder (§4).
+10. **[client]** *(optional — only if a live tenant's branch shape calls for it)* Add the "Copy to branch…" bulk action (§6a).
+
+**Exit check**: staff can create/edit/deactivate a `spare_part_web` row, upload/delete/reorder its photos, and switching branch in the top-nav switcher swaps the list — all with nothing public-facing yet.
+
+### Step 2 — public read-only catalogue (Phase 2)
+
+1. **[server]** Add the branch query, `company-info` query, parts-list query, and part-detail query to `sql_public.py` (§5).
+2. **[server]** Add the shared `resolve_branch(db_name, schema, branch_code | None)` helper in `website_router.py` (§5).
+3. **[server]** Add `GET /api/public/branches`, `GET /api/public/company-info`, `GET /api/public/parts`, `GET /api/public/parts/{part_id}` — each behind `require_website_key` + a read-tier rate limit (§5).
+4. **[web]** Add `fetchBranches`, `fetchParts`, `fetchPartById`, `fetchCompanyInfo` to `lib/api.ts` / `lib/types.ts` (§9).
+5. **[web]** Extract the shared `company-select.tsx` out of `job-status-form.tsx` / `open-jobs-form.tsx` (§9).
+6. **[web]** Build `branch-select.tsx` — silent auto-select and no render at exactly one branch, preselected dropdown at more than one, empty state at zero (§9).
+7. **[web]** Build `parts-search.tsx` and `parts-grid.tsx` / `part-card.tsx`, including the empty-gallery placeholder and the persistent "prices are indicative" disclaimer (§9).
+8. **[web]** Build `part-detail-dialog.tsx` with the image gallery/lightbox sourced from the detail endpoint's `images: string[]` (§9).
+9. **[web]** Wire `app/spare-parts/page.tsx` end to end — company → branch → grid → detail — read-only, no cart/checkout yet.
+10. **[web]** Flip `feature-cards.tsx`'s "Coming soon" card to link to `/spare-parts`; add the nav link in `header.tsx` (§9).
+
+**Exit check**: both a single-branch and a multi-branch seeded tenant browse correctly end to end, and part images load through the existing unauthenticated `/api/images/uploads/{path}` proxy.
+
+### Step 3 — order submission (Phase 3: usable end to end)
+
+1. **[server]** Implement `POST /api/public/part-orders` — branch-scoped re-validation of every line, server-recomputed pricing, insert into `web_part_order` + `web_part_order_line` (§5).
+2. **[server]** Wire the staff notification email — `send_email` call, branch-first recipient resolution (`branch.email` → `web_order_notify_email` setting → head office), branch name in the subject line (§7).
+3. **[web]** Build `cart-drawer.tsx`, keyed on `(company, branch)`, with a discard-confirmation prompt on branch switch (§9).
+4. **[web]** Build `checkout-form.tsx` and `order-confirmation.tsx` with the no-payment / no-return / manual-fulfillment messaging and the selected branch's phone number (§7, §9).
+5. **[web]** Add `submitPartOrder` to `lib/api.ts` and wire cart → checkout → confirmation.
+
+**Exit check**: a real order submitted through the UI lands in the DB with the correct `branch_id`, staff receive the email, and a hand-crafted cross-branch or stale-price request is rejected server-side, not silently accepted.
+
+### Step 4 — optional fast-follow (Phase 4)
+
+1. **[client]** "Web Part Orders" staff list screen, branch-scoped by default, `NEW → CONTACTED/CANCELLED` status (§8).
+2. **[client]** The §6a "Copy to branch…" bulk action, if not already built in Step 1.
+3. **[server + file-server]** Expose substep 1.5's `DELETE /files/delete-folder` as an admin-triggered action (e.g. "clear this branch's web catalogue photos"), only once an actual need for it shows up (§4, §10).
+
+## 13. Verification
 
 - **Backend**: confirm the public endpoints are unreachable without `X-Website-Key`; that the opaque `company` token round-trips correctly and can't be forged into a different tenant's data; that `POST /api/public/part-orders` rejects a line for a part that has since been deactivated and recomputes price server-side rather than trusting the client; that the staff notification email actually sends (or logs a clear warning when SMTP isn't configured, per the existing `send_email` behaviour); and that rate limits apply.
 - **Branch scoping** — test with a seeded two-branch BU where each branch has at least one part the other doesn't:
