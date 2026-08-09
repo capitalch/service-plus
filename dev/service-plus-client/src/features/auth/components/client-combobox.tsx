@@ -11,15 +11,17 @@ type ClientComboboxProps = {
   autoFocus?: boolean;
   disabled?: boolean;
   error?: string;
+  /** Text shown initially for a pre-selected `value` (the id alone has no label to display). */
+  initialLabel?: string;
   onSelect?: (client: ClientType) => void;
   onValueChange: (value: string) => void;
   value: string;
 };
 
-export const ClientCombobox = ({ autoFocus, disabled, error, onSelect, onValueChange, value }: ClientComboboxProps) => {
+export const ClientCombobox = ({ autoFocus, disabled, error, initialLabel, onSelect, onValueChange, value }: ClientComboboxProps) => {
   const { clients, hasMinimumChars, isLoading, setCriteria } = useClientSearch();
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
-  const [inputValue, setInputValue] = useState('');
+  const [inputValue, setInputValue] = useState(initialLabel ?? '');
   const [isOpen, setIsOpen] = useState(false);
   const [prevValue, setPrevValue] = useState(value);
   const containerRef = useRef<HTMLDivElement>(null);

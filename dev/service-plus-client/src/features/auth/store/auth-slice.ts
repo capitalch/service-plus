@@ -1,7 +1,7 @@
 import { createSlice } from '@reduxjs/toolkit';
 import type { PayloadAction } from '@reduxjs/toolkit';
 import type { UserInstanceType } from '@/lib/auth-service';
-import { clearAuthStorage, getAuthItem, setAuthItem, setRememberFlag } from '@/lib/auth-storage';
+import { clearAuthStorage, getAuthItem, saveLastLogin, setAuthItem, setRememberFlag } from '@/lib/auth-storage';
 
 /**
  * Authentication State Interface
@@ -62,9 +62,9 @@ const authSlice = createSlice({
          */
         setCredentials: (
             state,
-            action: PayloadAction<{ user: UserInstanceType; token: string; refreshToken: string; clientId: string; clientName: string; rememberMe: boolean }>
+            action: PayloadAction<{ user: UserInstanceType; token: string; refreshToken: string; clientId: string; clientName: string; emailOrUsername: string; isSuperAdmin: boolean; rememberMe: boolean }>
         ) => {
-            const { user, token, refreshToken, clientId, clientName, rememberMe } = action.payload;
+            const { user, token, refreshToken, clientId, clientName, emailOrUsername, isSuperAdmin, rememberMe } = action.payload;
             state.isAuthenticated  = true;
             state.selectedClientId = clientId;
             state.clientName       = clientName || null;
@@ -74,6 +74,10 @@ const authSlice = createSlice({
 
             // Persist to localStorage (remembered) or sessionStorage (this browser session only)
             setRememberFlag(rememberMe);
+
+            // Prefill data for the next visit to the login page — never the password
+            saveLastLogin(rememberMe ? { clientId, clientName, emailOrUsername, isSuperAdmin } : null);
+
             setAuthItem('accessToken', token);
             setAuthItem('refreshToken', refreshToken);
             setAuthItem('selectedClientId', clientId);
@@ -119,7 +123,7 @@ export const { logout, setCredentials, setSessionMode } = authSlice.actions;
 export const selectCurrentUser      = (state: { auth: AuthState }) => state.auth.user;
 export const selectDbName           = (state: { auth: AuthState }) => state.auth.user?.dbName ?? null;
 export const selectIsAuthenticated  = (state: { auth: AuthState }) => state.auth.isAuthenticated;
-export const selectClientCode       = (state: { auth: AuthState }) => state.auth.user?.clientCode ?? localStorage.getItem('clientCode') ?? null;
+export const selectClientCode       = (state: { auth: AuthState }) => state.auth.user?.clientCode ?? getAuthItem('clientCode');
 export const selectClientName       = (state: { auth: AuthState }) => state.auth.clientName ?? getAuthItem('clientName');
 export const selectSessionMode      = (state: { auth: AuthState }) => state.auth.sessionMode;
 

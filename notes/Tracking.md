@@ -40,6 +40,11 @@
 		- Aug 2026
 
 # Tracking
+- 01-08-2026 - 09-08-2026
+	- Successfully launched on 01-08-2026
+	- Bug fixes
+	- serviceplus web implemented (Job query)
+	- Working on whatsapp messages and spare parts sale on web
 - 28-07-2026 - 30-07-2026
 	- Minor changes before release
 - 26-07-2026

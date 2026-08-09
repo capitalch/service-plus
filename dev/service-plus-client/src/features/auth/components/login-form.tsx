@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { motion } from 'framer-motion';
@@ -12,6 +12,7 @@ import { Switch } from '@/components/ui/switch';
 import { ClientCombobox } from './client-combobox';
 import { loginSchema, type LoginFormData } from '../schemas/auth-schemas';
 import { loginUser } from '@/lib/auth-service';
+import { getLastLogin } from '@/lib/auth-storage';
 import type { ApiError, UserInstanceType } from '@/lib/auth-service';
 import { useAppDispatch } from '@/store/hooks';
 import { setCredentials, setSessionMode } from '@/features/auth/store/auth-slice';
@@ -25,10 +26,12 @@ type LoginFormProps = {
 export const LoginForm = ({ onForgotPassword }: LoginFormProps) => {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
+  // Read once on mount: identity saved by the previous "Remember me" login, if any
+  const lastLogin = useMemo(() => getLastLogin(), []);
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
-  const [clientName, setClientName] = useState('');
+  const [rememberMe, setRememberMe] = useState(!!lastLogin);
+  const [clientName, setClientName] = useState(lastLogin?.clientName ?? '');
 
   const {
     register,
@@ -40,9 +43,9 @@ export const LoginForm = ({ onForgotPassword }: LoginFormProps) => {
   } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      clientId: '',
-      emailOrUsername: '',
-      isSuperAdmin: false,
+      clientId: lastLogin?.clientId ?? '',
+      emailOrUsername: lastLogin?.emailOrUsername ?? '',
+      isSuperAdmin: lastLogin?.isSuperAdmin ?? false,
       password: '',
     },
   });
@@ -71,7 +74,7 @@ export const LoginForm = ({ onForgotPassword }: LoginFormProps) => {
         username:          result.username,
       };
 
-      dispatch(setCredentials({ user, token: result.accessToken, refreshToken: result.refreshToken, clientId: data.clientId, clientName, rememberMe }));
+      dispatch(setCredentials({ user, token: result.accessToken, refreshToken: result.refreshToken, clientId: data.clientId, clientName, emailOrUsername: data.emailOrUsername, isSuperAdmin: data.isSuperAdmin, rememberMe }));
 
       toast.success(MESSAGES.SUCCESS_LOGIN);
 
@@ -106,8 +109,9 @@ export const LoginForm = ({ onForgotPassword }: LoginFormProps) => {
           {!isSuperAdmin && <span className="ml-0.5 text-red-500">*</span>}
         </Label>
         <ClientCombobox
-          autoFocus
+          autoFocus={!lastLogin}
           disabled={isSuperAdmin}
+          initialLabel={lastLogin?.clientName}
           value={clientId}
           onValueChange={(value) => setValue('clientId', value, { shouldValidate: true })}
           onSelect={(client) => setClientName(client.name)}
@@ -152,6 +156,7 @@ export const LoginForm = ({ onForgotPassword }: LoginFormProps) => {
             id="password"
             type={showPassword ? 'text' : 'password'}
             placeholder="Enter your password"
+            autoFocus={!!lastLogin}
             {...register('password')}
             aria-invalid={!!errors.password}
             className="h-10 pr-10"

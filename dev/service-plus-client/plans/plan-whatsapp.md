@@ -1,4 +1,4 @@
-# Customer Connect — WhatsApp Messaging on Job Completion & Delivery
+# Customer Connect — WhatsApp Messaging on Job Completion
 
 > Full design + execution plan. Covers `service-plus-client` (UI), `service-plus-server`
 > (APIs, worker, provider layer), and the database schema.
@@ -34,12 +34,15 @@ default**), select-all, search, refresh, and one prominent **Send** button. Pres
 selection to the server, which **enqueues** it and returns immediately; a background **worker** does the
 actual provider calls, with live progress streamed back over a GraphQL subscription.
 
-Two message events:
+**One message event in this version:**
 
 | Event | Which jobs qualify | Message |
 |---|---|---|
 | `JOB_COMPLETION` | `is_final = true`, `is_closed = false`, status not `CANCELLED`/`DISPOSED` | "Your job(s) are ready. Amount due ₹X." |
-| `JOB_DELIVERY` | `is_closed = true` (delivered) | "Thank you — your job(s) have been delivered." |
+
+Job-delivery ("thank you for collecting") messages are **deferred to a later version** — see §11. The
+`event_type` column and its CHECK still allow `JOB_DELIVERY` so adding it later is a template row and a
+second SQL query, not a schema change.
 
 **One message per customer.** A customer with three selected jobs receives a single message naming all three
 — never three messages. This is a first-class concept in the schema (§3), not a UI-only convenience.
@@ -54,8 +57,7 @@ Two message events:
  Jobs → Customer Connect
    │
    │ genericQuery
-   │  GET_NOTIFY_COMPLETION_JOBS_PAGED / _COUNT   (tab 1)
-   │  GET_NOTIFY_DELIVERY_JOBS_PAGED   / _COUNT   (tab 2)
+   │  GET_NOTIFY_COMPLETION_JOBS_PAGED / _COUNT
    ├──────────────────────────────►  SQL over job + notification_message_job
    │◄──────────────────────────────  rows incl. msg_sent_count, last_sent_at, last_error
    │
@@ -131,7 +133,7 @@ then `service_plus_service.sql` re-extracted via `python -m app.db.tools.extract
 CREATE TABLE notification_batch (
     id                bigint NOT NULL,
     branch_id         bigint NOT NULL REFERENCES branch(id),
-    event_type        text   NOT NULL,                       -- JOB_COMPLETION | JOB_DELIVERY
+    event_type        text   NOT NULL,                       -- JOB_COMPLETION (JOB_DELIVERY reserved, §11)
     channel           text   NOT NULL DEFAULT 'WHATSAPP',    -- WHATSAPP | SMS | EMAIL
     provider_code     text   NOT NULL,                       -- snapshot of provider used
     template_code     text   NOT NULL,
@@ -145,6 +147,8 @@ CREATE TABLE notification_batch (
     created_at        timestamptz NOT NULL DEFAULT now(),
     started_at        timestamptz,
     finished_at       timestamptz,
+    -- JOB_DELIVERY is allowed by the CHECK from day one even though nothing emits it yet: widening a
+    -- CHECK later would mean a hand-applied ALTER on every live schema, and it costs nothing to allow now.
     CONSTRAINT notification_batch_event_check  CHECK (event_type IN ('JOB_COMPLETION','JOB_DELIVERY')),
     CONSTRAINT notification_batch_status_check CHECK (status IN ('QUEUED','RUNNING','COMPLETED','COMPLETED_WITH_ERRORS','FAILED')),
     CONSTRAINT notification_batch_request_key_uidx UNIQUE (request_key)
@@ -228,20 +232,20 @@ the grid actually shows, written by the worker in the same transaction that mark
 ```sql
 ALTER TABLE job ADD COLUMN completion_msg_sent_count   smallint    NOT NULL DEFAULT 0;
 ALTER TABLE job ADD COLUMN completion_msg_last_sent_at timestamptz;
-ALTER TABLE job ADD COLUMN delivery_msg_sent_count     smallint    NOT NULL DEFAULT 0;
-ALTER TABLE job ADD COLUMN delivery_msg_last_sent_at   timestamptz;
 ```
 
 Deliberately **channel-neutral names** (`msg`, not `whatsapp`) so adding SMS later increments the same
-counters, with the per-channel breakdown living in `notification_message`. These columns are a cache — a
-`REBUILD_NOTIFICATION_COUNTERS` maintenance SQL recomputes them from §3d if they ever drift.
+counters, with the per-channel breakdown living in `notification_message`. They are **event-scoped**, so the
+deferred delivery message (§11) adds its own pair — `delivery_msg_sent_count` / `delivery_msg_last_sent_at`
+— rather than muddling these. Both columns are a cache: a `REBUILD_NOTIFICATION_COUNTERS` maintenance SQL
+recomputes them from §3d if they ever drift.
 
 ### 3f. `public.notification_template` — Super-Admin-owned message templates
 
 ```sql
 CREATE TABLE public.notification_template (
     id                     bigint NOT NULL,
-    code                   text NOT NULL,          -- JOB_COMPLETION | JOB_DELIVERY
+    code                   text NOT NULL,          -- JOB_COMPLETION (JOB_DELIVERY later, §11)
     channel                text NOT NULL,          -- WHATSAPP | SMS | EMAIL
     provider_code          text,                   -- NULL = applies to any provider
     provider_template_name text,                   -- Meta-approved name, e.g. job_completion_v1
@@ -424,11 +428,10 @@ body `{"messaging_product":"whatsapp","to":…,"type":"template","template":{"na
 
 | Operation | Kind | Purpose |
 |---|---|---|
-| `GET_NOTIFY_COMPLETION_JOBS_PAGED` / `_COUNT` | `genericQuery` | Completion tab grid |
-| `GET_NOTIFY_DELIVERY_JOBS_PAGED` / `_COUNT` | `genericQuery` | Delivery tab grid |
+| `GET_NOTIFY_COMPLETION_JOBS_PAGED` / `_COUNT` | `genericQuery` | The grid |
 | `GET_NOTIFY_JOB_IDS_MATCHING` | `genericQuery` | ids-only, powers "select all N matching" |
 | `GET_NOTIFY_MESSAGES_BY_JOB` | `genericQuery` | per-job message history drawer |
-| `GET_NOTIFY_BATCHES_PAGED` / `_COUNT` | `genericQuery` | History tab |
+| `GET_NOTIFY_BATCHES_PAGED` / `_COUNT` | `genericQuery` | Batch history — SQL defined now, no screen in this version |
 | `queueNotificationBatch` | mutation | Enqueue a batch, return `batch_id` |
 | `retryNotificationMessages` | mutation | Reset chosen `FAILED` messages to `PENDING` |
 | `notificationBatchProgress` | subscription | Live progress |
@@ -464,7 +467,7 @@ New folder `src/features/client/components/jobs/customer-connect/`:
 
 | File | Role |
 |---|---|
-| `customer-connect-section.tsx` | Screen shell: tabs, toolbar, selection state, send orchestration |
+| `customer-connect-section.tsx` | Screen shell: toolbar, selection state, send orchestration |
 | `customer-connect-schema.ts` | Types (`NotifyJobRow`, `NotifyBatchProgressType`, …) |
 | `customer-connect-helpers.ts` | Grouping, mobile eligibility, preview render, `PAGE_SIZE`, `thClass`/`tdClass` |
 | `customer-connect-grid.tsx` | Job-Control-shaped grid + checkbox column |
@@ -476,10 +479,10 @@ New folder `src/features/client/components/jobs/customer-connect/`:
 **Grid columns** — mirroring `job-control-section.tsx:682-691` exactly, plus two:
 
 ```
-[☑]  #  Date/Del Date  Job No  Customer  Mobile  Device Details  Job Type  Status  Amount  Msgs Sent  Actions
+[☑]  #  Date  Job No  Customer  Mobile  Device Details  Job Type  Status  Amount  Msgs Sent  Actions
 ```
 
-`Msgs Sent` shows `completion_msg_sent_count` (or delivery, per tab) as a badge — `—` when zero, sky badge
+`Msgs Sent` shows `completion_msg_sent_count` as a badge — `—` when zero, sky badge
 `2 · 08-Aug` when sent, plus a small amber warning icon when the last attempt for that job failed, with the
 provider error in the tooltip and the full history in the drawer.
 
@@ -495,7 +498,7 @@ provider error in the tooltip and the full history in the drawer.
   per customer" promise is visible before pressing it.
 
 **Toolbar** copies the Job Control bar (`job-control-section.tsx:568-648`): icon + title + count, search
-input with clear button (debounced `SEARCH_DEBOUNCE_MS`), tab switcher, Refresh. The send button sits on the
+input with clear button (debounced `SEARCH_DEBOUNCE_MS`), Refresh. The send button sits on the
 right, deliberately oversized and emerald:
 
 ```
@@ -517,7 +520,7 @@ because these are genuine errors.
 
 ### Step 1 — Database DDL
 Add §3b–§3e to `sql_bu_admin_ddl.py` (tenant tables + `job` counter columns) and §3f–§3g to the public-schema
-DDL. Add identity blocks and indexes. Seed one `notification_template` row per event and one
+DDL. Add identity blocks and indexes. Seed the `JOB_COMPLETION` `notification_template` row and one
 `notification_provider` row for `META_CLOUD` in `seed_bu_data.py` / public seed. Re-extract
 `service_plus_service.sql`; hand-apply to existing live schemas.
 
@@ -546,7 +549,7 @@ counter rebuild). New resolvers in `app/graphql/resolvers/jobs/mutations.py`
 template/provider resolvers in `query.py` / `mutation.py`. Update the SDL schema file.
 
 ### Step 6 — Client constants
-`sql-map.ts`: the six `GET_NOTIFY_*` ids. `graphql-map.ts`: `queueNotificationBatch`,
+`sql-map.ts`: the five `GET_NOTIFY_*` ids. `graphql-map.ts`: `queueNotificationBatch`,
 `retryNotificationMessages`, `notificationBatchProgress`, `notificationTemplates`,
 `saveNotificationTemplate`, `notificationProviders`, `saveNotificationProvider`, `sendTestNotification`.
 `messages.ts`: a `// Customer Connect` block — `ERROR_NOTIFY_JOBS_LOAD_FAILED`, `ERROR_NOTIFY_QUEUE_FAILED`,
@@ -571,7 +574,7 @@ max-height calc from `finalized-jobs-grid.tsx:52-63`, and the standard paginatio
 `overflow-x-auto`, secondary columns collapse into the Job No cell's stacked layout below `md`.
 
 ### Step 10 — Section container
-`customer-connect-section.tsx`: tabs, toolbar, debounced search, paged loads via `apolloClient.query` +
+`customer-connect-section.tsx`: toolbar, debounced search, paged loads via `apolloClient.query` +
 `graphQlUtils.buildGenericQueryValue` + `Promise.allSettled` (the `final-a-job-section.tsx:257-286` shape),
 cross-page `Set<number>` selection, config gate (no active provider/template → informational panel using
 `INFO_NOTIFY_NOT_CONFIGURED`, no grid).
@@ -589,7 +592,8 @@ status, attempt count, rendered body, provider message id, and error detail.
 ### Step 13 — Super Admin: templates + providers
 New page `features/super-admin/pages/notifications-page.tsx`, sidebar entry "Notifications"
 (`sidebar.tsx:30-34` list, plus a `ROUTES.superAdmin.notifications` route). Two tabs:
-- **Templates** — one card per `(code, channel)`; `react-hook-form` + `zod`; fields: provider template name,
+- **Templates** — one card per `(code, channel)` row, so this version renders a single `JOB_COMPLETION`
+  card and needs no change when the delivery template is added; `react-hook-form` + `zod`; fields: provider template name,
   language, body (Textarea), ordered `param_map` builder; **live preview** with sample data; validation that
   the body's placeholder count equals `param_map.length`; a prominent note that changing wording requires
   re-approval from Meta; mandatory-field `*` in red (the one sanctioned red), all controls neutral-colored.
@@ -600,15 +604,17 @@ New page `features/super-admin/pages/notifications-page.tsx`, sidebar entry "Not
 
 ### Step 14 — Help system
 `features/client/components/help/help-content.ts`: new article `id: "customer-connect"` (category Jobs,
-after `deliver-job`) — what the screen does, the two tabs and eligibility rules, default-checked behaviour,
+after `deliver-job`) — what the screen does, which jobs appear and why, default-checked behaviour,
 one-message-per-customer, why rows are disabled, what Msgs Sent means, how to read failures and retry, and
-that wording is Super-Admin-owned. FAQs: "Why didn't a customer get a message?", "Why did three jobs produce
+that wording is Super-Admin-owned. State plainly that this version messages customers **when a job is
+finalized and ready for pickup only** — there is no message on delivery yet — so staff don't wait for one.
+FAQs: "Why didn't a customer get a message?", "Why did three jobs produce
 one message?", "Can I resend?", "Why is the screen greyed out?". Cross-link from `finalize-job` and
 `deliver-job`. `features/super-admin/components/help/dev-help-content.ts`: an article covering the outbox
 table, the claim query, retry/backoff, and how to add a provider.
 
 ### Step 15 — Verification
-`pnpm lint` and `pnpm build` clean. Manual: not-configured gate; both tabs load; select-all page vs
+`pnpm lint` and `pnpm build` clean. Manual: not-configured gate; grid loads; select-all page vs
 select-all-matching; selection survives paging and search; a 3-job customer previews as one message; queue
 returns instantly; progress bar advances; forced provider failure shows the error and retries; counters and
 badges update after reload; double-clicking Send does not double-queue (same `request_key`); killing the
@@ -621,9 +627,9 @@ server mid-batch and restarting resumes the remaining messages. Responsive at ~3
 1. DDL + seeds (Step 1) — safe, additive, deployable alone.
 2. Provider + renderer + worker with `notification_worker_enabled = false` (Steps 2–4).
 3. Server APIs (Step 5).
-4. Meta: register the WhatsApp Business number, submit `job_completion_v1` and `job_delivery_v1` for
-   approval. **Do this early — approval is measured in days, and approved wording cannot be edited without
-   re-approval.** Also complete TRAI/DLT registration if SMS is ever enabled.
+4. Meta: register the WhatsApp Business number and submit `job_completion_v1` for approval. **Do this early
+   — approval is measured in days, and approved wording cannot be edited without re-approval.** Also
+   complete TRAI/DLT registration if SMS is ever enabled.
 5. Client screen (Steps 6–12) against a sandbox number.
 6. Super Admin screens (Step 13) + help (Step 14).
 7. Enable the worker for one pilot BU, watch `notification_message` for a few days, then roll out.
@@ -649,6 +655,17 @@ server mid-batch and restarting resumes the remaining messages. Responsive at ~3
 
 ## 11. Deliberately out of scope
 
+- **Job-delivery messages** ("thank you for collecting your item") — cut from this version. The design
+  already reserves every seam it needs, so adding it later is additive work, not rework:
+  1. `INSERT` a `JOB_DELIVERY` row into `public.notification_template` (no DDL — the Super Admin editor
+     then renders a second card automatically).
+  2. Two new SQL ids, `GET_NOTIFY_DELIVERY_JOBS_PAGED` / `_COUNT`, filtering `is_closed = true`.
+  3. One hand-applied `ALTER TABLE job ADD COLUMN delivery_msg_sent_count smallint NOT NULL DEFAULT 0,
+     ADD COLUMN delivery_msg_last_sent_at timestamptz;` per live schema.
+  4. A tab switcher on the section, passing `event_type` through to the queue mutation.
+
+  The `event_type` column, its CHECK, the worker, the provider layer, the outbox, and the whole send/retry
+  path are already event-agnostic and need no change.
 - **Delivery/read receipts** — `notification_webhook_event` (§3h) and the `DELIVERED`/`READ` statuses exist
   so the webhook endpoint can be added without touching the schema, but the endpoint itself is phase 2.
 - **Inbound WhatsApp** (customer replies, chatbot) — outbound only.

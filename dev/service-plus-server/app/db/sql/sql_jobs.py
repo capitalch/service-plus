@@ -1225,6 +1225,7 @@ class JobsSql:
             js.name       AS job_status_name,
             js.code       AS job_status_code,
             jrm.name      AS job_receive_manner_name,
+            jrc.name      AS job_receive_condition_name,
             pbm.model_name,
             b.name        AS brand_name,
             p.name        AS product_name,
@@ -1236,6 +1237,7 @@ class JobsSql:
         JOIN job_type              jt  ON jt.id  = j.job_type_id
         JOIN job_status            js  ON js.id  = j.job_status_id
         JOIN job_receive_manner    jrm ON jrm.id = j.job_receive_manner_id
+        LEFT JOIN job_receive_condition jrc ON jrc.id = j.job_receive_condition_id
         LEFT JOIN product_brand_model pbm ON pbm.id = j.product_brand_model_id
         LEFT JOIN brand            b   ON b.id   = pbm.brand_id
         LEFT JOIN product          p   ON p.id   = pbm.product_id

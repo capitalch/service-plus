@@ -817,6 +817,13 @@ class ReportsAuditSql:
             j.job_no                                               AS job_no,
             j.delivery_date                                        AS delivery_date,
             cc.full_name                                           AS customer_name,
+            b.name                                                 AS brand_name,
+            pbm.model_name                                         AS model_name,
+            p.name                                                 AS product_name,
+            COALESCE(parts.parts_cost, 0)                          AS parts_cost,
+            COALESCE(charges.charges_cost, 0)                      AS charges_cost,
+            COALESCE(parts.parts_cost, 0)
+              + COALESCE(charges.charges_cost, 0)                  AS total_cost,
             COALESCE(ji.aggregate, 0)
               - COALESCE(parts.parts_cost, 0)
               - COALESCE(charges.charges_cost, 0)                  AS profit,
@@ -824,6 +831,9 @@ class ReportsAuditSql:
         FROM job j
         JOIN job_status js       ON js.id = j.job_status_id AND js.code = 'DELIVERED_OK'
         JOIN customer_contact cc ON cc.id = j.customer_contact_id
+        LEFT JOIN product_brand_model pbm ON pbm.id = j.product_brand_model_id
+        LEFT JOIN brand       b  ON b.id  = pbm.brand_id
+        LEFT JOIN product     p  ON p.id  = pbm.product_id
         LEFT JOIN job_invoice ji ON ji.job_id = j.id
         LEFT JOIN (
             SELECT job_id, SUM(cost_price * qty) AS parts_cost FROM job_part_used GROUP BY job_id
