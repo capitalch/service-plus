@@ -66,7 +66,10 @@ const NO_CHARGES_JOB_TYPES = new Set(["DEMO", "INSPECTION"]);
 
 function canUndo(row: OpenJobRow): boolean {
     if (NO_UNDO_CODES.has(row.job_status_code)) return false;
-    if (row.transaction_count < 1) return false;
+    // Every job now has an initial "Received" transaction row by default (see
+    // service-plus-server mutations.py resolve_create_single_job_helper), so
+    // undo needs a transition *beyond* that one to have anything to undo.
+    if (row.transaction_count < 2) return false;
     return true;
 }
 

@@ -510,6 +510,7 @@ export interface Job {
   to_show_parts_in_job_invoice: boolean;
   purchase_date: Date | null;
   is_opening_job: boolean;
+  whatsapp_notifications: Json;
 }
 export interface JobInput {
   id: number;
@@ -547,6 +548,7 @@ export interface JobInput {
   to_show_parts_in_job_invoice?: boolean;
   purchase_date?: Date | null;
   is_opening_job?: boolean;
+  whatsapp_notifications?: Json;
 }
 const job = {
   tableName: "job",
@@ -586,6 +588,7 @@ const job = {
   "to_show_parts_in_job_invoice",
   "purchase_date",
   "is_opening_job",
+  "whatsapp_notifications",
   ],
   requiredForInsert: [
   "id",

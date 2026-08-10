@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict aW8T6d35fi1bqvFlnbYpSCO6EV8RaaLYjOwLXG1ZSckxegcwrHEDheReNZSR7l9
+\restrict DqMjAmGCxrgu6bwaSwMAna1xLrAo4LXxCfcAP9yeQQ550XAB3SJBi3EbvKpUhRB
 
 -- Dumped from database version 14.6
 -- Dumped by pg_dump version 18.4 (Ubuntu 18.4-0ubuntu0.26.04.1)
@@ -399,6 +399,7 @@ CREATE TABLE demo1.job (
     to_show_parts_in_job_invoice boolean DEFAULT true NOT NULL,
     purchase_date date,
     is_opening_job boolean DEFAULT false NOT NULL,
+    whatsapp_notifications jsonb DEFAULT '{}'::jsonb NOT NULL,
     CONSTRAINT job_qty_check CHECK ((qty <> 0))
 );
 
@@ -3633,5 +3634,5 @@ ALTER TABLE ONLY security.user_bu_role
 -- PostgreSQL database dump complete
 --
 
-\unrestrict aW8T6d35fi1bqvFlnbYpSCO6EV8RaaLYjOwLXG1ZSckxegcwrHEDheReNZSR7l9
+\unrestrict DqMjAmGCxrgu6bwaSwMAna1xLrAo4LXxCfcAP9yeQQ550XAB3SJBi3EbvKpUhRB
 

@@ -1,679 +1,470 @@
-# Customer Connect — WhatsApp Messaging on Job Completion
+# WhatsApp Messaging Plan
 
-> Full design + execution plan. Covers `service-plus-client` (UI), `service-plus-server`
-> (APIs, worker, provider layer), and the database schema.
-
----
-
-## 0. Feature name
-
-**Recommendation: "Customer Connect"** — menu entry `Jobs → Customer Connect`, internal module namespace
-`notifications`.
-
-The name has to survive the extensibility requirement (§13): today WhatsApp, tomorrow SMS/email/push, and a
-provider that may be Meta or Twilio. A channel-specific name ("WhatsApp Messages") becomes a lie the moment
-SMS ships, and renaming a menu item later costs help articles, access-right codes, and user habit.
-
-| Candidate | Verdict |
-|---|---|
-| **Customer Connect** | ✅ Channel-neutral, customer-facing intent is obvious, reads well in a menu next to "Job Control" and "Deliver Job" |
-| Message Center | Fine, but slightly inward-looking — sounds like an inbox, and this is outbound-only |
-| Customer Alerts | "Alerts" implies problems; these are good-news messages |
-| Notify Hub / Broadcast | "Broadcast" wrongly implies marketing blasts — these are transactional, one-to-one messages |
-| WhatsApp Messages | ❌ Locks the name to one channel and one vendor |
-
-Everything below uses **Customer Connect** for the user-facing feature and `notification_*` for database and
-code identifiers (the DB should describe the mechanism, the menu should describe the job to be done).
+Add WhatsApp send buttons at four points in a job's lifecycle, plus a bulk-send screen for the
+completion message. WhatsApp only — no SMS, no email. One BSP (Business Solution Provider — assumed
+Meta WhatsApp Cloud API below; swap the client module in §4c if the actual BSP differs). Sends are
+**synchronous**: click a button, the server calls the BSP inline, the result comes back in the same
+request. No queue, no outbox table, no background worker, no additional database tables — one new
+`jsonb` column on `job` is the only schema change.
 
 ---
 
 ## 1. Scope
 
-A new client screen listing jobs eligible for a customer message, with a checkbox on every row (**checked by
-default**), select-all, search, refresh, and one prominent **Send** button. Pressing Send hands the whole
-selection to the server, which **enqueues** it and returns immediately; a background **worker** does the
-actual provider calls, with live progress streamed back over a GraphQL subscription.
+| # | Trigger | Where (client) | Message content |
+|---|---|---|---|
+| 1 | Job creation | `single-job-section.tsx` (single job) **and** `batch-job-section.tsx` / `batch-job-view-modal.tsx` (batch of jobs for one customer) | Job sheet **PDF** + short body (customer name, job no(s), branch) |
+| 2 | Job completion / finalization | `final-job-form.tsx` (single job) **and** the new **Customer Connect** screen (many final jobs at once) | Charge-details **text only** — job no(s), amount due. No PDF. |
+| 3 | Job delivery | `deliver-job-section.tsx` / `delivery-modal.tsx` | Invoice **PDF** + short body |
+| 4 | Job Receipt creation + payment received | `receipts-section.tsx` | Job receipt **PDF** + payment details body (amount, mode, date) |
 
-**One message event in this version:**
+**Customer Connect** is a new screen under the `Jobs` menu (placed after "Deliver Job") listing every
+job eligible for the completion message (`is_final = true`, `is_closed = false`, status not
+cancelled/disposed), with a checkbox on every row (checked by default), select-all, search, and one
+"Send Messages" button. Multiple jobs belonging to the same customer are grouped into **one message**,
+never one message per job — this grouping is the reason the screen exists rather than just adding a
+button to the existing job-control grid.
 
-| Event | Which jobs qualify | Message |
-|---|---|---|
-| `JOB_COMPLETION` | `is_final = true`, `is_closed = false`, status not `CANCELLED`/`DISPOSED` | "Your job(s) are ready. Amount due ₹X." |
-
-Job-delivery ("thank you for collecting") messages are **deferred to a later version** — see §11. The
-`event_type` column and its CHECK still allow `JOB_DELIVERY` so adding it later is a template row and a
-second SQL query, not a schema change.
-
-**One message per customer.** A customer with three selected jobs receives a single message naming all three
-— never three messages. This is a first-class concept in the schema (§3), not a UI-only convenience.
-
----
-
-## 2. Workflow — end to end
-
-```
- CLIENT                          SERVER (FastAPI)                    PROVIDER
- ───────                         ────────────────                    ────────
- Jobs → Customer Connect
-   │
-   │ genericQuery
-   │  GET_NOTIFY_COMPLETION_JOBS_PAGED / _COUNT
-   ├──────────────────────────────►  SQL over job + notification_message_job
-   │◄──────────────────────────────  rows incl. msg_sent_count, last_sent_at, last_error
-   │
- Grid renders (Job-Control shaped) — every row checked by default
-   • already-sent rows: checked = false, "2 sent" badge
-   • no/invalid mobile: checkbox disabled, reason in tooltip
-   • header select-all (this page) + "select all N matching" link
-   │
- Click  ┌────────────────────────────────────┐
-        │  SEND MESSAGES  (12 jobs · 8 msgs) │   ← one big primary button
-        └────────────────────────────────────┘
-   │
-   │ 1. subscribe notificationBatchProgress(db_name, batchId)   [opened first]
-   │ 2. mutation queueNotificationBatch(db_name, schema, value)
-   │        value = { branch_id, event_type, job_ids[], request_key }
-   ├──────────────────────────────►
-   │                                 ONE transaction:
-   │                                   • group job_ids by customer_contact_id
-   │                                   • INSERT notification_batch          (1 row)
-   │                                   • INSERT notification_message        (1 per customer)
-   │                                   • INSERT notification_message_job    (1 per job)
-   │                                 returns { batch_id, message_count, job_count }
-   │◄──────────────────────────────  (fast — no provider call in the request path)
-   │
- Progress modal opens                WORKER (async task, always running)
-   │                                   claim PENDING rows:
-   │                                     FOR UPDATE SKIP LOCKED  ← multi-worker safe
-   │                                   render body from template
-   │                                   resolve provider from notification_provider
-   │                                   ├──────────────────────────────────►  POST /messages
-   │                                   │◄─────────────────────────────────   message_id | error
-   │                                   on success: status=SENT, provider_message_id,
-   │                                               bump job.*_msg_sent_count
-   │                                   on failure: attempt_count++,
-   │                                               next_attempt_at = backoff,
-   │                                               FAILED after max_attempts
-   │◄── pubsub ── notificationBatchProgress { total, sent, failed, current }
-   │
- Progress bar updates live; on done:
-   • all ok      → Sonner success
-   • partial     → Sonner warning + failure panel listing customer + error detail
-   • all failed  → Sonner error + failure panel
-   • "Retry failed" button → retryNotificationMessages(batch_id)
-   │
- Grid reloads → sent counts and Last Sent badges updated
-```
-
-**Why enqueue-then-work instead of sending inside the mutation:** 200 selected jobs is 200 HTTP round trips
-to Meta. Inside a request that is a multi-minute hang, a proxy timeout, and no record of what got sent when
-it dies halfway. With an outbox table the mutation is a single INSERT transaction that either fully commits
-or fully rolls back; every message has a durable row, so a server restart mid-send resumes instead of losing
-or duplicating work.
+Everything else is out of scope for this build: SMS/email channels, multiple BSPs, a message-outbox
+with retry/backoff, delivery/read-receipt webhooks, a Super-Admin UI for editing templates, and
+per-message audit history. See §8 for the full list and the reasoning behind each cut.
 
 ---
 
-## 3. Database design
+## 2. Workflow
 
-### 3a. Where each table lives
+### 2a. Single/batch-job PDF send (creation / delivery / receipt — same shape for all three)
 
-- **Per-BU tenant schema** (added to `service-plus-server/app/db/sql/sql_bu_admin_ddl.py`, next to `job_*`):
-  the operational tables — batches, messages, message↔job links, webhook events.
-- **`public` schema of the platform DB**: templates and providers, because Super Admin owns them
-  (§10, §12) and because Meta template approval and the sending phone number belong to one platform-level
-  WhatsApp Business Account, not to each tenant.
+Job creation has two callers of this same flow: a single job (`single-job-section.tsx`) and a **batch**
+of jobs for one customer (`batch-job-section.tsx` / `batch-job-view-modal.tsx`, the same grouping the
+existing "Print PDF" / "Print All" batch action already uses via `getBatchJobSheetBlobUrl`). A batch
+send is still **one** WhatsApp message with **one** combined PDF — never one message per job in the
+batch — so `job_id` becomes `job_ids` (one or more) on the wire, and step f below updates every job in
+the batch, not just the first.
 
-There is no migration runner in this codebase — new-tenant DDL is applied at provisioning
-(`app/graphql/resolvers/bu_admin/provisioning.py`), and existing live schemas need the DDL hand-applied,
-then `service_plus_service.sql` re-extracted via `python -m app.db.tools.extract_schema`. Budget that step.
-
-### 3b. `notification_batch` — one row per Send click
-
-```sql
-CREATE TABLE notification_batch (
-    id                bigint NOT NULL,
-    branch_id         bigint NOT NULL REFERENCES branch(id),
-    event_type        text   NOT NULL,                       -- JOB_COMPLETION (JOB_DELIVERY reserved, §11)
-    channel           text   NOT NULL DEFAULT 'WHATSAPP',    -- WHATSAPP | SMS | EMAIL
-    provider_code     text   NOT NULL,                       -- snapshot of provider used
-    template_code     text   NOT NULL,
-    request_key       text   NOT NULL,                       -- client-generated uuid → idempotency
-    status            text   NOT NULL DEFAULT 'QUEUED',      -- QUEUED|RUNNING|COMPLETED|COMPLETED_WITH_ERRORS|FAILED
-    total_messages    integer NOT NULL DEFAULT 0,
-    sent_count        integer NOT NULL DEFAULT 0,
-    failed_count      integer NOT NULL DEFAULT 0,
-    total_jobs        integer NOT NULL DEFAULT 0,
-    requested_by      bigint,                                -- security."user".id
-    created_at        timestamptz NOT NULL DEFAULT now(),
-    started_at        timestamptz,
-    finished_at       timestamptz,
-    -- JOB_DELIVERY is allowed by the CHECK from day one even though nothing emits it yet: widening a
-    -- CHECK later would mean a hand-applied ALTER on every live schema, and it costs nothing to allow now.
-    CONSTRAINT notification_batch_event_check  CHECK (event_type IN ('JOB_COMPLETION','JOB_DELIVERY')),
-    CONSTRAINT notification_batch_status_check CHECK (status IN ('QUEUED','RUNNING','COMPLETED','COMPLETED_WITH_ERRORS','FAILED')),
-    CONSTRAINT notification_batch_request_key_uidx UNIQUE (request_key)
-);
+```
+STAFF (browser)                          SERVER (FastAPI)                    BSP (WhatsApp Cloud API)
+────────────────                          ─────────────────                   ───────────────────────
+Click "Whatsapp" next to
+Print PDF / Print All (batch) / Invoice / Print Receipt
+  │
+  │ 1. Build PDF blob client-side
+  │    (same builder the existing Print
+  │    button already calls — single-job
+  │    or batch builder, per caller)
+  │
+  │ 2. POST /notifications/whatsapp/send
+  │    multipart: pdf, job_ids (one or more),
+  │    event_type, db_name, schema
+  ├────────────────────────────────────►
+  │                                     a. Load job(s) + customer contact (mobile, name) — for a
+  │                                        batch, all job_ids must share one customer_contact_id
+  │                                     b. Reject with 4xx if mobile is missing/invalid
+  │                                     c. Upload PDF bytes
+  │                                        ├───────────────────────────►  POST /{phone_number_id}/media
+  │                                        │◄──────────────────────────   media_id
+  │                                     d. Look up template config for event_type,
+  │                                        fill placeholders from job(s) + customer data
+  │                                        (job_no becomes a comma-joined list for a batch)
+  │                                     e. Send template message
+  │                                        ├───────────────────────────►  POST /{phone_number_id}/messages
+  │                                        │◄──────────────────────────   message id | error
+  │                                     f. For every job_id in the request, UPDATE job SET
+  │                                        whatsapp_notifications = jsonb_set(..., event_type key,
+  │                                        success_count+1 or fail_count+1, now(), status)
+  │◄────────────────────────────────────  { status: SENT | FAILED, error }
+  │
+Toast: success, or failure with the BSP's error message
+Button re-enables; every affected row's "sent" badge reflects the new success/fail count
 ```
 
-`request_key` unique is the **double-click guard**: the client generates one uuid per Send press, so a
-retried or duplicated mutation collides instead of queueing the batch twice.
+### 2b. Bulk completion send — Customer Connect
 
-### 3c. `notification_message` — the outbox, one row per customer per batch
-
-```sql
-CREATE TABLE notification_message (
-    id                  bigint NOT NULL,
-    batch_id            bigint NOT NULL REFERENCES notification_batch(id) ON DELETE CASCADE,
-    customer_contact_id bigint NOT NULL REFERENCES customer_contact(id),
-    channel             text   NOT NULL DEFAULT 'WHATSAPP',
-    provider_code       text   NOT NULL,
-    template_code       text   NOT NULL,
-    to_address          text   NOT NULL,          -- E.164, e.g. +919876543210
-    template_params     jsonb  NOT NULL,          -- ordered params for the approved template
-    rendered_body       text   NOT NULL,          -- exactly what the customer sees; audit trail
-    status              text   NOT NULL DEFAULT 'PENDING',
-                        -- PENDING|CLAIMED|SENT|DELIVERED|READ|FAILED|SKIPPED
-    attempt_count       smallint NOT NULL DEFAULT 0,
-    max_attempts        smallint NOT NULL DEFAULT 3,
-    next_attempt_at     timestamptz NOT NULL DEFAULT now(),
-    claimed_at          timestamptz,
-    claimed_by          text,                     -- worker id: host:pid — for stuck-row forensics
-    provider_message_id text,                     -- Meta wamid / Twilio SID → webhook correlation
-    error_code          text,
-    error_message       text,
-    created_at          timestamptz NOT NULL DEFAULT now(),
-    sent_at             timestamptz,
-    updated_at          timestamptz NOT NULL DEFAULT now(),
-    CONSTRAINT notification_message_status_check
-        CHECK (status IN ('PENDING','CLAIMED','SENT','DELIVERED','READ','FAILED','SKIPPED'))
-);
-
--- The worker's claim query rides this index; partial so it stays tiny as SENT rows accumulate.
-CREATE INDEX notification_message_claim_idx
-    ON notification_message (next_attempt_at, id)
-    WHERE status IN ('PENDING','CLAIMED');
-
-CREATE INDEX notification_message_batch_idx    ON notification_message (batch_id);
-CREATE INDEX notification_message_provider_idx ON notification_message (provider_message_id);
+```
+STAFF                                     SERVER
+─────                                     ──────
+Jobs → Customer Connect
+  │ query the eligible-jobs grid (paged)
+  ├────────────────────────────────────►  SQL over job + customer_contact,
+  │◄────────────────────────────────────  filtered to is_final=true, is_closed=false,
+  │                                       status not in (CANCELLED, DISPOSED)
+Grid renders — every eligible row checked by default;
+rows with no/invalid mobile are disabled with a tooltip reason
+  │
+Select rows (selection persists across pages/search) → click "Send Messages"
+  │ mutation: sendWhatsappCompletion(branch_id, job_ids[])
+  ├────────────────────────────────────►
+  │                                     a. Load the jobs + customer_contact, re-filter to is_final=true
+  │                                        (server never trusts the client's selection blindly)
+  │                                     b. Group job_ids by customer_contact_id — the "one message
+  │                                        per customer" rule is enforced here, not in the UI
+  │                                     c. For each customer, concurrently (asyncio.gather under a
+  │                                        small semaphore): render the body — e.g. "Job(s) JC-101,
+  │                                        JC-102 ready for pickup. Amount due ₹450." — and send the
+  │                                        JOB_COMPLETION template
+  │                                     d. For every job touched, jsonb_set its whatsapp_notifications
+  │◄────────────────────────────────────  { results: [{ customer_name, job_ids, status, error }, ...] }
+  │
+Results dialog lists success/fail per customer — no live progress bar, the call already returned
+Grid reloads → "Msgs Sent" badges updated
 ```
 
-`rendered_body` is stored, not recomputed: templates change (§10), and six months from now "what exactly did
-we tell this customer" must be answerable from the row itself.
-
-### 3d. `notification_message_job` — the link table that makes batching first-class
-
-```sql
-CREATE TABLE notification_message_job (
-    id          bigint NOT NULL,
-    message_id  bigint NOT NULL REFERENCES notification_message(id) ON DELETE CASCADE,
-    job_id      bigint NOT NULL REFERENCES job(id),
-    amount      numeric(12,2) NOT NULL DEFAULT 0,   -- job.amount snapshot at queue time
-    CONSTRAINT notification_message_job_uidx UNIQUE (message_id, job_id)
-);
-
-CREATE INDEX notification_message_job_job_idx ON notification_message_job (job_id);
-```
-
-This is the **N-jobs-to-one-message** relation. It is also the authoritative source for the per-job sent
-count the screen displays:
-
-```sql
-SELECT nmj.job_id, count(*) FILTER (WHERE nm.status IN ('SENT','DELIVERED','READ')) AS sent_count
-FROM notification_message_job nmj
-JOIN notification_message nm ON nm.id = nmj.message_id
-GROUP BY nmj.job_id;
-```
-
-### 3e. Counter columns on `job` — for the grid's "Msgs Sent" column
-
-The aggregate above is correct but joins two tables on every paged grid load. Denormalize the two numbers
-the grid actually shows, written by the worker in the same transaction that marks a message `SENT`:
-
-```sql
-ALTER TABLE job ADD COLUMN completion_msg_sent_count   smallint    NOT NULL DEFAULT 0;
-ALTER TABLE job ADD COLUMN completion_msg_last_sent_at timestamptz;
-```
-
-Deliberately **channel-neutral names** (`msg`, not `whatsapp`) so adding SMS later increments the same
-counters, with the per-channel breakdown living in `notification_message`. They are **event-scoped**, so the
-deferred delivery message (§11) adds its own pair — `delivery_msg_sent_count` / `delivery_msg_last_sent_at`
-— rather than muddling these. Both columns are a cache: a `REBUILD_NOTIFICATION_COUNTERS` maintenance SQL
-recomputes them from §3d if they ever drift.
-
-### 3f. `public.notification_template` — Super-Admin-owned message templates
-
-```sql
-CREATE TABLE public.notification_template (
-    id                     bigint NOT NULL,
-    code                   text NOT NULL,          -- JOB_COMPLETION (JOB_DELIVERY later, §11)
-    channel                text NOT NULL,          -- WHATSAPP | SMS | EMAIL
-    provider_code          text,                   -- NULL = applies to any provider
-    provider_template_name text,                   -- Meta-approved name, e.g. job_completion_v1
-    language_code          text NOT NULL DEFAULT 'en',
-    body_text              text NOT NULL,          -- placeholder form, drives preview + non-template channels
-    param_map              jsonb NOT NULL,         -- ordered: ["name","job_nos","amount","branch"]
-    is_active              boolean NOT NULL DEFAULT true,
-    version                integer NOT NULL DEFAULT 1,
-    updated_at             timestamptz NOT NULL DEFAULT now(),
-    updated_by             bigint,
-    CONSTRAINT notification_template_uidx UNIQUE (code, channel, provider_code, language_code)
-);
-```
-
-`param_map` is the load-bearing field: WhatsApp templates are approved by Meta with a **fixed number and
-order** of `{{1}}…{{n}}` slots. `param_map` names each slot, so the renderer fills them positionally and the
-Super Admin editor can validate that the body's placeholder count matches the approved template before
-saving. Changing wording after Meta approval requires re-approval — the editor must say so (§10).
-
-### 3g. `public.notification_provider` — swapping Meta ↔ Twilio ↔ a new number
-
-```sql
-CREATE TABLE public.notification_provider (
-    id           bigint NOT NULL,
-    code         text NOT NULL,        -- META_CLOUD | TWILIO | MSG91
-    display_name text NOT NULL,
-    channel      text NOT NULL,        -- WHATSAPP | SMS
-    config       jsonb NOT NULL,       -- {phone_number_id, waba_id, api_version, base_url, from_number, ...}
-    secret_ref   text NOT NULL,        -- NAME of the env var holding the token — never the token itself
-    is_active    boolean NOT NULL DEFAULT true,
-    is_default   boolean NOT NULL DEFAULT false,
-    rate_limit_per_sec integer NOT NULL DEFAULT 10,
-    updated_at   timestamptz NOT NULL DEFAULT now(),
-    CONSTRAINT notification_provider_code_uidx UNIQUE (code, channel)
-);
-
-CREATE UNIQUE INDEX notification_provider_default_uidx
-    ON public.notification_provider (channel) WHERE is_default = true;
-```
-
-This table **is** the answer to "I may change my Meta mobile number or move to Twilio" (§13):
-
-- **New Meta number** → edit `config.phone_number_id` on the `META_CLOUD` row. No deploy.
-- **Switch to Twilio** → flip `is_default` to the `TWILIO` row. No deploy.
-- **Rotate a token** → change the env var named by `secret_ref` and restart.
-
-Secrets stay in `.env` (loaded via a new `notification_settings.py` following the existing
-`app/core/settings/email_settings.py` shape); the DB stores only the *name* of the variable, so a database
-dump never leaks a provider token.
-
-### 3h. `notification_webhook_event` — delivery receipts (phase 2, table defined now)
-
-```sql
-CREATE TABLE notification_webhook_event (
-    id                  bigint NOT NULL,
-    provider_code       text NOT NULL,
-    provider_message_id text NOT NULL,
-    status              text NOT NULL,        -- DELIVERED | READ | FAILED
-    raw_payload         jsonb NOT NULL,
-    received_at         timestamptz NOT NULL DEFAULT now(),
-    processed_at        timestamptz
-);
-```
-
-All tables get the `ALTER TABLE … ADD GENERATED ALWAYS AS IDENTITY` block that every other table in
-`sql_bu_admin_ddl.py` has.
+**Why synchronous is acceptable here:** with `asyncio.gather` under a concurrency cap, even ~100
+customers resolves in low seconds — well within a normal request timeout. If selections grow large
+enough that this becomes a real problem, the fix is a background outbox with retry/backoff, which is a
+bigger project deliberately not built now (§8).
 
 ---
 
-## 4. The worker
+## 3. Database change
 
-### 4a. What exists to build on
+**Status: ✅ done** — the column has been added to the tenant DDL, the schema dump was re-extracted, and
+it's been hand-applied to live schemas.
 
-`service-plus-server` has **APScheduler** (`app/scheduler.py`, started from `app/main.py`) and an in-process
-async **pubsub** (`app/graphql/pubsub.py`). It has **no Celery, no Redis, no external queue** — confirmed in
-`requirements.txt`. So the worker is an **asyncio task inside the FastAPI process, fed by the Postgres
-outbox table**, with APScheduler as the safety net.
+One new column on `job`, added next to the existing `job` DDL (this table already has columns for
+`customer_contact_id`, `amount numeric(12,2)`, `is_closed boolean`, `is_final boolean`, `job_status_id`,
+`branch_id`; the mobile number itself lives on `customer_contact`, not on `job`):
 
-### 4b. Design
-
-```python
-# app/notifications/worker.py
-CLAIM_SQL = """
-UPDATE notification_message SET status = 'CLAIMED', claimed_at = now(), claimed_by = %(worker_id)s
-WHERE id IN (
-    SELECT id FROM notification_message
-    WHERE status = 'PENDING' AND next_attempt_at <= now()
-    ORDER BY id
-    FOR UPDATE SKIP LOCKED          -- ← the whole scalability story is this line
-    LIMIT %(batch_size)s
-)
-RETURNING *;
-"""
+```sql
+ALTER TABLE job ADD COLUMN whatsapp_notifications jsonb NOT NULL DEFAULT '{}'::jsonb;
 ```
 
-`FOR UPDATE SKIP LOCKED` means two workers claiming concurrently take **disjoint** rows. That is what lets
-this scale from one uvicorn process today to N processes or a separate worker container later **with no
-redesign** — you run more copies of the same loop.
+A `jsonb` column for this kind of free-form, evolving per-feature settings/state is an established
+pattern elsewhere in the schema (e.g. `division.account_setting jsonb`), so this isn't a new idiom for
+the codebase.
 
-Loop, per tick:
-1. Claim up to `batch_size` (default 25) messages, oldest first.
-2. Send them concurrently under an `asyncio.Semaphore` sized from
-   `notification_provider.rate_limit_per_sec`.
-3. Per message: on success → `status='SENT'`, store `provider_message_id`, bump the `job` counters for its
-   linked jobs (§3e), all in one transaction. On failure → `attempt_count++`,
-   `next_attempt_at = now() + backoff(attempt_count)` (exponential: 1m, 5m, 25m), `status` back to
-   `'PENDING'`, or `'FAILED'` once `attempt_count >= max_attempts`.
-4. Distinguish **permanent** from **transient** failures — an invalid number or a rejected template is
-   `FAILED` immediately with no retry; a 5xx/timeout/429 retries. Retrying a permanent error 3× just delays
-   the truth reaching the user.
-5. Recompute and publish batch progress to pubsub.
-6. When a batch has no non-terminal messages left → `COMPLETED` / `COMPLETED_WITH_ERRORS` / `FAILED`,
-   `finished_at = now()`, publish a final `done: true` event.
-
-**Triggering.** The mutation publishes an in-process wake-up so the worker starts within milliseconds rather
-than waiting for the next poll. Two independent safety nets:
-- The loop also polls on an interval (default 5s) — so a missed wake-up costs latency, not correctness.
-- An **APScheduler sweeper** every 5 minutes releases rows stuck in `CLAIMED` for more than 10 minutes
-  (`status='PENDING'` again) — this is what makes a mid-send process crash self-healing.
-
-**Multi-tenancy.** Every claim runs per `db_name`/`schema`, reusing the existing
-`GET_ACTIVE_CLIENTS` / `GET_ACTIVE_SCHEMAS` loop shape from `app/scheduler.py:run_monthly_snapshot`.
-
-### 4c. Known limit, stated plainly
-
-`pubsub.py` is **in-memory**. Live progress therefore only reaches a client connected to the same process
-that ran the worker. With today's single-process deployment that is fine. If the app is ever scaled to
-multiple uvicorn workers, progress must move to Postgres `LISTEN/NOTIFY` or Redis pub/sub — the
-*sending* stays correct either way, because correctness lives in the outbox table, not in the event stream.
-The progress modal already treats events as best-effort and falls back to polling the batch row.
-
----
-
-## 5. Provider abstraction (extensibility)
-
-```
-app/notifications/
-    __init__.py
-    worker.py                 # claim loop, retry/backoff, progress publishing
-    queue_service.py          # queue_batch(), retry_messages(), batch_status()
-    renderer.py               # template + params → rendered_body, placeholder cap logic
-    providers/
-        base.py               # NotificationProvider protocol + OutboundMessage/ProviderResult
-        meta_cloud.py         # Meta WhatsApp Cloud API
-        twilio.py             # Twilio WhatsApp/SMS
-        registry.py           # code → implementation, resolved from notification_provider row
-```
-
-```python
-# app/notifications/providers/base.py
-class ProviderResult(TypedDict):
-    provider_message_id: str | None
-    ok:                  bool
-    error_code:          str | None
-    error_message:       str | None
-    permanent:           bool          # True → do not retry
-
-class NotificationProvider(Protocol):
-    channel: str
-    async def send(self, msg: OutboundMessage) -> ProviderResult: ...
-    async def health_check(self) -> bool: ...
-```
-
-Adding a channel or vendor is: one file implementing `send()`, one row in `notification_provider`, one entry
-in the registry. Nothing in the worker, the schema, or the UI changes. `httpx` is already a pinned dependency
-— no new package for the HTTP side.
-
-**Meta Cloud API specifics** to encode in `meta_cloud.py`: `POST
-{base_url}/{api_version}/{phone_number_id}/messages`, bearer token from the env var named by `secret_ref`,
-body `{"messaging_product":"whatsapp","to":…,"type":"template","template":{"name":…,"language":{"code":…},
-"components":[{"type":"body","parameters":[{"type":"text","text":…}]}]}}`, response `messages[0].id` is the
-`wamid`. Error `code`/`message` from `error` map to `error_code`/`error_message`; `131026`/`132xxx`
-(undeliverable / template problems) are **permanent**.
-
----
-
-## 6. API surface
-
-### Client → Server
-
-| Operation | Kind | Purpose |
-|---|---|---|
-| `GET_NOTIFY_COMPLETION_JOBS_PAGED` / `_COUNT` | `genericQuery` | The grid |
-| `GET_NOTIFY_JOB_IDS_MATCHING` | `genericQuery` | ids-only, powers "select all N matching" |
-| `GET_NOTIFY_MESSAGES_BY_JOB` | `genericQuery` | per-job message history drawer |
-| `GET_NOTIFY_BATCHES_PAGED` / `_COUNT` | `genericQuery` | Batch history — SQL defined now, no screen in this version |
-| `queueNotificationBatch` | mutation | Enqueue a batch, return `batch_id` |
-| `retryNotificationMessages` | mutation | Reset chosen `FAILED` messages to `PENDING` |
-| `notificationBatchProgress` | subscription | Live progress |
-| `notificationTemplates` / `saveNotificationTemplate` | query / mutation | Super Admin templates |
-| `notificationProviders` / `saveNotificationProvider` | query / mutation | Super Admin providers |
-| `sendTestNotification` | mutation | Super Admin "send me a test" |
-
-All mutations use the house envelope `($db_name: String!, $schema: String, $value: String!)`; all reads that
-are plain SQL go through `genericQuery` rather than bespoke resolvers.
-
-`queueNotificationBatch` decoded `value`:
+**Shape** — one key per event type, so a single column covers all four triggers. `success_count` and
+`fail_count` are tracked separately, incrementing exactly one of the two on every attempt depending on
+the BSP result:
 
 ```jsonc
 {
-  "branch_id":   1,
-  "event_type":  "JOB_COMPLETION",
-  "job_ids":     [101, 102, 145],
-  "request_key": "5f2c…"          // uuid, idempotency key
+  "JOB_CREATION":   { "success_count": 1, "fail_count": 0, "last_sent_at": "2026-08-10T10:00:00+05:30", "last_status": "SENT",   "last_error": null },
+  "JOB_COMPLETION": { "success_count": 1, "fail_count": 1, "last_sent_at": "2026-08-10T11:05:00+05:30", "last_status": "SENT",   "last_error": null },
+  "JOB_DELIVERY":   { "success_count": 0, "fail_count": 0, "last_sent_at": null,                        "last_status": null,     "last_error": null },
+  "JOB_RECEIPT":    { "success_count": 0, "fail_count": 1, "last_sent_at": "2026-08-10T12:00:00+05:30", "last_status": "FAILED", "last_error": "Invalid mobile number" }
 }
 ```
 
-Returns `{ "batch_id": 88, "message_count": 2, "job_count": 3, "skipped": [{ "job_id": 145, "reason": "NO_MOBILE" }] }`.
+A missing key means "never attempted" — no migration needed to add a fifth event later, just start
+writing a new key. Updated with `jsonb_set` in the same request that calls the BSP; there is no separate
+audit table recording every individual send, only the latest state per event type per job. (The
+original requirement named only the completion event for this tracking; this plan applies the same
+column to all four events instead of tracking one and leaving three unaudited, since it's the same
+`ALTER TABLE` either way — flagging this in case only completion-tracking was actually wanted.)
 
-The server — not the client — groups `job_ids` by `customer_contact_id`, renders bodies, and picks the
-provider. The client's grouping is **preview only**; the authoritative grouping happens once, server-side,
-inside the transaction that writes the outbox.
+Re-extract the schema dump after this change and hand-apply the `ALTER TABLE` to any already-live
+database schemas (there is no migration runner in this codebase — new DDL is applied at tenant
+provisioning time, and existing schemas need the statement run by hand).
 
 ---
 
-## 7. Client UI
+## 4. Server design
 
-New folder `src/features/client/components/jobs/customer-connect/`:
+### 4a. Settings — the one BSP's account credentials
+
+A new settings module, `app/core/settings/whatsapp_settings.py`, following the shape already used for
+email settings elsewhere in `app/core/settings/` (a `pydantic_settings.BaseSettings` subclass reading
+from `.env`):
+
+```python
+class WhatsappSettings(BaseSettings):
+    model_config = SettingsConfigDict(env_file=".env", env_prefix="WHATSAPP_", extra="ignore")
+    api_version:      str = "v20.0"
+    base_url:         str = "https://graph.facebook.com"
+    phone_number_id:  str
+    waba_id:          str
+    access_token_env: str = "WHATSAPP_ACCESS_TOKEN"   # name of the env var holding the token — never the token value itself
+```
+
+Wire it into the app's settings chain alongside the existing settings classes.
+
+### 4b. Templates — config file, not a database table
+
+A plain Python dict, deployed like code, in `app/notifications/whatsapp_templates.py`. This is what
+"template and account configuration lives at the server as config files" means concretely — no editor
+UI, no database row; whoever deploys a template change is trusted to keep it in sync with what's
+actually approved on the BSP side.
+
+```python
+@dataclass
+class TemplateSpec:
+    name: str            # BSP-approved template name
+    language: str
+    has_document: bool   # whether this template expects a document header (a PDF)
+    params: list[str]    # ordered placeholder names, must match the approved template's slot count
+
+TEMPLATES: dict[str, TemplateSpec] = {
+    "JOB_CREATION":   TemplateSpec(name="job_creation_v1",   language="en", has_document=True,  params=["customer_name", "job_no", "branch_name"]),
+    "JOB_COMPLETION": TemplateSpec(name="job_completion_v1", language="en", has_document=False, params=["customer_name", "job_nos", "amount"]),
+    "JOB_DELIVERY":   TemplateSpec(name="job_delivery_v1",   language="en", has_document=True,  params=["customer_name", "job_no", "amount"]),
+    "JOB_RECEIPT":    TemplateSpec(name="job_receipt_v1",    language="en", has_document=True,  params=["customer_name", "receipt_no", "amount", "payment_mode"]),
+}
+```
+
+Each of these four templates must be pre-approved on the BSP side with a matching placeholder count
+before this ships — approval turnaround is typically measured in days, so register and submit them
+early, in parallel with the coding steps below.
+
+### 4c. BSP client — one module, two functions
+
+`app/notifications/whatsapp_client.py`. One BSP means there's no need for a provider-registry
+abstraction — a single module is enough, and swapping to a different BSP later means editing this one
+file, not redesigning a dispatch layer:
+
+```python
+async def upload_media(pdf_bytes: bytes, filename: str) -> str:
+    """POST to the BSP's media endpoint, return the resulting media id."""
+
+async def send_template(to: str, template: TemplateSpec, params: list[str], media_id: str | None) -> WhatsappSendResult:
+    """POST a template message; media_id fills the document header when template.has_document."""
+```
+
+For Meta's WhatsApp Cloud API specifically: `send_template` POSTs to
+`{base_url}/{api_version}/{phone_number_id}/messages` with `type: "template"` and
+`components: [{type: "header", parameters: [{type: "document", document: {id: media_id}}]}, {type:
+"body", parameters: [{type: "text", text: p} for p in params]}]` (header component omitted when
+`has_document` is false). `upload_media` POSTs the raw bytes to
+`{base_url}/{api_version}/{phone_number_id}/media` first — a document **link** isn't usable here
+because the PDFs are generated client-side and there's no public, unauthenticated URL to hand the BSP;
+uploading the bytes and referencing the returned media id is the only viable path.
+
+`WhatsappSendResult` carries `ok`, `provider_message_id`, `error_code`, `error_message`, and a
+`permanent: bool` flag (Meta's `131026`/`132xxx` error codes mean "don't bother retrying, the number or
+template itself is bad") — used only to shape the toast/error text shown to staff, since there is no
+retry queue to route a "retryable" result into.
+
+### 4d. Text-only send path — `sendWhatsappCompletion`
+
+A GraphQL mutation, using the app's standard mutation envelope (`db_name`, `schema`, plus a JSON
+`value`):
+
+```jsonc
+// sendWhatsappCompletion
+{ "branch_id": 1, "job_ids": [101, 102, 145] }
+```
+
+Server-side, in one request:
+1. Load the jobs, join `customer_contact` for mobile/name, re-filter to `is_final = true` (never trust
+   the client's selection as-is).
+2. Group by `customer_contact_id`.
+3. For each customer, concurrently (`asyncio.gather` under a small semaphore, a constant — no
+   per-BSP rate-limit config table needed for a single BSP), call `send_template("JOB_COMPLETION",
+   ...)` with the rendered body params.
+4. For every job touched, `UPDATE job SET whatsapp_notifications = jsonb_set(...)`.
+5. Return `{ "results": [{ "customer_name", "job_ids", "status": "SENT"|"FAILED", "error" }] }`
+   directly in the mutation response.
+
+This same mutation and grouping logic serves both the single-job "Whatsapp" button on the finalize
+form (called with one job id) and the bulk Customer Connect screen (called with the full multi-select)
+— one code path, two callers.
+
+### 4e. Document send path — REST endpoint, not GraphQL
+
+The other three triggers carry a PDF, and a binary payload doesn't fit a JSON mutation envelope well, so
+these go through a plain REST endpoint instead: `app/routers/notifications/whatsapp_router.py`.
+
+```
+POST /notifications/whatsapp/send
+  multipart form fields: pdf (file), job_ids (int, repeated — one for a single job, several for a
+                          batch-job-creation send), event_type ("JOB_CREATION"|"JOB_DELIVERY"|"JOB_RECEIPT"),
+                          db_name, schema
+```
+
+`job_ids` is plural on the wire even though `JOB_DELIVERY`/`JOB_RECEIPT` always send exactly one — only
+`JOB_CREATION` from the batch-job screen sends more than one, keeping the endpoint shape uniform rather
+than adding a second field just for that case.
+
+Flow: load the job(s) + customer contact → for more than one `job_id`, reject with 4xx unless every job
+shares the same `customer_contact_id` (a batch send is still one message to one customer) → reject if
+mobile is missing/invalid → `upload_media(pdf_bytes)` → `send_template(...)` with the returned
+`media_id`, rendering `job_no` as a comma-joined list when there's more than one job → for every
+`job_id` in the request, `jsonb_set` that job's `whatsapp_notifications` for the event key → return
+`{ "status": "SENT"|"FAILED", "error": ... }` synchronously. Mount this
+router in the app's startup alongside the other REST routers (there's already precedent for a REST,
+non-GraphQL upload endpoint used for image uploads — follow that same mounting pattern).
+
+---
+
+## 5. Client design
+
+No new Redux slice — each screen owns its own local state for the send-in-flight/result UI. Every
+button:
+- Uses a `MessageCircle` icon and the label **"Whatsapp"**; enabled state is emerald, matching this
+  codebase's existing "primary send/success action" color convention (emerald = send/success, amber =
+  warning/ineligible, red = reserved for genuine errors only).
+- Is **disabled with an explanatory tooltip** whenever the customer's mobile number fails validation
+  (this codebase already has a mobile validator, `isValidMobile(value): boolean`, that normalizes and
+  checks a 10-digit Indian mobile number, stripping a `+91`/`91` prefix — reuse it, don't rewrite it).
+- Shows a spinner while its request is in flight (synchronous call, no progress modal needed) and a
+  toast on completion — success, or failure with the BSP's error text.
+
+### 5a. Job creation (single job and batch)
+
+In `single-job-section.tsx`, add a "Whatsapp" button beside the existing "Print PDF" action. On click:
+build the job-sheet PDF blob using the same builder function the Print button already calls (`getJobSheetBlobUrl`), then POST
+it (multipart, via `fetch`, not the Apollo client — this call bypasses GraphQL) to
+`/notifications/whatsapp/send` with `event_type=JOB_CREATION` and a single-element `job_ids`.
+
+Batch job creation gets the same button, wired the same way, wherever the existing batch "Print PDF" /
+"Print All" action already lives:
+- `batch-job-section.tsx`'s `BatchGroupRow` — beside the row-level "Print PDF" action (mirrors
+  `handlePrintBatch`).
+- `batch-job-view-modal.tsx` — beside "Print All (N)".
+- `batch-job-quick-info-card.tsx` — beside its "Print" action.
+
+Each builds the combined batch PDF with the existing `getBatchJobSheetBlobUrl(batchJobs, ...)` builder
+and POSTs it with `event_type=JOB_CREATION` and `job_ids` set to every job id in the batch — one
+message, one PDF, one customer, exactly like the existing batch print flow already assumes (a batch is
+always jobs for a single customer, so there's no cross-customer grouping question here the way there is
+in Customer Connect).
+
+### 5b. Job completion
+
+In `final-job-form.tsx`, add a "Whatsapp" button beside the "Save & Mark Final" action. Calls
+`sendWhatsappCompletion` (§4d) with the single job id — the same mutation the bulk screen uses. The
+amount comes from data the form already has loaded; no new fetch needed.
+
+### 5c. Job delivery
+
+In the delivery flow (`deliver-job-section.tsx` / `delivery-modal.tsx`), add a "Whatsapp" button in the
+invoice action row, for both the single-job deliver path and inside the bulk delivery modal. Builds the
+invoice PDF via the existing invoice-PDF builder already used for printing, posts with
+`event_type=JOB_DELIVERY`.
+
+### 5d. Job Receipt + payment
+
+In `receipts-section.tsx`, add a "Whatsapp" button next to the existing "Print Receipt" action, and —
+since the trigger is "on creation of Job Receipt and payment received" — surface the same send as an
+action button on the success toast right after Save (a deliberate follow-up click, not an automatic
+silent send; sending should always be a staff decision). Reuses the existing receipt-PDF builder
+already used for the Print Receipt button, posts with `event_type=JOB_RECEIPT`.
+
+### 5e. Customer Connect screen
+
+A new folder under the jobs feature area, `customer-connect/`:
 
 | File | Role |
 |---|---|
 | `customer-connect-section.tsx` | Screen shell: toolbar, selection state, send orchestration |
-| `customer-connect-schema.ts` | Types (`NotifyJobRow`, `NotifyBatchProgressType`, …) |
-| `customer-connect-helpers.ts` | Grouping, mobile eligibility, preview render, `PAGE_SIZE`, `thClass`/`tdClass` |
-| `customer-connect-grid.tsx` | Job-Control-shaped grid + checkbox column |
-| `send-messages-modal.tsx` | Pre-send confirmation: per-customer message preview |
-| `send-progress-modal.tsx` | Live progress bar + failure list + Retry failed |
-| `job-message-history-drawer.tsx` | Per-job message log (what was sent, when, errors) |
-| `queue-notification-batch.ts` | Mutation call + subscription wiring |
+| `customer-connect-schema.ts` | Types (row shape, send-result shape) |
+| `customer-connect-helpers.ts` | Grouping-by-customer, mobile eligibility, page size constant |
+| `customer-connect-grid.tsx` | Grid: checkbox column + the standard job columns |
+| `send-messages-modal.tsx` | Pre-send confirmation: per-customer message preview, drop-a-customer |
+| `send-results-dialog.tsx` | Post-send results: per-customer success/fail list |
+| `send-whatsapp-completion.ts` | Mutation call wrapper |
 
-**Grid columns** — mirroring `job-control-section.tsx:682-691` exactly, plus two:
-
-```
-[☑]  #  Date  Job No  Customer  Mobile  Device Details  Job Type  Status  Amount  Msgs Sent  Actions
-```
-
-`Msgs Sent` shows `completion_msg_sent_count` as a badge — `—` when zero, sky badge
-`2 · 08-Aug` when sent, plus a small amber warning icon when the last attempt for that job failed, with the
-provider error in the tooltip and the full history in the drawer.
+**Grid columns:** `[☑] # Date Job No Customer Mobile Device Details Job Type Status Amount Msgs Sent
+Actions`. "Msgs Sent" reads `success_count` (and `fail_count` when nonzero) out of
+`whatsapp_notifications->'JOB_COMPLETION'` on each row, shown as a badge — a dash when both are zero,
+otherwise the success count and last-sent date, with an amber warning icon when the last attempt failed
+(tooltip shows the BSP error and the fail count).
 
 **Selection rules:**
-- Every eligible row starts **checked**.
-- Rows already messaged start **unchecked** but remain selectable — a resend must be deliberate.
-- Rows with no/invalid mobile (`isValidMobile` from `@/lib/mobile.ts`) are **disabled and unchecked**, muted
-  styling with a tooltip reason — not red, since this is not an error.
-- Header checkbox = select/deselect **this page** (tri-state). Next to it, when a filter is active, a link
-  "Select all N matching" fetches ids via `GET_NOTIFY_JOB_IDS_MATCHING`.
-- **Selection persists across pages and search changes** — it is a `Set<number>` of job ids, not page state.
-  The Send button always reads `N jobs · M customers`, computed from the full selection, so the "one message
-  per customer" promise is visible before pressing it.
+- Every eligible row starts checked.
+- Rows already messaged start unchecked but remain selectable — a resend must be a deliberate click.
+- Rows with no/invalid mobile are disabled and unchecked, muted styling, tooltip explaining why.
+- Header checkbox toggles the current page (tri-state); a "select all N matching" link (backed by a
+  separate ids-only query) extends selection beyond the current page.
+- Selection is a `Set<number>` of job ids that survives paging and search changes, not page-local
+  state — the Send button always reads "N jobs · M customers" computed from the full selection, so the
+  one-message-per-customer promise is visible before the click.
 
-**Toolbar** copies the Job Control bar (`job-control-section.tsx:568-648`): icon + title + count, search
-input with clear button (debounced `SEARCH_DEBOUNCE_MS`), Refresh. The send button sits on the
-right, deliberately oversized and emerald:
+**Toolbar:** icon + title + count, debounced search with a clear button, Refresh, and the Send button —
+deliberately large, emerald, disabled with an explanatory tooltip when nothing is selected or WhatsApp
+isn't configured.
 
-```
-┌──────────────────────────────────────────┐
-│  ✈  SEND MESSAGES   ·  12 jobs · 8 msgs  │      h-10, font-bold, emerald-600
-└──────────────────────────────────────────┘
-```
-
-Disabled with an explanatory `title` when nothing is selected or WhatsApp is not configured.
-
-**Failure visibility** (explicit requirement): three layers — the progress modal's failure list (customer,
-mobile, error message, error code) with a Retry failed button; a persistent per-row warning badge in the
-grid; and the per-job history drawer showing every attempt with its error. Red is used here and only here,
-because these are genuine errors.
+Menu wiring: add a tree item under the Jobs explorer, icon `MessageCircle`, label "Customer Connect",
+placed after "Deliver Job", gated by a new access right; add the matching case in the jobs page's
+section switch.
 
 ---
 
-## 8. Steps of execution
+## 6. Client infra plumbing
 
-### Step 1 — Database DDL
-Add §3b–§3e to `sql_bu_admin_ddl.py` (tenant tables + `job` counter columns) and §3f–§3g to the public-schema
-DDL. Add identity blocks and indexes. Seed the `JOB_COMPLETION` `notification_template` row and one
-`notification_provider` row for `META_CLOUD` in `seed_bu_data.py` / public seed. Re-extract
-`service_plus_service.sql`; hand-apply to existing live schemas.
-
-### Step 2 — Server settings + provider layer
-`app/core/settings/notification_settings.py` (following `email_settings.py`): `whatsapp_api_token`,
-`twilio_account_sid`, `twilio_auth_token`, `notification_worker_enabled`, `notification_poll_seconds`,
-`notification_claim_batch_size`. Add to the `Settings` chain in `app/config.py`. Then
-`app/notifications/providers/{base,meta_cloud,twilio,registry}.py` per §5.
-
-### Step 3 — Renderer
-`app/notifications/renderer.py`: template lookup by `(code, channel, provider_code, language_code)`,
-placeholder substitution from `param_map`, job-list cap at 3 (`"JC-101, JC-102, JC-103 and 2 more"`) so one
-approved template covers any batch size, and the warranty case (`amount = 0` → "no charges — covered under
-warranty" rather than "₹0").
-
-### Step 4 — Queue service + worker
-`app/notifications/queue_service.py` (`queue_batch`, `retry_messages`, `batch_status`) and
-`worker.py` per §4. Start the worker task in `app/main.py` lifespan next to `start_scheduler()`; register the
-stuck-row sweeper in `app/scheduler.py`.
-
-### Step 5 — Server SQL + GraphQL
-New SQL constants in `app/db/sql/sql_jobs.py` (grid queries, ids-only query, per-job history, batch history,
-counter rebuild). New resolvers in `app/graphql/resolvers/jobs/mutations.py`
-(`queueNotificationBatch`, `retryNotificationMessages`) and `subscription.py`
-(`notificationBatchProgress`, modeled on the existing `accountsPostingProgress`). Super Admin
-template/provider resolvers in `query.py` / `mutation.py`. Update the SDL schema file.
-
-### Step 6 — Client constants
-`sql-map.ts`: the five `GET_NOTIFY_*` ids. `graphql-map.ts`: `queueNotificationBatch`,
-`retryNotificationMessages`, `notificationBatchProgress`, `notificationTemplates`,
-`saveNotificationTemplate`, `notificationProviders`, `saveNotificationProvider`, `sendTestNotification`.
-`messages.ts`: a `// Customer Connect` block — `ERROR_NOTIFY_JOBS_LOAD_FAILED`, `ERROR_NOTIFY_QUEUE_FAILED`,
-`ERROR_NOTIFY_RETRY_FAILED`, `ERROR_NOTIFY_TEMPLATE_SAVE_FAILED`, `INFO_NOTIFY_NOT_CONFIGURED`,
-`INFO_NOTIFY_NO_ELIGIBLE_JOBS`, `INFO_NOTIFY_NO_MOBILE`, `INFO_NOTIFY_ALREADY_SENT`,
-`SUCCESS_NOTIFY_BATCH_QUEUED`, `SUCCESS_NOTIFY_ALL_SENT`, `WARN_NOTIFY_PARTIAL_SEND`.
-`access-rights.ts`: `JOBS_CUSTOMER_CONNECT`; add the matching row to `seed-roles-dialog.tsx`.
-
-### Step 7 — Menu + routing
-`client-explorer-panel.tsx` → `JobsExplorer()`: `<TreeItem icon={MessageCircle} label="Customer Connect"
-disabled={!canCustomerConnect} helpArticleId="customer-connect" />`, placed after `Deliver Job`.
-`client-jobs-page.tsx`: `case "Customer Connect": return <CustomerConnectSection />;`.
-
-### Step 8 — Types and helpers
-`customer-connect-schema.ts` and `customer-connect-helpers.ts` per §7 — `type` not `interface`, members
-sorted alphabetically, helpers as normal functions sorted alphabetically.
-
-### Step 9 — Grid
-`customer-connect-grid.tsx`: the Job-Control column set plus checkbox and Msgs Sent, shadcn `Checkbox`,
-tri-state header, `motion.tr` entrance, sticky header, sticky Actions column, the `window.innerHeight`
-max-height calc from `finalized-jobs-grid.tsx:52-63`, and the standard pagination footer. Responsive:
-`overflow-x-auto`, secondary columns collapse into the Job No cell's stacked layout below `md`.
-
-### Step 10 — Section container
-`customer-connect-section.tsx`: toolbar, debounced search, paged loads via `apolloClient.query` +
-`graphQlUtils.buildGenericQueryValue` + `Promise.allSettled` (the `final-a-job-section.tsx:257-286` shape),
-cross-page `Set<number>` selection, config gate (no active provider/template → informational panel using
-`INFO_NOTIFY_NOT_CONFIGURED`, no grid).
-
-### Step 11 — Send flow
-`send-messages-modal.tsx` (per-customer preview, drop-a-customer, confirm) →
-`queue-notification-batch.ts` (open subscription **first**, then fire the mutation, exactly as
-`accounts-posting-section.tsx:117-133` does) → `send-progress-modal.tsx` (progress bar, live counts,
-failure list, Retry failed). Toast outcomes via Sonner: success / warning-partial / error.
-
-### Step 12 — Per-job history drawer
-`job-message-history-drawer.tsx` over `GET_NOTIFY_MESSAGES_BY_JOB`: every message covering that job, its
-status, attempt count, rendered body, provider message id, and error detail.
-
-### Step 13 — Super Admin: templates + providers
-New page `features/super-admin/pages/notifications-page.tsx`, sidebar entry "Notifications"
-(`sidebar.tsx:30-34` list, plus a `ROUTES.superAdmin.notifications` route). Two tabs:
-- **Templates** — one card per `(code, channel)` row, so this version renders a single `JOB_COMPLETION`
-  card and needs no change when the delivery template is added; `react-hook-form` + `zod`; fields: provider template name,
-  language, body (Textarea), ordered `param_map` builder; **live preview** with sample data; validation that
-  the body's placeholder count equals `param_map.length`; a prominent note that changing wording requires
-  re-approval from Meta; mandatory-field `*` in red (the one sanctioned red), all controls neutral-colored.
-- **Providers** — rows from `notification_provider`; edit `config` (phone number id, base url, from number),
-  `rate_limit_per_sec`, toggle `is_active`, and a **"Make default"** action — the one-click Meta↔Twilio
-  switch. `secret_ref` is shown as the env var *name*, read-only, never the value. A **Send test message**
-  button calls `sendTestNotification`.
-
-### Step 14 — Help system
-`features/client/components/help/help-content.ts`: new article `id: "customer-connect"` (category Jobs,
-after `deliver-job`) — what the screen does, which jobs appear and why, default-checked behaviour,
-one-message-per-customer, why rows are disabled, what Msgs Sent means, how to read failures and retry, and
-that wording is Super-Admin-owned. State plainly that this version messages customers **when a job is
-finalized and ready for pickup only** — there is no message on delivery yet — so staff don't wait for one.
-FAQs: "Why didn't a customer get a message?", "Why did three jobs produce
-one message?", "Can I resend?", "Why is the screen greyed out?". Cross-link from `finalize-job` and
-`deliver-job`. `features/super-admin/components/help/dev-help-content.ts`: an article covering the outbox
-table, the claim query, retry/backoff, and how to add a provider.
-
-### Step 15 — Verification
-`pnpm lint` and `pnpm build` clean. Manual: not-configured gate; grid loads; select-all page vs
-select-all-matching; selection survives paging and search; a 3-job customer previews as one message; queue
-returns instantly; progress bar advances; forced provider failure shows the error and retries; counters and
-badges update after reload; double-clicking Send does not double-queue (same `request_key`); killing the
-server mid-batch and restarting resumes the remaining messages. Responsive at ~375px, ~768px, ~1440px.
+- **SQL map**: ids for the eligible-jobs paged query + count query, and an ids-only query used by
+  "select all N matching".
+- **GraphQL map**: `sendWhatsappCompletion`. (The three document sends are REST, not GraphQL, so they
+  don't need an entry here.)
+- **Messages constants**: a block for this feature — send-failed error, jobs-load-failed error,
+  not-configured info message, no-eligible-jobs info message, no-mobile info message, send-succeeded
+  success message, partial-send warning message.
+- **Access rights**: one new right gating the Customer Connect menu item. The four inline buttons ride
+  the existing access right for their host screen — being able to create/finalize/deliver/receipt a job
+  already implies being allowed to message about it, so no new right per button.
+- **Help content**: one new help article for Customer Connect (what the screen shows, why some rows are
+  disabled, what "Msgs Sent" means, that this only covers the completion message), plus a short
+  cross-link line added to the existing help text for each of the other three screens noting the new
+  button.
 
 ---
 
-## 9. Rollout order
+## 7. Steps of execution
 
-1. DDL + seeds (Step 1) — safe, additive, deployable alone.
-2. Provider + renderer + worker with `notification_worker_enabled = false` (Steps 2–4).
-3. Server APIs (Step 5).
-4. Meta: register the WhatsApp Business number and submit `job_completion_v1` for approval. **Do this early
-   — approval is measured in days, and approved wording cannot be edited without re-approval.** Also
-   complete TRAI/DLT registration if SMS is ever enabled.
-5. Client screen (Steps 6–12) against a sandbox number.
-6. Super Admin screens (Step 13) + help (Step 14).
-7. Enable the worker for one pilot BU, watch `notification_message` for a few days, then roll out.
+**Step 1 — Database ✅ done**
+- 1.1. ✅ Add the `ALTER TABLE job ADD COLUMN whatsapp_notifications jsonb NOT NULL DEFAULT '{}'::jsonb;`
+  statement to the tenant DDL. Re-extract the schema dump. Hand-apply to live schemas.
+
+**Step 2 — Server core (no API surface yet, safe to build and merge independently)**
+- 2.1. `whatsapp_settings.py` (§4a) and wire into the settings chain.
+- 2.2. `whatsapp_templates.py` (§4b) with the four `TemplateSpec` entries.
+- 2.3. `whatsapp_client.py` (§4c): `upload_media`, `send_template`, `WhatsappSendResult`.
+- 2.4. In parallel with 2.1–2.3: register the WhatsApp Business number with the BSP and submit all four
+  templates for approval — this has the longest lead time of anything in this plan.
+
+**Step 3 — Server API**
+- 3.1. `sendWhatsappCompletion` resolver (§4d): load + group + fan-out send + `jsonb_set` + return
+  results. Update the GraphQL schema.
+- 3.2. `whatsapp_router.py` REST endpoint (§4e), mounted at startup.
+
+**Step 4 — Client infra**
+- 4.1. Add the SQL-map ids, the GraphQL-map entry, the messages constants, and the access right (§6).
+
+**Step 5 — The three inline PDF buttons (each independently shippable and testable)**
+- 5.1. Job creation button (§5a) — single-job (`single-job-section.tsx`) and batch
+  (`batch-job-section.tsx`, `batch-job-view-modal.tsx`, `batch-job-quick-info-card.tsx`).
+- 5.2. Job delivery button (§5c).
+- 5.3. Job Receipt button (§5d).
+
+**Step 6 — Job completion**
+- 6.1. Single-job "Whatsapp" button on the finalize form (§5b), calling the same mutation built in
+  step 3.1.
+
+**Step 7 — Customer Connect screen**
+- 7.1. Grid + selection + send-results dialog (§5e).
+- 7.2. Menu entry and page routing.
+
+**Step 8 — Help and verification**
+- 8.1. Help article + cross-link lines (§6).
+- 8.2. Lint and build clean. Manual verification, per trigger:
+  - A job with a valid mobile number sends successfully; the row's badge/jsonb `success_count`
+    updates.
+  - A job with an invalid/missing mobile disables the button with a tooltip, no request is made.
+  - A forced BSP failure (e.g. a deliberately wrong template name) surfaces the BSP's error in the
+    toast and in the grid's per-row warning, and increments `fail_count` rather than `success_count`.
+  - Re-sending on the same job increments `success_count` or `fail_count` rather than erroring or
+    overwriting history.
+  - In Customer Connect, a 3-job selection where two jobs belong to the same customer sends exactly
+    two messages, not three.
+  - A batch job creation send (2+ jobs, one customer) produces exactly one WhatsApp message with one
+    combined PDF, and every job in the batch has its `whatsapp_notifications` updated, not just the
+    first.
+  - Selection survives paging and search changes; "select all N matching" extends past the current
+    page.
+  - Responsive check at common mobile/tablet/desktop widths for the Customer Connect grid.
 
 ---
 
-## 10. Conventions this plan commits to
+## 8. Explicitly out of scope, and why
 
-- shadcn components throughout; framer-motion for row/modal transitions; Sonner for every toast.
-- **Red only for errors** — send failures and mandatory-field `*`. Emerald = send/success, sky = already
-  sent, amber = warning/ineligible.
-- `genericQuery` for all reads; real resolvers only for queue/retry/subscription/Super-Admin writes, which
-  cannot be expressed as CRUD. Mutation params always `($db_name: String!, $schema: String, $value: String!)`.
-- Every multi-word user-facing string in `constants/messages.ts`; control labels hard-coded inline.
-- Components/hooks as arrow functions; helpers and API functions as normal functions; alphabetical sorting of
-  functions, object properties, and type members; `type` over `interface`; `…Type` suffix on type names;
-  explicit named imports (no `index.ts` re-exports); `useAppSelector`/`useAppDispatch`;
-  `apolloClient.query(...)` directly; `react-hook-form` + `zod` for the Super Admin forms.
-- No new Redux slice — the screen owns local state; context comes from existing `context-slice` /
-  `auth-slice` selectors.
-
----
-
-## 11. Deliberately out of scope
-
-- **Job-delivery messages** ("thank you for collecting your item") — cut from this version. The design
-  already reserves every seam it needs, so adding it later is additive work, not rework:
-  1. `INSERT` a `JOB_DELIVERY` row into `public.notification_template` (no DDL — the Super Admin editor
-     then renders a second card automatically).
-  2. Two new SQL ids, `GET_NOTIFY_DELIVERY_JOBS_PAGED` / `_COUNT`, filtering `is_closed = true`.
-  3. One hand-applied `ALTER TABLE job ADD COLUMN delivery_msg_sent_count smallint NOT NULL DEFAULT 0,
-     ADD COLUMN delivery_msg_last_sent_at timestamptz;` per live schema.
-  4. A tab switcher on the section, passing `event_type` through to the queue mutation.
-
-  The `event_type` column, its CHECK, the worker, the provider layer, the outbox, and the whole send/retry
-  path are already event-agnostic and need no change.
-- **Delivery/read receipts** — `notification_webhook_event` (§3h) and the `DELIVERED`/`READ` statuses exist
-  so the webhook endpoint can be added without touching the schema, but the endpoint itself is phase 2.
-- **Inbound WhatsApp** (customer replies, chatbot) — outbound only.
-- **Scheduled/automatic sending** — this screen is staff-triggered by design. The worker and outbox are
-  already shaped so a scheduled trigger can enqueue batches later with no rework.
-- **Per-customer opt-out** (`customer_contact.whatsapp_opt_in`) — one extra clause in the eligibility helper
-  and one more disabled-reason when it lands.
-- **Per-tenant provider credentials** — `notification_provider` is platform-level; a `bu_id` column and a
-  resolution fallback would make it per-tenant when a client wants their own branded number.
-- **SMS/email channels** — the `channel` column, provider protocol, and channel-neutral job counters are all
-  in place; shipping SMS is a provider implementation plus a template row.
+| Not built | Why |
+|---|---|
+| SMS / email channels | Only WhatsApp is wanted this time; adding a `channel` column now for a future that may not come would be speculative generality |
+| A second BSP / provider registry | Only one BSP is in use; a registry abstraction is premature until there's a second implementation to abstract over |
+| Outbox table + background worker + retry/backoff | No new tables allowed, and nothing in this design needs multi-minute background processing — everything resolves inside one request |
+| Live progress subscription / progress bar | Nothing runs long enough in the background to need a progress stream; the mutation's own response is the result |
+| Delivery/read-receipt webhooks | Outbound-only messaging; no requirement to track whether a customer opened the message |
+| Super-Admin template/provider editor UI | Templates and BSP account settings are config files deployed with the server, not database rows edited at runtime |
+| Per-message audit trail / history drawer | There's no outbox table to log individual attempts against; only the latest state per event type per job is kept, in the `jsonb` column |
+| Job-delivery message as a "later" phase | It's in scope from day one here (trigger #3), unlike designs that defer it |
+| Per-customer opt-out, scheduled/automatic sending, per-tenant BSP credentials | None of these were requested; each is a small, additive change on top of this design if they come up later — an opt-out flag is one more eligibility check, per-tenant credentials is one more settings key, scheduled sending is one more caller of the same send functions |
